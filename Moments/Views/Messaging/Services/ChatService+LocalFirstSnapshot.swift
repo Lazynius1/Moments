@@ -1,0 +1,117 @@
+import Foundation
+import FirebaseFirestore
+import FirebaseAuth
+
+extension ChatService {
+    /// Local-first: reutiliza mensajes de SwiftData y solo hidrata docs nuevos o con cambio material.
+    func buildMessagesFromSnapshotUsingLocalCache(
+        documents: [QueryDocumentSnapshot],
+        conversationId: String,
+        cutoffDate: Date?
+    ) async -> [EnhancedMessage] {
+        let cached = await MainActor.run {
+            LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
+        }
+        let cachedById = Dictionary(uniqueKeysWithValues: cached.map { ($0.id, $0) })
+        let hasLocalCache = !cached.isEmpty
+
+        var messages: [EnhancedMessage] = []
+
+        for doc in documents {
+            let data = doc.data()
+
+            if let deletedFor = data["deletedFor"] as? [String],
+               let currentUserId = Auth.auth().currentUser?.uid,
+               deletedFor.contains(currentUserId) {
+                continue
+            }
+
+            if let cutoff = cutoffDate,
+               let msgTimestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
+               msgTimestamp <= cutoff {
+                continue
+            }
+
+            let messageId = data["id"] as? String ?? doc.documentID
+
+            if hasLocalCache,
+               let existing = cachedById[messageId],
+               !Self.snapshotNeedsFullHydrate(data: data, cached: existing) {
+                var message = existing
+                Self.applySnapshotMetadata(to: &message, from: data)
+                messages.append(message)
+            } else {
+                let message = await buildEnhancedMessage(
+                    from: data,
+                    docId: doc.documentID,
+                    conversationId: conversationId
+                )
+                messages.append(message)
+            }
+        }
+
+        return messages
+    }
+
+    private static func snapshotNeedsFullHydrate(data: [String: Any], cached: EnhancedMessage) -> Bool {
+        let typeString = data["type"] as? String ?? MessageType.text.rawValue
+        if typeString != cached.type.rawValue { return true }
+
+        let remoteEditedAt = (data["editedAt"] as? Timestamp)?.dateValue()
+        if remoteEditedAt != cached.editedAt { return true }
+
+        let remoteDeleted = data["isDeleted"] as? Bool ?? false
+        if remoteDeleted != cached.isDeleted { return true }
+
+        let remoteMediaPath = data["mediaObjectPath"] as? String
+        if remoteMediaPath != cached.mediaObjectPath { return true }
+
+        let remoteThumbPath = data["thumbnailObjectPath"] as? String
+        if remoteThumbPath != cached.thumbnailObjectPath { return true }
+
+        if let remoteEncryption = data["mediaEncryption"] as? [String: Any],
+           let cachedEncryption = cached.mediaEncryption {
+            let remoteMediaId = remoteEncryption["mediaId"] as? String
+            if remoteMediaId != cachedEncryption.mediaId { return true }
+        } else if (data["mediaEncryption"] != nil) != (cached.mediaEncryption != nil) {
+            return true
+        }
+
+        if data["content"] != nil, remoteEditedAt != nil { return true }
+
+        return false
+    }
+
+    private static func applySnapshotMetadata(to message: inout EnhancedMessage, from data: [String: Any]) {
+        if let isRead = data["isRead"] as? Bool {
+            message.isRead = isRead
+        }
+        if let statusRaw = data["status"] as? String,
+           let status = MessageStatus(rawValue: statusRaw) {
+            message.status = status
+        }
+        if let isDeleted = data["isDeleted"] as? Bool {
+            message.isDeleted = isDeleted
+        }
+        if let deletedAt = (data["deletedAt"] as? Timestamp)?.dateValue() {
+            message.deletedAt = deletedAt
+        }
+        if let isViewed = data["isViewed"] as? Bool {
+            message.isViewed = isViewed
+        }
+        if let viewedBy = data["viewedBy"] as? [String] {
+            message.viewedBy = viewedBy
+        }
+        if let starredBy = data["starredBy"] as? [String] {
+            message.starredBy = starredBy
+        }
+        if let isForwarded = data["isForwarded"] as? Bool {
+            message.isForwarded = isForwarded
+        }
+
+        if message.isDeleted {
+            message.mediaUrl = nil
+            message.thumbnailUrl = nil
+        }
+    }
+}

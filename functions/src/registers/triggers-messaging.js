@@ -413,6 +413,16 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
     });
     if (handled) return null;
 
+    // Mantener los contadores de no leídos sin permitir que el cliente escriba
+    // el estado de lectura de otros participantes en Firestore Rules.
+    const readStatusUpdate = {
+      [`readStatus.${message.senderId}`]: true
+    };
+    receivers.forEach((receiverId) => {
+      readStatusUpdate[`readStatus.${receiverId}`] = false;
+    });
+    await conversationDoc.ref.update(readStatusUpdate);
+
     // ✅ Batch fetch de receptores para reducir lecturas
     const receiverRefs = receivers.map((receiverId) => admin.firestore().doc(`users/${receiverId}`));
     const receiverDocs = await admin.firestore().getAll(...receiverRefs);

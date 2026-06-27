@@ -1218,11 +1218,30 @@ service cloud.firestore {
     }
 
     // ✅ ACTUALIZADA: Función para validar mensajes con support para view-once
+    function isValidChatStoragePath(path, message) {
+      return path is string
+        && path.matches('^users/' + request.auth.uid + '/chat/' + message.conversationId + '/' + message.id + '/.+');
+    }
+
     function isValidMessage(message) {
       return message.keys().hasAll(['id', 'conversationId', 'senderId', 'type', 'status', 'isRead', 'isDeleted', 'isViewed']) &&
+             message.keys().hasOnly([
+               'id', 'conversationId', 'senderId', 'type', 'status', 'isRead', 'isDeleted', 'isViewed',
+               'isViewOnce', 'viewedBy', 'statusUpdatedAt',
+               'content', 'mediaUrl', 'thumbnailUrl', 'mediaObjectPath', 'thumbnailObjectPath',
+               'mediaEncryption', 'thumbnailEncryption', 'duration', 'fileName', 'fileSize',
+               'mediaWidth', 'mediaHeight', 'latitude', 'longitude', 'locationName', 'locationAddress',
+               'isLiveLocation', 'liveLocationExpiresAt', 'liveLocationDuration', 'liveLocationStoppedAt',
+               'liveLocationSessionId', 'locationUpdatedAt', 'replyTo', 'expirationDate',
+               'storyReplyData', 'sharedMomentData', 'sharedStoryData', 'mediaBatchId',
+               'isForwarded', 'starredBy', 'timestamp'
+             ]) &&
              message.id is string &&
+             message.id.matches('^[A-Za-z0-9_-]+$') &&
              message.conversationId is string &&
+             message.conversationId.matches('^[A-Za-z0-9_-]+$') &&
              message.senderId is string &&
+             message.senderId == request.auth.uid &&
              message.type in ['text', 'image', 'video', 'audio', 'location', 'file', 'gif', 'sticker', 'ephemeral', 'sharedMoment', 'sharedStory', 'viewOnceImage', 'viewOnceVideo'] &&
              message.status in ['sending', 'sent', 'delivered', 'read'] &&
              message.isRead is bool &&
@@ -1242,6 +1261,8 @@ service cloud.firestore {
              (!('liveLocationStoppedAt' in message) || message.liveLocationStoppedAt is timestamp) &&
              (!('liveLocationSessionId' in message) || message.liveLocationSessionId is string) &&
              (!('locationUpdatedAt' in message) || message.locationUpdatedAt is timestamp) &&
+             (!('mediaObjectPath' in message) || isValidChatStoragePath(message.mediaObjectPath, message)) &&
+             (!('thumbnailObjectPath' in message) || isValidChatStoragePath(message.thumbnailObjectPath, message)) &&
              (!('isForwarded' in message) || message.isForwarded is bool) &&
              (!('starredBy' in message) || message.starredBy is list);
     }
@@ -1288,6 +1309,51 @@ service cloud.firestore {
             resource.data.get('deletedFor', []).hasAll(request.resource.data.deletedFor)
           )
         );
+    }
+
+    function onlyConversationDeletedForMeUpdated() {
+      return request.resource.data.deletedFor is list
+        && (
+          (
+            !(request.auth.uid in resource.data.get('deletedFor', [])) &&
+            request.auth.uid in request.resource.data.deletedFor &&
+            request.resource.data.deletedFor.size() == resource.data.get('deletedFor', []).size() + 1 &&
+            request.resource.data.deletedFor.hasAll(resource.data.get('deletedFor', []))
+          ) ||
+          (
+            request.auth.uid in resource.data.get('deletedFor', []) &&
+            !(request.auth.uid in request.resource.data.deletedFor) &&
+            request.resource.data.deletedFor.size() + 1 == resource.data.get('deletedFor', []).size() &&
+            resource.data.get('deletedFor', []).hasAll(request.resource.data.deletedFor)
+          )
+        );
+    }
+
+    function onlyConversationLastDeletedAtUpdated() {
+      return request.resource.data.lastDeletedAt is map
+        && (
+          (!('lastDeletedAt' in resource.data) && request.resource.data.lastDeletedAt.keys().hasOnly([request.auth.uid])) ||
+          (('lastDeletedAt' in resource.data) && request.resource.data.lastDeletedAt.diff(resource.data.lastDeletedAt).affectedKeys().hasOnly([request.auth.uid]))
+        )
+        && request.resource.data.lastDeletedAt[request.auth.uid] is timestamp;
+    }
+
+    function onlyConversationLastReadAtUpdated() {
+      return request.resource.data.lastReadAt is map
+        && (
+          (!('lastReadAt' in resource.data) && request.resource.data.lastReadAt.keys().hasOnly([request.auth.uid])) ||
+          (('lastReadAt' in resource.data) && request.resource.data.lastReadAt.diff(resource.data.lastReadAt).affectedKeys().hasOnly([request.auth.uid]))
+        )
+        && request.resource.data.lastReadAt[request.auth.uid] is timestamp;
+    }
+
+    function onlyConversationReadStatusForMeUpdated() {
+      return request.resource.data.readStatus is map
+        && (
+          (!('readStatus' in resource.data) && request.resource.data.readStatus.keys().hasOnly([request.auth.uid])) ||
+          (('readStatus' in resource.data) && request.resource.data.readStatus.diff(resource.data.readStatus).affectedKeys().hasOnly([request.auth.uid]))
+        )
+        && request.resource.data.readStatus[request.auth.uid] is bool;
     }
 
     function onlyDeleteForEveryoneUpdated() {
@@ -1412,7 +1478,24 @@ service cloud.firestore {
       allow update: if request.auth != null &&
         request.auth.uid in resource.data.participants &&
         canParticipateInConversations(request.auth.uid) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'lastMessage', 'lastMessageTime', 'lastMessageSenderId', 'lastMessageType',
+          'updatedAt', 'unreadCount', 'deletedFor', 'lastDeletedAt',
+          'timestamp', 'readStatus', 'lastReadAt',
+          'encryptionKey', 'encryptionKeyCreatedAt', 'encryptionVersion',
+          'wrappedKeys', 'forwardingPreferences', 'buzzPreferences'
+        ]) &&
         (
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deletedFor']) || onlyConversationDeletedForMeUpdated())
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastDeletedAt']) || onlyConversationLastDeletedAtUpdated())
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['timestamp']) || request.resource.data.timestamp is timestamp)
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['readStatus']) || onlyConversationReadStatusForMeUpdated())
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastReadAt']) || onlyConversationLastReadAtUpdated())
+          &&
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['encryptionKey','encryptionKeyCreatedAt','encryptionVersion']) ||
            (request.resource.data.encryptionKey is string &&
             request.resource.data.encryptionKeyCreatedAt is timestamp &&

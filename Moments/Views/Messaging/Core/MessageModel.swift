@@ -1197,9 +1197,8 @@ extension EnhancedMessage {
     }
 
     /// `true` si la URL guardada es un `file://` cuyo archivo ya NO existe en disco.
-    /// El media descifrado se cachea en el directorio `Caches`, que iOS purga bajo presión
-    /// de almacenamiento: cuando eso pasa, el mensaje sigue guardando la ruta `file://`
-    /// antigua y hay que re-resolver (descargar + descifrar) en lugar de quedarse colgado.
+    /// El media descifrado se cachea en App Group (`ChatMedia/decrypted`), pero puede
+    /// eliminarse por política de retención o cuota: hay que re-resolver al abrir.
     private static func isMissingLocalFile(_ urlString: String?) -> Bool {
         guard let urlString,
               let url = URL(string: urlString),
@@ -1228,27 +1227,131 @@ extension EnhancedMessage {
 
     /// Media cifrada pendiente de resolver a URL local/remota.
     var isMediaPendingResolution: Bool {
+        guard !isDeleted else { return false }
         guard status != .sending else { return false }
         let canResolve = mediaObjectPath != nil && mediaEncryption != nil
+
+        func diskMediaReachable() -> Bool {
+            guard mediaUrl == nil || Self.isMissingLocalFile(mediaUrl) else { return true }
+            let diskURLs = ChatCacheStore.localURLsIfPresent(for: self)
+            if let media = diskURLs.mediaUrl ?? mediaUrl,
+               let url = URL(string: media),
+               localMediaFileIsReachable(url) {
+                return true
+            }
+            return false
+        }
+
+        func diskThumbReachable() -> Bool {
+            guard thumbnailUrl == nil || Self.isMissingLocalFile(thumbnailUrl) else { return true }
+            let diskURLs = ChatCacheStore.localURLsIfPresent(for: self)
+            if let thumb = diskURLs.thumbnailUrl ?? thumbnailUrl,
+               let url = URL(string: thumb),
+               localMediaFileIsReachable(url) {
+                return true
+            }
+            return false
+        }
+
         switch type {
         case .image, .ephemeral:
+            if diskMediaReachable() { return false }
             if mediaUrl == nil { return canResolve }
-            // Cache purgada: la ruta existe pero el archivo no → re-resolver.
             return Self.isMissingLocalFile(mediaUrl) && canResolve
         case .video:
-            let thumbUsable = thumbnailUrl != nil && !Self.isMissingLocalFile(thumbnailUrl)
-            let mediaUsable = mediaUrl != nil && !Self.isMissingLocalFile(mediaUrl)
-            guard !thumbUsable && !mediaUsable else { return false }
+            guard !diskThumbReachable() && !diskMediaReachable() else { return false }
             let canResolveThumb = thumbnailObjectPath != nil && thumbnailEncryption != nil
             return canResolve || canResolveThumb
         case .gif, .sticker:
             if mediaUrl == nil { return canResolve }
-            // Sin cifrado no podemos re-descargar un `file://` purgado; Firestore repone la https.
             if Self.isMissingLocalFile(mediaUrl) { return canResolve }
             return false
         default:
             return false
         }
+    }
+
+    /// Vídeo descifrado listo para reproducir (fichero `.mp4` local).
+    var hasLocalVideoFileReady: Bool {
+        guard type == .video else { return false }
+        guard let mediaUrl, let url = URL(string: mediaUrl) else { return false }
+        return localMediaFileIsReachable(url)
+    }
+
+    /// Imagen o vídeo listo para abrir en visor a pantalla completa.
+    var hasLocalMediaReadyForViewer: Bool {
+        switch type {
+        case .image, .ephemeral:
+            guard let mediaUrl, let url = URL(string: mediaUrl) else { return false }
+            return localMediaFileIsReachable(url)
+        case .video:
+            return hasLocalVideoFileReady
+        default:
+            return false
+        }
+    }
+
+    /// Requiere descarga/descifrado antes de abrir el visor (incluye tap manual con policy `never`).
+    var needsDownloadForPlayback: Bool {
+        guard !isDeleted, status != .sending else { return false }
+        switch type {
+        case .image, .ephemeral, .video:
+            if hasLocalMediaReadyForViewer { return false }
+            if mediaUrl == nil || Self.isMissingLocalFile(mediaUrl) {
+                let diskURLs = ChatCacheStore.localURLsIfPresent(for: self)
+                if let mediaUrl = diskURLs.mediaUrl,
+                   let url = URL(string: mediaUrl),
+                   localMediaFileIsReachable(url) {
+                    return false
+                }
+            }
+            return mediaObjectPath != nil && mediaEncryption != nil
+        case .gif, .sticker:
+            if let mediaUrl, let url = URL(string: mediaUrl), !url.isFileURL { return false }
+            return isMediaPendingResolution
+        default:
+            return false
+        }
+    }
+
+    /// Media descargable manualmente (auto-descarga desactivada por policy o sin red).
+    var isMediaAwaitingManualDownload: Bool {
+        guard !ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return false }
+        if type == .video {
+            return needsDownloadForPlayback
+        }
+        return isMediaPendingResolution
+    }
+
+    /// Tamaño estimado del fichero completo (metadata Firestore / cifrado).
+    var estimatedDownloadByteCount: Int64? {
+        if let fileSize, fileSize > 0 { return fileSize }
+        if let mainSize = mediaEncryption?.plaintextSize, mainSize > 0 {
+            if type == .video, let thumbSize = thumbnailEncryption?.plaintextSize, thumbSize > 0 {
+                return mainSize + thumbSize
+            }
+            return mainSize
+        }
+        return nil
+    }
+
+    /// Etiqueta de tamaño estilo WhatsApp ("245 KB", "1,2 MB") — tamaño del fichero completo.
+    var formattedDownloadSize: String? {
+        guard let bytes = estimatedDownloadByteCount else { return nil }
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
+    }
+
+    /// Miniatura local usable como preview borroso (thumb cifrada ya descargada).
+    var previewThumbnailURLForDisplay: String? {
+        guard let urlString = thumbnailUrl,
+              let url = URL(string: urlString),
+              localMediaFileIsReachable(url) else {
+            return nil
+        }
+        return urlString
     }
 }
 

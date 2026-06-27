@@ -265,6 +265,44 @@ class ChatService: ObservableObject {
         }
     }
 
+    /// Mensajes posteriores a un cursor (catch-up local-first).
+    func fetchMessagesAfter(
+        conversationId: String,
+        after timestamp: Date,
+        cutoffDate: Date? = nil,
+        limit: Int = 50,
+        completion: @escaping (Result<[EnhancedMessage], Error>) -> Void
+    ) {
+        Task { [weak self] in
+            guard let self else { return }
+            await preloadConversationKey(for: conversationId)
+            do {
+                let snapshot = try await db.collection("conversations")
+                    .document(conversationId)
+                    .collection("messages")
+                    .whereField("timestamp", isGreaterThan: Timestamp(date: timestamp))
+                    .order(by: "timestamp", descending: false)
+                    .limit(to: limit)
+                    .getDocuments()
+                await handleMessagesSnapshot(
+                    snapshot: snapshot,
+                    error: nil,
+                    conversationId: conversationId,
+                    cutoffDate: cutoffDate,
+                    completion: completion
+                )
+            } catch {
+                await handleMessagesSnapshot(
+                    snapshot: nil,
+                    error: error,
+                    conversationId: conversationId,
+                    cutoffDate: cutoffDate,
+                    completion: completion
+                )
+            }
+        }
+    }
+
     // ✅ Nueva función helper para manejar el snapshot de manera async
     private func handleMessagesSnapshot(
         snapshot: QuerySnapshot?,
@@ -296,30 +334,38 @@ class ChatService: ObservableObject {
             }
         }
         
-        var messages: [EnhancedMessage] = []
-        
-        for doc in documents {
-            let data = doc.data()
-            
-            if let deletedFor = data["deletedFor"] as? [String],
-               let currentUserId = Auth.auth().currentUser?.uid,
-               deletedFor.contains(currentUserId) {
-                continue
-            }
+        var messages: [EnhancedMessage]
 
-            // Filtrar mensajes anteriores al punto de corte del usuario
-            if let cutoff = cutoffDateToUse,
-               let msgTimestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
-               msgTimestamp <= cutoff {
-                continue
-            }
-
-            let message = await buildEnhancedMessage(
-                from: data,
-                docId: doc.documentID,
-                conversationId: conversationId
+        if LocalFirstMessagingSettings.isEnabled {
+            messages = await buildMessagesFromSnapshotUsingLocalCache(
+                documents: documents,
+                conversationId: conversationId,
+                cutoffDate: cutoffDateToUse
             )
-            messages.append(message)
+        } else {
+            messages = []
+            for doc in documents {
+                let data = doc.data()
+
+                if let deletedFor = data["deletedFor"] as? [String],
+                   let currentUserId = Auth.auth().currentUser?.uid,
+                   deletedFor.contains(currentUserId) {
+                    continue
+                }
+
+                if let cutoff = cutoffDateToUse,
+                   let msgTimestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
+                   msgTimestamp <= cutoff {
+                    continue
+                }
+
+                let message = await buildEnhancedMessage(
+                    from: data,
+                    docId: doc.documentID,
+                    conversationId: conversationId
+                )
+                messages.append(message)
+            }
         }
 
         let fetchedReactions = await fetchReactionMap(
@@ -2042,25 +2088,20 @@ class ChatService: ObservableObject {
                 return
             }
             
-            var readStatus: [String: Bool] = [:]
-            participants.forEach { participant in
-                readStatus[participant] = (participant == senderId)
-            }
-            
             // ✅ Verificar si la conversación está eliminada y restaurarla para quien corresponda.
             // Si el remitente envía un mensaje, la conversación debe reaparecer también para él.
             let deletedFor = doc.data()?["deletedFor"] as? [String] ?? []
-            let participantsToRestore = deletedFor
+            let shouldRestoreSender = deletedFor.contains(senderId)
             
             var updateData: [String: Any] = [
                 "lastMessage": lastMessage,
                 "timestamp": FieldValue.serverTimestamp(),
-                "readStatus": readStatus
+                "readStatus.\(senderId)": true
             ]
             
-            // ✅ Restaurar conversación para participantes que la habían eliminado (estilo nativo)
-            if !participantsToRestore.isEmpty {
-                updateData["deletedFor"] = FieldValue.arrayRemove(participantsToRestore)
+            // ✅ Restaurar sólo al remitente para respetar las reglas de deletedFor por usuario.
+            if shouldRestoreSender {
+                updateData["deletedFor"] = FieldValue.arrayRemove([senderId])
             }
             
             Firestore.firestore().collection("conversations").document(conversationId).updateData(updateData) { error in

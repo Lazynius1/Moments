@@ -26,6 +26,8 @@ struct GlassmorphicMessageRow: View {
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let onLongPress: ((CGRect, CGFloat) -> Void)?
     let progress: Double?
+    var downloadProgress: Double? = nil
+    var isDownloadingMedia: Bool = false
     var showSeenLabel: Bool = false
 
     @Environment(\.colorScheme) var colorScheme
@@ -41,13 +43,18 @@ struct GlassmorphicMessageRow: View {
         resolvedReactions.map { !$0.isEmpty } ?? false
     }
 
+    private var hasStar: Bool {
+        guard let userId = Auth.auth().currentUser?.uid else { return false }
+        return message.isStarred(by: userId)
+    }
+
     private var reactionTimestampSpacing: CGFloat {
         hasReactions ? 6 : 4
     }
 
     private var bottomRowPadding: CGFloat {
         let base = isGroupTail ? 5.0 : 1.0
-        guard hasReactions else { return base }
+        guard hasReactions || hasStar else { return base }
         return base + (isGroupTail ? 8 : 4)
     }
 
@@ -151,13 +158,15 @@ struct GlassmorphicMessageRow: View {
             isCurrentUser: isCurrentUser,
             groupPosition: groupPosition,
             progress: progress,
+            downloadProgress: downloadProgress,
             onReplyTap: onReplyTap,
             onMessageViewed: onMessageViewed,
             onMomentNavigation: onMomentNavigation,
             onStoryNavigation: onStoryNavigation,
             onOpenMedia: onOpenMedia,
             onStopLiveLocation: onStopLiveLocation,
-            onHydrateMedia: onHydrateMedia
+            onHydrateMedia: onHydrateMedia,
+            isDownloadingMedia: isDownloadingMedia
         )
 
         ChatMessageBubbleChrome(
@@ -259,6 +268,7 @@ struct GlassmorphicMessageBubble: View {
     let isCurrentUser: Bool
     var groupPosition: ChatMessageGroupPosition = .single
     let progress: Double?
+    var downloadProgress: Double? = nil
     let onReplyTap: ((String) -> Void)?
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
@@ -266,10 +276,32 @@ struct GlassmorphicMessageBubble: View {
     let onOpenMedia: (EnhancedMessage) -> Void
     let onStopLiveLocation: ((String) -> Void)?
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
+    var isDownloadingMedia: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var isStarredByCurrentUser: Bool {
+        guard let userId = Auth.auth().currentUser?.uid else { return false }
+        return message.isStarred(by: userId)
+    }
+
+    @ViewBuilder
+    private func attachBubbleBadges<Content: View>(
+        to content: Content,
+        compact: Bool = false,
+        anchoredInsideBounds: Bool = false
+    ) -> some View {
+        content.messageReactionOverlay(
+            isOutgoing: isCurrentUser,
+            reactions: reactions,
+            isStarred: isStarredByCurrentUser,
+            compact: compact,
+            anchoredInsideBounds: anchoredInsideBounds,
+            onTap: onReaction
+        )
     }
 
     @ViewBuilder
@@ -279,6 +311,7 @@ struct GlassmorphicMessageBubble: View {
             isOutgoing: isCurrentUser,
             groupPosition: groupPosition,
             reactions: reactions,
+            isStarred: isStarredByCurrentUser,
             onReaction: onReaction
         )
     }
@@ -289,14 +322,16 @@ struct GlassmorphicMessageBubble: View {
                 DeletedMessageBubble(message: message, isCurrentUser: isCurrentUser)
             } else {
                 if message.type == .viewOnceImage || message.type == .viewOnceVideo {
-                    ViewOnceMessageBubble(
-                        message: message,
-                        isCurrentUser: isCurrentUser,
-                        otherParticipantName: otherParticipantName,
-                        progress: progress,
-                        onViewed: {
-                            markViewOnceAsViewed()
-                        }
+                    attachBubbleBadges(
+                        to: ViewOnceMessageBubble(
+                            message: message,
+                            isCurrentUser: isCurrentUser,
+                            otherParticipantName: otherParticipantName,
+                            progress: progress,
+                            onViewed: {
+                                markViewOnceAsViewed()
+                            }
+                        )
                     )
                     .onAppear {
                     }
@@ -304,12 +339,14 @@ struct GlassmorphicMessageBubble: View {
                     switch message.type {
                     case .text:
                         if message.storyReplyData != nil {
-                            StoryReplyMessageBubble(
-                                message: message,
-                                isCurrentUser: isCurrentUser,
-                                otherParticipantId: otherParticipantId,
-                                onHydrateMedia: onHydrateMedia,
-                                onOpenMedia: onOpenMedia
+                            attachBubbleBadges(
+                                to: StoryReplyMessageBubble(
+                                    message: message,
+                                    isCurrentUser: isCurrentUser,
+                                    otherParticipantId: otherParticipantId,
+                                    onHydrateMedia: onHydrateMedia,
+                                    onOpenMedia: onOpenMedia
+                                )
                             )
                         } else if let content = message.content {
                             VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
@@ -325,68 +362,67 @@ struct GlassmorphicMessageBubble: View {
 
                                 textMessageBody(content)
                             }
-                            .overlay(alignment: isCurrentUser ? .topLeading : .topTrailing) {
-                                if let userId = Auth.auth().currentUser?.uid, message.isStarred(by: userId) {
-                                    Image(systemName: "star.fill")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(Color(hex: "FFD60A"))
-                                        .offset(x: isCurrentUser ? -6 : 6, y: -6)
-                                }
-                            }
                         }
 
                     case .image:
-                        GlassmorphicImageMessage(
-                            imageUrl: message.mediaUrl,
-                            isSending: message.status == .sending,
-                            isResolvingMedia: message.isMediaPendingResolution,
-                            downsamplingSize: CGSize(width: 208, height: 272),
-                            progress: progress,
-                            onTap: {
-                                onOpenMedia(message)
-                            }
-                        )
-                        .frame(width: 208, height: 272)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .messageReactionOverlay(
-                            isOutgoing: isCurrentUser,
-                            reactions: reactions,
-                            onTap: onReaction
+                        attachBubbleBadges(
+                            to: GlassmorphicImageMessage(
+                                imageUrl: message.mediaUrl,
+                                previewThumbnailUrl: message.previewThumbnailURLForDisplay,
+                                isSending: message.status == .sending,
+                                isResolvingMedia: message.isMediaPendingResolution
+                                    && !message.isMediaAwaitingManualDownload
+                                    && !isDownloadingMedia,
+                                isAwaitingManualDownload: message.isMediaAwaitingManualDownload && !isDownloadingMedia,
+                                isDownloadingMedia: isDownloadingMedia,
+                                downloadProgress: downloadProgress,
+                                downloadSizeLabel: message.formattedDownloadSize,
+                                downsamplingSize: CGSize(width: 208, height: 272),
+                                progress: progress,
+                                onTap: {
+                                    onOpenMedia(message)
+                                }
+                            )
+                            .frame(width: 208, height: 272)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         )
                         .onAppear {
                             onHydrateMedia?(message)
                         }
 
                     case .audio:
-                        GlassmorphicAudioMessage(
-                            audioUrl: message.mediaUrl,
-                            duration: message.duration ?? 0,
-                            isCurrentUser: isCurrentUser,
-                            isSending: message.status == .sending,
-                            progress: progress,
-                            adaptiveColors: adaptiveColors
+                        attachBubbleBadges(
+                            to: GlassmorphicAudioMessage(
+                                audioUrl: message.mediaUrl,
+                                duration: message.duration ?? 0,
+                                isCurrentUser: isCurrentUser,
+                                isSending: message.status == .sending,
+                                progress: progress,
+                                adaptiveColors: adaptiveColors
+                            )
                         )
-                        .onAppear {
-                        }
 
                     case .video:
-                        GlassmorphicVideoMessage(
-                            videoUrl: message.mediaUrl,
-                            thumbnailUrl: message.thumbnailUrl,
-                            isSending: message.status == .sending,
-                            isResolvingMedia: message.isMediaPendingResolution,
-                            downsamplingSize: CGSize(width: 208, height: 272),
-                            progress: progress,
-                            onTap: {
-                                onOpenMedia(message)
-                            }
-                        )
-                        .frame(width: 208, height: 272)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .messageReactionOverlay(
-                            isOutgoing: isCurrentUser,
-                            reactions: reactions,
-                            onTap: onReaction
+                        attachBubbleBadges(
+                            to: GlassmorphicVideoMessage(
+                                videoUrl: message.mediaUrl,
+                                thumbnailUrl: message.thumbnailUrl,
+                                isSending: message.status == .sending,
+                                isResolvingMedia: (message.isMediaPendingResolution || message.needsVideoThumbnailForDisplay)
+                                    && !message.isMediaAwaitingManualDownload
+                                    && !isDownloadingMedia,
+                                isAwaitingManualDownload: message.isMediaAwaitingManualDownload && !isDownloadingMedia,
+                                isDownloadingMedia: isDownloadingMedia,
+                                downloadProgress: downloadProgress,
+                                downloadSizeLabel: message.formattedDownloadSize,
+                                downsamplingSize: CGSize(width: 208, height: 272),
+                                progress: progress,
+                                onTap: {
+                                    onOpenMedia(message)
+                                }
+                            )
+                            .frame(width: 208, height: 272)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         )
                         .onAppear {
                             onHydrateMedia?(message)
@@ -394,93 +430,92 @@ struct GlassmorphicMessageBubble: View {
 
                     case .ephemeral:
                         if message.storyReplyData != nil {
-                            StoryReplyMessageBubble(
-                                message: message,
-                                isCurrentUser: isCurrentUser,
-                                otherParticipantId: otherParticipantId,
-                                onHydrateMedia: onHydrateMedia,
-                                onOpenMedia: onOpenMedia
+                            attachBubbleBadges(
+                                to: StoryReplyMessageBubble(
+                                    message: message,
+                                    isCurrentUser: isCurrentUser,
+                                    otherParticipantId: otherParticipantId,
+                                    onHydrateMedia: onHydrateMedia,
+                                    onOpenMedia: onOpenMedia
+                                )
                             )
                         } else {
-                            ChatEphemeralMessageContent(
-                                message: message,
-                                layout: .standard,
-                                onHydrateMedia: onHydrateMedia,
-                                onOpenMedia: onOpenMedia
-                            )
-                            .messageReactionOverlay(
-                                isOutgoing: isCurrentUser,
-                                reactions: reactions,
-                                onTap: onReaction
+                            attachBubbleBadges(
+                                to: ChatEphemeralMessageContent(
+                                    message: message,
+                                    layout: .standard,
+                                    onHydrateMedia: onHydrateMedia,
+                                    onOpenMedia: onOpenMedia
+                                )
                             )
                         }
                     case .sharedMoment:
-                        SharedMomentMessageBubble(
-                            message: message,
-                            isCurrentUser: isCurrentUser,
-                            onTap: {
-                                onMomentNavigation?(message)
-                            }
+                        attachBubbleBadges(
+                            to: SharedMomentMessageBubble(
+                                message: message,
+                                isCurrentUser: isCurrentUser,
+                                onTap: {
+                                    onMomentNavigation?(message)
+                                }
+                            )
                         )
-                        .onAppear {
-                        }
 
                     case .sharedStory:
-                        SharedStoryMessageBubble(
-                            message: message,
-                            isCurrentUser: isCurrentUser,
-                            onTap: {
-                                onStoryNavigation?(message)
-                            }
+                        attachBubbleBadges(
+                            to: SharedStoryMessageBubble(
+                                message: message,
+                                isCurrentUser: isCurrentUser,
+                                onTap: {
+                                    onStoryNavigation?(message)
+                                }
+                            )
                         )
 
                     case .gif:
-                        ChatGifMessageBubble(
-                            message: message,
-                            progress: progress
-                        )
-                        .messageReactionOverlay(
-                            isOutgoing: isCurrentUser,
-                            reactions: reactions,
-                            onTap: onReaction
+                        attachBubbleBadges(
+                            to: ChatGifMessageBubble(
+                                message: message,
+                                progress: progress
+                            )
                         )
                         .onAppear {
                             onHydrateMedia?(message)
                         }
 
                     case .sticker:
-                        ChatStickerMessageBubble(
-                            message: message,
-                            isSending: message.status == .sending,
-                            progress: progress
+                        attachBubbleBadges(
+                            to: ChatStickerMessageBubble(
+                                message: message,
+                                isSending: message.status == .sending,
+                                progress: progress
+                            )
                         )
                         .onAppear {
                             onHydrateMedia?(message)
                         }
 
                     case .location:
-                        ChatLocationMessageBubble(
-                            message: message,
-                            isCurrentUser: isCurrentUser,
-                            accentColor: adaptiveColors.userAccentColor,
-                            accentColorRed: adaptiveColors.accentColorRed,
-                            onStopLive: {
-                                onStopLiveLocation?(message.id)
-                            }
-                        )
-                        .messageReactionOverlay(
-                            isOutgoing: isCurrentUser,
-                            reactions: reactions,
-                            onTap: onReaction
+                        attachBubbleBadges(
+                            to: ChatLocationMessageBubble(
+                                message: message,
+                                isCurrentUser: isCurrentUser,
+                                accentColor: adaptiveColors.userAccentColor,
+                                accentColorRed: adaptiveColors.accentColorRed,
+                                onStopLive: {
+                                    onStopLiveLocation?(message.id)
+                                }
+                            )
                         )
 
                     default:
-                        Text("chat.message.unsupported")
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6))
-                            .glassmorphicChat()
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                        attachBubbleBadges(
+                            to: Text("chat.message.unsupported")
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6))
+                                .glassmorphicChat()
+                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                        )
                     }
                 }
             }

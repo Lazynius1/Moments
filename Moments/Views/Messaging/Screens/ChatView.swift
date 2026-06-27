@@ -38,7 +38,7 @@ struct GlassmorphicChatView: View {
     @State private var plusButtonAnchorFrame: CGRect = .zero
     @State private var replyingTo: EnhancedMessage?
     @State private var clusterForReply: [EnhancedMessage]? = nil // ✅ New: Selection grid for clusters
-    @State private var clusterForGallery: [EnhancedMessage]? = nil // Galería de selección al abrir un álbum
+    @State private var clusterGallerySelection: ClusterGallerySelection? = nil
     @State private var editingMessage: EnhancedMessage?
     @State private var messageMenuSelection: ChatMessageMenuSelection? = nil
     @State private var showingReactionEmojiPicker = false
@@ -198,17 +198,6 @@ struct GlassmorphicChatView: View {
 
     private var chatViewWithSettingsAndStories: some View {
         baseChatView
-            .fullScreenCover(isPresented: $showingConversationSettings, onDismiss: {
-                viewModel.refreshTypingIndicatorPreference()
-                viewModel.refreshForwardingPreference()
-            }) {
-                ConversationSettingsView(
-                    conversation: viewModel.conversation,
-                    onJumpToMessage: { messageId in
-                        pendingSearchTargetId = messageId
-                    }
-                )
-            }
             .sheet(isPresented: $showingReportSheet) {
                 ReportBottomSheet(
                     userId: viewModel.conversation.otherParticipantId,
@@ -254,8 +243,37 @@ struct GlassmorphicChatView: View {
             .toolbar(.hidden, for: .tabBar)
     }
 
-    private var chatViewWithInteractionSheets: some View {
+    private var clusterForReplyBinding: Binding<ClusterWrapper?> {
+        Binding(
+            get: { clusterForReply.map { ClusterWrapper(messages: $0) } },
+            set: { clusterForReply = $0?.messages }
+        )
+    }
+
+    private var forwardingMessageBinding: Binding<ForwardMessageWrapper?> {
+        Binding(
+            get: { forwardingMessage.map { ForwardMessageWrapper(message: $0) } },
+            set: { forwardingMessage = $0?.message }
+        )
+    }
+
+    private var chatViewWithNavigationDestinations: some View {
         chatViewWithSettingsAndStories
+            .navigationDestination(isPresented: $showingConversationSettings) {
+                ConversationSettingsView(
+                    conversation: viewModel.conversation,
+                    onJumpToMessage: { messageId in
+                        pendingSearchTargetId = messageId
+                    }
+                )
+                .toolbar(.hidden, for: .tabBar)
+            }
+            .onChange(of: showingConversationSettings) { _, isShowing in
+                if !isShowing {
+                    viewModel.refreshTypingIndicatorPreference()
+                    viewModel.refreshForwardingPreference()
+                }
+            }
             .navigationDestination(isPresented: $showingUserProfile) {
                 UserProfileView(userId: viewModel.conversation.otherParticipantId)
                     .userProfileZoomDestination(
@@ -263,10 +281,15 @@ struct GlassmorphicChatView: View {
                         namespace: profileZoomNamespace
                     )
             }
-            .sheet(item: Binding(
-                get: { clusterForReply.map { ClusterWrapper(messages: $0) } },
-                set: { clusterForReply = $0?.messages }
-            )) { wrapper in
+            .navigationDestination(item: $clusterGallerySelection) { selection in
+                clusterGalleryDestination(messageIds: selection.messageIds)
+                    .toolbar(.hidden, for: .tabBar)
+            }
+    }
+
+    private var chatViewWithClusterSheets: some View {
+        chatViewWithNavigationDestinations
+            .sheet(item: clusterForReplyBinding) { wrapper in
                 GlassmorphicMediaSelectionSheet(
                     messages: wrapper.messages,
                     onSelect: { selectedMessage in
@@ -279,12 +302,10 @@ struct GlassmorphicChatView: View {
                 )
                 .presentationDetents([.medium, .large])
             }
-            .fullScreenCover(item: Binding(
-                get: { clusterForGallery.map { ClusterWrapper(messages: $0) } },
-                set: { clusterForGallery = $0?.messages }
-            )) { wrapper in
-                clusterGalleryCover(for: wrapper)
-            }
+    }
+
+    private var chatViewWithInteractionSheets: some View {
+        chatViewWithClusterSheets
             .sheet(isPresented: $showingReactionEmojiPicker, onDismiss: {
                 reactionPickerMessage = nil
             }) {
@@ -316,20 +337,22 @@ struct GlassmorphicChatView: View {
                 )
                 .chatPickerSheetPresentation()
             }
-            .sheet(item: Binding(
-                get: { forwardingMessage.map { ForwardMessageWrapper(message: $0) } },
-                set: { forwardingMessage = $0?.message }
-            )) { wrapper in
-                ChatMessageForwardSheet(
-                    message: wrapper.message,
-                    onDismiss: { forwardingMessage = nil },
-                    onForward: { userIds in
-                        viewModel.forwardTextMessage(wrapper.message, toUserIds: userIds)
-                    }
-                )
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+            .sheet(item: forwardingMessageBinding) { wrapper in
+                forwardMessageSheet(for: wrapper.message)
             }
+    }
+
+    @ViewBuilder
+    private func forwardMessageSheet(for message: EnhancedMessage) -> some View {
+        ChatMessageForwardSheet(
+            message: message,
+            onDismiss: { forwardingMessage = nil },
+            onForward: { userIds in
+                viewModel.forwardTextMessage(message, toUserIds: userIds)
+            }
+        )
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
     }
 
     private var chatViewWithLifecycleObservers: some View {
@@ -374,45 +397,74 @@ struct GlassmorphicChatView: View {
             }
     }
 
+    private func liveClusterGalleryMessages(messageIds: [String]) -> [EnhancedMessage] {
+        messageIds.compactMap { id in
+            viewModel.messages.first(where: { $0.id == id })
+        }.filter { !$0.isDeleted }
+    }
+
     @ViewBuilder
-    private func clusterGalleryCover(for wrapper: ClusterWrapper) -> some View {
+    private func clusterGalleryDetailView(
+        for selectedMessage: EnhancedMessage,
+        dismissDetail: @escaping () -> Void
+    ) -> some View {
+        if let media = sharedMedia(from: selectedMessage) {
+            FullScreenMediaView(
+                media: media,
+                mediaItems: sharedMediaItemsForOverlay(selecting: selectedMessage),
+                currentUserId: viewModel.currentUserId,
+                otherParticipantName: otherParticipantDisplayName,
+                displayReactions: { messageId in
+                    viewModel.displayReactions(for: messageId)
+                },
+                onReaction: { messageId, emoji in
+                    guard let message = viewModel.messages.first(where: { $0.id == messageId }) else { return }
+                    viewModel.addReaction(to: message, emoji: emoji)
+                },
+                onMoreReactions: { messageId in
+                    guard let message = viewModel.messages.first(where: { $0.id == messageId }) else { return }
+                    reactionPickerMessage = message
+                    showingReactionEmojiPicker = true
+                },
+                onClose: dismissDetail,
+                onSendReply: { media, text, completion in
+                    sendReplyToSharedMedia(media, text: text, completion: completion)
+                }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func clusterGalleryDestination(messageIds: [String]) -> some View {
         ClusterGalleryView(
-            messages: wrapper.messages,
+            messages: liveClusterGalleryMessages(messageIds: messageIds),
+            currentUserId: viewModel.currentUserId,
+            presentation: .pushed,
             onClose: {
-                self.clusterForGallery = nil
+                self.clusterGallerySelection = nil
             },
             onHydrateMedia: { message in
                 viewModel.hydrateMediaIfNeeded(for: message)
             },
-            detail: { selectedMessage, dismissDetail in
-                if let media = sharedMedia(from: selectedMessage) {
-                    FullScreenMediaView(
-                        media: media,
-                        mediaItems: sharedMediaItemsForOverlay(selecting: selectedMessage),
-                        currentUserId: viewModel.currentUserId,
-                        otherParticipantName: otherParticipantDisplayName,
-                        displayReactions: { messageId in
-                            viewModel.displayReactions(for: messageId)
-                        },
-                        onReaction: { messageId, emoji in
-                            guard let message = viewModel.messages.first(where: { $0.id == messageId }) else { return }
-                            viewModel.addReaction(to: message, emoji: emoji)
-                        },
-                        onMoreReactions: { messageId in
-                            guard let message = viewModel.messages.first(where: { $0.id == messageId }) else { return }
-                            reactionPickerMessage = message
-                            showingReactionEmojiPicker = true
-                        },
-                        onClose: {
-                            dismissDetail()
-                        },
-                        onSendReply: { media, text, completion in
-                            sendReplyToSharedMedia(media, text: text, completion: completion)
-                        }
-                    )
-                }
-            }
+            onOpenMedia: { message, completion in
+                viewModel.openMediaForViewing(message, completion: completion)
+            },
+            isDownloadingMedia: { viewModel.isDownloadingMedia($0) },
+            downloadProgress: { viewModel.downloadProgress[$0] },
+            onDeleteForMe: { messages in
+                messages.forEach { viewModel.deleteMessageForMe($0) }
+            },
+            onDeleteForEveryone: { messages in
+                messages.forEach { viewModel.deleteMessageForEveryone($0) }
+            },
+            detail: clusterGalleryDetailView
         )
+        .onAppear {
+            let cluster = liveClusterGalleryMessages(messageIds: messageIds)
+            if !cluster.isEmpty {
+                viewModel.prefetchClusterGalleryMedia(cluster)
+            }
+        }
     }
 
     @ViewBuilder
@@ -513,12 +565,7 @@ struct GlassmorphicChatView: View {
         }
 
         ToolbarItem(placement: .topBarTrailing) {
-            chatToolbarSearchButton
-        }
-        .chatHideSharedBackgroundIfAvailable()
-
-        ToolbarItem(placement: .topBarTrailing) {
-            chatToolbarMenu
+            chatToolbarTrailingCluster
         }
         .chatHideSharedBackgroundIfAvailable()
     }
@@ -629,14 +676,18 @@ struct GlassmorphicChatView: View {
         }
     }
 
-    private var chatToolbarSearchButton: some View {
-        ProfileChromeIconButton(
-            systemName: isSearchVisible ? "xmark.circle.fill" : "magnifyingglass",
-            foregroundColor: adaptiveColors.primary,
-            size: MomentsGlassControlMetrics.toolbarControlSize,
-            iconSize: 16,
-            action: toggleChatSearch
-        )
+    private var chatToolbarTrailingCluster: some View {
+        ProfileChromeControlsCluster {
+            ProfileChromeIconButton(
+                systemName: isSearchVisible ? "xmark.circle.fill" : "magnifyingglass",
+                foregroundColor: adaptiveColors.primary,
+                preset: .toolbarAction,
+                standaloneGlass: false,
+                action: toggleChatSearch
+            )
+
+            chatToolbarMenu
+        }
     }
 
     private var chatToolbarMenu: some View {
@@ -644,7 +695,7 @@ struct GlassmorphicChatView: View {
             Button(action: { showingConversationSettings = true }) {
                 Label(
                     NSLocalizedString("chat.menu.details", comment: "Conversation details"),
-                    systemImage: "info.circle"
+                    systemImage: "gearshape"
                 )
             }
 
@@ -656,10 +707,13 @@ struct GlassmorphicChatView: View {
             }
         } label: {
             Image(systemName: "ellipsis")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: MomentsGlassControlMetrics.toolbarIconSize, weight: .semibold))
                 .foregroundColor(adaptiveColors.primary)
-                .frame(width: 38, height: 38)
-                .momentsChromeGlass(in: Circle(), interactive: true)
+                .frame(
+                    width: MomentsGlassControlMetrics.toolbarControlSize,
+                    height: MomentsGlassControlMetrics.toolbarControlSize
+                )
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }
@@ -776,7 +830,8 @@ struct GlassmorphicChatView: View {
         LazyVStack(spacing: 2) {
             chatMessagesStackContent(proxy: proxy)
         }
-        .padding(.vertical, 10)
+        .padding(.top, 10)
+        .padding(.bottom, 20)
         .scrollTargetLayout()
     }
 
@@ -786,7 +841,6 @@ struct GlassmorphicChatView: View {
                 Color.clear
                     .frame(height: 20)
                     .onAppear {
-                        guard hasCompletedInitialScroll else { return }
                         viewModel.loadMoreMessages()
                     }
             }
@@ -856,10 +910,9 @@ struct GlassmorphicChatView: View {
         .defaultScrollAnchor(.bottom)
         .defaultScrollAnchor(.bottom, for: .alignment)
         .scrollBounceBehavior(.basedOnSize)
-        .scrollClipDisabled()
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: "chatScroll")
-        .chatScrollEdgeEffect()
+        .chatScrollEdgeEffect(hardBottomEdge: true)
         .scrollDismissesKeyboard(.interactively)
         .onScrollGeometryChange(for: ChatScrollMetrics.self, of: { geometry in
             ChatScrollMetrics(
@@ -967,7 +1020,7 @@ struct GlassmorphicChatView: View {
                 reapplyFrozenScrollPositionIfNeeded(in: rowIds, using: proxy)
                 scheduleSingleHighlightScrollIfNeeded(using: proxy)
                 guard !hasCompletedInitialScroll else { return }
-                if shouldOpenAtBottom(), isPinnedToBottom {
+                if shouldOpenAtBottom() {
                     scheduleInitialBottomSnap(using: proxy)
                     return
                 }
@@ -975,6 +1028,13 @@ struct GlassmorphicChatView: View {
                       messageIsReadyForScroll(messageId) else { return }
                 guard initialScrollTask == nil else { return }
                 scheduleInitialScroll(proxy: proxy)
+            }
+            .onChange(of: scrollViewportHeight) { oldHeight, newHeight in
+                handleScrollViewportHeightChange(
+                    oldHeight: oldHeight,
+                    newHeight: newHeight,
+                    using: proxy
+                )
             }
     }
 
@@ -1210,7 +1270,10 @@ struct GlassmorphicChatView: View {
                     inputBarSection
                         .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
                 }
-                .background(Color.clear)
+                .background {
+                    adaptiveColors.chatBackground[0]
+                        .ignoresSafeArea(edges: .bottom)
+                }
             }
     }
 
@@ -1483,10 +1546,13 @@ struct GlassmorphicChatView: View {
                         handleStoryNavigationFromChat(message: message)
                     },
                     onOpenMedia: { message in
-                        viewModel.prepareMediaForViewing(message) { resolved in
-                            selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: resolved)
-                            selectedChatMedia = sharedMedia(from: resolved)
+                        if message.needsDownloadForPlayback {
+                            viewModel.openMediaForViewing(message) { _ in }
+                            return
                         }
+                        guard let media = sharedMedia(from: message) else { return }
+                        selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: message)
+                        selectedChatMedia = media
                     },
                     onStopLiveLocation: { messageId in
                         viewModel.stopLiveLocation(messageId: messageId)
@@ -1504,6 +1570,8 @@ struct GlassmorphicChatView: View {
                         )
                     },
                     progress: viewModel.uploadProgress[liveMessage.id],
+                    downloadProgress: viewModel.downloadProgress[liveMessage.id],
+                    isDownloadingMedia: viewModel.isDownloadingMedia(liveMessage.id),
                     showSeenLabel: shouldShowSeenLabel(for: liveMessage.id, status: liveMessage.status)
                 )
                 .simultaneousGesture(
@@ -1532,8 +1600,12 @@ struct GlassmorphicChatView: View {
                         handleMomentNavigationFromChat(message: message)
                     },
                     onOpenCluster: { clusterMessages in
-                        viewModel.prefetchClusterGalleryMedia(clusterMessages)
-                        self.clusterForGallery = clusterMessages
+                        let ids = clusterMessages.map(\.id)
+                        guard let anchorId = ids.first else { return }
+                        clusterGallerySelection = ClusterGallerySelection(
+                            anchorMessageId: anchorId,
+                            messageIds: ids
+                        )
                     },
                     onLongPress: { message, frame, cornerRadius in
                         presentMessageOptions(
@@ -1929,14 +2001,37 @@ struct GlassmorphicChatView: View {
         case incomingWhilePinned
     }
 
+    /// Cuando el `safeAreaBar` del input termina de medirse, el viewport se encoge y el snap inicial
+    /// puede quedar corto; re-aplicamos el fondo sin esperar al botón manual.
+    private func handleScrollViewportHeightChange(
+        oldHeight: CGFloat,
+        newHeight: CGFloat,
+        using proxy: ScrollViewProxy
+    ) {
+        guard oldHeight > 1, newHeight > 1, newHeight < oldHeight - 6 else { return }
+        guard shouldOpenAtBottom(), !viewModel.chatRenderRows.isEmpty else { return }
+        guard bottomSnapTask == nil else { return }
+
+        let metrics = scrollMetricsBuffer.metrics
+        let needsCorrection = isPinnedToBottom
+            || !hasCompletedInitialScroll
+            || bottomGap(for: metrics) > 48
+
+        guard needsCorrection else { return }
+
+        let reason: BottomSnapReason = hasCompletedInitialScroll ? .incomingWhilePinned : .initialOpen
+        scheduleBottomSnap(using: proxy, reason: reason)
+    }
+
     private func scheduleBottomSnap(using proxy: ScrollViewProxy, reason: BottomSnapReason) {
         bottomSnapTask?.cancel()
         bottomSnapTask = Task { @MainActor in
             defer { bottomSnapTask = nil }
             suppressPinnedMetricsUpdates = true
 
-            let maxPasses = reason == .initialOpen ? 3 : 4
-            let delays: [UInt64] = [0, 50_000_000, 120_000_000, 200_000_000]
+            let maxPasses = reason == .initialOpen ? 5 : 4
+            let delays: [UInt64] = [0, 50_000_000, 120_000_000, 200_000_000, 320_000_000]
+            var previousViewportHeight: CGFloat = 0
 
             for pass in 0..<maxPasses {
                 if Task.isCancelled { return }
@@ -1950,7 +2045,15 @@ struct GlassmorphicChatView: View {
                 flushScrollMetricsToUI()
 
                 let metrics = scrollMetricsBuffer.metrics
-                if !allowsVerticalScrolling || bottomGap(for: metrics) < 48 {
+                let viewportStable = previousViewportHeight > 1
+                    && abs(metrics.viewportHeight - previousViewportHeight) < 2
+                previousViewportHeight = metrics.viewportHeight
+
+                let atBottom = !allowsVerticalScrolling || bottomGap(for: metrics) < 48
+                let canFinalize = atBottom
+                    && (reason != .initialOpen || viewportStable || pass >= maxPasses - 1)
+
+                if canFinalize {
                     finalizeBottomSnap(reason: reason, using: proxy)
                     return
                 }
@@ -1994,7 +2097,7 @@ struct GlassmorphicChatView: View {
 
     /// Snap silencioso al fondo cuando no hay pendientes — solo primera apertura.
     private func scheduleInitialBottomSnap(using proxy: ScrollViewProxy) {
-        guard shouldOpenAtBottom(), isPinnedToBottom else { return }
+        guard shouldOpenAtBottom() else { return }
         guard !hasCompletedInitialScroll else { return }
         guard bottomSnapTask == nil else { return }
         scheduleBottomSnap(using: proxy, reason: .initialOpen)
@@ -2070,6 +2173,16 @@ struct GlassmorphicChatView: View {
 
         if !conversationId.isEmpty {
             ChatSessionEngine.shared.activate(conversationId: conversationId)
+        }
+
+        if !viewModel.messages.isEmpty,
+           notificationOpenIntent == nil,
+           shouldOpenAtBottom(),
+           !hasCompletedInitialScroll {
+            hasCompletedInitialScroll = true
+            isPinnedToBottom = true
+            frozenInitialScrollTarget = viewModel.messages.last.map { .bottom(messageId: $0.id) }
+            viewModel.prefetchUnresolvedMediaIfNeeded()
         }
 
         pendingIncomingMessages = isPinnedToBottom ? 0 : unreadIncomingMessageCount()
@@ -2457,9 +2570,7 @@ extension GlassmorphicChatView {
         reconcileScrollStateForCurrentConversation()
 
         if shouldOpenAtBottom() {
-            if isPinnedToBottom {
-                scheduleInitialBottomSnap(using: proxy)
-            }
+            scheduleInitialBottomSnap(using: proxy)
             return
         }
 
@@ -2966,24 +3077,6 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         messagesSentThisSession += 1
     }
 
-    // MARK: - Enhanced Delete Message Actions
-    override func deleteMessageForEveryone(_ message: EnhancedMessage) {
-
-        chatService.deleteMessageWithCleanup(conversationId: message.conversationId, messageId: message.id) { _ in }
-        objectWillChange.send()
-    }
-
-    override func deleteMessageForMe(_ message: EnhancedMessage) {
-
-        chatService.deleteMessageForMe(conversationId: message.conversationId, messageId: message.id, userId: currentUserId) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.messages.removeAll { $0.id == message.id }
-                self?.updateGroupedMessages()
-                self?.objectWillChange.send()
-            }
-        }
-    }
-
     // MARK: - New Media Message Functions
     func sendImageMessage(_ imageData: Data) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
@@ -2994,7 +3087,12 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         trackMediaMessageSent(type: "image")
 
         let messageId = UUID().uuidString
-        let localPreview = localOutgoingPreviewURL(data: imageData, fileExtension: "jpg")
+        let localPreview = localOutgoingPreviewURL(
+            data: imageData,
+            conversationId: conversationId,
+            messageId: messageId,
+            fileExtension: "jpg"
+        )
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
@@ -3016,11 +3114,10 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    self?.applyOutgoingMessageUpdate(
+                    self?.finalizeOutgoingMediaMessage(
                         messageId: messageId,
-                        status: sentMessage.status,
-                        mediaUrl: sentMessage.mediaUrl ?? localPreview,
-                        thumbnailUrl: sentMessage.thumbnailUrl
+                        sentMessage: sentMessage,
+                        fallbackMediaUrl: localPreview
                     )
                 case .failure(let error):
                     self?.error = String(format: NSLocalizedString("chat.error.sendImage", comment: "Image send error"), error.localizedDescription)
@@ -3040,7 +3137,12 @@ class MomentsChatViewModel: EnhancedChatViewModel {
 
         // ✅ Crear mensaje local inmediatamente para feedback visual (preview local como imágenes)
         let messageId = UUID().uuidString
-        let localPreview = localOutgoingPreviewURL(data: audioData, fileExtension: "m4a")
+        let localPreview = localOutgoingPreviewURL(
+            data: audioData,
+            conversationId: conversationId,
+            messageId: messageId,
+            fileExtension: "m4a"
+        )
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
@@ -3065,11 +3167,10 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    self?.applyOutgoingMessageUpdate(
+                    self?.finalizeOutgoingMediaMessage(
                         messageId: messageId,
-                        status: sentMessage.status,
-                        mediaUrl: sentMessage.mediaUrl ?? localPreview,
-                        thumbnailUrl: sentMessage.thumbnailUrl
+                        sentMessage: sentMessage,
+                        fallbackMediaUrl: localPreview
                     )
                 case .failure(let error):
                     self?.error = String(format: NSLocalizedString("chat.error.sendAudio", comment: "Audio send error"), error.localizedDescription)

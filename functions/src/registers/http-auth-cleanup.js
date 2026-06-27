@@ -274,9 +274,40 @@ const cleanupDeletedConversation = onDocumentWritten(
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
+    const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const isParticipantChatStoragePath = (objectPath) => {
+      if (!objectPath || typeof objectPath !== 'string') return false;
+      const path = objectPath.trim();
+      return participants.some((uid) => path.startsWith(`users/${uid}/chat/${conversationId}/`));
+    };
+
+    // Legacy chat uploads used conversation-scoped paths before the
+    // users/{uid}/chat/{conversationId}/ layout. Keep cleanup compatible, but
+    // require an explicit chat/media prefix and the exact conversationId segment
+    // so attacker-controlled metadata cannot point at unrelated bucket objects.
+    const isLegacyChatStoragePath = (objectPath) => {
+      if (!objectPath || typeof objectPath !== 'string') return false;
+      const path = objectPath.trim();
+      const escapedConversationId = escapeRegExp(conversationId);
+      return [
+        new RegExp(`^chat/${escapedConversationId}/[^\\s]+$`),
+        new RegExp(`^chats/${escapedConversationId}/[^\\s]+$`),
+        new RegExp(`^conversations/${escapedConversationId}/(messages|media|chat)/[^\\s]+$`),
+        new RegExp(`^conversationMedia/${escapedConversationId}/[^\\s]+$`),
+        new RegExp(`^messageMedia/${escapedConversationId}/[^\\s]+$`)
+      ].some((pattern) => pattern.test(path));
+    };
+
+    const isDeletableChatStoragePath = (objectPath) =>
+      isParticipantChatStoragePath(objectPath) || isLegacyChatStoragePath(objectPath);
+
     // Borra un archivo de Storage por su objectPath; ignora "not found"
     const deleteStorageFile = async (objectPath) => {
-      if (!objectPath || typeof objectPath !== 'string' || objectPath.trim() === '') return;
+      if (!isDeletableChatStoragePath(objectPath)) {
+        console.warn(`[cleanupDeletedConversation] Skipping out-of-scope Storage path: ${objectPath}`);
+        return;
+      }
       const path = objectPath.trim();
       try {
         await bucket.file(path).delete();

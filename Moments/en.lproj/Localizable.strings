@@ -976,6 +976,10 @@
 "chat.cluster.receivedPhotos" = "You received %d photos";
 "chat.cluster.sentItems" = "You sent %d items";
 "chat.cluster.receivedItems" = "You received %d items";
+"chat.gallery.select" = "Select";
+"chat.gallery.title" = "Gallery";
+"chat.gallery.selectedCount" = "%d selected";
+"chat.gallery.deletePrompt" = "Delete selected items?";
 
 /* Messaging */
 "messaging.conversation.notFound" = "Conversation not found";
@@ -1005,6 +1009,7 @@
 "chat.viewOnce.sent" = "Sent";
 "chat.viewOnce.alreadyViewed" = "Already viewed";
 "chat.preview.photo" = "📷 Photo";
+"chat.media.download" = "Download";
 "chat.preview.video" = "🎥 Video";
 "chat.preview.audio" = "🎵 Audio";
 "chat.preview.gif" = "GIF";
@@ -1634,6 +1639,31 @@
 "settings.sections.yourActivity.subtitle" = "Time in app, interactions";
 "settings.sections.downloadData" = "Download Your Data";
 "settings.sections.downloadData.subtitle" = "Request a copy of your data";
+"settings.sections.chatStorage" = "Chat Storage";
+"settings.sections.chatStorage.subtitle" = "Media cache and download preferences";
+"settings.chatStorage.title" = "Chat Storage";
+"settings.chatStorage.usage.title" = "Usage";
+"settings.chatStorage.usage.messages" = "Cached messages";
+"settings.chatStorage.usage.messagesCount" = "%d messages";
+"settings.chatStorage.usage.media" = "Photos and videos";
+"settings.chatStorage.preferences.title" = "Preferences";
+"settings.chatStorage.autoDownload.title" = "Auto-download media";
+"settings.chatStorage.autoDownload.wifi" = "Wi‑Fi only";
+"settings.chatStorage.autoDownload.always" = "Always";
+"settings.chatStorage.autoDownload.never" = "Never";
+"settings.chatStorage.retention.title" = "Keep media for";
+"settings.chatStorage.retention.7days" = "7 days";
+"settings.chatStorage.retention.30days" = "30 days";
+"settings.chatStorage.retention.90days" = "90 days";
+"settings.chatStorage.retention.forever" = "Always";
+"settings.chatStorage.clearMedia.action" = "Free chat media";
+"settings.chatStorage.clearMedia.subtitle" = "Removes photos and videos but keeps message text locally.";
+"settings.chatStorage.clearMedia.confirm" = "Free chat media? Message text will stay on this device.";
+"settings.chatStorage.clearMedia.done" = "Chat media removed. It will download again when you open conversations.";
+"settings.chatStorage.clearAll.action" = "Clear chat cache";
+"settings.chatStorage.clearAll.subtitle" = "Removes all cached messages and media from this device.";
+"settings.chatStorage.clearAll.confirm" = "Clear all cached chat data on this device?";
+"settings.chatStorage.clearAll.done" = "Chat cache cleared.";
 "settings.sections.pushNotifications" = "Push Notifications";
 "settings.sections.pushNotifications.subtitle" = "Posts, stories, comments";
 "settings.sections.emailNotifications" = "Email Notifications";

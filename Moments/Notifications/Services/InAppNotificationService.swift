@@ -33,7 +33,7 @@ class InAppNotificationService: ObservableObject {
         // El banner in-app en foreground lo cubre AppDelegate (push → coordinador).
         // El listener de users/notifications duplicaba el banner: primero genérico (push),
         // luego el doc Firestore con el copy completo.
-        syncFallbackListeners(conversationIds: ChatSessionEngine.shared.warmConversationIdsForNotifications())
+        syncFallbackListeners(conversationIds: ChatSessionEngine.shared.notificationConversationIdsForFallback())
     }
 
     func stopListening() {

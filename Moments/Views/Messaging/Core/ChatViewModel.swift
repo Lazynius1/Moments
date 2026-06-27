@@ -16,6 +16,7 @@ class EnhancedChatViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
     @Published var uploadProgress: [String: Double] = [:] // ✅ Media upload progress (0.0 - 1.0)
+    @Published var downloadProgress: [String: Double] = [:]
 
     private func setUploadProgress(_ progress: Double, for messageId: String) {
         var updated = uploadProgress
@@ -28,6 +29,19 @@ class EnhancedChatViewModel: ObservableObject {
         var updated = uploadProgress
         updated.removeValue(forKey: messageId)
         uploadProgress = updated
+    }
+
+    private func setDownloadProgress(_ progress: Double, for messageId: String) {
+        var updated = downloadProgress
+        updated[messageId] = progress
+        downloadProgress = updated
+    }
+
+    private func clearDownloadProgress(for messageId: String) {
+        guard downloadProgress[messageId] != nil else { return }
+        var updated = downloadProgress
+        updated.removeValue(forKey: messageId)
+        downloadProgress = updated
     }
 
     private func pruneUploadProgress(for messages: [EnhancedMessage]) {
@@ -74,6 +88,7 @@ class EnhancedChatViewModel: ObservableObject {
     /// Mensajes salientes aún no reflejados en Firestore; sobreviven a `rebuildMessagesList`.
     private var outgoingTempMessages: [String: EnhancedMessage] = [:]
     private var hydratingMediaIds = Set<String>()
+    @Published private(set) var downloadingMediaIds = Set<String>()
     private var refreshingMetadataIds = Set<String>()
     
     // ✅ NUEVO: Flag para bloquear listener temporalmente
@@ -85,6 +100,10 @@ class EnhancedChatViewModel: ObservableObject {
     // ✅ PAGINACIÓN
     @Published var isLoadingMore = false
     @Published var canLoadMore = true
+    /// Mensajes cacheados en SwiftData aún no mostrados (más antiguos que la ventana inicial).
+    private var deferredCachedMessages: [EnhancedMessage] = []
+    private static let initialChatWindowSize = 20
+    private static let historyPageSize = 25
     @Published private(set) var forwardingPreferences: [String: Bool] = [:]
     @Published private(set) var buzzPreferences: [String: Bool] = [:]
     /// Fuente de verdad para pintar reacciones al instante (SwiftUI no siempre detecta cambios en `message.reactions`).
@@ -93,6 +112,8 @@ class EnhancedChatViewModel: ObservableObject {
     @Published private(set) var buzzEvents: [ChatBuzzEvent] = []
     private var historicalMessages: [EnhancedMessage] = []
     private var realTimeMessages: [EnhancedMessage] = []
+    /// Ocultos con «Eliminar para mí» hasta que Firestore confirme `deletedFor`.
+    private var hiddenForMeMessageIds = Set<String>()
     private var seenBuzzEventIds = Set<String>()
     
     let conversation: Conversation
@@ -109,12 +130,11 @@ class EnhancedChatViewModel: ObservableObject {
     private var isFirstFetch = true
 
     enum ChatSessionMode: Equatable {
-        case cold
-        case warm
+        case idle
         case active
     }
 
-    private(set) var chatSessionMode: ChatSessionMode = .cold
+    private(set) var chatSessionMode: ChatSessionMode = .idle
     private var sessionListenersAttached = false
     private var listenerPauseTask: Task<Void, Never>?
     private var didLoadCacheFromSwiftData = false
@@ -130,6 +150,7 @@ class EnhancedChatViewModel: ObservableObject {
         // ✅ Configurar listener para actualizaciones de estado locales
         setupLocalStatusListener()
         setupConversationPreferenceListener()
+        setupIngestListener()
         refreshTypingIndicatorPreference()
     }
     
@@ -171,6 +192,67 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 self?.setUploadProgress(progress, for: messageId)
             }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("MediaDownloadProgress"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let userInfo = notification.userInfo,
+                  let messageId = userInfo["messageId"] as? String,
+                  let progress = userInfo["progress"] as? Double else {
+                return
+            }
+
+            Task { @MainActor [weak self] in
+                self?.setDownloadProgress(progress, for: messageId)
+            }
+        }
+    }
+
+    private func setupIngestListener() {
+        NotificationCenter.default.addObserver(
+            forName: .messagesIngested,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let conversationId = notification.userInfo?["conversationId"] as? String,
+                  conversationId == self.conversation.id else {
+                return
+            }
+
+            Task { @MainActor [weak self] in
+                self?.mergeMessagesFromLocalCache()
+            }
+        }
+    }
+
+    func mergeMessagesFromLocalCache() {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
+
+        var cachedMessages = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
+        if let cutoff = effectiveDeletedAtCutoff() {
+            cachedMessages = cachedMessages.filter { $0.timestamp > cutoff }
+        }
+        guard !cachedMessages.isEmpty else { return }
+
+        let knownIds = Set(
+            (realTimeMessages + historicalMessages + deferredCachedMessages).map(\.id)
+        )
+        let incoming = cachedMessages
+            .filter { !knownIds.contains($0.id) }
+            .sorted { $0.timestamp < $1.timestamp }
+        guard !incoming.isEmpty else { return }
+
+        for message in incoming {
+            insertIncomingCachedMessage(message)
+        }
+        rebuildMessagesList()
+        prefetchUnresolvedMediaIfNeeded()
+        if let momentsViewModel = self as? MomentsChatViewModel {
+            momentsViewModel.syncMessagePresentation()
         }
     }
 
@@ -339,14 +421,25 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
-        // Conservar preview local file:// mientras Firestore aún no expone URL visible.
-        for existing in messages where existing.senderId == currentUserId {
-            guard let index = mergedMessages.firstIndex(where: { $0.id == existing.id }),
-                  let localUrl = existing.mediaUrl,
-                  let url = URL(string: localUrl),
-                  url.isFileURL else { continue }
-            if mergedMessages[index].mediaUrl == nil {
+        // Conservar URLs locales descifradas (Firestore no las persiste en el snapshot).
+        for existing in messages {
+            guard let index = mergedMessages.firstIndex(where: { $0.id == existing.id }) else { continue }
+            guard !mergedMessages[index].isDeleted, !existing.isDeleted else { continue }
+
+            if let localUrl = existing.mediaUrl,
+               let url = URL(string: localUrl),
+               url.isFileURL,
+               FileManager.default.fileExists(atPath: url.path),
+               mergedMessages[index].mediaUrl == nil || mergedMessages[index].hasMissingLocalMedia {
                 mergedMessages[index].mediaUrl = localUrl
+            }
+
+            if let localThumb = existing.thumbnailUrl,
+               let url = URL(string: localThumb),
+               url.isFileURL,
+               FileManager.default.fileExists(atPath: url.path),
+               mergedMessages[index].thumbnailUrl == nil || mergedMessages[index].hasMissingLocalThumbnail {
+                mergedMessages[index].thumbnailUrl = localThumb
             }
         }
 
@@ -371,8 +464,8 @@ class EnhancedChatViewModel: ObservableObject {
     func applyOutgoingMessageUpdate(
         messageId: String,
         status: MessageStatus,
-        mediaUrl: String?,
-        thumbnailUrl: String?
+        mediaUrl: String? = nil,
+        thumbnailUrl: String? = nil
     ) {
         localMessageStates[messageId] = status
         clearUploadProgress(for: messageId)
@@ -394,7 +487,6 @@ class EnhancedChatViewModel: ObservableObject {
             if let thumbnailUrl {
                 message.thumbnailUrl = thumbnailUrl
             }
-            // Reasignar el array para que @Published notifique a SwiftUI (clases dentro del array).
             self.commitMessagesPresentation(self.messages)
         }
 
@@ -405,11 +497,44 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
-    func localOutgoingPreviewURL(data: Data, fileExtension: String) -> String? {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chat_outgoing_\(UUID().uuidString).\(fileExtension)")
+    func finalizeOutgoingMediaMessage(
+        messageId: String,
+        sentMessage: EnhancedMessage,
+        fallbackMediaUrl: String? = nil,
+        fallbackThumbnailUrl: String? = nil
+    ) {
+        localMessageStates[messageId] = sentMessage.status
+        clearUploadProgress(for: messageId)
+        outgoingTempMessages.removeValue(forKey: messageId)
+
+        guard let index = messages.firstIndex(where: { $0.id == messageId }) else { return }
+
+        let previous = messages[index]
+        sentMessage.mediaUrl = sentMessage.mediaUrl ?? fallbackMediaUrl ?? previous.mediaUrl
+        sentMessage.thumbnailUrl = sentMessage.thumbnailUrl ?? fallbackThumbnailUrl ?? previous.thumbnailUrl
+        messages[index] = sentMessage
+
+        commitMessagesPresentation(messages)
+
+        if let conversationId = conversation.id {
+            LocalPersistenceService.shared.saveMessages([sentMessage], conversationId: conversationId, sync: false)
+        }
+    }
+
+    func localOutgoingPreviewURL(
+        data: Data,
+        conversationId: String,
+        messageId: String,
+        fileExtension: String
+    ) -> String? {
         do {
-            try data.write(to: url, options: .atomic)
+            let url = try ChatCacheStore.writeDecryptedMedia(
+                data,
+                conversationId: conversationId,
+                messageId: messageId,
+                purpose: .primary,
+                fileExtension: fileExtension
+            )
             return url.absoluteString
         } catch {
             return nil
@@ -432,6 +557,10 @@ class EnhancedChatViewModel: ObservableObject {
 
     private func messageNeedsMediaHydration(_ message: EnhancedMessage) -> Bool {
         message.isMediaPendingResolution
+    }
+
+    func isDownloadingMedia(_ messageId: String) -> Bool {
+        downloadingMediaIds.contains(messageId) || hydratingMediaIds.contains(messageId)
     }
 
     /// Mensajes del cache antiguo pueden carecer de metadata de Storage; re-fetch puntual desde Firestore.
@@ -487,6 +616,13 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     func hydrateMediaIfNeeded(for message: EnhancedMessage) {
+        if message.isMediaAwaitingManualDownload {
+            hydrateThumbnailPreviewIfNeeded(for: message)
+            return
+        }
+
+        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
+
         // Para vídeos resolvemos solo la miniatura (barato). El vídeo completo se
         // descarga al abrirlo, evitando bajar megas solo para mostrar la portada.
         if message.type == .video {
@@ -503,14 +639,17 @@ class EnhancedChatViewModel: ObservableObject {
         }
         guard !hydratingMediaIds.contains(message.id) else { return }
         hydratingMediaIds.insert(message.id)
-        prepareMediaForViewing(message) { [weak self] updated in
+        setDownloadProgress(0.03, for: message.id)
+        prepareMediaForViewing(message, forceDownload: false) { [weak self] _ in
             self?.hydratingMediaIds.remove(message.id)
+            self?.clearDownloadProgress(for: message.id)
         }
     }
 
     func hydrateVideoThumbnailIfNeeded(for message: EnhancedMessage) {
         guard message.type == .video else { return }
         guard message.needsVideoThumbnailForDisplay else { return }
+        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
 
         // Caso 1: hay miniatura cifrada en Storage. Resolverla sola es barato.
         if message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil {
@@ -519,7 +658,7 @@ class EnhancedChatViewModel: ObservableObject {
             hydratingMediaIds.insert(thumbnailKey)
             Task { [weak self] in
                 guard let self else { return }
-                let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message)
+                let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message, forceDownload: false)
                 await MainActor.run {
                     self.hydratingMediaIds.remove(thumbnailKey)
                     guard let resolvedThumb,
@@ -545,14 +684,49 @@ class EnhancedChatViewModel: ObservableObject {
         if message.mediaObjectPath != nil, message.mediaEncryption != nil {
             guard !hydratingMediaIds.contains(message.id) else { return }
             hydratingMediaIds.insert(message.id)
-            prepareMediaForViewing(message) { [weak self] updated in
+            setDownloadProgress(0.03, for: message.id)
+            prepareMediaForViewing(message, forceDownload: false) { [weak self] updated in
                 self?.hydratingMediaIds.remove(message.id)
+                self?.clearDownloadProgress(for: message.id)
                 self?.generateVideoPosterIfPossible(for: updated)
             }
             return
         }
 
         refreshMediaMetadataIfNeeded(for: message)
+    }
+
+    /// Descarga solo la miniatura cifrada (~KB) para preview borroso tipo WhatsApp.
+    func hydrateThumbnailPreviewIfNeeded(for message: EnhancedMessage) {
+        guard message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil else { return }
+        if let urlString = message.thumbnailUrl,
+           let url = URL(string: urlString),
+           message.localMediaFileIsReachable(url) {
+            return
+        }
+
+        let previewKey = "thumb_preview_\(message.id)"
+        guard !hydratingMediaIds.contains(previewKey) else { return }
+        hydratingMediaIds.insert(previewKey)
+
+        Task { [weak self] in
+            guard let self else { return }
+            let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message, forceDownload: false)
+            await MainActor.run {
+                self.hydratingMediaIds.remove(previewKey)
+                guard let resolvedThumb,
+                      let index = self.messages.firstIndex(where: { $0.id == message.id }) else {
+                    return
+                }
+                self.messages[index].thumbnailUrl = resolvedThumb
+                if message.type == .image || message.type == .ephemeral || message.type == .viewOnceImage {
+                    // Las imágenes usan thumbnailUrl como preview borroso; primary queda para el tap.
+                }
+                if let conversationId = self.conversation.id {
+                    LocalPersistenceService.shared.saveMessages([self.messages[index]], conversationId: conversationId, sync: false)
+                }
+            }
+        }
     }
 
     private func generateVideoPosterIfPossible(for message: EnhancedMessage) {
@@ -596,17 +770,21 @@ class EnhancedChatViewModel: ObservableObject {
             }
 
             let warmed = chatService.warmMessageURLsFromDiskCache(messages[index])
-            if let mediaUrl = warmed.mediaUrl, messages[index].mediaUrl == nil {
+            if let mediaUrl = warmed.mediaUrl,
+               messages[index].mediaUrl != mediaUrl || messages[index].hasMissingLocalMedia {
                 messages[index].mediaUrl = mediaUrl
                 didUpdate = true
             }
-            if let thumbnailUrl = warmed.thumbnailUrl, messages[index].thumbnailUrl == nil {
+            if let thumbnailUrl = warmed.thumbnailUrl,
+               messages[index].thumbnailUrl != thumbnailUrl || messages[index].hasMissingLocalThumbnail {
                 messages[index].thumbnailUrl = thumbnailUrl
                 didUpdate = true
             }
             if messages[index].type == .video {
-                hydrateVideoThumbnailIfNeeded(for: messages[index])
-            } else {
+                if ChatMediaDownloadPolicy.shouldDownloadAutomatically() {
+                    hydrateVideoThumbnailIfNeeded(for: messages[index])
+                }
+            } else if ChatMediaDownloadPolicy.shouldDownloadAutomatically() {
                 hydrateMediaIfNeeded(for: messages[index])
             }
         }
@@ -622,8 +800,86 @@ class EnhancedChatViewModel: ObservableObject {
         ChatMediaGalleryPrefetcher.prefetch(messages: clusterMessages)
     }
 
+    /// Re-enlaza URLs locales desde disco y persiste cambios en SwiftData.
+    func warmAndApplyDiskURLs(to messages: inout [EnhancedMessage]) -> [EnhancedMessage] {
+        var updated: [EnhancedMessage] = []
+
+        for index in messages.indices {
+            guard !messages[index].isDeleted else { continue }
+            let warmed = chatService.warmMessageURLsFromDiskCache(messages[index])
+            var changed = false
+
+            if let mediaUrl = warmed.mediaUrl,
+               messages[index].mediaUrl != mediaUrl || messages[index].hasMissingLocalMedia {
+                messages[index].mediaUrl = mediaUrl
+                changed = true
+            }
+            if let thumbnailUrl = warmed.thumbnailUrl,
+               messages[index].thumbnailUrl != thumbnailUrl || messages[index].hasMissingLocalThumbnail {
+                messages[index].thumbnailUrl = thumbnailUrl
+                changed = true
+            }
+
+            if changed {
+                updated.append(messages[index])
+            }
+        }
+
+        return updated
+    }
+
+    private func applyWarmedMessagesFromDisk(_ warmed: [EnhancedMessage]) {
+        guard !warmed.isEmpty else { return }
+        let byId = Dictionary(uniqueKeysWithValues: warmed.map { ($0.id, $0) })
+        var didChange = false
+
+        func patch(_ message: inout EnhancedMessage) {
+            guard let source = byId[message.id] else { return }
+            if message.mediaUrl != source.mediaUrl {
+                message.mediaUrl = source.mediaUrl
+                didChange = true
+            }
+            if message.thumbnailUrl != source.thumbnailUrl {
+                message.thumbnailUrl = source.thumbnailUrl
+                didChange = true
+            }
+        }
+
+        for index in historicalMessages.indices {
+            patch(&historicalMessages[index])
+        }
+        for index in deferredCachedMessages.indices {
+            patch(&deferredCachedMessages[index])
+        }
+        for index in realTimeMessages.indices {
+            patch(&realTimeMessages[index])
+        }
+
+        guard didChange else { return }
+        rebuildMessagesList()
+        prefetchUnresolvedMediaIfNeeded()
+        if let momentsViewModel = self as? MomentsChatViewModel {
+            momentsViewModel.syncMessagePresentation()
+        }
+    }
+
+    private func scheduleAsyncDiskURLWarm() {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
+        LocalPersistenceService.shared.scheduleWarmDiskMediaURLs(conversationId: conversationId) { [weak self] warmed in
+            self?.applyWarmedMessagesFromDisk(warmed)
+        }
+    }
+
+    /// Re-enlaza `file://` desde ChatCacheStore cuando el snapshot de Firestore no trae URLs locales.
+    private func persistDiskCachedMediaURLs(into messages: inout [EnhancedMessage]) {
+        let updated = warmAndApplyDiskURLs(to: &messages)
+        guard !updated.isEmpty, let conversationId = conversation.id else { return }
+        LocalPersistenceService.shared.saveMessages(updated, conversationId: conversationId, sync: false)
+    }
+
     /// Hidrata media cifrada o pendiente de resolver (imagen, video, GIF/sticker legacy).
     func prefetchUnresolvedMediaIfNeeded() {
+        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
         for message in messages where messageNeedsMediaHydration(message) {
             hydrateMediaIfNeeded(for: message)
         }
@@ -635,11 +891,30 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
+    /// Descarga manual (tap) o auto (policy) y abre el visor cuando la media ya está lista.
+    func openMediaForViewing(_ message: EnhancedMessage, completion: @escaping (EnhancedMessage) -> Void) {
+        guard message.needsDownloadForPlayback else {
+            completion(message)
+            return
+        }
+
+        guard !downloadingMediaIds.contains(message.id) else { return }
+        downloadingMediaIds.insert(message.id)
+        setDownloadProgress(0.03, for: message.id)
+        prepareMediaForViewing(message, forceDownload: true) { [weak self] updated in
+            self?.downloadingMediaIds.remove(message.id)
+            self?.clearDownloadProgress(for: message.id)
+            completion(updated)
+        }
+    }
+
     /// Tras reinstalar o sin caché local: descarga el `.enc`, descifra y actualiza el mensaje en la lista.
-    func prepareMediaForViewing(_ message: EnhancedMessage, completion: @escaping (EnhancedMessage) -> Void) {
-        // Si ya hay una URL usable la devolvemos tal cual. Pero si es un `file://` cuyo archivo
-        // fue purgado del directorio Caches, NO cortamos aquí: hay que re-descargar/descifrar.
-        if message.mediaUrl != nil, !message.hasMissingLocalMedia {
+    func prepareMediaForViewing(
+        _ message: EnhancedMessage,
+        forceDownload: Bool = true,
+        completion: @escaping (EnhancedMessage) -> Void
+    ) {
+        if message.hasLocalMediaReadyForViewer, !message.hasMissingLocalMedia {
             completion(message)
             return
         }
@@ -660,7 +935,13 @@ class EnhancedChatViewModel: ObservableObject {
         }
 
         Task {
-            guard let (mediaUrl, thumbnailUrl) = await chatService.resolveEncryptedMediaForMessage(message) else {
+            defer {
+                Task { @MainActor in
+                    clearDownloadProgress(for: message.id)
+                }
+            }
+
+            guard let (mediaUrl, thumbnailUrl) = await chatService.resolveEncryptedMediaForMessage(message, forceDownload: forceDownload) else {
                 await MainActor.run { completion(message) }
                 return
             }
@@ -691,6 +972,7 @@ class EnhancedChatViewModel: ObservableObject {
     private func rebuildMessagesList() {
         // 1. Unir real-time + históricos (PRIORIDAD AL REAL-TIME para cambios de estado)
         let allMessages = messagesRespectingDeletionCutoff(realTimeMessages + historicalMessages)
+            .filter { !hiddenForMeMessageIds.contains($0.id) }
         
         // 2. Deduplicar por ID (se queda con el primero que encuentre, que ahora es el real-time)
         var seenIds = Set<String>()
@@ -700,7 +982,8 @@ class EnhancedChatViewModel: ObservableObject {
         let sortedMessages = uniqueMessages.sorted { $0.timestamp < $1.timestamp }
         
         // 4. Preservar temporales y estados locales
-        let finalMessages = preserveTemporaryMessages(sortedMessages)
+        var finalMessages = preserveTemporaryMessages(sortedMessages)
+        persistDiskCachedMediaURLs(into: &finalMessages)
         commitMessagesPresentation(finalMessages)
         syncLiveReactionOverlays(from: finalMessages)
 
@@ -856,12 +1139,32 @@ class EnhancedChatViewModel: ObservableObject {
         return soleOwnMessageWithExternalReactionId()
     }
     
-    // ✅ FUNCIÓN: Cargar más mensajes (Pull to refresh)
+    // ✅ FUNCIÓN: Cargar más mensajes (caché local primero, luego Firestore)
     func loadMoreMessages() {
-        guard !isLoadingMore, canLoadMore, let firstMessage = messages.first, let conversationId = conversation.id else { return }
-        
+        guard !isLoadingMore, canLoadMore, let conversationId = conversation.id else { return }
+
+        if !deferredCachedMessages.isEmpty {
+            isLoadingMore = true
+            let takeCount = min(Self.historyPageSize, deferredCachedMessages.count)
+            let batch = Array(deferredCachedMessages.suffix(takeCount))
+            deferredCachedMessages.removeLast(takeCount)
+            historicalMessages.insert(contentsOf: batch, at: 0)
+            rebuildMessagesList()
+            if let momentsViewModel = self as? MomentsChatViewModel {
+                momentsViewModel.syncMessagePresentation()
+            }
+            canLoadMore = !deferredCachedMessages.isEmpty || canLoadMoreFromServer
+            isLoadingMore = false
+            return
+        }
+
+        guard canLoadMoreFromServer, let firstMessage = messages.first else {
+            canLoadMore = false
+            return
+        }
+
         isLoadingMore = true
-        
+
         let cutoff = effectiveDeletedAtCutoff()
         chatService.fetchOlderMessages(
             conversationId: conversationId,
@@ -871,17 +1174,27 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.isLoadingMore = false
-                
+
                 switch result {
                 case .success(let olderMessages):
                     if olderMessages.isEmpty {
-                        self.canLoadMore = false
+                        self.canLoadMoreFromServer = false
+                        self.canLoadMore = !self.deferredCachedMessages.isEmpty
                     } else {
-                        self.historicalMessages.append(contentsOf: olderMessages)
+                        let existingIds = Set(
+                            (self.historicalMessages + self.realTimeMessages + self.deferredCachedMessages).map(\.id)
+                        )
+                        let novel = olderMessages.filter { !existingIds.contains($0.id) }
+                        let sortedNovel = novel.sorted { $0.timestamp < $1.timestamp }
+                        self.historicalMessages.insert(contentsOf: sortedNovel, at: 0)
                         self.rebuildMessagesList()
-                        if let conversationId = self.conversation.id {
-                            LocalPersistenceService.shared.appendMessages(olderMessages, conversationId: conversationId)
+                        if let momentsViewModel = self as? MomentsChatViewModel {
+                            momentsViewModel.syncMessagePresentation()
                         }
+                        if let conversationId = self.conversation.id {
+                            LocalPersistenceService.shared.appendMessages(novel, conversationId: conversationId)
+                        }
+                        self.canLoadMore = true
                     }
                 case .failure(let error):
                     print("Error loading more messages: \(error)")
@@ -889,6 +1202,8 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
+
+    private var canLoadMoreFromServer = true
 
     func loadMessageForHighlightIfNeeded(messageId: String) {
         guard !messageId.isEmpty else { return }
@@ -940,7 +1255,7 @@ class EnhancedChatViewModel: ObservableObject {
         guard !didLoadCacheFromSwiftData else { return }
         didLoadCacheFromSwiftData = true
 
-        var cachedMessages = LocalPersistenceService.shared.loadMessages(conversationId: conversationId)
+        var cachedMessages = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
         
         // Filtrar mensajes locales usando el punto de corte (lastDeletedAt)
         if let cutoff = effectiveDeletedAtCutoff() {
@@ -958,12 +1273,93 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
-        historicalMessages = cachedMessages
+        applyInitialCacheWindow(cachedMessages)
         rebuildMessagesList()
         syncLiveReactionOverlays(from: messages)
         prefetchUnresolvedMediaIfNeeded()
         if let momentsViewModel = self as? MomentsChatViewModel {
             momentsViewModel.syncMessagePresentation()
+        }
+        scheduleAsyncDiskURLWarm()
+    }
+
+    /// Muestra solo la cola reciente al abrir; el resto queda en `deferredCachedMessages` para loadMore.
+    private func applyInitialCacheWindow(_ cachedMessages: [EnhancedMessage]) {
+        if cachedMessages.count <= Self.initialChatWindowSize {
+            historicalMessages = cachedMessages
+            deferredCachedMessages = []
+        } else {
+            historicalMessages = Array(cachedMessages.suffix(Self.initialChatWindowSize))
+            deferredCachedMessages = Array(cachedMessages.dropLast(Self.initialChatWindowSize))
+        }
+        canLoadMoreFromServer = true
+        canLoadMore = !deferredCachedMessages.isEmpty || canLoadMoreFromServer
+    }
+
+    private func insertIncomingCachedMessage(_ message: EnhancedMessage) {
+        if let oldestVisible = historicalMessages.first?.timestamp, message.timestamp < oldestVisible {
+            deferredCachedMessages.append(message)
+            deferredCachedMessages.sort { $0.timestamp < $1.timestamp }
+        } else {
+            historicalMessages.append(message)
+            historicalMessages.sort { $0.timestamp < $1.timestamp }
+        }
+        canLoadMore = !deferredCachedMessages.isEmpty || canLoadMoreFromServer
+    }
+
+    private func existingMessagesById() -> [String: EnhancedMessage] {
+        var map: [String: EnhancedMessage] = [:]
+        for message in deferredCachedMessages { map[message.id] = message }
+        for message in historicalMessages { map[message.id] = message }
+        for message in realTimeMessages { map[message.id] = message }
+        return map
+    }
+
+    /// Aplica la ventana en vivo de Firestore preservando media local ya resuelta (local-first).
+    private func applyFirestoreListenerMessages(_ messages: [EnhancedMessage], conversationId: String) {
+        let newSet = Set(messages.map(\.id))
+        let droppedMessages = realTimeMessages.filter { !newSet.contains($0.id) }
+
+        if !droppedMessages.isEmpty {
+            let promotable = messagesRespectingDeletionCutoff(droppedMessages)
+            let existingIds = Set(
+                (historicalMessages + deferredCachedMessages + realTimeMessages).map(\.id)
+            )
+            historicalMessages.append(contentsOf: promotable.filter { !existingIds.contains($0.id) })
+        }
+
+        let existingById = existingMessagesById()
+
+        if LocalFirstMessagingSettings.isEnabled {
+            realTimeMessages = messages.map { incoming in
+                preserveLocalMediaFields(from: existingById[incoming.id], into: incoming)
+                return incoming
+            }
+        } else {
+            realTimeMessages = messages
+        }
+
+        let realtimeIds = Set(realTimeMessages.map(\.id))
+        historicalMessages.removeAll { realtimeIds.contains($0.id) }
+        deferredCachedMessages.removeAll { realtimeIds.contains($0.id) }
+
+        rebuildMessagesList()
+        prefetchUnresolvedMediaIfNeeded()
+        LocalPersistenceService.shared.reconcileMessages(realTimeMessages, conversationId: conversationId)
+        isFirstFetch = false
+    }
+
+    private func preserveLocalMediaFields(from existing: EnhancedMessage?, into incoming: EnhancedMessage) {
+        guard let existing else { return }
+        if incoming.mediaUrl == nil || incoming.hasMissingLocalMedia,
+           let mediaUrl = existing.mediaUrl,
+           !existing.hasMissingLocalMedia {
+            incoming.mediaUrl = mediaUrl
+        }
+        if incoming.thumbnailUrl == nil || incoming.hasMissingLocalThumbnail,
+           let thumbnailUrl = existing.thumbnailUrl,
+           !existing.hasMissingLocalThumbnail {
+            incoming.thumbnailUrl = thumbnailUrl
         }
     }
 
@@ -990,21 +1386,7 @@ class EnhancedChatViewModel: ObservableObject {
 
                 switch result {
                 case .success(let messages):
-                    let newSet = Set(messages.map { $0.id })
-                    let droppedMessages = self.realTimeMessages.filter { !newSet.contains($0.id) }
-
-                    if !droppedMessages.isEmpty {
-                        // No promover al histórico mensajes anteriores al punto de corte del borrado
-                        let promotable = self.messagesRespectingDeletionCutoff(droppedMessages)
-                        self.historicalMessages.append(contentsOf: promotable)
-                    }
-
-                    self.realTimeMessages = messages
-                    self.rebuildMessagesList()
-                    self.prefetchUnresolvedMediaIfNeeded()
-
-                    LocalPersistenceService.shared.reconcileMessages(messages, conversationId: conversationId)
-                    self.isFirstFetch = false
+                    self.applyFirestoreListenerMessages(messages, conversationId: conversationId)
                 case .failure(let error):
                     self.error = error.localizedDescription
                 }
@@ -1071,9 +1453,11 @@ class EnhancedChatViewModel: ObservableObject {
 
     func deactivateChatSession() {
         isChatVisible = false
-        if chatSessionMode == .active {
-            chatSessionMode = .warm
+        if LocalFirstMessagingSettings.isEnabled {
+            pauseChatListenersImmediately()
+            return
         }
+
         listenerPauseTask?.cancel()
         listenerPauseTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: Self.listenerPauseTTL)
@@ -1082,28 +1466,15 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
-    func warmChatSession() {
-        guard chatSessionMode != .active else { return }
-        chatSessionMode = .warm
-        loadCachedMessagesIfNeeded()
-        attachChatListenersIfNeeded()
-
-        if let conversationId = conversation.id {
-            Task {
-                await EncryptionService.shared.preloadConversationKeys(for: [conversationId])
-            }
-        }
-    }
-
     func pauseChatListenersImmediately() {
         listenerPauseTask?.cancel()
         listenerPauseTask = nil
         guard sessionListenersAttached else {
-            chatSessionMode = .cold
+            chatSessionMode = .idle
             return
         }
         sessionListenersAttached = false
-        chatSessionMode = .cold
+        chatSessionMode = .idle
         detachChatListeners()
     }
 
@@ -1224,7 +1595,12 @@ class EnhancedChatViewModel: ObservableObject {
         }
         
         let messageId = UUID().uuidString
-        let localPreview = localOutgoingPreviewURL(data: imageData, fileExtension: "jpg")
+        let localPreview = localOutgoingPreviewURL(
+            data: imageData,
+            conversationId: conversationId,
+            messageId: messageId,
+            fileExtension: "jpg"
+        )
         // Reservar dimensiones desde el origen: la burbuja calcula su altura sin esperar a descargar
         // la imagen, evitando el reflujo/padding al renderizar.
         let pixelWidth = Int(image.size.width * image.scale)
@@ -1255,11 +1631,10 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    self?.applyOutgoingMessageUpdate(
+                    self?.finalizeOutgoingMediaMessage(
                         messageId: messageId,
-                        status: sentMessage.status,
-                        mediaUrl: sentMessage.mediaUrl ?? localPreview,
-                        thumbnailUrl: sentMessage.thumbnailUrl
+                        sentMessage: sentMessage,
+                        fallbackMediaUrl: localPreview
                     )
                     self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
@@ -1384,7 +1759,12 @@ class EnhancedChatViewModel: ObservableObject {
         
         
         let messageId = UUID().uuidString
-        let localPreview = localOutgoingPreviewURL(data: data, fileExtension: "mp4")
+        let localPreview = localOutgoingPreviewURL(
+            data: data,
+            conversationId: conversationId,
+            messageId: messageId,
+            fileExtension: "mp4"
+        )
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
@@ -1409,11 +1789,10 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    self?.applyOutgoingMessageUpdate(
+                    self?.finalizeOutgoingMediaMessage(
                         messageId: messageId,
-                        status: sentMessage.status,
-                        mediaUrl: sentMessage.mediaUrl ?? localPreview,
-                        thumbnailUrl: sentMessage.thumbnailUrl
+                        sentMessage: sentMessage,
+                        fallbackMediaUrl: localPreview
                     )
                     self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
@@ -1479,7 +1858,12 @@ class EnhancedChatViewModel: ObservableObject {
         
         // ✅ Crear mensaje local inmediatamente para feedback visual
         let messageId = UUID().uuidString
-        let localPreview = localOutgoingPreviewURL(data: audioData, fileExtension: "m4a")
+        let localPreview = localOutgoingPreviewURL(
+            data: audioData,
+            conversationId: conversationId,
+            messageId: messageId,
+            fileExtension: "m4a"
+        )
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
@@ -1503,11 +1887,10 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    self?.applyOutgoingMessageUpdate(
+                    self?.finalizeOutgoingMediaMessage(
                         messageId: messageId,
-                        status: sentMessage.status,
-                        mediaUrl: sentMessage.mediaUrl ?? localPreview,
-                        thumbnailUrl: sentMessage.thumbnailUrl
+                        sentMessage: sentMessage,
+                        fallbackMediaUrl: localPreview
                     )
                     self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
@@ -1527,13 +1910,58 @@ class EnhancedChatViewModel: ObservableObject {
     }
     
     // MARK: - Message Actions
+
+    private func removeMessageFromLocalStores(_ messageId: String) {
+        realTimeMessages.removeAll { $0.id == messageId }
+        historicalMessages.removeAll { $0.id == messageId }
+        messages.removeAll { $0.id == messageId }
+        outgoingTempMessages.removeValue(forKey: messageId)
+        localMessageStates.removeValue(forKey: messageId)
+        uploadProgress.removeValue(forKey: messageId)
+        clearDownloadProgress(for: messageId)
+        liveReactionOverlays.removeValue(forKey: messageId)
+    }
+
+    func applyDeletedForEveryoneLocally(_ message: EnhancedMessage) {
+        message.isDeleted = true
+        message.deletedAt = Date()
+        message.mediaUrl = nil
+        message.thumbnailUrl = nil
+
+        removeMessageFromLocalStores(message.id)
+        realTimeMessages.append(message)
+
+        ChatCacheStore.deleteMessageFiles(
+            conversationId: message.conversationId,
+            messageId: message.id
+        )
+        LocalPersistenceService.shared.markMessageDeletedForEveryone(
+            conversationId: message.conversationId,
+            messageId: message.id
+        )
+
+        rebuildMessagesList()
+    }
+
+    func applyDeletedForMeLocally(_ message: EnhancedMessage) {
+        hiddenForMeMessageIds.insert(message.id)
+        removeMessageFromLocalStores(message.id)
+        LocalPersistenceService.shared.removeCachedMessage(
+            conversationId: message.conversationId,
+            messageId: message.id
+        )
+        rebuildMessagesList()
+    }
     
     func deleteMessageForEveryone(_ message: EnhancedMessage) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
         }
-        
-        chatService.deleteMessage(
+        guard message.senderId == currentUserId else { return }
+
+        applyDeletedForEveryoneLocally(message)
+
+        chatService.deleteMessageWithCleanup(
             conversationId: conversationId,
             messageId: message.id
         ) { [weak self] error in
@@ -1549,7 +1977,9 @@ class EnhancedChatViewModel: ObservableObject {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
         }
-        
+
+        applyDeletedForMeLocally(message)
+
         chatService.deleteMessageForMe(
             conversationId: conversationId,
             messageId: message.id,
@@ -1558,15 +1988,6 @@ class EnhancedChatViewModel: ObservableObject {
             if let error = error {
                 DispatchQueue.main.async {
                     self?.error = error.localizedDescription
-                }
-            } else {
-                // Locally remove the message immediately for better UX
-                DispatchQueue.main.async {
-                    self?.messages.removeAll { $0.id == message.id }
-                    if let momentsVM = self as? MomentsChatViewModel {
-                        momentsVM.syncMessagePresentation()
-                    }
-                    self?.objectWillChange.send()
                 }
             }
         }

@@ -13,47 +13,19 @@ extension ChatService {
         /// Si el media ya fue descifrado en sesiones anteriores, devuelve URLs locales
         /// sin tocar la red (útil al abrir la galería del cluster).
         func warmMessageURLsFromDiskCache(_ message: EnhancedMessage) -> (mediaUrl: String?, thumbnailUrl: String?) {
-            var mediaUrl = message.mediaUrl
-            var thumbnailUrl = message.thumbnailUrl
+            let warmed = ChatCacheStore.localURLsIfPresent(for: message)
 
-            if mediaUrl == nil,
-               let mediaEncryption = message.mediaEncryption {
-                let cacheURL = decryptedMediaCacheURL(
-                    conversationId: message.conversationId,
-                    messageId: message.id,
-                    purpose: mediaEncryption.purpose,
-                    fileExtension: mediaEncryption.fileExtension
+            if let mediaUrl = warmed.mediaUrl {
+                resolvedMediaCache[message.id] = CachedResolvedMedia(
+                    mediaUrl: mediaUrl,
+                    thumbnailUrl: warmed.thumbnailUrl
                 )
-                if FileManager.default.fileExists(atPath: cacheURL.path) {
-                    mediaUrl = cacheURL.absoluteString
-                    resolvedMediaCache[message.id] = CachedResolvedMedia(
-                        mediaUrl: cacheURL.absoluteString,
-                        thumbnailUrl: nil
-                    )
-                }
+            }
+            if let thumbnailUrl = warmed.thumbnailUrl {
+                resolvedThumbnailCache[message.id] = thumbnailUrl
             }
 
-            if thumbnailUrl == nil,
-               let thumbEncryption = message.thumbnailEncryption {
-                let cacheURL = decryptedMediaCacheURL(
-                    conversationId: message.conversationId,
-                    messageId: message.id,
-                    purpose: thumbEncryption.purpose,
-                    fileExtension: thumbEncryption.fileExtension
-                )
-                if FileManager.default.fileExists(atPath: cacheURL.path) {
-                    thumbnailUrl = cacheURL.absoluteString
-                    resolvedThumbnailCache[message.id] = cacheURL.absoluteString
-                }
-            }
-
-            if thumbnailUrl == nil,
-               message.type == .video,
-               let posterURL = ChatVideoPosterGenerator.cachedPosterURL(messageId: message.id) {
-                thumbnailUrl = posterURL.absoluteString
-            }
-
-            return (mediaUrl, thumbnailUrl)
+            return warmed
         }
 
         init(encryptionService: EncryptionService) {
@@ -78,7 +50,7 @@ extension ChatService {
 
         /// Resuelve únicamente la miniatura cifrada (barato, no descarga el vídeo
         /// completo). Devuelve un file:// local descifrado para usar como portada.
-        func resolveThumbnailURL(for message: EnhancedMessage) async -> String? {
+        func resolveThumbnailURL(for message: EnhancedMessage, forceDownload: Bool = false) async -> String? {
             if let existing = message.thumbnailUrl, !existing.isEmpty {
                 return existing
             }
@@ -95,7 +67,8 @@ extension ChatService {
                 objectPath: thumbObjectPath,
                 metadata: thumbEncryption,
                 conversationId: message.conversationId,
-                messageId: message.id
+                messageId: message.id,
+                forceDownload: forceDownload
             )
             if let resolved {
                 resolvedThumbnailCache[message.id] = resolved
@@ -103,7 +76,7 @@ extension ChatService {
             return resolved
         }
 
-        func resolveForMessage(_ message: EnhancedMessage) async -> (mediaUrl: String?, thumbnailUrl: String?)? {
+        func resolveForMessage(_ message: EnhancedMessage, forceDownload: Bool = false) async -> (mediaUrl: String?, thumbnailUrl: String?)? {
             guard let mediaObjectPath = message.mediaObjectPath,
                   !mediaObjectPath.isEmpty,
                   let mediaEncryption = message.mediaEncryption else {
@@ -116,7 +89,8 @@ extension ChatService {
                 mediaObjectPath: mediaObjectPath,
                 mediaEncryption: mediaEncryption,
                 thumbnailObjectPath: message.thumbnailObjectPath,
-                thumbnailEncryption: message.thumbnailEncryption
+                thumbnailEncryption: message.thumbnailEncryption,
+                forceDownload: forceDownload
             )
             return (resolved.mediaUrl, resolved.thumbnailUrl)
         }
@@ -127,13 +101,12 @@ extension ChatService {
             mediaObjectPath: String,
             mediaEncryption: EncryptedChatMediaMetadata,
             thumbnailObjectPath: String?,
-            thumbnailEncryption: EncryptedChatMediaMetadata?
+            thumbnailEncryption: EncryptedChatMediaMetadata?,
+            forceDownload: Bool = false
         ) async -> CachedResolvedMedia {
             if let cached = outgoingPreviews[messageId] {
                 return cached
             }
-            // El cache en memoria puede apuntar a un archivo que iOS purgó de Caches mientras la
-            // app estaba en segundo plano: si ya no existe, lo descartamos y re-descargamos.
             if let cached = resolvedMediaCache[messageId] {
                 if Self.cachedMediaFileExists(cached.mediaUrl) {
                     return cached
@@ -141,13 +114,14 @@ extension ChatService {
                 resolvedMediaCache.removeValue(forKey: messageId)
             }
 
-            let diskMain = decryptedMediaCacheURL(
+            let diskMain = ChatCacheStore.decryptedMediaURL(
                 conversationId: conversationId,
                 messageId: messageId,
                 purpose: mediaEncryption.purpose,
                 fileExtension: mediaEncryption.fileExtension
             )
             if FileManager.default.fileExists(atPath: diskMain.path) {
+                ChatCacheStore.touchAccessDate(at: diskMain)
                 let resolved = CachedResolvedMedia(mediaUrl: diskMain.absoluteString, thumbnailUrl: nil)
                 resolvedMediaCache[messageId] = resolved
                 return resolved
@@ -163,7 +137,8 @@ extension ChatService {
                 mediaObjectPath: mediaObjectPath,
                 mediaEncryption: mediaEncryption,
                 thumbnailObjectPath: thumbnailObjectPath,
-                thumbnailEncryption: thumbnailEncryption
+                thumbnailEncryption: thumbnailEncryption,
+                forceDownload: forceDownload
             )
             if resolved.mediaUrl != nil || resolved.thumbnailUrl != nil {
                 resolvedMediaCache[messageId] = resolved
@@ -177,20 +152,23 @@ extension ChatService {
             mediaObjectPath: String,
             mediaEncryption: EncryptedChatMediaMetadata,
             thumbnailObjectPath: String?,
-            thumbnailEncryption: EncryptedChatMediaMetadata?
+            thumbnailEncryption: EncryptedChatMediaMetadata?,
+            forceDownload: Bool
         ) async -> CachedResolvedMedia {
             async let mainURL = resolveEncryptedMediaURL(
                 objectPath: mediaObjectPath,
                 metadata: mediaEncryption,
                 conversationId: conversationId,
-                messageId: messageId
+                messageId: messageId,
+                forceDownload: forceDownload
             )
 
             async let thumbURL = resolveEncryptedThumbnailURL(
                 objectPath: thumbnailObjectPath,
                 metadata: thumbnailEncryption,
                 conversationId: conversationId,
-                messageId: messageId
+                messageId: messageId,
+                forceDownload: forceDownload
             )
 
             return await CachedResolvedMedia(
@@ -203,14 +181,16 @@ extension ChatService {
             objectPath: String?,
             metadata: EncryptedChatMediaMetadata?,
             conversationId: String,
-            messageId: String
+            messageId: String,
+            forceDownload: Bool
         ) async -> String? {
             guard let objectPath, let metadata else { return nil }
             return await resolveEncryptedMediaURL(
                 objectPath: objectPath,
                 metadata: metadata,
                 conversationId: conversationId,
-                messageId: messageId
+                messageId: messageId,
+                forceDownload: forceDownload
             )
         }
 
@@ -218,9 +198,10 @@ extension ChatService {
             objectPath: String,
             metadata: EncryptedChatMediaMetadata,
             conversationId: String,
-            messageId: String
+            messageId: String,
+            forceDownload: Bool = false
         ) async -> String? {
-            let cacheURL = decryptedMediaCacheURL(
+            let cacheURL = ChatCacheStore.decryptedMediaURL(
                 conversationId: conversationId,
                 messageId: messageId,
                 purpose: metadata.purpose,
@@ -228,23 +209,44 @@ extension ChatService {
             )
 
             if FileManager.default.fileExists(atPath: cacheURL.path) {
+                ChatCacheStore.touchAccessDate(at: cacheURL)
                 return cacheURL.absoluteString
+            }
+
+            guard metadata.purpose == .thumbnail
+                ? ChatMediaDownloadPolicy.shouldDownloadThumbnailPreview(force: forceDownload)
+                : ChatMediaDownloadPolicy.shouldDownloadAutomatically(force: forceDownload)
+            else {
+                return nil
             }
 
             do {
                 let maxSize = max(metadata.plaintextSize + Int64(256 * 1024), Int64(8 * 1024 * 1024))
+                let reportsProgress = metadata.purpose == .primary
                 let encryptedData = try await Self.downloadEncryptedBlob(
                     objectPath: objectPath,
-                    maxSize: maxSize
+                    maxSize: maxSize,
+                    messageId: messageId,
+                    reportsProgress: reportsProgress
                 )
+                if reportsProgress {
+                    Self.postDownloadProgress(messageId: messageId, progress: 0.88)
+                }
                 let decryptedData = try await encryptionService.decryptChatMedia(
                     encryptedData,
                     metadata: metadata,
                     for: conversationId,
                     messageId: messageId
                 )
-                try ensureChatMediaCacheDirectory()
+                if reportsProgress {
+                    Self.postDownloadProgress(messageId: messageId, progress: 0.96)
+                }
+                try ChatCacheStore.ensureDirectories()
                 try decryptedData.write(to: cacheURL, options: Data.WritingOptions.atomic)
+                ChatCacheStore.enforceQuota()
+                if reportsProgress {
+                    Self.postDownloadProgress(messageId: messageId, progress: 1.0)
+                }
                 return cacheURL.absoluteString
             } catch {
                 return nil
@@ -254,56 +256,87 @@ extension ChatService {
         /// `true` si la URL cacheada es un `file://` cuyo archivo sigue existiendo en disco.
         private static func cachedMediaFileExists(_ urlString: String?) -> Bool {
             guard let urlString, let url = URL(string: urlString) else { return false }
-            guard url.isFileURL else { return true } // remoto (http): asumimos válido
+            guard url.isFileURL else { return true }
             return FileManager.default.fileExists(atPath: url.path)
         }
 
-        private func decryptedMediaCacheURL(
-            conversationId: String,
-            messageId: String,
-            purpose: ChatMediaPurpose,
-            fileExtension: String
-        ) -> URL {
-            let safeConversation = conversationId.replacingOccurrences(of: "/", with: "_")
-            let safeMessage = messageId.replacingOccurrences(of: "/", with: "_")
-            let filename = "\(safeConversation)_\(safeMessage)_\(purpose.rawValue).\(fileExtension)"
-            return chatMediaCacheDirectory().appendingPathComponent(filename)
-        }
-
-        private func chatMediaCacheDirectory() -> URL {
-            FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("chat_media_decrypted", isDirectory: true)
-        }
-
-        private func ensureChatMediaCacheDirectory() throws {
-            try FileManager.default.createDirectory(
-                at: chatMediaCacheDirectory(),
-                withIntermediateDirectories: true,
-                attributes: nil
+        private static func postDownloadProgress(messageId: String, progress: Double) {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("MediaDownloadProgress"),
+                object: nil,
+                userInfo: [
+                    "messageId": messageId,
+                    "progress": min(max(progress, 0), 1)
+                ]
             )
         }
 
         /// Descargas en paralelo (antes un `actor` serializaba todo y la galería tardaba mucho).
-        private static func downloadEncryptedBlob(objectPath: String, maxSize: Int64) async throws -> Data {
-            try await withCheckedThrowingContinuation { continuation in
-                Storage.storage()
-                    .reference()
-                    .child(objectPath)
-                    .getData(maxSize: maxSize) { data, error in
-                        if let error {
-                            continuation.resume(throwing: error)
-                        } else if let data {
-                            continuation.resume(returning: data)
-                        } else {
-                            continuation.resume(
-                                throwing: NSError(
-                                    domain: "ChatService",
-                                    code: -1,
-                                    userInfo: [NSLocalizedDescriptionKey: "No se pudieron descargar los datos cifrados"]
-                                )
+        private static func downloadEncryptedBlob(
+            objectPath: String,
+            maxSize: Int64,
+            messageId: String,
+            reportsProgress: Bool
+        ) async throws -> Data {
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("chat-enc-\(UUID().uuidString).bin")
+            defer { try? FileManager.default.removeItem(at: tempURL) }
+
+            let reference = Storage.storage().reference().child(objectPath)
+
+            return try await withCheckedThrowingContinuation { continuation in
+                let task = reference.write(toFile: tempURL)
+                var progressHandle: String?
+                var successHandle: String?
+                var failureHandle: String?
+
+                func removeObservers() {
+                    if let progressHandle {
+                        task.removeObserver(withHandle: progressHandle)
+                    }
+                    if let successHandle {
+                        task.removeObserver(withHandle: successHandle)
+                    }
+                    if let failureHandle {
+                        task.removeObserver(withHandle: failureHandle)
+                    }
+                }
+
+                if reportsProgress {
+                    progressHandle = task.observe(.progress) { snapshot in
+                        guard let progress = snapshot.progress, progress.totalUnitCount > 0 else { return }
+                        let fraction = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
+                        postDownloadProgress(messageId: messageId, progress: max(0.03, fraction * 0.85))
+                    }
+                }
+
+                successHandle = task.observe(.success) { _ in
+                    removeObservers()
+                    do {
+                        let attributes = try FileManager.default.attributesOfItem(atPath: tempURL.path)
+                        let fileSize = (attributes[.size] as? NSNumber)?.int64Value ?? 0
+                        if fileSize > maxSize {
+                            throw NSError(
+                                domain: "ChatService",
+                                code: -2,
+                                userInfo: [NSLocalizedDescriptionKey: "El archivo cifrado supera el tamaño máximo permitido"]
                             )
                         }
+                        let data = try Data(contentsOf: tempURL)
+                        continuation.resume(returning: data)
+                    } catch {
+                        continuation.resume(throwing: error)
                     }
+                }
+
+                failureHandle = task.observe(.failure) { snapshot in
+                    removeObservers()
+                    continuation.resume(throwing: snapshot.error ?? NSError(
+                        domain: "ChatService",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "No se pudieron descargar los datos cifrados"]
+                    ))
+                }
             }
         }
     }

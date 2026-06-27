@@ -182,14 +182,17 @@ struct MessagingView: View {
                         updatePendingRequestCount(for: userId)
                     }
 
+                    preloadRecentChatSessions()
+
                     if let targetId = targetConversationId {
                         navigateToConversation(id: targetId)
                     }
 
-                    warmRecentChatSessions()
+                    triggerCatchUpIfNeeded()
                 }
                 .onChange(of: viewModel.conversations.map(\.id)) { _, _ in
-                    warmRecentChatSessions()
+                    triggerCatchUpIfNeeded()
+                    preloadRecentChatSessions()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .chatDraftDidChange)) { _ in
                     viewModel.refreshDraftOrdering()
@@ -265,10 +268,23 @@ struct MessagingView: View {
             }
         }
 
-    private func warmRecentChatSessions() {
-        let ids = viewModel.conversations.prefix(3).compactMap(\.id)
-        guard !ids.isEmpty else { return }
-        ChatSessionEngine.shared.warm(conversationIds: ids)
+    private func triggerCatchUpIfNeeded() {
+        guard LocalFirstMessagingSettings.isEnabled else { return }
+        MessageCatchUpService.shared.syncRecent(conversations: viewModel.conversations)
+    }
+
+    private func preloadRecentChatSessions() {
+        guard LocalFirstMessagingSettings.isEnabled else { return }
+        let cached = LocalPersistenceService.shared.loadConversations()
+        guard !cached.isEmpty else { return }
+        let userId = Auth.auth().currentUser?.uid ?? ""
+        let sorted = cached.sorted { lhs, rhs in
+            let lhsUnread = !(lhs.readStatus[userId] ?? true)
+            let rhsUnread = !(rhs.readStatus[userId] ?? true)
+            if lhsUnread != rhsUnread { return lhsUnread && !rhsUnread }
+            return lhs.timestamp > rhs.timestamp
+        }
+        ChatSessionEngine.shared.preloadRecentSessions(from: sorted, limit: 5)
     }
 
     private func navigateToConversation(id: String) {
@@ -328,15 +344,15 @@ struct MessagingView: View {
 
         if onDismiss != nil {
             ToolbarItem(placement: .topBarTrailing) {
-                messagingToolbarComposeButton
+                messagingToolbarTrailingCluster
+            }
+            .chatHideSharedBackgroundIfAvailable()
+        } else {
+            ToolbarItem(placement: .topBarTrailing) {
+                messagingToolbarRequestsButton
             }
             .chatHideSharedBackgroundIfAvailable()
         }
-
-        ToolbarItem(placement: .topBarTrailing) {
-            messagingToolbarRequestsButton
-        }
-        .chatHideSharedBackgroundIfAvailable()
     }
 
     private var messagingToolbarBackButton: some View {
@@ -346,6 +362,20 @@ struct MessagingView: View {
             preset: .navigationBack,
             action: { onDismiss?() }
         )
+    }
+
+    private var messagingToolbarTrailingCluster: some View {
+        ProfileChromeControlsCluster {
+            ProfileChromeIconButton(
+                systemName: "square.and.pencil",
+                foregroundColor: adaptiveColors.primary,
+                preset: .toolbarAction,
+                standaloneGlass: false,
+                action: { isShowingNewConversation = true }
+            )
+
+            messagingToolbarRequestsClusterButton
+        }
     }
 
     private var messagingToolbarComposeButton: some View {
@@ -378,6 +408,32 @@ struct MessagingView: View {
                         .offset(x: 12, y: -12)
                 }
             }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var messagingToolbarRequestsClusterButton: some View {
+        Button(action: { showingMessageRequests = true }) {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: "message.circle")
+                    .font(.system(size: MomentsGlassControlMetrics.toolbarIconSize, weight: .medium))
+                    .foregroundColor(adaptiveColors.primary)
+                    .frame(
+                        width: MomentsGlassControlMetrics.toolbarControlSize,
+                        height: MomentsGlassControlMetrics.toolbarControlSize
+                    )
+
+                if pendingRequestCount > 0 {
+                    Text("\(pendingRequestCount)")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(Color(hex: "FF3B30")))
+                        .offset(x: 4, y: -4)
+                }
+            }
+            .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }

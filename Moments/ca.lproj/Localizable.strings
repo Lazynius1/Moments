@@ -948,6 +948,10 @@
 "chat.cluster.receivedPhotos" = "Has rebut %d fotos";
 "chat.cluster.sentItems" = "Has enviat %d elements";
 "chat.cluster.receivedItems" = "Has rebut %d elements";
+"chat.gallery.select" = "Seleccionar";
+"chat.gallery.title" = "Galeria";
+"chat.gallery.selectedCount" = "%d seleccionats";
+"chat.gallery.deletePrompt" = "Eliminar els elements seleccionats?";
 
 /* Messaging */
 "messaging.conversation.notFound" = "Conversa no trobada";
@@ -1579,6 +1583,31 @@
 "settings.sections.yourActivity.subtitle" = "Temps a l'app, interaccions";
 "settings.sections.downloadData" = "Descarregar les teves dades";
 "settings.sections.downloadData.subtitle" = "Sol·licita una còpia de les teves dades";
+"settings.sections.chatStorage" = "Emmagatzematge del xat";
+"settings.sections.chatStorage.subtitle" = "Memòria cau de mitjans i preferències de descàrrega";
+"settings.chatStorage.title" = "Emmagatzematge del xat";
+"settings.chatStorage.usage.title" = "Ús";
+"settings.chatStorage.usage.messages" = "Missatges en memòria cau";
+"settings.chatStorage.usage.messagesCount" = "%d missatges";
+"settings.chatStorage.usage.media" = "Fotos i vídeos";
+"settings.chatStorage.preferences.title" = "Preferències";
+"settings.chatStorage.autoDownload.title" = "Descarregar mitjans automàticament";
+"settings.chatStorage.autoDownload.wifi" = "Només Wi‑Fi";
+"settings.chatStorage.autoDownload.always" = "Sempre";
+"settings.chatStorage.autoDownload.never" = "Mai";
+"settings.chatStorage.retention.title" = "Conservar mitjans durant";
+"settings.chatStorage.retention.7days" = "7 dies";
+"settings.chatStorage.retention.30days" = "30 dies";
+"settings.chatStorage.retention.90days" = "90 dies";
+"settings.chatStorage.retention.forever" = "Sempre";
+"settings.chatStorage.clearMedia.action" = "Alliberar mitjans del xat";
+"settings.chatStorage.clearMedia.subtitle" = "Elimina fotos i vídeos però conserva el text dels missatges.";
+"settings.chatStorage.clearMedia.confirm" = "Alliberar els mitjans del xat? El text dels missatges es mantindrà en aquest dispositiu.";
+"settings.chatStorage.clearMedia.done" = "Mitjans del xat eliminats. Es tornaran a descarregar en obrir converses.";
+"settings.chatStorage.clearAll.action" = "Buidar memòria cau del xat";
+"settings.chatStorage.clearAll.subtitle" = "Elimina tots els missatges i mitjans en memòria cau d'aquest dispositiu.";
+"settings.chatStorage.clearAll.confirm" = "Buidar tota la memòria cau del xat en aquest dispositiu?";
+"settings.chatStorage.clearAll.done" = "Memòria cau del xat buidada.";
 "settings.sections.pushNotifications" = "Notificacions push";
 "settings.sections.pushNotifications.subtitle" = "Publicacions, històries, comentaris";
 "settings.sections.emailNotifications" = "Notificacions per email";

@@ -525,6 +525,8 @@ class AuthService: ObservableObject {
         lastChatScopedUserId = userId
         ChatAccessCoordinator.shared.invalidateAll()
         ChatSessionEngine.shared.invalidateAll()
+        MessageIngestService.shared.resetOnSignOut()
+        MessageCatchUpService.shared.resetOnSignOut()
     }
 
     private func cleanupExpiredOnboardingDraft() {

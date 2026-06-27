@@ -106,6 +106,7 @@ struct SettingsView: View {
     @State private var isShowingNotificationSettings: Bool = false
     @State private var isShowingAdvancedAccountManagement: Bool = false
     @State private var isShowingNovaMemory: Bool = false
+    @State private var isShowingChatStorage: Bool = false
     @State private var isShowingPersonalInfo: Bool = false
     @State private var blockedAccountsCount: Int = 0
 
@@ -145,6 +146,7 @@ struct SettingsView: View {
                     isShowingNotificationSettings: $isShowingNotificationSettings,
                     isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement,
                     isShowingNovaMemory: $isShowingNovaMemory,
+                    isShowingChatStorage: $isShowingChatStorage,
                     showReadReceipts: $showReadReceipts,
                     blockedAccountsCount: blockedAccountsCount
                 )
@@ -208,6 +210,9 @@ struct SettingsView: View {
         }
         .navigationDestination(isPresented: $isShowingDataExport) {
             DataExportView()
+        }
+        .navigationDestination(isPresented: $isShowingChatStorage) {
+            ChatStorageSettingsView()
         }
         .navigationDestination(isPresented: $isShowingModerationReviews) {
             ModerationReviewStatusView()

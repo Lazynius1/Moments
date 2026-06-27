@@ -10,6 +10,10 @@ import FirebaseFirestore
 @MainActor
 final class LocalPersistenceService: ObservableObject {
     static let shared = LocalPersistenceService()
+
+    static let appGroupID = "group.com.glowsyapp"
+    private static let storeFileName = "MomentsLocalCache.store"
+    private static let didMigrateStoreKey = "didMigrateSwiftDataToAppGroup"
     
     private var modelContainer: ModelContainer?
     private var modelContext: ModelContext?
@@ -40,10 +44,15 @@ final class LocalPersistenceService: ObservableObject {
             CachedAction.self,
             UserAffinity.self
         ])
+
+        migrateLegacyStoreToAppGroupIfNeeded()
+        let storeURL = Self.appGroupStoreURL() ?? Self.defaultStoreURL()
+
         let config = ModelConfiguration(
-            "MomentsLocalCache",
+            Self.storeFileName,
             schema: schema,
-            isStoredInMemoryOnly: false
+            url: storeURL,
+            allowsSave: true
         )
 
         do {
@@ -55,6 +64,68 @@ final class LocalPersistenceService: ObservableObject {
             // FALLBACK: Si hay un error de migración (NSCocoaErrorDomain 134110), borrar el cache y reintentar
             resetAndRetry(schema: schema, config: config)
         }
+    }
+
+    private static func appGroupStoreURL() -> URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupID)?
+            .appendingPathComponent(storeFileName)
+    }
+
+    private static func defaultStoreURL() -> URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return appSupport.appendingPathComponent(storeFileName)
+    }
+
+    private static func legacyDefaultStoreURL() -> URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return appSupport.appendingPathComponent("default.store")
+    }
+
+    private func migrateLegacyStoreToAppGroupIfNeeded() {
+        let sharedDefaults = UserDefaults(suiteName: Self.appGroupID)
+        guard sharedDefaults?.bool(forKey: Self.didMigrateStoreKey) != true else { return }
+        guard let destination = Self.appGroupStoreURL() else { return }
+
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+
+        let candidates = [
+            Self.defaultStoreURL(),
+            Self.legacyDefaultStoreURL(),
+            appSupport.appendingPathComponent("MomentsLocalCache.store")
+        ]
+
+        for source in candidates where FileManager.default.fileExists(atPath: source.path) {
+            do {
+                if FileManager.default.fileExists(atPath: destination.path) {
+                    try FileManager.default.removeItem(at: destination)
+                }
+                try FileManager.default.createDirectory(
+                    at: destination.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try FileManager.default.copyItem(at: source, to: destination)
+                for suffix in ["shm", "wal"] {
+                    let sidecar = source.appendingPathExtension(suffix)
+                    if FileManager.default.fileExists(atPath: sidecar.path) {
+                        try? FileManager.default.copyItem(
+                            at: sidecar,
+                            to: destination.appendingPathExtension(suffix)
+                        )
+                    }
+                }
+                sharedDefaults?.set(true, forKey: Self.didMigrateStoreKey)
+                AppLog.debug("✅ LocalPersistence: SwiftData migrado al App Group")
+                return
+            } catch {
+                AppLog.debug("⚠️ LocalPersistence: Fallo migrando store al App Group: \(error)")
+            }
+        }
+
+        sharedDefaults?.set(true, forKey: Self.didMigrateStoreKey)
     }
     
     private func resetAndRetry(schema: Schema, config: ModelConfiguration) {
@@ -437,6 +508,46 @@ final class LocalPersistenceService: ObservableObject {
         }
     }
     
+    func markMessageDeletedForEveryone(conversationId: String, messageId: String) {
+        guard let context = modelContext else { return }
+
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && $0.id == messageId
+        }
+        var descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
+        descriptor.fetchLimit = 1
+
+        guard let existing = (try? context.fetch(descriptor))?.first else { return }
+
+        existing.isDeleted = true
+        existing.deletedAt = Date()
+        existing.content = nil
+        existing.mediaUrl = nil
+        existing.thumbnailUrl = nil
+        existing.mediaObjectPath = nil
+        existing.thumbnailObjectPath = nil
+        existing.mediaEncryptionData = nil
+        existing.thumbnailEncryptionData = nil
+        existing.lastSyncedAt = Date()
+
+        saveContext()
+        ChatCacheStore.deleteMessageFiles(conversationId: conversationId, messageId: messageId)
+    }
+
+    func removeCachedMessage(conversationId: String, messageId: String) {
+        guard let context = modelContext else { return }
+
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && $0.id == messageId
+        }
+        var descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
+        descriptor.fetchLimit = 1
+
+        guard let existing = (try? context.fetch(descriptor))?.first else { return }
+        context.delete(existing)
+        saveContext()
+    }
+
     /// Guarda mensajes de una conversación en el caché local
     func saveMessages(_ messages: [EnhancedMessage], conversationId: String, sync: Bool = false) {
         guard let context = modelContext else { return }
@@ -452,8 +563,9 @@ final class LocalPersistenceService: ObservableObject {
         let descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
         let existingMessages = (try? context.fetch(descriptor)) ?? []
         let existingMap = Dictionary(uniqueKeysWithValues: existingMessages.map { ($0.id, $0) })
+        let messagesToSave = warmDiskMediaURLs(in: messages)
         
-        for message in messages {
+        for message in messagesToSave {
             let cached = CachedMessage.from(message)
             
             if let existing = existingMap[message.id] {
@@ -494,28 +606,201 @@ final class LocalPersistenceService: ObservableObject {
         trimMessages(for: conversationId)
     }
     
-    /// Carga el historial de mensajes de una conversación desde el caché local
-    func loadMessages(conversationId: String) -> [EnhancedMessage] {
+    func messageExists(conversationId: String, messageId: String) -> Bool {
+        guard let context = modelContext else { return false }
+
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && $0.id == messageId
+        }
+        var descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
+        descriptor.fetchLimit = 1
+
+        return ((try? context.fetch(descriptor)) ?? []).isEmpty == false
+    }
+
+    func lastMessageTimestamp(for conversationId: String) -> Date? {
+        guard let context = modelContext else { return nil }
+
+        let predicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
+        var descriptor = FetchDescriptor<CachedMessage>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+
+        return (try? context.fetch(descriptor))?.first?.timestamp
+    }
+
+    func upsertConversationPreview(from message: EnhancedMessage) {
+        guard let context = modelContext else { return }
+
+        let conversationId = message.conversationId
+        let predicate = #Predicate<CachedConversation> { $0.id == conversationId }
+        let descriptor = FetchDescriptor<CachedConversation>(predicate: predicate)
+        let existing = (try? context.fetch(descriptor))?.first
+
+        if let existing {
+            existing.lastMessage = message.preview
+            existing.timestamp = message.timestamp
+            existing.lastSyncedAt = Date()
+
+            if let currentUserId = Auth.auth().currentUser?.uid,
+               message.senderId != currentUserId {
+                var readStatus = (try? JSONDecoder().decode([String: Bool].self, from: existing.readStatusData ?? Data()))
+                    ?? [:]
+                readStatus[currentUserId] = false
+                existing.readStatusData = try? JSONEncoder().encode(readStatus)
+            }
+        } else {
+            let currentUserId = Auth.auth().currentUser?.uid ?? ""
+            var readStatus: [String: Bool] = [:]
+            if !currentUserId.isEmpty {
+                readStatus[currentUserId] = message.senderId == currentUserId
+            }
+
+            let cached = CachedConversation(
+                id: conversationId,
+                participants: [],
+                lastMessage: message.preview,
+                timestamp: message.timestamp,
+                readStatusData: try? JSONEncoder().encode(readStatus),
+                otherParticipantId: message.senderId == currentUserId ? "" : message.senderId,
+                otherParticipantUsername: nil,
+                otherParticipantProfileImagePath: nil,
+                isPinned: false,
+                isMuted: false,
+                isArchived: false,
+                lastSyncedAt: Date()
+            )
+            context.insert(cached)
+        }
+
+        saveContext()
+        trimConversations()
+    }
+
+    /// Carga rápida sin I/O de disco por mensaje (local-first: pintar UI al instante).
+    func loadMessagesFast(conversationId: String) -> [EnhancedMessage] {
         guard let context = modelContext else { return [] }
-        
+
         let predicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
         let descriptor = FetchDescriptor<CachedMessage>(
             predicate: predicate,
             sortBy: [SortDescriptor(\.timestamp, order: .forward)]
         )
-        
+
         do {
             let cached = try context.fetch(descriptor)
             return cached.map { $0.toEnhancedMessage() }
         } catch {
-            AppLog.debug("❌ LocalPersistence: Error al cargar mensajes: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar mensajes (fast): \(error)")
             return []
         }
+    }
+
+    /// Re-enlaza URLs locales desde App Group (puede ejecutarse fuera del main).
+    nonisolated static func applyDiskWarm(to message: EnhancedMessage) -> (mediaUrl: String?, thumbnailUrl: String?, changed: Bool) {
+        let warmed = ChatCacheStore.localURLsIfPresent(for: message)
+        var changed = false
+
+        if let mediaUrl = warmed.mediaUrl,
+           message.mediaUrl != mediaUrl || message.hasMissingLocalMedia {
+            changed = true
+        }
+        if let thumbnailUrl = warmed.thumbnailUrl,
+           message.thumbnailUrl != thumbnailUrl || message.hasMissingLocalThumbnail {
+            changed = true
+        }
+
+        return (warmed.mediaUrl, warmed.thumbnailUrl, changed)
+    }
+
+    /// Warm de disco en background; persiste y notifica mensajes actualizados.
+    func scheduleWarmDiskMediaURLs(
+        conversationId: String,
+        onUpdated: @escaping (_ updatedMessages: [EnhancedMessage]) -> Void
+    ) {
+        Task.detached(priority: .utility) {
+            let loaded = await MainActor.run {
+                LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
+            }
+            guard !loaded.isEmpty else { return }
+
+            var relinked: [EnhancedMessage] = []
+            var results = loaded
+
+            for index in results.indices {
+                let warm = Self.applyDiskWarm(to: results[index])
+                guard warm.changed else { continue }
+
+                if let mediaUrl = warm.mediaUrl {
+                    results[index].mediaUrl = mediaUrl
+                }
+                if let thumbnailUrl = warm.thumbnailUrl {
+                    results[index].thumbnailUrl = thumbnailUrl
+                }
+                relinked.append(results[index])
+            }
+
+            await MainActor.run {
+                if !relinked.isEmpty {
+                    LocalPersistenceService.shared.saveMessages(relinked, conversationId: conversationId, sync: false)
+                }
+                onUpdated(results)
+            }
+        }
+    }
+
+    /// Warm síncrono antes de persistir (ingest / save batch).
+    func warmDiskMediaURLs(in messages: [EnhancedMessage]) -> [EnhancedMessage] {
+        var results = messages
+        for index in results.indices {
+            let warm = Self.applyDiskWarm(to: results[index])
+            guard warm.changed else { continue }
+            if let mediaUrl = warm.mediaUrl {
+                results[index].mediaUrl = mediaUrl
+            }
+            if let thumbnailUrl = warm.thumbnailUrl {
+                results[index].thumbnailUrl = thumbnailUrl
+            }
+        }
+        return results
+    }
+
+    /// Carga el historial de mensajes de una conversación desde el caché local
+    func loadMessages(conversationId: String) -> [EnhancedMessage] {
+        let results = loadMessagesFast(conversationId: conversationId)
+        guard !results.isEmpty else { return [] }
+
+        var relinked: [EnhancedMessage] = []
+        var warmedResults = results
+
+        for index in warmedResults.indices {
+            let warm = Self.applyDiskWarm(to: warmedResults[index])
+            guard warm.changed else { continue }
+
+            if let mediaUrl = warm.mediaUrl {
+                warmedResults[index].mediaUrl = mediaUrl
+            }
+            if let thumbnailUrl = warm.thumbnailUrl {
+                warmedResults[index].thumbnailUrl = thumbnailUrl
+            }
+            relinked.append(warmedResults[index])
+        }
+
+        if !relinked.isEmpty {
+            saveMessages(relinked, conversationId: conversationId, sync: false)
+        }
+
+        return warmedResults
     }
 
     /// Elimina del caché local una conversación y su historial de mensajes.
     func deleteConversationCache(conversationId: String) {
         guard let context = modelContext else { return }
+
+        let messageIds = loadMessages(conversationId: conversationId).map(\.id)
+        ChatCacheStore.deleteConversation(conversationId, messageIds: messageIds)
 
         let conversationPredicate = #Predicate<CachedConversation> { $0.id == conversationId }
         let messagePredicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
@@ -523,6 +808,46 @@ final class LocalPersistenceService: ObservableObject {
         try? context.delete(model: CachedConversation.self, where: conversationPredicate)
         try? context.delete(model: CachedMessage.self, where: messagePredicate)
         saveContext()
+    }
+
+    func cachedMessageCount() -> Int {
+        guard let context = modelContext else { return 0 }
+        return (try? context.fetchCount(FetchDescriptor<CachedMessage>())) ?? 0
+    }
+
+    func cachedMessageKeys(since date: Date) -> Set<String> {
+        guard let context = modelContext else { return [] }
+
+        let predicate = #Predicate<CachedMessage> { $0.timestamp >= date }
+        let descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
+
+        guard let messages = try? context.fetch(descriptor) else { return [] }
+        return Set(messages.map { "\($0.conversationId):\($0.id)" })
+    }
+
+    /// Claves de mensajes con media cifrada — protegidas de eviction por cuota.
+    func cachedMessageKeysWithMedia() -> Set<String> {
+        guard let context = modelContext else { return [] }
+
+        let descriptor = FetchDescriptor<CachedMessage>()
+        guard let messages = try? context.fetch(descriptor) else { return [] }
+
+        return Set(
+            messages.compactMap { message -> String? in
+                guard message.mediaEncryptionData != nil else { return nil }
+                return "\(message.conversationId):\(message.id)"
+            }
+        )
+    }
+
+    /// Borra metadatos de chat en SwiftData y toda la media descifrada en disco.
+    func clearAllChatCache() {
+        guard let context = modelContext else { return }
+
+        try? context.delete(model: CachedConversation.self)
+        try? context.delete(model: CachedMessage.self)
+        saveContext()
+        ChatCacheStore.clearAllMedia()
     }
     
     // MARK: - 🔔 NOTIFICATIONS: Save & Load
@@ -799,6 +1124,10 @@ final class LocalPersistenceService: ObservableObject {
             if all.count > maxMessagesPerChat {
                 let toDelete = all.suffix(from: maxMessagesPerChat)
                 for message in toDelete {
+                    ChatCacheStore.deleteMessageFiles(
+                        conversationId: conversationId,
+                        messageId: message.id
+                    )
                     context.delete(message)
                 }
                 saveContext()
@@ -947,8 +1276,16 @@ final class LocalPersistenceService: ObservableObject {
         
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -maxDataAgeDays, to: Date()) ?? Date()
         
-        // 1. Limpiar mensajes antiguos
+        // 1. Limpiar mensajes antiguos (y su media en disco)
         let messagePredicate = #Predicate<CachedMessage> { $0.timestamp < cutoffDate }
+        if let staleMessages = try? context.fetch(FetchDescriptor<CachedMessage>(predicate: messagePredicate)) {
+            for message in staleMessages {
+                ChatCacheStore.deleteMessageFiles(
+                    conversationId: message.conversationId,
+                    messageId: message.id
+                )
+            }
+        }
         do {
             try context.delete(model: CachedMessage.self, where: messagePredicate)
         } catch {
@@ -964,6 +1301,7 @@ final class LocalPersistenceService: ObservableObject {
         }
         
         saveContext()
+        ChatCacheStore.enforceRetention()
     }
     
     /// Limpia todo el caché local
@@ -1118,15 +1456,44 @@ final class LocalPersistenceService: ObservableObject {
         existing.lastSyncedAt = Date()
     }
     
+    private func shouldPreserveLocalMediaURL(existing: String?, incoming: String?, isDeleted: Bool) -> Bool {
+        guard !isDeleted else { return false }
+        guard let existing, !existing.isEmpty else { return false }
+        guard let url = URL(string: existing), url.isFileURL else { return false }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
     private func updateCachedMessage(_ existing: CachedMessage, from new: CachedMessage) {
         existing.typeString = new.typeString
-        existing.content = new.content
-        existing.mediaUrl = new.mediaUrl
-        existing.thumbnailUrl = new.thumbnailUrl
-        existing.mediaObjectPath = new.mediaObjectPath
-        existing.thumbnailObjectPath = new.thumbnailObjectPath
-        existing.mediaEncryptionData = new.mediaEncryptionData
-        existing.thumbnailEncryptionData = new.thumbnailEncryptionData
+        existing.isDeleted = new.isDeleted
+        existing.deletedAt = new.deletedAt
+
+        if new.isDeleted {
+            existing.content = nil
+            existing.mediaUrl = nil
+            existing.thumbnailUrl = nil
+            existing.mediaObjectPath = nil
+            existing.thumbnailObjectPath = nil
+            existing.mediaEncryptionData = nil
+            existing.thumbnailEncryptionData = nil
+        } else {
+            existing.content = new.content
+            if shouldPreserveLocalMediaURL(existing: existing.mediaUrl, incoming: new.mediaUrl, isDeleted: new.isDeleted) {
+                // Firestore no incluye rutas descifradas locales.
+            } else {
+                existing.mediaUrl = new.mediaUrl
+            }
+            if shouldPreserveLocalMediaURL(existing: existing.thumbnailUrl, incoming: new.thumbnailUrl, isDeleted: new.isDeleted) {
+                // Firestore no incluye rutas descifradas locales.
+            } else {
+                existing.thumbnailUrl = new.thumbnailUrl
+            }
+            existing.mediaObjectPath = new.mediaObjectPath
+            existing.thumbnailObjectPath = new.thumbnailObjectPath
+            existing.mediaEncryptionData = new.mediaEncryptionData
+            existing.thumbnailEncryptionData = new.thumbnailEncryptionData
+        }
+
         existing.mediaBatchId = new.mediaBatchId
         existing.duration = new.duration
         existing.fileName = new.fileName
@@ -1137,8 +1504,6 @@ final class LocalPersistenceService: ObservableObject {
         existing.longitude = new.longitude
         existing.statusString = new.statusString
         existing.isRead = new.isRead
-        existing.isDeleted = new.isDeleted
-        existing.deletedAt = new.deletedAt
         existing.editedAt = new.editedAt
         existing.reactionsData = new.reactionsData
         existing.replyTo = new.replyTo

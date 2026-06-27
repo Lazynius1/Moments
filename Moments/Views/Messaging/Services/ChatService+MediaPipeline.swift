@@ -54,25 +54,14 @@ extension ChatService {
                 if shouldEncryptMedia {
                     let plaintextData: Data
                     let originalContentType: String
-                    let localPreviewURL: String?
 
                     switch payload {
                     case .data(let rawData):
                         plaintextData = rawData
                         originalContentType = getContentType(for: type)
-                        localPreviewURL = createLocalPreviewURL(
-                            data: rawData,
-                            fileExtension: ext,
-                            prefix: "chat_media_preview"
-                        )?.absoluteString
                     case .file(let url):
                         plaintextData = try Data(contentsOf: url)
                         originalContentType = getContentType(for: type)
-                        localPreviewURL = createLocalPreviewURL(
-                            data: plaintextData,
-                            fileExtension: ext,
-                            prefix: "chat_media_preview"
-                        )?.absoluteString
                     }
 
                     let encryptedMain = try await encryptionService.encryptChatMedia(
@@ -83,6 +72,15 @@ extension ChatService {
                         contentType: originalContentType,
                         fileExtension: ext
                     )
+
+                    let cachedMainURL = try ChatCacheStore.writeDecryptedMedia(
+                        plaintextData,
+                        conversationId: conversationId,
+                        messageId: resolvedMessageId,
+                        purpose: encryptedMain.metadata.purpose,
+                        fileExtension: encryptedMain.metadata.fileExtension
+                    )
+                    let localPreviewURL = cachedMainURL.absoluteString
 
                     let encryptedMainTarget = chatEncryptedStorageTarget(
                         userId: senderId,
@@ -156,11 +154,14 @@ extension ChatService {
                             )
                             thumbnailObjectPath = encryptedThumbTarget.objectPath
                             thumbnailEncryption = encryptedThumb.metadata
-                            localThumbnailURL = createLocalPreviewURL(
-                                data: thumbnailData,
-                                fileExtension: "jpg",
-                                prefix: "chat_thumb_preview"
-                            )?.absoluteString
+                            let cachedThumbURL = try ChatCacheStore.writeDecryptedMedia(
+                                thumbnailData,
+                                conversationId: conversationId,
+                                messageId: resolvedMessageId,
+                                purpose: encryptedThumb.metadata.purpose,
+                                fileExtension: encryptedThumb.metadata.fileExtension
+                            )
+                            localThumbnailURL = cachedThumbURL.absoluteString
                         } catch {
                             // Thumbnail opcional; el vídeo principal ya está subido.
                         }

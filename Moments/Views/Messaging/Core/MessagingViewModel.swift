@@ -183,6 +183,10 @@ class MessagingViewModel: ObservableObject {
                     LocalPersistenceService.shared.saveConversations(active + archived, sync: self.isFirstFetch)
                     self.isFirstFetch = false
 
+                    if LocalFirstMessagingSettings.isEnabled {
+                        MessageCatchUpService.shared.syncRecent(conversations: active + archived)
+                    }
+
                 case .failure(let error):
                     if self.conversations.isEmpty {
                         self.errorMessage = String(

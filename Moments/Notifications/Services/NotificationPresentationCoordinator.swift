@@ -110,6 +110,20 @@ final class NotificationPresentationCoordinator {
                     conversationId: conversationId,
                     messageId: messageId
                 )
+
+                if let userInfo {
+                    Task { @MainActor in
+                        await MessageIngestService.shared.ingest(userInfo: userInfo)
+                    }
+                } else {
+                    Task { @MainActor in
+                        await MessageIngestService.shared.ingest(
+                            conversationId: conversationId,
+                            messageId: messageId,
+                            source: .push
+                        )
+                    }
+                }
             }
 
         case .messageReaction:

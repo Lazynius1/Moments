@@ -27,6 +27,7 @@ class NotificationService: UNNotificationServiceExtension {
         }
         
         let userInfo = bestAttemptContent.userInfo
+        enqueueMessageIngestIfNeeded(userInfo: userInfo)
         let group = DispatchGroup()
         
         // 🔐 Vista previa E2E: resolver el texto real en el dispositivo (fast-path embebido
@@ -87,6 +88,16 @@ class NotificationService: UNNotificationServiceExtension {
         }
     }
     
+    // MARK: - Local-first ingest queue
+
+    private func enqueueMessageIngestIfNeeded(userInfo: [AnyHashable: Any]) {
+        let type = (userInfo["type"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard type == "message" || type == "new_message" else { return }
+        guard let conversationId = userInfo["conversationId"] as? String,
+              let messageId = userInfo["messageId"] as? String else { return }
+        MessageIngestQueue.enqueue(conversationId: conversationId, messageId: messageId)
+    }
+
     // MARK: - 🔐 Vista previa de mensajes (descifrado E2E en el dispositivo)
     /// Reemplaza el cuerpo genérico ("Te envió un mensaje") por el texto real.
     /// Dos caminos, ambos con descifrado local con la clave de la conversación:

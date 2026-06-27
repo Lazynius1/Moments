@@ -15,7 +15,7 @@ enum ChatVideoPosterGenerator {
             return cached
         }
 
-        let diskURL = posterCacheURL(messageId: messageId)
+        let diskURL = ChatCacheStore.posterURL(for: messageId)
         if FileManager.default.fileExists(atPath: diskURL.path) {
             let absolute = diskURL.absoluteString
             memoryCache.setObject(absolute as NSString, forKey: cacheKey)
@@ -39,10 +39,11 @@ enum ChatVideoPosterGenerator {
                 continue
             }
             do {
-                try ensureCacheDirectory()
+                try ChatCacheStore.ensureDirectories()
                 try data.write(to: diskURL, options: .atomic)
                 let absolute = diskURL.absoluteString
                 memoryCache.setObject(absolute as NSString, forKey: cacheKey)
+                await MainActor.run { ChatCacheStore.enforceQuota() }
                 return absolute
             } catch {
                 return nil
@@ -52,25 +53,7 @@ enum ChatVideoPosterGenerator {
     }
 
     static func cachedPosterURL(messageId: String) -> URL? {
-        let url = posterCacheURL(messageId: messageId)
+        let url = ChatCacheStore.posterURL(for: messageId)
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
-    }
-
-    private static func cacheDirectory() -> URL {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("chat_video_posters", isDirectory: true)
-    }
-
-    private static func ensureCacheDirectory() throws {
-        try FileManager.default.createDirectory(
-            at: cacheDirectory(),
-            withIntermediateDirectories: true,
-            attributes: nil
-        )
-    }
-
-    private static func posterCacheURL(messageId: String) -> URL {
-        let safeId = messageId.replacingOccurrences(of: "/", with: "_")
-        return cacheDirectory().appendingPathComponent("\(safeId).jpg")
     }
 }

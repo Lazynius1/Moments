@@ -87,6 +87,7 @@ struct ChatTextBubbleView: View {
     let isOutgoing: Bool
     var groupPosition: ChatMessageGroupPosition = .single
     let reactions: [String: [String]]?
+    var isStarred: Bool = false
     let onReaction: (String) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -139,7 +140,8 @@ struct ChatTextBubbleView: View {
                 MessageReactionMetrics.bubbleContentInsets(
                     isOutgoing: isOutgoing,
                     compact: true,
-                    hasReactions: hasReactions
+                    hasReactions: hasReactions,
+                    hasStar: isStarred
                 )
             )
             .background(bubbleFill, in: bubbleShape)
@@ -153,6 +155,7 @@ struct ChatTextBubbleView: View {
             .messageReactionOverlay(
                 isOutgoing: isOutgoing,
                 reactions: reactions,
+                isStarred: isStarred,
                 compact: true,
                 onTap: onReaction
             )

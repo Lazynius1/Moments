@@ -33,6 +33,7 @@ struct SettingsFormView: View {
     @Binding var isShowingNotificationSettings: Bool
     @Binding var isShowingAdvancedAccountManagement: Bool
     @Binding var isShowingNovaMemory: Bool
+    @Binding var isShowingChatStorage: Bool
     @Binding var showReadReceipts: Bool
     let blockedAccountsCount: Int
 
@@ -85,7 +86,8 @@ struct SettingsFormView: View {
                         isShowingSavedMoments: $isShowingSavedMoments,
                         isShowingUserActivity: $isShowingUserActivity,
                         isShowingDataExport: $isShowingDataExport,
-                        isShowingNovaMemory: $isShowingNovaMemory
+                        isShowingNovaMemory: $isShowingNovaMemory,
+                        isShowingChatStorage: $isShowingChatStorage
                     )
 
                     ArchiveSection(
@@ -1337,6 +1339,7 @@ struct ActivitySection: View {
     @Binding var isShowingUserActivity: Bool
     @Binding var isShowingDataExport: Bool
     @Binding var isShowingNovaMemory: Bool
+    @Binding var isShowingChatStorage: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1359,6 +1362,11 @@ struct ActivitySection: View {
                 title: NSLocalizedString("settings.sections.downloadData", comment: "Download Your Data"),
                 subtitle: NSLocalizedString("settings.sections.downloadData.subtitle", comment: "Request a copy of your data"),
                 action: { isShowingDataExport = true })
+
+            SettingsRow(icon: "bubble.left.and.bubble.right",
+                title: NSLocalizedString("settings.sections.chatStorage", comment: "Chat Storage"),
+                subtitle: NSLocalizedString("settings.sections.chatStorage.subtitle", comment: "Media cache and download preferences"),
+                action: { isShowingChatStorage = true })
         }
     }
 }

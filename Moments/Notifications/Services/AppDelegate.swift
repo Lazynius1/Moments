@@ -113,6 +113,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 conversationId: conversationId,
                 messageId: messageId
             ) { _ in group.leave() }
+
+            group.enter()
+            Task { @MainActor in
+                await MessageIngestService.shared.ingest(userInfo: userInfo)
+                group.leave()
+            }
         }
         
         // 2. Refrescar contadores para el Widget SOLO si es una notificación silenciosa

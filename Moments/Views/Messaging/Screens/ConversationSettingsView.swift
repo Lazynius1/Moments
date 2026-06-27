@@ -28,26 +28,38 @@ struct ConversationSettingsView: View {
     }
 
     var body: some View {
-        ZStack {
+        ScrollView {
+            VStack(spacing: 24) {
+                conversationHeader
+
+                VStack(spacing: 24) {
+                    conversationInfoSection
+                    sharedMediaSection
+                    starredMessagesSection
+                    privacySettingsSection
+                    actionsSection
+                }
+                .padding(.horizontal, 16)
+            }
+            .padding(.bottom, 32)
+        }
+        .background {
             Color(hex: colorScheme == .dark ? "0B1215" : "FAF9F6")
                 .ignoresSafeArea()
-
-            ScrollView {
-                VStack(spacing: 24) {
-                    sheetHeader
-                    conversationHeader
-
-                    VStack(spacing: 24) {
-                        conversationInfoSection
-                        sharedMediaSection
-                        starredMessagesSection
-                        privacySettingsSection
-                        actionsSection
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 32)
-                }
+        }
+        .navigationTitle("conversationSettings.title")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                SettingsToolbarBackButton(action: { dismiss() })
             }
+        }
+        .toolbar(.hidden, for: .tabBar)
+        .navigationDestination(isPresented: $viewModel.showAllMedia) {
+            sharedMediaGalleryDestination
+                .toolbar(.hidden, for: .tabBar)
         }
         .onAppear {
             viewModel.loadConversationData(conversation: conversation)
@@ -72,16 +84,6 @@ struct ConversationSettingsView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $viewModel.showAllMedia) {
-            AllSharedMediaView(
-                sharedMedia: viewModel.sharedMedia,
-                currentUserId: viewModel.currentUserId,
-                otherParticipantName: otherParticipantDisplayName,
-                onSendReply: viewModel.sendReplyToMedia
-            )
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
         }
         .fullScreenCover(isPresented: $viewModel.showFullScreenMedia) {
             if let selectedMedia = viewModel.selectedMedia {
@@ -109,34 +111,46 @@ struct ConversationSettingsView: View {
         }
     }
 
-    private var sheetHeader: some View {
-        HStack {
-            ProfileChromeIconButton(
-                systemName: "chevron.left",
-                foregroundColor: adaptiveColors.primary,
-                preset: .navigationBack,
-                action: {
-                    HapticManager.shared.lightImpact()
-                    dismiss()
+    @ViewBuilder
+    private var sharedMediaGalleryDestination: some View {
+        ClusterGalleryView(
+            messages: viewModel.sharedMediaMessages.filter { !$0.isDeleted },
+            currentUserId: viewModel.currentUserId,
+            presentation: .pushed,
+            onClose: {
+                viewModel.showAllMedia = false
+            },
+            onHydrateMedia: { message in
+                viewModel.hydrateMediaIfNeeded(for: message)
+            },
+            onOpenMedia: { message, completion in
+                viewModel.openMediaForViewing(message, completion: completion)
+            },
+            isDownloadingMedia: { viewModel.isDownloadingMedia($0) },
+            downloadProgress: { viewModel.downloadProgress[$0] },
+            onDeleteForMe: { messages in
+                messages.forEach { viewModel.deleteMessageForMe($0) }
+            },
+            onDeleteForEveryone: { messages in
+                messages.forEach { viewModel.deleteMessageForEveryone($0) }
+            },
+            detail: { selectedMessage, dismissDetail in
+                if let media = viewModel.sharedMedia(from: selectedMessage) {
+                    FullScreenMediaView(
+                        media: media,
+                        mediaItems: viewModel.sharedMediaItemsForOverlay(selecting: selectedMessage),
+                        currentUserId: viewModel.currentUserId,
+                        otherParticipantName: otherParticipantDisplayName,
+                        onClose: {
+                            dismissDetail()
+                        },
+                        onSendReply: { media, text, completion in
+                            viewModel.sendReplyToMedia(media, text: text, completion: completion)
+                        }
+                    )
                 }
-            )
-
-            Spacer()
-
-            Text("conversationSettings.title")
-                .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
-
-            Spacer()
-
-            Color.clear
-                .frame(
-                    width: MomentsGlassButtonPreset.navigationBack.controlSize,
-                    height: MomentsGlassButtonPreset.navigationBack.controlSize
-                )
-        }
-        .padding(.horizontal, 14)
-        .padding(.top, 8)
+            }
+        )
     }
 
     // MARK: - Header
@@ -642,11 +656,17 @@ class ConversationSettingsViewModel: ObservableObject {
     @Published var sharedPhotos = 0
     @Published var sharedVideos = 0
     @Published var sharedMedia: [SharedMedia] = []
+    @Published var sharedMediaMessages: [EnhancedMessage] = []
     @Published var starredMessages: [EnhancedMessage] = []
     @Published var showAllMedia = false
     @Published var showStarredMessages = false
     @Published var selectedMedia: SharedMedia?
     @Published var showFullScreenMedia = false
+    @Published private(set) var downloadProgress: [String: Double] = [:]
+
+    private var downloadingMediaIds = Set<String>()
+    private var hydratingMediaIds = Set<String>()
+    private var refreshingMetadataIds = Set<String>()
 
     @Published var notificationsEnabled = true
     @Published var readReceiptsEnabled = true
@@ -714,38 +734,327 @@ class ConversationSettingsViewModel: ObservableObject {
     private func processMessages(_ messages: [EnhancedMessage]) {
         totalMessages = messages.count
 
-        // Filtrar solo contenido multimedia no efímero y no view-once
-        let mediaMessages = messages.filter { message in
-            (message.type == .image || message.type == .video) &&
-            !message.isViewOnce &&
-            message.type != .ephemeral &&
-            message.storyReplyData == nil &&
-            message.mediaUrl != nil
-        }
+        let mediaMessages = messages
+            .filter(isSharedGalleryEligible)
+            .sorted { $0.timestamp > $1.timestamp }
 
-        // Contar fotos y videos
+        sharedMediaMessages = mediaMessages
         sharedPhotos = mediaMessages.filter { $0.type == .image }.count
         sharedVideos = mediaMessages.filter { $0.type == .video }.count
-
-        // Crear array de contenido multimedia compartido
-        sharedMedia = mediaMessages.compactMap { message in
-            guard let mediaUrl = message.mediaUrl else { return nil }
-
-            return SharedMedia(
-                id: message.id,
-                type: message.type == .image ? .image : .video,
-                thumbnailUrl: message.thumbnailUrl ?? mediaUrl,
-                originalUrl: mediaUrl,
-                senderId: message.senderId,
-                timestamp: message.timestamp,
-                sourceMessage: message
-            )
-        }
-        .sorted { $0.timestamp > $1.timestamp }
+        sharedMedia = mediaMessages.compactMap(makeSharedMedia)
 
         starredMessages = messages
             .filter { !$0.isDeleted && $0.isStarred(by: currentUserId) }
             .sorted { $0.timestamp > $1.timestamp }
+    }
+
+    private func isSharedGalleryEligible(_ message: EnhancedMessage) -> Bool {
+        guard !message.isDeleted else { return false }
+        guard message.type == .image || message.type == .video else { return false }
+        guard !message.isViewOnce && message.type != .ephemeral && message.storyReplyData == nil else { return false }
+        if message.mediaUrl != nil { return true }
+        if message.mediaObjectPath != nil, message.mediaEncryption != nil { return true }
+        return message.thumbnailUrl != nil && message.thumbnailObjectPath != nil
+    }
+
+    func makeSharedMedia(from message: EnhancedMessage) -> SharedMedia? {
+        let mediaUrl = message.mediaUrl ?? message.thumbnailUrl
+        guard let mediaUrl else { return nil }
+
+        return SharedMedia(
+            id: message.id,
+            type: message.type == .image ? .image : .video,
+            thumbnailUrl: message.thumbnailUrl ?? mediaUrl,
+            originalUrl: mediaUrl,
+            senderId: message.senderId,
+            timestamp: message.timestamp,
+            sourceMessage: message
+        )
+    }
+
+    func sharedMedia(from message: EnhancedMessage) -> SharedMedia? {
+        guard message.hasLocalMediaReadyForViewer || message.mediaUrl != nil else { return nil }
+        return makeSharedMedia(from: message)
+    }
+
+    func sharedMediaItemsForOverlay(selecting message: EnhancedMessage) -> [SharedMedia] {
+        let items = sharedMediaMessages.compactMap(sharedMedia(from:))
+        guard let selected = sharedMedia(from: message) else { return items }
+        if items.contains(where: { $0.id == selected.id }) {
+            return items
+        }
+        return items + [selected]
+    }
+
+    func isDownloadingMedia(_ messageId: String) -> Bool {
+        downloadingMediaIds.contains(messageId) || hydratingMediaIds.contains(messageId)
+    }
+
+    func hydrateMediaIfNeeded(for message: EnhancedMessage) {
+        if message.isMediaAwaitingManualDownload {
+            hydrateThumbnailPreviewIfNeeded(for: message)
+            return
+        }
+
+        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
+
+        if message.type == .video {
+            hydrateVideoThumbnailIfNeeded(for: message)
+            return
+        }
+
+        guard message.isMediaPendingResolution else {
+            if message.type == .image,
+               message.mediaUrl == nil,
+               message.mediaObjectPath == nil || message.mediaEncryption == nil {
+                refreshMediaMetadataIfNeeded(for: message)
+            }
+            return
+        }
+
+        guard !hydratingMediaIds.contains(message.id) else { return }
+        hydratingMediaIds.insert(message.id)
+        setDownloadProgress(0.03, for: message.id)
+        prepareMediaForViewing(message, forceDownload: false) { [weak self] _ in
+            self?.hydratingMediaIds.remove(message.id)
+            self?.clearDownloadProgress(for: message.id)
+        }
+    }
+
+    func openMediaForViewing(_ message: EnhancedMessage, completion: @escaping (EnhancedMessage) -> Void) {
+        guard message.needsDownloadForPlayback else {
+            completion(message)
+            return
+        }
+
+        guard !downloadingMediaIds.contains(message.id) else { return }
+        downloadingMediaIds.insert(message.id)
+        setDownloadProgress(0.03, for: message.id)
+        prepareMediaForViewing(message, forceDownload: true) { [weak self] updated in
+            self?.downloadingMediaIds.remove(message.id)
+            self?.clearDownloadProgress(for: message.id)
+            completion(updated)
+        }
+    }
+
+    func deleteMessageForMe(_ message: EnhancedMessage) {
+        guard let conversationId = currentConversation?.id, !conversationId.isEmpty else { return }
+
+        sharedMediaMessages.removeAll { $0.id == message.id }
+        sharedMedia.removeAll { $0.id == message.id }
+        recomputeSharedMediaCounts()
+
+        chatService.deleteMessageForMe(
+            conversationId: conversationId,
+            messageId: message.id,
+            userId: currentUserId
+        ) { _ in }
+    }
+
+    func deleteMessageForEveryone(_ message: EnhancedMessage) {
+        guard let conversationId = currentConversation?.id, !conversationId.isEmpty else { return }
+        guard message.senderId == currentUserId else { return }
+
+        sharedMediaMessages.removeAll { $0.id == message.id }
+        sharedMedia.removeAll { $0.id == message.id }
+        recomputeSharedMediaCounts()
+
+        chatService.deleteMessageWithCleanup(
+            conversationId: conversationId,
+            messageId: message.id
+        ) { _ in }
+    }
+
+    private func recomputeSharedMediaCounts() {
+        sharedPhotos = sharedMediaMessages.filter { $0.type == .image }.count
+        sharedVideos = sharedMediaMessages.filter { $0.type == .video }.count
+    }
+
+    private func updateGalleryMessage(_ updated: EnhancedMessage) {
+        guard let index = sharedMediaMessages.firstIndex(where: { $0.id == updated.id }) else { return }
+        sharedMediaMessages[index] = updated
+        if let media = makeSharedMedia(from: updated),
+           let mediaIndex = sharedMedia.firstIndex(where: { $0.id == updated.id }) {
+            sharedMedia[mediaIndex] = media
+        }
+    }
+
+    private func setDownloadProgress(_ progress: Double, for messageId: String) {
+        downloadProgress[messageId] = progress
+    }
+
+    private func clearDownloadProgress(for messageId: String) {
+        downloadProgress.removeValue(forKey: messageId)
+    }
+
+    private func refreshMediaMetadataIfNeeded(for message: EnhancedMessage) {
+        guard message.type == .image || message.type == .video else { return }
+        guard let conversationId = currentConversation?.id, !conversationId.isEmpty else { return }
+
+        let missingMain = message.mediaObjectPath == nil || message.mediaEncryption == nil
+        let needsThumb = message.type == .video && message.needsVideoThumbnailForDisplay
+        let missingThumbMeta = message.thumbnailObjectPath == nil || message.thumbnailEncryption == nil
+
+        if message.type == .image {
+            guard missingMain else { return }
+        } else if missingMain {
+        } else if needsThumb && missingThumbMeta {
+        } else {
+            if needsThumb { hydrateVideoThumbnailIfNeeded(for: message) }
+            return
+        }
+
+        let messageId = message.id
+        guard refreshingMetadataIds.insert(messageId).inserted else { return }
+
+        chatService.fetchMessage(conversationId: conversationId, messageId: messageId) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.refreshingMetadataIds.remove(messageId)
+                guard case .success(let fresh?) = result else { return }
+                self.updateGalleryMessage(fresh)
+                if fresh.type == .video {
+                    self.hydrateVideoThumbnailIfNeeded(for: fresh)
+                } else {
+                    self.hydrateMediaIfNeeded(for: fresh)
+                }
+            }
+        }
+    }
+
+    private func hydrateVideoThumbnailIfNeeded(for message: EnhancedMessage) {
+        guard message.type == .video else { return }
+        guard message.needsVideoThumbnailForDisplay else { return }
+        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
+
+        if message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil {
+            let thumbnailKey = "thumb_\(message.id)"
+            guard !hydratingMediaIds.contains(thumbnailKey) else { return }
+            hydratingMediaIds.insert(thumbnailKey)
+            Task { [weak self] in
+                guard let self else { return }
+                let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message, forceDownload: false)
+                await MainActor.run {
+                    self.hydratingMediaIds.remove(thumbnailKey)
+                    guard let resolvedThumb,
+                          var updated = self.sharedMediaMessages.first(where: { $0.id == message.id }) else {
+                        return
+                    }
+                    updated.thumbnailUrl = resolvedThumb
+                    self.updateGalleryMessage(updated)
+                }
+            }
+            return
+        }
+
+        if let mediaUrl = message.mediaUrl, URL(string: mediaUrl) != nil {
+            generateVideoPosterIfPossible(for: message)
+            return
+        }
+
+        if message.mediaObjectPath != nil, message.mediaEncryption != nil {
+            guard !hydratingMediaIds.contains(message.id) else { return }
+            hydratingMediaIds.insert(message.id)
+            setDownloadProgress(0.03, for: message.id)
+            prepareMediaForViewing(message, forceDownload: false) { [weak self] updated in
+                self?.hydratingMediaIds.remove(message.id)
+                self?.clearDownloadProgress(for: message.id)
+                self?.generateVideoPosterIfPossible(for: updated)
+            }
+            return
+        }
+
+        refreshMediaMetadataIfNeeded(for: message)
+    }
+
+    private func hydrateThumbnailPreviewIfNeeded(for message: EnhancedMessage) {
+        guard message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil else { return }
+        if let urlString = message.thumbnailUrl,
+           let url = URL(string: urlString),
+           message.localMediaFileIsReachable(url) {
+            return
+        }
+
+        let previewKey = "thumb_preview_\(message.id)"
+        guard !hydratingMediaIds.contains(previewKey) else { return }
+        hydratingMediaIds.insert(previewKey)
+
+        Task { [weak self] in
+            guard let self else { return }
+            let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message, forceDownload: false)
+            await MainActor.run {
+                self.hydratingMediaIds.remove(previewKey)
+                guard let resolvedThumb,
+                      var updated = self.sharedMediaMessages.first(where: { $0.id == message.id }) else {
+                    return
+                }
+                updated.thumbnailUrl = resolvedThumb
+                self.updateGalleryMessage(updated)
+            }
+        }
+    }
+
+    private func generateVideoPosterIfPossible(for message: EnhancedMessage) {
+        guard message.needsVideoThumbnailForDisplay,
+              let mediaUrl = message.mediaUrl,
+              let url = URL(string: mediaUrl) else { return }
+        let posterKey = "poster_\(message.id)"
+        guard !hydratingMediaIds.contains(posterKey) else { return }
+        hydratingMediaIds.insert(posterKey)
+        Task { [weak self] in
+            let poster = await ChatVideoPosterGenerator.poster(for: url, messageId: message.id)
+            await MainActor.run {
+                guard let self else { return }
+                self.hydratingMediaIds.remove(posterKey)
+                guard let poster,
+                      var updated = self.sharedMediaMessages.first(where: { $0.id == message.id }) else {
+                    return
+                }
+                updated.thumbnailUrl = poster
+                self.updateGalleryMessage(updated)
+            }
+        }
+    }
+
+    private func prepareMediaForViewing(
+        _ message: EnhancedMessage,
+        forceDownload: Bool,
+        completion: @escaping (EnhancedMessage) -> Void
+    ) {
+        if message.hasLocalMediaReadyForViewer, !message.hasMissingLocalMedia {
+            completion(message)
+            return
+        }
+
+        guard message.mediaObjectPath != nil, message.mediaEncryption != nil else {
+            completion(message)
+            return
+        }
+
+        Task {
+            defer {
+                Task { @MainActor in
+                    clearDownloadProgress(for: message.id)
+                }
+            }
+
+            guard let (mediaUrl, thumbnailUrl) = await chatService.resolveEncryptedMediaForMessage(message, forceDownload: forceDownload) else {
+                await MainActor.run { completion(message) }
+                return
+            }
+            await MainActor.run {
+                var updated = self.sharedMediaMessages.first(where: { $0.id == message.id }) ?? message
+                updated.mediaUrl = mediaUrl
+                if let thumbnailUrl {
+                    updated.thumbnailUrl = thumbnailUrl
+                }
+                self.updateGalleryMessage(updated)
+                if let conversationId = self.currentConversation?.id {
+                    LocalPersistenceService.shared.saveMessages([updated], conversationId: conversationId, sync: false)
+                }
+                completion(updated)
+            }
+        }
     }
 
     func sendReplyToMedia(_ media: SharedMedia, text: String, completion: @escaping (Result<Void, Error>) -> Void) {
@@ -1209,100 +1518,6 @@ private enum StarredMessagePreview {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(color)
             )
-    }
-}
-
-// MARK: - All Shared Media View
-struct AllSharedMediaView: View {
-    let sharedMedia: [SharedMedia]
-    let currentUserId: String
-    let otherParticipantName: String
-    let onSendReply: (SharedMedia, String, @escaping (Result<Void, Error>) -> Void) -> Void
-    @Environment(\.dismiss) var dismiss
-    @Environment(\.colorScheme) var colorScheme
-    @State private var selectedMedia: SharedMedia?
-
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-
-    var body: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                HStack {
-                    Button(action: {
-                        HapticManager.shared.lightImpact()
-                        dismiss()
-                    }) {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(adaptiveColors.primary)
-                            .frame(width: 38, height: 38)
-                            .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
-                    }
-
-                    Spacer()
-
-                    Text(NSLocalizedString("conversationSettings.sharedMedia", comment: ""))
-                        .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
-                        .foregroundColor(adaptiveColors.primary)
-
-                    Spacer()
-
-                    Color.clear
-                        .frame(width: 38, height: 38)
-                }
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
-                .padding(.bottom, 16)
-
-                ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 4), spacing: 4) {
-                        ForEach(sharedMedia, id: \.id) { media in
-                            SharedMediaThumbnail(media: media) {
-                                HapticManager.shared.lightImpact()
-                                withAnimation(.easeInOut(duration: 0.18)) {
-                                    selectedMedia = media
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 20)
-                }
-            }
-
-            if let selectedMedia {
-                ZStack {
-                    Rectangle()
-                        .fill(Color.clear)
-                        .contentShape(Rectangle())
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.18)) {
-                                self.selectedMedia = nil
-                            }
-                        }
-
-                    FullScreenMediaView(
-                        media: selectedMedia,
-                        mediaItems: sharedMedia,
-                        currentUserId: currentUserId,
-                        otherParticipantName: otherParticipantName,
-                        onClose: {
-                            withAnimation(.easeInOut(duration: 0.18)) {
-                                self.selectedMedia = nil
-                            }
-                        },
-                        onSendReply: { media, text, completion in
-                            onSendReply(media, text, completion)
-                        }
-                    )
-                }
-                .transition(.opacity)
-                .zIndex(10)
-            }
-        }
     }
 }
 

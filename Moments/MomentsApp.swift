@@ -71,6 +71,14 @@ struct MomentsApp: App {
                                 // ✅ SwiftData: Limpiar datos locales antiguos (>7 días)
                                 Task { @MainActor in
                                     LocalPersistenceService.shared.cleanupOldData()
+                                    ChatCacheStore.runMaintenance()
+
+                                    if Auth.auth().currentUser != nil {
+                                        await MessageIngestService.shared.drainPendingQueue()
+                                        MessageCatchUpService.shared.syncRecent(
+                                            conversations: LocalPersistenceService.shared.loadConversations()
+                                        )
+                                    }
 
                                     // Configure AffinityTracker with the shared SwiftData container
                                     if let container = LocalPersistenceService.shared.container {
@@ -92,6 +100,9 @@ struct MomentsApp: App {
                                 NotificationBadgeService.shared.setupListeners()
                                 syncLastAppOpenIfNeeded(force: true)
                                 IncognitoModeService.shared.loadState()
+                                Task { @MainActor in
+                                    await MessageIngestService.shared.drainPendingQueue()
+                                }
                             } else {
                                 // Usuario deslogueado - limpiar todo
                                 NotificationBadgeService.shared.cleanup()
@@ -119,6 +130,14 @@ struct MomentsApp: App {
                         syncLastAppOpenIfNeeded()
                         IncognitoModeService.shared.refresh()
                         IncognitoModeService.shared.handlePendingAppGroupActionIfNeeded()
+
+                        Task { @MainActor in
+                            ChatCacheStore.runMaintenance()
+                            await MessageIngestService.shared.drainPendingQueue()
+                            MessageCatchUpService.shared.syncRecent(
+                                conversations: LocalPersistenceService.shared.loadConversations()
+                            )
+                        }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: .incognitoLiveActivityPauseRequested)) { _ in
                         IncognitoModeService.shared.pauseFromLiveActivity()

@@ -30,6 +30,8 @@
 		7A6D2F222F5A120100A1B2C3 /* IncognitoActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F202F5A120100A1B2C3 /* IncognitoActivityAttributes.swift */; };
 		7A6D2F242F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F232F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift */; };
 		7A6D2F252F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F232F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift */; };
+		7A6D2F272F5A2B0100A1B2C3 /* MessageIngestQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F262F5A2B0100A1B2C3 /* MessageIngestQueue.swift */; };
+		7A6D2F282F5A2B0100A1B2C3 /* MessageIngestQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F262F5A2B0100A1B2C3 /* MessageIngestQueue.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +74,7 @@
 		36BDF4002ED7DD7800683AB4 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		7A6D2F202F5A120100A1B2C3 /* IncognitoActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncognitoActivityAttributes.swift; sourceTree = "<group>"; };
 		7A6D2F232F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PauseIncognitoIntent.swift; sourceTree = "<group>"; };
+		7A6D2F262F5A2B0100A1B2C3 /* MessageIngestQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageIngestQueue.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -215,6 +218,7 @@
 			children = (
 				7A6D2F202F5A120100A1B2C3 /* IncognitoActivityAttributes.swift */,
 				7A6D2F232F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift */,
+				7A6D2F262F5A2B0100A1B2C3 /* MessageIngestQueue.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -384,11 +388,13 @@
 			files = (
 				7A6D2F212F5A120100A1B2C3 /* IncognitoActivityAttributes.swift in Sources */,
 				7A6D2F242F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift in Sources */,
+				7A6D2F272F5A2B0100A1B2C3 /* MessageIngestQueue.swift in Sources */,
 			);
 		};
 		36A036DA2F38B220002B2937 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				7A6D2F282F5A2B0100A1B2C3 /* MessageIngestQueue.swift in Sources */,
 			);
 		};
 		36BDF3F82ED7DD7800683AB4 /* Sources */ = {

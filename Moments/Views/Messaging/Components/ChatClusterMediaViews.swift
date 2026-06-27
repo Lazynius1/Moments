@@ -53,6 +53,12 @@ enum ClusterMessageGrouper {
         }
 
         for message in input {
+            if message.isDeleted {
+                flushCluster()
+                result.append(.single(message))
+                continue
+            }
+
             let isClusterable = message.type == .image || message.type == .video
 
             if isClusterable {
@@ -252,13 +258,22 @@ struct MediaGridBubble: View {
     private var frontMessage: EnhancedMessage { messages[0] }
 
     var body: some View {
-        let count = messages.count
-        let visible = Array(messages.prefix(ClusterMediaLayout.maxVisible))
+        if messages.allSatisfy(\.isDeleted) {
+            DeletedMessageBubble(message: frontMessage, isCurrentUser: isCurrentUser)
+        } else {
+            mediaGridBody
+        }
+    }
+
+    private var mediaGridBody: some View {
+        let activeMessages = messages.filter { !$0.isDeleted }
+        let count = activeMessages.count
+        let visible = Array(activeMessages.prefix(ClusterMediaLayout.maxVisible))
         let topPad = ClusterMediaLayout.fanTopPadding(for: visible.count)
         let sidePad = ClusterMediaLayout.fanSidePadding(for: visible.count)
 
-        VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 6) {
-            countLabel(count: count)
+        return VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 6) {
+            countLabel(count: count, messages: activeMessages)
 
             ChatMessageBubbleChrome(
                 isMenuSelected: isMenuSelected,
@@ -268,7 +283,7 @@ struct MediaGridBubble: View {
                 isFlashing: isBubbleFlashing,
                 dragOffset: dragOffset,
                 onLongPress: { frame, radius in
-                    onLongPress(frontMessage, frame, radius)
+                    onLongPress(activeMessages.first ?? frontMessage, frame, radius)
                 }
             ) {
                 ZStack {
@@ -285,17 +300,17 @@ struct MediaGridBubble: View {
                 .padding(.bottom, ClusterMediaLayout.fanBottomPadding)
                 .contentShape(Rectangle())
                 .onAppear {
-                    messages.forEach { onHydrateMedia?($0) }
+                    activeMessages.forEach { onHydrateMedia?($0) }
                 }
                 .onTapGesture {
-                    onOpenCluster(messages)
+                    onOpenCluster(activeMessages)
                 }
             }
         }
         .id(clusterReactionIdentity)
     }
 
-    private func countLabel(count: Int) -> some View {
+    private func countLabel(count: Int, messages: [EnhancedMessage]) -> some View {
         let hasVideo = messages.contains { $0.type == .video }
         let key: String
         if isCurrentUser {
@@ -385,6 +400,8 @@ struct MediaGridTileView: View {
     @ObservedObject var message: EnhancedMessage
     let progress: Double?
     let downsamplingSize: CGSize
+    var isDownloadingMedia: Bool = false
+    var downloadProgress: Double? = nil
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -392,7 +409,13 @@ struct MediaGridTileView: View {
             tileContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            if message.status == .sending {
+            if isDownloadingMedia {
+                ChatMediaDownloadProgressOverlay(
+                    progress: downloadProgress ?? 0.03,
+                    ringSize: 42,
+                    lineWidth: 3
+                )
+            } else if message.status == .sending {
                 let uploadProgress = max(progress ?? 0.03, 0.03)
                 ZStack {
                     Color(hex: "0B1215").opacity(0.38)
@@ -409,7 +432,22 @@ struct MediaGridTileView: View {
     private var tileContent: some View {
         ZStack {
             if message.type == .image {
-                if message.isMediaPendingResolution {
+                if isDownloadingMedia {
+                    if let preview = message.previewThumbnailURLForDisplay, let url = URL(string: preview) {
+                        ChatKFImage(url: url, downsamplingSize: downsamplingSize)
+                            .blur(radius: 18)
+                    } else {
+                        ChatMediaResolvingPlaceholder()
+                    }
+                } else if message.isMediaAwaitingManualDownload {
+                    if let preview = message.previewThumbnailURLForDisplay, let url = URL(string: preview) {
+                        ChatKFImage(url: url, downsamplingSize: downsamplingSize)
+                            .blur(radius: 18)
+                            .overlay { ChatMediaDownloadOverlay(sizeLabel: message.formattedDownloadSize) }
+                    } else {
+                        ChatMediaManualDownloadPlaceholder(sizeLabel: message.formattedDownloadSize)
+                    }
+                } else if message.isMediaPendingResolution {
                     ChatMediaResolvingPlaceholder()
                 } else if let mediaUrl = message.mediaUrl,
                           let url = URL(string: mediaUrl),
@@ -419,7 +457,22 @@ struct MediaGridTileView: View {
                     placeholder(icon: "photo.fill")
                 }
             } else if message.type == .video {
-                if message.isMediaPendingResolution || message.needsVideoThumbnailForDisplay {
+                if isDownloadingMedia {
+                    if let preview = message.previewThumbnailURLForDisplay, let url = URL(string: preview) {
+                        ChatKFImage(url: url, downsamplingSize: downsamplingSize)
+                            .blur(radius: 18)
+                    } else {
+                        ChatMediaResolvingPlaceholder()
+                    }
+                } else if message.isMediaAwaitingManualDownload {
+                    if let preview = message.previewThumbnailURLForDisplay, let url = URL(string: preview) {
+                        ChatKFImage(url: url, downsamplingSize: downsamplingSize)
+                            .blur(radius: 18)
+                            .overlay { ChatMediaDownloadOverlay(sizeLabel: message.formattedDownloadSize) }
+                    } else {
+                        ChatMediaManualDownloadPlaceholder(sizeLabel: message.formattedDownloadSize, showsVideoBadge: true)
+                    }
+                } else if message.isMediaPendingResolution || message.needsVideoThumbnailForDisplay {
                     ChatMediaResolvingPlaceholder()
                 } else if let thumbnailUrl = message.thumbnailUrl,
                           let url = URL(string: thumbnailUrl),
@@ -447,11 +500,26 @@ struct MediaGridTileView: View {
     }
 }
 
-struct ClusterWrapper: Identifiable {
+struct ClusterWrapper: Identifiable, Hashable {
     let messages: [EnhancedMessage]
     var id: String {
         messages.first?.id ?? "empty-cluster"
     }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: ClusterWrapper, rhs: ClusterWrapper) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+/// Identidad estable para push de galería (no cambia cuando se actualiza la media).
+struct ClusterGallerySelection: Identifiable, Hashable {
+    let anchorMessageId: String
+    let messageIds: [String]
+    var id: String { anchorMessageId }
 }
 
 // MARK: - Fullscreen cluster gallery
@@ -461,108 +529,374 @@ struct ClusterGalleryDetailRoute: Identifiable, Hashable {
     var id: Int { index }
 }
 
+/// Host del detalle en push: `dismiss()` hace pop al grid en el stack padre (como perfil).
+private struct ClusterGalleryDetailHost<Detail: View>: View {
+    let message: EnhancedMessage
+    @ViewBuilder let detail: (EnhancedMessage, @escaping () -> Void) -> Detail
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        detail(message) { dismiss() }
+    }
+}
+
+enum ClusterGalleryPresentation {
+    /// Presentación modal (p. ej. legacy fullScreenCover): cierra con ✕.
+    case modal
+    /// Push en el `NavigationStack` padre: retrocede con chevron.
+    case pushed
+}
+
 struct ClusterGalleryView<Detail: View>: View {
     let messages: [EnhancedMessage]
+    let currentUserId: String
+    var presentation: ClusterGalleryPresentation = .modal
     let onClose: () -> Void
     var onHydrateMedia: ((EnhancedMessage) -> Void)? = nil
+    var onOpenMedia: ((EnhancedMessage, @escaping (EnhancedMessage) -> Void) -> Void)? = nil
+    var isDownloadingMedia: ((String) -> Bool)? = nil
+    var downloadProgress: ((String) -> Double?)? = nil
+    var onDeleteForMe: (([EnhancedMessage]) -> Void)? = nil
+    var onDeleteForEveryone: (([EnhancedMessage]) -> Void)? = nil
     /// Visor de detalle inyectado: recibe la media tocada y un cierre para volver
     /// (pop) a la galería.
     @ViewBuilder let detail: (EnhancedMessage, @escaping () -> Void) -> Detail
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var path: [ClusterGalleryDetailRoute] = []
+    @Environment(\.dismiss) private var dismiss
+    @State private var modalPath: [ClusterGalleryDetailRoute] = []
+    @State private var pushedDetailRoute: ClusterGalleryDetailRoute?
+    @State private var detailNavigationEpoch = 0
+    @State private var isSelectionMode = false
+    @State private var selectedIds = Set<String>()
+    @State private var showDeleteConfirmation = false
     private let spacing: CGFloat = 14
 
+    private var visibleMessages: [EnhancedMessage] {
+        messages.filter { !$0.isDeleted }
+    }
+
+    private var selectedMessages: [EnhancedMessage] {
+        visibleMessages.filter { selectedIds.contains($0.id) }
+    }
+
+    private var messagesEligibleForDeleteForEveryone: [EnhancedMessage] {
+        selectedMessages.filter { Self.canDeleteForEveryone($0, currentUserId: currentUserId) }
+    }
+
     var body: some View {
-        NavigationStack(path: $path) {
-            grid
-                .navigationDestination(for: ClusterGalleryDetailRoute.self) { route in
-                    detail(messages[min(max(route.index, 0), messages.count - 1)]) {
-                        if !path.isEmpty { path.removeLast() }
-                    }
-                    .navigationBarBackButtonHidden(true)
-                    .toolbar(.hidden, for: .navigationBar)
+        Group {
+            switch presentation {
+            case .modal:
+                NavigationStack(path: $modalPath) {
+                    grid
+                        .navigationDestination(for: ClusterGalleryDetailRoute.self) { route in
+                            detailScreen(for: route) {
+                                if !modalPath.isEmpty { modalPath.removeLast() }
+                            }
+                        }
                 }
+            case .pushed:
+                grid
+                    .navigationDestination(item: $pushedDetailRoute) { route in
+                        detailScreen(for: route) {
+                            pushedDetailRoute = nil
+                        }
+                    }
+            }
         }
+        .toolbar(.hidden, for: .tabBar)
+        .onDisappear {
+            detailNavigationEpoch &+= 1
+        }
+        .onChange(of: visibleMessages.map(\.id)) { oldIds, newIds in
+            selectedIds = selectedIds.intersection(Set(newIds))
+            if newIds.isEmpty, !oldIds.isEmpty {
+                closeGallery()
+            } else if selectedIds.isEmpty {
+                isSelectionMode = false
+            }
+        }
+        .confirmationDialog(
+            Text("chat.gallery.deletePrompt"),
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("chat.action.deleteForMe", role: .destructive) {
+                onDeleteForMe?(selectedMessages)
+                exitSelectionMode()
+            }
+            if !messagesEligibleForDeleteForEveryone.isEmpty {
+                Button("chat.action.deleteForEveryone", role: .destructive) {
+                    onDeleteForEveryone?(messagesEligibleForDeleteForEveryone)
+                    exitSelectionMode()
+                }
+            }
+            Button("common.cancel", role: .cancel) {}
+        }
+    }
+
+    private var screenBackground: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    private var galleryTitle: String {
+        NSLocalizedString("chat.gallery.title", comment: "")
+    }
+
+    private func closeGallery() {
+        switch presentation {
+        case .modal:
+            onClose()
+        case .pushed:
+            detailNavigationEpoch &+= 1
+            pushedDetailRoute = nil
+            dismiss()
+        }
+    }
+
+    @ViewBuilder
+    private func detailScreen(for route: ClusterGalleryDetailRoute, dismissDetail: @escaping () -> Void) -> some View {
+        if let message = messageForDetailRoute(route) {
+            ClusterGalleryDetailHost(message: message, detail: detail)
+                .navigationBarBackButtonHidden(true)
+                .toolbar(.hidden, for: .navigationBar)
+                .toolbar(.hidden, for: .tabBar)
+        }
+    }
+
+    private func messageForDetailRoute(_ route: ClusterGalleryDetailRoute) -> EnhancedMessage? {
+        guard !visibleMessages.isEmpty else { return nil }
+        let index = min(max(route.index, 0), visibleMessages.count - 1)
+        return visibleMessages[index]
+    }
+
+    @ToolbarContentBuilder
+    private var galleryToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            ProfileChromeIconButton(
+                systemName: presentation == .modal ? "xmark" : "chevron.left",
+                foregroundColor: MomentsChromeGlass.contentColor(for: colorScheme),
+                preset: presentation == .modal ? .toolbarAction : .navigationBack,
+                action: closeGallery
+            )
+        }
+        .chatHideSharedBackgroundIfAvailable()
+
+        ToolbarItem(placement: .topBarTrailing) {
+            Button(isSelectionMode ? "common.cancel" : "chat.gallery.select") {
+                toggleSelectionMode()
+            }
+            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+            .foregroundColor(isSelectionMode ? .red : MomentsChromeGlass.contentColor(for: colorScheme))
+        }
+    }
+
+    private var selectionBar: some View {
+        HStack(spacing: 10) {
+            Text(String(format: NSLocalizedString("chat.gallery.selectedCount", comment: ""), selectedIds.count))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                .foregroundColor(MomentsChromeGlass.contentColor(for: colorScheme))
+
+            Spacer()
+
+            Button(action: { showDeleteConfirmation = true }) {
+                Label("common.delete", systemImage: "trash")
+                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+            }
+            .foregroundColor(.red)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
+            .disabled(selectedIds.isEmpty)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(colorScheme == .dark ? 0.14 : 0.3), lineWidth: 1)
+                )
+        )
     }
 
     private var grid: some View {
-        GeometryReader { geo in
-            let availableWidth = geo.size.width.isFinite ? geo.size.width : 0
-            let columnWidth = max((availableWidth - spacing * 3) / 2, 1)
-            let columns = distribute(messages)
-
-            ZStack(alignment: .topLeading) {
-                background
-
-                ScrollView(showsIndicators: false) {
-                    HStack(alignment: .top, spacing: spacing) {
-                        column(columns.0, width: columnWidth)
-                        column(columns.1, width: columnWidth)
-                    }
-                    .padding(.horizontal, spacing)
-                    .padding(.top, 72)
-                    .padding(.bottom, 40)
-                }
-                .onAppear {
-                    messages.forEach { onHydrateMedia?($0) }
-                }
-
-                closeButton
-                    .padding(.horizontal, 16)
-                    .padding(.top, 6)
+        ScrollView(showsIndicators: false) {
+            let columns = distribute(visibleMessages)
+            HStack(alignment: .top, spacing: spacing) {
+                masonryColumn(columns.0)
+                masonryColumn(columns.1)
+            }
+            .padding(.horizontal, spacing)
+            .padding(.bottom, 20)
+        }
+        .background {
+            screenBackground.ignoresSafeArea()
+        }
+        .navigationTitle(galleryTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(presentation == .pushed)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar { galleryToolbarContent }
+        .safeAreaInset(edge: .bottom) {
+            if isSelectionMode {
+                selectionBar
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 10)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-    }
-
-    private var background: some View {
-        (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-            .ignoresSafeArea()
-    }
-
-    private var closeButton: some View {
-        MomentsGlassIconButton(systemName: "xmark", size: 38, iconSize: 16) {
-            onClose()
+        .onAppear {
+            visibleMessages.forEach { onHydrateMedia?($0) }
         }
     }
 
-    private func column(_ items: [EnhancedMessage], width: CGFloat) -> some View {
+    private func masonryColumn(_ items: [EnhancedMessage]) -> some View {
         VStack(spacing: spacing) {
             ForEach(items) { message in
-                card(message, width: width)
+                card(message)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .top)
+    }
+
+    private func toggleSelectionMode() {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            if isSelectionMode {
+                exitSelectionMode()
+            } else {
+                isSelectionMode = true
             }
         }
     }
 
-    private func card(_ message: EnhancedMessage, width: CGFloat) -> some View {
+    private func card(_ message: EnhancedMessage) -> some View {
         let ratio = aspectRatio(for: message)
-        let safeWidth = max(width.isFinite ? width : 1, 1)
-        let height = max(safeWidth / ratio, 1)
-        let index = messages.firstIndex(where: { $0.id == message.id }) ?? 0
+        let index = visibleMessages.firstIndex(where: { $0.id == message.id }) ?? 0
+        let isSelected = selectedIds.contains(message.id)
+
         return Button {
-            path.append(ClusterGalleryDetailRoute(index: index))
-        } label: {
-            MediaGridTileView(
-                message: message,
-                progress: nil,
-                downsamplingSize: CGSize(
-                    width: safeWidth * UIScreen.main.scale,
-                    height: height * UIScreen.main.scale
-                )
-            )
-            .frame(width: safeWidth, height: height)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(alignment: .bottomLeading) {
-                if message.type == .video {
-                    ChatVideoPlayBadge(size: 18, padding: 10)
-                }
+            if isSelectionMode {
+                toggleSelection(message.id)
+            } else {
+                openMessageDetail(at: index, message: message)
             }
-            .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
+        } label: {
+            cardLabel(message: message, aspectRatio: ratio, isSelected: isSelected)
         }
         .buttonStyle(ScaleButtonStyle())
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                guard !isSelectionMode else { return }
+                enterSelectionMode(selecting: message.id)
+            }
+        )
+        .frame(maxWidth: .infinity)
+        .aspectRatio(ratio, contentMode: .fit)
         .onAppear {
             onHydrateMedia?(message)
         }
+    }
+
+    @ViewBuilder
+    private func cardLabel(
+        message: EnhancedMessage,
+        aspectRatio ratio: CGFloat,
+        isSelected: Bool
+    ) -> some View {
+        MediaGridTileView(
+            message: message,
+            progress: nil,
+            downsamplingSize: CGSize(
+                width: 400 * UIScreen.main.scale,
+                height: max(400 / ratio, 1) * UIScreen.main.scale
+            ),
+            isDownloadingMedia: isDownloadingMedia?(message.id) ?? false,
+            downloadProgress: downloadProgress?(message.id)
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(alignment: .bottomLeading) {
+            if message.type == .video, !(isDownloadingMedia?(message.id) ?? false) {
+                ChatVideoPlayBadge(size: 18, padding: 10)
+            }
+        }
+        .overlay {
+            if isSelectionMode, isSelected {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.black.opacity(0.38))
+                    .allowsHitTesting(false)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if isSelectionMode {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : .white.opacity(0.92))
+                    .shadow(color: .black.opacity(0.35), radius: 2, x: 0, y: 1)
+                    .padding(8)
+            }
+        }
+        .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
+    }
+
+    private func openMessageDetail(at index: Int, message: EnhancedMessage) {
+        let route = ClusterGalleryDetailRoute(index: index)
+        let open = {
+            switch presentation {
+            case .modal:
+                modalPath.append(route)
+            case .pushed:
+                pushedDetailRoute = route
+            }
+        }
+
+        guard message.type == .image || message.type == .video else {
+            open()
+            return
+        }
+
+        guard message.needsDownloadForPlayback else {
+            open()
+            return
+        }
+
+        // WhatsApp: solo descargar; el usuario vuelve a pulsar cuando esté listo.
+        onOpenMedia?(message) { _ in }
+    }
+
+    private func enterSelectionMode(selecting messageId: String) {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            isSelectionMode = true
+            selectedIds = [messageId]
+        }
+    }
+
+    private func toggleSelection(_ messageId: String) {
+        if selectedIds.contains(messageId) {
+            selectedIds.remove(messageId)
+            if selectedIds.isEmpty {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                    isSelectionMode = false
+                }
+            }
+        } else {
+            selectedIds.insert(messageId)
+        }
+    }
+
+    private func exitSelectionMode() {
+        isSelectionMode = false
+        selectedIds.removeAll()
+    }
+
+    private static func canDeleteForEveryone(_ message: EnhancedMessage, currentUserId: String) -> Bool {
+        message.senderId == currentUserId
+            && !message.isDeleted
+            && !message.isRead
+            && Date().timeIntervalSince(message.timestamp) < 7200
     }
 
     private func aspectRatio(for message: EnhancedMessage) -> CGFloat {

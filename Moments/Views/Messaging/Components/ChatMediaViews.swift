@@ -19,21 +19,138 @@ struct ChatMediaResolvingPlaceholder: View {
     }
 }
 
+/// Overlay centrado estilo WhatsApp: flecha + tamaño del fichero completo.
+struct ChatMediaDownloadOverlay: View {
+    let sizeLabel: String?
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.28)
+
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: 46, height: 46)
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 21, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+
+                Text(sizeLabel ?? NSLocalizedString("chat.media.download", comment: "Download media"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.92))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+    }
+}
+
+/// Placeholder genérico cuando aún no hay miniatura en disco (p. ej. offline).
+struct ChatMediaManualDownloadPlaceholder: View {
+    let sizeLabel: String?
+    var showsVideoBadge: Bool = false
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: "4A4A4C"), Color(hex: "2C2C2E"), Color(hex: "1C1C1E")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            BlurView(style: .systemUltraThinMaterialDark)
+                .opacity(0.28)
+
+            ChatMediaDownloadOverlay(sizeLabel: sizeLabel)
+                .background(Color.clear)
+
+            if showsVideoBadge {
+                VStack {
+                    Spacer()
+                    HStack {
+                        ChatVideoPlayBadge(size: 14, padding: 6)
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Overlay de progreso de descarga (mismo anillo que la subida).
+struct ChatMediaDownloadProgressOverlay: View {
+    let progress: Double
+    var ringSize: CGFloat = 60
+    var lineWidth: CGFloat = 4
+
+    private var clampedProgress: Double {
+        min(max(progress, 0.03), 1.0)
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+            BlurView(style: UIBlurEffect.Style.systemThinMaterialDark)
+            MediaProgressRing(progress: clampedProgress, size: ringSize, lineWidth: lineWidth)
+        }
+    }
+}
+
 struct GlassmorphicImageMessage: View {
     let imageUrl: String?
+    var previewThumbnailUrl: String? = nil
     let isSending: Bool
     var isResolvingMedia: Bool = false
+    var isAwaitingManualDownload: Bool = false
+    var isDownloadingMedia: Bool = false
+    var downloadProgress: Double? = nil
+    var downloadSizeLabel: String? = nil
     var downsamplingSize: CGSize? = nil
     let progress: Double?
     let onTap: () -> Void
 
+    private var blurredPreviewURL: URL? {
+        if isAwaitingManualDownload,
+           let previewThumbnailUrl,
+           let url = URL(string: previewThumbnailUrl) {
+            return url
+        }
+        return nil
+    }
+
     var body: some View {
         ZStack {
-            if isResolvingMedia {
+            if isDownloadingMedia {
+                ZStack {
+                    if let previewURL = blurredPreviewURL {
+                        ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
+                            .blur(radius: 22)
+                    } else if let imageUrl, let imageURL = URL(string: imageUrl) {
+                        ChatKFImage(url: imageURL, downsamplingSize: downsamplingSize)
+                    } else {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.1))
+                    }
+                    ChatMediaDownloadProgressOverlay(
+                        progress: downloadProgress ?? 0.03,
+                        ringSize: 60,
+                        lineWidth: 4
+                    )
+                }
+            } else if isAwaitingManualDownload {
+                if let previewURL = blurredPreviewURL {
+                    ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
+                        .blur(radius: 22)
+                        .overlay { ChatMediaDownloadOverlay(sizeLabel: downloadSizeLabel) }
+                } else {
+                    ChatMediaManualDownloadPlaceholder(sizeLabel: downloadSizeLabel)
+                }
+            } else if isResolvingMedia {
                 ChatMediaResolvingPlaceholder()
             } else if let imageUrl, let imageURL = URL(string: imageUrl) {
                 ChatKFImage(url: imageURL, downsamplingSize: downsamplingSize)
-                    .onTapGesture(perform: onTap)
             } else {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white.opacity(0.1))
@@ -61,6 +178,8 @@ struct GlassmorphicImageMessage: View {
                 .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
         )
         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture(perform: onTap)
     }
 }
 
@@ -83,13 +202,57 @@ struct GlassmorphicVideoMessage: View {
     let thumbnailUrl: String?
     let isSending: Bool
     var isResolvingMedia: Bool = false
+    var isAwaitingManualDownload: Bool = false
+    var isDownloadingMedia: Bool = false
+    var downloadProgress: Double? = nil
+    var downloadSizeLabel: String? = nil
     var downsamplingSize: CGSize? = nil
     let progress: Double?
     let onTap: () -> Void
 
+    private var blurredPreviewURL: URL? {
+        if isAwaitingManualDownload,
+           let thumbnailUrl,
+           let url = URL(string: thumbnailUrl) {
+            return url
+        }
+        return nil
+    }
+
     var body: some View {
         ZStack {
-            if isResolvingMedia {
+            if isDownloadingMedia {
+                ZStack {
+                    if let previewURL = blurredPreviewURL {
+                        ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
+                            .blur(radius: 22)
+                            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                    } else if let videoUrl, let url = URL(string: videoUrl) {
+                        ChatKFImage(url: url, downsamplingSize: downsamplingSize)
+                            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                    } else {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.1))
+                            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                    }
+                    ChatMediaDownloadProgressOverlay(
+                        progress: downloadProgress ?? 0.03,
+                        ringSize: 60,
+                        lineWidth: 4
+                    )
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                }
+            } else if isAwaitingManualDownload {
+                if let previewURL = blurredPreviewURL {
+                    ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
+                        .blur(radius: 22)
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                        .overlay { ChatMediaDownloadOverlay(sizeLabel: downloadSizeLabel) }
+                } else {
+                    ChatMediaManualDownloadPlaceholder(sizeLabel: downloadSizeLabel, showsVideoBadge: true)
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                }
+            } else if isResolvingMedia {
                 ChatMediaResolvingPlaceholder()
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             } else if let thumbnailUrl, let url = URL(string: thumbnailUrl) {
@@ -113,16 +276,22 @@ struct GlassmorphicVideoMessage: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(alignment: .bottomLeading) {
-            ChatVideoPlayBadge(size: 22, padding: 12)
+            if !isAwaitingManualDownload && !isDownloadingMedia {
+                ChatVideoPlayBadge(size: 22, padding: 12)
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            if isAwaitingManualDownload, blurredPreviewURL != nil {
+                ChatVideoPlayBadge(size: 22, padding: 12)
+            }
         }
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
         )
         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
-        .onTapGesture {
-            onTap()
-        }
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture(perform: onTap)
     }
 }
 

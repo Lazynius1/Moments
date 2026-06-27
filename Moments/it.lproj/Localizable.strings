@@ -947,6 +947,10 @@
 "chat.cluster.receivedPhotos" = "Hai ricevuto %d foto";
 "chat.cluster.sentItems" = "Hai inviato %d elementi";
 "chat.cluster.receivedItems" = "Hai ricevuto %d elementi";
+"chat.gallery.select" = "Seleziona";
+"chat.gallery.title" = "Galleria";
+"chat.gallery.selectedCount" = "%d selezionati";
+"chat.gallery.deletePrompt" = "Eliminare gli elementi selezionati?";
 
 /* Messaging */
 "messaging.conversation.notFound" = "Conversazione non trovata";
@@ -1603,6 +1607,31 @@
 "settings.sections.yourActivity.subtitle" = "Tempo nell'app, interazioni";
 "settings.sections.downloadData" = "Scarica i tuoi dati";
 "settings.sections.downloadData.subtitle" = "Richiedi una copia dei tuoi dati";
+"settings.sections.chatStorage" = "Archiviazione chat";
+"settings.sections.chatStorage.subtitle" = "Cache media e preferenze di download";
+"settings.chatStorage.title" = "Archiviazione chat";
+"settings.chatStorage.usage.title" = "Utilizzo";
+"settings.chatStorage.usage.messages" = "Messaggi in cache";
+"settings.chatStorage.usage.messagesCount" = "%d messaggi";
+"settings.chatStorage.usage.media" = "Foto e video";
+"settings.chatStorage.preferences.title" = "Preferenze";
+"settings.chatStorage.autoDownload.title" = "Scarica media automaticamente";
+"settings.chatStorage.autoDownload.wifi" = "Solo Wi‑Fi";
+"settings.chatStorage.autoDownload.always" = "Sempre";
+"settings.chatStorage.autoDownload.never" = "Mai";
+"settings.chatStorage.retention.title" = "Conserva i media per";
+"settings.chatStorage.retention.7days" = "7 giorni";
+"settings.chatStorage.retention.30days" = "30 giorni";
+"settings.chatStorage.retention.90days" = "90 giorni";
+"settings.chatStorage.retention.forever" = "Sempre";
+"settings.chatStorage.clearMedia.action" = "Libera media della chat";
+"settings.chatStorage.clearMedia.subtitle" = "Rimuove foto e video ma mantiene il testo dei messaggi.";
+"settings.chatStorage.clearMedia.confirm" = "Liberare i media della chat? Il testo dei messaggi resterà su questo dispositivo.";
+"settings.chatStorage.clearMedia.done" = "Media della chat rimossi. Verranno scaricati di nuovo aprendo le conversazioni.";
+"settings.chatStorage.clearAll.action" = "Svuota cache chat";
+"settings.chatStorage.clearAll.subtitle" = "Rimuove tutti i messaggi e i media in cache da questo dispositivo.";
+"settings.chatStorage.clearAll.confirm" = "Svuotare tutta la cache della chat su questo dispositivo?";
+"settings.chatStorage.clearAll.done" = "Cache della chat svuotata.";
 "settings.sections.pushNotifications" = "Notifiche push";
 "settings.sections.pushNotifications.subtitle" = "Post, storie, commenti";
 "settings.sections.emailNotifications" = "Notifiche email";

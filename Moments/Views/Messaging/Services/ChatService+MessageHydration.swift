@@ -88,9 +88,12 @@ extension ChatService {
         let thumbnailObjectPath = data["thumbnailObjectPath"] as? String
         let mediaEncryption = (data["mediaEncryption"] as? [String: Any]).flatMap { EncryptedChatMediaMetadata(map: $0) }
         let thumbnailEncryption = (data["thumbnailEncryption"] as? [String: Any]).flatMap { EncryptedChatMediaMetadata(map: $0) }
+        let isDeleted = data["isDeleted"] as? Bool ?? false
 
         let resolvedMedia: CachedResolvedMedia
-        if let mediaObjectPath, !mediaObjectPath.isEmpty, let mediaEncryption {
+        if isDeleted {
+            resolvedMedia = CachedResolvedMedia(mediaUrl: nil, thumbnailUrl: nil)
+        } else if let mediaObjectPath, !mediaObjectPath.isEmpty, let mediaEncryption {
             resolvedMedia = await resolveEncryptedMediaForDisplay(
                 messageId: id,
                 conversationId: conversationId,
@@ -153,13 +156,13 @@ extension ChatService {
         )
     }
 
-    func resolveEncryptedMediaForMessage(_ message: EnhancedMessage) async -> (mediaUrl: String?, thumbnailUrl: String?)? {
-        await encryptedMediaResolver.resolveForMessage(message)
+    func resolveEncryptedMediaForMessage(_ message: EnhancedMessage, forceDownload: Bool = false) async -> (mediaUrl: String?, thumbnailUrl: String?)? {
+        await encryptedMediaResolver.resolveForMessage(message, forceDownload: forceDownload)
     }
 
     /// Resuelve solo la miniatura del vídeo (cifrada o no) sin descargar el vídeo completo.
-    func resolveVideoThumbnail(for message: EnhancedMessage) async -> String? {
-        await encryptedMediaResolver.resolveThumbnailURL(for: message)
+    func resolveVideoThumbnail(for message: EnhancedMessage, forceDownload: Bool = false) async -> String? {
+        await encryptedMediaResolver.resolveThumbnailURL(for: message, forceDownload: forceDownload)
     }
 
     /// URLs locales ya descifradas en disco (sin red).

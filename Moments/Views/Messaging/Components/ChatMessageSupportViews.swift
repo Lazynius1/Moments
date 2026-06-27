@@ -277,15 +277,77 @@ enum MessageReactionMetrics {
     }
 
     /// Reserva en la burbuja de texto para que el emoji no tape letras cortas.
-    static func bubbleContentInsets(isOutgoing: Bool, compact: Bool, hasReactions: Bool) -> EdgeInsets {
-        guard hasReactions else { return EdgeInsets() }
-        let clearance = badgeDiameter(compact: compact, cluster: false) * 0.42
-        return EdgeInsets(
-            top: 0,
-            leading: isOutgoing ? clearance * 0.75 : 0,
-            bottom: clearance * 0.3,
-            trailing: isOutgoing ? 0 : clearance * 0.75
-        )
+    static func bubbleContentInsets(
+        isOutgoing: Bool,
+        compact: Bool,
+        hasReactions: Bool,
+        hasStar: Bool = false
+    ) -> EdgeInsets {
+        let reactionClearance = badgeDiameter(compact: compact, cluster: false) * 0.42
+        let starClearance = starBadgeDiameter(compact: compact) * 0.42
+        var leading: CGFloat = 0
+        var bottom: CGFloat = 0
+        var trailing: CGFloat = 0
+
+        if hasReactions {
+            bottom = max(bottom, reactionClearance * 0.3)
+            if isOutgoing {
+                leading = max(leading, reactionClearance * 0.75)
+            } else {
+                trailing = max(trailing, reactionClearance * 0.75)
+            }
+        }
+
+        if hasStar {
+            bottom = max(bottom, starClearance * 0.3)
+            if starUsesLeadingCorner(isOutgoing: isOutgoing, hasReactions: hasReactions) {
+                leading = max(leading, starClearance * 0.75)
+            } else {
+                trailing = max(trailing, starClearance * 0.75)
+            }
+        }
+
+        guard leading > 0 || bottom > 0 || trailing > 0 else { return EdgeInsets() }
+        return EdgeInsets(top: 0, leading: leading, bottom: bottom, trailing: trailing)
+    }
+
+    static func starBadgeDiameter(compact: Bool, cluster: Bool = false) -> CGFloat {
+        if cluster { return 16 }
+        return compact ? 20 : 22
+    }
+
+    static func starIconSize(compact: Bool, cluster: Bool = false) -> CGFloat {
+        if cluster { return 8 }
+        return compact ? 10 : 11
+    }
+
+    /// Esquina inferior de la estrella (opuesta a reacciones si conviven).
+    static func starUsesLeadingCorner(isOutgoing: Bool, hasReactions: Bool) -> Bool {
+        if hasReactions {
+            return !isOutgoing
+        }
+        return isOutgoing
+    }
+}
+
+struct MessageStarBadge: View {
+    var compact: Bool = false
+    var cluster: Bool = false
+
+    private var diameter: CGFloat {
+        MessageReactionMetrics.starBadgeDiameter(compact: compact, cluster: cluster)
+    }
+
+    private var iconSize: CGFloat {
+        MessageReactionMetrics.starIconSize(compact: compact, cluster: cluster)
+    }
+
+    var body: some View {
+        Image(systemName: "star.fill")
+            .font(.system(size: iconSize, weight: .semibold))
+            .foregroundStyle(Color(hex: "FFD60A"))
+            .frame(width: diameter, height: diameter)
+            .accessibilityLabel(Text("chat.action.star"))
     }
 }
 
@@ -351,9 +413,43 @@ extension View {
         }
     }
 
+    @ViewBuilder
+    func messageStarCutout(
+        isStarred: Bool,
+        isOutgoing: Bool,
+        hasReactions: Bool,
+        compact: Bool = false,
+        anchoredInsideBounds: Bool = false,
+        gap: CGFloat = 1.5
+    ) -> some View {
+        if isStarred {
+            let starOnLeading = MessageReactionMetrics.starUsesLeadingCorner(
+                isOutgoing: isOutgoing,
+                hasReactions: hasReactions
+            )
+            let diameter = MessageReactionMetrics.starBadgeDiameter(compact: compact)
+            let hangOffset = MessageReactionMetrics.hangOffset(compact: compact)
+            let horizontalOffset = MessageReactionMetrics.horizontalHangOffset(
+                compact: compact,
+                anchoredInsideBounds: anchoredInsideBounds
+            )
+            let cutoutX = starOnLeading ? (horizontalOffset - gap) : (-horizontalOffset + gap)
+            let cutoutY = anchoredInsideBounds ? (-3 + gap) : (hangOffset + gap)
+
+            self.reversedMask(alignment: starOnLeading ? .bottomLeading : .bottomTrailing) {
+                Circle()
+                    .frame(width: diameter + gap * 2, height: diameter + gap * 2)
+                    .offset(x: cutoutX, y: cutoutY)
+            }
+        } else {
+            self
+        }
+    }
+
     func messageReactionOverlay(
         isOutgoing: Bool,
         reactions: [String: [String]]?,
+        isStarred: Bool = false,
         compact: Bool = false,
         anchoredInsideBounds: Bool = false,
         onTap: @escaping (String) -> Void
@@ -365,11 +461,23 @@ extension View {
             compact: compact,
             anchoredInsideBounds: anchoredInsideBounds
         )
+        let starOnLeading = MessageReactionMetrics.starUsesLeadingCorner(
+            isOutgoing: isOutgoing,
+            hasReactions: hasReactions
+        )
+        let needsBottomSpacing = (hasReactions || isStarred) && !anchoredInsideBounds
 
         return self
             .messageReactionCutout(
                 isOutgoing: isOutgoing,
                 reactions: reactions,
+                compact: compact,
+                anchoredInsideBounds: anchoredInsideBounds
+            )
+            .messageStarCutout(
+                isStarred: isStarred,
+                isOutgoing: isOutgoing,
+                hasReactions: hasReactions,
                 compact: compact,
                 anchoredInsideBounds: anchoredInsideBounds
             )
@@ -383,7 +491,17 @@ extension View {
                         .zIndex(5)
                 }
             }
-            .padding(.bottom, hasReactions && !anchoredInsideBounds ? rowSpacing : 0)
+            .overlay(alignment: starOnLeading ? .bottomLeading : .bottomTrailing) {
+                if isStarred {
+                    MessageStarBadge(compact: compact)
+                        .offset(
+                            x: starOnLeading ? horizontalOffset : -horizontalOffset,
+                            y: anchoredInsideBounds ? -3 : hangOffset
+                        )
+                        .zIndex(6)
+                }
+            }
+            .padding(.bottom, needsBottomSpacing ? rowSpacing : 0)
     }
 }
 

@@ -10,17 +10,25 @@ struct ChatToolbarIconGlassModifier: ViewModifier {
 }
 
 struct ChatToolbarScrollEdgeModifier: ViewModifier {
+    var hardBottomEdge = false
+
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+            if hardBottomEdge {
+                content
+                    .scrollEdgeEffectStyle(.soft, for: .top)
+                    .scrollEdgeEffectStyle(.hard, for: .bottom)
+            } else {
+                content.scrollEdgeEffectStyle(.soft, for: .top)
+            }
         } else {
             content
                 .mask {
                     LinearGradient(
                         stops: [
-                            .init(color: .black, location: 0),
-                            .init(color: .black, location: 0.90),
-                            .init(color: .clear, location: 1)
+                            .init(color: .clear, location: 0),
+                            .init(color: .black, location: 0.04),
+                            .init(color: .black, location: 1)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -31,12 +39,13 @@ struct ChatToolbarScrollEdgeModifier: ViewModifier {
 }
 
 extension View {
-    func momentsScrollEdgeChrome() -> some View {
-        modifier(ChatToolbarScrollEdgeModifier())
+    func momentsScrollEdgeChrome(hardBottomEdge: Bool = false) -> some View {
+        modifier(ChatToolbarScrollEdgeModifier(hardBottomEdge: hardBottomEdge))
     }
 
-    func chatScrollEdgeEffect() -> some View {
-        momentsScrollEdgeChrome()
+    /// Lista de conversaciones: solo difuminado superior. En el hilo, `hardBottomEdge: true` recorta el borde inferior en el composer.
+    func chatScrollEdgeEffect(hardBottomEdge: Bool = false) -> some View {
+        momentsScrollEdgeChrome(hardBottomEdge: hardBottomEdge)
     }
 
     func messagingListEdgeToEdge() -> some View {

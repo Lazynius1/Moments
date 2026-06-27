@@ -10,7 +10,7 @@ final class ChatSessionEngine: ObservableObject {
 
     private var sessions: [String: ConversationChatSession] = [:]
     private var conversationById: [String: Conversation] = [:]
-    private let maxWarmSessions = 3
+    private let maxCachedSessions = 10
     private var ownerUserId: String?
 
     private(set) var activeConversationId: String?
@@ -28,10 +28,25 @@ final class ChatSessionEngine: ObservableObject {
             return existing
         }
 
+        trimSessionCache(excluding: conversationId)
+
         let session = MomentsChatViewModel(conversation: conversation)
         sessions[conversationId] = session
         session.loadCachedMessagesIfNeeded()
         return session
+    }
+
+    func preloadRecentSessions(from conversations: [Conversation], limit: Int = 5) {
+        reconcileCurrentUser()
+        for conversation in conversations.prefix(limit) {
+            guard let conversationId = conversation.id, !conversationId.isEmpty else { continue }
+            conversationById[conversationId] = conversation
+            if sessions[conversationId] != nil { continue }
+            trimSessionCache(excluding: conversationId)
+            let session = MomentsChatViewModel(conversation: conversation)
+            sessions[conversationId] = session
+            session.loadCachedMessagesIfNeeded()
+        }
     }
 
     func activate(conversationId: String) {
@@ -42,8 +57,13 @@ final class ChatSessionEngine: ObservableObject {
             return
         }
         session.activateChatSession()
-        enforceWarmSessionLimit(excluding: conversationId)
         syncInAppFallbackListeners()
+
+        if LocalFirstMessagingSettings.isEnabled {
+            Task {
+                await MessageCatchUpService.shared.sync(conversationId: conversationId)
+            }
+        }
     }
 
     func deactivate(conversationId: String) {
@@ -52,20 +72,6 @@ final class ChatSessionEngine: ObservableObject {
             activeConversationId = nil
         }
         sessions[conversationId]?.deactivateChatSession()
-        syncInAppFallbackListeners()
-    }
-
-    func warm(conversationIds: [String]) {
-        reconcileCurrentUser()
-        let ids = Array(conversationIds.prefix(maxWarmSessions))
-        for conversationId in ids where !conversationId.isEmpty {
-            guard let conversation = conversationById[conversationId] ?? sessions[conversationId]?.conversation else { continue }
-            let session = session(for: conversation)
-            if session.chatSessionMode != .active {
-                session.warmChatSession()
-            }
-        }
-        enforceWarmSessionLimit(excluding: nil)
         syncInAppFallbackListeners()
     }
 
@@ -93,36 +99,51 @@ final class ChatSessionEngine: ObservableObject {
         syncInAppFallbackListeners()
     }
 
-    func warmConversationIdsForNotifications() -> [String] {
+    func notificationConversationIdsForFallback() -> [String] {
         var ids = Set<String>()
         if let activeConversationId {
             ids.insert(activeConversationId)
         }
-        for (conversationId, session) in sessions where session.chatSessionMode == .warm || session.chatSessionMode == .active {
-            ids.insert(conversationId)
+
+        let currentUserId = Auth.auth().currentUser?.uid ?? ""
+        let cachedConversations = LocalPersistenceService.shared.loadConversations()
+        for conversation in cachedConversations where !(conversation.readStatus[currentUserId] ?? true) {
+            if let conversationId = conversation.id {
+                ids.insert(conversationId)
+            }
         }
+
+        if ids.isEmpty {
+            for conversation in cachedConversations.prefix(5) {
+                if let conversationId = conversation.id {
+                    ids.insert(conversationId)
+                }
+            }
+        }
+
         return Array(ids.prefix(5))
     }
 
     private func syncInAppFallbackListeners() {
         InAppNotificationService.shared.syncFallbackListeners(
-            conversationIds: warmConversationIdsForNotifications()
+            conversationIds: notificationConversationIdsForFallback()
         )
     }
 
-    private func enforceWarmSessionLimit(excluding activeId: String?) {
-        let warmSessions = sessions.values
-            .filter { $0.chatSessionMode == .warm }
+    private func trimSessionCache(excluding conversationId: String) {
+        guard sessions.count >= maxCachedSessions else { return }
+
+        let evictionCandidates = sessions.values
+            .filter { $0.conversation.id != conversationId && $0.conversation.id != activeConversationId }
             .sorted { lhs, rhs in
-                (lhs.conversation.timestamp ?? .distantPast) > (rhs.conversation.timestamp ?? .distantPast)
+                (lhs.conversation.timestamp ?? .distantPast) < (rhs.conversation.timestamp ?? .distantPast)
             }
 
-        if warmSessions.count <= maxWarmSessions { return }
-
-        for session in warmSessions.dropFirst(maxWarmSessions) {
-            let id = session.conversation.id ?? ""
-            if id == activeId { continue }
-            session.pauseChatListenersImmediately()
+        for session in evictionCandidates.prefix(max(0, sessions.count - maxCachedSessions + 1)) {
+            guard let id = session.conversation.id else { continue }
+            session.stopListening()
+            sessions.removeValue(forKey: id)
+            conversationById.removeValue(forKey: id)
         }
     }
 
@@ -141,6 +162,8 @@ final class ChatSessionEngine: ObservableObject {
         conversationById.removeAll()
         ChatScrollStateStore.clearAll()
         ChatAccessCoordinator.shared.invalidateAll()
+        MessageIngestService.shared.resetOnSignOut()
+        MessageCatchUpService.shared.resetOnSignOut()
         ownerUserId = currentUserId
         syncInAppFallbackListeners()
     }

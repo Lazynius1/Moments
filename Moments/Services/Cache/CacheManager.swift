@@ -193,9 +193,10 @@ class CacheManager: ObservableObject {
         // ✅ NUEVO: Incluir tamaño de los videos cacheados
         let videoCacheSize = getVideoCacheSize()
         let audioCacheSize = PersistentAudioCache.shared.cacheSizeInBytes()
+        let chatMediaCacheSize = Int(ChatCacheStore.totalMediaBytes())
 
         _ = kingfisherMemoryCost // reservado para tuning futuro de RAM (Kingfisher 8.10+)
-        return urlCacheSize + kingfisherSize + videoCacheSize + audioCacheSize
+        return urlCacheSize + kingfisherSize + videoCacheSize + audioCacheSize + chatMediaCacheSize
     }
     
     private func getVideoCacheSize() -> Int {
