@@ -921,6 +921,7 @@
 "chat.buzz.received" = "%@ te ha enviado un zumbido";
 "chat.buzz.cooldown" = "Espera un poco antes de enviar otro zumbido";
 "chat.draft.preview" = "Borrador: %@";
+"chat.unreadCount.preview" = "%d mensajes nuevos";
 "chat.buzz.blocked" = "Esta persona no acepta zumbidos";
 "chat.giphy.searchGif" = "Buscar GIFs";
 "chat.giphy.searchSticker" = "Buscar stickers";

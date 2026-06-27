@@ -26,3 +26,12 @@ enum ChatRenderRow: Identifiable {
         }
     }
 }
+
+struct ChatTimelineSection: Identifiable {
+    let date: Date
+    var rows: [ChatRenderRow]
+
+    var id: String {
+        "section-\(date.timeIntervalSince1970)"
+    }
+}

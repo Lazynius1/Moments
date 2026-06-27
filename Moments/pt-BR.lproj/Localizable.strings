@@ -883,6 +883,7 @@
 "chat.buzz.received" = "%@ te enviou um chacoalhão";
 "chat.buzz.cooldown" = "Espere um pouco antes de enviar outro chacoalhão";
 "chat.draft.preview" = "Rascunho: %@";
+"chat.unreadCount.preview" = "%d novas mensagens";
 "chat.buzz.blocked" = "Esta pessoa não aceita chacoalhões";
 "chat.giphy.searchGif" = "Buscar GIFs";
 "chat.giphy.searchSticker" = "Buscar figurinhas";

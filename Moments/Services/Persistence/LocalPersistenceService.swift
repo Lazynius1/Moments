@@ -740,26 +740,26 @@ final class LocalPersistenceService: ObservableObject {
     ) -> [EnhancedMessage] {
         guard limit > 0, let context = modelContext else { return [] }
 
-        let predicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
-        let descriptor = FetchDescriptor<CachedMessage>(
+        let cutoff = cutoffDate
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId
+                && (cutoff == nil || $0.timestamp > cutoff!)
+                && (
+                    $0.timestamp < cursor.timestamp
+                        || ($0.timestamp == cursor.timestamp && $0.id < cursor.messageId)
+                )
+        }
+        var descriptor = FetchDescriptor<CachedMessage>(
             predicate: predicate,
             sortBy: [
                 SortDescriptor(\.timestamp, order: .reverse),
                 SortDescriptor(\.id, order: .reverse)
             ]
         )
+        descriptor.fetchLimit = limit
 
         guard let cached = try? context.fetch(descriptor) else { return [] }
-
-        var page: [EnhancedMessage] = []
-        for message in cached {
-            if let cutoffDate, message.timestamp <= cutoffDate { continue }
-            let messageCursor = MessageSyncCursor(timestamp: message.timestamp, messageId: message.id)
-            guard cursor.isAfter(messageCursor) else { continue }
-            page.append(message.toEnhancedMessage())
-            if page.count >= limit { break }
-        }
-        return page.reversed()
+        return cached.reversed().map { $0.toEnhancedMessage() }
     }
 
     /// Re-enlaza URLs locales desde App Group (puede ejecutarse fuera del main).
@@ -877,6 +877,55 @@ final class LocalPersistenceService: ObservableObject {
     func cachedMessageCount() -> Int {
         guard let context = modelContext else { return 0 }
         return (try? context.fetchCount(FetchDescriptor<CachedMessage>())) ?? 0
+    }
+
+    func unreadMessageCount(for conversationId: String, currentUserId: String) -> Int {
+        guard let context = modelContext else { return 0 }
+        let predicate = #Predicate<CachedMessage> { message in
+            message.conversationId == conversationId && message.senderId != currentUserId && !message.isRead
+        }
+        let descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
+        return (try? context.fetchCount(descriptor)) ?? 0
+    }
+
+    func markMessagesAsRead(conversationId: String, messageIds: [String]) {
+        guard let context = modelContext, !messageIds.isEmpty else { return }
+        let predicate = #Predicate<CachedMessage> { message in
+            message.conversationId == conversationId
+        }
+        let descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
+        if let cached = try? context.fetch(descriptor) {
+            let idSet = Set(messageIds)
+            var didUpdate = false
+            for message in cached {
+                if idSet.contains(message.id) && !message.isRead {
+                    message.isRead = true
+                    didUpdate = true
+                }
+            }
+            if didUpdate {
+                saveContext()
+            }
+        }
+    }
+
+    func markConversationReadLocally(conversationId: String, currentUserId: String) {
+        guard let context = modelContext else { return }
+        let predicate = #Predicate<CachedConversation> { conversation in
+            conversation.id == conversationId
+        }
+        let descriptor = FetchDescriptor<CachedConversation>(predicate: predicate)
+        if let cached = try? context.fetch(descriptor).first {
+            var readStatus: [String: Bool] = [:]
+            if let existingData = cached.readStatusData {
+                readStatus = (try? JSONDecoder().decode([String: Bool].self, from: existingData)) ?? [:]
+            }
+            if readStatus[currentUserId] != true {
+                readStatus[currentUserId] = true
+                cached.readStatusData = try? JSONEncoder().encode(readStatus)
+                saveContext()
+            }
+        }
     }
 
     func cachedMessageKeys(since date: Date) -> Set<String> {

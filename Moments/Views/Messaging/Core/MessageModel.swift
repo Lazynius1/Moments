@@ -212,10 +212,14 @@ struct Conversation: Identifiable, Codable, Hashable {
     }
 
     // Propiedad calculada para obtener el número de mensajes no leídos
+    @MainActor
     var unreadCount: Int {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let isRead = readStatus[currentUserId] else { return 0 }
-        return isRead ? 0 : 1 // Simplificado, en producción sería más complejo
+        if isRead { return 0 }
+        guard let id = id else { return 1 }
+        let dbCount = LocalPersistenceService.shared.unreadMessageCount(for: id, currentUserId: currentUserId)
+        return dbCount > 0 ? dbCount : 1
     }
 
     // Verificar si la conversación está activa

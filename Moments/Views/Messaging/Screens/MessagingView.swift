@@ -1072,7 +1072,7 @@ struct GlassmorphicConversationRow: View {
     private var usernameRow: some View {
         let label = HStack(spacing: 4) {
             Text(displayUsername)
-                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
                 .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(isOtherParticipantUnavailable ? 0.72 : 1.0))
 
@@ -1108,19 +1108,32 @@ struct GlassmorphicConversationRow: View {
         let cleanDraft = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
         let showsUnavailablePreview = isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser
         let showsDraftPreview = !showsUnavailablePreview && !cleanDraft.isEmpty
-        let resolvedPreview = showsDraftPreview
-            ? String(
-                format: NSLocalizedString("chat.draft.preview", comment: "Draft conversation preview"),
-                cleanDraft
-            )
-            : conversation.messagePreview
+
+        let resolvedPreview: String = {
+            if showsDraftPreview {
+                return String(
+                    format: NSLocalizedString("chat.draft.preview", comment: "Draft conversation preview"),
+                    cleanDraft
+                )
+            } else if conversation.unreadCount >= 2 {
+                let format = NSLocalizedString("chat.unreadCount.preview", comment: "X new messages preview")
+                if format == "chat.unreadCount.preview" {
+                    return String(format: "%d mensajes nuevos", conversation.unreadCount)
+                }
+                return String(format: format, conversation.unreadCount)
+            } else {
+                return conversation.messagePreview
+            }
+        }()
+
+        let isUnread = conversation.unreadCount > 0
         let preview = Text(
             showsUnavailablePreview
                 ? NSLocalizedString("messaging.profileUnavailable.preview", comment: "Unavailable profile preview")
                 : resolvedPreview
         )
-        .font(.system(size: legacyPoppinsSize(14)))
-        .foregroundColor(showsDraftPreview ? Color(hex: "3F6F8F") : (colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7)))
+        .font(.system(size: 14, weight: (isUnread && !showsDraftPreview) ? .semibold : .regular))
+        .foregroundColor(showsDraftPreview ? Color(hex: "3F6F8F") : (isUnread ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))))
         .lineLimit(1)
 
         if listInteraction == nil {
@@ -1145,7 +1158,7 @@ struct GlassmorphicConversationRow: View {
     private var conversationTrailingColumn: some View {
         VStack(alignment: .trailing, spacing: 6) {
             Text(formattedTimestamp(conversation.timestamp))
-                .font(.system(size: legacyPoppinsSize(12)))
+                .font(.system(size: 12))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5))
 
             if !(conversation.readStatus[Auth.auth().currentUser?.uid ?? ""] ?? true) {

@@ -27,6 +27,10 @@ private struct ChatStoryRoute: Identifiable {
     }
 }
 
+private struct HistoryPrependBaseline: Equatable {
+    let anchorRowId: String
+}
+
 // MARK: - Glassmorphic Chat View
 // Actualizar GlassmorphicChatView para incluir navegación
 struct GlassmorphicChatView: View {
@@ -59,31 +63,23 @@ struct GlassmorphicChatView: View {
     @State private var unreadDividerMessageId: String? = nil
     @State private var unreadDividerInitialized = false
     @State private var hasCompletedInitialScroll = false
-    @State private var suppressPinnedMetricsUpdates = false
+    @State private var sizeChangesAnchor: UnitPoint? = .bottom
     @State private var didReapplyFrozenScrollPosition = false
     @State private var didHydrateScrollStateOnce = false
     @State private var missingFrozenAnchorLayoutPasses = 0
     @State private var initialScrollTask: Task<Void, Never>? = nil
     @State private var highlightScrollTask: Task<Void, Never>? = nil
     @State private var frozenInitialScrollTarget: ChatScrollTarget? = nil
-    @State private var scrollContentOffset: CGFloat = 0
-    @State private var scrollContentHeight: CGFloat = 0
-    @State private var scrollViewportHeight: CGFloat = 0
-    @State private var scrollMetricsBuffer = ChatScrollMetricsBuffer()
-    @State private var messageRowFrames: [String: CGRect] = [:]
     @State private var liveScrollAnchorRowId: String?
     @State private var bottomSnapTask: Task<Void, Never>? = nil
     @State private var historyScrollAnchorRowId: String?
-    @State private var historyScrollSnapshot: HistoryScrollSnapshot?
-    @State private var historyScrollPosition: String?
-    @State private var isRestoringHistoryScroll = false
+    @State private var historyPrependBaseline: HistoryPrependBaseline?
+    @State private var historyPrependRestoreTask: Task<Void, Never>? = nil
+    /// Bloquea prefetch encadenado mientras se re-ancla tras prepend.
+    @State private var historyLoadLocked = false
     @State private var historyPrefetchArmed = true
-    @State private var historyScrollRestoreTask: Task<Void, Never>? = nil
-    private static let historyPrefetchDistance: CGFloat = 320
-    private static let historyPrefetchRearmDistance: CGFloat = 480
-    private static let historyPrefetchEarlyRowCount = 5
-    /// Spinner solo si el usuario ya está en el tope y la página aún no llegó (scroll rápido).
-    private static let historyLoadingRevealDistance: CGFloat = 56
+    @State private var chatScrollPhase: ScrollPhase = .idle
+    @State private var scrollPosition = ScrollPosition(idType: String.self)
     private let bottomScrollAnchorID = "chat-bottom-anchor"
     @State private var isSearchVisible = false
     @State private var searchQuery: String = ""
@@ -180,9 +176,6 @@ struct GlassmorphicChatView: View {
         if let anchor = stored.scrollAnchorId, anchor != "chat-bottom-anchor" {
             _liveScrollAnchorRowId = State(initialValue: anchor)
         }
-        _suppressPinnedMetricsUpdates = State(
-            initialValue: stored.hasCompletedInitialScroll && !stored.isPinnedToBottom
-        )
         _didReapplyFrozenScrollPosition = State(initialValue: false)
     }
 
@@ -853,14 +846,6 @@ struct GlassmorphicChatView: View {
                     .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
             }
 
-            if viewModel.canLoadMore && historyPrefetchArmed && !viewModel.isLoadingOlderHistory && !isRestoringHistoryScroll {
-                Color.clear
-                    .frame(height: 1)
-                    .onAppear {
-                        maybePrefetchOlderHistory(using: proxy)
-                    }
-            }
-
             ForEach(Array(viewModel.chatRenderRows.enumerated()), id: \.element.id) { index, row in
                 chatRenderRow(row, index: index, proxy: proxy)
             }
@@ -876,8 +861,15 @@ struct GlassmorphicChatView: View {
                 .frame(height: 0)
                 .id(bottomScrollAnchorID)
                 .onAppear {
-                    guard hasCompletedInitialScroll else { return }
+                    guard hasCompletedInitialScroll, chatScrollPhase == .idle else { return }
                     markBottomAnchorVisible()
+                }
+                .onDisappear {
+                    guard hasCompletedInitialScroll, isPinnedToBottom else { return }
+                    isPinnedToBottom = false
+                    #if DEBUG
+                    ChatGeometryDebug.logPinned("bottomAnchor.onDisappear", false)
+                    #endif
                 }
                 .onChange(of: hasCompletedInitialScroll) { _, completed in
                     guard completed else { return }
@@ -885,79 +877,106 @@ struct GlassmorphicChatView: View {
                 }
     }
 
-    /// WhatsApp/iMessage: prefetch silencioso; spinner solo en el tope mientras aún carga.
+    /// Spinner mientras carga historial y el usuario no está anclado abajo.
     private var shouldShowHistoryLoadingIndicator: Bool {
-        guard viewModel.isLoadingOlderHistory,
-              viewModel.canLoadMore,
-              hasCompletedInitialScroll else { return false }
-        return scrollContentOffset < Self.historyLoadingRevealDistance
+        viewModel.isLoadingOlderHistory
+            && viewModel.canLoadMore
+            && hasCompletedInitialScroll
+            && !isPinnedToBottom
     }
 
-    /// Scroll interactivo solo cuando el contenido supera el viewport (métricas reales del ScrollView).
+    #if DEBUG
+    private func historySpinnerBlockReason() -> String {
+        if !viewModel.isLoadingOlderHistory { return "isLoadingOlderHistory=false" }
+        if !viewModel.canLoadMore { return "canLoadMore=false" }
+        if !hasCompletedInitialScroll { return "hasCompletedInitialScroll=false" }
+        if isPinnedToBottom { return "isPinnedToBottom=true" }
+        return "shouldShow=true"
+    }
+    #endif
+
+    /// Heurística sin geometry: evita `onScrollGeometryChange` (fuente del cycling warning).
     private var allowsVerticalScrolling: Bool {
-        guard scrollViewportHeight > 1, scrollContentHeight > 1 else { return false }
-        return scrollContentHeight > scrollViewportHeight + 32
+        hasCompletedInitialScroll && viewModel.messages.count > 6
     }
 
     private func chatMessagesScrollView(proxy: ScrollViewProxy) -> some View {
         ScrollView {
             chatMessagesLazyStack(proxy: proxy)
         }
-        .defaultScrollAnchor(.bottom)
-        .defaultScrollAnchor(.bottom, for: .alignment)
-        .scrollPosition(id: $historyScrollPosition, anchor: historyScrollPositionAnchor)
+        // iOS 18: bottom al abrir; NO re-anclar al fondo en cambios de tamaño (prepend arriba).
+        .defaultScrollAnchor(.bottom, for: .initialOffset)
+        .defaultScrollAnchor(.center, for: .alignment)
+        .defaultScrollAnchor(sizeChangesAnchor, for: .sizeChanges)
+        .scrollPosition($scrollPosition, anchor: .top)
+        .onChange(of: scrollPosition) { _, newPosition in
+            guard historyLoadLocked,
+                  let currentTopID = newPosition.viewID(type: String.self),
+                  viewModel.chatRenderRows.contains(where: { $0.id == currentTopID }) else { return }
+
+            historyPrependBaseline = HistoryPrependBaseline(anchorRowId: currentTopID)
+            historyScrollAnchorRowId = currentTopID
+        }
         .scrollBounceBehavior(.basedOnSize)
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: "chatScroll")
         .chatScrollEdgeEffect(hardBottomEdge: true)
         .scrollDismissesKeyboard(.interactively)
-        .onScrollGeometryChange(for: ChatScrollMetrics.self, of: { geometry in
-            ChatScrollMetrics(
-                offsetY: geometry.contentOffset.y,
-                contentHeight: geometry.contentSize.height,
-                viewportHeight: geometry.containerSize.height
-            )
-        }) { _, metrics in
-            scrollMetricsBuffer.ingest(metrics)
-            syncScrollLayoutMetrics(from: metrics)
-            let offsetY = metrics.offsetY
-            if abs(offsetY - scrollContentOffset) > 4 {
-                scrollContentOffset = offsetY
-                updateHistoryPrefetchRearm(from: offsetY)
-            }
-            if isRestoringHistoryScroll, let snapshot = historyScrollSnapshot {
-                applyHistoryScrollCorrection(using: proxy, snapshot: snapshot)
-            }
-            if hasCompletedInitialScroll, !isRestoringHistoryScroll, offsetY < Self.historyPrefetchDistance {
-                maybePrefetchOlderHistory(using: proxy)
+        .onScrollPhaseChange { _, phase in
+            chatScrollPhase = phase
+            #if DEBUG
+            ChatGeometryDebug.logScrollPhase(phase)
+            #endif
+            guard phase == .idle else { return }
+            if !hasCompletedInitialScroll, !viewModel.chatRenderRows.isEmpty {
+                completeInitialScrollIfContentFits(using: nil)
             }
         }
-        .onPreferenceChange(ChatScrollRowFrameKey.self) { messageRowFrames = $0 }
-        .onScrollPhaseChange { _, phase in
-            if phase == .idle || phase == .decelerating {
-                flushScrollMetricsToUI()
-            }
-            if phase == .decelerating || phase == .idle {
-                updateHistoryPrefetchRearm(from: scrollContentOffset)
-                if hasCompletedInitialScroll, !isPinnedToBottom {
-                    maybePrefetchOlderHistory(using: proxy)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y
+        } action: { oldOffset, newOffset in
+            if newOffset >= 600 {
+                // Re-armar prefetch si nos alejamos del tope de historial
+                if !historyPrefetchArmed {
+                    historyPrefetchArmed = true
                 }
             }
-            guard allowsVerticalScrolling else { return }
-            guard phase == .idle, hasCompletedInitialScroll else { return }
-            if suppressPinnedMetricsUpdates, !isRestoringHistoryScroll {
-                suppressPinnedMetricsUpdates = false
+
+            guard hasCompletedInitialScroll,
+                  !isPinnedToBottom,
+                  !historyLoadLocked,
+                  historyPrefetchArmed,
+                  !viewModel.isLoadingMore,
+                  historyPrependBaseline == nil,
+                  historyPrependRestoreTask == nil,
+                  viewModel.canLoadMore,
+                  !viewModel.messages.isEmpty else { return }
+
+            if newOffset < 600 {
+                historyPrefetchArmed = false
+                requestLoadOlderHistory(using: proxy)
             }
-            updateLiveScrollAnchor()
-            commitScrollStateToStore()
         }
         .overlay(alignment: .top) {
             if shouldShowHistoryLoadingIndicator {
                 ChatHistoryLoadingIndicator(adaptiveColors: adaptiveColors)
                     .padding(.top, 6)
+                    .onAppear {
+                        #if DEBUG
+                        ChatGeometryDebug.logHistorySpinner(visible: true, reason: "overlay.onAppear")
+                        #endif
+                    }
             }
         }
+        .onChange(of: shouldShowHistoryLoadingIndicator) { _, visible in
+            #if DEBUG
+            let reason = historySpinnerBlockReason()
+            ChatGeometryDebug.logHistorySpinner(visible: visible, reason: reason)
+            #endif
+        }
     }
+
+
 
     @ViewBuilder
     private func chatRenderRow(_ row: ChatRenderRow, index: Int, proxy: ScrollViewProxy) -> some View {
@@ -966,19 +985,17 @@ struct GlassmorphicChatView: View {
             GlassmorphicDateHeader(date: date)
                 .padding(.vertical, 10)
                 .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
-                .trackChatScrollRowFrame(id: row.id)
+                .transition(.identity)
         case .message(let item):
             if shouldShowUnreadDivider(before: item) {
                 GlassmorphicUnreadDivider()
                     .padding(.horizontal, 18)
                     .padding(.vertical, 6)
                     .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+                    .transition(.identity)
             }
             renderMessageItem(item, in: viewModel.messages, proxy: proxy)
-                .onAppear {
-                    guard index < Self.historyPrefetchEarlyRowCount else { return }
-                    maybePrefetchOlderHistory(using: proxy)
-                }
+                .transition(.identity)
         case .buzz(let event):
             ChatBuzzTimelineEventRow(
                 text: buzzTimelineText(for: event),
@@ -986,7 +1003,7 @@ struct GlassmorphicChatView: View {
             )
             .id("buzz-\(event.id)")
             .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
-            .trackChatScrollRowFrame(id: row.id)
+            .transition(.identity)
         }
     }
 
@@ -1003,7 +1020,7 @@ struct GlassmorphicChatView: View {
                             .foregroundStyle(scrollToBottomAccentColor)
                             .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.16), radius: 8, x: 0, y: 3)
 
-                        if pendingIncomingMessages > 0, isScrollContentScrollable {
+                        if pendingIncomingMessages > 0, allowsVerticalScrolling {
                             Text(pendingIncomingMessages > 99 ? "99+" : "\(pendingIncomingMessages)")
                                 .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
                                 .foregroundStyle(scrollToBottomBadgeTextColor)
@@ -1024,7 +1041,7 @@ struct GlassmorphicChatView: View {
     }
 
     private var shouldShowScrollToBottomControl: Bool {
-        pendingIncomingMessages > 0 || (!isPinnedToBottom && isScrollContentScrollable)
+        pendingIncomingMessages > 0 || (!isPinnedToBottom && allowsVerticalScrolling)
     }
 
     private func markBottomAnchorVisible() {
@@ -1034,6 +1051,9 @@ struct GlassmorphicChatView: View {
             return
         }
         isPinnedToBottom = true
+        #if DEBUG
+        ChatGeometryDebug.logPinned("bottomAnchor.onAppear", true)
+        #endif
         clearUnreadDividerAndMarkReadIfNeeded()
     }
 
@@ -1069,9 +1089,7 @@ struct GlassmorphicChatView: View {
                 scheduleInitialScroll(proxy: proxy)
             }
             .onChange(of: viewModel.chatRenderRows.map(\.id)) { oldIds, rowIds in
-                if historyScrollSnapshot != nil, oldIds.count != rowIds.count {
-                    scheduleHistoryScrollRestoration(using: proxy)
-                }
+                reapplyHistoryScrollPositionAfterPrepend(oldIds: oldIds, newIds: rowIds)
                 reapplyFrozenScrollPositionIfNeeded(in: rowIds, using: proxy)
                 scheduleSingleHighlightScrollIfNeeded(using: proxy)
                 guard !hasCompletedInitialScroll else { return }
@@ -1084,13 +1102,6 @@ struct GlassmorphicChatView: View {
                 guard initialScrollTask == nil else { return }
                 scheduleInitialScroll(proxy: proxy)
             }
-            .onChange(of: scrollViewportHeight) { oldHeight, newHeight in
-                handleScrollViewportHeightChange(
-                    oldHeight: oldHeight,
-                    newHeight: newHeight,
-                    using: proxy
-                )
-            }
     }
 
     private func applyChatScrollMessageChanges<V: View>(to content: V, proxy: ScrollViewProxy) -> some View {
@@ -1101,6 +1112,12 @@ struct GlassmorphicChatView: View {
                     lastMessageId: lastMessageId,
                     proxy: proxy
                 )
+                guard hasCompletedInitialScroll,
+                      isPinnedToBottom,
+                      let lastMessageId,
+                      oldValue != nil,
+                      oldValue != lastMessageId else { return }
+                scheduleBottomSnap(using: proxy, reason: .incomingWhilePinned)
             }
             .onChange(of: viewModel.messages.count) { _, _ in
                 guard hasCompletedInitialScroll, !isPinnedToBottom else { return }
@@ -1122,10 +1139,6 @@ struct GlassmorphicChatView: View {
                     pendingIncomingMessages += 1
                 }
             }
-            .onChange(of: viewModel.typingUsers.isEmpty) { _, isEmpty in
-                guard hasCompletedInitialScroll, isPinnedToBottom, !isEmpty else { return }
-                scrollToBottom(proxy: proxy, animated: true)
-            }
             .onChange(of: pendingSearchTargetId) { _, targetId in
                 guard let targetId else { return }
                 jumpToMessage(targetId, proxy: proxy)
@@ -1143,11 +1156,7 @@ struct GlassmorphicChatView: View {
             }
             .onChange(of: viewModel.isLoadingMore) { wasLoading, isLoading in
                 guard wasLoading, !isLoading else { return }
-                if historyScrollSnapshot != nil {
-                    scheduleHistoryScrollRestoration(using: proxy)
-                } else {
-                    viewModel.endHistoryScrollRestoration()
-                }
+                finishHistoryPrependRestoration(using: proxy)
             }
     }
 
@@ -1178,12 +1187,6 @@ struct GlassmorphicChatView: View {
                     processPendingBuzz(using: proxy)
                 }
             }
-            .onChange(of: isTextFieldFocused) { _, focused in
-                guard focused, hasCompletedInitialScroll else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    scrollToBottom(proxy: proxy, animated: true)
-                }
-            }
     }
 
     private func handleLastMessageScrollChange(
@@ -1196,16 +1199,15 @@ struct GlassmorphicChatView: View {
         let isLastMessageMine = viewModel.messages.last?.senderId == viewModel.currentUserId
 
         if isLastMessageMine {
-            scheduleBottomSnap(using: proxy, reason: .incomingWhilePinned)
-        } else if !viewModel.isLoadingMore {
-            if isPinnedToBottom {
-                scheduleBottomSnap(using: proxy, reason: .incomingWhilePinned)
-            } else {
-                if unreadDividerMessageId == nil {
-                    unreadDividerMessageId = lastMessageId
-                }
-                pendingIncomingMessages += 1
+            if !isPinnedToBottom {
+                isPinnedToBottom = true
+                clearUnreadDividerAndMarkReadIfNeeded()
             }
+        } else if !viewModel.isLoadingMore, !isPinnedToBottom {
+            if unreadDividerMessageId == nil {
+                unreadDividerMessageId = lastMessageId
+            }
+            pendingIncomingMessages += 1
         }
     }
 
@@ -1718,7 +1720,6 @@ struct GlassmorphicChatView: View {
             }
         }
         .chatMenuDimmedUnlessSelected(isSelected: isMenuSelected, menuOpen: messageMenuSelection != nil)
-        .trackChatScrollRowFrame(id: rowId)
         .zIndex(isMenuSelected || isBubbleHighlighted ? 100 : 0)
         .id(item.id)
     }
@@ -1836,7 +1837,6 @@ struct GlassmorphicChatView: View {
             updateLiveScrollAnchor()
         }
         let savedAnchor = isPinnedToBottom ? bottomScrollAnchorID : liveScrollAnchorRowId
-        let savedOffset = isPinnedToBottom ? nil : scrollContentOffset
         ChatScrollStateStore.update(for: conversationId) { state in
             if includeFullState {
                 state.hasCompletedInitialScroll = hasCompletedInitialScroll
@@ -1845,7 +1845,7 @@ struct GlassmorphicChatView: View {
             }
             state.isPinnedToBottom = isPinnedToBottom
             state.scrollAnchorId = savedAnchor
-            state.scrollOffsetY = savedOffset.map { Double($0) }
+            state.scrollOffsetY = nil
         }
     }
 
@@ -1854,83 +1854,6 @@ struct GlassmorphicChatView: View {
         unreadDividerInitialized = true
         pendingIncomingMessages = 0
         viewModel.markVisibleConversationAsRead()
-    }
-
-    /// Actualiza altura de contenido/viewport en cuanto el ScrollView las conoce (no esperar al idle).
-    private func syncScrollLayoutMetrics(from metrics: ChatScrollMetrics) {
-        let contentDelta = abs(metrics.contentHeight - scrollContentHeight)
-        let viewportDelta = abs(metrics.viewportHeight - scrollViewportHeight)
-        guard contentDelta > 1 || viewportDelta > 1 else { return }
-
-        if contentDelta > 1 { scrollContentHeight = metrics.contentHeight }
-        if viewportDelta > 1 { scrollViewportHeight = metrics.viewportHeight }
-
-        if !hasCompletedInitialScroll {
-            completeInitialScrollIfContentFits(using: nil)
-        }
-    }
-
-    /// Sincroniza métricas de scroll a @State al parar o desacelerar.
-    private func flushScrollMetricsToUI() {
-        let metrics = scrollMetricsBuffer.metrics
-        let offsetDelta = abs(metrics.offsetY - scrollContentOffset)
-        let contentDelta = abs(metrics.contentHeight - scrollContentHeight)
-        let viewportDelta = abs(metrics.viewportHeight - scrollViewportHeight)
-        guard offsetDelta > 1 || contentDelta > 1 || viewportDelta > 1 else { return }
-
-        let oldViewportHeight = scrollViewportHeight
-        let oldContentHeight = scrollContentHeight
-        if offsetDelta > 1 { scrollContentOffset = metrics.offsetY }
-        if contentDelta > 1 { scrollContentHeight = metrics.contentHeight }
-        if viewportDelta > 1 { scrollViewportHeight = metrics.viewportHeight }
-
-        guard hasCompletedInitialScroll else {
-            completeInitialScrollIfContentFits(using: nil)
-            return
-        }
-
-        guard allowsVerticalScrolling else {
-            if !isPinnedToBottom {
-                isPinnedToBottom = true
-                clearUnreadDividerAndMarkReadIfNeeded()
-            }
-            return
-        }
-
-        guard !suppressPinnedMetricsUpdates else { return }
-
-        let bottomGap = bottomGap(for: metrics)
-        var pinned = !isScrollable(metrics) || bottomGap < 48
-
-        if isPinnedToBottom
-            && (metrics.viewportHeight != oldViewportHeight || metrics.contentHeight != oldContentHeight) {
-            pinned = true
-        }
-
-        if pinned != isPinnedToBottom {
-            isPinnedToBottom = pinned
-            if pinned {
-                historyScrollPosition = nil
-                historyScrollSnapshot = nil
-                clearUnreadDividerAndMarkReadIfNeeded()
-            }
-        }
-
-        if !isPinnedToBottom {
-            updateLiveScrollAnchor()
-        }
-    }
-
-    private var isScrollContentScrollable: Bool {
-        allowsVerticalScrolling
-    }
-
-    private func isScrollable(_ metrics: ChatScrollMetrics) -> Bool {
-        metrics.contentHeight > metrics.viewportHeight + 32
-    }
-
-    private func bottomGap(for metrics: ChatScrollMetrics) -> CGFloat {
-        max(0, metrics.contentHeight - metrics.offsetY - metrics.viewportHeight)
     }
 
     private func shouldOpenAtBottom() -> Bool {
@@ -1957,135 +1880,134 @@ struct GlassmorphicChatView: View {
     }
 
     private func routeInitialScroll(using proxy: ScrollViewProxy) {
-        guard needsProgrammaticInitialScroll() else { return }
         if shouldOpenAtBottom() {
-            scheduleInitialBottomSnap(using: proxy)
-        } else {
-            scheduleInitialScroll(proxy: proxy)
+            if !hasCompletedInitialScroll {
+                scheduleInitialBottomSnap(using: proxy)
+            } else if isPinnedToBottom {
+                // Re-entrada con sesión guardada pinned: corregir offset tras medir el input bar.
+                scheduleBottomSnap(using: proxy, reason: .incomingWhilePinned)
+            }
+            return
         }
+        guard needsProgrammaticInitialScroll() else { return }
+        scheduleInitialScroll(proxy: proxy)
     }
 
-    private var historyScrollPositionAnchor: UnitPoint {
-        historyScrollSnapshot?.viewportAnchor ?? .top
-    }
-
-    /// Re-aplica scroll guardado tras recrear la vista (navigationDestination pop/push).
-    private func requestLoadOlderHistory(using _: ScrollViewProxy) {
-        guard hasCompletedInitialScroll,
-              !viewModel.isLoadingMore,
-              !isRestoringHistoryScroll,
-              viewModel.canLoadMore,
-              let oldest = viewModel.messages.first,
-              let anchorRowId = messageRowId(containingMessageId: oldest.id) else { return }
-
-        let metrics = scrollMetricsBuffer.metrics
-        let viewport = max(scrollViewportHeight, metrics.viewportHeight)
-        let anchorMinY = messageRowFrames[anchorRowId]?.minY ?? max(metrics.offsetY, 0)
-
-        historyScrollAnchorRowId = anchorRowId
-        historyScrollSnapshot = HistoryScrollSnapshot(
-            anchorRowId: anchorRowId,
-            anchorMinY: anchorMinY,
-            contentOffsetY: metrics.offsetY,
-            contentHeight: metrics.contentHeight,
-            viewportHeight: viewport
+    private func requestLoadOlderHistory(using proxy: ScrollViewProxy) {
+        _ = proxy
+        #if DEBUG
+        ChatGeometryDebug.logHistoryState(
+            locked: historyLoadLocked,
+            pinned: isPinnedToBottom,
+            phase: chatScrollPhase,
+            canLoadMore: viewModel.canLoadMore,
+            isLoadingMore: viewModel.isLoadingMore,
+            isLoadingOlderHistory: viewModel.isLoadingOlderHistory,
+            hasBaseline: historyPrependBaseline != nil,
+            hasRestoreTask: historyPrependRestoreTask != nil,
+            messageCount: viewModel.messages.count
         )
-        historyScrollPosition = anchorRowId
-        suppressPinnedMetricsUpdates = true
-        isPinnedToBottom = false
-        historyPrefetchArmed = false
-        viewModel.loadMoreMessages()
-    }
+        ChatGeometryDebug.logHistoryGate("hasCompletedInitialScroll", pass: hasCompletedInitialScroll)
+        ChatGeometryDebug.logHistoryGate("chatScrollPhase.idle", pass: chatScrollPhase == .idle, detail: "\(chatScrollPhase)")
+        ChatGeometryDebug.logHistoryGate("!historyLoadLocked", pass: !historyLoadLocked)
+        ChatGeometryDebug.logHistoryGate("!isLoadingMore", pass: !viewModel.isLoadingMore)
+        ChatGeometryDebug.logHistoryGate("baseline.nil", pass: historyPrependBaseline == nil)
+        ChatGeometryDebug.logHistoryGate("restoreTask.nil", pass: historyPrependRestoreTask == nil)
+        ChatGeometryDebug.logHistoryGate("canLoadMore", pass: viewModel.canLoadMore)
+        ChatGeometryDebug.logHistoryGate("!messages.isEmpty", pass: !viewModel.messages.isEmpty)
+        #endif
 
-    private var shouldPrefetchOlderHistory: Bool {
         guard hasCompletedInitialScroll,
-              historyPrefetchArmed,
-              !isPinnedToBottom,
-              viewModel.canLoadMore,
+              !historyLoadLocked,
               !viewModel.isLoadingMore,
-              !isRestoringHistoryScroll else { return false }
-        return scrollContentOffset < Self.historyPrefetchDistance
-    }
+              historyPrependBaseline == nil,
+              historyPrependRestoreTask == nil,
+              viewModel.canLoadMore,
+              !viewModel.messages.isEmpty else { return }
 
-    private func maybePrefetchOlderHistory(using proxy: ScrollViewProxy) {
-        guard shouldPrefetchOlderHistory else { return }
-        requestLoadOlderHistory(using: proxy)
-    }
-
-    private func updateHistoryPrefetchRearm(from offsetY: CGFloat) {
-        guard viewModel.canLoadMore else { return }
-        if offsetY > Self.historyPrefetchRearmDistance {
-            historyPrefetchArmed = true
-        }
-    }
-
-    private func isHistoryAnchorAtTarget(_ snapshot: HistoryScrollSnapshot) -> Bool {
-        if let frame = messageRowFrames[snapshot.anchorRowId] {
-            return abs(frame.minY - snapshot.anchorMinY) <= 3
-        }
-        let delta = scrollContentHeight - snapshot.contentHeight
-        guard delta > 0 else { return false }
-        let targetOffset = snapshot.contentOffsetY + delta
-        return abs(scrollContentOffset - targetOffset) <= 8
-    }
-
-    private func applyHistoryScrollCorrection(using proxy: ScrollViewProxy, snapshot: HistoryScrollSnapshot) {
-        guard viewModel.chatRenderRows.contains(where: { $0.id == snapshot.anchorRowId }) else { return }
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-            historyScrollPosition = snapshot.anchorRowId
-            proxy.scrollTo(snapshot.anchorRowId, anchor: snapshot.viewportAnchor)
-        }
-    }
-
-    private func scheduleHistoryScrollRestoration(using proxy: ScrollViewProxy) {
-        guard let snapshot = historyScrollSnapshot else {
-            viewModel.endHistoryScrollRestoration()
+        guard let anchorRowId = historyPrependAnchorRowId() else {
+            #if DEBUG
+            ChatGeometryDebug.logHistoryGate("anchorRowId", pass: false, detail: "no visible row")
+            #endif
             return
         }
 
-        historyScrollRestoreTask?.cancel()
-        isRestoringHistoryScroll = true
+        historyLoadLocked = true
+        historyPrefetchArmed = false
+        historyPrependBaseline = HistoryPrependBaseline(anchorRowId: anchorRowId)
+        historyScrollAnchorRowId = anchorRowId
+        isPinnedToBottom = false
+        pinHistoryScrollPosition(to: anchorRowId)
+        #if DEBUG
+        ChatGeometryDebug.logPrepend("request", anchorMessageId: anchorRowId)
+        ChatGeometryDebug.logHistoryGate("loadMoreMessages", pass: true, detail: "anchorRow=\(anchorRowId)")
+        #endif
+        viewModel.loadMoreMessages()
+    }
 
-        historyScrollRestoreTask = Task { @MainActor in
-            defer {
-                historyScrollRestoreTask = nil
-                isRestoringHistoryScroll = false
-                suppressPinnedMetricsUpdates = false
-                historyScrollAnchorRowId = nil
-                historyScrollSnapshot = nil
-                historyScrollPosition = nil
-                historyPrefetchArmed = false
-                viewModel.endHistoryScrollRestoration()
-            }
-
-            let delays: [UInt64] = [0, 8_000_000, 16_000_000, 32_000_000, 50_000_000, 80_000_000, 120_000_000]
-
-            for delay in delays {
-                if Task.isCancelled { return }
-                if delay > 0 { try? await Task.sleep(nanoseconds: delay) }
-
-                applyHistoryScrollCorrection(using: proxy, snapshot: snapshot)
-
-                if isHistoryAnchorAtTarget(snapshot) {
-                    return
-                }
-            }
+    /// Fija scrollPosition en la fila de lectura antes/durante prepend (iOS 18).
+    private func pinHistoryScrollPosition(to rowId: String) {
+        guard viewModel.chatRenderRows.contains(where: { $0.id == rowId }) else { return }
+        scrollPosition.scrollTo(id: rowId, anchor: .top)
+        if liveScrollAnchorRowId != rowId {
+            liveScrollAnchorRowId = rowId
         }
     }
 
-    private func reapplyFrozenScrollPositionIfNeeded(in rowIds: [String], using proxy: ScrollViewProxy) {
-        guard hasCompletedInitialScroll, !didReapplyFrozenScrollPosition, !rowIds.isEmpty else { return }
+    /// Fila ancla = lo que estás leyendo (scrollPosition), nunca el mensaje más antiguo.
+    private func historyPrependAnchorRowId() -> String? {
+        if let visibleRowId = scrollPosition.viewID(type: String.self),
+           viewModel.chatRenderRows.contains(where: { $0.id == visibleRowId }) {
+            return visibleRowId
+        }
 
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
+        if let liveScrollAnchorRowId,
+           liveScrollAnchorRowId != bottomScrollAnchorID,
+           viewModel.chatRenderRows.contains(where: { $0.id == liveScrollAnchorRowId }) {
+            return liveScrollAnchorRowId
+        }
+
+        let messageRowIds = viewModel.chatRenderRows.compactMap { row -> String? in
+            guard case .message = row else { return nil }
+            return row.id
+        }
+        guard !messageRowIds.isEmpty else { return nil }
+        // Cerca del umbral de prebúsqueda, no el tope absoluto del historial.
+        let index = min(14, messageRowIds.count - 1)
+        return messageRowIds[index]
+    }
+
+    private func reapplyHistoryScrollPositionAfterPrepend(oldIds: [String], newIds: [String]) {
+        guard oldIds.count != newIds.count,
+              let baseline = historyPrependBaseline,
+              newIds.contains(baseline.anchorRowId) else { return }
+        pinHistoryScrollPosition(to: baseline.anchorRowId)
+    }
+
+    /// Tras prepend: scrollPosition preserva la fila de lectura (sin scrollTo al más antiguo).
+    private func finishHistoryPrependRestoration(using proxy: ScrollViewProxy) {
+        _ = proxy
+
+        historyPrependRestoreTask?.cancel()
+        historyPrependRestoreTask = nil
+
+        let capturedAnchorRowId = historyPrependBaseline?.anchorRowId
+        if let capturedAnchorRowId {
+            pinHistoryScrollPosition(to: capturedAnchorRowId)
+        }
+
+        historyScrollAnchorRowId = nil
+        historyPrependBaseline = nil
+        viewModel.endHistoryScrollRestoration()
+        historyLoadLocked = false
+    }
+
+    private func reapplyFrozenScrollPositionIfNeeded(in rowIds: [String], using proxy: ScrollViewProxy) {
+        guard historyPrependBaseline == nil, historyPrependRestoreTask == nil else { return }
+        guard hasCompletedInitialScroll, !didReapplyFrozenScrollPosition, !rowIds.isEmpty else { return }
 
         if isPinnedToBottom {
             didReapplyFrozenScrollPosition = true
-            withTransaction(transaction) {
-                proxy.scrollTo(bottomScrollAnchorID, anchor: .bottom)
-            }
             return
         }
 
@@ -2097,17 +2019,13 @@ struct GlassmorphicChatView: View {
 
             didReapplyFrozenScrollPosition = true
             missingFrozenAnchorLayoutPasses = 0
-            withTransaction(transaction) {
-                proxy.scrollTo(fallbackId, anchor: .top)
-            }
+            proxy.scrollTo(fallbackId, anchor: .top)
             return
         }
 
         didReapplyFrozenScrollPosition = true
         missingFrozenAnchorLayoutPasses = 0
-        withTransaction(transaction) {
-            proxy.scrollTo(anchorId, anchor: .top)
-        }
+        proxy.scrollTo(anchorId, anchor: .top)
     }
 
     private func fallbackFrozenScrollAnchor(in rowIds: [String]) -> String? {
@@ -2132,41 +2050,21 @@ struct GlassmorphicChatView: View {
             return
         }
 
-        guard scrollViewportHeight > 0 else { return }
-
-        guard !messageRowFrames.isEmpty else { return }
-
-        let viewportTop: CGFloat = 8
-        let viewportBottom = scrollViewportHeight - 8
-
-        var candidateId: String?
-        var candidateMinY: CGFloat = .greatestFiniteMagnitude
-
-        let preferredCandidates = messageRowFrames.keys.filter(isPreferredScrollAnchorRow(_:)).compactMap { rowId -> (String, CGFloat)? in
-            guard let frame = messageRowFrames[rowId] else { return nil }
-            guard frame.maxY > viewportTop, frame.minY < viewportBottom else { return nil }
-            return (rowId, frame.minY)
-        }
-
-        if let preferred = preferredCandidates.min(by: {
-            abs($0.1 - viewportTop) < abs($1.1 - viewportTop)
-        }) {
-            candidateId = preferred.0
-            candidateMinY = preferred.1
-        } else {
-            for (rowId, frame) in messageRowFrames {
-                guard frame.maxY > viewportTop, frame.minY < viewportBottom else { continue }
-                if frame.minY < candidateMinY {
-                    candidateMinY = frame.minY
-                    candidateId = rowId
-                }
+        if let historyScrollAnchorRowId {
+            if liveScrollAnchorRowId != historyScrollAnchorRowId {
+                liveScrollAnchorRowId = historyScrollAnchorRowId
             }
+            return
         }
 
-        guard let candidateId else { return }
+        if let existing = liveScrollAnchorRowId,
+           existing != bottomScrollAnchorID,
+           viewModel.chatRenderRows.contains(where: { $0.id == existing }) {
+            return
+        }
 
-        if liveScrollAnchorRowId != candidateId {
-            liveScrollAnchorRowId = candidateId
+        if let fallback = viewModel.chatRenderRows.first(where: { isPreferredScrollAnchorRow($0.id) })?.id {
+            liveScrollAnchorRowId = fallback
         }
     }
 
@@ -2176,64 +2074,13 @@ struct GlassmorphicChatView: View {
         case incomingWhilePinned
     }
 
-    /// Cuando el `safeAreaBar` del input termina de medirse, el viewport se encoge y el snap inicial
-    /// puede quedar corto; re-aplicamos el fondo sin esperar al botón manual.
-    private func handleScrollViewportHeightChange(
-        oldHeight: CGFloat,
-        newHeight: CGFloat,
-        using proxy: ScrollViewProxy
-    ) {
-        guard oldHeight > 1, newHeight > 1, newHeight < oldHeight - 6 else { return }
-        guard shouldOpenAtBottom(), !viewModel.chatRenderRows.isEmpty else { return }
-        guard bottomSnapTask == nil else { return }
-
-        let metrics = scrollMetricsBuffer.metrics
-        let needsCorrection = isPinnedToBottom
-            || !hasCompletedInitialScroll
-            || bottomGap(for: metrics) > 48
-
-        guard needsCorrection else { return }
-
-        let reason: BottomSnapReason = hasCompletedInitialScroll ? .incomingWhilePinned : .initialOpen
-        scheduleBottomSnap(using: proxy, reason: reason)
-    }
-
     private func scheduleBottomSnap(using proxy: ScrollViewProxy, reason: BottomSnapReason) {
         bottomSnapTask?.cancel()
         bottomSnapTask = Task { @MainActor in
             defer { bottomSnapTask = nil }
-            suppressPinnedMetricsUpdates = true
-
-            let maxPasses = reason == .initialOpen ? 5 : 4
-            let delays: [UInt64] = [0, 50_000_000, 120_000_000, 200_000_000, 320_000_000]
-            var previousViewportHeight: CGFloat = 0
-
-            for pass in 0..<maxPasses {
-                if Task.isCancelled { return }
-                if pass > 0, pass < delays.count {
-                    try? await Task.sleep(nanoseconds: delays[pass])
-                }
-                guard !viewModel.chatRenderRows.isEmpty else { continue }
-
-                flushScrollMetricsToUI()
-                performBottomScroll(using: proxy)
-                flushScrollMetricsToUI()
-
-                let metrics = scrollMetricsBuffer.metrics
-                let viewportStable = previousViewportHeight > 1
-                    && abs(metrics.viewportHeight - previousViewportHeight) < 2
-                previousViewportHeight = metrics.viewportHeight
-
-                let atBottom = !allowsVerticalScrolling || bottomGap(for: metrics) < 48
-                let canFinalize = atBottom
-                    && (reason != .initialOpen || viewportStable || pass >= maxPasses - 1)
-
-                if canFinalize {
-                    finalizeBottomSnap(reason: reason, using: proxy)
-                    return
-                }
-            }
-
+            try? await Task.sleep(nanoseconds: reason == .initialOpen ? 80_000_000 : 0)
+            guard !viewModel.chatRenderRows.isEmpty else { return }
+            performBottomScroll(using: proxy)
             finalizeBottomSnap(reason: reason, using: proxy)
         }
     }
@@ -2242,9 +2089,11 @@ struct GlassmorphicChatView: View {
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
+            scrollPosition.scrollTo(id: bottomScrollAnchorID, anchor: .bottom)
             proxy.scrollTo(bottomScrollAnchorID, anchor: .bottom)
             if let lastId = viewModel.messages.last?.id,
                let rowId = messageRowId(containingMessageId: lastId) {
+                scrollPosition.scrollTo(id: rowId, anchor: .bottom)
                 proxy.scrollTo(rowId, anchor: .bottom)
             }
         }
@@ -2252,11 +2101,11 @@ struct GlassmorphicChatView: View {
 
     private func finalizeBottomSnap(reason: BottomSnapReason, using proxy: ScrollViewProxy) {
         isPinnedToBottom = true
-        suppressPinnedMetricsUpdates = false
         clearUnreadDividerAndMarkReadIfNeeded()
 
         if reason == .initialOpen, !hasCompletedInitialScroll {
             hasCompletedInitialScroll = true
+            sizeChangesAnchor = nil
             frozenInitialScrollTarget = viewModel.messages.last.map { .bottom(messageId: $0.id) }
             commitScrollStateToStore(includeFullState: true)
             viewModel.prefetchUnresolvedMediaIfNeeded()
@@ -2272,25 +2121,27 @@ struct GlassmorphicChatView: View {
 
     /// Snap silencioso al fondo cuando no hay pendientes — solo primera apertura.
     private func scheduleInitialBottomSnap(using proxy: ScrollViewProxy) {
-        guard shouldOpenAtBottom() else { return }
-        guard !hasCompletedInitialScroll else { return }
+        guard shouldOpenAtBottom(), !hasCompletedInitialScroll else { return }
         guard bottomSnapTask == nil else { return }
-        scheduleBottomSnap(using: proxy, reason: .initialOpen)
+        bottomSnapTask = Task { @MainActor in
+            defer { bottomSnapTask = nil }
+
+            // Con sizeChangesAnchor = .bottom, el scroll se mantiene al fondo
+            // mientras se dimensiona el input bar. Solo esperamos 30ms para estabilizar
+            // antes de fijar el estado inicial.
+            try? await Task.sleep(nanoseconds: 30_000_000)
+            guard !hasCompletedInitialScroll, !viewModel.chatRenderRows.isEmpty else { return }
+            performBottomScroll(using: proxy)
+
+            finalizeBottomSnap(reason: .initialOpen, using: proxy)
+        }
     }
 
     /// Marca la apertura inicial como lista cuando el contenido cabe sin scroll interactivo.
     private func completeInitialScrollIfContentFits(using proxy: ScrollViewProxy?) {
         guard !hasCompletedInitialScroll else { return }
-        guard scrollViewportHeight > 1, !viewModel.chatRenderRows.isEmpty else { return }
-        guard !allowsVerticalScrolling else { return }
-
-        if let proxy {
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
-                proxy.scrollTo(bottomScrollAnchorID, anchor: .bottom)
-            }
-        }
+        guard !viewModel.chatRenderRows.isEmpty else { return }
+        guard viewModel.messages.count <= 6 else { return }
 
         hasCompletedInitialScroll = true
         isPinnedToBottom = true
@@ -2350,15 +2201,7 @@ struct GlassmorphicChatView: View {
             ChatSessionEngine.shared.activate(conversationId: conversationId)
         }
 
-        if !viewModel.messages.isEmpty,
-           notificationOpenIntent == nil,
-           shouldOpenAtBottom(),
-           !hasCompletedInitialScroll {
-            hasCompletedInitialScroll = true
-            isPinnedToBottom = true
-            frozenInitialScrollTarget = viewModel.messages.last.map { .bottom(messageId: $0.id) }
-            viewModel.prefetchUnresolvedMediaIfNeeded()
-        }
+
 
         pendingIncomingMessages = isPinnedToBottom ? 0 : unreadIncomingMessageCount()
         setupOnlineStatusObserver()
@@ -2369,11 +2212,8 @@ struct GlassmorphicChatView: View {
 
     // ✅ REFACTORIZADO: Acciones al desaparecer
     private func onDisappearActions() {
-        flushScrollMetricsToUI()
         updateLiveScrollAnchor()
-        if isPinnedToBottom {
-            clearUnreadDividerAndMarkReadIfNeeded()
-        }
+        clearUnreadDividerAndMarkReadIfNeeded()
         commitScrollStateToStore(includeFullState: true)
         initialScrollTask?.cancel()
         initialScrollTask = nil
@@ -2381,6 +2221,15 @@ struct GlassmorphicChatView: View {
         highlightScrollTask = nil
         bottomSnapTask?.cancel()
         bottomSnapTask = nil
+        historyScrollAnchorRowId = nil
+        historyPrependRestoreTask?.cancel()
+        historyPrependRestoreTask = nil
+        historyPrependBaseline = nil
+        historyLoadLocked = false
+        historyPrefetchArmed = true
+        sizeChangesAnchor = .bottom
+        didHydrateScrollStateOnce = false
+        hasCompletedInitialScroll = false
         buzzToastDismissTask?.cancel()
         buzzToastDismissTask = nil
         buzzToastText = nil
@@ -2696,9 +2545,6 @@ extension GlassmorphicChatView {
     }
 
     private func scrollToTarget(_ target: ChatScrollTarget, proxy: ScrollViewProxy, animated: Bool) {
-        if target.pinsToBottom {
-            suppressPinnedMetricsUpdates = true
-        }
         let performScroll = {
             switch target {
             case .bottom:
@@ -3628,64 +3474,6 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             messages[index].liveLocationStoppedAt = Date()
             updateGroupedMessages()
             objectWillChange.send()
-        }
-    }
-}
-
-private struct HistoryScrollSnapshot {
-    let anchorRowId: String
-    let anchorMinY: CGFloat
-    let contentOffsetY: CGFloat
-    let contentHeight: CGFloat
-    let viewportHeight: CGFloat
-
-    var viewportAnchor: UnitPoint {
-        guard viewportHeight > 0 else { return UnitPoint(x: 0.5, y: 0.08) }
-        let y = min(max(anchorMinY / viewportHeight, 0), 1)
-        return UnitPoint(x: 0.5, y: y)
-    }
-}
-
-private struct ChatScrollMetrics: Equatable {
-    var offsetY: CGFloat
-    var contentHeight: CGFloat
-    var viewportHeight: CGFloat
-}
-
-@MainActor
-private final class ChatScrollMetricsBuffer {
-    var offsetY: CGFloat = 0
-    var contentHeight: CGFloat = 0
-    var viewportHeight: CGFloat = 0
-
-    func ingest(_ metrics: ChatScrollMetrics) {
-        offsetY = metrics.offsetY
-        contentHeight = metrics.contentHeight
-        viewportHeight = metrics.viewportHeight
-    }
-
-    var metrics: ChatScrollMetrics {
-        ChatScrollMetrics(offsetY: offsetY, contentHeight: contentHeight, viewportHeight: viewportHeight)
-    }
-}
-
-private struct ChatScrollRowFrameKey: PreferenceKey {
-    static var defaultValue: [String: CGRect] = [:]
-
-    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
-    }
-}
-
-private extension View {
-    func trackChatScrollRowFrame(id: String) -> some View {
-        background {
-            GeometryReader { geometry in
-                Color.clear.preference(
-                    key: ChatScrollRowFrameKey.self,
-                    value: [id: geometry.frame(in: .scrollView(axis: .vertical))]
-                )
-            }
         }
     }
 }

@@ -104,7 +104,7 @@ class EnhancedChatViewModel: ObservableObject {
     private static let recentChatWindowSize = 20
     private static let staleChatWindowSize = 6
     private static let staleChatThresholdDays = 45
-    private static let historyPageSize = 25
+    private static let historyPageSize = 50
     @Published private(set) var forwardingPreferences: [String: Bool] = [:]
     @Published private(set) var buzzPreferences: [String: Bool] = [:]
     /// Fuente de verdad para pintar reacciones al instante (SwiftUI no siempre detecta cambios en `message.reactions`).
@@ -326,15 +326,15 @@ class EnhancedChatViewModel: ObservableObject {
     private func resolvedTypingIndicatorPreference(for conversationId: String) -> Bool {
         let defaults = UserDefaults.standard
         let perChatKey = typingIndicatorPreferenceKey(for: conversationId)
-        
+
         if let perChatValue = defaults.object(forKey: perChatKey) as? Bool {
             return perChatValue
         }
-        
+
         if let legacyGlobalValue = defaults.object(forKey: "chat_typing_indicator_enabled") as? Bool {
             return legacyGlobalValue
         }
-        
+
         return true
     }
     
@@ -377,7 +377,7 @@ class EnhancedChatViewModel: ObservableObject {
     // ✅ NUEVA: Función para preservar mensajes temporales
     private func preserveTemporaryMessages(_ newMessages: [EnhancedMessage]) -> [EnhancedMessage] {
         let temporaryMessages = self.messages.filter { $0.status == .sending }
-        
+
         var mergedMessages = newMessages
         
         for tempMessage in temporaryMessages {
@@ -1141,7 +1141,9 @@ class EnhancedChatViewModel: ObservableObject {
     
     // ✅ FUNCIÓN: Cargar más mensajes (SwiftData primero, luego Firestore)
     func loadMoreMessages() {
-        guard !isLoadingMore, canLoadMore, let conversationId = conversation.id, let oldest = messages.first else { return }
+        guard !isLoadingMore, canLoadMore, let conversationId = conversation.id, let oldest = messages.first else {
+            return
+        }
 
         isLoadingMore = true
         isLoadingOlderHistory = true
@@ -1162,6 +1164,7 @@ class EnhancedChatViewModel: ObservableObject {
             )
 
             if !localPage.isEmpty {
+
                 self.prependHistoryPage(localPage)
                 self.finishHistoryLoad(canLoadMore: true)
                 return
@@ -1186,6 +1189,7 @@ class EnhancedChatViewModel: ObservableObject {
                     .sorted { $0.timestamp < $1.timestamp }
 
                 if !novel.isEmpty {
+
                     self.prependHistoryPage(novel)
                     LocalPersistenceService.shared.appendMessages(novel, conversationId: conversationId)
                 }
@@ -1193,7 +1197,7 @@ class EnhancedChatViewModel: ObservableObject {
                 let hasMore = !novel.isEmpty && novel.count >= pageSize
                 self.finishHistoryLoad(canLoadMore: hasMore)
             } catch {
-                print("Error loading more messages: \(error)")
+
                 self.finishHistoryLoad(canLoadMore: self.canLoadMore)
             }
         }
@@ -1203,7 +1207,9 @@ class EnhancedChatViewModel: ObservableObject {
         guard !page.isEmpty else { return }
         let existingIds = Set((historicalMessages + realTimeMessages).map(\.id))
         let novel = page.filter { !existingIds.contains($0.id) }
-        guard !novel.isEmpty else { return }
+        guard !novel.isEmpty else {
+            return
+        }
         historicalMessages.insert(contentsOf: novel, at: 0)
         rebuildMessagesList()
         prefetchUnresolvedMediaIfNeeded()
@@ -1215,11 +1221,13 @@ class EnhancedChatViewModel: ObservableObject {
     private func finishHistoryLoad(canLoadMore: Bool) {
         self.canLoadMore = canLoadMore
         isLoadingMore = false
+
     }
 
     /// La vista llama esto cuando el scroll quedó re-anclado tras prepend.
     func endHistoryScrollRestoration() {
         isLoadingOlderHistory = false
+
     }
 
     private func fetchOlderMessagesFromFirestore(
@@ -2122,12 +2130,20 @@ class EnhancedChatViewModel: ObservableObject {
 
     private func applyOptimisticReadLocally() {
         var didChange = false
+        var markedIds: [String] = []
         for index in realTimeMessages.indices {
             guard realTimeMessages[index].senderId != currentUserId,
                   !realTimeMessages[index].isRead else { continue }
             realTimeMessages[index].isRead = true
+            markedIds.append(realTimeMessages[index].id)
             didChange = true
         }
+
+        if let conversationId = conversation.id {
+            LocalPersistenceService.shared.markMessagesAsRead(conversationId: conversationId, messageIds: markedIds)
+            LocalPersistenceService.shared.markConversationReadLocally(conversationId: conversationId, currentUserId: currentUserId)
+        }
+
         guard didChange else { return }
         rebuildMessagesList()
     }

@@ -883,6 +883,7 @@
 "chat.buzz.received" = "%@ hat dir einen Anstupser gesendet";
 "chat.buzz.cooldown" = "Warte kurz, bevor du noch einen Anstupser sendest";
 "chat.draft.preview" = "Entwurf: %@";
+"chat.unreadCount.preview" = "%d neue Nachrichten";
 "chat.buzz.blocked" = "Diese Person akzeptiert keine Anstupser";
 "chat.giphy.searchGif" = "GIFs suchen";
 "chat.giphy.searchSticker" = "Sticker suchen";

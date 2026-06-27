@@ -911,6 +911,7 @@
 "chat.buzz.received" = "%@ sent you a buzz";
 "chat.buzz.cooldown" = "Wait a bit before sending another buzz";
 "chat.draft.preview" = "Draft: %@";
+"chat.unreadCount.preview" = "%d new messages";
 "chat.buzz.blocked" = "This person doesn't accept buzzes";
 "chat.giphy.searchGif" = "Search GIFs";
 "chat.giphy.searchSticker" = "Search stickers";

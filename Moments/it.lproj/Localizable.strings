@@ -883,6 +883,7 @@
 "chat.buzz.received" = "%@ ti ha inviato un trillo";
 "chat.buzz.cooldown" = "Attendi un po' prima di inviare un altro trillo";
 "chat.draft.preview" = "Bozza: %@";
+"chat.unreadCount.preview" = "%d nuovi messaggi";
 "chat.buzz.blocked" = "Questa persona non accetta trilli";
 "chat.giphy.searchGif" = "Cerca GIF";
 "chat.giphy.searchSticker" = "Cerca sticker";

@@ -57,82 +57,45 @@ extension View {
     }
 }
 
-// MARK: - Row chrome (layout + outgoing gradient)
+// MARK: - Geometry debug
 
-private struct GlobalFrame: Equatable {
-    let minX: Int
-    let minY: Int
-    let width: Int
-    let height: Int
-
-    init(_ rect: CGRect) {
-        minX = Int(rect.minX.rounded())
-        minY = Int(rect.minY.rounded())
-        width = max(0, Int(rect.width.rounded()))
-        height = max(0, Int(rect.height.rounded()))
-    }
-
-    var cgRect: CGRect {
-        CGRect(x: minX, y: minY, width: width, height: height)
-    }
+#if DEBUG
+enum ChatGeometryDebug {
+    static func logScrollPhase(_ phase: ScrollPhase) {}
+    static func logPinned(_ source: String, _ pinned: Bool) {}
+    static func logPrepend(_ phase: String, anchorMessageId: String?) {}
+    static func logHistoryTopProbe(minY: CGFloat, ready: Bool) {}
+    static func logHistoryGate(_ gate: String, pass: Bool, detail: String = "") {}
+    static func logHistoryState(
+        locked: Bool,
+        pinned: Bool,
+        phase: ScrollPhase,
+        canLoadMore: Bool,
+        isLoadingMore: Bool,
+        isLoadingOlderHistory: Bool,
+        hasBaseline: Bool,
+        hasRestoreTask: Bool,
+        messageCount: Int
+    ) {}
+    static func logHistorySpinner(visible: Bool, reason: String) {}
 }
+#endif
 
-/// Publica geometría de fila y color outgoing; sin highlight de menú.
+// MARK: - Row chrome (layout + outgoing color)
+
+/// Publica color outgoing; sin medición de layout (evita cycling al hacer scroll).
 struct ChatMessageRowChrome<Content: View>: View {
     let isOutgoing: Bool
     let colorScheme: ColorScheme
     @ViewBuilder let content: () -> Content
 
-    @State private var rowFrame: CGRect = .zero
-
-    private var outgoingBubbleBaseColor: Color {
+    private var outgoingBubbleColor: Color {
         Color(hex: "3F6F8F")
     }
 
     var body: some View {
         content()
-            .environment(\.chatMessageRowFrame, rowFrame)
             .environment(\.chatOutgoingBubbleColor, outgoingBubbleColor)
-            .onGeometryChange(for: GlobalFrame.self, of: { GlobalFrame($0.frame(in: .global)) }) { newFrame in
-                rowFrame = newFrame.cgRect
-            }
-    }
-
-    private var outgoingBubbleColor: Color {
-        guard isOutgoing, rowFrame.width > 0, rowFrame.height > 0 else {
-            return outgoingBubbleBaseColor
-        }
-
-        let screenHeight = UIScreen.main.bounds.height
-        let startY = screenHeight * 0.70
-        let endY = screenHeight * 0.16
-        let rawProgress = (startY - rowFrame.minY) / max(startY - endY, 1)
-        let progress = min(max(rawProgress, 0), 1)
-        guard progress > 0 else { return outgoingBubbleBaseColor }
-
-        return Self.interpolatedColor(fromHex: "3F6F8F", toHex: "29495F", progress: progress)
-    }
-
-    private static func interpolatedColor(fromHex startHex: String, toHex endHex: String, progress: CGFloat) -> Color {
-        let start = UIColor(hex: startHex)
-        let end = UIColor(hex: endHex)
-        var startRed: CGFloat = 0
-        var startGreen: CGFloat = 0
-        var startBlue: CGFloat = 0
-        var startAlpha: CGFloat = 0
-        var endRed: CGFloat = 0
-        var endGreen: CGFloat = 0
-        var endBlue: CGFloat = 0
-        var endAlpha: CGFloat = 0
-        start.getRed(&startRed, green: &startGreen, blue: &startBlue, alpha: &startAlpha)
-        end.getRed(&endRed, green: &endGreen, blue: &endBlue, alpha: &endAlpha)
-
-        return Color(
-            red: Double(startRed + (endRed - startRed) * progress),
-            green: Double(startGreen + (endGreen - startGreen) * progress),
-            blue: Double(startBlue + (endBlue - startBlue) * progress),
-            opacity: Double(startAlpha + (endAlpha - startAlpha) * progress)
-        )
     }
 }
 
@@ -148,7 +111,6 @@ struct ChatMessageBubbleChrome<Content: View>: View {
     let onLongPress: ((CGRect, CGFloat) -> Void)?
     @ViewBuilder let content: () -> Content
 
-    @State private var bubbleFrame: CGRect = .zero
     @State private var isPressing = false
 
     private var swipeScale: CGFloat {
@@ -164,13 +126,6 @@ struct ChatMessageBubbleChrome<Content: View>: View {
 
     var body: some View {
         content()
-            .onGeometryChange(for: GlobalFrame.self, of: {
-                GlobalFrame($0.frame(in: .global))
-            }) { newFrame in
-                guard !isMenuSelected else { return }
-                bubbleFrame = newFrame.cgRect
-            }
-            .environment(\.chatMessageBubbleFrame, bubbleFrame)
             .environment(\.chatMessageBubbleCornerRadius, cornerRadius)
             .scaleEffect(
                 selectionScale,
@@ -181,11 +136,17 @@ struct ChatMessageBubbleChrome<Content: View>: View {
             .animation(.easeOut(duration: 0.12), value: isPressing)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: dragOffset)
             .zIndex(isMenuSelected || isFlashing ? 1 : 0)
-            .chatMessageLongPress(isPressing: $isPressing) {
-                guard let onLongPress else { return }
-                DispatchQueue.main.async {
-                    guard bubbleFrame.width > 0, bubbleFrame.height > 0 else { return }
-                    onLongPress(bubbleFrame, cornerRadius)
+            .overlay {
+                GeometryReader { geometry in
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .allowsHitTesting(onLongPress != nil)
+                        .chatMessageLongPress(isPressing: $isPressing) {
+                            guard let onLongPress else { return }
+                            let frame = geometry.frame(in: .global)
+                            guard frame.width > 0, frame.height > 0 else { return }
+                            onLongPress(frame, cornerRadius)
+                        }
                 }
             }
     }

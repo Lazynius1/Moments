@@ -884,6 +884,7 @@
 "chat.buzz.received" = "%@ t'ha enviat un brunzit";
 "chat.buzz.cooldown" = "Espera una mica abans d'enviar un altre brunzit";
 "chat.draft.preview" = "Esborrany: %@";
+"chat.unreadCount.preview" = "%d missatges nous";
 "chat.buzz.blocked" = "Aquesta persona no accepta brunzits";
 "chat.giphy.searchGif" = "Cerca GIFs";
 "chat.giphy.searchSticker" = "Cerca adhesius";
