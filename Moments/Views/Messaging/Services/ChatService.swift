@@ -265,10 +265,10 @@ class ChatService: ObservableObject {
         }
     }
 
-    /// Mensajes posteriores a un cursor (catch-up local-first).
+    /// Mensajes posteriores a un cursor estable (timestamp + documentID).
     func fetchMessagesAfter(
         conversationId: String,
-        after timestamp: Date,
+        after cursor: MessageSyncCursor,
         cutoffDate: Date? = nil,
         limit: Int = 50,
         completion: @escaping (Result<[EnhancedMessage], Error>) -> Void
@@ -277,20 +277,44 @@ class ChatService: ObservableObject {
             guard let self else { return }
             await preloadConversationKey(for: conversationId)
             do {
-                let snapshot = try await db.collection("conversations")
+                let collection = db.collection("conversations")
                     .document(conversationId)
                     .collection("messages")
-                    .whereField("timestamp", isGreaterThan: Timestamp(date: timestamp))
-                    .order(by: "timestamp", descending: false)
-                    .limit(to: limit)
-                    .getDocuments()
+
+                let snapshot: QuerySnapshot
+                if cursor.messageId.isEmpty {
+                    snapshot = try await collection
+                        .whereField("timestamp", isGreaterThan: Timestamp(date: cursor.timestamp))
+                        .order(by: "timestamp", descending: false)
+                        .order(by: FieldPath.documentID(), descending: false)
+                        .limit(to: limit)
+                        .getDocuments()
+                } else {
+                    snapshot = try await collection
+                        .order(by: "timestamp", descending: false)
+                        .order(by: FieldPath.documentID(), descending: false)
+                        .start(after: [Timestamp(date: cursor.timestamp), cursor.messageId])
+                        .limit(to: limit)
+                        .getDocuments()
+                }
+
                 await handleMessagesSnapshot(
                     snapshot: snapshot,
                     error: nil,
                     conversationId: conversationId,
-                    cutoffDate: cutoffDate,
-                    completion: completion
-                )
+                    cutoffDate: cutoffDate
+                ) { result in
+                    switch result {
+                    case .success(let messages):
+                        let filtered = messages.filter { message in
+                            MessageSyncCursor(timestamp: message.timestamp, messageId: message.id)
+                                .isAfter(cursor)
+                        }
+                        completion(.success(filtered))
+                    case .failure(let error):
+                        completion(.failure(error))
+                    }
+                }
             } catch {
                 await handleMessagesSnapshot(
                     snapshot: nil,

@@ -619,16 +619,24 @@ final class LocalPersistenceService: ObservableObject {
     }
 
     func lastMessageTimestamp(for conversationId: String) -> Date? {
+        lastMessageSyncCursor(for: conversationId)?.timestamp
+    }
+
+    func lastMessageSyncCursor(for conversationId: String) -> MessageSyncCursor? {
         guard let context = modelContext else { return nil }
 
         let predicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
         var descriptor = FetchDescriptor<CachedMessage>(
             predicate: predicate,
-            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+            sortBy: [
+                SortDescriptor(\.timestamp, order: .reverse),
+                SortDescriptor(\.id, order: .reverse)
+            ]
         )
         descriptor.fetchLimit = 1
 
-        return (try? context.fetch(descriptor))?.first?.timestamp
+        guard let message = (try? context.fetch(descriptor))?.first else { return nil }
+        return MessageSyncCursor(timestamp: message.timestamp, messageId: message.id)
     }
 
     func upsertConversationPreview(from message: EnhancedMessage) {

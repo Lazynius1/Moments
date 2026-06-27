@@ -74,12 +74,26 @@ final class MessageIngestService {
         guard LocalFirstMessagingSettings.isEnabled else { return 0 }
         guard !messages.isEmpty else { return 0 }
 
-        let sorted = messages.sorted { $0.timestamp < $1.timestamp }
+        let sorted = messages.sorted {
+            if $0.timestamp != $1.timestamp {
+                return $0.timestamp < $1.timestamp
+            }
+            return $0.id < $1.id
+        }
         LocalPersistenceService.shared.saveMessages(sorted, conversationId: conversationId, sync: false)
 
-        if let latest = sorted.last {
-            LocalPersistenceService.shared.upsertConversationPreview(from: latest)
-            MessageSyncCursorStore.updateCursor(for: conversationId, timestamp: latest.timestamp)
+        if let latestCursor = latestSyncCursor(in: sorted) {
+            let stored = MessageSyncCursorStore.cursor(for: conversationId)
+            let next: MessageSyncCursor
+            if let stored {
+                next = latestCursor.isAfter(stored) ? latestCursor : stored
+            } else {
+                next = latestCursor
+            }
+            MessageSyncCursorStore.updateCursor(for: conversationId, cursor: next)
+            if let latest = sorted.last {
+                LocalPersistenceService.shared.upsertConversationPreview(from: latest)
+            }
         }
 
         for message in sorted {
@@ -144,7 +158,15 @@ final class MessageIngestService {
 
         LocalPersistenceService.shared.saveMessages([message], conversationId: conversationId, sync: false)
         LocalPersistenceService.shared.upsertConversationPreview(from: message)
-        MessageSyncCursorStore.updateCursor(for: conversationId, timestamp: message.timestamp)
+        let incoming = MessageSyncCursor(timestamp: message.timestamp, messageId: message.id)
+        let stored = MessageSyncCursorStore.cursor(for: conversationId)
+        let next: MessageSyncCursor
+        if let stored {
+            next = incoming.isAfter(stored) ? incoming : stored
+        } else {
+            next = incoming
+        }
+        MessageSyncCursorStore.updateCursor(for: conversationId, cursor: next)
 
         recentlyIngestedKeys.insert(key)
 
@@ -163,5 +185,18 @@ final class MessageIngestService {
 
     private func dedupKey(conversationId: String, messageId: String) -> String {
         "\(conversationId):\(messageId)"
+    }
+
+    private func latestSyncCursor(in messages: [EnhancedMessage]) -> MessageSyncCursor? {
+        messages.reduce(into: Optional<MessageSyncCursor>.none) { latest, message in
+            let candidate = MessageSyncCursor(timestamp: message.timestamp, messageId: message.id)
+            guard let current = latest else {
+                latest = candidate
+                return
+            }
+            if candidate.isAfter(current) {
+                latest = candidate
+            }
+        }
     }
 }

@@ -80,29 +80,71 @@ enum MessageIngestQueue {
     }
 }
 
+struct MessageSyncCursor: Codable, Equatable {
+    let timestamp: Date
+    let messageId: String
+
+    func isAfter(_ other: MessageSyncCursor) -> Bool {
+        if timestamp != other.timestamp {
+            return timestamp > other.timestamp
+        }
+        return messageId > other.messageId
+    }
+}
+
 enum MessageSyncCursorStore {
     private static let appGroupID = MessageIngestQueue.appGroupID
-    private static let prefix = "messageSyncCursor_"
+    private static let legacyPrefix = "messageSyncCursor_"
+    private static let timestampPrefix = "messageSyncCursor_ts_"
+    private static let messageIdPrefix = "messageSyncCursor_id_"
 
     private static var defaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
     }
 
-    static func cursor(for conversationId: String) -> Date? {
-        let key = prefix + conversationId
-        let timestamp = defaults?.double(forKey: key) ?? 0
-        guard timestamp > 0 else { return nil }
-        return Date(timeIntervalSince1970: timestamp)
+    static func cursor(for conversationId: String) -> MessageSyncCursor? {
+        let timestampKey = timestampPrefix + conversationId
+        let messageIdKey = messageIdPrefix + conversationId
+        let storedTimestamp = defaults?.double(forKey: timestampKey) ?? 0
+        if storedTimestamp > 0 {
+            let messageId = defaults?.string(forKey: messageIdKey) ?? ""
+            return MessageSyncCursor(
+                timestamp: Date(timeIntervalSince1970: storedTimestamp),
+                messageId: messageId
+            )
+        }
+
+        let legacyTimestamp = defaults?.double(forKey: legacyPrefix + conversationId) ?? 0
+        guard legacyTimestamp > 0 else { return nil }
+        return MessageSyncCursor(
+            timestamp: Date(timeIntervalSince1970: legacyTimestamp),
+            messageId: ""
+        )
     }
 
-    static func updateCursor(for conversationId: String, timestamp: Date) {
-        defaults?.set(timestamp.timeIntervalSince1970, forKey: prefix + conversationId)
+    static func updateCursor(for conversationId: String, timestamp: Date, messageId: String) {
+        updateCursor(
+            for: conversationId,
+            cursor: MessageSyncCursor(timestamp: timestamp, messageId: messageId)
+        )
+    }
+
+    static func updateCursor(for conversationId: String, cursor: MessageSyncCursor) {
+        let timestampKey = timestampPrefix + conversationId
+        let messageIdKey = messageIdPrefix + conversationId
+        defaults?.set(cursor.timestamp.timeIntervalSince1970, forKey: timestampKey)
+        defaults?.set(cursor.messageId, forKey: messageIdKey)
+        defaults?.removeObject(forKey: legacyPrefix + conversationId)
     }
 
     static func clearAll() {
         guard let defaults else { return }
         defaults.dictionaryRepresentation().keys
-            .filter { $0.hasPrefix(prefix) }
+            .filter {
+                $0.hasPrefix(legacyPrefix)
+                    || $0.hasPrefix(timestampPrefix)
+                    || $0.hasPrefix(messageIdPrefix)
+            }
             .forEach { defaults.removeObject(forKey: $0) }
     }
 }

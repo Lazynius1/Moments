@@ -59,8 +59,7 @@ final class MessageCatchUpService {
         for _ in 0..<maxPages {
             guard ingestedCount < maxCatchUpMessagesPerSync else { break }
 
-            let cursor = MessageSyncCursorStore.cursor(for: conversationId)
-                ?? LocalPersistenceService.shared.lastMessageTimestamp(for: conversationId)
+            let cursor = resolveCatchUpCursor(for: conversationId)
 
             let pageLimit = min(catchUpPageSize, maxCatchUpMessagesPerSync - ingestedCount)
             let messages = await fetchCatchUpPage(
@@ -77,9 +76,20 @@ final class MessageCatchUpService {
         }
     }
 
+    private func resolveCatchUpCursor(for conversationId: String) -> MessageSyncCursor? {
+        if let stored = MessageSyncCursorStore.cursor(for: conversationId),
+           !stored.messageId.isEmpty {
+            return stored
+        }
+        if let local = LocalPersistenceService.shared.lastMessageSyncCursor(for: conversationId) {
+            return local
+        }
+        return MessageSyncCursorStore.cursor(for: conversationId)
+    }
+
     private func fetchCatchUpPage(
         conversationId: String,
-        cursor: Date?,
+        cursor: MessageSyncCursor?,
         limit: Int
     ) async -> [EnhancedMessage] {
         if let cursor {
@@ -103,13 +113,13 @@ final class MessageCatchUpService {
 
     private func fetchMessagesAfter(
         conversationId: String,
-        after timestamp: Date,
+        after cursor: MessageSyncCursor,
         limit: Int
     ) async -> [EnhancedMessage] {
         await withCheckedContinuation { continuation in
             ChatService.shared.fetchMessagesAfter(
                 conversationId: conversationId,
-                after: timestamp,
+                after: cursor,
                 limit: limit
             ) { result in
                 switch result {
