@@ -5,6 +5,7 @@ import UserNotifications
 import FirebaseAuth
 import FirebaseFirestore
 import Kingfisher
+import Intents
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     
@@ -15,9 +16,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
 
-        // ✅ Acciones interactivas en notificaciones de mensaje (responder / marcar como leído)
-        registerMessageNotificationCategories()
-        
         // ✅ NUEVO: Configurar badge service
         NotificationBadgeService.shared.setupListeners()
 
@@ -176,13 +174,6 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
 
-        // ✅ Respuesta rápida en línea desde la notificación (estilo WhatsApp/iMessage)
-        if response.actionIdentifier == "REPLY_ACTION",
-           let textResponse = response as? UNTextInputNotificationResponse {
-            handleInlineReply(userInfo: userInfo, text: textResponse.userText, completion: completionHandler)
-            return
-        }
-
         // ✅ USAR EL SERVICIO DE NAVEGACIÓN
         NotificationNavigationService.shared.handleNotificationData(userInfo)
         
@@ -195,69 +186,13 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         completionHandler()
     }
 
-    // MARK: - Acciones de notificación de mensaje
-
-    private func registerMessageNotificationCategories() {
-        // Igual que WhatsApp/iMessage: solo respuesta rápida en línea. No "marcar como leído".
-        let replyAction = UNTextInputNotificationAction(
-            identifier: "REPLY_ACTION",
-            title: NSLocalizedString("notification.action.reply", comment: "Reply"),
-            options: [],
-            textInputButtonTitle: NSLocalizedString("notification.action.send", comment: "Send"),
-            textInputPlaceholder: NSLocalizedString("notification.action.placeholder", comment: "Message")
-        )
-
-        let messageCategory = UNNotificationCategory(
-            identifier: "MESSAGE_CATEGORY",
-            actions: [replyAction],
-            intentIdentifiers: [],
-            options: []
-        )
-
-        UNUserNotificationCenter.current().setNotificationCategories([messageCategory])
+    func application(_ application: UIApplication, handlerFor intent: INIntent) -> Any? {
+        if intent is INSendMessageIntent {
+            return ChatSendMessageIntentHandler()
+        }
+        return nil
     }
 
-    private func handleInlineReply(userInfo: [AnyHashable: Any], text: String, completion: @escaping () -> Void) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard
-            !trimmed.isEmpty,
-            let conversationId = userInfo["conversationId"] as? String,
-            let senderId = Auth.auth().currentUser?.uid
-        else {
-            completion()
-            return
-        }
-
-        // Mantener la app viva en segundo plano hasta terminar el envío.
-        var backgroundTask: UIBackgroundTaskIdentifier = .invalid
-        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "InlineReply") {
-            UIApplication.shared.endBackgroundTask(backgroundTask)
-            backgroundTask = .invalid
-        }
-
-        let finish: () -> Void = {
-            if backgroundTask != .invalid {
-                UIApplication.shared.endBackgroundTask(backgroundTask)
-                backgroundTask = .invalid
-            }
-            completion()
-        }
-
-        // sendTextMessage cifra el contenido y actualiza la conversación internamente.
-        // No marcamos la conversación como leída: igual que WhatsApp, responder desde
-        // la notificación NO debe disparar el "visto" (deja los ticks en entregado).
-        ChatService.shared.sendTextMessage(
-            conversationId: conversationId,
-            senderId: senderId,
-            content: trimmed
-        ) { _ in
-            DispatchQueue.main.async {
-                NotificationBadgeService.shared.setupListeners()
-                finish()
-            }
-        }
-    }
-    
     // ✅ NUEVO: Marcar notificación como leída
     private func markNotificationAsRead(userId: String, notificationId: String) {
         Firestore.firestore()

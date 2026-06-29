@@ -3,6 +3,7 @@ import FirebaseAuth
 
 extension Foundation.Notification.Name {
     static let chatDraftDidChange = Foundation.Notification.Name("ChatDraftDidChange")
+    static let conversationVanishModeDidChange = Foundation.Notification.Name("ConversationVanishModeDidChange")
 }
 
 final class ChatDraftStore {

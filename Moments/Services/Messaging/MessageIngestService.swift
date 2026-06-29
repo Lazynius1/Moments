@@ -170,6 +170,16 @@ final class MessageIngestService {
 
         recentlyIngestedKeys.insert(key)
 
+        ChatCommunicationNotificationService.donateFromPush(
+            userInfo: [
+                "type": "new_message",
+                "conversationId": conversationId,
+                "messageId": messageId,
+                "senderId": message.senderId
+            ],
+            previewBody: message.content
+        )
+
         NotificationCenter.default.post(
             name: .messagesIngested,
             object: nil,

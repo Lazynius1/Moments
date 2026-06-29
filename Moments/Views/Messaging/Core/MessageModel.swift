@@ -32,6 +32,15 @@ struct Conversation: Identifiable, Codable, Hashable {
     /// Timestamp del momento en que cada usuario borró la conversación (punto de corte).
     /// Los mensajes y buzz events con timestamp ≤ este valor se ocultan para ese usuario.
     var lastDeletedAt: [String: Date]?
+    /// Modo desaparecer activo en el hilo (estilo Instagram Disappearing Messages).
+    var vanishModeActive: Bool?
+    var vanishModeEnabledBy: String?
+    var vanishModeEnabledAt: Date?
+    var vanishMessageTimer: String?
+    /// ID del notice inline activo de vanish activado (para actualizar timer in-place).
+    var vanishSettingsNoticeMessageId: String?
+    /// ID del notice inline de vanish desactivado (anti-spam al togglear OFF muy rápido).
+    var vanishDisabledNoticeMessageId: String?
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -64,6 +73,13 @@ struct Conversation: Identifiable, Codable, Hashable {
         case buzzPreferences
         case forwardingPreferences
         case lastDeletedAt
+        case vanishModeActive
+        case vanishModeEnabledBy
+        case vanishModeEnabledAt
+        case vanishMessageTimer
+        case vanishSettingsNoticeMessageId
+        case vanishDisabledNoticeMessageId
+
     }
 
     init(
@@ -108,6 +124,10 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.buzzPreferences = [:]
         self.forwardingPreferences = [:]
         self.lastDeletedAt = nil
+        self.vanishModeActive = false
+        self.vanishModeEnabledBy = nil
+        self.vanishModeEnabledAt = nil
+        self.vanishMessageTimer = VanishMessageTimer.default.rawValue
     }
 
     init(from decoder: Decoder) throws {
@@ -136,6 +156,17 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.forwardingPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .forwardingPreferences) ?? [:]
         // lastDeletedAt se hidrata manualmente desde Firestore (Timestamp → Date)
         self.lastDeletedAt = nil
+        self.vanishModeActive = try container.decodeIfPresent(Bool.self, forKey: .vanishModeActive) ?? false
+        self.vanishModeEnabledBy = try container.decodeIfPresent(String.self, forKey: .vanishModeEnabledBy)
+        if let enabledAt = try container.decodeIfPresent(Timestamp.self, forKey: .vanishModeEnabledAt) {
+            self.vanishModeEnabledAt = enabledAt.dateValue()
+        } else {
+            self.vanishModeEnabledAt = nil
+        }
+        self.vanishMessageTimer = try container.decodeIfPresent(String.self, forKey: .vanishMessageTimer)
+            ?? VanishMessageTimer.default.rawValue
+        self.vanishSettingsNoticeMessageId = try container.decodeIfPresent(String.self, forKey: .vanishSettingsNoticeMessageId)
+        self.vanishDisabledNoticeMessageId = try container.decodeIfPresent(String.self, forKey: .vanishDisabledNoticeMessageId)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -162,6 +193,14 @@ struct Conversation: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(buzzPreferences, forKey: .buzzPreferences)
         try container.encodeIfPresent(forwardingPreferences, forKey: .forwardingPreferences)
         // lastDeletedAt no se codifica a Firestore desde el cliente; se gestiona en el servidor
+        try container.encodeIfPresent(vanishModeActive, forKey: .vanishModeActive)
+        try container.encodeIfPresent(vanishModeEnabledBy, forKey: .vanishModeEnabledBy)
+        if let vanishModeEnabledAt {
+            try container.encode(Timestamp(date: vanishModeEnabledAt), forKey: .vanishModeEnabledAt)
+        }
+        try container.encodeIfPresent(vanishMessageTimer, forKey: .vanishMessageTimer)
+        try container.encodeIfPresent(vanishSettingsNoticeMessageId, forKey: .vanishSettingsNoticeMessageId)
+        try container.encodeIfPresent(vanishDisabledNoticeMessageId, forKey: .vanishDisabledNoticeMessageId)
     }
 
     func allowsForwarding(ofMessagesFrom senderId: String) -> Bool {
@@ -330,6 +369,7 @@ enum MessageType: String, CaseIterable, Codable {
     // ✅ NUEVOS: Tipos para view-once
     case viewOnceImage = "viewOnceImage"
     case viewOnceVideo = "viewOnceVideo"
+    case chatNotice = "chatNotice"
 
     var displayName: String {
         switch self {
@@ -346,6 +386,7 @@ enum MessageType: String, CaseIterable, Codable {
         case .sharedStory: return NSLocalizedString("chat.preview.sharedStory", comment: "")
         case .viewOnceImage: return NSLocalizedString("chat.viewOnce.photo", comment: "") + " (" + NSLocalizedString("chat.viewOnce.viewOnce", comment: "") + ")"
         case .viewOnceVideo: return NSLocalizedString("chat.viewOnce.video", comment: "") + " (" + NSLocalizedString("chat.viewOnce.viewOnce", comment: "") + ")"
+        case .chatNotice: return ""
         }
     }
 
@@ -364,12 +405,17 @@ enum MessageType: String, CaseIterable, Codable {
         case .sharedStory: return "paperplane.fill"
         case .viewOnceImage: return "camera.circle"
         case .viewOnceVideo: return "video.circle"
+        case .chatNotice: return "timer"
         }
     }
 
     // ✅ NUEVA: Propiedad para identificar view-once
     var isViewOnce: Bool {
         return self == .viewOnceImage || self == .viewOnceVideo
+    }
+
+    var isChatNotice: Bool {
+        self == .chatNotice
     }
 
     // ✅ NUEVA: Preview para lista de conversaciones
@@ -388,6 +434,7 @@ enum MessageType: String, CaseIterable, Codable {
         case .sharedStory: return NSLocalizedString("chat.preview.sharedStory", comment: "")
         case .viewOnceImage: return NSLocalizedString("chat.preview.viewOncePhoto", comment: "")
         case .viewOnceVideo: return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
+        case .chatNotice: return ""
         }
     }
 }
@@ -573,11 +620,16 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
 
     // ✅ NUEVOS: Campos para view-once
     var viewedBy: [String]? // IDs de usuarios que han visto el mensaje view-once
+    /// Lectores registrados aunque el destinatario tenga read receipts desactivados (solo vanish/timer).
+    var readBy: [String]?
     var starredBy: [String]?
     var isForwarded: Bool?
     /// Dimensiones originales de GIF/sticker (p. ej. Giphy `fixed_height`).
     let mediaWidth: Int?
     let mediaHeight: Int?
+    let isVanishModeMessage: Bool?
+    var vanishedFor: [String]?
+    var vanishExpiresAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id, conversationId, senderId, type, content, mediaUrl, thumbnailUrl
@@ -587,7 +639,11 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData
         case mediaBatchId
         case viewedBy
+        case readBy
         case starredBy, isForwarded
+        case isVanishModeMessage
+        case vanishedFor
+        case vanishExpiresAt
         // ✅ NUEVO: Ubicación (fija + en vivo)
         case locationName, locationAddress
         case isLiveLocation, liveLocationExpiresAt, liveLocationDuration
@@ -692,8 +748,16 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
 
         // ✅ NUEVO: Decodificar viewedBy
         self.viewedBy = try container.decodeIfPresent([String].self, forKey: .viewedBy)
+        self.readBy = try container.decodeIfPresent([String].self, forKey: .readBy)
         self.starredBy = try container.decodeIfPresent([String].self, forKey: .starredBy)
         self.isForwarded = try container.decodeIfPresent(Bool.self, forKey: .isForwarded)
+        self.isVanishModeMessage = try container.decodeIfPresent(Bool.self, forKey: .isVanishModeMessage)
+        self.vanishedFor = try container.decodeIfPresent([String].self, forKey: .vanishedFor)
+        if let expiresAt = try container.decodeIfPresent(Timestamp.self, forKey: .vanishExpiresAt) {
+            self.vanishExpiresAt = expiresAt.dateValue()
+        } else {
+            self.vanishExpiresAt = nil
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -760,8 +824,18 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
 
         // ✅ NUEVO: Codificar viewedBy
         try container.encodeIfPresent(viewedBy, forKey: .viewedBy)
+        try container.encodeIfPresent(readBy, forKey: .readBy)
         try container.encodeIfPresent(starredBy, forKey: .starredBy)
         try container.encodeIfPresent(isForwarded, forKey: .isForwarded)
+        try container.encodeIfPresent(isVanishModeMessage, forKey: .isVanishModeMessage)
+        try container.encodeIfPresent(vanishedFor, forKey: .vanishedFor)
+        if let vanishExpiresAt {
+            try container.encode(Timestamp(date: vanishExpiresAt), forKey: .vanishExpiresAt)
+        }
+    }
+
+    func isVanished(forUserId userId: String) -> Bool {
+        vanishedFor?.contains(userId) == true
     }
 
     required init(id: String? = nil,
@@ -805,8 +879,12 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          sharedStoryData: [String: String]? = nil,
          mediaBatchId: String? = nil,
          viewedBy: [String]? = nil,
+         readBy: [String]? = nil,
          starredBy: [String]? = nil,
-         isForwarded: Bool? = nil) {
+         isForwarded: Bool? = nil,
+         isVanishModeMessage: Bool? = nil,
+         vanishedFor: [String]? = nil,
+         vanishExpiresAt: Date? = nil) {
 
         self.id = id ?? UUID().uuidString
         self.conversationId = conversationId
@@ -849,12 +927,68 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.sharedStoryData = sharedStoryData
         self.mediaBatchId = mediaBatchId
         self.viewedBy = viewedBy
+        self.readBy = readBy
         self.starredBy = starredBy
         self.isForwarded = isForwarded
+        self.isVanishModeMessage = isVanishModeMessage
+        self.vanishedFor = vanishedFor
+        self.vanishExpiresAt = vanishExpiresAt
     }
 
     func isStarred(by userId: String) -> Bool {
         starredBy?.contains(userId) ?? false
+    }
+
+    func replacingContent(_ newContent: String?) -> EnhancedMessage {
+        EnhancedMessage(
+            id: id,
+            conversationId: conversationId,
+            senderId: senderId,
+            type: type,
+            content: newContent,
+            mediaUrl: mediaUrl,
+            thumbnailUrl: thumbnailUrl,
+            mediaObjectPath: mediaObjectPath,
+            thumbnailObjectPath: thumbnailObjectPath,
+            mediaEncryption: mediaEncryption,
+            thumbnailEncryption: thumbnailEncryption,
+            duration: duration,
+            fileName: fileName,
+            fileSize: fileSize,
+            mediaWidth: mediaWidth,
+            mediaHeight: mediaHeight,
+            latitude: latitude,
+            longitude: longitude,
+            locationName: locationName,
+            locationAddress: locationAddress,
+            isLiveLocation: isLiveLocation,
+            liveLocationExpiresAt: liveLocationExpiresAt,
+            liveLocationDuration: liveLocationDuration,
+            liveLocationStoppedAt: liveLocationStoppedAt,
+            liveLocationSessionId: liveLocationSessionId,
+            locationUpdatedAt: locationUpdatedAt,
+            timestamp: timestamp,
+            status: status,
+            isRead: isRead,
+            isDeleted: isDeleted,
+            deletedAt: deletedAt,
+            editedAt: editedAt,
+            reactions: reactions,
+            replyTo: replyTo,
+            expirationDate: expirationDate,
+            isViewed: isViewed,
+            storyReplyData: storyReplyData,
+            sharedMomentData: sharedMomentData,
+            sharedStoryData: sharedStoryData,
+            mediaBatchId: mediaBatchId,
+            viewedBy: viewedBy,
+            readBy: readBy,
+            starredBy: starredBy,
+            isForwarded: isForwarded,
+            isVanishModeMessage: isVanishModeMessage,
+            vanishedFor: vanishedFor,
+            vanishExpiresAt: vanishExpiresAt
+        )
     }
 
     var isExpired: Bool {
@@ -877,6 +1011,9 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
 
     // ✅ ACTUALIZADA: Preview mejorado con support para view-once
     var preview: String {
+        if isVanishModeMessage == true, type != .chatNotice {
+            return type.conversationPreview
+        }
         switch type {
         case .text:
             return content ?? ""
@@ -904,6 +1041,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             return NSLocalizedString("chat.preview.viewOncePhoto", comment: "")
         case .viewOnceVideo:
             return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
+        case .chatNotice:
+            return NSLocalizedString(content ?? "", comment: "Chat system notice")
         }
     }
 
@@ -1650,6 +1789,12 @@ struct MessageRequest: Identifiable, Codable, Hashable {
             return NSLocalizedString("messaging.preview.viewOncePhoto", comment: "")
         case .viewOnceVideo:
             return NSLocalizedString("messaging.preview.viewOnceVideo", comment: "")
+        case .chatNotice:
+            let localized = NSLocalizedString(message, comment: "Chat system notice")
+            if localized.count > 50 {
+                return String(localized.prefix(47)) + "..."
+            }
+            return localized
         }
     }
 
@@ -1708,7 +1853,12 @@ enum MessageReactionMutation {
 enum ChatMessagePolicy {
     static let editWindow: TimeInterval = 10 * 60
 
+    static func isVanishRestricted(_ message: EnhancedMessage) -> Bool {
+        message.isVanishModeMessage == true
+    }
+
     static func canEdit(_ message: EnhancedMessage, userId: String) -> Bool {
+        guard !isVanishRestricted(message) else { return false }
         guard message.senderId == userId, message.type == .text, !message.isDeleted else { return false }
         return Date().timeIntervalSince(message.timestamp) < editWindow
     }
@@ -1719,6 +1869,7 @@ enum ChatMessagePolicy {
         currentUserId: String,
         forwardingPreferences: [String: Bool]? = nil
     ) -> Bool {
+        guard !isVanishRestricted(message) else { return false }
         guard message.type == .text, !message.isDeleted else { return false }
         let trimmed = message.content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !trimmed.isEmpty else { return false }

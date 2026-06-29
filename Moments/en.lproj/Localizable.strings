@@ -900,6 +900,7 @@
 /* Chat */
 "chat.moment.loadError" = "Could not load moment";
 "chat.input.placeholder" = "Message...";
+"chat.input.vanish.placeholder" = "Disappearing message...";
 "chat.input.attach.accessibility" = "Attach media";
 "chat.input.voice.accessibility" = "Record voice message";
 "chat.attach.sendMedia.one" = "Send 1 item";
@@ -908,6 +909,31 @@
 "chat.attach.location" = "Location";
 "chat.attach.buzz" = "Buzz";
 "chat.buzz.sent" = "You sent a buzz";
+"chat.vanish.swipe.hint" = "Swipe up to turn on disappearing messages";
+"chat.vanish.swipe.hint.off" = "Swipe up to turn off disappearing messages";
+"chat.vanish.swipe.release" = "Release to turn on disappearing messages";
+"chat.vanish.swipe.release.off" = "Release to turn off disappearing messages";
+"chat.vanish.notice.enabled.prefix" = "You turned on disappearing messages. New messages and reactions will disappear ";
+"chat.vanish.notice.enabled.prefix.self" = "You turned on disappearing messages. New messages and reactions will disappear ";
+"chat.vanish.notice.enabled.prefix.other" = "%@ turned on disappearing messages. New messages and reactions will disappear ";
+"chat.vanish.notice.duration.onceSeen" = "once everyone has seen them";
+"chat.vanish.notice.duration.24h" = "24 hours after everyone has seen them";
+"chat.vanish.notice.duration.7d" = "7 days after everyone has seen them";
+"chat.vanish.notice.enabled.suffix" = ".";
+"chat.vanish.notice.change" = "Change";
+"chat.vanish.notice.disabled" = "You turned off disappearing messages.";
+"chat.vanish.notice.disabled.self" = "You turned off disappearing messages.";
+"chat.vanish.notice.disabled.other" = "%@ turned off disappearing messages.";
+"chat.vanish.notice.turnOn" = "Turn on";
+"chat.vanish.timer.sheet.title" = "Disappearing message timer";
+"chat.vanish.timer.off" = "Off";
+"chat.vanish.timer.onceSeen" = "Once everyone has seen";
+"chat.vanish.timer.24h" = "24 hours";
+"chat.vanish.timer.7d" = "7 days";
+"chat.vanish.screenshot" = "A screenshot was taken";
+"chat.vanish.screenRecording" = "You took a screen recording.";
+"chat.vanish.active.accessibility" = "Disappearing messages active";
+"chat.vanish.inactive.accessibility" = "Swipe up to turn on disappearing messages";
 "chat.buzz.received" = "%@ sent you a buzz";
 "chat.buzz.cooldown" = "Wait a bit before sending another buzz";
 "chat.draft.preview" = "Draft: %@";
@@ -965,6 +991,7 @@
 "chat.audio.unavailable" = "Audio unavailable";
 "chat.loading" = "Loading...";
 "chat.audio.duration.accessibility" = "Duration %@";
+"chat.audio.scrub.accessibility" = "Voice message progress";
 "chat.close" = "Close";
 "chat.replying" = "Replying";
 "chat.replyingToMessage" = "Replying to a message";
@@ -973,6 +1000,22 @@
 "chat.error" = "Error";
 "chat.message.deleted" = "This message was deleted";
 "chat.recording" = "Recording...";
+
+// Premium Chat Enhancements
+"chat.gallery.tab.media" = "Media";
+"chat.gallery.tab.docs" = "Docs";
+"chat.gallery.tab.links" = "Links";
+"chat.gallery.tab.audio" = "Audios";
+"conversationSettings.wallpaper" = "Chat Wallpaper";
+"conversationSettings.wallpaper.select" = "Select Wallpaper";
+"chat.pins.title" = "Pinned Messages";
+"chat.pin.you" = "You";
+"chat.pin.other" = "Message";
+"chat.pin.action" = "Pin message";
+"chat.unpin.action" = "Unpin message";
+"chat.pinned.banner" = "Pinned Message";
+"chat.selected.count" = "%d selected";
+"chat.forward.multiple.disabled" = "Forwarding multiple messages is disabled";
 "chat.reply.you" = "You";
 "chat.reply.select_item" = "Reply to an item";
 "chat.cluster.sentPhotos" = "You sent %d photos";
@@ -1473,6 +1516,9 @@
 "conversationSettings.notificationConfig.disabled" = "Notifications are muted for this conversation.";
 "conversationSettings.understood" = "Understood";
 "conversationSettings.conversationInfo" = "Conversation Information";
+"conversationSettings.sharedContent" = "Shared content";
+"conversationSettings.preferences" = "Chat preferences";
+"conversationSettings.count.none" = "None";
 "conversationSettings.sharedMedia" = "Shared Media";
 "conversationSettings.starredMessages" = "Starred messages";
 "conversationSettings.starredMessages.none" = "None";

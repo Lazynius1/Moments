@@ -512,14 +512,16 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
       //  - Solo embebemos el ciphertext (fast-path) si el payload total queda bajo un
       //    margen seguro. Si no cabe, lo omitimos y el NSE resuelve el texto haciendo
       //    fetch del mensaje (conversationId + messageId) y descifrando en el dispositivo.
-      // view-once nunca expone media en la notificación (privacidad, igual que WhatsApp).
+      // view-once nunca expone media en la notificación (privacidad, igual que WhatsApp):
+      // solo el texto genérico ("📷 Foto"). Vanish mode: mismo tratamiento que previews off.
       const isViewOnceMessage = message.type === 'viewOnceImage'
         || message.type === 'viewOnceVideo'
         || message.type === 'ephemeral';
+      const isVanishMessage = message.isVanishModeMessage === true;
 
       // gif/sticker viajan como URL pública de Giphy (sin cifrar): el NSE la descarga
       // directamente para el adjunto. image/video usan la miniatura cifrada (hasEncryptedThumbnail).
-      const publicMediaUrl = (!isViewOnceMessage && (message.type === 'gif' || message.type === 'sticker')
+      const publicMediaUrl = (!isViewOnceMessage && !isVanishMessage && (message.type === 'gif' || message.type === 'sticker')
         && typeof message.mediaUrl === 'string')
         ? message.mediaUrl
         : '';
@@ -532,9 +534,11 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
         targetType: 'conversation',
         targetId: conversationId,
         senderUsername: senderData.username,
-        senderProfileImage: senderData.profileImagePath || '',
         messageType: message.type || 'text',
-        hasEncryptedThumbnail: (!isViewOnceMessage && message.thumbnailObjectPath && message.thumbnailEncryption) ? '1' : '0',
+        isVanishModeMessage: isVanishMessage ? '1' : '0',
+        'sender-id': message.senderId,
+        'chat-id': conversationId,
+        hasEncryptedThumbnail: (!isViewOnceMessage && !isVanishMessage && message.thumbnailObjectPath && message.thumbnailEncryption) ? '1' : '0',
         mediaUrl: publicMediaUrl,
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
@@ -552,7 +556,6 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
           badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
           sound: 'default',
           'mutable-content': 1,
-          category: 'MESSAGE_CATEGORY',
           'thread-id': `conversation_${conversationId}`
         }
       };
@@ -560,7 +563,7 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
       // Límite duro de APNs: 4096 bytes. Reservamos margen para overhead de FCM y claves.
       const APNS_PAYLOAD_SAFE_LIMIT = 3500;
       let encryptedContent = '';
-      if (message.type === 'text' && typeof message.content === 'string' && message.content.length > 0) {
+      if (!isVanishMessage && message.type === 'text' && typeof message.content === 'string' && message.content.length > 0) {
         const candidateData = { ...baseData, encryptedContent: message.content };
         const estimatedBytes =
           Buffer.byteLength(JSON.stringify(candidateData), 'utf8') +
@@ -575,7 +578,9 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
         data: { ...baseData, encryptedContent },
         apns: {
           headers: {
-            'apns-collapse-id': `msg_${conversationId}`
+            'apns-collapse-id': `msg_${conversationId}`,
+            'sender-id': message.senderId,
+            'chat-id': conversationId
           },
           payload: apnsPayload
         }
@@ -707,6 +712,7 @@ const onMessageReactionAdded = onDocumentCreated(
         senderProfileImage: reacterData.profileImagePath || '',
         reactionEmoji: emoji,
         messageType: message.type || 'text',
+        isVanishModeMessage: isVanishMessage ? '1' : '0',
         isReactionPlural: isPlural ? '1' : '0',
         reactionEmojis: emojiList,
         unreadMessages: String(counts.unreadMessages),
@@ -716,6 +722,7 @@ const onMessageReactionAdded = onDocumentCreated(
       };
 
       const isTextReaction = !isPlural && message.type === 'text';
+      const isVanishMessage = message.isVanishModeMessage === true;
 
       const apnsPayload = {
         aps: {
@@ -731,7 +738,7 @@ const onMessageReactionAdded = onDocumentCreated(
         }
       };
 
-      if (isTextReaction && typeof message.content === 'string' && message.content.length > 0) {
+      if (!isVanishMessage && isTextReaction && typeof message.content === 'string' && message.content.length > 0) {
         const APNS_PAYLOAD_SAFE_LIMIT = 3500;
         const candidateData = { ...baseData, encryptedContent: message.content };
         const estimatedBytes =
@@ -1324,6 +1331,58 @@ async function reconcileEchoAfterMomentDeletion({ momentId, authorId }) {
 }
 
 
+async function purgeVanishMessagesForConversation(conversationId) {
+  const messagesRef = admin.firestore()
+    .collection('conversations')
+    .doc(conversationId)
+    .collection('messages');
+
+  while (true) {
+    const snapshot = await messagesRef
+      .where('isVanishModeMessage', '==', true)
+      .limit(200)
+      .get();
+
+    if (snapshot.empty) {
+      break;
+    }
+
+    const storagePaths = [];
+    const batch = admin.firestore().batch();
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data() || {};
+      if (typeof data.mediaObjectPath === 'string' && data.mediaObjectPath) {
+        storagePaths.push(data.mediaObjectPath);
+      }
+      if (typeof data.thumbnailObjectPath === 'string' && data.thumbnailObjectPath) {
+        storagePaths.push(data.thumbnailObjectPath);
+      }
+      batch.delete(doc.ref);
+    }
+
+    await batch.commit();
+
+    if (storagePaths.length > 0) {
+      await deleteStorageUrls([...new Set(storagePaths)]);
+    }
+  }
+}
+
+const onConversationVanishModeChanged = onDocumentWritten(
+  'conversations/{conversationId}',
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return null;
+    if (before.vanishModeActive === true && after.vanishModeActive === false) {
+      await purgeVanishMessagesForConversation(event.params.conversationId);
+    }
+    return null;
+  }
+);
+
+
 module.exports = {
   acceptMessageRequest,
   onMessageAdded,
@@ -1332,4 +1391,5 @@ module.exports = {
   onStoryReactionAdded,
   onFollowRequestReceived,
   onFollowRequestRemoved,
+  onConversationVanishModeChanged,
 };

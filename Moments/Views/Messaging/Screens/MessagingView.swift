@@ -9,6 +9,10 @@ private struct MessagingStoryRoute: Identifiable {
     let id: String
 }
 
+private struct MessagingProfileRoute: Identifiable, Hashable {
+    let id: String
+}
+
 // MARK: - Glassmorphic Components
 struct GlassmorphicBackground: View {
     let adaptiveColors: AdaptiveColors
@@ -78,6 +82,8 @@ struct MessagingView: View {
     @State private var showingArchivedConversations = false
     @State private var actionToastMessage: String?
     @State private var actionToastDismissTask: Task<Void, Never>? = nil
+    @Namespace private var profileZoomNamespace
+    @State private var profileRoute: MessagingProfileRoute?
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -87,186 +93,278 @@ struct MessagingView: View {
     private let privacyService = PrivacyService()
     @State private var pendingConversationResolveTask: Task<Void, Never>? = nil
 
+    private var conversationIds: [String] {
+        viewModel.conversations.compactMap(\.id)
+    }
+
     var body: some View {
         ChatRecoveryGateView(onCancel: onDismiss) {
-            ZStack {
-                GlassmorphicBackground(adaptiveColors: adaptiveColors)
+            messagingLifecycleContent
+        }
+    }
 
-                    conversationList
+    private var messagingLifecycleContent: some View {
+        applyMessagingForegroundObservers(
+            to: applyMessagingCoreObservers(to: messagingNavigationShell)
+        )
+    }
 
-                    GeometryReader { proxy in
-                        ConversationContextMenuOverlay(
-                            selection: $conversationMenuSelection,
-                            containerSize: proxy.size,
-                            safeAreaInsets: proxy.safeAreaInsets,
-                            colorScheme: colorScheme,
-                            onMarkUnread: markConversationUnread,
-                            onPin: pinConversation,
-                            onMute: muteConversation,
-                            onArchive: archiveConversation,
-                            onUnarchive: unarchiveConversation,
-                            onDelete: deleteConversation
-                        )
-                    }
-                    .ignoresSafeArea()
-                    .allowsHitTesting(conversationMenuSelection != nil)
+    private func applyMessagingCoreObservers<V: View>(to content: V) -> some View {
+        content
+            .onAppear(perform: handleMessagingAppear)
+            .onChange(of: conversationIds) { _, _ in
+                handleConversationIdsChange()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .chatDraftDidChange)) { _ in
+                viewModel.refreshDraftOrdering()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .conversationVanishModeDidChange)) { notification in
+                guard let conversationId = notification.userInfo?["conversationId"] as? String,
+                      let active = notification.userInfo?["vanishModeActive"] as? Bool else { return }
+                viewModel.updateVanishMode(conversationId: conversationId, active: active)
+            }
+            .onChange(of: authService.currentUser) { _, _ in
+                handleAuthUserChange()
+            }
+            .onChange(of: targetConversationId) { _, newTargetId in
+                handleTargetConversationIdChange(newTargetId)
+            }
+            .onChange(of: viewModel.conversations) { _, newConversations in
+                resolvePendingTargetConversation(in: newConversations)
+            }
+    }
 
-                if let actionToastMessage {
-                    VStack {
-                        Spacer()
-                        MessagingActionToast(text: actionToastMessage, colorScheme: colorScheme)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 16)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .allowsHitTesting(false)
-                    .zIndex(3)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                }
-                .animation(.spring(response: 0.32, dampingFraction: 0.84), value: actionToastMessage)
-                .coordinateSpace(name: "messagingRoot")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    messagingToolbarContent
-                }
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    if !viewModel.conversations.isEmpty || !viewModel.archivedConversations.isEmpty {
-                        searchBar
-                    }
-                }
-                .sheet(isPresented: $showingStatusSelector) {
-                    OnlineStatusSelectorView(
-                        currentStatus: onlineStatusService.currentUserStatus,
-                        onStatusSelected: { newStatus in
-                            onlineStatusService.setGlobalStatus(newStatus)
-                            showingStatusSelector = false
-                        }
-                    )
-                }
-                .navigationDestination(isPresented: $isShowingNewConversation) {
-                    GlassmorphicNewConversationView(viewModel: viewModel) { conversation in
-                        isShowingNewConversation = false
-                        if let conversation {
-                            selectedConversation = conversation
-                        }
-                    }
-                }
-                .navigationDestination(isPresented: $showingArchivedConversations) {
-                    ArchivedConversationsView(
-                        viewModel: viewModel,
-                        selectedConversation: $selectedConversation,
-                        onMarkUnread: markConversationUnread,
-                        onPin: pinConversation,
-                        onMute: muteConversation,
-                        onUnarchive: unarchiveConversation,
-                        onDelete: deleteConversation
-                    )
-                }
-                .navigationDestination(item: $selectedConversation) { conversation in
-                    GlassmorphicChatView(
-                        conversation: conversation,
-                        session: ChatSessionEngine.shared.session(for: conversation)
-                    )
-                }
-                .sheet(isPresented: $showingMessageRequests) {
-                    MessageRequestsView()
-                        .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
-                }
+    private func applyMessagingForegroundObservers<V: View>(to content: V) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                viewModel.refreshVisibleUsers()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ConversationMuteStateChanged"))) { systemNotification in
+                handleConversationMuteStateChanged(systemNotification)
+            }
+            .onReceive(Timer.publish(every: 300, on: .main, in: .common).autoconnect()) { _ in
+                handlePeriodicUserRefresh()
+            }
+            .onReceive(navigationService.$pendingNavigation) { navigation in
+                handlePendingNavigation(navigation)
+            }
+            .onDisappear(perform: handleMessagingDisappear)
+    }
 
-                .onAppear {
-                    if let userId = Auth.auth().currentUser?.uid {
-                        viewModel.fetchConversations(for: userId)
-                        messageRequestService.listenToPendingRequests(for: userId)
-                        updatePendingRequestCount(for: userId)
-                    }
+    private var messagingNavigationShell: some View {
+        applyMessagingDestinations(to: applyMessagingChrome(to: messagingMainStack))
+    }
 
-                    preloadRecentChatSessions()
+    private func applyMessagingChrome<V: View>(to content: V) -> some View {
+        content
+            .animation(.spring(response: 0.32, dampingFraction: 0.84), value: actionToastMessage)
+            .coordinateSpace(name: "messagingRoot")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { messagingToolbarContent }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !viewModel.conversations.isEmpty || !viewModel.archivedConversations.isEmpty {
+                    searchBar
+                }
+            }
+            .sheet(isPresented: $showingStatusSelector) {
+                statusSelectorSheet
+            }
+            .sheet(isPresented: $showingMessageRequests) {
+                messageRequestsSheet
+            }
+            .toolbar(.visible, for: .navigationBar)
+            .navigationBarHidden(false)
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .tabBar)
+    }
 
-                    if let targetId = targetConversationId {
-                        navigateToConversation(id: targetId)
-                    }
+    private func applyMessagingDestinations<V: View>(to content: V) -> some View {
+        content
+            .navigationDestination(isPresented: $isShowingNewConversation) {
+                newConversationDestination
+            }
+            .navigationDestination(isPresented: $showingArchivedConversations) {
+                archivedConversationsDestination
+            }
+            .navigationDestination(item: $selectedConversation) { conversation in
+                chatDestination(for: conversation)
+            }
+            .navigationDestination(item: $profileRoute) { route in
+                profileDestination(for: route)
+            }
+    }
 
-                    triggerCatchUpIfNeeded()
-                }
-                .onChange(of: viewModel.conversations.map(\.id)) { _, _ in
-                    triggerCatchUpIfNeeded()
-                    preloadRecentChatSessions()
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .chatDraftDidChange)) { _ in
-                    viewModel.refreshDraftOrdering()
-                }
-                .onChange(of: authService.currentUser) { _, _ in
-                    if let userId = Auth.auth().currentUser?.uid {
-                        viewModel.errorMessage = nil
-                        viewModel.fetchConversations(for: userId)
-                        messageRequestService.listenToPendingRequests(for: userId)
-                        updatePendingRequestCount(for: userId)
-                    } else {
-                        viewModel.stopListening()
-                        viewModel.errorMessage = nil
-                        viewModel.conversations = []
-                        viewModel.archivedConversations = []
-                        viewModel.filteredConversations = []
-                        viewModel.hasUnreadMessages = false
-                        messageRequestService.removeAllListeners()
-                        messageRequestService.pendingRequests = []
-                        messageRequestService.errorMessage = nil
-                        ChatAccessCoordinator.shared.invalidate()
-                        ChatSessionEngine.shared.invalidateAll()
-                        selectedConversation = nil
-                    }
-                }
-                // ✅ AGREGAR: Listener para cuando cambie targetConversationId
-                .onChange(of: targetConversationId) { _, newTargetId in
-                    if let targetId = newTargetId {
-                        navigateToConversation(id: targetId)
-                    }
-                }
-                .onChange(of: viewModel.conversations) { _, newConversations in
-                    if let targetId = targetConversationId,
-                       let conversation = newConversations.first(where: { $0.id == targetId }) {
-                        selectedConversation = conversation
-                        targetConversationId = nil
-                        pendingConversationResolveTask?.cancel()
-                        pendingConversationResolveTask = nil
-                    }
-                }
-                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                    viewModel.refreshVisibleUsers()
-                }
-                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ConversationMuteStateChanged"))) { notification in
-                    guard let conversationId = notification.userInfo?["conversationId"] as? String,
-                          let isMuted = notification.userInfo?["isMuted"] as? Bool else { return }
-                    viewModel.applyLocalConversationState(conversationId: conversationId, isMuted: isMuted)
-                }
-                .onReceive(Timer.publish(every: 300, on: .main, in: .common).autoconnect()) { _ in
-                    if !viewModel.conversations.isEmpty {
-                        viewModel.refreshVisibleUsers()
-                    }
-                }
-                .onReceive(navigationService.$pendingNavigation) { navigation in
-                    guard let navigation = navigation else { return }
+    private var statusSelectorSheet: some View {
+        OnlineStatusSelectorView(
+            currentStatus: onlineStatusService.currentUserStatus,
+            onStatusSelected: { newStatus in
+                onlineStatusService.setGlobalStatus(newStatus)
+                showingStatusSelector = false
+            }
+        )
+    }
 
-                    if case .conversation(let conversationId) = navigation {
-                        targetConversationId = conversationId
-                        navigationService.clearPendingNavigation()
-                    }
+    private var messageRequestsSheet: some View {
+        MessageRequestsView()
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+    }
+
+    private var messagingMainStack: some View {
+        ZStack {
+            GlassmorphicBackground(adaptiveColors: adaptiveColors)
+
+            conversationList
+
+            GeometryReader { proxy in
+                ConversationContextMenuOverlay(
+                    selection: $conversationMenuSelection,
+                    containerSize: proxy.size,
+                    safeAreaInsets: proxy.safeAreaInsets,
+                    colorScheme: colorScheme,
+                    onMarkUnread: markConversationUnread,
+                    onPin: pinConversation,
+                    onMute: muteConversation,
+                    onArchive: archiveConversation,
+                    onUnarchive: unarchiveConversation,
+                    onDelete: deleteConversation
+                )
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(conversationMenuSelection != nil)
+
+            if let actionToastMessage {
+                VStack {
+                    Spacer()
+                    MessagingActionToast(text: actionToastMessage, colorScheme: colorScheme)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                 }
-                .onDisappear {
-                    actionToastDismissTask?.cancel()
-                    actionToastDismissTask = nil
-                    actionToastMessage = nil
-                    viewModel.stopListening()
-                    messageRequestService.removeAllListeners()
-                }
-                .toolbar(.visible, for: .navigationBar)
-                .navigationBarHidden(false)
-                .navigationBarBackButtonHidden(true)
-                .toolbar(.hidden, for: .tabBar)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(false)
+                .zIndex(3)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+    }
+
+    private var newConversationDestination: some View {
+        GlassmorphicNewConversationView(viewModel: viewModel) { conversation in
+            isShowingNewConversation = false
+            if let conversation {
+                selectedConversation = conversation
+            }
+        }
+    }
+
+    private var archivedConversationsDestination: some View {
+        ArchivedConversationsView(
+            viewModel: viewModel,
+            selectedConversation: $selectedConversation,
+            onMarkUnread: markConversationUnread,
+            onPin: pinConversation,
+            onMute: muteConversation,
+            onUnarchive: unarchiveConversation,
+            onDelete: deleteConversation
+        )
+    }
+
+    private func chatDestination(for conversation: Conversation) -> some View {
+        GlassmorphicChatView(
+            conversation: conversation,
+            session: ChatSessionEngine.shared.session(for: conversation)
+        )
+    }
+
+    private func profileDestination(for route: MessagingProfileRoute) -> some View {
+        UserProfileView(userId: route.id)
+            .userProfileZoomDestination(userId: route.id, namespace: profileZoomNamespace)
+    }
+
+    private func handleMessagingAppear() {
+        if let userId = Auth.auth().currentUser?.uid {
+            viewModel.fetchConversations(for: userId)
+            messageRequestService.listenToPendingRequests(for: userId)
+            updatePendingRequestCount(for: userId)
+        }
+
+        preloadRecentChatSessions()
+
+        if let targetId = targetConversationId {
+            navigateToConversation(id: targetId)
+        }
+
+        triggerCatchUpIfNeeded()
+    }
+
+    private func handleConversationIdsChange() {
+        triggerCatchUpIfNeeded()
+        preloadRecentChatSessions()
+    }
+
+    private func handleAuthUserChange() {
+        if let userId = Auth.auth().currentUser?.uid {
+            viewModel.errorMessage = nil
+            viewModel.fetchConversations(for: userId)
+            messageRequestService.listenToPendingRequests(for: userId)
+            updatePendingRequestCount(for: userId)
+        } else {
+            viewModel.stopListening()
+            viewModel.errorMessage = nil
+            viewModel.conversations = []
+            viewModel.archivedConversations = []
+            viewModel.filteredConversations = []
+            viewModel.hasUnreadMessages = false
+            messageRequestService.removeAllListeners()
+            messageRequestService.pendingRequests = []
+            messageRequestService.errorMessage = nil
+            ChatAccessCoordinator.shared.invalidate()
+            ChatSessionEngine.shared.invalidateAll()
+            selectedConversation = nil
+        }
+    }
+
+    private func handleTargetConversationIdChange(_ newTargetId: String?) {
+        guard let targetId = newTargetId else { return }
+        navigateToConversation(id: targetId)
+    }
+
+    private func resolvePendingTargetConversation(in conversations: [Conversation]) {
+        guard let targetId = targetConversationId else { return }
+        guard let conversation = conversations.first(where: { $0.id == targetId }) else { return }
+        selectedConversation = conversation
+        targetConversationId = nil
+        pendingConversationResolveTask?.cancel()
+        pendingConversationResolveTask = nil
+    }
+
+    private func handleConversationMuteStateChanged(_ systemNotification: Foundation.Notification) {
+        let userInfo = systemNotification.userInfo
+        let conversationId = userInfo?["conversationId"] as? String
+        let isMuted = userInfo?["isMuted"] as? Bool
+        guard let conversationId, let isMuted else { return }
+        viewModel.applyLocalConversationState(conversationId: conversationId, isMuted: isMuted)
+    }
+
+    private func handlePeriodicUserRefresh() {
+        guard !viewModel.conversations.isEmpty else { return }
+        viewModel.refreshVisibleUsers()
+    }
+
+    private func handlePendingNavigation(_ navigation: NotificationNavigationService.PendingNavigation?) {
+        guard let navigation else { return }
+        guard case .conversation(let conversationId) = navigation else { return }
+        targetConversationId = conversationId
+        navigationService.clearPendingNavigation()
+    }
+
+    private func handleMessagingDisappear() {
+        actionToastDismissTask?.cancel()
+        actionToastDismissTask = nil
+        actionToastMessage = nil
+        viewModel.stopListening()
+        messageRequestService.removeAllListeners()
+    }
 
     private func triggerCatchUpIfNeeded() {
         guard LocalFirstMessagingSettings.isEnabled else { return }
@@ -306,6 +404,12 @@ struct MessagingView: View {
                 }
             }
         }
+    }
+
+    private func openConversationProfile(userId: String) {
+        let trimmed = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        profileRoute = MessagingProfileRoute(id: trimmed)
     }
 
     // ✅ SOLICITUDES: Función para actualizar el conteo de solicitudes pendientes
@@ -622,13 +726,7 @@ struct MessagingView: View {
         if !viewModel.filteredConversations.isEmpty {
             Section {
                 ForEach(viewModel.filteredConversations) { conversation in
-                    GlassmorphicConversationRow(
-                        conversation: conversation,
-                        onTap: { selectedConversation = conversation }
-                    )
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                    searchResultConversationRow(conversation)
                 }
             } header: {
                 messagingSearchSectionHeader("messaging.conversations")
@@ -664,6 +762,18 @@ struct MessagingView: View {
                     .listRowBackground(Color.clear)
             }
         }
+    }
+
+    private func searchResultConversationRow(_ conversation: Conversation) -> some View {
+        GlassmorphicConversationRow(
+            conversation: conversation,
+            profileZoomNamespace: profileZoomNamespace,
+            onOpenProfile: { openConversationProfile(userId: conversation.otherParticipantId) },
+            onTap: { selectedConversation = conversation }
+        )
+        .listRowInsets(EdgeInsets())
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
     }
 
     private func messagingSearchSectionHeader(_ title: LocalizedStringKey) -> some View {
@@ -782,6 +892,8 @@ struct MessagingView: View {
             conversation: conversation,
             isMenuSelected: isMenuSelected,
             colorScheme: colorScheme,
+            profileZoomNamespace: profileZoomNamespace,
+            onOpenProfile: { openConversationProfile(userId: conversation.otherParticipantId) },
             onTap: {
                 selectedConversation = conversation
             },
@@ -843,6 +955,8 @@ struct ConversationPressableRow: View {
     let conversation: Conversation
     let isMenuSelected: Bool
     let colorScheme: ColorScheme
+    let profileZoomNamespace: Namespace.ID
+    let onOpenProfile: () -> Void
     let onTap: () -> Void
     let onLongPress: () -> Void
 
@@ -851,6 +965,8 @@ struct ConversationPressableRow: View {
     var body: some View {
         GlassmorphicConversationRow(
             conversation: conversation,
+            profileZoomNamespace: profileZoomNamespace,
+            onOpenProfile: onOpenProfile,
             onTap: onTap,
             listInteraction: ConversationListInteraction(
                 onTap: onTap,
@@ -953,13 +1069,12 @@ struct SearchUserRow: View {
 // MARK: - Glassmorphic Conversation Row
 struct GlassmorphicConversationRow: View {
     let conversation: Conversation
+    let profileZoomNamespace: Namespace.ID
+    let onOpenProfile: () -> Void
     let onTap: () -> Void
     var listInteraction: ConversationListInteraction? = nil
     @Environment(\.colorScheme) var colorScheme
 
-    // ✅ NUEVO: Estados para navegación
-    @State private var showingUserProfile = false
-    @Namespace private var profileZoomNamespace
     @State private var storyRoute: MessagingStoryRoute?
     @State private var liveOtherParticipantUsername: String = ""
     @State private var isOtherParticipantUnavailable: Bool = false
@@ -998,19 +1113,12 @@ struct GlassmorphicConversationRow: View {
             StoriesView(startWithUserId: .constant(route.id))
                 .ignoresSafeArea(.keyboard)
         }
-        .navigationDestination(isPresented: $showingUserProfile) {
-            UserProfileView(userId: conversation.otherParticipantId)
-                .userProfileZoomDestination(
-                    userId: conversation.otherParticipantId,
-                    namespace: profileZoomNamespace
-                )
-        }
     }
 
     @ViewBuilder
     private var conversationAvatar: some View {
         if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
-            Button(action: { showingUserProfile = true }) {
+            Button(action: onOpenProfile) {
                 ProfileUnavailableAvatar(size: 56)
                     .userProfileZoomSource(
                         userId: conversation.otherParticipantId,
@@ -1029,14 +1137,14 @@ struct GlassmorphicConversationRow: View {
                 profileZoomNamespace: profileZoomNamespace
             ) { hasStory in
                 guard !isOtherParticipantBlockedByCurrentUser else {
-                    showingUserProfile = true
+                    onOpenProfile()
                     return
                 }
 
                 if hasStory {
                     storyRoute = MessagingStoryRoute(id: conversation.otherParticipantId)
                 } else {
-                    showingUserProfile = true
+                    onOpenProfile()
                 }
             }
         }
@@ -1044,14 +1152,14 @@ struct GlassmorphicConversationRow: View {
 
     @ViewBuilder
     private var rowContent: some View {
-        let content = HStack(spacing: 0) {
+        let content = HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
                 usernameRow
-                messagePreviewText
+                messagePreviewRow
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            conversationTrailingColumn
+            conversationTrailingIndicator
         }
 
         if let listInteraction {
@@ -1094,7 +1202,7 @@ struct GlassmorphicConversationRow: View {
         }
 
         if listInteraction == nil {
-            Button(action: { showingUserProfile = true }) {
+            Button(action: onOpenProfile) {
                 label
             }
             .buttonStyle(PlainButtonStyle())
@@ -1104,10 +1212,12 @@ struct GlassmorphicConversationRow: View {
     }
 
     @ViewBuilder
-    private var messagePreviewText: some View {
+    private var messagePreviewRow: some View {
         let cleanDraft = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
         let showsUnavailablePreview = isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser
         let showsDraftPreview = !showsUnavailablePreview && !cleanDraft.isEmpty
+        let currentUserId = Auth.auth().currentUser?.uid ?? ""
+        let isUnread = !(conversation.readStatus[currentUserId] ?? true)
 
         let resolvedPreview: String = {
             if showsDraftPreview {
@@ -1126,23 +1236,57 @@ struct GlassmorphicConversationRow: View {
             }
         }()
 
-        let isUnread = conversation.unreadCount > 0
-        let preview = Text(
-            showsUnavailablePreview
-                ? NSLocalizedString("messaging.profileUnavailable.preview", comment: "Unavailable profile preview")
-                : resolvedPreview
-        )
-        .font(.system(size: 14, weight: (isUnread && !showsDraftPreview) ? .semibold : .regular))
-        .foregroundColor(showsDraftPreview ? Color(hex: "3F6F8F") : (isUnread ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))))
-        .lineLimit(1)
+        let previewColor: Color = {
+            if showsDraftPreview { return Color(hex: "3F6F8F") }
+            if isUnread { return colorScheme == .dark ? .white : .black }
+            return colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5)
+        }()
+
+        let secondaryColor = colorScheme == .dark ? Color.white.opacity(0.45) : Color.black.opacity(0.38)
+        let relativeTime = MomentsFormat.relativeTime(from: conversation.timestamp)
+
+        let row = HStack(spacing: 6) {
+            Text(
+                showsUnavailablePreview
+                    ? NSLocalizedString("messaging.profileUnavailable.preview", comment: "Unavailable profile preview")
+                    : resolvedPreview
+            )
+            .font(.system(size: 14, weight: (isUnread && !showsDraftPreview) ? .semibold : .regular))
+            .foregroundColor(previewColor)
+            .lineLimit(1)
+            .layoutPriority(-1)
+
+            Text(relativeTime)
+                .font(.system(size: 14))
+                .foregroundColor(secondaryColor)
+                .fixedSize(horizontal: true, vertical: false)
+        }
 
         if listInteraction == nil {
             Button(action: onTap) {
-                preview
+                row
             }
             .buttonStyle(PlainButtonStyle())
         } else {
-            preview
+            row
+        }
+    }
+
+    @ViewBuilder
+    private var conversationTrailingIndicator: some View {
+        let currentUserId = Auth.auth().currentUser?.uid ?? ""
+        let isUnread = !(conversation.readStatus[currentUserId] ?? true)
+
+        if conversation.vanishModeActive == true {
+            ChatVanishInboxIndicator(isUnread: isUnread)
+        } else if isUnread {
+            Circle()
+                .fill(Color(hex: "007AFF"))
+                .frame(width: 10, height: 10)
+                .overlay(
+                    Circle()
+                        .stroke(colorScheme == .dark ? Color.black : Color.white, lineWidth: 2)
+                )
         }
     }
 
@@ -1152,25 +1296,6 @@ struct GlassmorphicConversationRow: View {
             return
         }
         draftText = ChatDraftStore.shared.draft(for: conversationId)
-    }
-
-    @ViewBuilder
-    private var conversationTrailingColumn: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            Text(formattedTimestamp(conversation.timestamp))
-                .font(.system(size: 12))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5))
-
-            if !(conversation.readStatus[Auth.auth().currentUser?.uid ?? ""] ?? true) {
-                Circle()
-                    .fill(Color(hex: "007AFF"))
-                    .frame(width: 10, height: 10)
-                    .overlay(
-                        Circle()
-                            .stroke(colorScheme == .dark ? Color.black : Color.white, lineWidth: 2)
-                    )
-            }
-        }
     }
 
     private func refreshOtherParticipantUsername() {
@@ -1235,10 +1360,6 @@ struct GlassmorphicConversationRow: View {
 
     private func disableUnavailableParticipantStories() {
         storyRoute = nil
-    }
-
-    private func formattedTimestamp(_ date: Date) -> String {
-        MomentsFormat.smartDate(from: date, context: .inboxTimestamp)
     }
 }
 

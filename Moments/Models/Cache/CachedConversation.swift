@@ -19,6 +19,7 @@ final class CachedConversation {
     var forwardingPreferencesData: Data? // [String: Bool] encoded
     var lastDeletedAtData: Data? // [String: Date] encoded
     var lastSyncedAt: Date
+    var vanishModeActive: Bool = false
 
     init(id: String,
          participants: [String],
@@ -34,7 +35,8 @@ final class CachedConversation {
          readReceiptPreferencesData: Data? = nil,
          forwardingPreferencesData: Data? = nil,
          lastDeletedAtData: Data? = nil,
-         lastSyncedAt: Date = Date()) {
+         lastSyncedAt: Date = Date(),
+         vanishModeActive: Bool = false) {
         self.id = id
         self.participants = participants
         self.lastMessage = lastMessage
@@ -50,6 +52,7 @@ final class CachedConversation {
         self.forwardingPreferencesData = forwardingPreferencesData
         self.lastDeletedAtData = lastDeletedAtData
         self.lastSyncedAt = lastSyncedAt
+        self.vanishModeActive = vanishModeActive
     }
 }
 
@@ -76,7 +79,8 @@ extension CachedConversation {
             readReceiptPreferencesData: readReceiptPreferencesData,
             forwardingPreferencesData: forwardingPreferencesData,
             lastDeletedAtData: lastDeletedAtData,
-            lastSyncedAt: Date()
+            lastSyncedAt: Date(),
+            vanishModeActive: conversation.vanishModeActive ?? false
         )
     }
 
@@ -118,6 +122,7 @@ extension CachedConversation {
         conversation.readReceiptPreferences = readReceiptPreferences
         conversation.forwardingPreferences = forwardingPreferences
         conversation.lastDeletedAt = lastDeletedAt
+        conversation.vanishModeActive = vanishModeActive
         return conversation
     }
 }

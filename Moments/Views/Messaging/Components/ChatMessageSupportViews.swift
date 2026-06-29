@@ -16,7 +16,23 @@ struct GlassmorphicReplyBar: View {
         Auth.auth().currentUser?.uid ?? ""
     }
 
+    private var isVanishProtected: Bool {
+        message.isVanishModeMessage == true
+    }
+
     var body: some View {
+        Group {
+            if isVanishProtected {
+                ScreenshotProtectedView(isProtected: true, cornerRadius: 12) {
+                    replyBarContent
+                }
+            } else {
+                replyBarContent
+            }
+        }
+    }
+
+    private var replyBarContent: some View {
         HStack(spacing: 0) {
             Capsule()
                 .fill(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
@@ -83,7 +99,23 @@ struct GlassmorphicReplyPreview: View {
         Auth.auth().currentUser?.uid ?? ""
     }
 
+    private var isVanishProtected: Bool {
+        message.isVanishModeMessage == true
+    }
+
     var body: some View {
+        Group {
+            if isVanishProtected {
+                ScreenshotProtectedView(isProtected: true, cornerRadius: 10) {
+                    replyPreviewButton
+                }
+            } else {
+                replyPreviewButton
+            }
+        }
+    }
+
+    private var replyPreviewButton: some View {
         Button(action: { onTap?() }) {
             HStack(spacing: 0) {
                 Capsule()
@@ -127,6 +159,88 @@ struct GlassmorphicReplyPreview: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+/// Reply citado EMBEBIDO dentro de la burbuja (estilo WhatsApp): barra de color,
+/// fondo tintado, llena el ancho de la burbuja y queda pegado encima del texto.
+struct EmbeddedReplyView: View {
+    let repliedMessage: EnhancedMessage
+    let isOutgoingBubble: Bool
+    let otherParticipantName: String
+    let onTap: (() -> Void)?
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var currentUserId: String {
+        Auth.auth().currentUser?.uid ?? ""
+    }
+
+    private var repliedToSelf: Bool {
+        repliedMessage.senderId == currentUserId
+    }
+
+    private var accent: Color {
+        repliedToSelf ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor
+    }
+
+    private var tint: Color {
+        if isOutgoingBubble {
+            return Color.white.opacity(0.18)
+        }
+        return colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.06)
+    }
+
+    private var barColor: Color {
+        isOutgoingBubble ? Color.white.opacity(0.9) : accent
+    }
+
+    private var titleColor: Color {
+        isOutgoingBubble ? Color.white.opacity(0.95) : accent
+    }
+
+    private var bodyColor: Color {
+        isOutgoingBubble ? Color.white.opacity(0.8) : adaptiveColors.messageTextColor.opacity(0.7)
+    }
+
+    var body: some View {
+        HStack(spacing: 7) {
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(barColor)
+                .frame(width: 3)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(repliedToSelf ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                    .foregroundColor(titleColor)
+                    .lineLimit(1)
+
+                Text(repliedMessage.preview)
+                    .font(.system(size: legacyPoppinsSize(12)))
+                    .foregroundColor(bodyColor)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 0)
+
+            if let mediaUrl = repliedMessage.thumbnailUrl ?? repliedMessage.mediaUrl, let url = URL(string: mediaUrl) {
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+            }
+        }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .onTapGesture { onTap?() }
     }
 }
 

@@ -101,27 +101,30 @@ struct ChatMessageRowChrome<Content: View>: View {
 
 // MARK: - Bubble chrome (escala + long-press)
 
+private struct ChatBubbleGlobalFramePreference: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
+    }
+}
+
 struct ChatMessageBubbleChrome<Content: View>: View {
     let isMenuSelected: Bool
     let isOutgoing: Bool
     let cornerRadius: CGFloat
     let colorScheme: ColorScheme
     var isFlashing: Bool = false
-    var dragOffset: CGFloat = 0
     let onLongPress: ((CGRect, CGFloat) -> Void)?
     @ViewBuilder let content: () -> Content
 
     @State private var isPressing = false
-
-    private var swipeScale: CGFloat {
-        guard dragOffset > 0 else { return 1 }
-        return 1 - min(dragOffset / 400, 0.03)
-    }
+    @State private var bubbleFrame: CGRect = .zero
 
     private var selectionScale: CGFloat {
         if isMenuSelected || isFlashing { return ChatBubbleAnchorMetrics.highlightScale }
         if isPressing { return ChatBubbleAnchorMetrics.pressScale }
-        return swipeScale
+        return 1
     }
 
     var body: some View {
@@ -134,21 +137,40 @@ struct ChatMessageBubbleChrome<Content: View>: View {
             .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isMenuSelected)
             .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isFlashing)
             .animation(.easeOut(duration: 0.12), value: isPressing)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: dragOffset)
             .zIndex(isMenuSelected || isFlashing ? 1 : 0)
-            .overlay {
+            .background {
                 GeometryReader { geometry in
                     Color.clear
-                        .contentShape(Rectangle())
-                        .allowsHitTesting(onLongPress != nil)
-                        .chatMessageLongPress(isPressing: $isPressing) {
-                            guard let onLongPress else { return }
-                            let frame = geometry.frame(in: .global)
-                            guard frame.width > 0, frame.height > 0 else { return }
-                            onLongPress(frame, cornerRadius)
-                        }
+                        .preference(
+                            key: ChatBubbleGlobalFramePreference.self,
+                            value: geometry.frame(in: .global)
+                        )
                 }
             }
+            .onPreferenceChange(ChatBubbleGlobalFramePreference.self) { bubbleFrame = $0 }
+            .modifier(ChatBubbleLongPressModifier(
+                isEnabled: onLongPress != nil,
+                isPressing: $isPressing,
+                onLongPress: {
+                    guard let onLongPress else { return }
+                    guard bubbleFrame.width > 0, bubbleFrame.height > 0 else { return }
+                    onLongPress(bubbleFrame, cornerRadius)
+                }
+            ))
+    }
+}
+
+private struct ChatBubbleLongPressModifier: ViewModifier {
+    let isEnabled: Bool
+    @Binding var isPressing: Bool
+    let onLongPress: () -> Void
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.chatMessageLongPress(isPressing: $isPressing, onLongPress: onLongPress)
+        } else {
+            content
+        }
     }
 }
 
@@ -287,14 +309,17 @@ struct ChatMessageContextMenuOverlay: View {
                 }
 
                 let isStarred = message.isStarred(by: currentUserId)
-                ChatContextMenuRow(
-                    title: isStarred ? "chat.action.unstar" : "chat.action.star",
-                    icon: isStarred ? "star.slash" : "star",
-                    primaryTextColor: primaryTextColor
-                ) {
-                    dismissMenu()
-                    onToggleStar(message)
+                if !ChatMessagePolicy.isVanishRestricted(message) {
+                    ChatContextMenuRow(
+                        title: isStarred ? "chat.action.unstar" : "chat.action.star",
+                        icon: isStarred ? "star.slash" : "star",
+                        primaryTextColor: primaryTextColor
+                    ) {
+                        dismissMenu()
+                        onToggleStar(message)
+                    }
                 }
+
 
                 if ChatMessagePolicy.canEdit(message, userId: currentUserId) {
                     ChatContextMenuRow(title: "chat.action.edit", icon: "pencil", primaryTextColor: primaryTextColor) {
@@ -309,6 +334,7 @@ struct ChatMessageContextMenuOverlay: View {
                         onCopy(message)
                     }
                 }
+
 
                 ChatContextMenuRow(title: "chat.action.deleteForMe", icon: "trash", isDestructive: true, primaryTextColor: primaryTextColor) {
                     dismissMenu()
@@ -438,9 +464,9 @@ struct ChatMessageContextMenuOverlay: View {
 
     private func visibleMenuRowsCount(for message: EnhancedMessage, isCurrentUser: Bool) -> Int {
         guard !message.isDeleted else { return 0 }
-        var count = 2
+        var count = 2 // Reply, DeleteForMe
+        if !ChatMessagePolicy.isVanishRestricted(message) { count += 1 } // Star
         if ChatMessagePolicy.canForward(message, currentUserId: currentUserId, forwardingPreferences: forwardingPreferences) { count += 1 }
-        count += 1
         if ChatMessagePolicy.canEdit(message, userId: currentUserId) { count += 1 }
         if ChatMessagePolicy.canCopy(message, currentUserId: currentUserId, forwardingPreferences: forwardingPreferences) { count += 1 }
         if isCurrentUser && !message.isRead && isWithinDeleteLimit(message.timestamp) { count += 1 }

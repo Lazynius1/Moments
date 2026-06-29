@@ -873,6 +873,7 @@
 /* Chat */
 "chat.moment.loadError" = "No s'ha pogut carregar el moment";
 "chat.input.placeholder" = "Missatge...";
+"chat.input.vanish.placeholder" = "Missatge que desapareix...";
 "chat.input.attach.accessibility" = "Adjuntar contingut";
 "chat.input.voice.accessibility" = "Gravar nota de veu";
 "chat.attach.sendMedia.one" = "Enviar 1";
@@ -881,6 +882,31 @@
 "chat.attach.location" = "Ubicació";
 "chat.attach.buzz" = "Brunzit";
 "chat.buzz.sent" = "Has enviat un brunzit";
+"chat.vanish.swipe.hint" = "Llisca cap amunt per activar missatges que desapareixen";
+"chat.vanish.swipe.hint.off" = "Llisca cap amunt per desactivar missatges que desapareixen";
+"chat.vanish.swipe.release" = "Deixa anar per activar missatges que desapareixen";
+"chat.vanish.swipe.release.off" = "Deixa anar per desactivar missatges que desapareixen";
+"chat.vanish.notice.enabled.prefix" = "Has activat els missatges que desapareixen. Els missatges i reaccions nous desapareixeran ";
+"chat.vanish.notice.enabled.prefix.self" = "Has activat els missatges que desapareixen. Els missatges i reaccions nous desapareixeran ";
+"chat.vanish.notice.enabled.prefix.other" = "%@ ha activat els missatges que desapareixen. Els missatges i reaccions nous desapareixeran ";
+"chat.vanish.notice.duration.onceSeen" = "quan tothom els hagi vist";
+"chat.vanish.notice.duration.24h" = "24 hores després que tothom els hagi vist";
+"chat.vanish.notice.duration.7d" = "7 dies després que tothom els hagi vist";
+"chat.vanish.notice.enabled.suffix" = ".";
+"chat.vanish.notice.change" = "Canviar";
+"chat.vanish.notice.disabled" = "Has desactivat els missatges que desapareixen.";
+"chat.vanish.notice.disabled.self" = "Has desactivat els missatges que desapareixen.";
+"chat.vanish.notice.disabled.other" = "%@ ha desactivat els missatges que desapareixen.";
+"chat.vanish.notice.turnOn" = "Activar";
+"chat.vanish.timer.sheet.title" = "Temporitzador de missatges";
+"chat.vanish.timer.off" = "Desactivat";
+"chat.vanish.timer.onceSeen" = "Quan tothom els hagi vist";
+"chat.vanish.timer.24h" = "24 hores";
+"chat.vanish.timer.7d" = "7 dies";
+"chat.vanish.screenshot" = "S'ha fet una captura de pantalla";
+"chat.vanish.screenRecording" = "Has enregistrat la pantalla.";
+"chat.vanish.active.accessibility" = "Missatges que desapareixen actius";
+"chat.vanish.inactive.accessibility" = "Llisca cap amunt per activar missatges que desapareixen";
 "chat.buzz.received" = "%@ t'ha enviat un brunzit";
 "chat.buzz.cooldown" = "Espera una mica abans d'enviar un altre brunzit";
 "chat.draft.preview" = "Esborrany: %@";
@@ -936,6 +962,8 @@
 "chat.message.unsupported" = "Missatge no suportat";
 "chat.video.unavailable" = "Vídeo no disponible";
 "chat.audio.unavailable" = "Àudio no disponible";
+"chat.audio.duration.accessibility" = "Durada %@";
+"chat.audio.scrub.accessibility" = "Progrés del missatge de veu";
 "chat.loading" = "Carregant...";
 "chat.close" = "Tancar";
 "chat.replying" = "Responent";
@@ -945,6 +973,23 @@
 "chat.error" = "Error";
 "chat.message.deleted" = "Aquest missatge va ser eliminat";
 "chat.recording" = "Enregistrant...";
+
+// Premium Chat Enhancements
+"chat.gallery.tab.media" = "Mèdia";
+"chat.gallery.tab.docs" = "Docs";
+"chat.gallery.tab.links" = "Enllaços";
+"chat.gallery.tab.audio" = "Àudios";
+"conversationSettings.wallpaper" = "Fons de xat";
+"conversationSettings.wallpaper.select" = "Seleccionar fons";
+"chat.pins.title" = "Missatges fixats";
+"chat.pin.you" = "Tu";
+"chat.pin.other" = "Missatge";
+"chat.pin.action" = "Fixar missatge";
+"chat.unpin.action" = "Desfixar missatge";
+"chat.pinned.banner" = "Missatge fixat";
+"chat.selected.count" = "%d seleccionats";
+"chat.forward.multiple.disabled" = "El reenviaments múltiples estan desactivats";
+
 "chat.reply.you" = "Tu";
 "chat.reply.select_item" = "Respondre a un element";
 "chat.cluster.sentPhotos" = "Has enviat %d fotos";
@@ -1425,6 +1470,9 @@
 "conversationSettings.notificationConfig.disabled" = "Les notificacions estan silenciades per a aquesta conversa.";
 "conversationSettings.understood" = "Entès";
 "conversationSettings.conversationInfo" = "Informació de la conversa";
+"conversationSettings.sharedContent" = "Contingut compartit";
+"conversationSettings.preferences" = "Preferències del xat";
+"conversationSettings.count.none" = "Cap";
 "conversationSettings.sharedMedia" = "Contingut multimèdia compartit";
 "conversationSettings.starredMessages" = "Missatges destacats";
 "conversationSettings.starredMessages.none" = "Cap";

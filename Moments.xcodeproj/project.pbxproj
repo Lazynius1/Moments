@@ -32,6 +32,10 @@
 		7A6D2F252F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F232F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift */; };
 		7A6D2F272F5A2B0100A1B2C3 /* MessageIngestQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F262F5A2B0100A1B2C3 /* MessageIngestQueue.swift */; };
 		7A6D2F282F5A2B0100A1B2C3 /* MessageIngestQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F262F5A2B0100A1B2C3 /* MessageIngestQueue.swift */; };
+		7A6D2F2A2F5A2C0100A1B2C3 /* ChatCommunicationIntentDonor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F292F5A2C0100A1B2C3 /* ChatCommunicationIntentDonor.swift */; };
+		7A6D2F2B2F5A2C0100A1B2C3 /* ChatCommunicationIntentDonor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F292F5A2C0100A1B2C3 /* ChatCommunicationIntentDonor.swift */; };
+		7A6D2F2D2F5A2D0100A1B2C3 /* ChatPreviewPrivacy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F2C2F5A2D0100A1B2C3 /* ChatPreviewPrivacy.swift */; };
+		7A6D2F2E2F5A2D0100A1B2C3 /* ChatPreviewPrivacy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F2C2F5A2D0100A1B2C3 /* ChatPreviewPrivacy.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +79,8 @@
 		7A6D2F202F5A120100A1B2C3 /* IncognitoActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncognitoActivityAttributes.swift; sourceTree = "<group>"; };
 		7A6D2F232F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PauseIncognitoIntent.swift; sourceTree = "<group>"; };
 		7A6D2F262F5A2B0100A1B2C3 /* MessageIngestQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageIngestQueue.swift; sourceTree = "<group>"; };
+		7A6D2F292F5A2C0100A1B2C3 /* ChatCommunicationIntentDonor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCommunicationIntentDonor.swift; sourceTree = "<group>"; };
+		7A6D2F2C2F5A2D0100A1B2C3 /* ChatPreviewPrivacy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPreviewPrivacy.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -219,6 +225,8 @@
 				7A6D2F202F5A120100A1B2C3 /* IncognitoActivityAttributes.swift */,
 				7A6D2F232F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift */,
 				7A6D2F262F5A2B0100A1B2C3 /* MessageIngestQueue.swift */,
+				7A6D2F292F5A2C0100A1B2C3 /* ChatCommunicationIntentDonor.swift */,
+				7A6D2F2C2F5A2D0100A1B2C3 /* ChatPreviewPrivacy.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -389,12 +397,16 @@
 				7A6D2F212F5A120100A1B2C3 /* IncognitoActivityAttributes.swift in Sources */,
 				7A6D2F242F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift in Sources */,
 				7A6D2F272F5A2B0100A1B2C3 /* MessageIngestQueue.swift in Sources */,
+				7A6D2F2A2F5A2C0100A1B2C3 /* ChatCommunicationIntentDonor.swift in Sources */,
+				7A6D2F2D2F5A2D0100A1B2C3 /* ChatPreviewPrivacy.swift in Sources */,
 			);
 		};
 		36A036DA2F38B220002B2937 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
 				7A6D2F282F5A2B0100A1B2C3 /* MessageIngestQueue.swift in Sources */,
+				7A6D2F2B2F5A2C0100A1B2C3 /* ChatCommunicationIntentDonor.swift in Sources */,
+				7A6D2F2E2F5A2D0100A1B2C3 /* ChatPreviewPrivacy.swift in Sources */,
 			);
 		};
 		36BDF3F82ED7DD7800683AB4 /* Sources */ = {

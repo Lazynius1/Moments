@@ -1234,7 +1234,7 @@ service cloud.firestore {
                'isLiveLocation', 'liveLocationExpiresAt', 'liveLocationDuration', 'liveLocationStoppedAt',
                'liveLocationSessionId', 'locationUpdatedAt', 'replyTo', 'expirationDate',
                'storyReplyData', 'sharedMomentData', 'sharedStoryData', 'mediaBatchId',
-               'isForwarded', 'starredBy', 'timestamp'
+               'isForwarded', 'starredBy', 'timestamp', 'isVanishModeMessage', 'vanishExpiresAt'
              ]) &&
              message.id is string &&
              message.id.matches('^[A-Za-z0-9_-]+$') &&
@@ -1242,7 +1242,7 @@ service cloud.firestore {
              message.conversationId.matches('^[A-Za-z0-9_-]+$') &&
              message.senderId is string &&
              message.senderId == request.auth.uid &&
-             message.type in ['text', 'image', 'video', 'audio', 'location', 'file', 'gif', 'sticker', 'ephemeral', 'sharedMoment', 'sharedStory', 'viewOnceImage', 'viewOnceVideo'] &&
+             message.type in ['text', 'image', 'video', 'audio', 'location', 'file', 'gif', 'sticker', 'ephemeral', 'sharedMoment', 'sharedStory', 'viewOnceImage', 'viewOnceVideo', 'chatNotice'] &&
              message.status in ['sending', 'sent', 'delivered', 'read'] &&
              message.isRead is bool &&
              message.isDeleted is bool &&
@@ -1264,7 +1264,84 @@ service cloud.firestore {
              (!('mediaObjectPath' in message) || isValidChatStoragePath(message.mediaObjectPath, message)) &&
              (!('thumbnailObjectPath' in message) || isValidChatStoragePath(message.thumbnailObjectPath, message)) &&
              (!('isForwarded' in message) || message.isForwarded is bool) &&
-             (!('starredBy' in message) || message.starredBy is list);
+             (!('starredBy' in message) || message.starredBy is list) &&
+             (!('isVanishModeMessage' in message) || message.isVanishModeMessage is bool) &&
+             (!('vanishedFor' in message) || message.vanishedFor is list) &&
+             (!('vanishExpiresAt' in message) || message.vanishExpiresAt is timestamp);
+    }
+
+    function onlyVanishModeFieldsUpdated() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'vanishModeActive', 'vanishModeEnabledBy', 'vanishModeEnabledAt', 'vanishMessageTimer', 'vanishSettingsNoticeMessageId', 'vanishDisabledNoticeMessageId'
+        ])
+        && request.resource.data.vanishModeActive is bool
+        && (
+          !('vanishModeEnabledBy' in request.resource.data)
+          || request.resource.data.vanishModeEnabledBy is string
+        )
+        && (
+          !('vanishModeEnabledAt' in request.resource.data)
+          || request.resource.data.vanishModeEnabledAt is timestamp
+        )
+        && (
+          !('vanishMessageTimer' in request.resource.data)
+          || request.resource.data.vanishMessageTimer in ['onceSeen', 'hours24', 'days7']
+        )
+        && (
+          !('vanishSettingsNoticeMessageId' in request.resource.data)
+          || request.resource.data.vanishSettingsNoticeMessageId is string
+        )
+        && (
+          !('vanishDisabledNoticeMessageId' in request.resource.data)
+          || request.resource.data.vanishDisabledNoticeMessageId is string
+        );
+    }
+
+    function onlyVanishSettingsNoticeIdUpdated() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vanishSettingsNoticeMessageId'])
+        && request.resource.data.vanishSettingsNoticeMessageId is string;
+    }
+
+    function onlyVanishDisabledNoticeIdUpdated() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vanishDisabledNoticeMessageId'])
+        && (
+          !('vanishDisabledNoticeMessageId' in request.resource.data)
+          || request.resource.data.vanishDisabledNoticeMessageId is string
+        );
+    }
+
+    function onlyVanishExpiresAtStampUpdated() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vanishExpiresAt'])
+        && request.resource.data.vanishExpiresAt is timestamp
+        && resource.data.get('isVanishModeMessage', false) == true
+        && !('vanishExpiresAt' in resource.data);
+    }
+
+    function onlyChatNoticeContentUpdated() {
+      return resource.data.type == 'chatNotice'
+        && resource.data.senderId == request.auth.uid
+        && request.resource.data.type == 'chatNotice'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content'])
+        && request.resource.data.content is string
+        && request.resource.data.content.matches('disappearing:.*');
+    }
+
+    function onlyVanishMessageTimerUpdated() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vanishMessageTimer'])
+        && request.resource.data.vanishMessageTimer in ['onceSeen', 'hours24', 'days7'];
+    }
+
+    function onlyVanishedForMeUpdated() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vanishedFor'])
+        && request.resource.data.vanishedFor is list
+        && (
+          (
+            !(request.auth.uid in resource.data.get('vanishedFor', [])) &&
+            request.auth.uid in request.resource.data.vanishedFor &&
+            request.resource.data.vanishedFor.size() == resource.data.get('vanishedFor', []).size() + 1 &&
+            request.resource.data.vanishedFor.hasAll(resource.data.get('vanishedFor', []))
+          )
+        );
     }
 
     function onlyStarredByFieldsUpdated() {
@@ -1483,7 +1560,8 @@ service cloud.firestore {
           'updatedAt', 'unreadCount', 'deletedFor', 'lastDeletedAt',
           'timestamp', 'readStatus', 'lastReadAt',
           'encryptionKey', 'encryptionKeyCreatedAt', 'encryptionVersion',
-          'wrappedKeys', 'forwardingPreferences', 'buzzPreferences'
+          'wrappedKeys', 'forwardingPreferences', 'buzzPreferences',
+          'vanishModeActive', 'vanishModeEnabledBy', 'vanishModeEnabledAt', 'vanishMessageTimer'
         ]) &&
         (
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deletedFor']) || onlyConversationDeletedForMeUpdated())
@@ -1531,6 +1609,12 @@ service cloud.firestore {
                    || request.resource.data.buzzPreferences.diff(resource.data.buzzPreferences).affectedKeys().hasOnly([request.auth.uid]))
                && (!(request.auth.uid in request.resource.data.buzzPreferences)
                    || request.resource.data.buzzPreferences[request.auth.uid] is bool)))
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['vanishModeActive','vanishModeEnabledBy','vanishModeEnabledAt','vanishMessageTimer','vanishSettingsNoticeMessageId','vanishDisabledNoticeMessageId'])
+           || onlyVanishModeFieldsUpdated()
+           || onlyVanishMessageTimerUpdated()
+           || onlyVanishSettingsNoticeIdUpdated()
+           || onlyVanishDisabledNoticeIdUpdated())
         );
 
       // Conversations are shared records; clients may hide them per user via
@@ -1581,7 +1665,10 @@ service cloud.firestore {
             || onlyStarredByFieldsUpdated()
             || onlyEditFieldsUpdated()
             || onlyDeletedForMeUpdated()
+            || onlyVanishedForMeUpdated()
             || onlyDeleteForEveryoneUpdated()
+            || onlyVanishExpiresAtStampUpdated()
+            || onlyChatNoticeContentUpdated()
             || isAutomaticCleanup()
             || isViewOnceCleanup()
           )

@@ -38,6 +38,9 @@ final class CachedMessage {
     var sharedStoryDataEncoded: Data? // [String: String] encoded
     var viewedBy: [String]?
     var lastSyncedAt: Date
+    var isVanishModeMessage: Bool
+    var vanishedFor: [String]
+    var vanishExpiresAt: Date?
 
     init(id: String,
          conversationId: String,
@@ -72,7 +75,10 @@ final class CachedMessage {
          sharedMomentDataEncoded: Data?,
          sharedStoryDataEncoded: Data? = nil,
          viewedBy: [String]?,
-         lastSyncedAt: Date = Date()) {
+         lastSyncedAt: Date = Date(),
+         isVanishModeMessage: Bool = false,
+         vanishedFor: [String] = [],
+         vanishExpiresAt: Date? = nil) {
         self.id = id
         self.conversationId = conversationId
         self.senderId = senderId
@@ -107,6 +113,9 @@ final class CachedMessage {
         self.sharedStoryDataEncoded = sharedStoryDataEncoded
         self.viewedBy = viewedBy
         self.lastSyncedAt = lastSyncedAt
+        self.isVanishModeMessage = isVanishModeMessage
+        self.vanishedFor = vanishedFor
+        self.vanishExpiresAt = vanishExpiresAt
     }
 }
 
@@ -168,7 +177,10 @@ extension CachedMessage {
             sharedMomentDataEncoded: sharedMomentDataEncoded,
             sharedStoryDataEncoded: sharedStoryDataEncoded,
             viewedBy: message.viewedBy,
-            lastSyncedAt: Date()
+            lastSyncedAt: Date(),
+            isVanishModeMessage: message.isVanishModeMessage == true,
+            vanishedFor: message.vanishedFor ?? [],
+            vanishExpiresAt: message.vanishExpiresAt
         )
     }
     
@@ -241,7 +253,10 @@ extension CachedMessage {
             sharedMomentData: sharedMomentData,
             sharedStoryData: sharedStoryData,
             mediaBatchId: mediaBatchId,
-            viewedBy: viewedBy
+            viewedBy: viewedBy,
+            isVanishModeMessage: isVanishModeMessage ? true : nil,
+            vanishedFor: vanishedFor.isEmpty ? nil : vanishedFor,
+            vanishExpiresAt: vanishExpiresAt
         )
     }
 }

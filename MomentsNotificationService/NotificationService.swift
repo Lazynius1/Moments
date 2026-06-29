@@ -3,6 +3,7 @@ import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
 import WidgetKit
+import Intents
 
 class NotificationService: UNNotificationServiceExtension {
 
@@ -84,8 +85,38 @@ class NotificationService: UNNotificationServiceExtension {
         
         // ✅ 3. Entregar notificación SOLO cuando TODO esté listo
         group.notify(queue: .main) {
-            contentHandler(bestAttemptContent)
+            let delivered = self.applyCommunicationNotificationContent(
+                userInfo: userInfo,
+                content: bestAttemptContent
+            )
+            contentHandler(delivered)
         }
+    }
+
+    private func applyCommunicationNotificationContent(
+        userInfo: [AnyHashable: Any],
+        content: UNMutableNotificationContent
+    ) -> UNNotificationContent {
+        let type = userInfo["type"] as? String
+        guard type == "new_message" || type == "message" else { return content }
+        guard let conversationId = userInfo["conversationId"] as? String,
+              let messageId = userInfo["messageId"] as? String,
+              let senderId = userInfo["senderId"] as? String else { return content }
+
+        let senderUsername = (userInfo["senderUsername"] as? String)
+            ?? content.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let preview = content.body.trimmingCharacters(in: .whitespacesAndNewlines)
+        let avatarURL = (userInfo["senderProfileImage"] as? String).flatMap { URL(string: $0) }
+
+        return ChatCommunicationIntentDonor.applyCommunicationIntent(
+            to: content,
+            conversationId: conversationId,
+            messageId: messageId,
+            senderId: senderId,
+            senderUsername: senderUsername.isEmpty ? "Moments" : senderUsername,
+            senderProfileImageURL: avatarURL,
+            messagePreview: preview.isEmpty ? nil : preview
+        )
     }
     
     // MARK: - Local-first ingest queue
@@ -125,8 +156,11 @@ class NotificationService: UNNotificationServiceExtension {
         }
 
         // Respetar el ajuste de privacidad "Mostrar vista previa" POR CONVERSACIÓN (default: ON).
-        let defaults = UserDefaults(suiteName: "group.com.glowsyapp")
-        let previewEnabled = defaults?.object(forKey: "chat_show_message_preview_\(conversationId)") as? Bool ?? true
+        // Los mensajes vanish se tratan como previews desactivadas.
+        let previewEnabled = ChatPreviewPrivacy.shouldRevealPreview(
+            for: conversationId,
+            isVanishModeMessage: ChatPreviewPrivacy.isVanishModeMessage(in: userInfo)
+        )
         guard previewEnabled else {
             completion()
             return
@@ -154,6 +188,7 @@ class NotificationService: UNNotificationServiceExtension {
             defer { completion() }
             guard let self,
                   let data = snapshot?.data(),
+                  !ChatPreviewPrivacy.isVanishModeMessage(in: data),
                   let cipher = data["content"] as? String, !cipher.isEmpty,
                   let decrypted = SharedChatDecryptor.decrypt(cipher, conversationId: conversationId) else {
                 return
@@ -200,8 +235,10 @@ class NotificationService: UNNotificationServiceExtension {
             return
         }
 
-        let defaults = UserDefaults(suiteName: "group.com.glowsyapp")
-        let previewEnabled = defaults?.object(forKey: "chat_show_message_preview_\(conversationId)") as? Bool ?? true
+        let previewEnabled = ChatPreviewPrivacy.shouldRevealPreview(
+            for: conversationId,
+            isVanishModeMessage: ChatPreviewPrivacy.isVanishModeMessage(in: userInfo)
+        )
         guard previewEnabled else {
             completion()
             return
@@ -230,6 +267,7 @@ class NotificationService: UNNotificationServiceExtension {
                 defer { completion() }
                 guard let self,
                       let data = snapshot?.data(),
+                      !ChatPreviewPrivacy.isVanishModeMessage(in: data),
                       let cipher = data["content"] as? String, !cipher.isEmpty,
                       let decrypted = SharedChatDecryptor.decrypt(cipher, conversationId: conversationId) else {
                     return
@@ -285,13 +323,8 @@ class NotificationService: UNNotificationServiceExtension {
     /// solo el texto genérico ("📷 Foto").
     private static let viewOnceMessageTypes: Set<String> = ["viewOnceImage", "viewOnceVideo", "ephemeral"]
 
-    /// Decide y adjunta UNA sola imagen a la notificación (rich media). La media SIEMPRE
-    /// gana: el avatar solo se usa si no hay media adjuntable. Orden de preferencia:
-    ///   1. Mensaje de chat con media (respeta toggle y excluye view-once):
-    ///        - image/video → miniatura/poster CIFRADO (Storage + descifrado local).
-    ///        - gif/sticker  → `mediaUrl` PÚBLICO (Giphy), descarga directa.
-    ///   2. Notificación no-mensaje (reacción, comentario, story…) → `mediaUrl` de preview.
-    ///   3. Fallback → avatar del remitente (`senderProfileImage`).
+    /// Decide y adjunta UNA sola imagen a la notificación (rich media).
+    /// Mensajes de chat: solo media del mensaje (sin avatar fallback). Otros tipos: mediaUrl o avatar.
     private func resolveNotificationAttachment(
         userInfo: [AnyHashable: Any],
         content: UNMutableNotificationContent,
@@ -305,8 +338,10 @@ class NotificationService: UNNotificationServiceExtension {
            !Self.viewOnceMessageTypes.contains(messageType),
            let conversationId = userInfo["conversationId"] as? String {
 
-            let defaults = UserDefaults(suiteName: "group.com.glowsyapp")
-            let previewEnabled = defaults?.object(forKey: "chat_show_message_preview_\(conversationId)") as? Bool ?? true
+            let previewEnabled = ChatPreviewPrivacy.shouldRevealPreview(
+                for: conversationId,
+                isVanishModeMessage: ChatPreviewPrivacy.isVanishModeMessage(in: userInfo)
+            )
 
             if previewEnabled {
                 // image/video → media cifrado. Vídeo usa la miniatura/poster cifrado;
@@ -318,11 +353,11 @@ class NotificationService: UNNotificationServiceExtension {
                         messageId: messageId,
                         allowFullMediaFallback: messageType == "image",
                         content: content
-                    ) { [weak self] attached in
+                    ) { attached in
                         if attached {
                             completion()
                         } else {
-                            self?.attachSenderAvatar(userInfo: userInfo, content: content, completion: completion)
+                            completion()
                         }
                     }
                     return
@@ -332,20 +367,17 @@ class NotificationService: UNNotificationServiceExtension {
                 if messageType == "gif" || messageType == "sticker",
                    let mediaUrlString = userInfo["mediaUrl"] as? String,
                    let url = URL(string: mediaUrlString) {
-                    downloadAttachment(from: url) { [weak self] attachment in
+                    downloadAttachment(from: url) { attachment in
                         if let attachment {
                             content.attachments = [attachment]
-                            completion()
-                        } else {
-                            self?.attachSenderAvatar(userInfo: userInfo, content: content, completion: completion)
                         }
+                        completion()
                     }
                     return
                 }
             }
 
-            // Toggle off o tipo sin media adjuntable → avatar.
-            attachSenderAvatar(userInfo: userInfo, content: content, completion: completion)
+            completion()
             return
         }
 

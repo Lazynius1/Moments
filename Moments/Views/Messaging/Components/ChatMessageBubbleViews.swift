@@ -29,6 +29,7 @@ struct GlassmorphicMessageRow: View {
     var downloadProgress: Double? = nil
     var isDownloadingMedia: Bool = false
     var showSeenLabel: Bool = false
+    @Binding var timestampRevealOffset: CGFloat
 
     @Environment(\.colorScheme) var colorScheme
     private var adaptiveColors: AdaptiveColors {
@@ -69,74 +70,74 @@ struct GlassmorphicMessageRow: View {
         groupPosition == .first || groupPosition == .single
     }
 
+    /// El reply va embebido dentro de la burbuja (estilo WhatsApp) solo para texto plano.
+    private var usesEmbeddedReply: Bool {
+        message.type == .text
+            && message.content != nil
+            && message.storyReplyData == nil
+            && !message.isDeleted
+    }
+
     private var timestampLeadingInset: CGFloat {
         isCurrentUser ? 0 : ChatIncomingMessageLayout.gutterInset
     }
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            // Background Reply Icon (appears when swiping)
-            if dragOffset > 0 {
-                Image(systemName: "arrowshape.turn.up.left.fill")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(adaptiveColors.userAccentColor)
-                    .opacity(Double(min(dragOffset / 60, 1.0)))
-                    .offset(x: min(dragOffset - 30, 0))
-                    .padding(.leading, 12)
-            }
-
-            VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
-                HStack(alignment: .bottom, spacing: 0) {
-                    if isCurrentUser { Spacer(minLength: 50) }
-
-                    if !isCurrentUser {
-                        ChatIncomingAvatarGutter(
-                            showAvatar: showAvatar,
-                            otherUserId: otherUserId,
-                            isUnavailable: isOtherParticipantUnavailable,
-                            onTap: onAvatarTap
-                        )
-                    }
-
-                    VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: reactionTimestampSpacing) {
-                        if let originalMessage = repliedMessage {
-                            GlassmorphicReplyPreview(
-                                message: originalMessage,
-                                isParentMessageFromCurrentUser: isCurrentUser,
-                                otherParticipantName: otherParticipantName,
-                                onTap: { onReplyTap?(originalMessage.id) }
-                            )
-                            .padding(.bottom, -8)
-                            .zIndex(1)
+        HStack(spacing: 0) {
+                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
+                    HStack(alignment: .bottom, spacing: 0) {
+                        if isCurrentUser {
+                            Color.clear
+                                .chatTimestampRevealGutter(timestampRevealOffset: $timestampRevealOffset)
                         }
 
-                        messageBubbleWithReactions(
-                            repliedMessage: repliedMessage,
-                            otherParticipantId: otherUserId,
-                            otherParticipantName: otherParticipantName
-                        )
+                        if !isCurrentUser {
+                            ChatIncomingAvatarGutter(
+                                showAvatar: showAvatar,
+                                otherUserId: otherUserId,
+                                isUnavailable: isOtherParticipantUnavailable,
+                                onTap: onAvatarTap
+                            )
+                        }
+
+                        VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: reactionTimestampSpacing) {
+                            if let originalMessage = repliedMessage, !usesEmbeddedReply {
+                                GlassmorphicReplyPreview(
+                                    message: originalMessage,
+                                    isParentMessageFromCurrentUser: isCurrentUser,
+                                    otherParticipantName: otherParticipantName,
+                                    onTap: { onReplyTap?(originalMessage.id) }
+                                )
+                            }
+
+                            messageBubbleWithReactions(
+                                repliedMessage: repliedMessage,
+                                otherParticipantId: otherUserId,
+                                otherParticipantName: otherParticipantName
+                            )
+                        }
+                        .layoutPriority(1)
+
+                        if !isCurrentUser {
+                            Color.clear
+                                .chatTimestampRevealGutter(timestampRevealOffset: $timestampRevealOffset)
+                        }
                     }
-
-                    if !isCurrentUser { Spacer(minLength: 50) }
                 }
+                .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
 
-                if isGroupTail {
-                    MessageTimestamp(
-                        message: message,
-                        isCurrentUser: isCurrentUser,
-                        showSeenLabel: showSeenLabel
-                    )
-                    .padding(.leading, timestampLeadingInset)
-                }
+                // Instagram-style reveal timestamp
+                MessageTimestamp(
+                    message: message,
+                    isCurrentUser: isCurrentUser,
+                    showSeenLabel: showSeenLabel
+                )
+                .frame(width: 55)
+                .padding(.leading, 12)
+                .opacity(Double(min(-timestampRevealOffset / 40, 1.0)))
             }
-            .offset(x: dragOffset)
-            .contentShape(Rectangle())
-            .chatReplySwipeGesture(
-                dragOffset: $dragOffset,
-                hasTriggeredHaptic: $hasTriggeredHaptic,
-                onReply: onReply
-            )
-        }
+            .padding(.trailing, -67) // 55 width + 12 leading padding = 67 off-screen
+            .offset(x: timestampRevealOffset)
         .padding(.horizontal, 8)
         .padding(.top, isGroupHead ? 5 : 1)
         .padding(.bottom, bottomRowPadding)
@@ -148,6 +149,8 @@ struct GlassmorphicMessageRow: View {
         otherParticipantId: String?,
         otherParticipantName: String
     ) -> some View {
+        let cornerRadius = ChatBubbleAnchorMetrics.cornerRadius(for: message)
+        let isVanishProtected = message.isVanishModeMessage == true
         let bubble = GlassmorphicMessageBubble(
             message: message,
             reactions: isMenuSelected ? nil : resolvedReactions,
@@ -169,16 +172,29 @@ struct GlassmorphicMessageRow: View {
             isDownloadingMedia: isDownloadingMedia
         )
 
-        ChatMessageBubbleChrome(
-            isMenuSelected: isMenuSelected,
+        ChatBubbleReplySwipeContainer(
+            dragOffset: $dragOffset,
+            hasTriggeredHaptic: $hasTriggeredHaptic,
             isOutgoing: isCurrentUser,
-            cornerRadius: ChatBubbleAnchorMetrics.cornerRadius(for: message),
-            colorScheme: colorScheme,
-            isFlashing: isBubbleFlashing,
-            dragOffset: dragOffset,
-            onLongPress: onLongPress
+            cornerRadius: cornerRadius,
+            onReply: onReply
         ) {
-            bubble
+            ChatMessageBubbleChrome(
+                isMenuSelected: isMenuSelected,
+                isOutgoing: isCurrentUser,
+                cornerRadius: cornerRadius,
+                colorScheme: colorScheme,
+                isFlashing: isBubbleFlashing,
+                onLongPress: onLongPress
+            ) {
+                if isVanishProtected {
+                    ScreenshotProtectedView(isProtected: true, cornerRadius: cornerRadius) {
+                        bubble
+                    }
+                } else {
+                    bubble
+                }
+            }
         }
     }
 }
@@ -312,6 +328,9 @@ struct GlassmorphicMessageBubble: View {
             groupPosition: groupPosition,
             reactions: reactions,
             isStarred: isStarredByCurrentUser,
+            repliedMessage: repliedMessage,
+            otherParticipantName: otherParticipantName,
+            onReplyTap: repliedMessage.flatMap { replied in onReplyTap.map { tap in { tap(replied.id) } } },
             onReaction: onReaction
         )
     }
@@ -361,6 +380,11 @@ struct GlassmorphicMessageBubble: View {
                                 }
 
                                 textMessageBody(content)
+
+                                if let url = detectFirstURL(in: content) {
+                                    LinkPreviewCard(url: url)
+                                        .padding(.top, 4)
+                                }
                             }
                         }
 
@@ -393,6 +417,7 @@ struct GlassmorphicMessageBubble: View {
                     case .audio:
                         attachBubbleBadges(
                             to: GlassmorphicAudioMessage(
+                                messageId: message.id,
                                 audioUrl: message.mediaUrl,
                                 duration: message.duration ?? 0,
                                 isCurrentUser: isCurrentUser,
@@ -401,6 +426,9 @@ struct GlassmorphicMessageBubble: View {
                                 adaptiveColors: adaptiveColors
                             )
                         )
+                        .onAppear {
+                            onHydrateMedia?(message)
+                        }
 
                     case .video:
                         attachBubbleBadges(
@@ -542,6 +570,190 @@ struct GlassmorphicMessageBubble: View {
                 DispatchQueue.main.async {
                     callback?(messageId)
                 }
+            }
+        }
+    }
+
+    private func detectFirstURL(in text: String) -> URL? {
+        ChatLinkOpener.firstURL(in: text)
+    }
+}
+
+// MARK: - Link opening
+
+enum ChatLinkOpener {
+    static func firstURL(in text: String) -> URL? {
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return nil
+        }
+        let range = NSRange(text.startIndex..., in: text)
+        return detector.firstMatch(in: text, options: [], range: range)?.url
+    }
+
+    static func open(_ url: URL) {
+        UIApplication.shared.open(url)
+    }
+
+    static func openFirstLink(in text: String) {
+        guard let url = firstURL(in: text) else { return }
+        open(url)
+    }
+
+    static func applyDetectedLinks(
+        to attributed: inout AttributedString,
+        in plainText: String,
+        linkColor: Color,
+        underline: Bool = true
+    ) {
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return
+        }
+        let range = NSRange(plainText.startIndex..., in: plainText)
+        for match in detector.matches(in: plainText, options: [], range: range) {
+            guard let url = match.url,
+                  let swiftRange = Range(match.range, in: plainText),
+                  let attrRange = swiftRange.toAttributedStringRange(in: attributed) else {
+                continue
+            }
+            attributed[attrRange].link = url
+            attributed[attrRange].foregroundColor = linkColor
+            if underline {
+                attributed[attrRange].underlineStyle = .single
+            }
+        }
+    }
+}
+
+// MARK: - Link Preview Helper & View
+import LinkPresentation
+
+class LinkMetadataCache {
+    static let shared = LinkMetadataCache()
+    private var cache: [URL: LPLinkMetadata] = [:]
+    private var images: [URL: UIImage] = [:]
+
+    func fetchMetadata(for url: URL, completion: @escaping (LPLinkMetadata?, UIImage?) -> Void) {
+        if let cachedMeta = cache[url] {
+            completion(cachedMeta, images[url])
+            return
+        }
+
+        let provider = LPMetadataProvider()
+        provider.startFetchingMetadata(for: url) { [weak self] metadata, error in
+            guard let metadata = metadata else {
+                DispatchQueue.main.async {
+                    completion(nil, nil)
+                }
+                return
+            }
+
+            DispatchQueue.main.async {
+                self?.cache[url] = metadata
+            }
+
+            if let imageProvider = metadata.imageProvider {
+                imageProvider.loadObject(ofClass: UIImage.self) { image, error in
+                    DispatchQueue.main.async {
+                        let loadedImage = image as? UIImage
+                        if let loadedImage = loadedImage {
+                            self?.images[url] = loadedImage
+                        }
+                        completion(metadata, loadedImage)
+                    }
+                }
+            } else {
+                DispatchQueue.main.async {
+                    completion(metadata, nil)
+                }
+            }
+        }
+    }
+}
+
+struct LinkPreviewCard: View {
+    let url: URL
+    @State private var title: String? = nil
+    @State private var host: String? = nil
+    @State private var image: UIImage? = nil
+    @State private var isLoading = true
+    @Environment(\.colorScheme) var colorScheme
+
+    var body: some View {
+        Button {
+            HapticManager.shared.lightImpact()
+            ChatLinkOpener.open(url)
+        } label: {
+            Group {
+                if isLoading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                        Text(url.host ?? url.absoluteString)
+                            .font(.system(size: 11))
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.4))
+                    .cornerRadius(10)
+                } else if let title = title {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if let image = image {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(maxWidth: 240, maxHeight: 120)
+                                .clipped()
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(title)
+                                .font(.system(size: 12, weight: .bold))
+                                .lineLimit(2)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                            Text(host ?? "")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.blue)
+                        }
+                        .padding(8)
+                        .frame(maxWidth: 240, alignment: .leading)
+                        .background(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.6))
+                    }
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3), lineWidth: 1)
+                    )
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "link")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.blue)
+                        Text(url.host ?? url.absoluteString)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .lineLimit(2)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: 240, alignment: .leading)
+                    .background(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.6))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3), lineWidth: 1)
+                    )
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .onAppear {
+            self.host = url.host
+            LinkMetadataCache.shared.fetchMetadata(for: url) { metadata, img in
+                self.title = metadata?.title ?? url.host ?? url.absoluteString
+                self.image = img
+                self.isLoading = false
             }
         }
     }

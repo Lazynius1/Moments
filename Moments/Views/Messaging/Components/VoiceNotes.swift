@@ -178,23 +178,115 @@ class SimpleProximityManager: ObservableObject {
     }
 }
 
+// MARK: - Voice message spacing
+
+enum VoiceMessageLayout {
+    static let playButtonSize: CGFloat = 38
+    static let playIconSize: CGFloat = 26
+    static let waveformHeight: CGFloat = 30
+    static let barWidth: CGFloat = 3.5
+    static let barSpacing: CGFloat = 2.5
+    static let outerSpacing: CGFloat = 10
+    static let waveformLeadingInset: CGFloat = 12
+    static let horizontalPadding: CGFloat = 14
+    static let verticalPadding: CGFloat = 15
+    static let bubbleWidthFraction: CGFloat = 0.75
+    static let trailingGapMinLength: CGFloat = 10
+    static let timeLabelWidth: CGFloat = 36
+    static let speedControlWidth: CGFloat = 34
+
+    static var bubbleWidth: CGFloat {
+        UIScreen.main.bounds.width * bubbleWidthFraction
+    }
+
+    static func availableWaveformWidth(includesSpeedControl: Bool) -> CGFloat {
+        let innerWidth = bubbleWidth - horizontalPadding * 2
+        let trailingBlock = timeLabelWidth
+            + (includesSpeedControl ? outerSpacing + speedControlWidth : 0)
+        let leadingBlock = playButtonSize + outerSpacing + waveformLeadingInset
+        return max(
+            96,
+            innerWidth - leadingBlock - trailingBlock - trailingGapMinLength
+        )
+    }
+
+    static func waveformBarCount(for trackWidth: CGFloat) -> Int {
+        let unit = barWidth + barSpacing
+        guard unit > 0 else { return 32 }
+        return max(24, min(50, Int((trackWidth / unit).rounded(.down))))
+    }
+
+    static func waveformTrackWidth(includesSpeedControl: Bool) -> CGFloat {
+        let target = availableWaveformWidth(includesSpeedControl: includesSpeedControl)
+        let barCount = waveformBarCount(for: target)
+        return CGFloat(barCount) * barWidth + CGFloat(max(barCount - 1, 0)) * barSpacing
+    }
+}
+
+enum ChatVoiceWaveformGenerator {
+    static func levels(seed: String, count: Int) -> [Float] {
+        guard count > 0 else { return [] }
+        var hash = seed.utf8.reduce(UInt64(5381)) { ($0 << 5) &+ $0 &+ UInt64($1) }
+        return (0..<count).map { index in
+            hash = hash &* 1_103_515_245 &+ 12_345 &+ UInt64(index)
+            let normalized = Float(hash % 10_000) / 10_000
+            return 0.2 + normalized * 0.6
+        }
+    }
+}
+
+// MARK: - Single active voice playback (como WhatsApp / Instagram)
+
+@MainActor
+final class ChatAudioPlaybackCenter {
+    static let shared = ChatAudioPlaybackCenter()
+
+    private(set) var activeMessageId: String?
+    private var stopHandler: (() -> Void)?
+
+    private init() {}
+
+    func activate(messageId: String, stopOthers: @escaping () -> Void) {
+        if activeMessageId != messageId {
+            stopHandler?()
+        }
+        activeMessageId = messageId
+        stopHandler = stopOthers
+    }
+
+    func deactivate(messageId: String) {
+        guard activeMessageId == messageId else { return }
+        activeMessageId = nil
+        stopHandler = nil
+    }
+
+    func stopCurrent() {
+        stopHandler?()
+        activeMessageId = nil
+        stopHandler = nil
+    }
+}
+
 // MARK: - Waveform Visualization Components
+
 struct VisualWaveformView: View {
     let levels: [Float]
     let color: Color
     let activeColor: Color
     let progress: Double
-    var height: CGFloat = 30
-    
+    var height: CGFloat = VoiceMessageLayout.waveformHeight
+    var barWidth: CGFloat = VoiceMessageLayout.barWidth
+    var spacing: CGFloat = VoiceMessageLayout.barSpacing
+
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: spacing) {
             ForEach(0..<levels.count, id: \.self) { index in
                 let level = levels[index]
                 let isActive = Double(index) / Double(levels.count) <= progress
-                
-                RoundedRectangle(cornerRadius: 1.5)
+
+                RoundedRectangle(cornerRadius: barWidth / 2, style: .continuous)
                     .fill(isActive ? activeColor : color)
-                    .frame(width: 3, height: max(6, CGFloat(level) * height))
+                    .frame(width: barWidth, height: max(6, CGFloat(level) * height))
                     .animation(.easeInOut(duration: 0.1), value: isActive)
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: level)
             }
@@ -226,13 +318,14 @@ struct LiveWaveformView: View {
 
 // MARK: - Audio Message con Proximidad Simple
 struct GlassmorphicAudioMessage: View {
+    let messageId: String
     let audioUrl: String?
     let duration: Double
     let isCurrentUser: Bool
     let isSending: Bool
     let progress: Double?
-    let adaptiveColors: AdaptiveColors // ✅ Pass adaptive colors
-    
+    let adaptiveColors: AdaptiveColors
+
     @State private var isPlaying = false
     @State private var currentTime: Double = 0
     @State private var audioPlayer: AVAudioPlayer?
@@ -241,10 +334,17 @@ struct GlassmorphicAudioMessage: View {
     @State private var isAudioAvailable = true
     @State private var isCheckingAvailability = true
     @State private var showErrorMessage = false
-    
-    // Generar niveles "estáticos" pero consistentes para el waveform
-    @State private var waveformLevels: [Float] = (0..<25).map { _ in Float.random(in: 0.2...0.8) }
-    
+    @State private var playbackRate: Float = 1.0
+    @State private var isScrubbing = false
+    @State private var scrubFraction: Double?
+    @State private var wasPlayingBeforeScrub = false
+    @State private var waveformLevels: [Float] = ChatVoiceWaveformGenerator.levels(
+        seed: "voice",
+        count: VoiceMessageLayout.waveformBarCount(
+            for: VoiceMessageLayout.availableWaveformWidth(includesSpeedControl: true)
+        )
+    )
+
     @StateObject private var proximityManager = SimpleProximityManager()
     @Environment(\.colorScheme) var colorScheme
 
@@ -293,110 +393,209 @@ struct GlassmorphicAudioMessage: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Play/Pause button
-            Button(action: togglePlayback) {
-                ZStack {
-                    if isCheckingAvailability {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                            .tint(contentColor)
-                    } else {
-                        Image(systemName: getPlayButtonIcon())
-                            .font(.system(size: 26, weight: .semibold))
-                            .symbolRenderingMode(.monochrome)
-                    }
-                    
-                    if isSending, let uploadProgress = progress {
-                        MediaProgressRing(progress: uploadProgress, size: 34, lineWidth: 2)
-                    }
-                }
-                .foregroundColor(contentColor)
-                .frame(width: 36, height: 36)
-            }
-            .disabled(!isAudioAvailable || isCheckingAvailability)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                if isCheckingAvailability {
-                    HStack(spacing: 3) {
-                        ForEach(0..<20, id: \.self) { _ in
-                            Rectangle()
-                                .fill(waveformInactiveColor)
-                                .frame(width: 3, height: 12)
-                        }
-                    }
-                    .frame(height: 24)
-                    
+        HStack(spacing: VoiceMessageLayout.outerSpacing) {
+            playButton
+
+            if isCheckingAvailability {
+                VStack(alignment: .leading, spacing: 4) {
+                    loadingWaveformPlaceholder
                     Text(NSLocalizedString("chat.loading", comment: "Loading audio message"))
                         .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(durationLabelColor)
-                        
-                } else if isAudioAvailable {
-                    HStack(alignment: .center, spacing: 8) {
-                        VisualWaveformView(
-                            levels: waveformLevels,
-                            color: waveformInactiveColor,
-                            activeColor: contentColor,
-                            progress: playbackProgress
-                        )
-                        .frame(height: 30)
-                        .frame(maxWidth: .infinity)
-
-                        Text(formatDuration(displayedDurationSeconds))
-                            .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                            .monospacedDigit()
-                            .foregroundColor(durationLabelColor)
-                            .frame(minWidth: 34, alignment: .trailing)
-                            .accessibilityLabel(
-                                Text(
-                                    String(
-                                        format: NSLocalizedString(
-                                            "chat.audio.duration.accessibility",
-                                            comment: "Voice message duration for accessibility"
-                                        ),
-                                        formatDuration(displayedDurationSeconds)
-                                    )
-                                )
-                            )
-                    }
-                    
-                } else {
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.orange)
-                        
-                        Text(NSLocalizedString("chat.audio.unavailable", comment: "Audio message unavailable"))
-                            .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(durationLabelColor)
-                    }
                 }
+                Spacer(minLength: VoiceMessageLayout.trailingGapMinLength)
+            } else if isAudioAvailable {
+                scrubbableWaveform
+                    .frame(
+                        width: VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: !isSending),
+                        height: VoiceMessageLayout.waveformHeight
+                    )
+                    .padding(.leading, VoiceMessageLayout.waveformLeadingInset)
+
+                timeLabel
+                    .padding(.leading, VoiceMessageLayout.trailingGapMinLength)
+
+                if !isSending {
+                    speedButton
+                }
+            } else {
+                unavailableRow
+                Spacer(minLength: VoiceMessageLayout.trailingGapMinLength)
             }
-            .frame(minWidth: 168, maxWidth: 220)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, VoiceMessageLayout.horizontalPadding)
+        .padding(.vertical, VoiceMessageLayout.verticalPadding)
+        .frame(width: VoiceMessageLayout.bubbleWidth, alignment: .leading)
         .background(bubbleBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 18)
                 .stroke(bubbleStrokeColor, lineWidth: 0.5)
         )
         .onAppear {
+            refreshWaveformLevels()
             checkAudioAvailability()
         }
         .onChange(of: audioUrl) { _, _ in
+            refreshWaveformLevels()
             checkAudioAvailability()
         }
         .onChange(of: isSending) { _, _ in
+            refreshWaveformLevels()
             checkAudioAvailability()
         }
         .onDisappear {
-            stopPlayback()
+            if ChatAudioPlaybackCenter.shared.activeMessageId == messageId {
+                ChatAudioPlaybackCenter.shared.deactivate(messageId: messageId)
+            }
+            stopPlayback(resetTime: false)
         }
         .onChange(of: proximityManager.isNearEar) { _, isNear in
             guard isPlaying else { return }
             switchAudioRoute(toEarpiece: isNear)
         }
+    }
+
+    private var playButton: some View {
+        Button(action: togglePlayback) {
+            ZStack {
+                if isCheckingAvailability {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .tint(contentColor)
+                } else {
+                    Image(systemName: getPlayButtonIcon())
+                        .font(.system(size: VoiceMessageLayout.playIconSize, weight: .semibold))
+                        .symbolRenderingMode(.monochrome)
+                }
+
+                if isSending, let uploadProgress = progress {
+                    MediaProgressRing(progress: uploadProgress, size: 34, lineWidth: 2)
+                }
+            }
+            .foregroundColor(contentColor)
+            .frame(width: VoiceMessageLayout.playButtonSize, height: VoiceMessageLayout.playButtonSize)
+        }
+        .disabled(!isAudioAvailable || isCheckingAvailability)
+    }
+
+    private var loadingWaveformPlaceholder: some View {
+        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: true)
+        let barCount = VoiceMessageLayout.waveformBarCount(for: trackWidth)
+
+        return HStack(spacing: VoiceMessageLayout.barSpacing) {
+            ForEach(0..<barCount, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: VoiceMessageLayout.barWidth / 2, style: .continuous)
+                    .fill(waveformInactiveColor)
+                    .frame(width: VoiceMessageLayout.barWidth, height: 12)
+            }
+        }
+        .frame(width: trackWidth, height: 24)
+        .padding(.leading, VoiceMessageLayout.waveformLeadingInset)
+    }
+
+    private var scrubbableWaveform: some View {
+        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: !isSending)
+
+        return VisualWaveformView(
+            levels: waveformLevels,
+            color: waveformInactiveColor,
+            activeColor: contentColor,
+            progress: displayedProgress
+        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 4, coordinateSpace: .local)
+                .onChanged { value in
+                    if !isScrubbing {
+                        isScrubbing = true
+                        wasPlayingBeforeScrub = isPlaying
+                        if isPlaying {
+                            audioPlayer?.pause()
+                            isPlaying = false
+                            timer?.invalidate()
+                        }
+                        HapticManager.shared.lightImpact()
+                    }
+
+                    let width = trackWidth
+                    let fraction = max(0, min(1, value.location.x / width))
+                    scrubFraction = fraction
+                    seekToFraction(fraction)
+                }
+                .onEnded { _ in
+                    isScrubbing = false
+                    scrubFraction = nil
+                    if wasPlayingBeforeScrub {
+                        resumeAfterScrub()
+                    }
+                }
+        )
+        .accessibilityLabel(Text("chat.audio.scrub.accessibility"))
+    }
+
+    private var unavailableRow: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.orange)
+
+            Text(NSLocalizedString("chat.audio.unavailable", comment: "Audio message unavailable"))
+                .font(.system(size: legacyPoppinsSize(12)))
+                .foregroundColor(durationLabelColor)
+        }
+    }
+
+    @ViewBuilder
+    private var timeLabel: some View {
+        Text(formatDuration(displayedTimeSeconds))
+            .font(.system(size: legacyPoppinsSize(11), weight: .medium))
+            .monospacedDigit()
+            .foregroundColor(durationLabelColor)
+            .frame(minWidth: 34, alignment: .trailing)
+            .accessibilityLabel(
+                Text(
+                    String(
+                        format: NSLocalizedString(
+                            "chat.audio.duration.accessibility",
+                            comment: "Voice message duration for accessibility"
+                        ),
+                        formatDuration(displayedTimeSeconds)
+                    )
+                )
+            )
+    }
+
+    @ViewBuilder
+    private var speedButton: some View {
+        Button(action: cyclePlaybackRate) {
+            Text(speedLabel)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(contentColor)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(contentColor.opacity(colorScheme == .dark ? 0.15 : 0.12))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var speedLabel: String {
+        switch playbackRate {
+        case 1.5: return "1.5×"
+        case 2.0: return "2×"
+        default: return "1×"
+        }
+    }
+
+    private func refreshWaveformLevels() {
+        let seed = audioUrl ?? messageId
+        let includesSpeed = isAudioAvailable && !isCheckingAvailability && !isSending
+        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: includesSpeed)
+        waveformLevels = ChatVoiceWaveformGenerator.levels(
+            seed: seed,
+            count: VoiceMessageLayout.waveformBarCount(for: trackWidth)
+        )
     }
     
     private func configurePlaybackSession(speaker: Bool) {
@@ -427,6 +626,8 @@ struct GlassmorphicAudioMessage: View {
 
         do {
             let newPlayer = try AVAudioPlayer(contentsOf: url)
+            newPlayer.enableRate = true
+            newPlayer.rate = playbackRate
             newPlayer.currentTime = currentTime
             newPlayer.prepareToPlay()
             guard newPlayer.play() else { return }
@@ -498,15 +699,32 @@ struct GlassmorphicAudioMessage: View {
             showErrorMessage = true
             return
         }
-        
+
         if isPlaying {
             pausePlayback()
         } else {
             startPlayback()
         }
     }
-    
+
     private func startPlayback() {
+        if let player = audioPlayer, playbackFileURL != nil {
+            ChatAudioPlaybackCenter.shared.activate(messageId: messageId) {
+                self.pausePlayback(notifyCenter: false)
+            }
+            player.enableRate = true
+            player.rate = playbackRate
+            player.currentTime = currentTime
+            guard player.play() else {
+                isAudioAvailable = false
+                return
+            }
+            isPlaying = true
+            proximityManager.startMonitoring()
+            startProgressTimer()
+            return
+        }
+
         guard let audioUrl = audioUrl, let url = URL(string: audioUrl) else {
             isAudioAvailable = false
             return
@@ -527,6 +745,11 @@ struct GlassmorphicAudioMessage: View {
                         self.configurePlaybackSession(speaker: true)
 
                         let player = try AVAudioPlayer(contentsOf: playbackURL)
+                        player.enableRate = true
+                        player.rate = self.playbackRate
+                        if self.currentTime > 0 && self.currentTime < self.duration {
+                            player.currentTime = self.currentTime
+                        }
                         player.prepareToPlay()
                         guard player.play() else {
                             self.isAudioAvailable = false
@@ -535,15 +758,10 @@ struct GlassmorphicAudioMessage: View {
                         self.audioPlayer = player
                         self.isPlaying = true
                         self.proximityManager.startMonitoring()
-
-                        self.timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-                            if let player = self.audioPlayer {
-                                self.currentTime = player.currentTime
-                                if !player.isPlaying {
-                                    self.stopPlayback()
-                                }
-                            }
+                        ChatAudioPlaybackCenter.shared.activate(messageId: self.messageId) {
+                            self.pausePlayback(notifyCenter: false)
                         }
+                        self.startProgressTimer()
                     } catch {
                         self.isAudioAvailable = false
                         self.showErrorMessage = true
@@ -557,34 +775,99 @@ struct GlassmorphicAudioMessage: View {
             }
         }
     }
-    
-    private func pausePlayback() {
+
+    private func resumeAfterScrub() {
+        guard isAudioAvailable, wasPlayingBeforeScrub else { return }
+
+        if let player = audioPlayer {
+            ChatAudioPlaybackCenter.shared.activate(messageId: messageId) {
+                self.pausePlayback(notifyCenter: false)
+            }
+            player.enableRate = true
+            player.rate = playbackRate
+            guard player.play() else { return }
+            isPlaying = true
+            proximityManager.startMonitoring()
+            startProgressTimer()
+        } else {
+            startPlayback()
+        }
+    }
+
+    private func startProgressTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            guard let player = self.audioPlayer else { return }
+            self.currentTime = player.currentTime
+            if !player.isPlaying {
+                self.stopPlayback(resetTime: true)
+            }
+        }
+    }
+
+    private func pausePlayback(notifyCenter: Bool = true) {
         audioPlayer?.pause()
         isPlaying = false
         timer?.invalidate()
         proximityManager.stopMonitoring()
+        if notifyCenter {
+            ChatAudioPlaybackCenter.shared.deactivate(messageId: messageId)
+        }
     }
-    
-    private func stopPlayback() {
+
+    private func stopPlayback(resetTime: Bool = true) {
         audioPlayer?.stop()
         audioPlayer = nil
         playbackFileURL = nil
         isPlaying = false
-        currentTime = 0
+        if resetTime {
+            currentTime = 0
+        }
         timer?.invalidate()
         timer = nil
         proximityManager.stopMonitoring()
+        if ChatAudioPlaybackCenter.shared.activeMessageId == messageId {
+            ChatAudioPlaybackCenter.shared.deactivate(messageId: messageId)
+        }
     }
     
-    private var playbackProgress: Double {
-        guard duration > 0 else { return 0 }
-        if isPlaying { return min(1, currentTime / duration) }
-        return 0
+    private func cyclePlaybackRate() {
+        if playbackRate == 1.0 {
+            playbackRate = 1.5
+        } else if playbackRate == 1.5 {
+            playbackRate = 2.0
+        } else {
+            playbackRate = 1.0
+        }
+        audioPlayer?.rate = playbackRate
     }
 
-    private var displayedDurationSeconds: Double {
+    private func seekToFraction(_ fraction: Double) {
+        let targetTime = fraction * duration
+        currentTime = max(0, min(duration, targetTime))
+        if let player = audioPlayer {
+            player.currentTime = currentTime
+        }
+    }
+
+    private var playbackProgress: Double {
         guard duration > 0 else { return 0 }
-        if isPlaying {
+        return min(1, max(0, currentTime / duration))
+    }
+
+    private var displayedProgress: Double {
+        if let scrubFraction {
+            return scrubFraction
+        }
+        return playbackProgress
+    }
+
+    private var displayedTimeSeconds: Double {
+        guard duration > 0 else { return 0 }
+        if isScrubbing {
+            return currentTime
+        }
+        if isPlaying || currentTime > 0.01 {
             return max(0, duration - currentTime)
         }
         return duration

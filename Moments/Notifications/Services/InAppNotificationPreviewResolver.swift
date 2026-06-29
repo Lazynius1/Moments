@@ -8,8 +8,10 @@ enum InAppNotificationPreviewResolver {
             return stripUnsafeTextPreview(from: notification)
         }
 
-        let previewEnabled = UserDefaults(suiteName: "group.com.glowsyapp")?
-            .object(forKey: "chat_show_message_preview_\(conversationId)") as? Bool ?? true
+        let previewEnabled = ChatPreviewPrivacy.shouldRevealPreview(
+            for: conversationId,
+            isVanishModeMessage: ChatPreviewPrivacy.isVanishModeMessage(in: userInfo ?? [:])
+        )
 
         switch notification.type {
         case .message:
@@ -106,6 +108,9 @@ enum InAppNotificationPreviewResolver {
                 .getDocument()
 
             guard let cipher = snapshot.data()?["content"] as? String, !cipher.isEmpty else {
+                return nil
+            }
+            if ChatPreviewPrivacy.isVanishModeMessage(in: snapshot.data() ?? [:]) {
                 return nil
             }
             return await decryptPreview(cipher, conversationId: conversationId)

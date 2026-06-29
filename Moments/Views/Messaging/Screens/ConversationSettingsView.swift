@@ -33,10 +33,10 @@ struct ConversationSettingsView: View {
                 conversationHeader
 
                 VStack(spacing: 24) {
-                    conversationInfoSection
-                    sharedMediaSection
+                    sharedContentSection
                     starredMessagesSection
-                    privacySettingsSection
+                    conversationInfoSection
+                    chatPreferencesSection
                     actionsSection
                 }
                 .padding(.horizontal, 16)
@@ -57,7 +57,7 @@ struct ConversationSettingsView: View {
             }
         }
         .toolbar(.hidden, for: .tabBar)
-        .navigationDestination(isPresented: $viewModel.showAllMedia) {
+        .navigationDestination(isPresented: $viewModel.showSharedGallery) {
             sharedMediaGalleryDestination
                 .toolbar(.hidden, for: .tabBar)
         }
@@ -114,11 +114,12 @@ struct ConversationSettingsView: View {
     @ViewBuilder
     private var sharedMediaGalleryDestination: some View {
         ClusterGalleryView(
-            messages: viewModel.sharedMediaMessages.filter { !$0.isDeleted },
+            messages: viewModel.sharedGalleryMessages.filter { !$0.isDeleted },
             currentUserId: viewModel.currentUserId,
             presentation: .pushed,
+            initialTab: viewModel.sharedGalleryInitialTab,
             onClose: {
-                viewModel.showAllMedia = false
+                viewModel.showSharedGallery = false
             },
             onHydrateMedia: { message in
                 viewModel.hydrateMediaIfNeeded(for: message)
@@ -224,11 +225,7 @@ struct ConversationSettingsView: View {
     // MARK: - Conversation Info Section
     private var conversationInfoSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(NSLocalizedString("conversationSettings.conversationInfo", comment: ""))
-                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
-            }
+            sectionHeader("conversationSettings.conversationInfo")
 
             VStack(spacing: 12) {
                 ChatInfoRow(
@@ -244,70 +241,20 @@ struct ConversationSettingsView: View {
                     title: NSLocalizedString("conversationSettings.messages", comment: "Messages"),
                     value: "\(viewModel.totalMessages)"
                 )
-
-                dividerLine
-
-                ChatInfoRow(
-                    icon: "photo.fill",
-                    title: NSLocalizedString("conversationSettings.sharedPhotos", comment: "Shared photos"),
-                    value: "\(viewModel.sharedPhotos)"
-                )
-
-                dividerLine
-
-                ChatInfoRow(
-                    icon: "video.fill",
-                    title: NSLocalizedString("conversationSettings.sharedVideos", comment: "Shared videos"),
-                    value: "\(viewModel.sharedVideos)"
-                )
             }
         }
         .padding(.vertical, 4)
     }
 
-    // MARK: - Shared Media Section
-    private var sharedMediaSection: some View {
+    // MARK: - Shared Content Section
+    private var sharedContentSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(NSLocalizedString("conversationSettings.sharedMedia", comment: ""))
-                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
+            sectionHeader("conversationSettings.sharedContent")
 
-                Spacer()
-
-                if !viewModel.sharedMedia.isEmpty {
-                    Button(action: {
-                        HapticManager.shared.lightImpact()
-                        viewModel.showAllMedia = true
-                    }) {
-                        Text(NSLocalizedString("common.viewAll", comment: "View all"))
-                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                            .foregroundColor(adaptiveColors.primary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.clear.momentsChromeGlass(in: Capsule()))
-                    }
-                }
-            }
-
-            if viewModel.sharedMedia.isEmpty {
-                HStack {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Image(systemName: "photo.on.rectangle")
-                            .font(.system(size: 30))
-                            .foregroundColor(adaptiveColors.tertiary)
-                        Text(NSLocalizedString("conversationSettings.noSharedMedia", comment: ""))
-                            .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(adaptiveColors.tertiary)
-                    }
-                    .padding(.vertical, 20)
-                    Spacer()
-                }
-            } else {
+            if !viewModel.sharedMedia.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(viewModel.sharedMedia.prefix(10), id: \.id) { media in
+                    HStack(spacing: 10) {
+                        ForEach(viewModel.sharedMedia.prefix(12), id: \.id) { media in
                             SharedMediaThumbnail(media: media) {
                                 HapticManager.shared.lightImpact()
                                 viewModel.selectedMedia = media
@@ -315,6 +262,30 @@ struct ConversationSettingsView: View {
                             }
                         }
                     }
+                }
+            }
+
+            VStack(spacing: 0) {
+                ConversationSettingsNavigationRow(
+                    icon: "photo.on.rectangle.angled",
+                    titleKey: "chat.gallery.tab.media",
+                    detail: viewModel.sharedMediaCountLabel,
+                    adaptiveColors: adaptiveColors
+                ) {
+                    HapticManager.shared.lightImpact()
+                    viewModel.openSharedGallery(tab: .media)
+                }
+
+                dividerLine
+
+                ConversationSettingsNavigationRow(
+                    icon: "link",
+                    titleKey: "chat.gallery.tab.links",
+                    detail: viewModel.sharedLinksCountLabel,
+                    adaptiveColors: adaptiveColors
+                ) {
+                    HapticManager.shared.lightImpact()
+                    viewModel.openSharedGallery(tab: .links)
                 }
             }
         }
@@ -365,14 +336,10 @@ struct ConversationSettingsView: View {
 
 
 
-    // MARK: - Privacy Settings Section
-    private var privacySettingsSection: some View {
+    // MARK: - Chat Preferences Section
+    private var chatPreferencesSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(NSLocalizedString("conversationSettings.privacy", comment: ""))
-                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
-            }
+            sectionHeader("conversationSettings.preferences")
 
             VStack(spacing: 16) {
                 Toggle(isOn: $viewModel.notificationsEnabled) {
@@ -527,6 +494,12 @@ struct ConversationSettingsView: View {
         .padding(.top, 4)
     }
 
+    private func sectionHeader(_ key: LocalizedStringKey) -> some View {
+        Text(key)
+            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+            .foregroundColor(adaptiveColors.primary)
+    }
+
     private var dividerLine: some View {
         Rectangle()
             .fill(adaptiveColors.tertiary.opacity(colorScheme == .dark ? 0.16 : 0.12))
@@ -547,6 +520,42 @@ struct ConversationSettingsView: View {
 }
 
 // MARK: - Supporting Views
+struct ConversationSettingsNavigationRow: View {
+    let icon: String
+    let titleKey: LocalizedStringKey
+    let detail: String
+    let adaptiveColors: AdaptiveColors
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(adaptiveColors.secondary)
+                    .frame(width: 22)
+
+                Text(titleKey)
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                    .foregroundColor(adaptiveColors.primary)
+
+                Spacer()
+
+                Text(detail)
+                    .font(.system(size: legacyPoppinsSize(14)))
+                    .foregroundColor(adaptiveColors.tertiary)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(adaptiveColors.tertiary)
+            }
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct ChatInfoRow: View {
     let icon: String
     let title: String
@@ -653,12 +662,12 @@ class ConversationSettingsViewModel: ObservableObject {
     @Published var currentUserId = Auth.auth().currentUser?.uid ?? ""
     @Published var conversationCreatedDate = "Desconocida"
     @Published var totalMessages = 0
-    @Published var sharedPhotos = 0
-    @Published var sharedVideos = 0
     @Published var sharedMedia: [SharedMedia] = []
-    @Published var sharedMediaMessages: [EnhancedMessage] = []
+    @Published var sharedGalleryMessages: [EnhancedMessage] = []
+    @Published var sharedLinksCount = 0
     @Published var starredMessages: [EnhancedMessage] = []
-    @Published var showAllMedia = false
+    @Published var showSharedGallery = false
+    @Published var sharedGalleryInitialTab: ClusterGalleryTab = .media
     @Published var showStarredMessages = false
     @Published var selectedMedia: SharedMedia?
     @Published var showFullScreenMedia = false
@@ -709,6 +718,24 @@ class ConversationSettingsViewModel: ObservableObject {
         "chat_buzz_enabled_\(conversationId)"
     }
 
+    var sharedMediaCountLabel: String {
+        let count = sharedMedia.count
+        return count == 0
+            ? NSLocalizedString("conversationSettings.count.none", comment: "")
+            : "\(count)"
+    }
+
+    var sharedLinksCountLabel: String {
+        sharedLinksCount == 0
+            ? NSLocalizedString("conversationSettings.count.none", comment: "")
+            : "\(sharedLinksCount)"
+    }
+
+    func openSharedGallery(tab: ClusterGalleryTab) {
+        sharedGalleryInitialTab = tab
+        showSharedGallery = true
+    }
+
     func loadConversationData(conversation: Conversation) {
         currentConversation = conversation
         forwardingEnabled = conversation.forwardingPreferences?[currentUserId] ?? true
@@ -734,13 +761,14 @@ class ConversationSettingsViewModel: ObservableObject {
     private func processMessages(_ messages: [EnhancedMessage]) {
         totalMessages = messages.count
 
-        let mediaMessages = messages
+        let galleryMessages = messages
             .filter(isSharedGalleryEligible)
             .sorted { $0.timestamp > $1.timestamp }
 
-        sharedMediaMessages = mediaMessages
-        sharedPhotos = mediaMessages.filter { $0.type == .image }.count
-        sharedVideos = mediaMessages.filter { $0.type == .video }.count
+        sharedGalleryMessages = galleryMessages
+        sharedLinksCount = galleryMessages.filter { $0.type == .text }.count
+
+        let mediaMessages = galleryMessages.filter(isSharedMediaItem)
         sharedMedia = mediaMessages.compactMap(makeSharedMedia)
 
         starredMessages = messages
@@ -750,11 +778,25 @@ class ConversationSettingsViewModel: ObservableObject {
 
     private func isSharedGalleryEligible(_ message: EnhancedMessage) -> Bool {
         guard !message.isDeleted else { return false }
-        guard message.type == .image || message.type == .video else { return false }
+        if message.type == .text, let content = message.content, containsURL(content) { return true }
+        return isSharedMediaItem(message)
+    }
+
+    private func isSharedMediaItem(_ message: EnhancedMessage) -> Bool {
+        guard message.type == .image || message.type == .video || message.type == .gif else { return false }
         guard !message.isViewOnce && message.type != .ephemeral && message.storyReplyData == nil else { return false }
+        guard message.isVanishModeMessage != true else { return false }
         if message.mediaUrl != nil { return true }
         if message.mediaObjectPath != nil, message.mediaEncryption != nil { return true }
         return message.thumbnailUrl != nil && message.thumbnailObjectPath != nil
+    }
+
+    private func containsURL(_ text: String) -> Bool {
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return false
+        }
+        let matches = detector.matches(in: text, options: [], range: NSRange(text.startIndex..., in: text))
+        return !matches.isEmpty
     }
 
     func makeSharedMedia(from message: EnhancedMessage) -> SharedMedia? {
@@ -778,7 +820,7 @@ class ConversationSettingsViewModel: ObservableObject {
     }
 
     func sharedMediaItemsForOverlay(selecting message: EnhancedMessage) -> [SharedMedia] {
-        let items = sharedMediaMessages.compactMap(sharedMedia(from:))
+        let items = sharedGalleryMessages.compactMap(sharedMedia(from:))
         guard let selected = sharedMedia(from: message) else { return items }
         if items.contains(where: { $0.id == selected.id }) {
             return items
@@ -840,7 +882,7 @@ class ConversationSettingsViewModel: ObservableObject {
     func deleteMessageForMe(_ message: EnhancedMessage) {
         guard let conversationId = currentConversation?.id, !conversationId.isEmpty else { return }
 
-        sharedMediaMessages.removeAll { $0.id == message.id }
+        sharedGalleryMessages.removeAll { $0.id == message.id }
         sharedMedia.removeAll { $0.id == message.id }
         recomputeSharedMediaCounts()
 
@@ -855,7 +897,7 @@ class ConversationSettingsViewModel: ObservableObject {
         guard let conversationId = currentConversation?.id, !conversationId.isEmpty else { return }
         guard message.senderId == currentUserId else { return }
 
-        sharedMediaMessages.removeAll { $0.id == message.id }
+        sharedGalleryMessages.removeAll { $0.id == message.id }
         sharedMedia.removeAll { $0.id == message.id }
         recomputeSharedMediaCounts()
 
@@ -866,13 +908,13 @@ class ConversationSettingsViewModel: ObservableObject {
     }
 
     private func recomputeSharedMediaCounts() {
-        sharedPhotos = sharedMediaMessages.filter { $0.type == .image }.count
-        sharedVideos = sharedMediaMessages.filter { $0.type == .video }.count
+        sharedLinksCount = sharedGalleryMessages.filter { $0.type == .text }.count
+        sharedMedia = sharedGalleryMessages.filter(isSharedMediaItem).compactMap(makeSharedMedia)
     }
 
     private func updateGalleryMessage(_ updated: EnhancedMessage) {
-        guard let index = sharedMediaMessages.firstIndex(where: { $0.id == updated.id }) else { return }
-        sharedMediaMessages[index] = updated
+        guard let index = sharedGalleryMessages.firstIndex(where: { $0.id == updated.id }) else { return }
+        sharedGalleryMessages[index] = updated
         if let media = makeSharedMedia(from: updated),
            let mediaIndex = sharedMedia.firstIndex(where: { $0.id == updated.id }) {
             sharedMedia[mediaIndex] = media
@@ -937,7 +979,7 @@ class ConversationSettingsViewModel: ObservableObject {
                 await MainActor.run {
                     self.hydratingMediaIds.remove(thumbnailKey)
                     guard let resolvedThumb,
-                          var updated = self.sharedMediaMessages.first(where: { $0.id == message.id }) else {
+                          var updated = self.sharedGalleryMessages.first(where: { $0.id == message.id }) else {
                         return
                     }
                     updated.thumbnailUrl = resolvedThumb
@@ -985,7 +1027,7 @@ class ConversationSettingsViewModel: ObservableObject {
             await MainActor.run {
                 self.hydratingMediaIds.remove(previewKey)
                 guard let resolvedThumb,
-                      var updated = self.sharedMediaMessages.first(where: { $0.id == message.id }) else {
+                      var updated = self.sharedGalleryMessages.first(where: { $0.id == message.id }) else {
                     return
                 }
                 updated.thumbnailUrl = resolvedThumb
@@ -1007,7 +1049,7 @@ class ConversationSettingsViewModel: ObservableObject {
                 guard let self else { return }
                 self.hydratingMediaIds.remove(posterKey)
                 guard let poster,
-                      var updated = self.sharedMediaMessages.first(where: { $0.id == message.id }) else {
+                      var updated = self.sharedGalleryMessages.first(where: { $0.id == message.id }) else {
                     return
                 }
                 updated.thumbnailUrl = poster
@@ -1043,7 +1085,7 @@ class ConversationSettingsViewModel: ObservableObject {
                 return
             }
             await MainActor.run {
-                var updated = self.sharedMediaMessages.first(where: { $0.id == message.id }) ?? message
+                var updated = self.sharedGalleryMessages.first(where: { $0.id == message.id }) ?? message
                 updated.mediaUrl = mediaUrl
                 if let thumbnailUrl {
                     updated.thumbnailUrl = thumbnailUrl
@@ -1607,6 +1649,12 @@ struct FullScreenMediaView: View {
         currentMedia.sourceMessage?.type == .ephemeral || !currentMedia.allowsSaving
     }
 
+    private func isScreenshotProtectedMedia(_ item: SharedMedia) -> Bool {
+        item.sourceMessage?.isVanishModeMessage == true
+            || item.sourceMessage?.type == .ephemeral
+            || !item.allowsSaving
+    }
+
     private var ephemeralExpirationDate: Date? {
         currentMedia.sourceMessage?.expirationDate
     }
@@ -1752,7 +1800,7 @@ struct FullScreenMediaView: View {
         let isOutgoing = item.senderId == currentUserId
         let reactions = displayReactions?(item.id)
 
-        Group {
+        let mediaBody = Group {
             switch item.type {
             case .image:
                 KFImage(URL(string: item.originalUrl))
@@ -1801,6 +1849,16 @@ struct FullScreenMediaView: View {
                         .foregroundColor(primaryOverlayColor)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+            }
+        }
+
+        Group {
+            if isScreenshotProtectedMedia(item) {
+                ScreenshotProtectedView(isProtected: true, fillsContainer: true) {
+                    mediaBody
+                }
+            } else {
+                mediaBody
             }
         }
         .messageReactionOverlay(

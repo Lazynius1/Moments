@@ -57,7 +57,9 @@ extension ChatService {
 
         let rawContent = data["content"] as? String
         let decryptedContent: String?
-        if let decryptedContentOverride {
+        if type == .chatNotice {
+            decryptedContent = rawContent
+        } else if let decryptedContentOverride {
             decryptedContent = decryptedContentOverride
         } else if let rawContent {
             decryptedContent = await decryptMessageContent(rawContent, for: conversationId)
@@ -72,7 +74,9 @@ extension ChatService {
         var locationName = data["locationName"] as? String
         var locationAddress = data["locationAddress"] as? String
         let content: String?
-        if type == .location {
+        if type == .chatNotice {
+            content = rawContent
+        } else if type == .location {
             if let decryptedContent, let payload = ChatLocationPayload.decode(decryptedContent) {
                 locationLatitude = payload.lat
                 locationLongitude = payload.lng
@@ -151,8 +155,12 @@ extension ChatService {
             sharedStoryData: data["sharedStoryData"] as? [String: String],
             mediaBatchId: data["mediaBatchId"] as? String,
             viewedBy: data["viewedBy"] as? [String],
+            readBy: data["readBy"] as? [String],
             starredBy: data["starredBy"] as? [String],
-            isForwarded: data["isForwarded"] as? Bool
+            isForwarded: data["isForwarded"] as? Bool,
+            isVanishModeMessage: data["isVanishModeMessage"] as? Bool,
+            vanishedFor: data["vanishedFor"] as? [String],
+            vanishExpiresAt: (data["vanishExpiresAt"] as? Timestamp)?.dateValue()
         )
     }
 

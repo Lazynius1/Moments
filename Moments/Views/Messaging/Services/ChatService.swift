@@ -212,6 +212,13 @@ class ChatService: ObservableObject {
                     return
                 }
 
+                if let vanishedFor = data["vanishedFor"] as? [String],
+                   let currentUserId = Auth.auth().currentUser?.uid,
+                   vanishedFor.contains(currentUserId) {
+                    await MainActor.run { completion(.success(nil)) }
+                    return
+                }
+
                 var message = await buildEnhancedMessage(
                     from: data,
                     docId: document.documentID,
@@ -377,6 +384,12 @@ class ChatService: ObservableObject {
                     continue
                 }
 
+                if let vanishedFor = data["vanishedFor"] as? [String],
+                   let currentUserId = Auth.auth().currentUser?.uid,
+                   vanishedFor.contains(currentUserId) {
+                    continue
+                }
+
                 if let cutoff = cutoffDateToUse,
                    let msgTimestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
                    msgTimestamp <= cutoff {
@@ -455,7 +468,7 @@ class ChatService: ObservableObject {
         }
     }
     
-    func sendTextMessage(conversationId: String, senderId: String, content: String, replyTo: String? = nil, messageId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendTextMessage(conversationId: String, senderId: String, content: String, replyTo: String? = nil, messageId: String? = nil, isVanishModeMessage: Bool = false, vanishExpiresAt: Date? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let finalMessageId = messageId ?? UUID().uuidString
         
         // 🔐 Encrypt content before sending (Async)
@@ -484,7 +497,9 @@ class ChatService: ObservableObject {
                 reactions: nil,
                 replyTo: replyTo,
                 expirationDate: nil,
-                isViewed: false
+                isViewed: false,
+                isVanishModeMessage: isVanishModeMessage ? true : nil,
+                vanishExpiresAt: vanishExpiresAt
             )
             
             sendMessage(message, useServerTimestamp: true, completion: completion)
@@ -592,7 +607,7 @@ class ChatService: ObservableObject {
         }
     }
     
-    func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, mediaBatchId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, mediaBatchId: String? = nil, isVanishModeMessage: Bool = false, vanishExpiresAt: Date? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let finalMessageId = messageId ?? UUID().uuidString
         uploadMedia(data: mediaData, type: type, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
@@ -625,7 +640,9 @@ class ChatService: ObservableObject {
                     replyTo: nil,
                     expirationDate: nil,
                     isViewed: false,
-                    mediaBatchId: mediaBatchId
+                    mediaBatchId: mediaBatchId,
+                    isVanishModeMessage: isVanishModeMessage ? true : nil,
+                    vanishExpiresAt: vanishExpiresAt
                 )
                 
                 self?.sendMessage(message, useServerTimestamp: true, completion: completion)
@@ -899,7 +916,11 @@ class ChatService: ObservableObject {
         
         // ✅ Add optional fields (content is already encrypted if needed)
         if let content = message.content {
-            messageData["content"] = content // Already encrypted for text messages
+            if message.type == .chatNotice {
+                messageData["content"] = content
+            } else {
+                messageData["content"] = content // Already encrypted for text messages
+            }
         }
         if let mediaObjectPath = message.mediaObjectPath {
             messageData["mediaObjectPath"] = mediaObjectPath
@@ -980,6 +1001,12 @@ class ChatService: ObservableObject {
         }
         if message.isForwarded == true {
             messageData["isForwarded"] = true
+        }
+        if message.isVanishModeMessage == true {
+            messageData["isVanishModeMessage"] = true
+        }
+        if let vanishExpiresAt = message.vanishExpiresAt {
+            messageData["vanishExpiresAt"] = Timestamp(date: vanishExpiresAt)
         }
         if let starredBy = message.starredBy, !starredBy.isEmpty {
             messageData["starredBy"] = starredBy
@@ -1576,6 +1603,15 @@ class ChatService: ObservableObject {
                     if let rawMap = data["lastDeletedAt"] as? [String: Timestamp] {
                         conversation.lastDeletedAt = rawMap.mapValues { $0.dateValue() }
                     }
+                    conversation.vanishModeActive = data["vanishModeActive"] as? Bool ?? false
+                    conversation.vanishModeEnabledBy = data["vanishModeEnabledBy"] as? String
+                    if let enabledAt = data["vanishModeEnabledAt"] as? Timestamp {
+                        conversation.vanishModeEnabledAt = enabledAt.dateValue()
+                    }
+                    conversation.vanishMessageTimer = data["vanishMessageTimer"] as? String
+                        ?? VanishMessageTimer.default.rawValue
+                    conversation.vanishSettingsNoticeMessageId = data["vanishSettingsNoticeMessageId"] as? String
+                    conversation.vanishDisabledNoticeMessageId = data["vanishDisabledNoticeMessageId"] as? String
                     conversations.append(conversation)
                 }
 
@@ -1617,7 +1653,7 @@ class ChatService: ObservableObject {
     func listenToConversationForwardingPreferences(
         conversationId: String,
         replaceExisting: Bool = true,
-        onChange: @escaping (_ forwarding: [String: Bool], _ buzz: [String: Bool]) -> Void
+        onChange: @escaping (_ forwarding: [String: Bool], _ buzz: [String: Bool], _ vanishModeActive: Bool, _ vanishMessageTimer: VanishMessageTimer) -> Void
     ) {
         let listenerKey = "conversation_prefs_\(conversationId)"
         if !replaceExisting, activeListeners[listenerKey] != nil {
@@ -1632,7 +1668,11 @@ class ChatService: ObservableObject {
                 guard error == nil, let data = snapshot?.data() else { return }
                 let forwarding = data["forwardingPreferences"] as? [String: Bool] ?? [:]
                 let buzz = data["buzzPreferences"] as? [String: Bool] ?? [:]
-                onChange(forwarding, buzz)
+                let vanishModeActive = data["vanishModeActive"] as? Bool ?? false
+                let vanishMessageTimer = VanishMessageTimer(
+                    storedValue: data["vanishMessageTimer"] as? String
+                )
+                onChange(forwarding, buzz, vanishModeActive, vanishMessageTimer)
             }
 
         activeListeners[listenerKey] = listener
@@ -2169,6 +2209,12 @@ class ChatService: ObservableObject {
             hydrated.buzzPreferences = conversation.buzzPreferences
             hydrated.forwardingPreferences = conversation.forwardingPreferences
             hydrated.lastDeletedAt = conversation.lastDeletedAt
+            hydrated.vanishModeActive = conversation.vanishModeActive
+            hydrated.vanishModeEnabledBy = conversation.vanishModeEnabledBy
+            hydrated.vanishModeEnabledAt = conversation.vanishModeEnabledAt
+            hydrated.vanishMessageTimer = conversation.vanishMessageTimer
+            hydrated.vanishSettingsNoticeMessageId = conversation.vanishSettingsNoticeMessageId
+            hydrated.vanishDisabledNoticeMessageId = conversation.vanishDisabledNoticeMessageId
             hydratedConversations.append(hydrated)
         }
 
@@ -2183,8 +2229,7 @@ class ChatService: ObservableObject {
         }
 
         // Respetar el ajuste de privacidad "Mostrar vista previa" POR CONVERSACIÓN (default: ON).
-        let previewEnabled = UserDefaults(suiteName: "group.com.glowsyapp")?
-            .object(forKey: "chat_show_message_preview_\(conversationId)") as? Bool ?? true
+        let previewEnabled = ChatPreviewPrivacy.isUserPreviewEnabled(for: conversationId)
         guard previewEnabled else {
             return conversation.lastMessage ?? ""
         }
@@ -2211,6 +2256,14 @@ class ChatService: ObservableObject {
                     continue
                 }
 
+                let isVanishMessage = ChatPreviewPrivacy.isVanishModeMessage(in: data)
+                if !ChatPreviewPrivacy.shouldRevealPreview(
+                    for: conversationId,
+                    isVanishModeMessage: isVanishMessage
+                ) {
+                    return neutralConversationPreview(for: messageType)
+                }
+
                 if messageType == .text {
                     guard let encryptedContent = data["content"] as? String, !encryptedContent.isEmpty else {
                         continue
@@ -2235,51 +2288,6 @@ class ChatService: ObservableObject {
     
     func ensureEncryptionService() -> EncryptionService {
         return EncryptionService.shared
-    }
-    
-    // MARK: - Search with Decryption
-    func searchMessages(conversationId: String, query: String, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-                
-                guard let documents = snapshot?.documents else {
-                    completion(.success([]))
-                    return
-                }
-
-                Task {
-                    var matchingMessages: [EnhancedMessage] = []
-                    let normalizedQuery = query.lowercased()
-
-                    for doc in documents {
-                        let data = doc.data()
-                        guard let encryptedContent = data["content"] as? String else { continue }
-
-                        let decryptedContent = await self.decryptMessageContent(encryptedContent, for: conversationId)
-                        guard decryptedContent.lowercased().contains(normalizedQuery) else { continue }
-
-                        let message = await self.buildEnhancedMessage(
-                            from: data,
-                            docId: doc.documentID,
-                            conversationId: conversationId,
-                            decryptedContentOverride: decryptedContent
-                        )
-                        matchingMessages.append(message)
-                    }
-
-                    await MainActor.run {
-                        completion(.success(matchingMessages))
-                    }
-                }
-            }
     }
     
     func preloadConversationKey(for conversationId: String) async {

@@ -30,6 +30,18 @@ class HapticManager {
         notificationFeedback.prepare()
     }
 
+    /// Tick háptico continuo durante pull de vanish (estilo IG).
+    func vanishPullStep() {
+        selectionFeedback.selectionChanged()
+        selectionFeedback.prepare()
+    }
+
+    /// Umbral alcanzado al completar el arco.
+    func vanishPullThresholdReached() {
+        impactLight.impactOccurred(intensity: 0.72)
+        impactLight.prepare()
+    }
+
     /// Triggered when the user changes a selection (e.g., Tab Bar)
     func selection() {
         selectionFeedback.selectionChanged()

@@ -90,13 +90,13 @@ class EnhancedChatViewModel: ObservableObject {
     private var hydratingMediaIds = Set<String>()
     @Published private(set) var downloadingMediaIds = Set<String>()
     private var refreshingMetadataIds = Set<String>()
-    
+
     // ✅ NUEVO: Flag para bloquear listener temporalmente
     private var isUpdatingLocalMessage = false
-    
+
     // ✅ NUEVO: Flag para saber si el chat está visible (para marcar como leído solo cuando está visible)
     var isChatVisible = false
-    
+
     // ✅ PAGINACIÓN
     @Published var isLoadingMore = false
     @Published var isLoadingOlderHistory = false
@@ -107,17 +107,25 @@ class EnhancedChatViewModel: ObservableObject {
     private static let historyPageSize = 50
     @Published private(set) var forwardingPreferences: [String: Bool] = [:]
     @Published private(set) var buzzPreferences: [String: Bool] = [:]
+    @Published private(set) var vanishModeActive = false
+    @Published private(set) var vanishMessageTimer: VanishMessageTimer = .default
     /// Fuente de verdad para pintar reacciones al instante (SwiftUI no siempre detecta cambios en `message.reactions`).
     @Published private(set) var liveReactionOverlays: [String: [String: [String]]] = [:]
     @Published var latestBuzzEvent: ChatBuzzEvent?
     @Published private(set) var buzzEvents: [ChatBuzzEvent] = []
+    @Published private(set) var searchResults: [String] = []
+    @Published private(set) var isSearchingHistory = false
+    private var searchDebounceTask: Task<Void, Never>?
+    private var activeSearchToken = UUID()
     private var historicalMessages: [EnhancedMessage] = []
     private var realTimeMessages: [EnhancedMessage] = []
     /// Ocultos con «Eliminar para mí» hasta que Firestore confirme `deletedFor`.
     private var hiddenForMeMessageIds = Set<String>()
+    /// Ocultos optimistamente al cerrar sesión vanish antes de que Firestore confirme `vanishedFor`.
+    private var optimisticallyHiddenVanishIds = Set<String>()
     private var seenBuzzEventIds = Set<String>()
-    
-    let conversation: Conversation
+
+    @Published var conversation: Conversation
     let currentUserId: String
     private let chatService = ChatService.shared
     private let firestoreService = FirestoreService()
@@ -126,7 +134,7 @@ class EnhancedChatViewModel: ObservableObject {
     private var typingTimer: Timer?
     private var messageStatusObserver: NSObjectProtocol?
     private var mediaUploadObserver: NSObjectProtocol?
-    
+
     // ✅ NUEVO: Flag para detectar la primera carga de Firestore (merge-first, sin wipe de caché)
     private var isFirstFetch = true
 
@@ -141,12 +149,14 @@ class EnhancedChatViewModel: ObservableObject {
     private var didLoadCacheFromSwiftData = false
     private var requestedHighlightMessageIds = Set<String>()
     private static let listenerPauseTTL: UInt64 = 180_000_000_000
-    
+
     init(conversation: Conversation) {
         self.conversation = conversation
         self.currentUserId = Auth.auth().currentUser?.uid ?? ""
         self.forwardingPreferences = conversation.forwardingPreferences ?? [:]
         self.buzzPreferences = conversation.buzzPreferences ?? [:]
+        self.vanishModeActive = conversation.vanishModeActive ?? false
+        self.vanishMessageTimer = VanishMessageTimer(storedValue: conversation.vanishMessageTimer)
 
         // ✅ Configurar listener para actualizaciones de estado locales
         setupLocalStatusListener()
@@ -154,7 +164,7 @@ class EnhancedChatViewModel: ObservableObject {
         setupIngestListener()
         refreshTypingIndicatorPreference()
     }
-    
+
     // ✅ NUEVA: Configurar listener para actualizaciones de estado locales
     private func setupLocalStatusListener() {
         messageStatusObserver = NotificationCenter.default.addObserver(
@@ -170,8 +180,8 @@ class EnhancedChatViewModel: ObservableObject {
                   conversationId == self?.conversation.id else {
                 return
             }
-            
-            
+
+
             // ✅ Usar la nueva función para actualizar el array
             Task { @MainActor [weak self] in
                 self?.updateMessageInArray(messageId: messageId, newStatus: status)
@@ -189,7 +199,7 @@ class EnhancedChatViewModel: ObservableObject {
                   let progress = userInfo["progress"] as? Double else {
                 return
             }
-            
+
             DispatchQueue.main.async {
                 self?.setUploadProgress(progress, for: messageId)
             }
@@ -318,11 +328,11 @@ class EnhancedChatViewModel: ObservableObject {
             forwardingPreferences = updated
         }
     }
-    
+
     private func typingIndicatorPreferenceKey(for conversationId: String) -> String {
         "chat_typing_indicator_enabled_\(conversationId)"
     }
-    
+
     private func resolvedTypingIndicatorPreference(for conversationId: String) -> Bool {
         let defaults = UserDefaults.standard
         let perChatKey = typingIndicatorPreferenceKey(for: conversationId)
@@ -337,24 +347,24 @@ class EnhancedChatViewModel: ObservableObject {
 
         return true
     }
-    
+
     private func setupTypingUsersSubscription(conversationId: String) {
         typingUsersCancellable?.cancel()
         typingUsersCancellable = chatService.$typingUsers
             .compactMap { $0[conversationId] }
             .sink { [weak self] typingUsers in
                 guard let self = self else { return }
-                
+
                 guard self.typingIndicatorEnabled else {
                     self.typingUsers = []
                     return
                 }
-                
+
                 let filteredUsers = typingUsers.filter { $0 != self.currentUserId }
                 self.typingUsers = filteredUsers
             }
     }
-    
+
     private func applyTypingPreference(conversationId: String) {
         if typingIndicatorEnabled {
             chatService.listenToTypingIndicators(conversationId: conversationId)
@@ -367,19 +377,19 @@ class EnhancedChatViewModel: ObservableObject {
             typingUsersCancellable = nil
         }
     }
-    
+
     func refreshTypingIndicatorPreference() {
         guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
         typingIndicatorEnabled = resolvedTypingIndicatorPreference(for: conversationId)
         applyTypingPreference(conversationId: conversationId)
     }
-    
+
     // ✅ NUEVA: Función para preservar mensajes temporales
     private func preserveTemporaryMessages(_ newMessages: [EnhancedMessage]) -> [EnhancedMessage] {
         let temporaryMessages = self.messages.filter { $0.status == .sending }
 
         var mergedMessages = newMessages
-        
+
         for tempMessage in temporaryMessages {
             // Solo agregar si NO existe ya en Firestore
             if !mergedMessages.contains(where: { $0.id == tempMessage.id }) {
@@ -399,7 +409,7 @@ class EnhancedChatViewModel: ObservableObject {
                 mergedMessages.append(tempMessage)
             }
         }
-        
+
         // ✅ CORREGIDO: Solo aplicar estado local si es MÁS AVANZADO que el de Firestore
         // Orden de prioridad: sending < sent < delivered < read
         // No sobrescribir un estado más avanzado con uno menos avanzado
@@ -410,13 +420,13 @@ class EnhancedChatViewModel: ObservableObject {
             .read: 3,
             .failed: -1
         ]
-        
+
         for (messageId, localStatus) in localMessageStates {
             if let index = mergedMessages.firstIndex(where: { $0.id == messageId }) {
                 let firestoreStatus = mergedMessages[index].status
                 let localPriority = statusPriority[localStatus] ?? 0
                 let firestorePriority = statusPriority[firestoreStatus] ?? 0
-                
+
                 // Solo aplicar local si es más avanzado O si es failed
                 if localPriority > firestorePriority || localStatus == .failed {
                     mergedMessages[index].status = localStatus
@@ -455,10 +465,10 @@ class EnhancedChatViewModel: ObservableObject {
                 live: mergedMessages[index].reactions
             )
         }
-        
+
         return mergedMessages.sorted { $0.timestamp < $1.timestamp }
     }
-    
+
     // ✅ NUEVA: Función para actualizar el array de manera que SwiftUI lo detecte
     func updateMessageInArray(messageId: String, newStatus: MessageStatus) {
         applyOutgoingMessageUpdate(messageId: messageId, status: newStatus, mediaUrl: nil, thumbnailUrl: nil)
@@ -960,7 +970,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     // ✅ NUEVA: Función para limpiar estados locales después de un tiempo
     private func cleanupLocalStates() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
@@ -968,19 +978,20 @@ class EnhancedChatViewModel: ObservableObject {
             self.uploadProgress = [:]
         }
     }
-    
+
     private func rebuildMessagesList() {
         // 1. Unir real-time + históricos (PRIORIDAD AL REAL-TIME para cambios de estado)
         let allMessages = messagesRespectingDeletionCutoff(realTimeMessages + historicalMessages)
             .filter { !hiddenForMeMessageIds.contains($0.id) }
-        
+            .filter { !isVanishMessageHiddenFromCurrentUser($0) }
+
         // 2. Deduplicar por ID (se queda con el primero que encuentre, que ahora es el real-time)
         var seenIds = Set<String>()
         let uniqueMessages = allMessages.filter { seenIds.insert($0.id).inserted }
-        
+
         // 3. Ordenar
         let sortedMessages = uniqueMessages.sorted { $0.timestamp < $1.timestamp }
-        
+
         // 4. Preservar temporales y estados locales
         var finalMessages = preserveTemporaryMessages(sortedMessages)
         persistDiskCachedMediaURLs(into: &finalMessages)
@@ -1006,6 +1017,13 @@ class EnhancedChatViewModel: ObservableObject {
     private func messagesRespectingDeletionCutoff(_ messages: [EnhancedMessage]) -> [EnhancedMessage] {
         guard let cutoff = effectiveDeletedAtCutoff() else { return messages }
         return messages.filter { $0.timestamp > cutoff }
+    }
+
+    private func isVanishMessageHiddenFromCurrentUser(_ message: EnhancedMessage) -> Bool {
+        guard message.isVanishModeMessage == true else { return false }
+        if optimisticallyHiddenVanishIds.contains(message.id) { return true }
+        if VanishMessageTimer.isExpired(message.vanishExpiresAt) { return true }
+        return message.isVanished(forUserId: currentUserId)
     }
 
     private func commitReactionPresentation(conversationId: String? = nil) {
@@ -1138,7 +1156,7 @@ class EnhancedChatViewModel: ObservableObject {
         if let intentId = intentHighlightIds.first { return intentId }
         return soleOwnMessageWithExternalReactionId()
     }
-    
+
     // ✅ FUNCIÓN: Cargar más mensajes (SwiftData primero, luego Firestore)
     func loadMoreMessages() {
         guard !isLoadingMore, canLoadMore, let conversationId = conversation.id, let oldest = messages.first else {
@@ -1275,12 +1293,12 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     // ✅ NUEVA: Función para reemplazar mensaje temporal
     private func replaceTemporaryMessage(messageId: String, with sentMessage: EnhancedMessage) {
         // ✅ Limpiar estado local ya que el mensaje se ha enviado
         localMessageStates.removeValue(forKey: messageId)
-        
+
         if let index = messages.firstIndex(where: { $0.id == messageId }) {
             DispatchQueue.main.async {
                 self.messages[index] = sentMessage
@@ -1295,7 +1313,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Lifecycle
 
     func loadCachedMessagesIfNeeded() {
@@ -1324,6 +1342,7 @@ class EnhancedChatViewModel: ObservableObject {
         guard !recentMessages.isEmpty else { return }
 
         historicalMessages = Array(recentMessages.suffix(windowSize))
+        hydrateLocallyHiddenVanishMessages(from: recentMessages)
         rebuildMessagesList()
         syncLiveReactionOverlays(from: messages)
         prefetchUnresolvedMediaIfNeeded()
@@ -1370,6 +1389,7 @@ class EnhancedChatViewModel: ObservableObject {
         rebuildMessagesList()
         prefetchUnresolvedMediaIfNeeded()
         LocalPersistenceService.shared.reconcileMessages(realTimeMessages, conversationId: conversationId)
+        stampVanishExpiryIfNeeded()
         isFirstFetch = false
     }
 
@@ -1384,6 +1404,16 @@ class EnhancedChatViewModel: ObservableObject {
            let thumbnailUrl = existing.thumbnailUrl,
            !existing.hasMissingLocalThumbnail {
             incoming.thumbnailUrl = thumbnailUrl
+        }
+        if let vanishedFor = existing.vanishedFor, !vanishedFor.isEmpty {
+            incoming.vanishedFor = Array(Set((incoming.vanishedFor ?? []) + vanishedFor))
+        }
+        if optimisticallyHiddenVanishIds.contains(incoming.id) {
+            var vanished = incoming.vanishedFor ?? []
+            if !vanished.contains(currentUserId) {
+                vanished.append(currentUserId)
+            }
+            incoming.vanishedFor = vanished
         }
     }
 
@@ -1430,10 +1460,25 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
-        chatService.listenToConversationForwardingPreferences(conversationId: conversationId, replaceExisting: false) { [weak self] forwarding, buzz in
+        chatService.listenToConversationForwardingPreferences(conversationId: conversationId, replaceExisting: false) { [weak self] forwarding, buzz, vanishActive, timer in
             DispatchQueue.main.async {
                 self?.forwardingPreferences = forwarding
                 self?.buzzPreferences = buzz
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                    self?.vanishModeActive = vanishActive
+                }
+                self?.conversation.vanishModeActive = vanishActive
+                self?.vanishMessageTimer = timer
+                if let conversationId = self?.conversation.id {
+                    NotificationCenter.default.post(
+                        name: .conversationVanishModeDidChange,
+                        object: nil,
+                        userInfo: [
+                            "conversationId": conversationId,
+                            "vanishModeActive": vanishActive
+                        ]
+                    )
+                }
             }
         }
 
@@ -1546,7 +1591,7 @@ class EnhancedChatViewModel: ObservableObject {
             completion: completion
         )
     }
-    
+
     // ✅ NUEVA: Cleanup cuando se destruye el ViewModel
     deinit {
         if let messageStatusObserver {
@@ -1557,15 +1602,15 @@ class EnhancedChatViewModel: ObservableObject {
         }
         typingUsersCancellable?.cancel()
     }
-    
+
     // MARK: - Send Messages
-    
+
     func sendTextMessage(_ text: String, replyTo: String? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = "No se puede enviar el mensaje: ID de conversación no válido"
             return
         }
-        
+
         // ✅ Crear mensaje local inmediatamente para feedback visual
         let messageId = UUID().uuidString
         let tempMessage = EnhancedMessage(
@@ -1575,18 +1620,22 @@ class EnhancedChatViewModel: ObservableObject {
             type: .text,
             content: text,
             status: .sending,
-            replyTo: replyTo
+            replyTo: replyTo,
+            isVanishModeMessage: vanishModeActive ? true : nil,
+            vanishExpiresAt: nil
         )
-        
+
         // Agregar mensaje temporal a la lista local
         appendOutgoingMessage(tempMessage)
-        
+
         chatService.sendTextMessage(
             conversationId: conversationId,
             senderId: currentUserId,
             content: text,
             replyTo: replyTo,
-            messageId: messageId // ✅ Pasar el mismo ID
+            messageId: messageId,
+            isVanishModeMessage: vanishModeActive,
+            vanishExpiresAt: nil
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -1602,7 +1651,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     func sendImageMessage(_ image: UIImage) {
         sendImageMessage(image, mediaBatchId: nil)
     }
@@ -1612,12 +1661,12 @@ class EnhancedChatViewModel: ObservableObject {
             error = "No se puede enviar la imagen: ID de conversación no válido"
             return
         }
-        
+
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
             error = "No se puede enviar la imagen"
             return
         }
-        
+
         let messageId = UUID().uuidString
         let localPreview = localOutgoingPreviewURL(
             data: imageData,
@@ -1638,19 +1687,23 @@ class EnhancedChatViewModel: ObservableObject {
             mediaWidth: pixelWidth > 0 ? pixelWidth : nil,
             mediaHeight: pixelHeight > 0 ? pixelHeight : nil,
             status: .sending,
-            mediaBatchId: mediaBatchId
+            mediaBatchId: mediaBatchId,
+            isVanishModeMessage: vanishModeActive ? true : nil,
+            vanishExpiresAt: nil
         )
-        
+
         // Agregar mensaje temporal a la lista local
         appendOutgoingMessage(tempMessage)
-        
+
         chatService.sendMediaMessage(
             conversationId: conversationId,
             senderId: currentUserId,
             type: .image,
             mediaData: imageData,
             messageId: messageId, // ✅ Pasar el mismo ID
-            mediaBatchId: mediaBatchId
+            mediaBatchId: mediaBatchId,
+            isVanishModeMessage: vanishModeActive,
+            vanishExpiresAt: nil
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -1668,7 +1721,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     func handlePhotoPickerItem(_ item: PhotosPickerItem, mediaBatchId: String? = nil) {
         Task {
             if let data = try? await item.loadTransferable(type: Data.self) {
@@ -1770,7 +1823,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     func sendVideoMessage(data: Data) {
         sendVideoMessage(data: data, mediaBatchId: nil)
     }
@@ -1780,8 +1833,8 @@ class EnhancedChatViewModel: ObservableObject {
             error = "No se puede enviar el video: ID de conversación no válido"
             return
         }
-        
-        
+
+
         let messageId = UUID().uuidString
         let localPreview = localOutgoingPreviewURL(
             data: data,
@@ -1796,19 +1849,23 @@ class EnhancedChatViewModel: ObservableObject {
             type: .video,
             mediaUrl: localPreview,
             status: .sending,
-            mediaBatchId: mediaBatchId
+            mediaBatchId: mediaBatchId,
+            isVanishModeMessage: vanishModeActive ? true : nil,
+            vanishExpiresAt: nil
         )
-        
+
         // Agregar mensaje temporal a la lista local
         appendOutgoingMessage(tempMessage)
-        
+
         chatService.sendMediaMessage(
             conversationId: conversationId,
             senderId: currentUserId,
             type: .video,
             mediaData: data,
             messageId: messageId, // ✅ Pasar el mismo ID
-            mediaBatchId: mediaBatchId
+            mediaBatchId: mediaBatchId,
+            isVanishModeMessage: vanishModeActive,
+            vanishExpiresAt: nil
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -1826,14 +1883,14 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     func sendLocationMessage(latitude: Double, longitude: Double) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = "No se puede enviar la ubicación: ID de conversación no válido"
             return
         }
-        
-        
+
+
         // ✅ Crear mensaje local inmediatamente para feedback visual
         let messageId = UUID().uuidString
         let tempMessage = EnhancedMessage(
@@ -1845,10 +1902,10 @@ class EnhancedChatViewModel: ObservableObject {
             longitude: longitude,
             status: .sending
         )
-        
+
         // Agregar mensaje temporal a la lista local
         appendOutgoingMessage(tempMessage)
-        
+
         chatService.sendLocationMessage(
             conversationId: conversationId,
             senderId: currentUserId,
@@ -1870,16 +1927,16 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Audio Messages
-    
+
     func sendAudioMessage(audioData: Data, duration: Double) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = "No se puede enviar el audio: ID de conversación no válido"
             return
         }
-        
-        
+
+
         // ✅ Crear mensaje local inmediatamente para feedback visual
         let messageId = UUID().uuidString
         let localPreview = localOutgoingPreviewURL(
@@ -1897,10 +1954,10 @@ class EnhancedChatViewModel: ObservableObject {
             duration: duration,
             status: .sending
         )
-        
+
         // Agregar mensaje temporal a la lista local
         appendOutgoingMessage(tempMessage)
-        
+
         chatService.sendAudioMessage(
             conversationId: conversationId,
             senderId: currentUserId,
@@ -1924,7 +1981,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func trackSuccessfulDirectMessage() {
         let targetUserId = conversation.otherParticipantId
         guard !targetUserId.isEmpty else { return }
@@ -1932,7 +1989,7 @@ class EnhancedChatViewModel: ObservableObject {
             AffinityTracker.shared.trackInteraction(type: .directMessage, with: targetUserId)
         }
     }
-    
+
     // MARK: - Message Actions
 
     private func removeMessageFromLocalStores(_ messageId: String) {
@@ -1976,7 +2033,7 @@ class EnhancedChatViewModel: ObservableObject {
         )
         rebuildMessagesList()
     }
-    
+
     func deleteMessageForEveryone(_ message: EnhancedMessage) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
@@ -1996,7 +2053,8 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
+
     func deleteMessageForMe(_ message: EnhancedMessage) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
@@ -2016,7 +2074,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     func editMessage(_ message: EnhancedMessage, newContent: String) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
@@ -2025,7 +2083,7 @@ class EnhancedChatViewModel: ObservableObject {
             error = NSLocalizedString("chat.error.editWindowExpired", comment: "")
             return
         }
-        
+
         chatService.editMessage(
             conversationId: conversationId,
             messageId: message.id,
@@ -2038,7 +2096,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     func addReaction(to message: EnhancedMessage, emoji: String) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
@@ -2052,7 +2110,7 @@ class EnhancedChatViewModel: ObservableObject {
             userId: currentUserId
         )
         setLiveReactions(updated, for: message.id)
-        
+
         chatService.addReaction(
             conversationId: conversationId,
             messageId: message.id,
@@ -2119,7 +2177,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Read Status
 
     func markVisibleConversationAsRead() {
@@ -2131,32 +2189,50 @@ class EnhancedChatViewModel: ObservableObject {
     private func applyOptimisticReadLocally() {
         var didChange = false
         var markedIds: [String] = []
-        for index in realTimeMessages.indices {
-            guard realTimeMessages[index].senderId != currentUserId,
-                  !realTimeMessages[index].isRead else { continue }
-            realTimeMessages[index].isRead = true
-            markedIds.append(realTimeMessages[index].id)
+
+        func markIncomingIfNeeded(_ message: inout EnhancedMessage) {
+            guard message.senderId != currentUserId, !message.isRead else { return }
+            message.isRead = true
+            markedIds.append(message.id)
             didChange = true
         }
 
+        for index in realTimeMessages.indices {
+            markIncomingIfNeeded(&realTimeMessages[index])
+        }
+        for index in historicalMessages.indices {
+            markIncomingIfNeeded(&historicalMessages[index])
+        }
+
         if let conversationId = conversation.id {
-            LocalPersistenceService.shared.markMessagesAsRead(conversationId: conversationId, messageIds: markedIds)
+            if !markedIds.isEmpty {
+                LocalPersistenceService.shared.markMessagesAsRead(conversationId: conversationId, messageIds: markedIds)
+            }
             LocalPersistenceService.shared.markConversationReadLocally(conversationId: conversationId, currentUserId: currentUserId)
         }
 
         guard didChange else { return }
+        stampVanishExpiryIfNeeded(messageIds: Set(markedIds))
         rebuildMessagesList()
     }
-    
+
+    private func hydrateLocallyHiddenVanishMessages(from loaded: [EnhancedMessage]) {
+        let hiddenIds = loaded
+            .filter { $0.isVanishModeMessage == true && $0.isVanished(forUserId: currentUserId) }
+            .map(\.id)
+        guard !hiddenIds.isEmpty else { return }
+        optimisticallyHiddenVanishIds.formUnion(hiddenIds)
+    }
+
     private func markUnreadMessagesAsRead(_ messages: [EnhancedMessage]) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
         }
-        
+
         let unreadMessages = messages.filter {
             !$0.isRead && $0.senderId != currentUserId
         }
-        
+
         if unreadMessages.isEmpty {
             // Si no hay mensajes individuales sin leer, de todos modos marcamos el documento de la conversación como leído (útil si se marcó como no leído manualmente).
             chatService.markConversationAsRead(conversationId: conversationId, userId: currentUserId)
@@ -2173,24 +2249,24 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Typing Indicator
-    
+
     private func handleTypingIndicator() {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
         }
-        
+
         guard typingIndicatorEnabled else {
             chatService.stopTyping(conversationId: conversationId, userId: currentUserId)
             return
         }
-        
+
         typingTimer?.invalidate()
-        
+
         if isTyping {
             chatService.startTyping(conversationId: conversationId, userId: currentUserId)
-            
+
             typingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.isTyping = false
@@ -2200,35 +2276,465 @@ class EnhancedChatViewModel: ObservableObject {
             chatService.stopTyping(conversationId: conversationId, userId: currentUserId)
         }
     }
-    
-    // MARK: - Search
-    
-    func searchMessages(query: String) {
+
+    // MARK: - Vanish mode
+
+    func toggleVanishMode(completion: ((Error?) -> Void)? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            completion?(NSError(domain: "ChatViewModel", code: -1))
             return
         }
-        
-        chatService.searchMessages(conversationId: conversationId, query: query) { [weak self] result in
+
+        let targetActive = !vanishModeActive
+        chatService.setVanishMode(
+            conversationId: conversationId,
+            active: targetActive,
+            userId: currentUserId,
+            timer: targetActive ? vanishMessageTimer : nil
+        ) { [weak self] error in
             DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    // Messages found successfully
-                    break
-                case .failure(let error):
-                    self?.error = error.localizedDescription
+                guard let self else { return }
+                if let error {
+                    completion?(error)
+                    return
+                }
+
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                    self.vanishModeActive = targetActive
+                }
+                self.conversation.vanishModeActive = targetActive
+                if !targetActive {
+                    self.purgeVanishMessagesLocally()
+                }
+                NotificationCenter.default.post(
+                    name: .conversationVanishModeDidChange,
+                    object: nil,
+                    userInfo: [
+                        "conversationId": conversationId,
+                        "vanishModeActive": targetActive
+                    ]
+                )
+                if targetActive {
+                    self.publishVanishEnabledNotice(completion: completion)
+                } else {
+                    self.publishVanishDisabledNotice(completion: completion)
                 }
             }
         }
     }
-    
+
+    func setVanishMessageTimer(_ timer: VanishMessageTimer?, completion: ((Error?) -> Void)? = nil) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            completion?(NSError(domain: "ChatViewModel", code: -1))
+            return
+        }
+
+        if timer == nil {
+            guard vanishModeActive else {
+                completion?(nil)
+                return
+            }
+            toggleVanishMode(completion: completion)
+            return
+        }
+
+        chatService.setVanishMessageTimer(conversationId: conversationId, timer: timer!) { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if let error {
+                    completion?(error)
+                    return
+                }
+                let selectedTimer = timer!
+                self.vanishMessageTimer = selectedTimer
+                self.conversation.vanishMessageTimer = selectedTimer.rawValue
+                if self.vanishModeActive {
+                    self.updateVanishEnabledNotice(
+                        noticeKey: selectedTimer.enabledNoticeToken,
+                        completion: completion
+                    )
+                } else {
+                    completion?(nil)
+                }
+            }
+        }
+    }
+
+    func handleChatDismissedForVanishMode() {
+        guard let conversationId = conversation.id else { return }
+
+        applyOptimisticReadLocally()
+
+        let eligibleIds = messages
+            .filter { $0.shouldHideVanishOnChatDismiss(for: currentUserId, timer: vanishMessageTimer) }
+            .map(\.id)
+        guard !eligibleIds.isEmpty else { return }
+
+        optimisticallyHiddenVanishIds.formUnion(eligibleIds)
+        LocalPersistenceService.shared.markVanishMessagesDismissed(
+            conversationId: conversationId,
+            messageIds: eligibleIds,
+            userId: currentUserId
+        )
+        chatService.markVanishMessagesVanishedForMe(
+            conversationId: conversationId,
+            messageIds: eligibleIds,
+            userId: currentUserId
+        )
+        rebuildMessagesList()
+    }
+
+    func refreshVanishExpiryPresentation() {
+        guard vanishMessageTimer != .onceSeen else { return }
+        rebuildMessagesList()
+    }
+
+    private func resolveVanishEnabledNoticeMessageId() -> String? {
+        if let stored = conversation.vanishSettingsNoticeMessageId, !stored.isEmpty,
+           messages.contains(where: { $0.id == stored && !$0.isDeleted }) {
+            return stored
+        }
+        return messages.last(where: { message in
+            guard message.type == .chatNotice, let content = message.content, !message.isDeleted else { return false }
+            return content.hasPrefix("disappearing:enabled:")
+        })?.id
+    }
+
+    private func resolveVanishDisabledNoticeMessageId() -> String? {
+        if let stored = conversation.vanishDisabledNoticeMessageId, !stored.isEmpty,
+           messages.contains(where: { $0.id == stored && !$0.isDeleted }) {
+            return stored
+        }
+        return messages.last(where: { message in
+            guard message.type == .chatNotice, let content = message.content, !message.isDeleted else { return false }
+            return content == VanishMessageTimer.disabledNoticeToken
+        })?.id
+    }
+
+    /// Activar vanish: borra el último notice "turned off" y publica uno nuevo "turned on".
+    private func publishVanishEnabledNotice(completion: ((Error?) -> Void)? = nil) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            completion?(NSError(domain: "ChatViewModel", code: -1))
+            return
+        }
+
+        removeVanishDisabledNoticeIfNeeded(conversationId: conversationId) { [weak self] in
+            guard let self else { return }
+            let noticeKey = self.vanishMessageTimer.enabledNoticeToken
+            self.chatService.sendChatNotice(
+                conversationId: conversationId,
+                senderId: self.currentUserId,
+                noticeKey: noticeKey
+            ) { [weak self] messageId, error in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if let messageId {
+                        self.conversation.vanishSettingsNoticeMessageId = messageId
+                        self.chatService.setVanishSettingsNoticeMessageId(
+                            conversationId: conversationId,
+                            messageId: messageId
+                        )
+                    }
+                    completion?(error)
+                }
+            }
+        }
+    }
+
+    /// Desactivar vanish: añade notice "turned off" (coexiste con el enabled). Anti-spam si ya hay uno activo.
+    private func publishVanishDisabledNotice(completion: ((Error?) -> Void)? = nil) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            completion?(NSError(domain: "ChatViewModel", code: -1))
+            return
+        }
+
+        let noticeKey = VanishMessageTimer.disabledNoticeToken
+
+        if let noticeId = resolveVanishDisabledNoticeMessageId() {
+            updateLocalNoticeContent(messageId: noticeId, noticeKey: noticeKey)
+            chatService.updateChatNotice(
+                conversationId: conversationId,
+                messageId: noticeId,
+                noticeKey: noticeKey
+            ) { error in
+                DispatchQueue.main.async {
+                    completion?(error)
+                }
+            }
+            return
+        }
+
+        chatService.sendChatNotice(
+            conversationId: conversationId,
+            senderId: currentUserId,
+            noticeKey: noticeKey
+        ) { [weak self] messageId, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if let messageId {
+                    self.conversation.vanishDisabledNoticeMessageId = messageId
+                    self.chatService.setVanishDisabledNoticeMessageId(
+                        conversationId: conversationId,
+                        messageId: messageId
+                    )
+                }
+                completion?(error)
+            }
+        }
+    }
+
+    /// Cambiar timer: actualiza solo el notice enabled existente (no duplica).
+    private func updateVanishEnabledNotice(noticeKey: String, completion: ((Error?) -> Void)? = nil) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            completion?(NSError(domain: "ChatViewModel", code: -1))
+            return
+        }
+
+        if let noticeId = resolveVanishEnabledNoticeMessageId() {
+            updateLocalNoticeContent(messageId: noticeId, noticeKey: noticeKey)
+            chatService.updateChatNotice(
+                conversationId: conversationId,
+                messageId: noticeId,
+                noticeKey: noticeKey
+            ) { error in
+                DispatchQueue.main.async {
+                    completion?(error)
+                }
+            }
+            return
+        }
+
+        chatService.sendChatNotice(
+            conversationId: conversationId,
+            senderId: currentUserId,
+            noticeKey: noticeKey
+        ) { [weak self] messageId, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if let messageId {
+                    self.conversation.vanishSettingsNoticeMessageId = messageId
+                    self.chatService.setVanishSettingsNoticeMessageId(
+                        conversationId: conversationId,
+                        messageId: messageId
+                    )
+                }
+                completion?(error)
+            }
+        }
+    }
+
+    private func removeVanishDisabledNoticeIfNeeded(
+        conversationId: String,
+        completion: @escaping () -> Void
+    ) {
+        guard let noticeId = resolveVanishDisabledNoticeMessageId() else {
+            completion()
+            return
+        }
+
+        removeMessageFromLocalStores(noticeId)
+        LocalPersistenceService.shared.removeCachedMessage(
+            conversationId: conversationId,
+            messageId: noticeId
+        )
+        conversation.vanishDisabledNoticeMessageId = nil
+        chatService.clearVanishDisabledNoticeMessageId(conversationId: conversationId)
+        chatService.deleteMessage(conversationId: conversationId, messageId: noticeId) { _ in
+            DispatchQueue.main.async {
+                completion()
+            }
+        }
+    }
+
+    private func updateLocalNoticeContent(messageId: String, noticeKey: String) {
+        func patch(in messages: inout [EnhancedMessage]) {
+            guard let index = messages.firstIndex(where: { $0.id == messageId }) else { return }
+            messages[index] = messages[index].replacingContent(noticeKey)
+        }
+
+        patch(in: &realTimeMessages)
+        patch(in: &historicalMessages)
+        rebuildMessagesList()
+
+        if let conversationId = conversation.id {
+            LocalPersistenceService.shared.updateMessageNoticeContent(
+                conversationId: conversationId,
+                messageId: messageId,
+                content: noticeKey
+            )
+        }
+    }
+
+    /// Ancla `vanishExpiresAt` cuando todos han visto (24h/7d), no al enviar.
+    private func stampVanishExpiryIfNeeded(messageIds: Set<String>? = nil) {
+        guard vanishModeActive,
+              vanishMessageTimer != .onceSeen,
+              let conversationId = conversation.id,
+              let expiresAt = vanishMessageTimer.expiresAt(from: Date()) else { return }
+
+        var stampedAny = false
+
+        func tryStamp(_ message: inout EnhancedMessage) {
+            guard message.isVanishModeMessage == true,
+                  message.type != .chatNotice,
+                  message.vanishExpiresAt == nil,
+                  message.everyoneHasSeen(for: currentUserId) else { return }
+            if let messageIds, !messageIds.contains(message.id) { return }
+            message.vanishExpiresAt = expiresAt
+            stampedAny = true
+            chatService.stampVanishExpiry(
+                conversationId: conversationId,
+                messageId: message.id,
+                expiresAt: expiresAt
+            )
+        }
+
+        for index in realTimeMessages.indices {
+            tryStamp(&realTimeMessages[index])
+        }
+        for index in historicalMessages.indices {
+            tryStamp(&historicalMessages[index])
+        }
+
+        if stampedAny {
+            rebuildMessagesList()
+        }
+    }
+
+    private func purgeVanishMessagesLocally() {
+        guard let conversationId = conversation.id else { return }
+        let vanishIds = messages
+            .filter { $0.isVanishModeMessage == true && $0.type != .chatNotice }
+            .map(\.id)
+        guard !vanishIds.isEmpty else { return }
+
+        optimisticallyHiddenVanishIds.formUnion(vanishIds)
+        historicalMessages.removeAll { vanishIds.contains($0.id) }
+        realTimeMessages.removeAll { vanishIds.contains($0.id) }
+        for id in vanishIds {
+            outgoingTempMessages.removeValue(forKey: id)
+        }
+        chatService.purgeVanishMessagesLocally(conversationId: conversationId, messageIds: vanishIds)
+        rebuildMessagesList()
+    }
+
+    func reportVanishScreenshotIfNeeded() {
+        guard vanishModeActive, let conversationId = conversation.id else { return }
+        chatService.reportVanishScreenshot(
+            conversationId: conversationId,
+            reporterId: currentUserId
+        )
+    }
+
+    func reportVanishScreenRecordingIfNeeded() {
+        guard vanishModeActive, let conversationId = conversation.id else { return }
+        chatService.reportVanishScreenRecording(
+            conversationId: conversationId,
+            reporterId: currentUserId
+        )
+    }
+
+    // MARK: - Search
+
+    func performSearch(query: String) {
+        searchDebounceTask?.cancel()
+
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let conversationId = conversation.id, !conversationId.isEmpty else {
+            searchResults = []
+            isSearchingHistory = false
+            return
+        }
+
+        let token = UUID()
+        activeSearchToken = token
+
+        searchDebounceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard let self, !Task.isCancelled, self.activeSearchToken == token else { return }
+
+            let normalizedQuery = trimmed.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            let inMemoryMatches = self.messages.filter { message in
+                let searchable = [message.content, message.preview]
+                    .compactMap { $0 }
+                    .joined(separator: " ")
+                    .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+                return searchable.contains(normalizedQuery)
+            }.map(\.id)
+
+            let localIds = LocalPersistenceService.shared.searchMessageIds(
+                conversationId: conversationId,
+                query: trimmed,
+                limit: 100
+            )
+
+            var merged = Self.mergeSearchResultIds(localIds + inMemoryMatches)
+            self.searchResults = merged
+
+            guard merged.count < 100 else {
+                self.isSearchingHistory = false
+                return
+            }
+
+            self.isSearchingHistory = true
+            let excluding = Set(merged)
+
+            self.chatService.searchMessages(
+                conversationId: conversationId,
+                query: trimmed,
+                excludingIds: excluding,
+                limit: 100 - merged.count
+            ) { [weak self] result in
+                DispatchQueue.main.async {
+                    guard let self, self.activeSearchToken == token else { return }
+                    self.isSearchingHistory = false
+                    if case .success(let remoteMatches) = result {
+                        let remoteIds = remoteMatches.map(\.id)
+                        merged = Self.mergeSearchResultIds(merged + remoteIds)
+                        self.searchResults = merged
+                        LocalPersistenceService.shared.appendMessages(remoteMatches, conversationId: conversationId)
+                    } else if case .failure(let error) = result {
+                        self.error = error.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+
+    func clearSearch() {
+        searchDebounceTask?.cancel()
+        activeSearchToken = UUID()
+        searchResults = []
+        isSearchingHistory = false
+    }
+
+    func prepareSearchJump(to messageId: String) {
+        guard !messageId.isEmpty else { return }
+        guard !messages.contains(where: { $0.id == messageId }) else { return }
+        loadMessageForHighlightIfNeeded(messageId: messageId)
+    }
+
+    private static func mergeSearchResultIds(_ ids: [String]) -> [String] {
+        var seen = Set<String>()
+        var merged: [String] = []
+        for id in ids where seen.insert(id).inserted {
+            merged.append(id)
+        }
+        return merged
+    }
+
+    func searchMessages(query: String) {
+        performSearch(query: query)
+    }
+
     // MARK: - Ephemeral Messages
-    
+
     func sendEphemeralMessage(content: String?, mediaUrl: String?, duration: Int = 24) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = "No se puede enviar mensaje efímero: ID de conversación no válido"
             return
         }
-        
+
         chatService.sendEphemeralMessage(
             conversationId: conversationId,
             senderId: currentUserId,
@@ -2247,12 +2753,12 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
+
     func markEphemeralAsViewed(_ message: EnhancedMessage) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
         }
-        
+
         chatService.markEphemeralAsViewed(
             conversationId: conversationId,
             messageId: message.id

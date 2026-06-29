@@ -762,6 +762,52 @@ final class LocalPersistenceService: ObservableObject {
         return cached.reversed().map { $0.toEnhancedMessage() }
     }
 
+    /// Búsqueda local en caché SwiftData (texto descifrado ya persistido).
+    func searchMessageIds(conversationId: String, query: String, limit: Int = 100) -> [String] {
+        guard limit > 0, let context = modelContext else { return [] }
+
+        let normalizedQuery = query
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        guard !normalizedQuery.isEmpty else { return [] }
+
+        let predicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
+        let descriptor = FetchDescriptor<CachedMessage>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.timestamp, order: .forward)]
+        )
+
+        guard let cached = try? context.fetch(descriptor) else { return [] }
+
+        var matches: [String] = []
+        matches.reserveCapacity(min(limit, cached.count))
+
+        for message in cached {
+            guard message.typeString == MessageType.text.rawValue else { continue }
+            let searchable = (message.content ?? "")
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            guard searchable.contains(normalizedQuery) else { continue }
+            matches.append(message.id)
+            if matches.count >= limit { break }
+        }
+
+        return matches
+    }
+
+    func markVanishMessagesDismissed(conversationId: String, messageIds: [String], userId: String) {
+        guard let context = modelContext, !messageIds.isEmpty else { return }
+        let ids = messageIds
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && ids.contains($0.id) && $0.isVanishModeMessage == true
+        }
+        if let cached = try? context.fetch(FetchDescriptor<CachedMessage>(predicate: predicate)) {
+            for message in cached where !message.vanishedFor.contains(userId) {
+                message.vanishedFor.append(userId)
+            }
+            saveContext()
+        }
+    }
+
     /// Re-enlaza URLs locales desde App Group (puede ejecutarse fuera del main).
     nonisolated static func applyDiskWarm(to message: EnhancedMessage) -> (mediaUrl: String?, thumbnailUrl: String?, changed: Bool) {
         let warmed = ChatCacheStore.localURLsIfPresent(for: message)
@@ -906,6 +952,28 @@ final class LocalPersistenceService: ObservableObject {
             if didUpdate {
                 saveContext()
             }
+        }
+    }
+
+    func updateMessageVanishExpiresAt(conversationId: String, messageId: String, expiresAt: Date) {
+        guard let context = modelContext else { return }
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && $0.id == messageId
+        }
+        if let message = try? context.fetch(FetchDescriptor<CachedMessage>(predicate: predicate)).first {
+            message.vanishExpiresAt = expiresAt
+            saveContext()
+        }
+    }
+
+    func updateMessageNoticeContent(conversationId: String, messageId: String, content: String) {
+        guard let context = modelContext else { return }
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && $0.id == messageId
+        }
+        if let message = try? context.fetch(FetchDescriptor<CachedMessage>(predicate: predicate)).first {
+            message.content = content
+            saveContext()
         }
     }
 
@@ -1566,6 +1634,7 @@ final class LocalPersistenceService: ObservableObject {
         existing.readReceiptPreferencesData = new.readReceiptPreferencesData
         existing.forwardingPreferencesData = new.forwardingPreferencesData
         existing.lastDeletedAtData = new.lastDeletedAtData
+        existing.vanishModeActive = new.vanishModeActive
         existing.lastSyncedAt = Date()
     }
     
@@ -1626,6 +1695,9 @@ final class LocalPersistenceService: ObservableObject {
         existing.sharedMomentDataEncoded = new.sharedMomentDataEncoded
         existing.sharedStoryDataEncoded = new.sharedStoryDataEncoded
         existing.viewedBy = new.viewedBy
+        existing.isVanishModeMessage = new.isVanishModeMessage
+        existing.vanishedFor = Array(Set(existing.vanishedFor + new.vanishedFor))
+        existing.vanishExpiresAt = new.vanishExpiresAt ?? existing.vanishExpiresAt
         existing.lastSyncedAt = Date()
     }
     

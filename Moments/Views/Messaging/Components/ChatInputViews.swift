@@ -5,6 +5,7 @@ struct GlassmorphicInputBar: View {
     @Binding var isTyping: Bool
     @Binding var isRecordingVoice: Bool
     @Binding var activeAttachmentSheet: ChatAttachmentSheetKind?
+    var isVanishModeActive: Bool = false
     let recordingTime: TimeInterval
     let onSend: () -> Void
     let onStartVoiceRecording: () -> Void
@@ -19,6 +20,14 @@ struct GlassmorphicInputBar: View {
         activeAttachmentSheet == .menu
     }
 
+    private var inputPlaceholder: LocalizedStringKey {
+        isVanishModeActive ? "chat.input.vanish.placeholder" : "chat.input.placeholder"
+    }
+
+    private var vanishStrokeColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.22)
+    }
+
     private func toggleAttachmentMenu() {
         withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
             activeAttachmentSheet = isMenuOpen ? nil : .menu
@@ -31,7 +40,7 @@ struct GlassmorphicInputBar: View {
                 ChatAttachmentPlusButton(isMenuOpen: isMenuOpen, action: toggleAttachmentMenu)
 
                 HStack(alignment: .center, spacing: 8) {
-                    TextField(LocalizedStringKey("chat.input.placeholder"), text: $text, axis: .vertical)
+                    TextField(inputPlaceholder, text: $text, axis: .vertical)
                         .lineLimit(1...6)
                         .font(.system(size: legacyPoppinsSize(15)))
                         .foregroundColor(adaptiveColors.primary)
@@ -46,26 +55,37 @@ struct GlassmorphicInputBar: View {
 
                     if text.isEmpty {
                         Button(action: onStartVoiceRecording) {
-                            AttachmentIconView(icon: .voice, preset: .chatVoiceInput, tintColor: adaptiveColors.mediaIconColor)
+                            AttachmentIconView(
+                                icon: .voice,
+                                preset: .chatVoiceInput,
+                                tintColor: adaptiveColors.mediaIconColor
+                            )
                         }
                         .padding(.trailing, 12)
                         .accessibilityLabel(Text("chat.input.voice.accessibility"))
                     }
                 }
-                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
-                .overlay(
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: !isVanishModeActive)
+                .background {
+                    if isVanishModeActive {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.02))
+                    }
+                }
+                .overlay {
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .stroke(
-                            colorScheme == .dark ?
-                            Color.white.opacity(0.08) :
-                            Color.black.opacity(0.05),
-                            lineWidth: 0.8
+                            isVanishModeActive ? vanishStrokeColor : (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)),
+                            style: isVanishModeActive
+                                ? StrokeStyle(lineWidth: 1.2, dash: [5, 4])
+                                : StrokeStyle(lineWidth: 0.8)
                         )
-                )
+                }
             } else {
                 VoiceRecordingBar(
                     recordingTime: recordingTime,
                     adaptiveColors: adaptiveColors,
+                    isVanishModeActive: isVanishModeActive,
                     onCancel: {
                         onStopVoiceRecording(false)
                     },
@@ -89,14 +109,22 @@ struct GlassmorphicInputBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
+        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isVanishModeActive)
     }
 }
 
 struct VoiceRecordingBar: View {
     let recordingTime: TimeInterval
     let adaptiveColors: AdaptiveColors
+    var isVanishModeActive: Bool = false
     let onCancel: () -> Void
     let onSend: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var vanishStrokeColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.22)
+    }
 
     private var formattedTime: String {
         let minutes = Int(recordingTime) / 60
@@ -140,6 +168,12 @@ struct VoiceRecordingBar: View {
             .padding(.vertical, 10)
             .glassmorphicChat()
             .clipShape(Capsule())
+            .overlay {
+                if isVanishModeActive {
+                    Capsule()
+                        .stroke(vanishStrokeColor, style: StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
+                }
+            }
 
             Button(action: onSend) {
                 Image(systemName: "paperplane.fill")

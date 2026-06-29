@@ -20,13 +20,19 @@ extension ChatService {
         for doc in documents {
             let data = doc.data()
 
-            if let deletedFor = data["deletedFor"] as? [String],
-               let currentUserId = Auth.auth().currentUser?.uid,
-               deletedFor.contains(currentUserId) {
-                continue
-            }
+                if let deletedFor = data["deletedFor"] as? [String],
+                   let currentUserId = Auth.auth().currentUser?.uid,
+                   deletedFor.contains(currentUserId) {
+                    continue
+                }
 
-            if let cutoff = cutoffDate,
+                if let vanishedFor = data["vanishedFor"] as? [String],
+                   let currentUserId = Auth.auth().currentUser?.uid,
+                   vanishedFor.contains(currentUserId) {
+                    continue
+                }
+
+                if let cutoff = cutoffDate,
                let msgTimestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
                msgTimestamp <= cutoff {
                 continue
@@ -62,6 +68,11 @@ extension ChatService {
 
         let remoteDeleted = data["isDeleted"] as? Bool ?? false
         if remoteDeleted != cached.isDeleted { return true }
+
+        if typeString == MessageType.chatNotice.rawValue {
+            let remoteContent = data["content"] as? String
+            if remoteContent != cached.content { return true }
+        }
 
         let remoteMediaPath = data["mediaObjectPath"] as? String
         if remoteMediaPath != cached.mediaObjectPath { return true }
@@ -102,11 +113,20 @@ extension ChatService {
         if let viewedBy = data["viewedBy"] as? [String] {
             message.viewedBy = viewedBy
         }
+        if let readBy = data["readBy"] as? [String] {
+            message.readBy = readBy
+        }
         if let starredBy = data["starredBy"] as? [String] {
             message.starredBy = starredBy
         }
         if let isForwarded = data["isForwarded"] as? Bool {
             message.isForwarded = isForwarded
+        }
+        if let vanishedFor = data["vanishedFor"] as? [String] {
+            message.vanishedFor = vanishedFor
+        }
+        if let vanishExpiresAt = (data["vanishExpiresAt"] as? Timestamp)?.dateValue() {
+            message.vanishExpiresAt = vanishExpiresAt
         }
 
         if message.isDeleted {

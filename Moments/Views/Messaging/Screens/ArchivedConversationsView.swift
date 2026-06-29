@@ -1,6 +1,10 @@
 import SwiftUI
 import FirebaseAuth
 
+private struct ArchivedProfileRoute: Identifiable, Hashable {
+    let id: String
+}
+
 struct ArchivedConversationsView: View {
     @ObservedObject var viewModel: MessagingViewModel
     @Environment(\.colorScheme) private var colorScheme
@@ -16,6 +20,8 @@ struct ArchivedConversationsView: View {
 
     @State private var conversationMenuSelection: ConversationMenuSelection?
     @State private var conversationRowFrames: [String: CGRect] = [:]
+    @Namespace private var profileZoomNamespace
+    @State private var profileRoute: ArchivedProfileRoute?
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -83,6 +89,10 @@ struct ArchivedConversationsView: View {
                 dismiss()
             }
         }
+        .navigationDestination(item: $profileRoute) { route in
+            UserProfileView(userId: route.id)
+                .userProfileZoomDestination(userId: route.id, namespace: profileZoomNamespace)
+        }
     }
 
     private var emptyState: some View {
@@ -105,6 +115,8 @@ struct ArchivedConversationsView: View {
             conversation: conversation,
             isMenuSelected: isMenuSelected,
             colorScheme: colorScheme,
+            profileZoomNamespace: profileZoomNamespace,
+            onOpenProfile: { openConversationProfile(userId: conversation.otherParticipantId) },
             onTap: {
                 selectedConversation = conversation
             },
@@ -122,5 +134,11 @@ struct ArchivedConversationsView: View {
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
         .zIndex(isMenuSelected ? 1 : 0)
+    }
+
+    private func openConversationProfile(userId: String) {
+        let trimmed = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        profileRoute = ArchivedProfileRoute(id: trimmed)
     }
 }

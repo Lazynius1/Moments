@@ -86,11 +86,20 @@ struct GlassmorphicChatView: View {
     @State private var searchMatchIds: [String] = []
     @State private var currentSearchMatchIndex: Int = 0
     @State private var pendingSearchTargetId: String? = nil
+    @State private var timestampRevealOffset: CGFloat = 0
+    @State private var pendingScrollMessageId: String? = nil
     @State private var buzzShakeProgress: CGFloat = 1
     @State private var buzzShakeAmplitude: CGFloat = 18
     @State private var buzzToastText: String?
     @State private var buzzToastDismissTask: Task<Void, Never>?
     @State private var lastBuzzSentAt: Date?
+    @State private var vanishSwipeProgress: CGFloat = 0
+    @State private var vanishPullOffset: CGFloat = 0
+    @State private var vanishLastHapticStep = -1
+    @State private var vanishDidCrossThreshold = false
+    @State private var showVanishTimerSheet = false
+    @State private var screenshotObserver: NSObjectProtocol?
+    @State private var screenshotTakenObserver: NSObjectProtocol?
     @State private var otherUserStatus: OnlineStatus = .offline
     @State private var otherUserLastSeen: Date?
     @State private var statusListener: ListenerRegistration?
@@ -208,6 +217,7 @@ struct GlassmorphicChatView: View {
                     username: otherParticipantDisplayName
                 )
             }
+
             // ✅ NUEVO: Sheet para mostrar historias del usuario
             .fullScreenCover(item: $storyRoute) { route in
                 switch route.presentation {
@@ -341,6 +351,15 @@ struct GlassmorphicChatView: View {
                 )
                 .chatPickerSheetPresentation()
             }
+            .sheet(isPresented: $showVanishTimerSheet) {
+                ChatVanishTimerSheet(
+                    isPresented: $showVanishTimerSheet,
+                    selectedTimer: viewModel.vanishMessageTimer,
+                    onSelect: { timer in
+                        viewModel.setVanishMessageTimer(timer)
+                    }
+                )
+            }
             .sheet(item: forwardingMessageBinding) { wrapper in
                 forwardMessageSheet(for: wrapper.message)
             }
@@ -374,11 +393,14 @@ struct GlassmorphicChatView: View {
                     unreadDividerMessageId = nil
                 }
                 if isSearchVisible && !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    updateSearchMatches()
+                    syncSearchMatchesFromViewModel()
                 }
             }
-            .onChange(of: searchQuery) { _, _ in
-                updateSearchMatches()
+            .onChange(of: searchQuery) { _, newValue in
+                viewModel.performSearch(query: newValue)
+            }
+            .onChange(of: viewModel.searchResults) { _, _ in
+                syncSearchMatchesFromViewModel()
             }
             .onChange(of: viewModel.latestBuzzEvent?.id) { _, _ in
                 handleIncomingBuzzToastIfNeeded()
@@ -387,6 +409,10 @@ struct GlassmorphicChatView: View {
                 if newValue == nil {
                     withAnimation { reactionMessageOverlay = nil }
                 }
+            }
+            .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
+                guard viewModel.vanishModeActive, viewModel.vanishMessageTimer != .onceSeen else { return }
+                viewModel.refreshVanishExpiryPresentation()
             }
     }
 
@@ -682,6 +708,8 @@ struct GlassmorphicChatView: View {
 
     private var chatToolbarTrailingCluster: some View {
         ProfileChromeControlsCluster {
+
+
             ProfileChromeIconButton(
                 systemName: isSearchVisible ? "xmark.circle.fill" : "magnifyingglass",
                 foregroundColor: adaptiveColors.primary,
@@ -738,6 +766,7 @@ struct GlassmorphicChatView: View {
         }
         if isSearchVisible {
             searchQuery = ""
+            viewModel.clearSearch()
             searchMatchIds = []
             currentSearchMatchIndex = 0
             pendingSearchTargetId = nil
@@ -760,6 +789,7 @@ struct GlassmorphicChatView: View {
                 if !searchQuery.isEmpty {
                     Button {
                         searchQuery = ""
+                        viewModel.clearSearch()
                         searchMatchIds = []
                         currentSearchMatchIndex = 0
                         pendingSearchTargetId = nil
@@ -775,6 +805,12 @@ struct GlassmorphicChatView: View {
             .momentsChromeGlass(in: Capsule(), interactive: true)
 
             HStack(spacing: 6) {
+                if viewModel.isSearchingHistory {
+                    ProgressView()
+                        .scaleEffect(0.75)
+                        .frame(width: 24, height: 24)
+                }
+
                 Text(searchCounterText)
                     .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                     .foregroundColor(adaptiveColors.secondary)
@@ -835,7 +871,7 @@ struct GlassmorphicChatView: View {
             chatMessagesStackContent(proxy: proxy)
         }
         .padding(.top, 10)
-        .padding(.bottom, 20)
+        .padding(.bottom, 12)
         .scrollTargetLayout()
     }
 
@@ -906,7 +942,7 @@ struct GlassmorphicChatView: View {
         }
         // iOS 18: bottom al abrir; NO re-anclar al fondo en cambios de tamaño (prepend arriba).
         .defaultScrollAnchor(.bottom, for: .initialOffset)
-        .defaultScrollAnchor(.center, for: .alignment)
+        .defaultScrollAnchor(.bottom, for: .alignment)
         .defaultScrollAnchor(sizeChangesAnchor, for: .sizeChanges)
         .scrollPosition($scrollPosition, anchor: .top)
         .onChange(of: scrollPosition) { _, newPosition in
@@ -917,17 +953,68 @@ struct GlassmorphicChatView: View {
             historyPrependBaseline = HistoryPrependBaseline(anchorRowId: currentTopID)
             historyScrollAnchorRowId = currentTopID
         }
-        .scrollBounceBehavior(.basedOnSize)
+        .scrollBounceBehavior(.always)
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: "chatScroll")
         .chatScrollEdgeEffect(hardBottomEdge: true)
         .scrollDismissesKeyboard(.interactively)
-        .onScrollPhaseChange { _, phase in
-            chatScrollPhase = phase
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            let baseline = max(-geometry.contentInsets.top, geometry.contentSize.height - geometry.containerSize.height)
+            return geometry.contentOffset.y - baseline
+        } action: { oldValue, newValue in
+            let pull = max(0, newValue) * 1.8
+            vanishPullOffset = pull
+            vanishSwipeProgress = ChatVanishSwipeMetrics.progress(for: pull)
+
+            if pull > 0 && (chatScrollPhase == .tracking || chatScrollPhase == .interacting) {
+                let crossed = vanishSwipeProgress >= ChatVanishSwipeMetrics.completionThreshold
+                if crossed, !vanishDidCrossThreshold {
+                    vanishDidCrossThreshold = true
+                    HapticManager.shared.vanishPullThresholdReached()
+                } else if !crossed && vanishDidCrossThreshold {
+                    vanishDidCrossThreshold = false
+                }
+
+                let hapticStep = Int(pull / ChatVanishSwipeMetrics.hapticStepPoints)
+                if hapticStep != vanishLastHapticStep {
+                    vanishLastHapticStep = hapticStep
+                    HapticManager.shared.vanishPullStep()
+                }
+            }
+        }
+        .background(alignment: .bottom) {
+            if vanishPullOffset > 2 {
+                ChatVanishPullRevealLayer(
+                    pullOffset: vanishPullOffset,
+                    progress: vanishSwipeProgress,
+                    isActive: viewModel.vanishModeActive,
+                    isDragging: chatScrollPhase == .tracking || chatScrollPhase == .interacting
+                )
+                .padding(.bottom, 8)
+            }
+        }
+        .onScrollPhaseChange { oldPhase, newPhase in
+            chatScrollPhase = newPhase
             #if DEBUG
-            ChatGeometryDebug.logScrollPhase(phase)
+            ChatGeometryDebug.logScrollPhase(newPhase)
             #endif
-            guard phase == .idle else { return }
+
+            if (oldPhase == .tracking || oldPhase == .interacting) && (newPhase == .decelerating || newPhase == .idle) {
+                let shouldActivate = vanishDidCrossThreshold
+                if shouldActivate {
+                    HapticManager.shared.mediumImpact()
+                    viewModel.toggleVanishMode()
+                }
+
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                    vanishPullOffset = 0
+                    vanishSwipeProgress = 0
+                    vanishLastHapticStep = -1
+                    vanishDidCrossThreshold = false
+                }
+            }
+
+            guard newPhase == .idle else { return }
             if !hasCompletedInitialScroll, !viewModel.chatRenderRows.isEmpty {
                 completeInitialScrollIfContentFits(using: nil)
             }
@@ -994,6 +1081,7 @@ struct GlassmorphicChatView: View {
                     .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
                     .transition(.identity)
             }
+
             renderMessageItem(item, in: viewModel.messages, proxy: proxy)
                 .transition(.identity)
         case .buzz(let event):
@@ -1141,6 +1229,7 @@ struct GlassmorphicChatView: View {
             }
             .onChange(of: pendingSearchTargetId) { _, targetId in
                 guard let targetId else { return }
+                viewModel.prepareSearchJump(to: targetId)
                 jumpToMessage(targetId, proxy: proxy)
                 pendingSearchTargetId = nil
             }
@@ -1185,6 +1274,14 @@ struct GlassmorphicChatView: View {
                 reloadNotificationOpenIntent()
                 if hasCompletedInitialScroll {
                     processPendingBuzz(using: proxy)
+                }
+            }
+            .onChange(of: pendingScrollMessageId) { oldVal, newVal in
+                if let messageId = newVal {
+                    isPinnedToBottom = false
+                    scrollToTarget(.highlightedMessage(messageId: messageId), proxy: proxy, animated: true)
+                    highlightMessages([messageId], proxy: nil, duration: ChatBubbleAnchorMetrics.highlightDuration, scroll: false)
+                    pendingScrollMessageId = nil
                 }
             }
     }
@@ -1354,7 +1451,7 @@ struct GlassmorphicChatView: View {
             senderId: message.senderId,
             timestamp: message.timestamp,
             sourceMessage: message,
-            allowsSaving: message.type != .ephemeral
+            allowsSaving: message.type != .ephemeral && message.isVanishModeMessage != true
         )
     }
 
@@ -1465,6 +1562,7 @@ struct GlassmorphicChatView: View {
                     isTyping: $session.isTyping,
                     isRecordingVoice: $isRecordingVoice,
                     activeAttachmentSheet: $activeAttachmentSheet,
+                    isVanishModeActive: viewModel.vanishModeActive,
                     recordingTime: recordingTime,
                     onSend: {
                         let messageToSend = messageText
@@ -1573,6 +1671,17 @@ struct GlassmorphicChatView: View {
                 switch item {
                 case .single(let message):
                     let liveMessage = viewModel.messages.first(where: { $0.id == message.id }) ?? message
+                    if liveMessage.type == .chatNotice {
+                        ChatNoticeTimelineRow(
+                            noticeKey: liveMessage.content ?? "",
+                            actorUserId: liveMessage.senderId,
+                            currentUserId: viewModel.currentUserId,
+                            otherParticipantName: otherParticipantDisplayName,
+                            onChangeTimer: { showVanishTimerSheet = true },
+                            onTurnOn: { viewModel.toggleVanishMode() }
+                        )
+                        .id(rowId)
+                    } else {
                     let displayReactions = shouldRenderReactionChrome(rowId: rowId, messageIds: [liveMessage.id])
                         ? viewModel.displayReactions(for: liveMessage.id)
                         : nil
@@ -1637,13 +1746,15 @@ struct GlassmorphicChatView: View {
                     progress: viewModel.uploadProgress[liveMessage.id],
                     downloadProgress: viewModel.downloadProgress[liveMessage.id],
                     isDownloadingMedia: viewModel.isDownloadingMedia(liveMessage.id),
-                    showSeenLabel: shouldShowSeenLabel(for: liveMessage.id, status: liveMessage.status)
+                    showSeenLabel: shouldShowSeenLabel(for: liveMessage.id, status: liveMessage.status),
+                    timestampRevealOffset: $timestampRevealOffset
                 )
                 .simultaneousGesture(
                     TapGesture(count: 2).onEnded {
                         addQuickReaction(to: liveMessage)
                     }
                 )
+                    }
 
                 case .mediaCluster(let clusterMessages):
                     let liveCluster = clusterMessages.compactMap { clusterMessage in
@@ -1706,7 +1817,8 @@ struct GlassmorphicChatView: View {
                         return shouldShowSeenLabel(for: anchorId, status: status)
                     }(),
                     isMenuSelected: isMenuSelected,
-                    isBubbleFlashing: liveCluster.contains { isBubbleFlashing($0.id) }
+                    isBubbleFlashing: liveCluster.contains { isBubbleFlashing($0.id) },
+                    timestampRevealOffset: $timestampRevealOffset
                 )
                 .simultaneousGesture(
                     TapGesture(count: 2).onEnded {
@@ -2208,6 +2320,7 @@ struct GlassmorphicChatView: View {
         refreshOtherParticipantUsername()
         refreshOtherParticipantAvailability()
         checkUserStories()
+        installScreenshotObserverIfNeeded()
     }
 
     // ✅ REFACTORIZADO: Acciones al desaparecer
@@ -2237,6 +2350,9 @@ struct GlassmorphicChatView: View {
         if !conversationId.isEmpty {
             ChatSessionEngine.shared.deactivate(conversationId: conversationId)
         }
+
+        viewModel.handleChatDismissedForVanishMode()
+        removeScreenshotObserverIfNeeded()
 
         statusListener?.remove()
     }
@@ -2781,7 +2897,7 @@ extension GlassmorphicChatView {
         return item.id == dividerId
     }
 
-    private func updateSearchMatches() {
+    private func syncSearchMatchesFromViewModel() {
         let trimmed = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             searchMatchIds = []
@@ -2790,29 +2906,19 @@ extension GlassmorphicChatView {
             return
         }
 
-        let normalizedQuery = trimmed.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-        let matches = viewModel.messages.filter { message in
-            let searchable = [message.content, message.preview]
-                .compactMap { $0 }
-                .joined(separator: " ")
-                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-            return searchable.contains(normalizedQuery)
-        }
-        .map(\.id)
+        searchMatchIds = viewModel.searchResults
 
-        searchMatchIds = matches
-
-        guard !matches.isEmpty else {
+        guard !searchMatchIds.isEmpty else {
             currentSearchMatchIndex = 0
             pendingSearchTargetId = nil
             return
         }
 
-        if currentSearchMatchIndex >= matches.count {
-            currentSearchMatchIndex = max(matches.count - 1, 0)
+        if currentSearchMatchIndex >= searchMatchIds.count {
+            currentSearchMatchIndex = max(searchMatchIds.count - 1, 0)
         }
 
-        pendingSearchTargetId = matches[currentSearchMatchIndex]
+        pendingSearchTargetId = searchMatchIds[currentSearchMatchIndex]
     }
 
     private func moveSearchSelection(by step: Int) {
@@ -2820,6 +2926,39 @@ extension GlassmorphicChatView {
         let count = searchMatchIds.count
         currentSearchMatchIndex = (currentSearchMatchIndex + step + count) % count
         pendingSearchTargetId = searchMatchIds[currentSearchMatchIndex]
+    }
+
+
+
+    private func installScreenshotObserverIfNeeded() {
+        removeScreenshotObserverIfNeeded()
+        screenshotObserver = NotificationCenter.default.addObserver(
+            forName: UIScreen.capturedDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            if UIScreen.main.isCaptured {
+                viewModel.reportVanishScreenRecordingIfNeeded()
+            }
+        }
+        screenshotTakenObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.userDidTakeScreenshotNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            viewModel.reportVanishScreenshotIfNeeded()
+        }
+    }
+
+    private func removeScreenshotObserverIfNeeded() {
+        if let screenshotObserver {
+            NotificationCenter.default.removeObserver(screenshotObserver)
+            self.screenshotObserver = nil
+        }
+        if let screenshotTakenObserver {
+            NotificationCenter.default.removeObserver(screenshotTakenObserver)
+            self.screenshotTakenObserver = nil
+        }
     }
 
     // MARK: - Clustering Logic
@@ -3001,6 +3140,9 @@ extension GlassmorphicChatView {
         }
     }
 }
+
+
+
 
 // MARK: - Enhanced MomentsChatViewModel with Better Audio Deletion
 class MomentsChatViewModel: EnhancedChatViewModel {

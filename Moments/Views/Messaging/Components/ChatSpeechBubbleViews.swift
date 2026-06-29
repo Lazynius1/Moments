@@ -82,14 +82,24 @@ enum ChatMessageFont {
 
 // MARK: - Text bubble
 
+struct TextSegment: Identifiable {
+    let id = UUID()
+    let text: String
+    let isSpoiler: Bool
+}
+
 struct ChatTextBubbleView: View {
     let text: String
     let isOutgoing: Bool
     var groupPosition: ChatMessageGroupPosition = .single
     let reactions: [String: [String]]?
     var isStarred: Bool = false
+    var repliedMessage: EnhancedMessage? = nil
+    var otherParticipantName: String = ""
+    var onReplyTap: (() -> Void)? = nil
     let onReaction: (String) -> Void
 
+    @State private var revealSpoilers = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
     @ScaledMetric(relativeTo: .body) private var horizontalPadding = ChatTextBubbleMetrics.horizontalPadding
@@ -127,15 +137,135 @@ struct ChatTextBubbleView: View {
         reactions.map { !$0.isEmpty } ?? false
     }
 
+    private var hasReply: Bool {
+        repliedMessage != nil
+    }
+
+    /// Con reply embebido todo se alinea a la izquierda (estilo WhatsApp); si no, según remitente.
+    private var stackAlignment: HorizontalAlignment {
+        hasReply ? .leading : (isOutgoing ? .trailing : .leading)
+    }
+
+    private var textAlignment: TextAlignment {
+        hasReply ? .leading : (isOutgoing ? .trailing : .leading)
+    }
+
+    private var contentFrameAlignment: Alignment {
+        hasReply ? .leading : (isOutgoing ? .trailing : .leading)
+    }
+
+    private func parseSegments(_ input: String) -> [TextSegment] {
+        var segments: [TextSegment] = []
+        let parts = input.components(separatedBy: "||")
+        for (index, part) in parts.enumerated() {
+            let isSpoiler = index % 2 != 0
+            if !part.isEmpty {
+                segments.append(TextSegment(text: part, isSpoiler: isSpoiler))
+            }
+        }
+        return segments
+    }
+
+    private var linkColor: Color {
+        isOutgoing ? Color.white.opacity(0.92) : .blue
+    }
+
+    private var formattedAttributedString: AttributedString {
+        var combined = AttributedString("")
+        let segments = parseSegments(text)
+        for segment in segments {
+            var segmentAttr: AttributedString
+            if let parsed = try? AttributedString(markdown: segment.text, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+                segmentAttr = parsed
+            } else {
+                segmentAttr = AttributedString(segment.text)
+            }
+
+            if segment.isSpoiler {
+                if !revealSpoilers {
+                    segmentAttr.foregroundColor = .clear
+                    // Display as solid block
+                    segmentAttr.backgroundColor = textColor.opacity(0.85)
+                } else {
+                    segmentAttr.foregroundColor = textColor
+                    segmentAttr.backgroundColor = textColor.opacity(0.12)
+                    ChatLinkOpener.applyDetectedLinks(
+                        to: &segmentAttr,
+                        in: segment.text,
+                        linkColor: linkColor
+                    )
+                }
+            } else {
+                segmentAttr.foregroundColor = textColor
+                ChatLinkOpener.applyDetectedLinks(
+                    to: &segmentAttr,
+                    in: segment.text,
+                    linkColor: linkColor
+                )
+            }
+            combined.append(segmentAttr)
+        }
+        return combined
+    }
+
+    private var hasSpoilers: Bool {
+        parseSegments(text).contains(where: \.isSpoiler)
+    }
+
     var body: some View {
-        Text(text)
+        textContent
+            .frame(maxWidth: maxBubbleWidth, alignment: isOutgoing ? .trailing : .leading)
+    }
+
+    private var textContent: some View {
+        Group {
+            if hasSpoilers {
+                bubbleText
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            revealSpoilers.toggle()
+                        }
+                    }
+            } else {
+                bubbleText
+            }
+        }
+    }
+
+    private var messageText: some View {
+        Text(formattedAttributedString)
             .font(ChatMessageFont.bubble)
             .lineSpacing(lineSpacing)
-            .foregroundColor(textColor)
-            .multilineTextAlignment(isOutgoing ? .trailing : .leading)
+            .multilineTextAlignment(textAlignment)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, horizontalPadding)
-            .padding(.vertical, verticalPadding)
+            .environment(\.openURL, OpenURLAction { url in
+                ChatLinkOpener.open(url)
+                return .handled
+            })
+    }
+
+    private var bubbleText: some View {
+        VStack(alignment: stackAlignment, spacing: 6) {
+            if let repliedMessage {
+                EmbeddedReplyView(
+                    repliedMessage: repliedMessage,
+                    isOutgoingBubble: isOutgoing,
+                    otherParticipantName: otherParticipantName,
+                    onTap: onReplyTap
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            messageText
+                .frame(
+                    maxWidth: hasReply ? .infinity : nil,
+                    alignment: contentFrameAlignment
+                )
+                .padding(.horizontal, hasReply ? 4 : 0)
+        }
+            .padding(.horizontal, hasReply ? 6 : horizontalPadding)
+            .padding(.top, hasReply ? 6 : verticalPadding)
+            .padding(.bottom, hasReply ? 8 : verticalPadding)
             .padding(
                 MessageReactionMetrics.bubbleContentInsets(
                     isOutgoing: isOutgoing,
@@ -159,7 +289,7 @@ struct ChatTextBubbleView: View {
                 compact: true,
                 onTap: onReaction
             )
-            .frame(maxWidth: maxBubbleWidth, alignment: isOutgoing ? .trailing : .leading)
+        .frame(maxWidth: maxBubbleWidth, alignment: isOutgoing ? .trailing : .leading)
     }
 }
 

@@ -100,6 +100,7 @@ struct GlassmorphicClusterRow: View {
     let showSeenLabel: Bool
     var isMenuSelected: Bool = false
     var isBubbleFlashing: Bool = false
+    @Binding var timestampRevealOffset: CGFloat
 
     @State private var dragOffset: CGFloat = 0
     @State private var hasTriggeredHaptic = false
@@ -110,65 +111,62 @@ struct GlassmorphicClusterRow: View {
     }
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            // Background Reply Icon (appears when swiping)
-            if dragOffset > 0 {
-                Image(systemName: "arrowshape.turn.up.left.fill")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(adaptiveColors.userAccentColor)
-                    .opacity(Double(min(dragOffset / 60, 1.0)))
-                    .offset(x: min(dragOffset - 30, 0))
-                    .padding(.leading, 12)
-            }
+        HStack(spacing: 0) {
+                HStack(alignment: .bottom, spacing: 0) {
+                    if isCurrentUser {
+                        Color.clear
+                            .chatTimestampRevealGutter(timestampRevealOffset: $timestampRevealOffset)
+                    }
 
-            HStack(alignment: .bottom, spacing: 0) {
-                if isCurrentUser { Spacer(minLength: 50) }
-
-                if !isCurrentUser {
-                    ChatIncomingAvatarGutter(
-                        showAvatar: showAvatar,
-                        otherUserId: otherUserId,
-                        isUnavailable: isOtherParticipantUnavailable,
-                        onTap: onAvatarTap
-                    )
-                }
-
-                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
-                    MediaGridBubble(
-                        messages: messages,
-                        isCurrentUser: isCurrentUser,
-                        uploadProgress: uploadProgress,
-                        displayReactions: displayReactions,
-                        onReaction: onReaction,
-                        onMomentNavigation: onMomentNavigation,
-                        onOpenCluster: onOpenCluster,
-                        onLongPress: onLongPress,
-                        onHydrateMedia: onHydrateMedia,
-                        isMenuSelected: isMenuSelected,
-                        isBubbleFlashing: isBubbleFlashing,
-                        dragOffset: dragOffset
-                    )
-
-                    if let anchorMessage = messages.last {
-                        ClusterMessageFooter(
-                            messages: messages,
-                            anchorMessage: anchorMessage,
-                            isCurrentUser: isCurrentUser,
-                            showSeenLabel: showSeenLabel
+                    if !isCurrentUser {
+                        ChatIncomingAvatarGutter(
+                            showAvatar: showAvatar,
+                            otherUserId: otherUserId,
+                            isUnavailable: isOtherParticipantUnavailable,
+                            onTap: onAvatarTap
                         )
                     }
-                }
 
-                if !isCurrentUser { Spacer(minLength: 50) }
+                    VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
+                        MediaGridBubble(
+                            messages: messages,
+                            isCurrentUser: isCurrentUser,
+                            uploadProgress: uploadProgress,
+                            displayReactions: displayReactions,
+                            onReaction: onReaction,
+                            onMomentNavigation: onMomentNavigation,
+                            onOpenCluster: onOpenCluster,
+                            onLongPress: onLongPress,
+                            onHydrateMedia: onHydrateMedia,
+                            isMenuSelected: isMenuSelected,
+                            isBubbleFlashing: isBubbleFlashing,
+                            dragOffset: $dragOffset,
+                            hasTriggeredHaptic: $hasTriggeredHaptic,
+                            onReply: { onReply(messages) }
+                        )
+                    }
+
+                    if !isCurrentUser {
+                        Color.clear
+                            .chatTimestampRevealGutter(timestampRevealOffset: $timestampRevealOffset)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
+
+                if let anchorMessage = messages.last {
+                    MessageTimestamp(
+                        message: anchorMessage,
+                        isCurrentUser: isCurrentUser,
+                        showSeenLabel: showSeenLabel,
+                        overrideStatus: ClusterMessageStatusAggregator.aggregate(messages)
+                    )
+                    .frame(width: 55)
+                    .padding(.leading, 12)
+                    .opacity(Double(min(-timestampRevealOffset / 40, 1.0)))
+                }
             }
-            .offset(x: dragOffset)
-            .contentShape(Rectangle())
-            .chatReplySwipeGesture(
-                dragOffset: $dragOffset,
-                hasTriggeredHaptic: $hasTriggeredHaptic,
-                onReply: { onReply(messages) }
-            )
-        }
+            .padding(.trailing, -67) // 55 width + 12 leading padding = 67 off-screen
+            .offset(x: timestampRevealOffset)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
     }
@@ -251,11 +249,17 @@ struct MediaGridBubble: View {
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     var isMenuSelected: Bool = false
     var isBubbleFlashing: Bool = false
-    var dragOffset: CGFloat = 0
+    @Binding var dragOffset: CGFloat
+    @Binding var hasTriggeredHaptic: Bool
+    let onReply: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
 
     private var frontMessage: EnhancedMessage { messages[0] }
+
+    private var isVanishProtected: Bool {
+        messages.contains { $0.isVanishModeMessage == true }
+    }
 
     var body: some View {
         if messages.allSatisfy(\.isDeleted) {
@@ -275,35 +279,53 @@ struct MediaGridBubble: View {
         return VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 6) {
             countLabel(count: count, messages: activeMessages)
 
-            ChatMessageBubbleChrome(
-                isMenuSelected: isMenuSelected,
+            ChatBubbleReplySwipeContainer(
+                dragOffset: $dragOffset,
+                hasTriggeredHaptic: $hasTriggeredHaptic,
                 isOutgoing: isCurrentUser,
                 cornerRadius: ChatBubbleAnchorMetrics.clusterCornerRadius,
-                colorScheme: colorScheme,
-                isFlashing: isBubbleFlashing,
-                dragOffset: dragOffset,
-                onLongPress: { frame, radius in
-                    onLongPress(activeMessages.first ?? frontMessage, frame, radius)
-                }
+                onReply: onReply
             ) {
-                ZStack {
-                    ForEach(Array(visible.enumerated()).reversed(), id: \.element.id) { index, message in
-                        photoCard(message: message, isFront: index == 0)
-                            .rotationEffect(.degrees(ClusterMediaLayout.rotations[index]))
-                            .offset(ClusterMediaLayout.offsets[index])
-                            .zIndex(Double(10 - index))
+                ChatMessageBubbleChrome(
+                    isMenuSelected: isMenuSelected,
+                    isOutgoing: isCurrentUser,
+                    cornerRadius: ChatBubbleAnchorMetrics.clusterCornerRadius,
+                    colorScheme: colorScheme,
+                    isFlashing: isBubbleFlashing,
+                    onLongPress: { frame, radius in
+                        onLongPress(activeMessages.first ?? frontMessage, frame, radius)
                     }
-                }
-                .frame(width: ClusterMediaLayout.frontWidth, height: ClusterMediaLayout.frontHeight)
-                .padding(.top, topPad)
-                .padding(.horizontal, sidePad)
-                .padding(.bottom, ClusterMediaLayout.fanBottomPadding)
-                .contentShape(Rectangle())
-                .onAppear {
-                    activeMessages.forEach { onHydrateMedia?($0) }
-                }
-                .onTapGesture {
-                    onOpenCluster(activeMessages)
+                ) {
+                    let grid = ZStack {
+                        ForEach(Array(visible.enumerated()).reversed(), id: \.element.id) { index, message in
+                            photoCard(message: message, isFront: index == 0)
+                                .rotationEffect(.degrees(ClusterMediaLayout.rotations[index]))
+                                .offset(ClusterMediaLayout.offsets[index])
+                                .zIndex(Double(10 - index))
+                        }
+                    }
+                    .frame(width: ClusterMediaLayout.frontWidth, height: ClusterMediaLayout.frontHeight)
+                    .padding(.top, topPad)
+                    .padding(.horizontal, sidePad)
+                    .padding(.bottom, ClusterMediaLayout.fanBottomPadding)
+                    .contentShape(Rectangle())
+                    .onAppear {
+                        activeMessages.forEach { onHydrateMedia?($0) }
+                    }
+                    .onTapGesture {
+                        onOpenCluster(activeMessages)
+                    }
+
+                    if isVanishProtected {
+                        ScreenshotProtectedView(
+                            isProtected: true,
+                            cornerRadius: ChatBubbleAnchorMetrics.clusterCornerRadius
+                        ) {
+                            grid
+                        }
+                    } else {
+                        grid
+                    }
                 }
             }
         }
@@ -547,10 +569,18 @@ enum ClusterGalleryPresentation {
     case pushed
 }
 
+enum ClusterGalleryTab: String, CaseIterable, Identifiable {
+    case media = "chat.gallery.tab.media"
+    case links = "chat.gallery.tab.links"
+
+    var id: String { rawValue }
+}
+
 struct ClusterGalleryView<Detail: View>: View {
     let messages: [EnhancedMessage]
     let currentUserId: String
     var presentation: ClusterGalleryPresentation = .modal
+    var initialTab: ClusterGalleryTab = .media
     let onClose: () -> Void
     var onHydrateMedia: ((EnhancedMessage) -> Void)? = nil
     var onOpenMedia: ((EnhancedMessage, @escaping (EnhancedMessage) -> Void) -> Void)? = nil
@@ -570,10 +600,67 @@ struct ClusterGalleryView<Detail: View>: View {
     @State private var isSelectionMode = false
     @State private var selectedIds = Set<String>()
     @State private var showDeleteConfirmation = false
+
+    @State private var selectedTab: ClusterGalleryTab
     private let spacing: CGFloat = 14
 
+    init(
+        messages: [EnhancedMessage],
+        currentUserId: String,
+        presentation: ClusterGalleryPresentation = .modal,
+        initialTab: ClusterGalleryTab = .media,
+        onClose: @escaping () -> Void,
+        onHydrateMedia: ((EnhancedMessage) -> Void)? = nil,
+        onOpenMedia: ((EnhancedMessage, @escaping (EnhancedMessage) -> Void) -> Void)? = nil,
+        isDownloadingMedia: ((String) -> Bool)? = nil,
+        downloadProgress: ((String) -> Double?)? = nil,
+        onDeleteForMe: (([EnhancedMessage]) -> Void)? = nil,
+        onDeleteForEveryone: (([EnhancedMessage]) -> Void)? = nil,
+        @ViewBuilder detail: @escaping (EnhancedMessage, @escaping () -> Void) -> Detail
+    ) {
+        self.messages = messages
+        self.currentUserId = currentUserId
+        self.presentation = presentation
+        self.initialTab = initialTab
+        self.onClose = onClose
+        self.onHydrateMedia = onHydrateMedia
+        self.onOpenMedia = onOpenMedia
+        self.isDownloadingMedia = isDownloadingMedia
+        self.downloadProgress = downloadProgress
+        self.onDeleteForMe = onDeleteForMe
+        self.onDeleteForEveryone = onDeleteForEveryone
+        self.detail = detail
+        _selectedTab = State(initialValue: initialTab)
+    }
+
+    private var galleryMessageIds: [String] {
+        messages.filter { !$0.isDeleted }.compactMap(\.id)
+    }
+
     private var visibleMessages: [EnhancedMessage] {
-        messages.filter { !$0.isDeleted }
+        let filtered = messages.filter { !$0.isDeleted }
+        switch selectedTab {
+        case .media:
+            return filtered.filter { $0.type == .image || $0.type == .video || $0.type == .gif || $0.type == .viewOnceImage || $0.type == .viewOnceVideo }
+        case .links:
+            return filtered.filter { $0.type == .text && containsURL($0.content ?? "") }
+        }
+    }
+
+    private func containsURL(_ text: String) -> Bool {
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return false
+        }
+        let matches = detector.matches(in: text, options: [], range: NSRange(text.startIndex..., in: text))
+        return !matches.isEmpty
+    }
+
+    private func extractURL(from text: String) -> String {
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return ""
+        }
+        let matches = detector.matches(in: text, options: [], range: NSRange(text.startIndex..., in: text))
+        return matches.first?.url?.absoluteString ?? ""
     }
 
     private var selectedMessages: [EnhancedMessage] {
@@ -609,11 +696,17 @@ struct ClusterGalleryView<Detail: View>: View {
         .onDisappear {
             detailNavigationEpoch &+= 1
         }
-        .onChange(of: visibleMessages.map(\.id)) { oldIds, newIds in
-            selectedIds = selectedIds.intersection(Set(newIds))
+        .onChange(of: galleryMessageIds) { oldIds, newIds in
+            selectedIds = selectedIds.intersection(Set(visibleMessages.compactMap(\.id)))
             if newIds.isEmpty, !oldIds.isEmpty {
                 closeGallery()
             } else if selectedIds.isEmpty {
+                isSelectionMode = false
+            }
+        }
+        .onChange(of: selectedTab) { _, _ in
+            selectedIds = selectedIds.intersection(Set(visibleMessages.compactMap(\.id)))
+            if selectedIds.isEmpty {
                 isSelectionMode = false
             }
         }
@@ -723,14 +816,43 @@ struct ClusterGalleryView<Detail: View>: View {
     }
 
     private var grid: some View {
-        ScrollView(showsIndicators: false) {
-            let columns = distribute(visibleMessages)
-            HStack(alignment: .top, spacing: spacing) {
-                masonryColumn(columns.0)
-                masonryColumn(columns.1)
+        VStack(spacing: 0) {
+            // Tab Selector (Segment Bar)
+            HStack(spacing: 0) {
+                ForEach(ClusterGalleryTab.allCases) { tab in
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                            selectedTab = tab
+                        }
+                    } label: {
+                        VStack(spacing: 6) {
+                            Text(NSLocalizedString(tab.rawValue, comment: ""))
+                                .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium))
+                                .foregroundColor(selectedTab == tab ? MomentsChromeGlass.contentColor(for: colorScheme) : .gray)
+                                .frame(maxWidth: .infinity)
+
+                            // indicator line
+                            Rectangle()
+                                .fill(selectedTab == tab ? Color.blue : Color.clear)
+                                .frame(height: 2)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .padding(.horizontal, spacing)
-            .padding(.bottom, 20)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .background(screenBackground)
+
+            ScrollView(showsIndicators: false) {
+                let columns = distribute(visibleMessages)
+                HStack(alignment: .top, spacing: spacing) {
+                    masonryColumn(columns.0)
+                    masonryColumn(columns.1)
+                }
+                .padding(.horizontal, spacing)
+                .padding(.vertical, 16)
+            }
         }
         .background {
             screenBackground.ignoresSafeArea()
@@ -806,23 +928,73 @@ struct ClusterGalleryView<Detail: View>: View {
         aspectRatio ratio: CGFloat,
         isSelected: Bool
     ) -> some View {
-        MediaGridTileView(
-            message: message,
-            progress: nil,
-            downsamplingSize: CGSize(
-                width: 400 * UIScreen.main.scale,
-                height: max(400 / ratio, 1) * UIScreen.main.scale
-            ),
-            isDownloadingMedia: isDownloadingMedia?(message.id) ?? false,
-            downloadProgress: downloadProgress?(message.id)
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(alignment: .bottomLeading) {
-            if message.type == .video, !(isDownloadingMedia?(message.id) ?? false) {
-                ChatVideoPlayBadge(size: 18, padding: 10)
+        let isVideo = message.type == .video
+        let isDownloading = isDownloadingMedia?(message.id) ?? false
+
+        let linkRawUrl = extractURL(from: message.content ?? "")
+        let linkHost = URL(string: linkRawUrl)?.host ?? ""
+        let linkContent = message.content ?? ""
+
+        return Group {
+            switch selectedTab {
+            case .media:
+                MediaGridTileView(
+                    message: message,
+                    progress: nil,
+                    downsamplingSize: CGSize(
+                        width: 400 * UIScreen.main.scale,
+                        height: max(400 / ratio, 1) * UIScreen.main.scale
+                    ),
+                    isDownloadingMedia: isDownloading,
+                    downloadProgress: downloadProgress?(message.id)
+                )
+                .overlay(alignment: .bottomLeading) {
+                    if isVideo, !isDownloading {
+                        HStack(spacing: 4) {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                            if let durationStr = message.formattedDuration {
+                                Text(durationStr)
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                            }
+                        }
+                        .padding(8)
+                    }
+                }
+            case .links:
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "link.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.blue)
+                        if !linkHost.isEmpty {
+                            Text(linkHost)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    Spacer()
+                    Text(linkContent)
+                        .font(.system(size: 12))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.85))
+                        .lineLimit(3)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .background(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.6))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3), lineWidth: 1)
+                )
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
             if isSelectionMode, isSelected {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -843,6 +1015,13 @@ struct ClusterGalleryView<Detail: View>: View {
     }
 
     private func openMessageDetail(at index: Int, message: EnhancedMessage) {
+        if selectedTab == .links {
+            if let content = message.content {
+                ChatLinkOpener.openFirstLink(in: content)
+            }
+            return
+        }
+
         let route = ClusterGalleryDetailRoute(index: index)
         let open = {
             switch presentation {
@@ -900,6 +1079,7 @@ struct ClusterGalleryView<Detail: View>: View {
     }
 
     private func aspectRatio(for message: EnhancedMessage) -> CGFloat {
+        guard selectedTab == .media else { return 1.4 }
         if let w = message.mediaWidth, let h = message.mediaHeight, w > 0, h > 0 {
             return min(max(CGFloat(w) / CGFloat(h), 0.5), 1.9)
         }

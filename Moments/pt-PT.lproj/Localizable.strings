@@ -1682,6 +1682,7 @@
 /* Chat */
 "chat.moment.loadError" = "Não foi possível carregar o moment";
 "chat.input.placeholder" = "Mensagem...";
+"chat.input.vanish.placeholder" = "Mensagem que desaparece...";
 "chat.input.attach.accessibility" = "Anexar conteúdo";
 "chat.input.voice.accessibility" = "Gravar mensagem de voz";
 "chat.attach.sendMedia.one" = "Enviar 1 item";
@@ -1690,6 +1691,31 @@
 "chat.attach.location" = "Localização";
 "chat.attach.buzz" = "Abanão";
 "chat.buzz.sent" = "Enviaste um abanão";
+"chat.vanish.swipe.hint" = "Desliza para cima para ativar mensagens que desaparecem";
+"chat.vanish.swipe.hint.off" = "Desliza para cima para desativar mensagens que desaparecem";
+"chat.vanish.swipe.release" = "Solta para ativar mensagens que desaparecem";
+"chat.vanish.swipe.release.off" = "Solta para desativar mensagens que desaparecem";
+"chat.vanish.notice.enabled.prefix" = "Ativaste mensagens que desaparecem. As novas mensagens e reações desaparecerão ";
+"chat.vanish.notice.enabled.prefix.self" = "Ativaste mensagens que desaparecem. As novas mensagens e reações desaparecerão ";
+"chat.vanish.notice.enabled.prefix.other" = "%@ ativou mensagens que desaparecem. As novas mensagens e reações desaparecerão ";
+"chat.vanish.notice.duration.onceSeen" = "quando todos as tiverem visto";
+"chat.vanish.notice.duration.24h" = "24 horas depois de todos as terem visto";
+"chat.vanish.notice.duration.7d" = "7 dias depois de todos as terem visto";
+"chat.vanish.notice.enabled.suffix" = ".";
+"chat.vanish.notice.change" = "Alterar";
+"chat.vanish.notice.disabled" = "Desativaste mensagens que desaparecem.";
+"chat.vanish.notice.disabled.self" = "Desativaste mensagens que desaparecem.";
+"chat.vanish.notice.disabled.other" = "%@ desativou mensagens que desaparecem.";
+"chat.vanish.notice.turnOn" = "Ativar";
+"chat.vanish.timer.sheet.title" = "Temporizador de mensagens";
+"chat.vanish.timer.off" = "Desativado";
+"chat.vanish.timer.onceSeen" = "Quando todos tiverem visto";
+"chat.vanish.timer.24h" = "24 horas";
+"chat.vanish.timer.7d" = "7 dias";
+"chat.vanish.screenshot" = "Foi feita uma captura de ecrã";
+"chat.vanish.screenRecording" = "Gravaste o ecrã.";
+"chat.vanish.active.accessibility" = "Mensagens que desaparecem ativas";
+"chat.vanish.inactive.accessibility" = "Desliza para cima para ativar mensagens que desaparecem";
 "chat.buzz.received" = "%@ enviou-te um abanão";
 "chat.buzz.cooldown" = "Espera um pouco antes de enviar outro abanão";
 "chat.draft.preview" = "Rascunho: %@";
@@ -1745,6 +1771,8 @@
 "chat.message.unsupported" = "Mensagem não suportada";
 "chat.video.unavailable" = "Vídeo indisponível";
 "chat.audio.unavailable" = "Áudio indisponível";
+"chat.audio.duration.accessibility" = "Duração %@";
+"chat.audio.scrub.accessibility" = "Progresso da mensagem de voz";
 "chat.loading" = "A carregar...";
 "chat.close" = "Fechar";
 "chat.replying" = "A responder";
@@ -1754,6 +1782,23 @@
 "chat.error" = "Erro";
 "chat.message.deleted" = "Esta mensagem foi eliminada";
 "chat.recording" = "A gravar...";
+
+// Premium Chat Enhancements
+"chat.gallery.tab.media" = "Multimédia";
+"chat.gallery.tab.docs" = "Documentos";
+"chat.gallery.tab.links" = "Hiperligações";
+"chat.gallery.tab.audio" = "Áudios";
+"conversationSettings.wallpaper" = "Fundo do chat";
+"conversationSettings.wallpaper.select" = "Selecionar fundo";
+"chat.pins.title" = "Mensagens afixadas";
+"chat.pin.you" = "Tu";
+"chat.pin.other" = "Mensagem";
+"chat.pin.action" = "Afixar mensagem";
+"chat.unpin.action" = "Desafixar mensagem";
+"chat.pinned.banner" = "Mensagem afixada";
+"chat.selected.count" = "%d selecionadas";
+"chat.forward.multiple.disabled" = "O reencaminhamento múltiplo está desativado";
+
 "chat.reply.you" = "Tu";
 "chat.reply.select_item" = "Responder a um item";
 "chat.cluster.sentPhotos" = "Enviaste %d fotos";
@@ -2251,6 +2296,9 @@
 "conversationSettings.notificationConfig.disabled" = "As notificações estão silenciadas para esta conversa.";
 "conversationSettings.understood" = "Percebi";
 "conversationSettings.conversationInfo" = "Informações da conversa";
+"conversationSettings.sharedContent" = "Conteúdo partilhado";
+"conversationSettings.preferences" = "Preferências do chat";
+"conversationSettings.count.none" = "Nenhum";
 "conversationSettings.sharedMedia" = "Multimédia partilhada";
 "conversationSettings.starredMessages" = "Mensagens destacadas";
 "conversationSettings.starredMessages.none" = "Nenhuma";

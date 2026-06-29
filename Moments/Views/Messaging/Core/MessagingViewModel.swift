@@ -66,7 +66,12 @@ class MessagingViewModel: ObservableObject {
         )
         updated.readReceiptPreferences = conversation.readReceiptPreferences
         updated.forwardingPreferences = conversation.forwardingPreferences
+        updated.buzzPreferences = conversation.buzzPreferences
         updated.lastDeletedAt = conversation.lastDeletedAt
+        updated.vanishModeActive = conversation.vanishModeActive
+        updated.vanishModeEnabledBy = conversation.vanishModeEnabledBy
+        updated.vanishModeEnabledAt = conversation.vanishModeEnabledAt
+        updated.vanishMessageTimer = conversation.vanishMessageTimer
         return updated
     }
 
@@ -234,7 +239,12 @@ class MessagingViewModel: ObservableObject {
                         )
                         self.conversations[i].readReceiptPreferences = existing.readReceiptPreferences
                         self.conversations[i].forwardingPreferences = existing.forwardingPreferences
+                        self.conversations[i].buzzPreferences = existing.buzzPreferences
                         self.conversations[i].lastDeletedAt = existing.lastDeletedAt
+                        self.conversations[i].vanishModeActive = existing.vanishModeActive
+                        self.conversations[i].vanishModeEnabledBy = existing.vanishModeEnabledBy
+                        self.conversations[i].vanishModeEnabledAt = existing.vanishModeEnabledAt
+                        self.conversations[i].vanishMessageTimer = existing.vanishMessageTimer
                     }
                 }
 
@@ -267,7 +277,12 @@ class MessagingViewModel: ObservableObject {
                         )
                         self.filteredConversations[i].readReceiptPreferences = existing.readReceiptPreferences
                         self.filteredConversations[i].forwardingPreferences = existing.forwardingPreferences
+                        self.filteredConversations[i].buzzPreferences = existing.buzzPreferences
                         self.filteredConversations[i].lastDeletedAt = existing.lastDeletedAt
+                        self.filteredConversations[i].vanishModeActive = existing.vanishModeActive
+                        self.filteredConversations[i].vanishModeEnabledBy = existing.vanishModeEnabledBy
+                        self.filteredConversations[i].vanishModeEnabledAt = existing.vanishModeEnabledAt
+                        self.filteredConversations[i].vanishMessageTimer = existing.vanishMessageTimer
                     }
                 }
             }
@@ -710,6 +725,18 @@ class MessagingViewModel: ObservableObject {
         if let userId = Auth.auth().currentUser?.uid {
             chatService.removeConversationsListener(for: userId)
         }
+    }
+
+    func updateVanishMode(conversationId: String, active: Bool) {
+        func patch(_ list: inout [Conversation]) {
+            for index in list.indices where list[index].id == conversationId {
+                list[index].vanishModeActive = active
+            }
+        }
+        patch(&conversations)
+        patch(&archivedConversations)
+        patch(&filteredConversations)
+        LocalPersistenceService.shared.saveConversations(conversations + archivedConversations, sync: false)
     }
 
     func archiveConversation(_ conversation: Conversation) {
