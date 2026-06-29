@@ -8,74 +8,44 @@ struct WhatsNewView: View {
     private var features: [WhatsNewFeature] {
         [
             WhatsNewFeature(
+                icon: .attachment(.ephemeral),
+                title: NSLocalizedString("whatsNew.vanish.title", comment: ""),
+                description: NSLocalizedString("whatsNew.vanish.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .attachment(.buzz),
+                title: NSLocalizedString("whatsNew.buzz.title", comment: ""),
+                description: NSLocalizedString("whatsNew.buzz.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("archivebox.fill"),
+                title: NSLocalizedString("whatsNew.archived.title", comment: ""),
+                description: NSLocalizedString("whatsNew.archived.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("bolt.fill"),
+                title: NSLocalizedString("whatsNew.fasterChat.title", comment: ""),
+                description: NSLocalizedString("whatsNew.fasterChat.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("bell.badge.fill"),
+                title: NSLocalizedString("whatsNew.notifications.title", comment: ""),
+                description: NSLocalizedString("whatsNew.notifications.description", comment: "")
+            ),
+            WhatsNewFeature(
                 icon: .attachment(.comments),
-                title: NSLocalizedString("whatsNew.messaging.title", comment: ""),
-                description: NSLocalizedString("whatsNew.messaging.description", comment: "")
+                title: NSLocalizedString("whatsNew.chatPolish.title", comment: ""),
+                description: NSLocalizedString("whatsNew.chatPolish.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .attachment(.gif),
-                title: NSLocalizedString("whatsNew.gif.title", comment: ""),
-                description: NSLocalizedString("whatsNew.gif.description", comment: "")
+                icon: .attachment(.mutuals),
+                title: NSLocalizedString("whatsNew.social.title", comment: ""),
+                description: NSLocalizedString("whatsNew.social.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .asset("MomentsStickerTool"),
-                title: NSLocalizedString("whatsNew.stickers.title", comment: ""),
-                description: NSLocalizedString("whatsNew.stickers.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .attachment(.location),
-                title: NSLocalizedString("whatsNew.location.title", comment: ""),
-                description: NSLocalizedString("whatsNew.location.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .attachment(.liveLocation),
-                title: NSLocalizedString("whatsNew.liveLocation.title", comment: ""),
-                description: NSLocalizedString("whatsNew.liveLocation.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .attachment(.photos),
-                title: NSLocalizedString("whatsNew.media.title", comment: ""),
-                description: NSLocalizedString("whatsNew.media.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("heart.text.square.fill"),
-                title: NSLocalizedString("whatsNew.reactions.title", comment: ""),
-                description: NSLocalizedString("whatsNew.reactions.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("map.fill"),
-                title: NSLocalizedString("whatsNew.map.title", comment: ""),
-                description: NSLocalizedString("whatsNew.map.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .asset("CarouselPostIcon"),
-                title: NSLocalizedString("whatsNew.feed.title", comment: ""),
-                description: NSLocalizedString("whatsNew.feed.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .attachment(.bookmark),
-                title: NSLocalizedString("whatsNew.profile.title", comment: ""),
-                description: NSLocalizedString("whatsNew.profile.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .storyRing,
-                title: NSLocalizedString("whatsNew.highlights.title", comment: ""),
-                description: NSLocalizedString("whatsNew.highlights.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("sparkle.magnifyingglass"),
-                title: NSLocalizedString("whatsNew.explore.title", comment: ""),
-                description: NSLocalizedString("whatsNew.explore.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("person.crop.circle.badge.checkmark"),
-                title: NSLocalizedString("whatsNew.onboarding.title", comment: ""),
-                description: NSLocalizedString("whatsNew.onboarding.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("wand.and.stars"),
-                title: NSLocalizedString("whatsNew.polish.title", comment: ""),
-                description: NSLocalizedString("whatsNew.polish.description", comment: "")
+                icon: .system("sparkles"),
+                title: NSLocalizedString("whatsNew.discovery.title", comment: ""),
+                description: NSLocalizedString("whatsNew.discovery.description", comment: "")
             )
         ]
     }

@@ -1,4 +1,48 @@
 import SwiftUI
+import UIKit
+
+// MARK: - Swipe back nativo (Instagram-style)
+
+/// Reactiva `interactivePopGestureRecognizer` aunque el back button del sistema esté oculto.
+private struct NavigationInteractivePopEnabler: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> Controller {
+        Controller()
+    }
+
+    func updateUIViewController(_ uiViewController: Controller, context: Context) {}
+
+    final class Controller: UIViewController, UIGestureRecognizerDelegate {
+        private weak var savedPopDelegate: UIGestureRecognizerDelegate?
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            guard let navigationController,
+                  let pop = navigationController.interactivePopGestureRecognizer else { return }
+
+            savedPopDelegate = pop.delegate
+            pop.isEnabled = true
+            pop.delegate = self
+        }
+
+        override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            guard let pop = navigationController?.interactivePopGestureRecognizer else { return }
+            pop.delegate = savedPopDelegate
+            savedPopDelegate = nil
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard gestureRecognizer === navigationController?.interactivePopGestureRecognizer else {
+                return true
+            }
+            guard (navigationController?.viewControllers.count ?? 0) > 1 else { return false }
+
+            // Bajar teclado al iniciar el swipe back, como Instagram.
+            view.window?.endEditing(true)
+            return true
+        }
+    }
+}
 
 // MARK: - Chat toolbar + scroll edge (API nativa iOS 26)
 
@@ -59,6 +103,11 @@ extension View {
         } else {
             self.safeAreaInset(edge: .bottom, spacing: 0, content: content)
         }
+    }
+
+    /// Swipe desde el borde izquierdo para volver a la lista (push/pop nativo).
+    func chatInteractivePopEnabled() -> some View {
+        background(NavigationInteractivePopEnabler())
     }
 }
 

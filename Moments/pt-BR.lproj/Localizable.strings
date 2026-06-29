@@ -2729,50 +2729,32 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novidades no Moments!";
-"whatsNew.subtitle" = "Mensagens renovadas com GIFs, stickers e localizacao ao vivo, descoberta no mapa, perfil redesenhado e muito polimento em todo o app.";
-"whatsNew.button" = "Explorar o Moments 2.15";
+"whatsNew.subtitle" = "Mensagens que somem, chacoalhoes, chats arquivados, resposta rapida pelas notificacoes e um chat mais rapido e polido.";
+"whatsNew.button" = "Explorar o Moments 2.16";
 
-"whatsNew.messaging.title" = "Chat redesenhado";
-"whatsNew.messaging.description" = "Baloes mais limpos, mensagens agrupadas em rajadas, avatar do remetente na ultima mensagem de cada grupo e um chat mais moderno e fluido.";
+"whatsNew.vanish.title" = "Mensagens que somem";
+"whatsNew.vanish.description" = "Ative em uma conversa e escolha quando sao apagadas. Deslize para cima para ativar ou desativar o modo na hora.";
 
-"whatsNew.gif.title" = "GIFs no chat";
-"whatsNew.gif.description" = "Busque e envie GIFs do Giphy sem sair da conversa.";
+"whatsNew.buzz.title" = "Chacoalhoes";
+"whatsNew.buzz.description" = "Chame a atencao de alguem no chat com vibracao e animacao. Voce pode desativar chacoalhoes por conversa.";
 
-"whatsNew.stickers.title" = "Stickers";
-"whatsNew.stickers.description" = "Envie stickers com acesso rapido aos recentes para respostas mais pessoais.";
+"whatsNew.archived.title" = "Chats arquivados";
+"whatsNew.archived.description" = "Guarde conversas fora da caixa principal e recupere-as quando quiser, com as nao lidas.";
 
-"whatsNew.location.title" = "Compartilhar localizacao";
-"whatsNew.location.description" = "Envie um lugar especifico com visualizacao de mapa integrada na mensagem.";
+"whatsNew.fasterChat.title" = "Chat mais rapido";
+"whatsNew.fasterChat.description" = "Mensagens e fotos ficam salvas no celular para as conversas abrirem na hora e o historico carregar com mais fluidez.";
 
-"whatsNew.liveLocation.title" = "Localizacao ao vivo";
-"whatsNew.liveLocation.description" = "Compartilhe sua localizacao em tempo real por 15 minutos, 1 hora ou 8 horas.";
+"whatsNew.notifications.title" = "Notificacoes melhores";
+"whatsNew.notifications.description" = "Responda mantendo a notificacao pressionada e veja melhor quando te enviam fotos, videos ou um chacoalhao.";
 
-"whatsNew.media.title" = "Fotos e midia";
-"whatsNew.media.description" = "Varias fotos se agrupam em um grid compacto e o visualizador em tela cheia fica mais imersivo.";
+"whatsNew.chatPolish.title" = "Chat mais polido";
+"whatsNew.chatPolish.description" = "Respostas dentro do balao, lista mais compacta, deslize para voltar e notas de voz mais confortaveis.";
 
-"whatsNew.reactions.title" = "Reacoes e encaminhamento";
-"whatsNew.reactions.description" = "Reaja com emojis de forma mais visivel e encaminhe mensagens com um fluxo mais claro.";
+"whatsNew.social.title" = "Atividade e visitas";
+"whatsNew.social.description" = "Veja sua atividade compartilhada com outra pessoa e confira com mais clareza quem visita seu perfil.";
 
-"whatsNew.map.title" = "Descubra no mapa";
-"whatsNew.map.description" = "Explore lugares, moments e stories em uma nova visualizacao de mapa mais imersiva.";
-
-"whatsNew.feed.title" = "Feed mais fluido";
-"whatsNew.feed.description" = "Navegacao renovada, aneis de stories no feed e melhor reproducao de video.";
-
-"whatsNew.profile.title" = "Perfil redesenhado";
-"whatsNew.profile.description" = "Renovamos a experiencia de perfil com um design mais limpo, grade personalizavel, nota de perfil e moments em destaque.";
-
-"whatsNew.highlights.title" = "Highlights renovados";
-"whatsNew.highlights.description" = "Crie e gerencie highlights com um fluxo mais confortavel e visual.";
-
-"whatsNew.explore.title" = "Explorar mais claro";
-"whatsNew.explore.description" = "Visualizacoes de detalhe refinadas e uma experiencia de exploracao mais direta.";
-
-"whatsNew.onboarding.title" = "Onboarding mais robusto";
-"whatsNew.onboarding.description" = "Cadastro retomavel, recuperacao de conta aprimorada e mais seguranca ao criar seu perfil.";
-
-"whatsNew.polish.title" = "Polimento geral";
-"whatsNew.polish.description" = "Novo glass chrome, textos mais claros e correcoes de estabilidade em todo o app.";
+"whatsNew.discovery.title" = "Para voce e mais";
+"whatsNew.discovery.description" = "Descubra moments de pessoas novas, datas mais naturais no seu idioma e melhorias de estabilidade em todo o app.";
 
 /* Best Friends */
 "bestFriends.title" = "Melhores amigos";

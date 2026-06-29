@@ -5,7 +5,7 @@ import FirebaseAuth
 enum StoryRingLayout {
     static let feedHeaderAvatarSize: CGFloat = 50
     static let feedHeaderLineWidth: CGFloat = 3.0
-    /// Espacio visible entre la foto y el aro (estilo Instagram).
+    /// Espacio visible entre la foto y el aro (transparente, sin relleno de color).
     static let ringGap: CGFloat = 1.5
 
     static func defaultLineWidth(for size: CGFloat) -> CGFloat {
@@ -20,8 +20,25 @@ enum StoryRingLayout {
         ringStrokeDiameter(avatarSize: avatarSize, lineWidth: lineWidth) + lineWidth + 2
     }
 
-    static func gapSeparatorColor(_ colorScheme: ColorScheme) -> Color {
-        colorScheme == .dark ? Color(white: 0.06) : .white
+    static func ringGapMask(avatarSize: CGFloat) -> some View {
+        StoryRingGapCutoutMask(innerDiameter: avatarSize + ringGap * 2)
+            .fill(style: FillStyle(eoFill: true))
+    }
+}
+
+/// Enmascara el aro para que no pinte dentro del hueco transparente alrededor del avatar.
+private struct StoryRingGapCutoutMask: Shape {
+    let innerDiameter: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path(rect)
+        path.addEllipse(in: CGRect(
+            x: rect.midX - innerDiameter / 2,
+            y: rect.midY - innerDiameter / 2,
+            width: innerDiameter,
+            height: innerDiameter
+        ))
+        return path
     }
 }
 
@@ -80,17 +97,11 @@ struct StoryRingAvatarView: View {
                 lineWidth: resolvedLineWidth,
                 hapticsEnabled: hapticsEnabled
             )
+            .mask(StoryRingLayout.ringGapMask(avatarSize: size))
 
             AsyncProfileImageView(userId: userId)
                 .frame(width: size, height: size)
                 .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(
-                            StoryRingLayout.gapSeparatorColor(colorScheme),
-                            lineWidth: StoryRingLayout.ringGap * 2
-                        )
-                )
                 .overlay(
                     Circle()
                         .stroke(showBaseStroke ? baseStrokeColor : .clear, lineWidth: baseStrokeWidth)

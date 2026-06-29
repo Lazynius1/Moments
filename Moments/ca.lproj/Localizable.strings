@@ -2750,50 +2750,32 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Missatgeria renovada amb GIFs, stickers i ubicacio en directe, descobriment al mapa, perfil redissenyat i molt polit a tota l'app.";
-"whatsNew.button" = "Explorar Moments 2.15";
+"whatsNew.subtitle" = "Missatges que desapareixen, brunzits, xats arxivats, resposta rapida des de les notificacions i un xat mes rapid i polit.";
+"whatsNew.button" = "Explorar Moments 2.16";
 
-"whatsNew.messaging.title" = "Xat redissenyat";
-"whatsNew.messaging.description" = "Noves bombelles mes netes, missatges agrupats en rafegues, avatar del remitent al final de cada grup i un xat mes modern i fluid.";
+"whatsNew.vanish.title" = "Missatges que desapareixen";
+"whatsNew.vanish.description" = "Activa'ls en una conversa i tria quan s'esborren. Deslitza cap amunt per activar-los o desactivar-los a l'instant.";
 
-"whatsNew.gif.title" = "GIFs al xat";
-"whatsNew.gif.description" = "Cerca i envia GIFs de Giphy sense sortir de la conversa.";
+"whatsNew.buzz.title" = "Brunzits";
+"whatsNew.buzz.description" = "Crida l'atencio d'algú al xat amb vibracio i animacio. Pots desactivar els brunzits per conversa.";
 
-"whatsNew.stickers.title" = "Stickers";
-"whatsNew.stickers.description" = "Envia stickers amb acces rapid als recents per respondre amb mes personalitat.";
+"whatsNew.archived.title" = "Xats arxivats";
+"whatsNew.archived.description" = "Guarda converses fora de la safata principal i recupera-les quan vulguis, amb els no llegits.";
 
-"whatsNew.location.title" = "Compartir ubicacio";
-"whatsNew.location.description" = "Envia un lloc concret amb vista de mapa integrada al missatge.";
+"whatsNew.fasterChat.title" = "Xat mes rapid";
+"whatsNew.fasterChat.description" = "Els missatges i les fotos es guarden al teu telefon per obrir converses a l'instant i carregar l'historial amb mes suavitat.";
 
-"whatsNew.liveLocation.title" = "Ubicacio en directe";
-"whatsNew.liveLocation.description" = "Comparteix la teva ubicacio en temps real durant 15 minuts, 1 hora o 8 hores.";
+"whatsNew.notifications.title" = "Notificacions millorades";
+"whatsNew.notifications.description" = "Respon mantenint premuda la notificacio i veu millor quan t'envien fotos, videos o un brunzit.";
 
-"whatsNew.media.title" = "Fotos i media";
-"whatsNew.media.description" = "Diverses fotos s'agrupen en una graella compacta i el visor a pantalla completa es mes immersiu.";
+"whatsNew.chatPolish.title" = "Xat mes polit";
+"whatsNew.chatPolish.description" = "Respostes dins la bombolla, llista mes compacta, deslitza per tornar i notes de veu mes comodes.";
 
-"whatsNew.reactions.title" = "Reaccions i reenviament";
-"whatsNew.reactions.description" = "Reacciona amb emojis de forma mes visible i reenvia missatges amb un flux mes clar.";
+"whatsNew.social.title" = "Activitat i visites";
+"whatsNew.social.description" = "Consulta la teva activitat compartida amb una altra persona i revisa qui visita el teu perfil amb mes claredat.";
 
-"whatsNew.map.title" = "Descobreix al mapa";
-"whatsNew.map.description" = "Explora llocs, moments i histories des d'una nova vista de mapa mes immersiva.";
-
-"whatsNew.feed.title" = "Feed mes fluid";
-"whatsNew.feed.description" = "Navegacio renovada, anells d'histories al feed i millor reproduccio de video.";
-
-"whatsNew.profile.title" = "Perfil redissenyat";
-"whatsNew.profile.description" = "Hem renovat l'experiencia de perfil amb un disseny mes net, graella personalitzable, nota de perfil i moments destacats.";
-
-"whatsNew.highlights.title" = "Highlights renovats";
-"whatsNew.highlights.description" = "Crea i gestiona highlights amb un flux mes comode i visual.";
-
-"whatsNew.explore.title" = "Explorar mes clar";
-"whatsNew.explore.description" = "Vistes de detall refinades i una experiencia d'exploracio mes directa.";
-
-"whatsNew.onboarding.title" = "Onboarding mes robust";
-"whatsNew.onboarding.description" = "Registre reanudable, recuperacio de compte millorada i mes seguretat en crear el teu perfil.";
-
-"whatsNew.polish.title" = "Polit general";
-"whatsNew.polish.description" = "Nou glass chrome, textos mes clars i correccions d'estabilitat a tota l'app.";
+"whatsNew.discovery.title" = "Per a tu i mes";
+"whatsNew.discovery.description" = "Descobreix moments de gent nova, dates mes naturals en el teu idioma i millores d'estabilitat a tota l'app.";
 
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";

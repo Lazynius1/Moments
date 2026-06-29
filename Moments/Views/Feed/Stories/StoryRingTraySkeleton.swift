@@ -25,13 +25,6 @@ struct StoryRingTraySkeletonCell: View {
 
                 avatarPlaceholder
                     .shimmer(isAnimating: isAnimating)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                StoryRingLayout.gapSeparatorColor(colorScheme),
-                                lineWidth: StoryRingLayout.ringGap * 2
-                            )
-                    )
             }
             .frame(width: outerSize, height: outerSize)
 
@@ -75,6 +68,7 @@ struct StoryRingTraySkeletonCell: View {
             lineWidth: ringLineWidth,
             hapticsEnabled: false
         )
+        .mask(StoryRingLayout.ringGapMask(avatarSize: avatarSize))
         .opacity(isOwnStory ? 1 : 0.55)
         .allowsHitTesting(false)
     }

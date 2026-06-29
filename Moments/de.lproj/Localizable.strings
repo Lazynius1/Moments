@@ -2729,50 +2729,32 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Neu in Moments!";
-"whatsNew.subtitle" = "Erneuerte Nachrichten mit GIFs, Stickern und Live-Standort, Entdecken auf der Karte, neu gestaltetes Profil und viel Feinschliff in der ganzen App.";
-"whatsNew.button" = "Moments 2.15 entdecken";
+"whatsNew.subtitle" = "Verschwindende Nachrichten, Anstupser, archivierte Chats, Schnellantwort aus Benachrichtigungen und ein schnellerer, verfeinerter Chat.";
+"whatsNew.button" = "Moments 2.16 entdecken";
 
-"whatsNew.messaging.title" = "Chat neu gestaltet";
-"whatsNew.messaging.description" = "Sauberere Sprechblasen, gruppierte Nachrichten in Serien, Absender-Avatar beim letzten Nachricht jeder Gruppe und ein moderneres, flussigeres Chat-Erlebnis.";
+"whatsNew.vanish.title" = "Verschwindende Nachrichten";
+"whatsNew.vanish.description" = "Aktiviere sie in einer Unterhaltung und wahle, wann sie geloscht werden. Wische nach oben, um den Modus sofort ein- oder auszuschalten.";
 
-"whatsNew.gif.title" = "GIFs im Chat";
-"whatsNew.gif.description" = "Suche und sende Giphy-GIFs, ohne die Unterhaltung zu verlassen.";
+"whatsNew.buzz.title" = "Anstupser";
+"whatsNew.buzz.description" = "Hole jemandes Aufmerksamkeit im Chat mit Vibration und Animation. Anstupser kannst du pro Unterhaltung deaktivieren.";
 
-"whatsNew.stickers.title" = "Sticker";
-"whatsNew.stickers.description" = "Sende Sticker mit schnellem Zugriff auf deine zuletzt genutzten fur persönlichere Antworten.";
+"whatsNew.archived.title" = "Archivierte Chats";
+"whatsNew.archived.description" = "Räume Unterhaltungen aus deinem Posteingang aus und hole sie jederzeit zuruck, inklusive ungelesener Nachrichten.";
 
-"whatsNew.location.title" = "Standort teilen";
-"whatsNew.location.description" = "Sende einen konkreten Ort mit integrierter Kartenansicht in der Nachricht.";
+"whatsNew.fasterChat.title" = "Schnellerer Chat";
+"whatsNew.fasterChat.description" = "Nachrichten und Fotos werden auf deinem Handy gespeichert, damit Chats sofort offnen und der Verlauf flussiger ladet.";
 
-"whatsNew.liveLocation.title" = "Live-Standort";
-"whatsNew.liveLocation.description" = "Teile deinen Echtzeit-Standort fur 15 Minuten, 1 Stunde oder 8 Stunden.";
+"whatsNew.notifications.title" = "Bessere Benachrichtigungen";
+"whatsNew.notifications.description" = "Antworte, indem du die Benachrichtigung gedruckt haltst, und sieh klarer, wenn dir Fotos, Videos oder ein Anstupser geschickt werden.";
 
-"whatsNew.media.title" = "Fotos und Medien";
-"whatsNew.media.description" = "Mehrere Fotos werden in einem kompakten Grid gruppiert und der Vollbild-Viewer wirkt immersiver.";
+"whatsNew.chatPolish.title" = "Verfeinerter Chat";
+"whatsNew.chatPolish.description" = "Antworten in der Sprechblase, kompaktere Liste, Wischen zum Zuruckgehen und bequemere Sprachnachrichten.";
 
-"whatsNew.reactions.title" = "Reaktionen und Weiterleiten";
-"whatsNew.reactions.description" = "Reagiere sichtbarer mit Emojis und leite Nachrichten mit einem klareren Ablauf weiter.";
+"whatsNew.social.title" = "Aktivitat und Besuche";
+"whatsNew.social.description" = "Sieh deine geteilte Aktivitat mit einer anderen Person und prufe klarer, wer dein Profil besucht.";
 
-"whatsNew.map.title" = "Auf der Karte entdecken";
-"whatsNew.map.description" = "Entdecke Orte, Momente und Stories in einer neuen, immersiveren Kartenansicht.";
-
-"whatsNew.feed.title" = "Flussigerer Feed";
-"whatsNew.feed.description" = "Erneuerte Navigation, Story-Ringe im Feed und bessere Videowiedergabe.";
-
-"whatsNew.profile.title" = "Profil neu gestaltet";
-"whatsNew.profile.description" = "Wir haben das Profil-Erlebnis mit einem saubereren Design, anpassbarem Raster, Profilnotiz und hervorgehobenen Momenten erneuert.";
-
-"whatsNew.highlights.title" = "Erneuerte Highlights";
-"whatsNew.highlights.description" = "Erstelle und verwalte Highlights mit einem komfortableren, visuelleren Ablauf.";
-
-"whatsNew.explore.title" = "Klareres Entdecken";
-"whatsNew.explore.description" = "Verfeinerte Detailansichten und ein direkteres Entdecken-Erlebnis.";
-
-"whatsNew.onboarding.title" = "Robusteres Onboarding";
-"whatsNew.onboarding.description" = "Fortsetzbare Registrierung, verbesserte Kontowiederherstellung und mehr Sicherheit beim Profilerstellen.";
-
-"whatsNew.polish.title" = "Allgemeiner Feinschliff";
-"whatsNew.polish.description" = "Neues Glass Chrome, klarere Texte und Stabilitatskorrekturen in der ganzen App.";
+"whatsNew.discovery.title" = "Fur dich und mehr";
+"whatsNew.discovery.description" = "Entdecke Momente von neuen Personen, naturlichere Datumsangaben in deiner Sprache und Stabilitatsverbesserungen in der ganzen App.";
 
 /* Best Friends */
 "bestFriends.title" = "Enge Freunde";

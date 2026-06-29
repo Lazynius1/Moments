@@ -5,7 +5,6 @@ import UIKit
 private struct FeedStoryRingAvatar<Avatar: View>: View {
     let avatarSize: CGFloat
     let lineWidth: CGFloat
-    let colorScheme: ColorScheme
     @ViewBuilder let avatar: () -> Avatar
     let ring: StorySegmentedRing
 
@@ -16,17 +15,11 @@ private struct FeedStoryRingAvatar<Avatar: View>: View {
     var body: some View {
         ZStack {
             ring
+                .mask(StoryRingLayout.ringGapMask(avatarSize: avatarSize))
 
             avatar()
                 .frame(width: avatarSize, height: avatarSize)
                 .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(
-                            StoryRingLayout.gapSeparatorColor(colorScheme),
-                            lineWidth: StoryRingLayout.ringGap * 2
-                        )
-                )
         }
         .frame(width: outerSize, height: outerSize)
     }
@@ -53,7 +46,6 @@ struct RealStoryCircle: View {
                 FeedStoryRingAvatar(
                     avatarSize: avatarSize,
                     lineWidth: lineWidth,
-                    colorScheme: colorScheme,
                     avatar: { AsyncProfileImageView(userId: userId) },
                     ring: StorySegmentedRing(
                         storyCount: storyCount,
@@ -121,7 +113,6 @@ struct YourStoryCircleWithProgress: View {
                     FeedStoryRingAvatar(
                         avatarSize: avatarSize,
                         lineWidth: lineWidth,
-                        colorScheme: colorScheme,
                         avatar: {
                             AsyncProfileImageView(userId: Auth.auth().currentUser?.uid ?? "")
                         },

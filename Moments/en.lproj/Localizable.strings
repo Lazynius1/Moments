@@ -2752,52 +2752,34 @@
 "banner.verb.story" = "reacted to your story";
 "banner.verb.message" = "sent you a message";
 
-/* Whats New v2.14 */
+/* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "A refreshed chat with GIFs, stickers, and live location, map discovery, a redesigned profile, and lots of polish across the app.";
-"whatsNew.button" = "Explore Moments 2.15";
+"whatsNew.subtitle" = "Disappearing messages, buzzes, archived chats, quick reply from notifications, and a faster, more polished chat.";
+"whatsNew.button" = "Explore Moments 2.16";
 
-"whatsNew.messaging.title" = "Redesigned chat";
-"whatsNew.messaging.description" = "Cleaner bubbles, messages grouped in bursts, sender avatar on the last message of each group, and a more modern, fluid chat.";
+"whatsNew.vanish.title" = "Disappearing messages";
+"whatsNew.vanish.description" = "Turn them on in a conversation and choose when they are deleted. Swipe up to turn the mode on or off instantly.";
 
-"whatsNew.gif.title" = "GIFs in chat";
-"whatsNew.gif.description" = "Search and send Giphy GIFs without leaving the conversation.";
+"whatsNew.buzz.title" = "Buzzes";
+"whatsNew.buzz.description" = "Get someone's attention in chat with vibration and animation. You can turn buzzes off per conversation.";
 
-"whatsNew.stickers.title" = "Stickers";
-"whatsNew.stickers.description" = "Send stickers with quick access to your recents for more personal replies.";
+"whatsNew.archived.title" = "Archived chats";
+"whatsNew.archived.description" = "Move conversations out of your main inbox and bring them back anytime, unread count included.";
 
-"whatsNew.location.title" = "Share location";
-"whatsNew.location.description" = "Send a specific place with an integrated map preview inside the message.";
+"whatsNew.fasterChat.title" = "Faster chat";
+"whatsNew.fasterChat.description" = "Messages and photos are saved on your phone so conversations open right away and history loads more smoothly.";
 
-"whatsNew.liveLocation.title" = "Live location";
-"whatsNew.liveLocation.description" = "Share your real-time location for 15 minutes, 1 hour, or 8 hours.";
+"whatsNew.notifications.title" = "Better notifications";
+"whatsNew.notifications.description" = "Reply by pressing and holding the notification and get clearer previews for photos, videos, and buzzes.";
 
-"whatsNew.media.title" = "Photos and media";
-"whatsNew.media.description" = "Multiple photos group into a compact grid and the fullscreen viewer feels more immersive.";
+"whatsNew.chatPolish.title" = "Refined chat";
+"whatsNew.chatPolish.description" = "Replies inside the bubble, a more compact list, swipe to go back, and more comfortable voice notes.";
 
-"whatsNew.reactions.title" = "Reactions and forwarding";
-"whatsNew.reactions.description" = "React with emojis more visibly and forward messages with a clearer flow.";
+"whatsNew.social.title" = "Activity and visits";
+"whatsNew.social.description" = "See your shared activity with someone else and check who visits your profile more clearly.";
 
-"whatsNew.map.title" = "Discover on the map";
-"whatsNew.map.description" = "Explore places, moments, and stories from a new, more immersive map view.";
-
-"whatsNew.feed.title" = "A smoother feed";
-"whatsNew.feed.description" = "Refreshed navigation, story rings in the feed, and better video playback.";
-
-"whatsNew.profile.title" = "Redesigned profile";
-"whatsNew.profile.description" = "We refreshed the profile experience with a cleaner design, a customizable grid, a profile note, and highlighted moments.";
-
-"whatsNew.highlights.title" = "Refreshed highlights";
-"whatsNew.highlights.description" = "Create and manage highlights with a more comfortable, more visual flow.";
-
-"whatsNew.explore.title" = "Clearer Explore";
-"whatsNew.explore.description" = "Refined detail views and a more direct exploration experience.";
-
-"whatsNew.onboarding.title" = "More robust onboarding";
-"whatsNew.onboarding.description" = "Resumable sign-up, improved account recovery, and stronger safety when creating your profile.";
-
-"whatsNew.polish.title" = "General polish";
-"whatsNew.polish.description" = "New glass chrome, clearer copy, and stability fixes across the app.";
+"whatsNew.discovery.title" = "For You and more";
+"whatsNew.discovery.description" = "Discover moments from new people, more natural dates in your language, and stability improvements across the app.";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";
