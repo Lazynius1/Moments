@@ -126,7 +126,7 @@ struct MessagingSectionHeader: View {
             .font(.system(size: 17, weight: .bold))
             .foregroundStyle(adaptiveColors.primary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 12)
             .padding(.top, 10)
             .padding(.bottom, 4)
     }

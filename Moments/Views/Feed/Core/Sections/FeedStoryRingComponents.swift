@@ -2,6 +2,36 @@ import SwiftUI
 import FirebaseAuth
 import UIKit
 
+private struct FeedStoryRingAvatar<Avatar: View>: View {
+    let avatarSize: CGFloat
+    let lineWidth: CGFloat
+    let colorScheme: ColorScheme
+    @ViewBuilder let avatar: () -> Avatar
+    let ring: StorySegmentedRing
+
+    private var outerSize: CGFloat {
+        StoryRingLayout.outerFrameSize(avatarSize: avatarSize, lineWidth: lineWidth)
+    }
+
+    var body: some View {
+        ZStack {
+            ring
+
+            avatar()
+                .frame(width: avatarSize, height: avatarSize)
+                .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(
+                            StoryRingLayout.gapSeparatorColor(colorScheme),
+                            lineWidth: StoryRingLayout.ringGap * 2
+                        )
+                )
+        }
+        .frame(width: outerSize, height: outerSize)
+    }
+}
+
 struct RealStoryCircle: View {
     let userId: String
     let fallbackUsername: String
@@ -13,31 +43,34 @@ struct RealStoryCircle: View {
     let isOwnStory: Bool
     let colorScheme: ColorScheme
     let action: () -> Void
-    
+
+    private let avatarSize = StoryRingLayout.feedHeaderAvatarSize
+    private let lineWidth = StoryRingLayout.feedHeaderLineWidth
+
     var body: some View {
         VStack(spacing: 3) {
             Button(action: action) {
-                ZStack {
-                    AsyncProfileImageView(userId: userId)
-                        .frame(width: 50, height: 50)
-                        .clipShape(Circle())
-                        .overlay(
-                            StorySegmentedRing(
-                                storyCount: storyCount,
-                                hasStory: hasStory,
-                                hasUnseenStory: hasUnseenStory,
-                                storyViewedStatus: storyViewedStatus,
-                                storyAudiences: storyAudiences,
-                                isOwnStory: isOwnStory,
-                                colorScheme: colorScheme,
-                                ringSize: 50,
-                                lineWidth: 3.0, // ✅ Grosor ligeramente mayor para Tier 1
-                                hapticsEnabled: true
-                            )
-                        )
-                }
-                .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
-                .padding(2) // ✅ Margen de seguridad
+                FeedStoryRingAvatar(
+                    avatarSize: avatarSize,
+                    lineWidth: lineWidth,
+                    colorScheme: colorScheme,
+                    avatar: { AsyncProfileImageView(userId: userId) },
+                    ring: StorySegmentedRing(
+                        storyCount: storyCount,
+                        hasStory: hasStory,
+                        hasUnseenStory: hasUnseenStory,
+                        storyViewedStatus: storyViewedStatus,
+                        storyAudiences: storyAudiences,
+                        isOwnStory: isOwnStory,
+                        colorScheme: colorScheme,
+                        ringSize: StoryRingLayout.ringStrokeDiameter(
+                            avatarSize: avatarSize,
+                            lineWidth: lineWidth
+                        ),
+                        lineWidth: lineWidth,
+                        hapticsEnabled: true
+                    )
+                )
             }
             .buttonStyle(.momentsPress(scale: 0.94, haptic: .none))
 
@@ -68,7 +101,10 @@ struct YourStoryCircleWithProgress: View {
     let colorScheme: ColorScheme
     @ObservedObject var storyUploadService: BackgroundStoryUploadService
     let action: () -> Void
-    
+
+    private let avatarSize = StoryRingLayout.feedHeaderAvatarSize
+    private let lineWidth = StoryRingLayout.feedHeaderLineWidth
+
     var body: some View {
         VStack(spacing: 3) {
             Button(action: {
@@ -82,24 +118,29 @@ struct YourStoryCircleWithProgress: View {
                 }
             }) {
                 ZStack {
-                    // Imagen de perfil del usuario actual
-                    AsyncProfileImageView(userId: Auth.auth().currentUser?.uid ?? "")
-                        .frame(width: 50, height: 50)
-                        .clipShape(Circle())
-                        .overlay(
-                            StorySegmentedRing(
-                                storyCount: storyCount,
-                                hasStory: hasStory,
-                                hasUnseenStory: false, // Tu propia historia siempre está vista
-                                storyViewedStatus: Array(repeating: true, count: storyCount), // ✅ Todas las historias propias están "vistas"
-                                storyAudiences: storyAudiences,
-                                isOwnStory: true, // ✅ Es tu propia historia
-                                colorScheme: colorScheme,
-                                ringSize: 50,
-                                lineWidth: 3.0, // ✅ Consistente con RealStoryCircle
-                                hapticsEnabled: true
-                            )
+                    FeedStoryRingAvatar(
+                        avatarSize: avatarSize,
+                        lineWidth: lineWidth,
+                        colorScheme: colorScheme,
+                        avatar: {
+                            AsyncProfileImageView(userId: Auth.auth().currentUser?.uid ?? "")
+                        },
+                        ring: StorySegmentedRing(
+                            storyCount: storyCount,
+                            hasStory: hasStory,
+                            hasUnseenStory: false,
+                            storyViewedStatus: Array(repeating: true, count: storyCount),
+                            storyAudiences: storyAudiences,
+                            isOwnStory: true,
+                            colorScheme: colorScheme,
+                            ringSize: StoryRingLayout.ringStrokeDiameter(
+                                avatarSize: avatarSize,
+                                lineWidth: lineWidth
+                            ),
+                            lineWidth: lineWidth,
+                            hapticsEnabled: true
                         )
+                    )
 
                     if let uploadingStory = storyUploadService.uploadingStory {
                         StoryUploadCircleOverlay(
@@ -108,8 +149,6 @@ struct YourStoryCircleWithProgress: View {
                         )
                     }
                 }
-                .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
-                .padding(2) // ✅ Margen de seguridad
             }
             .buttonStyle(.momentsPress(scale: 0.94, haptic: .none))
 
@@ -168,6 +207,12 @@ struct StoryUploadCircleOverlay: View {
     @ObservedObject var uploadingStory: UploadingStory
     let colorScheme: ColorScheme
 
+    private let avatarSize = StoryRingLayout.feedHeaderAvatarSize
+    private let lineWidth = StoryRingLayout.feedHeaderLineWidth
+    private var progressRingSize: CGFloat {
+        StoryRingLayout.ringStrokeDiameter(avatarSize: avatarSize, lineWidth: lineWidth)
+    }
+
     @State private var renderedProgress: Double = 0
     @State private var arrowOffset: CGFloat = 0
     @State private var arrowOpacity: Double = 1
@@ -196,7 +241,7 @@ struct StoryUploadCircleOverlay: View {
                         ),
                         lineWidth: 3
                     )
-                    .frame(width: 54, height: 54)
+                    .frame(width: progressRingSize, height: progressRingSize)
                     .scaleEffect(isPulsing ? 1.08 : 0.94)
                     .opacity(isPulsing ? 0.9 : 0.4)
                     .onAppear {
@@ -207,7 +252,7 @@ struct StoryUploadCircleOverlay: View {
             } else {
                 Circle()
                     .stroke(trackColor, lineWidth: 3)
-                    .frame(width: 54, height: 54)
+                    .frame(width: progressRingSize, height: progressRingSize)
 
                 Circle()
                     .trim(from: 0, to: max(0.04, min(renderedProgress, 1.0)))
@@ -215,18 +260,18 @@ struct StoryUploadCircleOverlay: View {
                         progressGradient,
                         style: StrokeStyle(lineWidth: 3, lineCap: .round)
                     )
-                    .frame(width: 54, height: 54)
+                    .frame(width: progressRingSize, height: progressRingSize)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 0.22), value: renderedProgress)
             }
 
             Circle()
                 .fill((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).opacity(0.42))
-                .frame(width: 50, height: 50)
+                .frame(width: avatarSize, height: avatarSize)
 
             Circle()
                 .stroke(Color.white.opacity(0.8), lineWidth: 2)
-                .frame(width: 54, height: 54)
+                .frame(width: progressRingSize, height: progressRingSize)
                 .scaleEffect(rippleScale)
                 .opacity(rippleOpacity)
 

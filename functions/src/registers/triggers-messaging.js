@@ -556,6 +556,9 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
           badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
           sound: 'default',
           'mutable-content': 1,
+          // Categoría con campo de respuesta rápida (long-press). Debe coincidir con
+          // ChatNotificationReply.categoryIdentifier en el cliente.
+          category: 'MOMENTS_MESSAGE_REPLY',
           'thread-id': `conversation_${conversationId}`
         }
       };

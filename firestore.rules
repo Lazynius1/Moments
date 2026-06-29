@@ -1561,7 +1561,8 @@ service cloud.firestore {
           'timestamp', 'readStatus', 'lastReadAt',
           'encryptionKey', 'encryptionKeyCreatedAt', 'encryptionVersion',
           'wrappedKeys', 'forwardingPreferences', 'buzzPreferences',
-          'vanishModeActive', 'vanishModeEnabledBy', 'vanishModeEnabledAt', 'vanishMessageTimer'
+          'vanishModeActive', 'vanishModeEnabledBy', 'vanishModeEnabledAt', 'vanishMessageTimer',
+          'vanishSettingsNoticeMessageId', 'vanishDisabledNoticeMessageId'
         ]) &&
         (
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deletedFor']) || onlyConversationDeletedForMeUpdated())

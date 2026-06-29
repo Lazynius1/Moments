@@ -246,6 +246,7 @@ extension ChatService {
         mediaData: Data,
         mediaType: EnhancedCameraPickerView.MediaType,
         messageId: String? = nil,
+        isVanishModeMessage: Bool = false,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         let messageType: MessageType = mediaType == .image ? .viewOnceImage : .viewOnceVideo
@@ -283,7 +284,8 @@ extension ChatService {
                     isViewed: false,
                     storyReplyData: nil,
                     sharedMomentData: nil,
-                    viewedBy: []
+                    viewedBy: [],
+                    isVanishModeMessage: isVanishModeMessage ? true : nil
                 )
 
                 var messageData = self?.createBasicMessageData(from: message) ?? [:]

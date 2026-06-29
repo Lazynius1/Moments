@@ -620,7 +620,7 @@ struct MessagingView: View {
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
         .padding(.bottom, 8)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: isSearchFocused)
     }
@@ -939,8 +939,8 @@ struct MessagingView: View {
                     .opacity(0.45)
             }
             .foregroundStyle(adaptiveColors.primary.opacity(0.85))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
         .buttonStyle(.plain)
         .listRowInsets(EdgeInsets())
@@ -1042,7 +1042,7 @@ struct SearchUserRow: View {
                 AsyncProfileImageView(userId: user.id)
                     .frame(width: 56, height: 56)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(user.username)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -1058,8 +1058,8 @@ struct SearchUserRow: View {
                     .font(.system(size: 20))
                     .foregroundColor(Color(hex: "007AFF"))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -1089,13 +1089,13 @@ struct GlassmorphicConversationRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             conversationAvatar
 
             rowContent
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
         .onAppear {
             refreshOtherParticipantUsername()
             refreshOtherParticipantAvailability()
@@ -1153,7 +1153,7 @@ struct GlassmorphicConversationRow: View {
     @ViewBuilder
     private var rowContent: some View {
         let content = HStack(alignment: .center, spacing: 8) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 usernameRow
                 messagePreviewRow
             }
@@ -1562,8 +1562,8 @@ private struct NewConversationUserRow: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
     }
 }
 

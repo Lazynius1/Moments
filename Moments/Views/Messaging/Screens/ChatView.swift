@@ -3262,7 +3262,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             senderId: currentUserId,
             type: .image,
             mediaUrl: localPreview,
-            status: .sending
+            status: .sending,
+            isVanishModeMessage: outgoingVanishMessageFlag
         )
 
         appendOutgoingMessage(tempMessage)
@@ -3272,7 +3273,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             senderId: currentUserId,
             type: .image,
             mediaData: imageData,
-            messageId: messageId
+            messageId: messageId,
+            isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -3315,7 +3317,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             mediaUrl: localPreview,
             thumbnailUrl: nil,
             duration: duration,
-            status: .sending
+            status: .sending,
+            isVanishModeMessage: outgoingVanishMessageFlag
         )
 
         appendOutgoingMessage(tempMessage)
@@ -3325,7 +3328,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             senderId: currentUserId,
             audioData: audioData,
             duration: duration,
-            messageId: messageId // ✅ Pasar el mismo ID
+            messageId: messageId,
+            isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -3360,7 +3364,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             senderId: currentUserId,
             type: messageType,
             status: .sending,
-            isViewed: false
+            isViewed: false,
+            isVanishModeMessage: outgoingVanishMessageFlag
         )
 
         appendOutgoingMessage(tempMessage)
@@ -3370,7 +3375,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             senderId: currentUserId,
             mediaData: data,
             mediaType: mediaType,
-            messageId: messageId // ✅ Pasar el mismo ID
+            messageId: messageId,
+            isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -3413,7 +3419,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             mediaUrl: asset.url,
             mediaWidth: asset.width > 0 ? asset.width : nil,
             mediaHeight: asset.height > 0 ? asset.height : nil,
-            status: .sending
+            status: .sending,
+            isVanishModeMessage: outgoingVanishMessageFlag
         )
         appendOutgoingMessage(tempMessage)
 
@@ -3425,7 +3432,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             mediaUrl: asset.url,
             width: asset.width,
             height: asset.height,
-            messageId: messageId
+            messageId: messageId,
+            isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -3462,7 +3470,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             mediaUrl: asset.url,
             mediaWidth: asset.width > 0 ? asset.width : nil,
             mediaHeight: asset.height > 0 ? asset.height : nil,
-            status: .sending
+            status: .sending,
+            isVanishModeMessage: outgoingVanishMessageFlag
         )
         appendOutgoingMessage(tempMessage)
 
@@ -3474,7 +3483,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             mediaUrl: asset.url,
             width: asset.width,
             height: asset.height,
-            messageId: messageId
+            messageId: messageId,
+            isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -3513,7 +3523,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             locationName: name,
             locationAddress: address,
             isLiveLocation: false,
-            status: .sending
+            status: .sending,
+            isVanishModeMessage: outgoingVanishMessageFlag
         )
         appendOutgoingMessage(tempMessage)
 
@@ -3524,7 +3535,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             longitude: coordinate.longitude,
             name: name,
             address: address,
-            messageId: messageId
+            messageId: messageId,
+            isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -3571,7 +3583,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             liveLocationDuration: duration.firestoreValue,
             liveLocationSessionId: sessionId,
             locationUpdatedAt: Date(),
-            status: .sending
+            status: .sending,
+            isVanishModeMessage: outgoingVanishMessageFlag
         )
         appendOutgoingMessage(tempMessage)
 
@@ -3585,7 +3598,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             duration: duration,
             sessionId: sessionId,
             expiresAt: expiresAt,
-            messageId: messageId
+            messageId: messageId,
+            isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {

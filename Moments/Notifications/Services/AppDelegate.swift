@@ -16,6 +16,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
 
+        // ✅ Registrar la categoría de respuesta rápida (campo de texto al hacer
+        // long-press en la notificación de mensaje, estilo WhatsApp/Instagram).
+        UNUserNotificationCenter.current().setNotificationCategories([
+            ChatNotificationReply.makeCategory()
+        ])
+
         // ✅ NUEVO: Configurar badge service
         NotificationBadgeService.shared.setupListeners()
 
@@ -174,6 +180,13 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
 
+        // ✅ Respuesta rápida desde la notificación (campo de texto inline).
+        if let textResponse = response as? UNTextInputNotificationResponse,
+           response.actionIdentifier == ChatNotificationReply.actionIdentifier {
+            handleQuickReply(text: textResponse.userText, userInfo: userInfo, completion: completionHandler)
+            return
+        }
+
         // ✅ USAR EL SERVICIO DE NAVEGACIÓN
         NotificationNavigationService.shared.handleNotificationData(userInfo)
         
@@ -191,6 +204,48 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
             return ChatSendMessageIntentHandler()
         }
         return nil
+    }
+
+    /// Envía el texto escrito en el campo de respuesta inline de la notificación.
+    private func handleQuickReply(
+        text: String,
+        userInfo: [AnyHashable: Any],
+        completion: @escaping () -> Void
+    ) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            !trimmed.isEmpty,
+            let conversationId = userInfo["conversationId"] as? String,
+            let senderId = Auth.auth().currentUser?.uid
+        else {
+            completion()
+            return
+        }
+
+        var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "QuickReply") {
+            if backgroundTask != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTask)
+                backgroundTask = .invalid
+            }
+        }
+
+        let finish: () -> Void = {
+            if backgroundTask != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTask)
+                backgroundTask = .invalid
+            }
+            completion()
+        }
+
+        ChatService.shared.sendTextMessage(
+            conversationId: conversationId,
+            senderId: senderId,
+            content: trimmed
+        ) { _ in
+            NotificationBadgeService.shared.setupListeners()
+            finish()
+        }
     }
 
     // ✅ NUEVO: Marcar notificación como leída

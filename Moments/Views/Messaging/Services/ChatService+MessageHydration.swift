@@ -40,6 +40,9 @@ extension ChatService {
         if let mediaHeight = message.mediaHeight {
             data["mediaHeight"] = mediaHeight
         }
+        if message.isVanishModeMessage == true {
+            data["isVanishModeMessage"] = true
+        }
 
         return data
     }

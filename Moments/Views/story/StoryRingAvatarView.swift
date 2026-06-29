@@ -1,17 +1,27 @@
 import SwiftUI
 import FirebaseAuth
 
-private enum StoryRingAvatarMetrics {
-    /// Referencia visual del carrusel de historias del feed.
+/// Medidas compartidas del aro de historias (feed header, inbox, perfil, etc.).
+enum StoryRingLayout {
     static let feedHeaderAvatarSize: CGFloat = 50
     static let feedHeaderLineWidth: CGFloat = 3.0
+    /// Espacio visible entre la foto y el aro (estilo Instagram).
+    static let ringGap: CGFloat = 1.5
 
     static func defaultLineWidth(for size: CGFloat) -> CGFloat {
         max(2.8, size * (feedHeaderLineWidth / feedHeaderAvatarSize))
     }
 
+    static func ringStrokeDiameter(avatarSize: CGFloat, lineWidth: CGFloat) -> CGFloat {
+        avatarSize + ringGap * 2 + lineWidth
+    }
+
     static func outerFrameSize(avatarSize: CGFloat, lineWidth: CGFloat) -> CGFloat {
-        avatarSize + lineWidth + 4
+        ringStrokeDiameter(avatarSize: avatarSize, lineWidth: lineWidth) + lineWidth + 2
+    }
+
+    static func gapSeparatorColor(_ colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color(white: 0.06) : .white
     }
 }
 
@@ -49,31 +59,43 @@ struct StoryRingAvatarView: View {
     }
 
     private var resolvedLineWidth: CGFloat {
-        lineWidth ?? StoryRingAvatarMetrics.defaultLineWidth(for: size)
+        lineWidth ?? StoryRingLayout.defaultLineWidth(for: size)
+    }
+
+    private var ringStrokeDiameter: CGFloat {
+        StoryRingLayout.ringStrokeDiameter(avatarSize: size, lineWidth: resolvedLineWidth)
     }
 
     private var avatarContent: some View {
-        AsyncProfileImageView(userId: userId)
-            .frame(width: size, height: size)
-            .clipShape(Circle())
-            .overlay(
-                StorySegmentedRing(
-                    storyCount: snapshot.storyCount,
-                    hasStory: snapshot.hasStory,
-                    hasUnseenStory: snapshot.hasUnseenStory,
-                    storyViewedStatus: snapshot.storyViewedStatus,
-                    storyAudiences: snapshot.storyAudiences,
-                    isOwnStory: resolvedIsOwnStory,
-                    colorScheme: colorScheme,
-                    ringSize: size,
-                    lineWidth: resolvedLineWidth,
-                    hapticsEnabled: hapticsEnabled
+        ZStack {
+            StorySegmentedRing(
+                storyCount: snapshot.storyCount,
+                hasStory: snapshot.hasStory,
+                hasUnseenStory: snapshot.hasUnseenStory,
+                storyViewedStatus: snapshot.storyViewedStatus,
+                storyAudiences: snapshot.storyAudiences,
+                isOwnStory: resolvedIsOwnStory,
+                colorScheme: colorScheme,
+                ringSize: ringStrokeDiameter,
+                lineWidth: resolvedLineWidth,
+                hapticsEnabled: hapticsEnabled
+            )
+
+            AsyncProfileImageView(userId: userId)
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(
+                            StoryRingLayout.gapSeparatorColor(colorScheme),
+                            lineWidth: StoryRingLayout.ringGap * 2
+                        )
                 )
-            )
-            .overlay(
-                Circle()
-                    .stroke(showBaseStroke ? baseStrokeColor : .clear, lineWidth: baseStrokeWidth)
-            )
+                .overlay(
+                    Circle()
+                        .stroke(showBaseStroke ? baseStrokeColor : .clear, lineWidth: baseStrokeWidth)
+                )
+        }
     }
 
     var body: some View {
@@ -88,8 +110,8 @@ struct StoryRingAvatarView: View {
             }
         }
         .frame(
-            width: StoryRingAvatarMetrics.outerFrameSize(avatarSize: size, lineWidth: resolvedLineWidth),
-            height: StoryRingAvatarMetrics.outerFrameSize(avatarSize: size, lineWidth: resolvedLineWidth)
+            width: StoryRingLayout.outerFrameSize(avatarSize: size, lineWidth: resolvedLineWidth),
+            height: StoryRingLayout.outerFrameSize(avatarSize: size, lineWidth: resolvedLineWidth)
         )
         .userProfileZoomSource(
             userId: userId,

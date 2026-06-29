@@ -10,19 +10,30 @@ struct StoryRingTraySkeletonCell: View {
 
     @State private var isAnimating = false
 
-    private let avatarSize: CGFloat = 50
-    private let ringLineWidth: CGFloat = 3.0
+    private let avatarSize = StoryRingLayout.feedHeaderAvatarSize
+    private let ringLineWidth = StoryRingLayout.feedHeaderLineWidth
     private let cellWidth: CGFloat = 64
+
+    private var outerSize: CGFloat {
+        StoryRingLayout.outerFrameSize(avatarSize: avatarSize, lineWidth: ringLineWidth)
+    }
 
     var body: some View {
         VStack(spacing: 3) {
             ZStack {
+                ringOverlay
+
                 avatarPlaceholder
                     .shimmer(isAnimating: isAnimating)
-                    .overlay(ringOverlay)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                StoryRingLayout.gapSeparatorColor(colorScheme),
+                                lineWidth: StoryRingLayout.ringGap * 2
+                            )
+                    )
             }
-            .frame(width: 56, height: 56)
-            .padding(2)
+            .frame(width: outerSize, height: outerSize)
 
             labelPlaceholder
                 .shimmer(isAnimating: isAnimating)
@@ -57,7 +68,10 @@ struct StoryRingTraySkeletonCell: View {
             storyAudiences: [],
             isOwnStory: isOwnStory,
             colorScheme: colorScheme,
-            ringSize: avatarSize,
+            ringSize: StoryRingLayout.ringStrokeDiameter(
+                avatarSize: avatarSize,
+                lineWidth: ringLineWidth
+            ),
             lineWidth: ringLineWidth,
             hapticsEnabled: false
         )

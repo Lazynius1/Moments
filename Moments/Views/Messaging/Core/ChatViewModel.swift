@@ -1900,7 +1900,8 @@ class EnhancedChatViewModel: ObservableObject {
             type: .location,
             latitude: latitude,
             longitude: longitude,
-            status: .sending
+            status: .sending,
+            isVanishModeMessage: outgoingVanishMessageFlag
         )
 
         // Agregar mensaje temporal a la lista local
@@ -1911,7 +1912,8 @@ class EnhancedChatViewModel: ObservableObject {
             senderId: currentUserId,
             latitude: latitude,
             longitude: longitude,
-            messageId: messageId // ✅ Pasar el mismo ID
+            messageId: messageId,
+            isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -1952,7 +1954,8 @@ class EnhancedChatViewModel: ObservableObject {
             type: .audio,
             mediaUrl: localPreview,
             duration: duration,
-            status: .sending
+            status: .sending,
+            isVanishModeMessage: outgoingVanishMessageFlag
         )
 
         // Agregar mensaje temporal a la lista local
@@ -1963,7 +1966,8 @@ class EnhancedChatViewModel: ObservableObject {
             senderId: currentUserId,
             audioData: audioData,
             duration: duration,
-            messageId: messageId // ✅ Pasar el mismo ID
+            messageId: messageId,
+            isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -2278,6 +2282,15 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     // MARK: - Vanish mode
+
+    /// Marca mensajes salientes para purge al desactivar vanish.
+    var outgoingVanishMessageFlag: Bool? {
+        vanishModeActive ? true : nil
+    }
+
+    var marksOutgoingAsVanish: Bool {
+        vanishModeActive
+    }
 
     func toggleVanishMode(completion: ((Error?) -> Void)? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {

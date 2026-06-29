@@ -2,6 +2,33 @@ import Foundation
 import Intents
 import UserNotifications
 
+/// Identificadores compartidos entre la app y la Notification Service Extension para
+/// la respuesta rápida (quick reply) desde la notificación de mensaje.
+enum ChatNotificationReply {
+    /// Categoría aplicada a las notificaciones de mensaje de chat.
+    static let categoryIdentifier = "MOMENTS_MESSAGE_REPLY"
+    /// Acción de texto (campo de respuesta inline al hacer long-press).
+    static let actionIdentifier = "MOMENTS_REPLY_ACTION"
+
+    /// Categoría con el campo de respuesta inline. Se registra al lanzar la app.
+    static func makeCategory() -> UNNotificationCategory {
+        let replyAction = UNTextInputNotificationAction(
+            identifier: actionIdentifier,
+            title: NSLocalizedString("notification.action.reply", comment: "Reply"),
+            options: [],
+            textInputButtonTitle: NSLocalizedString("notification.action.send", comment: "Send"),
+            textInputPlaceholder: NSLocalizedString("notification.action.placeholder", comment: "Message")
+        )
+
+        return UNNotificationCategory(
+            identifier: categoryIdentifier,
+            actions: [replyAction],
+            intentIdentifiers: ["INSendMessageIntent"],
+            options: []
+        )
+    }
+}
+
 enum ChatCommunicationIntentDonor {
     static func makeIncomingIntent(
         conversationId: String,
@@ -88,6 +115,10 @@ enum ChatCommunicationIntentDonor {
         interaction.identifier = messageId
         interaction.donate(completion: nil)
 
+        // Garantizar la categoría de respuesta aunque la conversión a communication
+        // notification falle (fallback devuelve `content`).
+        content.categoryIdentifier = ChatNotificationReply.categoryIdentifier
+
         do {
             let updated = try content.updating(from: intent)
             guard let mutable = updated.mutableCopy() as? UNMutableNotificationContent else {
@@ -97,6 +128,7 @@ enum ChatCommunicationIntentDonor {
             if mutable.threadIdentifier.isEmpty {
                 mutable.threadIdentifier = "conversation_\(conversationId)"
             }
+            mutable.categoryIdentifier = ChatNotificationReply.categoryIdentifier
             return mutable
         } catch {
             return content

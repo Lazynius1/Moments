@@ -28,6 +28,14 @@ class NotificationService: UNNotificationServiceExtension {
         }
         
         let userInfo = bestAttemptContent.userInfo
+
+        // ✅ Categoría de respuesta rápida lo antes posible: garantiza el campo de
+        // texto inline (long-press) aunque la conversión a communication notification falle.
+        if let messageType = userInfo["type"] as? String,
+           messageType == "new_message" || messageType == "message" {
+            bestAttemptContent.categoryIdentifier = ChatNotificationReply.categoryIdentifier
+        }
+
         enqueueMessageIngestIfNeeded(userInfo: userInfo)
         let group = DispatchGroup()
         

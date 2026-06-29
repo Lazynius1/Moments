@@ -516,6 +516,7 @@ class ChatService: ObservableObject {
         width: Int = 0,
         height: Int = 0,
         messageId: String? = nil,
+        isVanishModeMessage: Bool = false,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         let finalMessageId = messageId ?? UUID().uuidString
@@ -543,7 +544,8 @@ class ChatService: ObservableObject {
             reactions: nil,
             replyTo: nil,
             expirationDate: nil,
-            isViewed: false
+            isViewed: false,
+            isVanishModeMessage: isVanishModeMessage ? true : nil
         )
         sendMessage(message, useServerTimestamp: true, completion: completion)
     }
@@ -653,7 +655,15 @@ class ChatService: ObservableObject {
         }
     }
     
-    func sendLocationMessage(conversationId: String, senderId: String, latitude: Double, longitude: Double, messageId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendLocationMessage(
+        conversationId: String,
+        senderId: String,
+        latitude: Double,
+        longitude: Double,
+        messageId: String? = nil,
+        isVanishModeMessage: Bool = false,
+        completion: @escaping (Result<EnhancedMessage, Error>) -> Void
+    ) {
         sendStaticLocationMessage(
             conversationId: conversationId,
             senderId: senderId,
@@ -662,6 +672,7 @@ class ChatService: ObservableObject {
             name: nil,
             address: nil,
             messageId: messageId,
+            isVanishModeMessage: isVanishModeMessage,
             completion: completion
         )
     }
@@ -675,6 +686,7 @@ class ChatService: ObservableObject {
         name: String?,
         address: String?,
         messageId: String? = nil,
+        isVanishModeMessage: Bool = false,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         let finalMessageId = messageId ?? UUID().uuidString
@@ -695,7 +707,8 @@ class ChatService: ObservableObject {
                 status: .sending,
                 isRead: false,
                 isDeleted: false,
-                isViewed: false
+                isViewed: false,
+                isVanishModeMessage: isVanishModeMessage ? true : nil
             )
 
             sendMessage(message, useServerTimestamp: true, completion: completion)
@@ -714,6 +727,7 @@ class ChatService: ObservableObject {
         sessionId: String,
         expiresAt: Date,
         messageId: String? = nil,
+        isVanishModeMessage: Bool = false,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         let finalMessageId = messageId ?? UUID().uuidString
@@ -737,7 +751,8 @@ class ChatService: ObservableObject {
                 status: .sending,
                 isRead: false,
                 isDeleted: false,
-                isViewed: false
+                isViewed: false,
+                isVanishModeMessage: isVanishModeMessage ? true : nil
             )
 
             sendMessage(message, useServerTimestamp: true, completion: completion)
@@ -822,7 +837,15 @@ class ChatService: ObservableObject {
         }
     }
     
-    func sendAudioMessage(conversationId: String, senderId: String, audioData: Data, duration: Double, messageId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendAudioMessage(
+        conversationId: String,
+        senderId: String,
+        audioData: Data,
+        duration: Double,
+        messageId: String? = nil,
+        isVanishModeMessage: Bool = false,
+        completion: @escaping (Result<EnhancedMessage, Error>) -> Void
+    ) {
         let finalMessageId = messageId ?? UUID().uuidString
         uploadMedia(data: audioData, type: .audio, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
@@ -854,17 +877,18 @@ class ChatService: ObservableObject {
                     reactions: nil,
                     replyTo: nil,
                     expirationDate: nil,
-                    isViewed: false
+                    isViewed: false,
+                    isVanishModeMessage: isVanishModeMessage ? true : nil
                 )
-                
+
                 self?.sendMessage(message, useServerTimestamp: true, completion: completion)
-                
+
             case .failure(let error):
                 completion(.failure(error))
             }
         }
     }
-    
+
     // MARK: - Core Send Message Method
     func sendMessage(_ message: EnhancedMessage, useServerTimestamp: Bool, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         nonisolated(unsafe) let message = message
