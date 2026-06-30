@@ -92,16 +92,26 @@ private struct ChatSearchHighlightTermKey: EnvironmentKey {
     static let defaultValue = ""
 }
 
+private struct ChatSearchActiveMessageIdKey: EnvironmentKey {
+    static let defaultValue: String? = nil
+}
+
 extension EnvironmentValues {
     var chatSearchHighlightTerm: String {
         get { self[ChatSearchHighlightTermKey.self] }
         set { self[ChatSearchHighlightTermKey.self] = newValue }
+    }
+
+    var chatSearchActiveMessageId: String? {
+        get { self[ChatSearchActiveMessageIdKey.self] }
+        set { self[ChatSearchActiveMessageIdKey.self] = newValue }
     }
 }
 
 struct ChatTextBubbleView: View {
     let text: String
     let isOutgoing: Bool
+    var messageId: String? = nil
     var groupPosition: ChatMessageGroupPosition = .single
     let reactions: [String: [String]]?
     var isStarred: Bool = false
@@ -112,6 +122,7 @@ struct ChatTextBubbleView: View {
 
     @State private var revealSpoilers = false
     @Environment(\.chatSearchHighlightTerm) private var searchHighlightTerm
+    @Environment(\.chatSearchActiveMessageId) private var activeSearchMessageId
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
     @ScaledMetric(relativeTo: .body) private var horizontalPadding = ChatTextBubbleMetrics.horizontalPadding
@@ -226,7 +237,12 @@ struct ChatTextBubbleView: View {
     }
 
     private var searchHighlightBackground: Color {
-        Color(red: 1.0, green: 0.82, blue: 0.25).opacity(0.85)
+        Color(red: 1.0, green: 0.82, blue: 0.25).opacity(isActiveSearchMatch ? 0.92 : 0.45)
+    }
+
+    private var isActiveSearchMatch: Bool {
+        guard let messageId, let activeSearchMessageId else { return false }
+        return messageId == activeSearchMessageId
     }
 
     private func applySearchHighlight(to attributed: inout AttributedString) {
@@ -248,7 +264,7 @@ struct ChatTextBubbleView: View {
             let attrLower = attributed.index(attributed.startIndex, offsetByCharacters: lowerOffset)
             let attrUpper = attributed.index(attributed.startIndex, offsetByCharacters: upperOffset)
             attributed[attrLower..<attrUpper].backgroundColor = searchHighlightBackground
-            attributed[attrLower..<attrUpper].foregroundColor = .black
+            attributed[attrLower..<attrUpper].foregroundColor = isActiveSearchMatch ? .black : nil
             searchStart = found.upperBound > searchStart ? found.upperBound : plain.index(after: searchStart)
         }
     }

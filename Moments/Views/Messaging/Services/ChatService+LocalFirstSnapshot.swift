@@ -3,6 +3,17 @@ import FirebaseFirestore
 import FirebaseAuth
 
 extension ChatService {
+    /// Para mensajes entrantes, el estado real de lectura incluye estar en `readBy`
+    /// (el campo `isRead` del doc solo refleja read receipts cuando están activos).
+    static func resolvedIncomingIsRead(from data: [String: Any], senderId: String) -> Bool {
+        let readBy = data["readBy"] as? [String] ?? []
+        let docIsRead = data["isRead"] as? Bool ?? false
+        if let currentUid = Auth.auth().currentUser?.uid, senderId != currentUid {
+            return docIsRead || readBy.contains(currentUid)
+        }
+        return docIsRead
+    }
+
     /// Local-first: reutiliza mensajes de SwiftData y solo hidrata docs nuevos o con cambio material.
     func buildMessagesFromSnapshotUsingLocalCache(
         documents: [QueryDocumentSnapshot],
@@ -94,9 +105,7 @@ extension ChatService {
     }
 
     private static func applySnapshotMetadata(to message: inout EnhancedMessage, from data: [String: Any]) {
-        if let isRead = data["isRead"] as? Bool {
-            message.isRead = isRead
-        }
+        message.isRead = Self.resolvedIncomingIsRead(from: data, senderId: message.senderId)
         if let statusRaw = data["status"] as? String,
            let status = MessageStatus(rawValue: statusRaw) {
             message.status = status

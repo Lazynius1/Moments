@@ -17,12 +17,16 @@ enum ChatRenderRow: Identifiable {
     case header(Date)
     case message(MessageItem)
     case buzz(ChatBuzzEvent)
+    case typing
+    case historyStart
 
     var id: String {
         switch self {
         case .header(let date): return "header-\(date.timeIntervalSince1970)"
         case .message(let item): return item.id
         case .buzz(let event): return "buzz-\(event.id)"
+        case .typing: return "typing-indicator"
+        case .historyStart: return "history-start"
         }
     }
 }

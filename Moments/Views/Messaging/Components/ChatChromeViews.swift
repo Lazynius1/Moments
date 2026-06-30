@@ -461,3 +461,100 @@ struct MessagingActionToast: View {
             .accessibilityElement(children: .combine)
     }
 }
+
+// MARK: - Scroll down FAB (estilo Telegram)
+
+struct ChatScrollDownButton: View {
+    let pendingCount: Int
+    let accentColor: Color
+    let badgeTextColor: Color
+    let colorScheme: ColorScheme
+    let reduceMotion: Bool
+    let action: () -> Void
+
+    @State private var didAppear = false
+
+    var body: some View {
+        Button(action: action) {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 17, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(accentColor)
+                    .frame(width: 40, height: 40)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.12), radius: 6, x: 0, y: 2)
+
+                if pendingCount > 0 {
+                    Text(pendingCount > 99 ? "99+" : "\(pendingCount)")
+                        .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
+                        .foregroundStyle(badgeTextColor)
+                        .padding(.horizontal, 5)
+                        .frame(minWidth: 18, minHeight: 18)
+                        .background(accentColor)
+                        .clipShape(Capsule())
+                        .offset(x: 6, y: -4)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(didAppear ? 1 : 0.2)
+        .opacity(didAppear ? 1 : 0)
+        .onAppear {
+            guard !reduceMotion else {
+                didAppear = true
+                return
+            }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                didAppear = true
+            }
+        }
+        .onDisappear {
+            didAppear = false
+        }
+        .accessibilityLabel(Text(LocalizedStringKey("chat.scrollToBottom.accessibility")))
+    }
+}
+
+// MARK: - Búsqueda in-thread (estilo Telegram)
+
+struct ChatInThreadSearchField: View {
+    @Binding var text: String
+    var focused: FocusState<Bool>.Binding
+    let adaptiveColors: AdaptiveColors
+    var onClear: () -> Void
+    var onSubmit: () -> Void = {}
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(adaptiveColors.secondary.opacity(0.75))
+
+            TextField(LocalizedStringKey("chat.search.placeholder"), text: $text)
+                .font(.system(size: legacyPoppinsSize(15)))
+                .foregroundStyle(adaptiveColors.primary)
+                .textInputAutocapitalization(.never)
+                .disableAutocorrection(true)
+                .submitLabel(.search)
+                .focused(focused)
+                .onSubmit(onSubmit)
+
+            if !text.isEmpty {
+                Button(action: onClear) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(adaptiveColors.secondary.opacity(0.65))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        )
+    }
+}

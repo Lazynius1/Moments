@@ -3583,6 +3583,8 @@
 "chat.blockedByMe.input" = "You blocked this user. Unblock them to send messages.";
 "chat.blockedByMe.unblock" = "Unblock";
 "chat.search.placeholder" = "Search in chat";
+"chat.search.results" = "%1$d/%2$d";
+"chat.scrollToBottom.accessibility" = "Scroll to bottom";
 "chat.newMessages" = "New messages";
 "profileEditor.deletePhoto.title" = "Delete profile photo";
 "nova.easterEgg.title" = "Easter egg unlocked";

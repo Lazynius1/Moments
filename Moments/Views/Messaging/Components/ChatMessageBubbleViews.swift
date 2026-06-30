@@ -328,6 +328,7 @@ struct GlassmorphicMessageBubble: View {
         ChatTextBubbleView(
             text: content,
             isOutgoing: isCurrentUser,
+            messageId: message.id,
             groupPosition: groupPosition,
             reactions: reactions,
             isStarred: isStarredByCurrentUser,

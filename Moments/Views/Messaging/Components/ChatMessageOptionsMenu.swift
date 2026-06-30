@@ -57,30 +57,6 @@ extension View {
     }
 }
 
-// MARK: - Geometry debug
-
-#if DEBUG
-enum ChatGeometryDebug {
-    static func logScrollPhase(_ phase: ScrollPhase) {}
-    static func logPinned(_ source: String, _ pinned: Bool) {}
-    static func logPrepend(_ phase: String, anchorMessageId: String?) {}
-    static func logHistoryTopProbe(minY: CGFloat, ready: Bool) {}
-    static func logHistoryGate(_ gate: String, pass: Bool, detail: String = "") {}
-    static func logHistoryState(
-        locked: Bool,
-        pinned: Bool,
-        phase: ScrollPhase,
-        canLoadMore: Bool,
-        isLoadingMore: Bool,
-        isLoadingOlderHistory: Bool,
-        hasBaseline: Bool,
-        hasRestoreTask: Bool,
-        messageCount: Int
-    ) {}
-    static func logHistorySpinner(visible: Bool, reason: String) {}
-}
-#endif
-
 // MARK: - Row chrome (layout + outgoing color)
 
 /// Publica color outgoing; sin medición de layout (evita cycling al hacer scroll).
@@ -127,9 +103,20 @@ struct ChatMessageBubbleChrome<Content: View>: View {
         return 1
     }
 
+    private var highlightTintColor: Color {
+        (colorScheme == .dark ? Color.white : Color.black).opacity(0.12)
+    }
+
     var body: some View {
         content()
             .environment(\.chatMessageBubbleCornerRadius, cornerRadius)
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(highlightTintColor)
+                    .opacity(isFlashing ? 1 : 0)
+                    .allowsHitTesting(false)
+                    .animation(.easeInOut(duration: 0.3), value: isFlashing)
+            }
             .scaleEffect(
                 selectionScale,
                 anchor: isOutgoing ? .bottomTrailing : .bottomLeading
@@ -147,13 +134,18 @@ struct ChatMessageBubbleChrome<Content: View>: View {
                         )
                 }
             }
-            .onPreferenceChange(ChatBubbleGlobalFramePreference.self) { bubbleFrame = $0 }
+            .onPreferenceChange(ChatBubbleGlobalFramePreference.self) { newFrame in
+                bubbleFrame = newFrame
+            }
             .modifier(ChatBubbleLongPressModifier(
                 isEnabled: onLongPress != nil,
                 isPressing: $isPressing,
                 onLongPress: {
                     guard let onLongPress else { return }
-                    guard bubbleFrame.width > 0, bubbleFrame.height > 0 else { return }
+                    // bubbleFrame (GeometryReader en .global) no resuelve de forma fiable dentro de
+                    // una celda UIHostingConfiguration y suele quedar en .zero — se pasa igualmente:
+                    // el caller resuelve el frame real vía UIKit (chatListController.frameInWindow)
+                    // y usa este valor solo como último fallback si esa consulta fallara.
                     onLongPress(bubbleFrame, cornerRadius)
                 }
             ))

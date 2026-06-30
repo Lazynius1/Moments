@@ -46,74 +46,22 @@ enum ChatScrollTarget: Equatable, Codable {
         }
     }
 
-    var isFirstUnread: Bool {
-        if case .firstUnread = self { return true }
-        return false
-    }
-
-    var isHighlightedMessage: Bool {
-        if case .highlightedMessage = self { return true }
-        return false
-    }
-
     var pinsToBottom: Bool {
         if case .bottom = self { return true }
         return false
     }
 }
 
+/// Ya no se persiste posición de scroll entre sesiones (paridad Instagram: cada apertura va al
+/// fondo o al primer no leído). Solo se conserva la limpieza de claves antiguas para usuarios que
+/// actualizan desde versiones que sí guardaban este estado.
 enum ChatScrollStateStore {
-    struct State: Equatable, Codable {
-        var hasCompletedInitialScroll = false
-        var frozenInitialScrollTarget: ChatScrollTarget?
-        var isPinnedToBottom = true
-        var scrollAnchorId: String?
-        var scrollOffsetY: Double?
-    }
-
     private static let keyPrefix = "chatScrollState"
     private static let defaults = UserDefaults.standard
-    private static let encoder = JSONEncoder()
-    private static let decoder = JSONDecoder()
-    private static var lastWrittenPayload: [String: Data] = [:]
-
-    static func state(for conversationId: String, userId: String? = Auth.auth().currentUser?.uid) -> State {
-        guard let key = storageKey(conversationId: conversationId, userId: userId),
-              let data = defaults.data(forKey: key),
-              let decoded = try? decoder.decode(State.self, from: data) else {
-            return State()
-        }
-        return decoded
-    }
-
-    static func update(
-        for conversationId: String,
-        userId: String? = Auth.auth().currentUser?.uid,
-        _ update: (inout State) -> Void
-    ) {
-        guard let key = storageKey(conversationId: conversationId, userId: userId) else { return }
-        var current = state(for: conversationId, userId: userId)
-        update(&current)
-        guard let data = try? encoder.encode(current) else { return }
-        if lastWrittenPayload[key] == data { return }
-        defaults.set(data, forKey: key)
-        lastWrittenPayload[key] = data
-    }
-
-    static func shouldRunInitialScroll(
-        for conversationId: String,
-        hasHighlightIntent: Bool,
-        userId: String? = Auth.auth().currentUser?.uid
-    ) -> Bool {
-        if hasHighlightIntent { return true }
-        let stored = state(for: conversationId, userId: userId)
-        return !stored.hasCompletedInitialScroll
-    }
 
     static func clear(for conversationId: String, userId: String? = Auth.auth().currentUser?.uid) {
         guard let key = storageKey(conversationId: conversationId, userId: userId) else { return }
         defaults.removeObject(forKey: key)
-        lastWrittenPayload.removeValue(forKey: key)
     }
 
     static func clearAll(userId: String? = Auth.auth().currentUser?.uid) {
@@ -121,7 +69,6 @@ enum ChatScrollStateStore {
         let prefix = "\(keyPrefix).\(userId)."
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
             defaults.removeObject(forKey: key)
-            lastWrittenPayload.removeValue(forKey: key)
         }
     }
 

@@ -979,11 +979,13 @@ final class LocalPersistenceService: ObservableObject {
 
     func markConversationReadLocally(conversationId: String, currentUserId: String) {
         guard let context = modelContext else { return }
-        let predicate = #Predicate<CachedConversation> { conversation in
+        var didUpdate = false
+
+        let conversationPredicate = #Predicate<CachedConversation> { conversation in
             conversation.id == conversationId
         }
-        let descriptor = FetchDescriptor<CachedConversation>(predicate: predicate)
-        if let cached = try? context.fetch(descriptor).first {
+        let conversationDescriptor = FetchDescriptor<CachedConversation>(predicate: conversationPredicate)
+        if let cached = try? context.fetch(conversationDescriptor).first {
             var readStatus: [String: Bool] = [:]
             if let existingData = cached.readStatusData {
                 readStatus = (try? JSONDecoder().decode([String: Bool].self, from: existingData)) ?? [:]
@@ -991,8 +993,24 @@ final class LocalPersistenceService: ObservableObject {
             if readStatus[currentUserId] != true {
                 readStatus[currentUserId] = true
                 cached.readStatusData = try? JSONEncoder().encode(readStatus)
-                saveContext()
+                didUpdate = true
             }
+        }
+
+        let messagePredicate = #Predicate<CachedMessage> { message in
+            message.conversationId == conversationId
+                && message.senderId != currentUserId
+                && !message.isRead
+        }
+        if let unreadMessages = try? context.fetch(FetchDescriptor<CachedMessage>(predicate: messagePredicate)) {
+            for message in unreadMessages {
+                message.isRead = true
+                didUpdate = true
+            }
+        }
+
+        if didUpdate {
+            saveContext()
         }
     }
 
@@ -1685,7 +1703,9 @@ final class LocalPersistenceService: ObservableObject {
         existing.latitude = new.latitude
         existing.longitude = new.longitude
         existing.statusString = new.statusString
-        existing.isRead = new.isRead
+        // Una vez leído, permanece leído: re-cachear un mensaje (re-sync del listener) no debe
+        // des-marcarlo. Sin esto, los mensajes ya leídos reaparecían como no leídos al reentrar.
+        existing.isRead = existing.isRead || new.isRead
         existing.editedAt = new.editedAt
         existing.reactionsData = new.reactionsData
         existing.replyTo = new.replyTo

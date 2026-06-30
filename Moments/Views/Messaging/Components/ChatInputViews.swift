@@ -34,12 +34,16 @@ struct GlassmorphicInputBar: View {
         }
     }
 
+    private var inputFieldShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             if !isRecordingVoice {
                 ChatAttachmentPlusButton(isMenuOpen: isMenuOpen, action: toggleAttachmentMenu)
 
-                HStack(alignment: .center, spacing: 8) {
+                HStack(alignment: .center, spacing: 10) {
                     TextField(inputPlaceholder, text: $text, axis: .vertical)
                         .lineLimit(1...6)
                         .font(.system(size: legacyPoppinsSize(15)))
@@ -65,15 +69,15 @@ struct GlassmorphicInputBar: View {
                         .accessibilityLabel(Text("chat.input.voice.accessibility"))
                     }
                 }
-                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: !isVanishModeActive)
+                .momentsChromeGlass(in: inputFieldShape, interactive: !isVanishModeActive)
                 .background {
                     if isVanishModeActive {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        inputFieldShape
                             .fill(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.02))
                     }
                 }
                 .overlay {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    inputFieldShape
                         .stroke(
                             isVanishModeActive ? vanishStrokeColor : (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)),
                             style: isVanishModeActive

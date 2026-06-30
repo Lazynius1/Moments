@@ -1,0 +1,910 @@
+import SwiftUI
+import UIKit
+
+enum ChatListInitialScrollPolicy: Equatable {
+    case automaticBottom
+    case row(id: String, position: UICollectionView.ScrollPosition)
+    case deferred
+}
+
+/// Intenciones de scroll serializadas (inspirado en `ChatHistoryListNode` / `ListView` de Telegram-iOS).
+enum ChatListScrollIntent: Equatable {
+    case scrollToBottom(animated: Bool)
+    case scrollToRow(id: String, position: UICollectionView.ScrollPosition, animated: Bool)
+}
+
+final class ChatMessageListController: ObservableObject {
+    fileprivate weak var viewController: ChatMessageListViewController?
+
+    var initialScrollPolicy: ChatListInitialScrollPolicy = .automaticBottom
+
+    func enqueue(_ intent: ChatListScrollIntent) {
+        viewController?.enqueue(intent)
+    }
+
+    func scrollToBottom(animated: Bool) {
+        enqueue(.scrollToBottom(animated: animated))
+    }
+
+    func forceScrollToBottom(animated: Bool) {
+        viewController?.forceScrollToBottom(animated: animated)
+    }
+
+    func scrollToMessage(id: String, animated: Bool) {
+        enqueue(.scrollToRow(id: id, position: .centeredVertically, animated: animated))
+    }
+
+    func scrollToRow(id: String, at position: UICollectionView.ScrollPosition, animated: Bool) {
+        enqueue(.scrollToRow(id: id, position: position, animated: animated))
+    }
+
+    func reconfigureVisible() {
+        viewController?.reconfigureVisible()
+    }
+
+    func reconfigure(messageIds: [String]) {
+        viewController?.reconfigure(messageIds: messageIds)
+    }
+
+    var isAtBottom: Bool {
+        viewController?.currentIsAtBottom ?? true
+    }
+
+    var contentExceedsViewport: Bool {
+        viewController?.contentExceedsViewport ?? false
+    }
+
+    var contentOffsetY: CGFloat {
+        viewController?.contentOffsetY ?? 0
+    }
+
+    var topVisibleRowId: String? {
+        viewController?.topVisibleRowId
+    }
+
+    var bottomVisibleRowId: String? {
+        viewController?.bottomVisibleRowId
+    }
+
+    var firstVisibleRowIndex: Int? {
+        viewController?.firstVisibleRowIndex
+    }
+
+    var distanceFromBottom: CGFloat {
+        viewController?.distanceFromBottom ?? 0
+    }
+
+    var isStrictlyAtBottom: Bool {
+        viewController?.isStrictlyAtBottom ?? true
+    }
+
+    func resetVanishPullState(animated: Bool) {
+        viewController?.resetVanishPullState(animated: animated)
+    }
+
+    /// Frame de una fila en coordenadas de ventana, vía UIKit directo. `GeometryReader(in: .global)`
+    /// no resuelve de forma fiable dentro de una celda `UIHostingConfiguration` (cada celda hostea
+    /// su propio árbol SwiftUI) — por eso el menú contextual del long-press se quedaba sin abrir.
+    func frameInWindow(forRowId rowId: String) -> CGRect? {
+        viewController?.frameInWindow(forRowId: rowId)
+    }
+}
+
+struct ChatMessageListView: UIViewControllerRepresentable {
+    let rows: [ChatRenderRow]
+    let controller: ChatMessageListController
+    @Binding var isAtBottom: Bool
+    var onReachedTop: () -> Void
+    var composerBottomInset: CGFloat = 0
+    var isVanishGestureEnabled: Bool = true
+    var isVanishModeActive: Bool = false
+    var onVanishPullReleased: (VanishPullResult) -> Void = { _ in }
+    var onVanishDraggingChanged: (Bool) -> Void = { _ in }
+    var onContentOffsetChanged: (CGFloat) -> Void = { _ in }
+    var onPrependFinished: () -> Void = {}
+    var onPrefetchRows: ([ChatRenderRow]) -> Void = { _ in }
+    var rowContent: (ChatRenderRow) -> AnyView
+
+    func makeUIViewController(context: Context) -> ChatMessageListViewController {
+        let viewController = ChatMessageListViewController()
+        viewController.loadViewIfNeeded()
+        configure(viewController)
+        viewController.apply(rows: rows, animated: false)
+        return viewController
+    }
+
+    func updateUIViewController(_ viewController: ChatMessageListViewController, context: Context) {
+        configure(viewController)
+        viewController.apply(rows: rows, animated: true)
+    }
+
+    private func configure(_ viewController: ChatMessageListViewController) {
+        viewController.rowContent = rowContent
+        viewController.onReachedTop = onReachedTop
+        viewController.composerBottomInset = composerBottomInset
+        viewController.isVanishGestureEnabled = isVanishGestureEnabled
+        viewController.isVanishModeActive = isVanishModeActive
+        viewController.onVanishPullReleased = onVanishPullReleased
+        viewController.onVanishDraggingChanged = onVanishDraggingChanged
+        viewController.onContentOffsetChanged = onContentOffsetChanged
+        viewController.onPrependFinished = onPrependFinished
+        viewController.onPrefetchRows = onPrefetchRows
+        viewController.onIsAtBottomChanged = { value in
+            DispatchQueue.main.async {
+                if isAtBottom != value { isAtBottom = value }
+            }
+        }
+        viewController.initialScrollPolicy = controller.initialScrollPolicy
+        controller.viewController = viewController
+    }
+}
+
+final class ChatMessageListViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSourcePrefetching, UIGestureRecognizerDelegate {
+    var rowContent: ((ChatRenderRow) -> AnyView)?
+    var onReachedTop: (() -> Void)?
+    var onIsAtBottomChanged: ((Bool) -> Void)?
+    var onVanishPullReleased: ((VanishPullResult) -> Void)?
+    var onVanishDraggingChanged: ((Bool) -> Void)?
+    var onContentOffsetChanged: ((CGFloat) -> Void)?
+    var onPrependFinished: (() -> Void)?
+    var onPrefetchRows: (([ChatRenderRow]) -> Void)?
+    var initialScrollPolicy: ChatListInitialScrollPolicy = .automaticBottom
+    var composerBottomInset: CGFloat = 0 {
+        didSet {
+            guard composerBottomInset != oldValue else { return }
+            vanishPullOverlay?.composerBottomInset = composerBottomInset
+            if currentVanishLift > 0 {
+                vanishPullOverlay?.setRevealLayout(
+                    composerBottomInset: composerBottomInset,
+                    conversationLift: currentVanishLift
+                )
+            }
+        }
+    }
+    var isVanishGestureEnabled = true {
+        didSet {
+            if !isVanishGestureEnabled {
+                resetVanishPullState(animated: false)
+            }
+        }
+    }
+    var isVanishModeActive = false
+
+    private(set) var currentIsAtBottom = true
+    private(set) var isStrictlyAtBottom = true
+
+    private var collectionView: UICollectionView!
+    private var dataSource: UICollectionViewDiffableDataSource<Int, String>!
+    private var rowsById: [String: ChatRenderRow] = [:]
+    private var orderedItemIds: [String] = []
+    private var hasLoadedInitial = false
+    private var pendingScrollToId: String?
+    private var pendingScrollPosition: UICollectionView.ScrollPosition = .centeredVertically
+    private var pendingScrollAnimated = false
+    private var reconfigureScheduled = false
+    private var messageIdToRowId: [String: String] = [:]
+    private var pendingReconfigureRowIds: Set<String> = []
+    private var reconfigureAllVisiblePending = false
+    private var needsDeferredInitialScroll = false
+    private var historyLoadWorkItem: DispatchWorkItem?
+    private var historyLoadArmed = true
+    private var scrollIntentQueue: [ChatListScrollIntent] = []
+    private var isProcessingScrollIntent = false
+    private var awaitsScrollAnimationEnd = false
+
+    private let strictAtBottomThreshold: CGFloat = 8
+    private let loadOlderItemThreshold = 5
+    private let historyLoadDebounceNs: UInt64 = 300_000_000
+    private let vanishEngageThreshold: CGFloat = 8
+
+    private var vanishPullOverlay: ChatVanishPullOverlayView!
+    private var vanishPanGesture: UIPanGestureRecognizer!
+    private var isVanishPanActive = false
+    private var vanishPanPull: CGFloat = 0
+    private var vanishDidCrossThreshold = false
+    private var vanishLastHapticStep = -1
+    private var isClampingBottomScroll = false
+    private var currentVanishLift: CGFloat = 0
+    private var pendingContentOffsetReport: CGFloat?
+    private var contentOffsetReportScheduled = false
+
+    var contentExceedsViewport: Bool {
+        guard collectionView != nil else { return false }
+        return collectionView.contentSize.height > collectionView.bounds.height + 1
+    }
+
+    var contentOffsetY: CGFloat {
+        collectionView?.contentOffset.y ?? 0
+    }
+
+    var distanceFromBottom: CGFloat {
+        guard let collectionView else { return 0 }
+        let maxY = collectionView.contentSize.height
+            - collectionView.bounds.height
+            + collectionView.adjustedContentInset.bottom
+        return max(0, maxY - collectionView.contentOffset.y)
+    }
+
+    var topVisibleRowId: String? {
+        rowId(atVisibleIndex: firstVisibleRowIndex)
+    }
+
+    var bottomVisibleRowId: String? {
+        rowId(atVisibleIndex: lastVisibleRowIndex)
+    }
+
+    func frameInWindow(forRowId rowId: String) -> CGRect? {
+        guard let collectionView,
+              let index = orderedItemIds.firstIndex(of: rowId),
+              let attributes = collectionView.layoutAttributesForItem(at: IndexPath(item: index, section: 0))
+        else { return nil }
+        return collectionView.convert(attributes.frame, to: nil)
+    }
+
+    var firstVisibleRowIndex: Int? {
+        guard let collectionView else { return nil }
+        let indices = collectionView.indexPathsForVisibleItems.map(\.item)
+        return indices.min()
+    }
+
+    private var lastVisibleRowIndex: Int? {
+        guard let collectionView else { return nil }
+        let indices = collectionView.indexPathsForVisibleItems.map(\.item)
+        return indices.max()
+    }
+
+    private func rowId(atVisibleIndex index: Int?) -> String? {
+        guard let index, let dataSource, index >= 0, index < orderedItemIds.count else { return nil }
+        return dataSource.itemIdentifier(for: IndexPath(item: index, section: 0))
+    }
+
+    private func isLastRowVisible() -> Bool {
+        guard let lastIndex = orderedItemIds.indices.last,
+              let lastVisibleRowIndex else { return false }
+        return lastVisibleRowIndex >= lastIndex
+    }
+
+    private func recomputeBottomPinnedState() {
+        guard let collectionView else { return }
+        let maxY = collectionView.contentSize.height
+            - collectionView.bounds.height
+            + collectionView.adjustedContentInset.bottom
+        let offsetNearBottom = collectionView.contentOffset.y >= maxY - strictAtBottomThreshold
+        let lastRowVisible = orderedItemIds.isEmpty || isLastRowVisible()
+        var strict = offsetNearBottom && lastRowVisible
+
+        // Solo un gesto real del usuario puede "despegar" del fondo. Si el cambio es programático
+        // (p.ej. el inset inferior se reajusta cuando el composer termina de medirse, después de
+        // ya haber forzado el scroll al fondo) y estábamos pegados abajo, la lista sigue al fondo
+        // en vez de marcar "no estás abajo" — así no aparece la flecha sin que nadie haya scrolleado.
+        let isUserDriven = collectionView.isDragging || collectionView.isTracking || collectionView.isDecelerating
+        if !strict, isStrictlyAtBottom, !isUserDriven, !orderedItemIds.isEmpty {
+            let lastIndex = orderedItemIds.count - 1
+            isClampingBottomScroll = true
+            collectionView.scrollToItem(at: IndexPath(item: lastIndex, section: 0), at: .bottom, animated: false)
+            isClampingBottomScroll = false
+            strict = true
+        }
+
+        if strict != isStrictlyAtBottom {
+            isStrictlyAtBottom = strict
+        }
+        currentIsAtBottom = strict
+        // Notificar SIEMPRE, no solo cuando cambia este flag interno: SwiftUI puede haber puesto
+        // isPinnedToBottom=false por su cuenta (p.ej. al abrir en el primer no leído) sin pasar por
+        // aquí. Si el flag interno ya estaba en el mismo valor, nunca habría una transición que
+        // reenviara el aviso y SwiftUI quedaría desincronizado para siempre aunque geométricamente
+        // sí se esté en el fondo. El binding en SwiftUI ya deduplica (`if isAtBottom != value`),
+        // así que notificar de más es barato y seguro; no notificar es lo que causaba el bug.
+        onIsAtBottomChanged?(strict)
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .clear
+        configureCollectionView()
+        configureDataSource()
+        configureVanishGesture()
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard isVanishPanActive, currentVanishLift > 0 else { return }
+        let progress = ChatVanishSwipeMetrics.progress(lift: currentVanishLift)
+        vanishPullOverlay.update(
+            lift: currentVanishLift,
+            progress: progress,
+            isActive: isVanishModeActive,
+            isDragging: true,
+            colorScheme: traitCollection.userInterfaceStyle
+        )
+    }
+
+    private func configureVanishGesture() {
+        vanishPullOverlay = ChatVanishPullOverlayView()
+        vanishPullOverlay.hide()
+        vanishPullOverlay.install(in: view)
+        vanishPullOverlay.composerBottomInset = composerBottomInset
+
+        vanishPanGesture = UIPanGestureRecognizer(target: self, action: #selector(handleVanishPan(_:)))
+        vanishPanGesture.delegate = self
+        // Sin esto, cualquier micro-temblor del dedo al mantener pulsado un mensaje (long-press)
+        // arma este pan gesture y cancela el toque que SwiftUI rastreaba para el menú contextual,
+        // matando el long-press antes de completarse. Ambos gestos deben poder coexistir.
+        vanishPanGesture.cancelsTouchesInView = false
+        collectionView.addGestureRecognizer(vanishPanGesture)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateBottomAnchorInset()
+        guard needsDeferredInitialScroll,
+              collectionView.bounds.height > 0,
+              !orderedItemIds.isEmpty else { return }
+        needsDeferredInitialScroll = false
+        applyInitialScrollPolicy(animated: false)
+    }
+
+    private func configureCollectionView() {
+        let layout = UICollectionViewCompositionalLayout { _, _ in
+            let itemSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1.0),
+                heightDimension: .estimated(60)
+            )
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+            let group = NSCollectionLayoutGroup.vertical(layoutSize: itemSize, subitems: [item])
+            let section = NSCollectionLayoutSection(group: group)
+            section.interGroupSpacing = 2
+            section.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 0, bottom: 4, trailing: 0)
+            return section
+        }
+
+        collectionView = UICollectionView(frame: view.bounds, collectionViewLayout: layout)
+        collectionView.backgroundColor = .clear
+        collectionView.keyboardDismissMode = .interactive
+        collectionView.alwaysBounceVertical = true
+        collectionView.bounces = true
+        collectionView.delegate = self
+        collectionView.prefetchDataSource = self
+        collectionView.isPrefetchingEnabled = true
+        collectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(collectionView)
+    }
+
+    private func configureDataSource() {
+        let registration = UICollectionView.CellRegistration<UICollectionViewCell, String> { [weak self] cell, _, itemId in
+            guard let self, let row = self.rowsById[itemId], let rowContent = self.rowContent else { return }
+            cell.contentConfiguration = UIHostingConfiguration {
+                rowContent(row)
+                    .frame(maxWidth: .infinity)
+            }
+            .margins(.all, 0)
+            var background = UIBackgroundConfiguration.clear()
+            background.backgroundColor = .clear
+            cell.backgroundConfiguration = background
+        }
+
+        dataSource = UICollectionViewDiffableDataSource<Int, String>(collectionView: collectionView) { collectionView, indexPath, itemId in
+            collectionView.dequeueConfiguredReusableCell(using: registration, for: indexPath, item: itemId)
+        }
+    }
+
+    func apply(rows: [ChatRenderRow], animated: Bool) {
+        loadViewIfNeeded()
+        guard dataSource != nil else { return }
+
+        rowsById = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        rebuildMessageIdToRowIdIndex(rows)
+        let oldIds = orderedItemIds
+        let newIds = rows.map(\.id)
+        guard newIds != oldIds || !hasLoadedInitial else { return }
+        orderedItemIds = newIds
+
+        let isInitial = !hasLoadedInitial
+        let wasAtBottom = currentIsAtBottom
+        let isPrepend = !oldIds.isEmpty
+            && newIds.count > oldIds.count
+            && (Array(newIds.suffix(oldIds.count)) == oldIds
+                || isLikelyHistoryPrepend(oldIds: oldIds, newIds: newIds))
+
+        let preservedBottomDistance: CGFloat? = isPrepend
+            ? collectionView.contentSize.height - collectionView.contentOffset.y
+            : nil
+        let prependAnchorRowId: String? = isPrepend ? topVisibleRowId : nil
+
+        var snapshot = NSDiffableDataSourceSnapshot<Int, String>()
+        snapshot.appendSections([0])
+        snapshot.appendItems(newIds, toSection: 0)
+
+        dataSource.apply(snapshot, animatingDifferences: animated && !isInitial && !isPrepend) { [weak self] in
+            guard let self else { return }
+            self.collectionView.layoutIfNeeded()
+            self.updateBottomAnchorInset()
+            if isInitial {
+                self.hasLoadedInitial = true
+                self.applyInitialScrollPolicy(animated: false)
+            } else if let preservedBottomDistance {
+                self.collectionView.layoutIfNeeded()
+                self.collectionView.contentOffset.y = max(
+                    -self.collectionView.adjustedContentInset.top,
+                    self.collectionView.contentSize.height - preservedBottomDistance
+                )
+                if let prependAnchorRowId,
+                   self.topVisibleRowId != prependAnchorRowId,
+                   self.orderedItemIds.contains(prependAnchorRowId) {
+                    self.scrollToRow(id: prependAnchorRowId, at: .top, animated: false)
+                }
+                self.recomputeBottomPinnedState()
+                DispatchQueue.main.async {
+                    self.onPrependFinished?()
+                }
+            } else if isPrepend {
+                self.collectionView.layoutIfNeeded()
+                if let prependAnchorRowId = oldIds.first,
+                   self.orderedItemIds.contains(prependAnchorRowId) {
+                    self.scrollToRow(id: prependAnchorRowId, at: .top, animated: false)
+                }
+                self.recomputeBottomPinnedState()
+                DispatchQueue.main.async {
+                    self.onPrependFinished?()
+                }
+            } else if wasAtBottom {
+                self.scrollToBottom(animated: animated)
+            }
+            self.resolvePendingScrollIfPossible()
+        }
+    }
+
+    private func applyInitialScrollPolicy(animated: Bool) {
+        switch initialScrollPolicy {
+        case .automaticBottom:
+            needsDeferredInitialScroll = true
+            if collectionView.bounds.height > 0, !orderedItemIds.isEmpty {
+                needsDeferredInitialScroll = false
+                forceScrollToBottom(animated: animated)
+            }
+        case .deferred:
+            needsDeferredInitialScroll = true
+        case .row(let id, let position):
+            needsDeferredInitialScroll = false
+            scrollToRow(id: id, at: position, animated: animated)
+        }
+    }
+
+    func scrollToBottom(animated: Bool) {
+        guard !orderedItemIds.isEmpty else { return }
+        recomputeBottomPinnedState()
+        guard !isStrictlyAtBottom else { return }
+        let lastIndex = orderedItemIds.count - 1
+        collectionView.scrollToItem(
+            at: IndexPath(item: lastIndex, section: 0),
+            at: .bottom,
+            animated: animated
+        )
+    }
+
+    func forceScrollToBottom(animated: Bool) {
+        resetVanishPullState(animated: false)
+        guard !orderedItemIds.isEmpty else { return }
+
+        // Celdas auto-dimensionadas (UIHostingConfiguration): la primera vez que una celda entra
+        // en pantalla puede medirse con un ancho/alto provisional antes de que el layout conozca
+        // el bounds real, dejando contentSize desactualizado tras un solo scrollToItem. Se repite
+        // scroll → invalidateLayout → layout hasta que el contentSize deje de moverse.
+        let lastIndex = orderedItemIds.count - 1
+        var previousHeight: CGFloat = -1
+        for _ in 0..<6 {
+            collectionView.layoutIfNeeded()
+            let height = collectionView.collectionViewLayout.collectionViewContentSize.height
+            let stabilized = abs(height - previousHeight) < 0.5
+            previousHeight = height
+
+            collectionView.scrollToItem(
+                at: IndexPath(item: lastIndex, section: 0),
+                at: .bottom,
+                animated: false
+            )
+
+            if stabilized { break }
+            collectionView.collectionViewLayout.invalidateLayout()
+        }
+
+        if animated {
+            collectionView.scrollToItem(at: IndexPath(item: lastIndex, section: 0), at: .bottom, animated: true)
+        }
+
+        // Tras el scrollToItem no animado, indexPathsForVisibleItems puede seguir reflejando las
+        // celdas visibles ANTES del scroll hasta el siguiente layout pass. Sin este layoutIfNeeded,
+        // isLastRowVisible() consulta datos obsoletos y recomputeBottomPinnedState falla incluso
+        // con el offset ya correcto — la flecha se queda pegada aunque se esté en el fondo.
+        collectionView.layoutIfNeeded()
+        recomputeBottomPinnedState()
+    }
+
+    private func isLikelyHistoryPrepend(oldIds: [String], newIds: [String]) -> Bool {
+        guard let anchorId = oldIds.first else { return false }
+        guard let newIndex = newIds.firstIndex(of: anchorId) else { return false }
+        return newIndex > 0
+    }
+
+    func enqueue(_ intent: ChatListScrollIntent) {
+        if case .scrollToBottom = intent,
+           case .scrollToBottom? = scrollIntentQueue.last {
+            return
+        }
+        scrollIntentQueue.append(intent)
+        processScrollIntentQueue()
+    }
+
+    private func processScrollIntentQueue() {
+        guard !isProcessingScrollIntent, !scrollIntentQueue.isEmpty else { return }
+        isProcessingScrollIntent = true
+        let intent = scrollIntentQueue.removeFirst()
+
+        switch intent {
+        case .scrollToBottom(let animated):
+            scrollToBottom(animated: animated)
+            finishScrollIntentProcessing(wasAnimated: animated)
+        case .scrollToRow(let id, let position, let animated):
+            scrollToRow(id: id, at: position, animated: animated)
+            finishScrollIntentProcessing(wasAnimated: animated)
+        }
+    }
+
+    private func finishScrollIntentProcessing(wasAnimated: Bool) {
+        if wasAnimated {
+            awaitsScrollAnimationEnd = true
+        } else {
+            isProcessingScrollIntent = false
+            processScrollIntentQueue()
+        }
+    }
+
+    private func completeScrollIntentAfterAnimation() {
+        guard awaitsScrollAnimationEnd else { return }
+        awaitsScrollAnimationEnd = false
+        isProcessingScrollIntent = false
+        processScrollIntentQueue()
+    }
+
+    func scrollToRow(id: String, at position: UICollectionView.ScrollPosition, animated: Bool) {
+        guard let index = orderedItemIds.firstIndex(of: id) else {
+            pendingScrollToId = id
+            pendingScrollPosition = position
+            pendingScrollAnimated = animated
+            return
+        }
+        pendingScrollToId = nil
+        collectionView.scrollToItem(at: IndexPath(item: index, section: 0), at: position, animated: animated)
+    }
+
+    private func resolvePendingScrollIfPossible() {
+        guard let id = pendingScrollToId, let index = orderedItemIds.firstIndex(of: id) else { return }
+        pendingScrollToId = nil
+        collectionView.scrollToItem(
+            at: IndexPath(item: index, section: 0),
+            at: pendingScrollPosition,
+            animated: pendingScrollAnimated
+        )
+    }
+
+    func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+        guard let onPrefetchRows, let dataSource else { return }
+        let rows = indexPaths
+            .compactMap { dataSource.itemIdentifier(for: $0) }
+            .compactMap { rowsById[$0] }
+        guard !rows.isEmpty else { return }
+        onPrefetchRows(rows)
+    }
+
+    private func rebuildMessageIdToRowIdIndex(_ rows: [ChatRenderRow]) {
+        var index: [String: String] = [:]
+        for row in rows {
+            guard case .message(let item) = row else { continue }
+            switch item {
+            case .single(let message):
+                index[message.id] = row.id
+            case .mediaCluster(let messages):
+                for message in messages { index[message.id] = row.id }
+            }
+        }
+        messageIdToRowId = index
+    }
+
+    func reconfigureVisible() {
+        reconfigureAllVisiblePending = true
+        scheduleReconfigureFlush()
+    }
+
+    func reconfigure(messageIds: [String]) {
+        let rowIds = messageIds.compactMap { messageIdToRowId[$0] }
+        guard !rowIds.isEmpty else { return }
+        pendingReconfigureRowIds.formUnion(rowIds)
+        scheduleReconfigureFlush()
+    }
+
+    private func scheduleReconfigureFlush() {
+        guard !reconfigureScheduled else { return }
+        reconfigureScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.reconfigureScheduled = false
+            self.flushReconfigure()
+        }
+    }
+
+    private func flushReconfigure() {
+        guard let dataSource else { return }
+        let visibleIds = Set(collectionView.indexPathsForVisibleItems.compactMap { dataSource.itemIdentifier(for: $0) })
+        guard !visibleIds.isEmpty else {
+            reconfigureAllVisiblePending = false
+            pendingReconfigureRowIds.removeAll()
+            return
+        }
+
+        let targetIds: [String]
+        if reconfigureAllVisiblePending {
+            targetIds = Array(visibleIds)
+        } else {
+            targetIds = Array(pendingReconfigureRowIds.intersection(visibleIds))
+        }
+        reconfigureAllVisiblePending = false
+        pendingReconfigureRowIds.removeAll()
+        guard !targetIds.isEmpty else { return }
+
+        var snapshot = dataSource.snapshot()
+        snapshot.reconfigureItems(targetIds)
+        dataSource.apply(snapshot, animatingDifferences: false)
+    }
+
+    private func scheduleHistoryLoadIfNeeded() {
+        guard historyLoadArmed,
+              let firstIndex = firstVisibleRowIndex,
+              firstIndex <= loadOlderItemThreshold else { return }
+
+        historyLoadArmed = false
+        historyLoadWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            DispatchQueue.main.async {
+                self.onReachedTop?()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                self.historyLoadArmed = true
+            }
+        }
+        historyLoadWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(historyLoadDebounceNs) / 1_000_000_000, execute: work)
+    }
+
+    private func maxContentOffsetY(in scrollView: UIScrollView) -> CGFloat {
+        scrollView.contentSize.height
+            - scrollView.bounds.height
+            + scrollView.adjustedContentInset.bottom
+    }
+
+    /// Anclaje inferior estilo chat: si el contenido no llena el viewport, se empuja hacia abajo
+    /// con un inset superior (igual que iMessage/WhatsApp/Telegram). Lista no invertida lo necesita.
+    private func updateBottomAnchorInset() {
+        guard let collectionView else { return }
+        let safeTop = collectionView.safeAreaInsets.top
+        let safeBottom = collectionView.safeAreaInsets.bottom
+        let available = collectionView.bounds.height - safeTop - safeBottom
+        guard available > 0 else { return }
+        let contentHeight = collectionView.collectionViewLayout.collectionViewContentSize.height
+        let extraTop = max(0, available - contentHeight)
+        guard abs(collectionView.contentInset.top - extraTop) > 0.5 else { return }
+        let wasPinned = isStrictlyAtBottom || currentIsAtBottom
+        collectionView.contentInset.top = extraTop
+        if wasPinned {
+            forceScrollToBottom(animated: false)
+        }
+    }
+
+    private func reportContentOffset(_ offset: CGFloat) {
+        pendingContentOffsetReport = offset
+        guard !contentOffsetReportScheduled else { return }
+        contentOffsetReportScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.contentOffsetReportScheduled = false
+            guard let offset = self.pendingContentOffsetReport else { return }
+            self.pendingContentOffsetReport = nil
+            self.onContentOffsetChanged?(offset)
+        }
+    }
+
+    private func canEngageVanishPan() -> Bool {
+        isVanishGestureEnabled && isStrictlyAtBottom && (orderedItemIds.isEmpty || isLastRowVisible())
+    }
+
+    @objc private func handleVanishPan(_ gesture: UIPanGestureRecognizer) {
+        guard isVanishGestureEnabled else {
+            if gesture.state == .ended || gesture.state == .cancelled {
+                finishVanishPan(gesture: gesture, completed: false)
+            }
+            return
+        }
+
+        let translationY = gesture.translation(in: collectionView).y
+        let upward = max(0, -translationY)
+
+        switch gesture.state {
+        case .began, .changed:
+            guard canEngageVanishPan() else { return }
+            guard upward >= vanishEngageThreshold || isVanishPanActive else { return }
+
+            if !isVanishPanActive {
+                isVanishPanActive = true
+                onVanishDraggingChanged?(true)
+                pinScrollToBottomIfNeeded()
+            }
+
+            vanishPanPull = upward
+
+            let lift = ChatVanishSwipeMetrics.conversationLift(fingerUpward: upward)
+            currentVanishLift = lift
+            collectionView.transform = CGAffineTransform(translationX: 0, y: -lift)
+
+            if ChatVanishSwipeMetrics.shouldRevealVanishUI(lift: lift) {
+                let progress = ChatVanishSwipeMetrics.progress(lift: lift)
+                updateVanishHaptics(lift: lift, progress: progress)
+                vanishPullOverlay.setRevealLayout(
+                    composerBottomInset: composerBottomInset,
+                    conversationLift: lift
+                )
+                vanishPullOverlay.update(
+                    lift: lift,
+                    progress: progress,
+                    isActive: isVanishModeActive,
+                    isDragging: true,
+                    colorScheme: traitCollection.userInterfaceStyle
+                )
+            } else {
+                vanishPullOverlay.hide()
+            }
+
+        case .ended, .cancelled:
+            let completed = vanishDidCrossThreshold
+                && ChatVanishSwipeMetrics.effectiveLiftForCompletion(currentVanishLift) > 0
+            finishVanishPan(gesture: gesture, completed: completed)
+
+        default:
+            break
+        }
+    }
+
+    private func pinScrollToBottomIfNeeded() {
+        guard let collectionView else { return }
+        let maxY = maxContentOffsetY(in: collectionView)
+        if collectionView.contentOffset.y < maxY - 0.5 {
+            isClampingBottomScroll = true
+            collectionView.contentOffset.y = maxY
+            isClampingBottomScroll = false
+        }
+    }
+
+    private func updateVanishHaptics(lift: CGFloat, progress: CGFloat) {
+        let effectivePull = ChatVanishSwipeMetrics.effectiveLiftForCompletion(lift)
+        guard effectivePull > 0 else {
+            vanishDidCrossThreshold = false
+            return
+        }
+
+        let crossed = progress >= ChatVanishSwipeMetrics.completionThreshold
+        if crossed, !vanishDidCrossThreshold {
+            vanishDidCrossThreshold = true
+            HapticManager.shared.vanishPullThresholdReached()
+        } else if !crossed, vanishDidCrossThreshold {
+            vanishDidCrossThreshold = false
+        }
+
+        let hapticStep = Int(effectivePull / ChatVanishSwipeMetrics.hapticStepPoints)
+        if hapticStep != vanishLastHapticStep {
+            vanishLastHapticStep = hapticStep
+            HapticManager.shared.vanishPullStep()
+        }
+    }
+
+    private func finishVanishPan(gesture: UIPanGestureRecognizer, completed: Bool) {
+        let progress = ChatVanishSwipeMetrics.progress(lift: currentVanishLift)
+        let effectivePull = ChatVanishSwipeMetrics.effectiveLiftForCompletion(currentVanishLift)
+
+        guard isVanishPanActive || collectionView.transform != .identity else { return }
+
+        isVanishPanActive = false
+        onVanishDraggingChanged?(false)
+        gesture.setTranslation(.zero, in: collectionView)
+
+        UIView.animate(
+            withDuration: 0.4,
+            delay: 0,
+            usingSpringWithDamping: 0.85,
+            initialSpringVelocity: 0,
+            options: [.allowUserInteraction, .beginFromCurrentState]
+        ) {
+            self.collectionView.transform = .identity
+        }
+
+        vanishPullOverlay.hide()
+        vanishPanPull = 0
+        currentVanishLift = 0
+        vanishDidCrossThreshold = false
+        vanishLastHapticStep = -1
+
+        onVanishPullReleased?(VanishPullResult(
+            completed: completed,
+            progress: progress,
+            effectivePull: effectivePull
+        ))
+    }
+
+    func resetVanishPullState(animated: Bool) {
+        guard isVanishPanActive || collectionView.transform != .identity else { return }
+
+        isVanishPanActive = false
+        onVanishDraggingChanged?(false)
+        vanishPanPull = 0
+        currentVanishLift = 0
+        vanishDidCrossThreshold = false
+        vanishLastHapticStep = -1
+        vanishPullOverlay.hide()
+
+        if animated {
+            UIView.animate(
+                withDuration: 0.4,
+                delay: 0,
+                usingSpringWithDamping: 0.85,
+                initialSpringVelocity: 0,
+                options: [.allowUserInteraction, .beginFromCurrentState]
+            ) {
+                self.collectionView.transform = .identity
+            }
+        } else {
+            collectionView.transform = .identity
+        }
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        true
+    }
+
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer === vanishPanGesture else { return true }
+        guard canEngageVanishPan() else { return false }
+        guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
+        let velocity = pan.velocity(in: collectionView)
+        return velocity.y <= 0 || isVanishPanActive
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard !isClampingBottomScroll else { return }
+
+        recomputeBottomPinnedState()
+        reportContentOffset(scrollView.contentOffset.y)
+        scheduleHistoryLoadIfNeeded()
+
+        if isVanishPanActive {
+            pinScrollToBottomIfNeeded()
+        }
+
+        if !isStrictlyAtBottom, isVanishPanActive {
+            resetVanishPullState(animated: false)
+        }
+    }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        // no-op
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        completeScrollIntentAfterAnimation()
+    }
+
+    func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        completeScrollIntentAfterAnimation()
+    }
+}

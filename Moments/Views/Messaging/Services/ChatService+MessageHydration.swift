@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseFirestore
+import FirebaseAuth
 
 extension ChatService {
     func createBasicMessageData(from message: EnhancedMessage) -> [String: Any] {
@@ -97,6 +98,8 @@ extension ChatService {
         let thumbnailEncryption = (data["thumbnailEncryption"] as? [String: Any]).flatMap { EncryptedChatMediaMetadata(map: $0) }
         let isDeleted = data["isDeleted"] as? Bool ?? false
 
+        let resolvedIsRead = Self.resolvedIncomingIsRead(from: data, senderId: senderId)
+
         let resolvedMedia: CachedResolvedMedia
         if isDeleted {
             resolvedMedia = CachedResolvedMedia(mediaUrl: nil, thumbnailUrl: nil)
@@ -145,7 +148,7 @@ extension ChatService {
             locationUpdatedAt: (data["locationUpdatedAt"] as? Timestamp)?.dateValue(),
             timestamp: (data["timestamp"] as? Timestamp)?.dateValue() ?? Date(),
             status: MessageStatus(rawValue: data["status"] as? String ?? MessageStatus.sent.rawValue) ?? .sent,
-            isRead: data["isRead"] as? Bool ?? false,
+            isRead: resolvedIsRead,
             isDeleted: data["isDeleted"] as? Bool ?? false,
             deletedAt: (data["deletedAt"] as? Timestamp)?.dateValue(),
             editedAt: (data["editedAt"] as? Timestamp)?.dateValue(),

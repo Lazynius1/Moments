@@ -15,16 +15,21 @@ class EnhancedChatViewModel: ObservableObject {
     }
     private(set) var messagesById: [String: EnhancedMessage] = [:]
     private(set) var messageIndexById: [String: Int] = [:]
+    private(set) var unreadIncomingCount = 0
 
     private func rebuildMessageIndex() {
         var byId = [String: EnhancedMessage](minimumCapacity: messages.count)
         var indexById = [String: Int](minimumCapacity: messages.count)
+        var unread = 0
+        let selfId = currentUserId
         for (offset, message) in messages.enumerated() {
             byId[message.id] = message
             indexById[message.id] = offset
+            if !message.isRead, message.senderId != selfId { unread += 1 }
         }
         messagesById = byId
         messageIndexById = indexById
+        unreadIncomingCount = unread
     }
 
     @Published var typingUsers: Set<String> = []
@@ -146,7 +151,7 @@ class EnhancedChatViewModel: ObservableObject {
 
     @Published var conversation: Conversation
     let currentUserId: String
-    private let chatService = ChatService.shared
+    let chatService = ChatService.shared
     private let firestoreService = FirestoreService()
     private var cancellables = Set<AnyCancellable>()
     private var typingUsersCancellable: AnyCancellable?
@@ -1249,16 +1254,20 @@ class EnhancedChatViewModel: ObservableObject {
         }
         historicalMessages.insert(contentsOf: novel, at: 0)
         rebuildMessagesList()
-        prefetchUnresolvedMediaIfNeeded()
-        if let momentsViewModel = self as? MomentsChatViewModel {
-            momentsViewModel.syncMessagePresentation()
+        Task { @MainActor [weak self] in
+            await Task.yield()
+            self?.prefetchUnresolvedMediaIfNeeded()
         }
     }
 
     private func finishHistoryLoad(canLoadMore: Bool) {
         self.canLoadMore = canLoadMore
         isLoadingMore = false
-
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard let self, self.isLoadingOlderHistory else { return }
+            self.endHistoryScrollRestoration()
+        }
     }
 
     /// La vista llama esto cuando el scroll quedó re-anclado tras prepend.
@@ -1343,11 +1352,24 @@ class EnhancedChatViewModel: ObservableObject {
         let cutoff = effectiveDeletedAtCutoff()
         let windowSize = initialWindowSize()
         let scanLimit = max(windowSize, 50)
-        let recentMessages = LocalPersistenceService.shared.loadRecentMessagesFast(
+        var recentMessages = LocalPersistenceService.shared.loadRecentMessagesFast(
             conversationId: conversationId,
             limit: scanLimit,
             cutoffDate: cutoff
         )
+
+        if conversation.readStatus[currentUserId] == true {
+            LocalPersistenceService.shared.markConversationReadLocally(
+                conversationId: conversationId,
+                currentUserId: currentUserId
+            )
+            recentMessages = recentMessages.map { message in
+                guard message.senderId != currentUserId, !message.isRead else { return message }
+                var updated = message
+                updated.isRead = true
+                return updated
+            }
+        }
 
         for message in recentMessages where message.senderId == currentUserId {
             switch message.status {

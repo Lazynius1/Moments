@@ -3607,6 +3607,8 @@
 "chat.blockedByMe.input" = "Bloqueaste a este usuario. Desbloquéalo para enviar mensajes.";
 "chat.blockedByMe.unblock" = "Desbloquear";
 "chat.search.placeholder" = "Buscar en el chat";
+"chat.search.results" = "%1$d/%2$d";
+"chat.scrollToBottom.accessibility" = "Ir al final del chat";
 "chat.newMessages" = "Nuevos mensajes";
 "profileEditor.deletePhoto.title" = "Eliminar foto de perfil";
 "nova.easterEgg.title" = "Easter Egg desbloqueado";

@@ -1,24 +1,254 @@
 import SwiftUI
+import UIKit
+
+struct VanishPullResult {
+    let completed: Bool
+    let progress: CGFloat
+    let effectivePull: CGFloat
+}
 
 enum ChatVanishSwipeMetrics {
-    /// Distancia para completar el arco (IG ~88pt).
-    static let activationDistance: CGFloat = 88
-    static let maxPull: CGFloat = 108
-    static let completionThreshold: CGFloat = 0.92
-    /// Cada cuántos puntos de pull dispara un tick háptico.
-    static let hapticStepPoints: CGFloat = 5
+    /// Lift adicional tras revelar UI para completar el arco (IG: ~frames 8→14).
+    static let activationDistance: CGFloat = 100
+    static let maxPull: CGFloat = 200
+    static let completionThreshold: CGFloat = 0.96
+    /// Lift mínimo del hilo antes de mostrar anillo/texto (IG: frames 1–5 solo suben chat).
+    static let minLiftBeforeUIReveal: CGFloat = 58
+    /// Cada cuántos puntos de lift efectivo (post-reveal) dispara un tick háptico.
+    static let hapticStepPoints: CGFloat = 8
+    static let pullAmplification: CGFloat = 1.0
+    /// Tope de elevación del hilo.
+    static let maxConversationLift: CGFloat = 168
 
     /// Curva elástica suave — más resistencia al final del pull.
     static func rubberBandPull(from translation: CGFloat) -> CGFloat {
         let raw = max(0, -translation)
         guard raw > 0 else { return 0 }
         let limit = maxPull
-        let resistance: CGFloat = 2.4
+        let resistance: CGFloat = 2.0
         return limit * (1 - exp(-raw / (limit / resistance)))
     }
 
+    /// Pull directo del dedo en el pan (sin rubber-band intermedio).
+    static func pull(fromFingerUpward upward: CGFloat) -> CGFloat {
+        scaledPull(from: max(0, upward))
+    }
+
+    /// Lift del hilo: empieza en cuanto tiras (IG fase 1, sin UI).
+    static func conversationLift(fingerUpward upward: CGFloat) -> CGFloat {
+        guard upward > 0 else { return 0 }
+        return min(upward * 0.98, maxConversationLift)
+    }
+
+    static func shouldRevealVanishUI(lift: CGFloat) -> Bool {
+        lift >= minLiftBeforeUIReveal
+    }
+
+    /// Progreso del arco solo después de que el hilo haya subido lo suficiente.
+    static func progress(lift: CGFloat) -> CGFloat {
+        let adjusted = max(0, lift - minLiftBeforeUIReveal)
+        guard adjusted > 0 else { return 0 }
+        return min(adjusted / activationDistance, 1)
+    }
+
+    static func effectiveLiftForCompletion(_ lift: CGFloat) -> CGFloat {
+        max(0, lift - minLiftBeforeUIReveal)
+    }
+
+    // Legacy helpers (SwiftUI notice views)
+    static let revealStartPull: CGFloat = minLiftBeforeUIReveal
+
+    static func effectiveFingerPull(_ upward: CGFloat) -> CGFloat {
+        effectiveLiftForCompletion(conversationLift(fingerUpward: upward))
+    }
+
+    static func progress(fingerUpward upward: CGFloat) -> CGFloat {
+        progress(lift: conversationLift(fingerUpward: upward))
+    }
+
+    /// Overscroll inferior del scroll → pull escalado.
+    static func scaledPull(from rawOverscroll: CGFloat) -> CGFloat {
+        max(0, rawOverscroll) * pullAmplification
+    }
+
+    /// Pull contado solo después del umbral de revelado.
+    static func effectivePull(for pull: CGFloat) -> CGFloat {
+        max(0, pull - revealStartPull)
+    }
+
+    static func shouldRevealUI(for pull: CGFloat) -> Bool {
+        shouldRevealVanishUI(lift: conversationLift(fingerUpward: pull))
+    }
+
     static func progress(for pull: CGFloat) -> CGFloat {
-        min(max(pull / activationDistance, 0), 1)
+        progress(lift: conversationLift(fingerUpward: pull))
+    }
+
+    static func conversationLift(for pull: CGFloat) -> CGFloat {
+        conversationLift(fingerUpward: pull)
+    }
+}
+
+// MARK: - UIKit overlay (actualizado en el pan handler sin invalidar SwiftUI)
+
+final class ChatVanishPullOverlayView: UIView {
+    private let ringContainer = UIView()
+    private let ringBackgroundLayer = CAShapeLayer()
+    private let ringProgressLayer = CAShapeLayer()
+    private let hintLabel = UILabel()
+    private var centerYFromBottomConstraint: NSLayoutConstraint?
+    var composerBottomInset: CGFloat = 0
+
+    private let ringSize: CGFloat = 36
+    private let ringLineWidth: CGFloat = 2.5
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        translatesAutoresizingMaskIntoConstraints = false
+        alpha = 0
+        configureRingContainer()
+        configureLabel()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layoutRingLayers()
+    }
+
+    private func layoutRingLayers() {
+        let inset = ringLineWidth / 2
+        let ringRect = CGRect(
+            x: inset,
+            y: inset,
+            width: ringSize - ringLineWidth,
+            height: ringSize - ringLineWidth
+        )
+        let ringPath = UIBezierPath(ovalIn: ringRect)
+        ringBackgroundLayer.path = ringPath.cgPath
+        ringProgressLayer.path = ringPath.cgPath
+        ringBackgroundLayer.frame = ringContainer.bounds
+        ringProgressLayer.frame = ringContainer.bounds
+    }
+
+    func install(in container: UIView) {
+        container.addSubview(self)
+        NSLayoutConstraint.activate([
+            centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 24),
+            trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -24),
+            widthAnchor.constraint(lessThanOrEqualToConstant: 320)
+        ])
+        centerYFromBottomConstraint = centerYAnchor.constraint(equalTo: container.bottomAnchor, constant: -80)
+        centerYFromBottomConstraint?.isActive = true
+    }
+
+    func setRevealLayout(composerBottomInset inset: CGFloat, conversationLift lift: CGFloat) {
+        composerBottomInset = inset
+        guard ChatVanishSwipeMetrics.shouldRevealVanishUI(lift: lift) else { return }
+        // Centro del hueco entre composer (fijo) y hilo levantado.
+        let gapCenterFromBottom = max(inset, 0) + lift * 0.5
+        centerYFromBottomConstraint?.constant = -gapCenterFromBottom
+    }
+
+    func update(
+        lift: CGFloat,
+        progress: CGFloat,
+        isActive: Bool,
+        isDragging: Bool,
+        colorScheme: UIUserInterfaceStyle
+    ) {
+        guard ChatVanishSwipeMetrics.shouldRevealVanishUI(lift: lift) else {
+            hide()
+            return
+        }
+
+        setRevealLayout(composerBottomInset: composerBottomInset, conversationLift: lift)
+
+        let palette = Self.uiPalette(for: colorScheme)
+        let adjusted = ChatVanishSwipeMetrics.effectiveLiftForCompletion(lift)
+
+        isHidden = false
+        let revealOpacity = min(1, adjusted / 28)
+        alpha = revealOpacity
+
+        let scale = 0.94 + min(progress, 1) * 0.06
+        ringContainer.transform = CGAffineTransform(scaleX: scale, y: scale)
+
+        ringBackgroundLayer.strokeColor = palette.primary.withAlphaComponent(0.14).cgColor
+        ringProgressLayer.strokeColor = palette.primary.withAlphaComponent(0.88).cgColor
+        ringProgressLayer.strokeEnd = min(max(progress, 0), 1)
+
+        if isDragging, progress >= ChatVanishSwipeMetrics.completionThreshold {
+            hintLabel.text = isActive
+                ? NSLocalizedString("chat.vanish.swipe.release.off", comment: "")
+                : NSLocalizedString("chat.vanish.swipe.release", comment: "")
+        } else {
+            hintLabel.text = isActive
+                ? NSLocalizedString("chat.vanish.swipe.hint.off", comment: "")
+                : NSLocalizedString("chat.vanish.swipe.hint", comment: "")
+        }
+        hintLabel.textColor = palette.secondary
+    }
+
+    private static func uiPalette(for colorScheme: UIUserInterfaceStyle) -> (primary: UIColor, secondary: UIColor) {
+        switch colorScheme {
+        case .dark:
+            return (.white, UIColor.white.withAlphaComponent(0.8))
+        default:
+            return (.black, UIColor.black.withAlphaComponent(0.7))
+        }
+    }
+
+    func hide() {
+        isHidden = true
+        alpha = 0
+        ringProgressLayer.strokeEnd = 0
+        ringContainer.transform = .identity
+    }
+
+    private func configureRingContainer() {
+        ringContainer.translatesAutoresizingMaskIntoConstraints = false
+        ringContainer.isUserInteractionEnabled = false
+        addSubview(ringContainer)
+
+        ringBackgroundLayer.fillColor = UIColor.clear.cgColor
+        ringBackgroundLayer.lineWidth = ringLineWidth
+        ringBackgroundLayer.lineCap = .round
+
+        ringProgressLayer.fillColor = UIColor.clear.cgColor
+        ringProgressLayer.lineWidth = ringLineWidth
+        ringProgressLayer.lineCap = .round
+        ringProgressLayer.strokeStart = 0
+        ringProgressLayer.strokeEnd = 0
+        ringProgressLayer.transform = CATransform3DMakeRotation(-CGFloat.pi / 2, 0, 0, 1)
+
+        ringContainer.layer.addSublayer(ringBackgroundLayer)
+        ringContainer.layer.addSublayer(ringProgressLayer)
+    }
+
+    private func configureLabel() {
+        hintLabel.font = .systemFont(ofSize: legacyPoppinsSize(12), weight: .medium)
+        hintLabel.textAlignment = .center
+        hintLabel.numberOfLines = 0
+        hintLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(hintLabel)
+
+        NSLayoutConstraint.activate([
+            ringContainer.topAnchor.constraint(equalTo: topAnchor),
+            ringContainer.centerXAnchor.constraint(equalTo: centerXAnchor),
+            ringContainer.widthAnchor.constraint(equalToConstant: ringSize),
+            ringContainer.heightAnchor.constraint(equalToConstant: ringSize),
+            hintLabel.topAnchor.constraint(equalTo: ringContainer.bottomAnchor, constant: 8),
+            hintLabel.leadingAnchor.constraint(equalTo: leadingAnchor),
+            hintLabel.trailingAnchor.constraint(equalTo: trailingAnchor),
+            hintLabel.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
     }
 }
 
@@ -67,7 +297,8 @@ struct ChatVanishPullRevealLayer: View {
     }
 
     private var revealOpacity: Double {
-        Double(min(1, pullOffset / 28))
+        let adjusted = ChatVanishSwipeMetrics.effectivePull(for: pullOffset)
+        return Double(min(1, adjusted / 36))
     }
 
     var body: some View {
@@ -81,8 +312,6 @@ struct ChatVanishPullRevealLayer: View {
         }
         .opacity(revealOpacity)
         .scaleEffect(0.94 + min(progress, 1) * 0.06)
-        // Centrado en la franja revelada entre input y último mensaje.
-        .offset(y: -pullOffset * 0.5)
         .allowsHitTesting(false)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(

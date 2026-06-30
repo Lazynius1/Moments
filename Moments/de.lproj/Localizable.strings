@@ -3544,6 +3544,8 @@
 "chat.blockedByMe.input" = "Du hast diesen Nutzer blockiert. Hebe die Blockierung auf, um Nachrichten zu senden.";
 "chat.blockedByMe.unblock" = "Blockierung aufheben";
 "chat.search.placeholder" = "Im Chat suchen";
+"chat.search.results" = "%1$d/%2$d";
+"chat.scrollToBottom.accessibility" = "Zum Ende des Chats scrollen";
 "chat.newMessages" = "Neue Nachrichten";
 "profileEditor.deletePhoto.title" = "Profilfoto löschen";
 "nova.easterEgg.title" = "Easter Egg freigeschaltet";
