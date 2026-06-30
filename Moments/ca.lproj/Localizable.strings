@@ -991,6 +991,14 @@
 "chat.forward.multiple.disabled" = "El reenviaments múltiples estan desactivats";
 
 "chat.reply.you" = "Tu";
+"chat.reply.youRepliedTo" = "Has respost a %@";
+"chat.reply.repliedTo" = "%@ ha respost";
+"chat.voice.play" = "Reprodueix la nota de veu";
+"chat.voice.pause" = "Posa en pausa la nota de veu";
+"chat.a11y.photo" = "Foto";
+"chat.a11y.video" = "Vídeo";
+"chat.a11y.openMedia" = "Toca per obrir";
+"chat.a11y.spoilerHint" = "Contingut ocult. Toca per mostrar.";
 "chat.reply.select_item" = "Respondre a un element";
 "chat.cluster.sentPhotos" = "Has enviat %d fotos";
 "chat.cluster.receivedPhotos" = "Has rebut %d fotos";
@@ -3555,6 +3563,7 @@
 "chat.blockedByMe.subtitle" = "Bloquejat";
 "chat.blockedByMe.input" = "Has bloquejat aquest usuari. Desbloqueja'l per enviar missatges.";
 "chat.blockedByMe.unblock" = "Desbloquejar";
+"chat.search.placeholder" = "Cerca al xat";
 "chat.newMessages" = "Missatges nous";
 "profileEditor.deletePhoto.title" = "Eliminar la foto de perfil";
 "nova.easterEgg.title" = "Easter egg desbloquejat";

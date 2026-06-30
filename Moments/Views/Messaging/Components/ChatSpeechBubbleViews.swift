@@ -88,6 +88,17 @@ struct TextSegment: Identifiable {
     let isSpoiler: Bool
 }
 
+private struct ChatSearchHighlightTermKey: EnvironmentKey {
+    static let defaultValue = ""
+}
+
+extension EnvironmentValues {
+    var chatSearchHighlightTerm: String {
+        get { self[ChatSearchHighlightTermKey.self] }
+        set { self[ChatSearchHighlightTermKey.self] = newValue }
+    }
+}
+
 struct ChatTextBubbleView: View {
     let text: String
     let isOutgoing: Bool
@@ -100,6 +111,7 @@ struct ChatTextBubbleView: View {
     let onReaction: (String) -> Void
 
     @State private var revealSpoilers = false
+    @Environment(\.chatSearchHighlightTerm) private var searchHighlightTerm
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
     @ScaledMetric(relativeTo: .body) private var horizontalPadding = ChatTextBubbleMetrics.horizontalPadding
@@ -141,17 +153,21 @@ struct ChatTextBubbleView: View {
         repliedMessage != nil
     }
 
-    /// Con reply embebido todo se alinea a la izquierda (estilo WhatsApp); si no, según remitente.
+    private var hasLink: Bool {
+        ChatLinkOpener.firstURL(in: text) != nil
+    }
+
+    /// Con reply o link preview el contenido se alinea a la izquierda; si no, según remitente.
     private var stackAlignment: HorizontalAlignment {
-        hasReply ? .leading : (isOutgoing ? .trailing : .leading)
+        (hasReply || hasLink) ? .leading : (isOutgoing ? .trailing : .leading)
     }
 
     private var textAlignment: TextAlignment {
-        hasReply ? .leading : (isOutgoing ? .trailing : .leading)
+        (hasReply || hasLink) ? .leading : (isOutgoing ? .trailing : .leading)
     }
 
     private var contentFrameAlignment: Alignment {
-        hasReply ? .leading : (isOutgoing ? .trailing : .leading)
+        (hasReply || hasLink) ? .leading : (isOutgoing ? .trailing : .leading)
     }
 
     private func parseSegments(_ input: String) -> [TextSegment] {
@@ -205,7 +221,36 @@ struct ChatTextBubbleView: View {
             }
             combined.append(segmentAttr)
         }
+        applySearchHighlight(to: &combined)
         return combined
+    }
+
+    private var searchHighlightBackground: Color {
+        Color(red: 1.0, green: 0.82, blue: 0.25).opacity(0.85)
+    }
+
+    private func applySearchHighlight(to attributed: inout AttributedString) {
+        let term = searchHighlightTerm.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !term.isEmpty, !(hasSpoilers && !revealSpoilers) else { return }
+
+        let plain = String(attributed.characters)
+        guard !plain.isEmpty else { return }
+
+        var searchStart = plain.startIndex
+        while searchStart < plain.endIndex,
+              let found = plain.range(
+                of: term,
+                options: [.caseInsensitive, .diacriticInsensitive],
+                range: searchStart..<plain.endIndex
+              ) {
+            let lowerOffset = plain.distance(from: plain.startIndex, to: found.lowerBound)
+            let upperOffset = plain.distance(from: plain.startIndex, to: found.upperBound)
+            let attrLower = attributed.index(attributed.startIndex, offsetByCharacters: lowerOffset)
+            let attrUpper = attributed.index(attributed.startIndex, offsetByCharacters: upperOffset)
+            attributed[attrLower..<attrUpper].backgroundColor = searchHighlightBackground
+            attributed[attrLower..<attrUpper].foregroundColor = .black
+            searchStart = found.upperBound > searchStart ? found.upperBound : plain.index(after: searchStart)
+        }
     }
 
     private var hasSpoilers: Bool {
@@ -222,10 +267,16 @@ struct ChatTextBubbleView: View {
             if hasSpoilers {
                 bubbleText
                     .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.22)) {
+                        if UIAccessibility.isReduceMotionEnabled {
                             revealSpoilers.toggle()
+                        } else {
+                            withAnimation(.easeInOut(duration: 0.22)) {
+                                revealSpoilers.toggle()
+                            }
                         }
                     }
+                    .accessibilityHint(Text(NSLocalizedString("chat.a11y.spoilerHint", comment: "Hidden spoiler hint")))
+                    .accessibilityAddTraits(.isButton)
             } else {
                 bubbleText
             }
@@ -256,9 +307,14 @@ struct ChatTextBubbleView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
+            if let linkURL = ChatLinkOpener.firstURL(in: text) {
+                LinkPreviewCard(url: linkURL, embedded: true, isOutgoing: isOutgoing)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             messageText
                 .frame(
-                    maxWidth: hasReply ? .infinity : nil,
+                    maxWidth: (hasReply || hasLink) ? .infinity : nil,
                     alignment: contentFrameAlignment
                 )
                 .padding(.horizontal, hasReply ? 4 : 0)

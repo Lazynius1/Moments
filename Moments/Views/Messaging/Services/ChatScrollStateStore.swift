@@ -67,7 +67,6 @@ enum ChatScrollStateStore {
         var hasCompletedInitialScroll = false
         var frozenInitialScrollTarget: ChatScrollTarget?
         var isPinnedToBottom = true
-        var didProcessNotificationBuzz = false
         var scrollAnchorId: String?
         var scrollOffsetY: Double?
     }

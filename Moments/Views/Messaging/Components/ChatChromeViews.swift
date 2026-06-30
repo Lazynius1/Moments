@@ -109,6 +109,27 @@ extension View {
     func chatInteractivePopEnabled() -> some View {
         background(NavigationInteractivePopEnabler())
     }
+
+    /// Reporta la altura del composer (input + reply) para re-anclar scroll cuando crece.
+    func chatComposerHeightReporting() -> some View {
+        background {
+            GeometryReader { geo in
+                Color.clear.preference(key: ChatComposerHeightKey.self, value: geo.size.height)
+            }
+        }
+    }
+
+    func onChatComposerHeightChange(_ action: @escaping (CGFloat) -> Void) -> some View {
+        onPreferenceChange(ChatComposerHeightKey.self, perform: action)
+    }
+}
+
+private struct ChatComposerHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
 }
 
 private struct MessagingListSectionMarginsModifier: ViewModifier {
@@ -325,10 +346,18 @@ struct GlassmorphicDateHeader: View {
 }
 
 struct GlassmorphicUnreadDivider: View {
+    var unreadCount: Int = 0
     @Environment(\.colorScheme) var colorScheme
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var dividerText: Text {
+        if unreadCount > 1 {
+            return Text(String(format: NSLocalizedString("chat.unreadCount.preview", comment: "Unread messages count"), unreadCount))
+        }
+        return Text("chat.newMessages")
     }
 
     var body: some View {
@@ -340,7 +369,7 @@ struct GlassmorphicUnreadDivider: View {
             HStack(spacing: 6) {
                 Image(systemName: "circle.fill")
                     .font(.system(size: 5))
-                Text("chat.newMessages")
+                dividerText
                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
             }
             .foregroundColor(adaptiveColors.primary.opacity(0.9))
@@ -377,6 +406,7 @@ struct GlassmorphicAvatar: View {
 struct GlassmorphicTypingIndicator: View {
     @State private var animationAmounts = [0.0, 0.0, 0.0]
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -388,9 +418,11 @@ struct GlassmorphicTypingIndicator: View {
                 Circle()
                     .fill(adaptiveColors.typingIndicatorColor)
                     .frame(width: 8, height: 8)
-                    .scaleEffect(animationAmounts[index])
-                    .opacity(animationAmounts[index])
+                    .scaleEffect(reduceMotion ? 0.85 : animationAmounts[index])
+                    .opacity(reduceMotion ? 0.85 : animationAmounts[index])
                     .onAppear {
+                        // Con reduceMotion los puntos quedan estáticos, sin pulso infinito.
+                        guard !reduceMotion else { return }
                         withAnimation(
                             Animation.easeInOut(duration: 0.6)
                                 .repeatForever(autoreverses: true)

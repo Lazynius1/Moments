@@ -6,6 +6,9 @@ struct ChatBuzzEvent: Identifiable, Equatable {
     let conversationId: String
     let senderId: String
     let createdAt: Date
+
+    /// TTL alineado con la ventana de replay MSN (~5 min).
+    static let eventLifetime: TimeInterval = ChatBuzzProcessedStore.replayWindow
 }
 
 extension ChatService {
@@ -24,7 +27,7 @@ extension ChatService {
             "senderId": senderId,
             "type": "buzz",
             "createdAt": FieldValue.serverTimestamp(),
-            "expiresAt": Timestamp(date: now.addingTimeInterval(30)),
+            "expiresAt": Timestamp(date: now.addingTimeInterval(ChatBuzzEvent.eventLifetime)),
             "intensity": "normal",
             "clientNonce": UUID().uuidString
         ]) { error in

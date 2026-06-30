@@ -140,11 +140,11 @@ final class NotificationPresentationCoordinator {
 
         case .chatBuzz:
             guard let conversationId = notification.conversationId else { return }
+            ChatNavigationIntentStore.enqueueBuzz(
+                conversationId: conversationId,
+                buzzEventId: notification.buzzEventId
+            )
             if conversationId == ChatSessionEngine.shared.activeConversationId {
-                ChatNavigationIntentStore.enqueueBuzz(
-                    conversationId: conversationId,
-                    buzzEventId: notification.buzzEventId
-                )
                 NotificationCenter.default.post(
                     name: .chatBuzzHighlight,
                     object: nil,
@@ -281,6 +281,7 @@ final class NotificationPresentationCoordinator {
         senderId: String,
         senderUsername: String
     ) {
+        ChatNavigationIntentStore.enqueueBuzz(conversationId: conversationId, buzzEventId: buzzEventId)
         let notification = Notification(
             id: UUID().uuidString,
             type: .chatBuzz,

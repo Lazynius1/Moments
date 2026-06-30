@@ -1017,6 +1017,14 @@
 "chat.selected.count" = "%d selected";
 "chat.forward.multiple.disabled" = "Forwarding multiple messages is disabled";
 "chat.reply.you" = "You";
+"chat.reply.youRepliedTo" = "You replied to %@";
+"chat.reply.repliedTo" = "%@ replied";
+"chat.voice.play" = "Play voice message";
+"chat.voice.pause" = "Pause voice message";
+"chat.a11y.photo" = "Photo";
+"chat.a11y.video" = "Video";
+"chat.a11y.openMedia" = "Tap to open";
+"chat.a11y.spoilerHint" = "Hidden content. Tap to reveal.";
 "chat.reply.select_item" = "Reply to an item";
 "chat.cluster.sentPhotos" = "You sent %d photos";
 "chat.cluster.receivedPhotos" = "You received %d photos";
@@ -3574,6 +3582,7 @@
 "chat.blockedByMe.subtitle" = "Blocked";
 "chat.blockedByMe.input" = "You blocked this user. Unblock them to send messages.";
 "chat.blockedByMe.unblock" = "Unblock";
+"chat.search.placeholder" = "Search in chat";
 "chat.newMessages" = "New messages";
 "profileEditor.deletePhoto.title" = "Delete profile photo";
 "nova.easterEgg.title" = "Easter egg unlocked";

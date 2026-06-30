@@ -116,6 +116,7 @@ struct ConversationSettingsView: View {
         ClusterGalleryView(
             messages: viewModel.sharedGalleryMessages.filter { !$0.isDeleted },
             currentUserId: viewModel.currentUserId,
+            scope: .conversationShared,
             presentation: .pushed,
             initialTab: viewModel.sharedGalleryInitialTab,
             onClose: {
@@ -766,7 +767,9 @@ class ConversationSettingsViewModel: ObservableObject {
             .sorted { $0.timestamp > $1.timestamp }
 
         sharedGalleryMessages = galleryMessages
-        sharedLinksCount = galleryMessages.filter { $0.type == .text }.count
+        sharedLinksCount = galleryMessages.filter {
+            $0.type == .text && ChatLinkOpener.containsLink(in: $0.content ?? "")
+        }.count
 
         let mediaMessages = galleryMessages.filter(isSharedMediaItem)
         sharedMedia = mediaMessages.compactMap(makeSharedMedia)
@@ -778,25 +781,17 @@ class ConversationSettingsViewModel: ObservableObject {
 
     private func isSharedGalleryEligible(_ message: EnhancedMessage) -> Bool {
         guard !message.isDeleted else { return false }
-        if message.type == .text, let content = message.content, containsURL(content) { return true }
+        if message.type == .text, let content = message.content, ChatLinkOpener.containsLink(in: content) { return true }
         return isSharedMediaItem(message)
     }
 
     private func isSharedMediaItem(_ message: EnhancedMessage) -> Bool {
-        guard message.type == .image || message.type == .video || message.type == .gif else { return false }
+        guard message.type == .image || message.type == .video else { return false }
         guard !message.isViewOnce && message.type != .ephemeral && message.storyReplyData == nil else { return false }
         guard message.isVanishModeMessage != true else { return false }
         if message.mediaUrl != nil { return true }
         if message.mediaObjectPath != nil, message.mediaEncryption != nil { return true }
         return message.thumbnailUrl != nil && message.thumbnailObjectPath != nil
-    }
-
-    private func containsURL(_ text: String) -> Bool {
-        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
-            return false
-        }
-        let matches = detector.matches(in: text, options: [], range: NSRange(text.startIndex..., in: text))
-        return !matches.isEmpty
     }
 
     func makeSharedMedia(from message: EnhancedMessage) -> SharedMedia? {
@@ -908,7 +903,9 @@ class ConversationSettingsViewModel: ObservableObject {
     }
 
     private func recomputeSharedMediaCounts() {
-        sharedLinksCount = sharedGalleryMessages.filter { $0.type == .text }.count
+        sharedLinksCount = sharedGalleryMessages.filter {
+            $0.type == .text && ChatLinkOpener.containsLink(in: $0.content ?? "")
+        }.count
         sharedMedia = sharedGalleryMessages.filter(isSharedMediaItem).compactMap(makeSharedMedia)
     }
 

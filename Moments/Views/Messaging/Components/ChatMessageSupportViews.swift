@@ -162,6 +162,91 @@ struct GlassmorphicReplyPreview: View {
     }
 }
 
+/// Cita de respuesta apilada encima de la burbuja: etiqueta «Respondiste a…/… respondió»
+/// + fragmento atenuado del mensaje citado, alineado al lado del autor.
+struct StackedReplyQuote: View {
+    let repliedMessage: EnhancedMessage
+    /// La fila (la respuesta) la escribe el usuario actual.
+    let isOutgoingRow: Bool
+    let otherParticipantName: String
+    let onTap: (() -> Void)?
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var adaptiveColors: AdaptiveColors { AdaptiveColors(colorScheme: colorScheme) }
+    private var currentUserId: String { Auth.auth().currentUser?.uid ?? "" }
+    private var repliedToSelf: Bool { repliedMessage.senderId == currentUserId }
+    private var isVanishProtected: Bool { repliedMessage.isVanishModeMessage == true }
+
+    private var captionText: String {
+        if isOutgoingRow {
+            let name = repliedToSelf
+                ? NSLocalizedString("chat.reply.you", comment: "")
+                : otherParticipantName
+            return String(format: NSLocalizedString("chat.reply.youRepliedTo", comment: ""), name)
+        }
+        return String(format: NSLocalizedString("chat.reply.repliedTo", comment: ""), otherParticipantName)
+    }
+
+    var body: some View {
+        Group {
+            if isVanishProtected {
+                ScreenshotProtectedView(isProtected: true, cornerRadius: 13) { content }
+            } else {
+                content
+            }
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: isOutgoingRow ? .trailing : .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                Image(systemName: "arrowshape.turn.up.left.fill")
+                    .font(.system(size: 9))
+                Text(captionText)
+                    .font(.system(size: legacyPoppinsSize(11), weight: .medium))
+                    .lineLimit(1)
+            }
+            .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
+            .padding(.horizontal, 6)
+
+            quoteSnippet
+        }
+        .frame(maxWidth: 240, alignment: isOutgoingRow ? .trailing : .leading)
+        .contentShape(Rectangle())
+        .onTapGesture { onTap?() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(captionText), \(repliedMessage.preview)")
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private var quoteSnippet: some View {
+        HStack(spacing: 7) {
+            if let mediaUrl = repliedMessage.thumbnailUrl ?? repliedMessage.mediaUrl, let url = URL(string: mediaUrl) {
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 26, height: 26)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+            }
+            Text(repliedMessage.preview)
+                .font(.system(size: legacyPoppinsSize(12)))
+                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.65))
+                .lineLimit(1)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(adaptiveColors.messageBubbleBackground.opacity(0.55))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .stroke(adaptiveColors.messageBubbleStroke.opacity(0.4), lineWidth: 0.5)
+        )
+    }
+}
+
 /// Reply citado EMBEBIDO dentro de la burbuja (estilo WhatsApp): barra de color,
 /// fondo tintado, llena el ancho de la burbuja y queda pegado encima del texto.
 struct EmbeddedReplyView: View {
@@ -316,6 +401,12 @@ struct MessageReactionChip: View {
         MessageReactionMetrics.overlapSpacing(compact: compact, cluster: cluster)
     }
 
+    /// Área táctil mínima (HIG ~44pt). Solo en cluster, donde el badge de 18pt va en un overlay
+    /// con offset (expandir es seguro y no altera el layout en fila de las reacciones normales).
+    private var hitTarget: CGFloat {
+        cluster ? max(44, badgeDiameter) : badgeDiameter
+    }
+
     var body: some View {
         Group {
             if sortedEntries.count == 1, let entry = sortedEntries.first {
@@ -347,8 +438,15 @@ struct MessageReactionChip: View {
                 }
             }
             .frame(width: badgeDiameter, height: badgeDiameter)
+            .frame(width: hitTarget, height: hitTarget)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(reactionAccessibilityLabel(entry))
+    }
+
+    private func reactionAccessibilityLabel(_ entry: (emoji: String, count: Int)) -> String {
+        entry.count > 1 ? "\(entry.emoji) \(entry.count)" : entry.emoji
     }
 }
 
@@ -385,9 +483,16 @@ enum MessageReactionMetrics {
     }
 
     /// Espacio extra bajo la fila para que el badge no pise el mensaje de abajo.
+    /// 0.66 cubre lo que cuelga el badge (`hangOffset` = 0.62·d) con un pequeño margen.
     static func reactionRowSpacing(compact: Bool, cluster: Bool = false) -> CGFloat {
         let diameter = badgeDiameter(compact: compact, cluster: cluster)
-        return diameter * 0.58
+        return diameter * 0.66
+    }
+
+    /// Mitad de la diferencia entre el área táctil (44pt) y el badge cluster, para recolocar el badge.
+    static func clusterHitTargetInset(compact: Bool) -> CGFloat {
+        let diameter = badgeDiameter(compact: compact, cluster: true)
+        return max(0, (max(44, diameter) - diameter) / 2)
     }
 
     /// Reserva en la burbuja de texto para que el emoji no tape letras cortas.

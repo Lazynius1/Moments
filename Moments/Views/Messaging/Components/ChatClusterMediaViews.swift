@@ -82,6 +82,8 @@ enum ClusterMessageGrouper {
 // MARK: - Clustering UI Components
 struct GlassmorphicClusterRow: View {
     let messages: [EnhancedMessage]
+    var repliedMessage: EnhancedMessage? = nil
+    var otherParticipantName: String = ""
     let isCurrentUser: Bool
     let showAvatar: Bool
     let otherUserId: String?
@@ -128,6 +130,14 @@ struct GlassmorphicClusterRow: View {
                     }
 
                     VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
+                        if let repliedMessage {
+                            StackedReplyQuote(
+                                repliedMessage: repliedMessage,
+                                isOutgoingRow: isCurrentUser,
+                                otherParticipantName: otherParticipantName,
+                                onTap: { onReplyTap?(repliedMessage.id) }
+                            )
+                        }
                         MediaGridBubble(
                             messages: messages,
                             isCurrentUser: isCurrentUser,
@@ -372,14 +382,17 @@ struct MediaGridBubble: View {
             if isFront, let reactions = displayReactions(message.id), !reactions.isEmpty {
                 let hang = MessageReactionMetrics.hangOffset(compact: false, cluster: true)
                 let edge = MessageReactionMetrics.horizontalHangOffset(compact: false, anchoredInsideBounds: false)
+                // El chip se expande a un área táctil de 44pt centrada; compensamos el inset
+                // transparente para que el badge quede visualmente donde estaba.
+                let hitInset = MessageReactionMetrics.clusterHitTargetInset(compact: false)
                 MessageReactionChip(
                     reactions: reactions,
                     onTap: { emoji in onReaction(message, emoji) },
                     cluster: true
                 )
                 .offset(
-                    x: isCurrentUser ? edge : -edge,
-                    y: hang
+                    x: isCurrentUser ? (edge - hitInset) : (-edge + hitInset),
+                    y: hang + hitInset
                 )
                 .zIndex(10)
             }
@@ -447,6 +460,7 @@ struct MediaGridTileView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
         .background(Color(hex: "FAF9F6").opacity(colorScheme == .dark ? 0.06 : 0.22))
     }
 
@@ -508,6 +522,7 @@ struct MediaGridTileView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
     }
 
     @ViewBuilder
@@ -569,6 +584,13 @@ enum ClusterGalleryPresentation {
     case pushed
 }
 
+enum ClusterGalleryScope {
+    /// Álbum puntual (cluster en el chat): solo la media recibida, sin pestañas.
+    case cluster
+    /// Galería compartida de la conversación (ajustes): pestañas Media + Links.
+    case conversationShared
+}
+
 enum ClusterGalleryTab: String, CaseIterable, Identifiable {
     case media = "chat.gallery.tab.media"
     case links = "chat.gallery.tab.links"
@@ -579,6 +601,7 @@ enum ClusterGalleryTab: String, CaseIterable, Identifiable {
 struct ClusterGalleryView<Detail: View>: View {
     let messages: [EnhancedMessage]
     let currentUserId: String
+    var scope: ClusterGalleryScope = .cluster
     var presentation: ClusterGalleryPresentation = .modal
     var initialTab: ClusterGalleryTab = .media
     let onClose: () -> Void
@@ -607,6 +630,7 @@ struct ClusterGalleryView<Detail: View>: View {
     init(
         messages: [EnhancedMessage],
         currentUserId: String,
+        scope: ClusterGalleryScope = .cluster,
         presentation: ClusterGalleryPresentation = .modal,
         initialTab: ClusterGalleryTab = .media,
         onClose: @escaping () -> Void,
@@ -620,6 +644,7 @@ struct ClusterGalleryView<Detail: View>: View {
     ) {
         self.messages = messages
         self.currentUserId = currentUserId
+        self.scope = scope
         self.presentation = presentation
         self.initialTab = initialTab
         self.onClose = onClose
@@ -639,28 +664,27 @@ struct ClusterGalleryView<Detail: View>: View {
 
     private var visibleMessages: [EnhancedMessage] {
         let filtered = messages.filter { !$0.isDeleted }
-        switch selectedTab {
-        case .media:
-            return filtered.filter { $0.type == .image || $0.type == .video || $0.type == .gif || $0.type == .viewOnceImage || $0.type == .viewOnceVideo }
-        case .links:
-            return filtered.filter { $0.type == .text && containsURL($0.content ?? "") }
+        switch scope {
+        case .cluster:
+            return filtered.filter(Self.isGalleryMedia)
+        case .conversationShared:
+            switch selectedTab {
+            case .media:
+                return filtered.filter(Self.isGalleryMedia)
+            case .links:
+                return filtered.filter {
+                    $0.type == .text && ChatLinkOpener.containsLink(in: $0.content ?? "")
+                }
+            }
         }
     }
 
-    private func containsURL(_ text: String) -> Bool {
-        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
-            return false
-        }
-        let matches = detector.matches(in: text, options: [], range: NSRange(text.startIndex..., in: text))
-        return !matches.isEmpty
+    private static func isGalleryMedia(_ message: EnhancedMessage) -> Bool {
+        message.type == .image || message.type == .video
     }
 
     private func extractURL(from text: String) -> String {
-        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
-            return ""
-        }
-        let matches = detector.matches(in: text, options: [], range: NSRange(text.startIndex..., in: text))
-        return matches.first?.url?.absoluteString ?? ""
+        ChatLinkOpener.firstURL(in: text)?.absoluteString ?? ""
     }
 
     private var selectedMessages: [EnhancedMessage] {
@@ -817,41 +841,52 @@ struct ClusterGalleryView<Detail: View>: View {
 
     private var grid: some View {
         VStack(spacing: 0) {
-            // Tab Selector (Segment Bar)
-            HStack(spacing: 0) {
-                ForEach(ClusterGalleryTab.allCases) { tab in
-                    Button {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                            selectedTab = tab
-                        }
-                    } label: {
-                        VStack(spacing: 6) {
-                            Text(NSLocalizedString(tab.rawValue, comment: ""))
-                                .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium))
-                                .foregroundColor(selectedTab == tab ? MomentsChromeGlass.contentColor(for: colorScheme) : .gray)
-                                .frame(maxWidth: .infinity)
+            if scope == .conversationShared {
+                HStack(spacing: 0) {
+                    ForEach(ClusterGalleryTab.allCases) { tab in
+                        Button {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                                selectedTab = tab
+                            }
+                        } label: {
+                            VStack(spacing: 6) {
+                                Text(NSLocalizedString(tab.rawValue, comment: ""))
+                                    .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium))
+                                    .foregroundColor(selectedTab == tab ? MomentsChromeGlass.contentColor(for: colorScheme) : .gray)
+                                    .frame(maxWidth: .infinity)
 
-                            // indicator line
-                            Rectangle()
-                                .fill(selectedTab == tab ? Color.blue : Color.clear)
-                                .frame(height: 2)
+                                Rectangle()
+                                    .fill(selectedTab == tab ? Color.blue : Color.clear)
+                                    .frame(height: 2)
+                            }
                         }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .background(screenBackground)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .background(screenBackground)
 
             ScrollView(showsIndicators: false) {
-                let columns = distribute(visibleMessages)
-                HStack(alignment: .top, spacing: spacing) {
-                    masonryColumn(columns.0)
-                    masonryColumn(columns.1)
+                if scope == .conversationShared, selectedTab == .links {
+                    LazyVStack(spacing: spacing) {
+                        ForEach(Array(visibleMessages.enumerated()), id: \.element.id) { index, message in
+                            linkGridCell(message, index: index)
+                        }
+                    }
+                    .padding(.horizontal, spacing)
+                    .padding(.vertical, 16)
+                } else {
+                    let columns = distribute(visibleMessages)
+                    HStack(alignment: .top, spacing: spacing) {
+                        masonryColumn(columns.0)
+                        masonryColumn(columns.1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, spacing)
+                    .padding(.vertical, 16)
                 }
-                .padding(.horizontal, spacing)
-                .padding(.vertical, 16)
             }
         }
         .background {
@@ -878,10 +913,139 @@ struct ClusterGalleryView<Detail: View>: View {
     private func masonryColumn(_ items: [EnhancedMessage]) -> some View {
         VStack(spacing: spacing) {
             ForEach(items) { message in
-                card(message)
+                mediaCard(message)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .top)
+    }
+
+    private func mediaCard(_ message: EnhancedMessage) -> some View {
+        let ratio = aspectRatio(for: message)
+        let index = visibleMessages.firstIndex(where: { $0.id == message.id }) ?? 0
+        let isSelected = selectedIds.contains(message.id)
+
+        return Button {
+            if isSelectionMode {
+                toggleSelection(message.id)
+            } else {
+                openMessageDetail(at: index, message: message)
+            }
+        } label: {
+            mediaCardLabel(message: message, aspectRatio: ratio, isSelected: isSelected)
+        }
+        .buttonStyle(ScaleButtonStyle())
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                guard !isSelectionMode else { return }
+                enterSelectionMode(selecting: message.id)
+            }
+        )
+        .frame(minWidth: 0, maxWidth: .infinity)
+        .onAppear {
+            onHydrateMedia?(message)
+        }
+    }
+
+    @ViewBuilder
+    private func mediaCardLabel(
+        message: EnhancedMessage,
+        aspectRatio ratio: CGFloat,
+        isSelected: Bool
+    ) -> some View {
+        let isVideo = message.type == .video
+        let isDownloading = isDownloadingMedia?(message.id) ?? false
+
+        Color.clear
+            .aspectRatio(ratio, contentMode: .fit)
+            .overlay {
+                MediaGridTileView(
+                    message: message,
+                    progress: nil,
+                    downsamplingSize: CGSize(
+                        width: 400 * UIScreen.main.scale,
+                        height: max(400 / ratio, 1) * UIScreen.main.scale
+                    ),
+                    isDownloadingMedia: isDownloading,
+                    downloadProgress: downloadProgress?(message.id)
+                )
+            }
+            .overlay(alignment: .bottomLeading) {
+                if isVideo, !isDownloading {
+                    HStack(spacing: 4) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                        if let durationStr = message.formattedDuration {
+                            Text(durationStr)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                        }
+                    }
+                    .padding(8)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                if isSelectionMode, isSelected {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.black.opacity(0.38))
+                        .allowsHitTesting(false)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if isSelectionMode {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(isSelected ? .white : .white.opacity(0.92))
+                        .shadow(color: .black.opacity(0.35), radius: 2, x: 0, y: 1)
+                        .padding(8)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
+    }
+
+    private func linkGridCell(_ message: EnhancedMessage, index: Int) -> some View {
+        let isSelected = selectedIds.contains(message.id)
+        let linkRawUrl = extractURL(from: message.content ?? "")
+        let linkHost = URL(string: linkRawUrl)?.host ?? ""
+        let linkContent = message.content ?? ""
+
+        return Button {
+            if isSelectionMode {
+                toggleSelection(message.id)
+            } else {
+                openMessageDetail(at: index, message: message)
+            }
+        } label: {
+            linkCard(message: message, linkHost: linkHost, linkContent: linkContent)
+                .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+                .overlay {
+                    if isSelectionMode, isSelected {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.black.opacity(0.38))
+                            .allowsHitTesting(false)
+                    }
+                }
+                .overlay(alignment: .topTrailing) {
+                    if isSelectionMode {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(isSelected ? .white : .white.opacity(0.92))
+                            .shadow(color: .black.opacity(0.35), radius: 2, x: 0, y: 1)
+                            .padding(8)
+                    }
+                }
+        }
+        .buttonStyle(ScaleButtonStyle())
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                guard !isSelectionMode else { return }
+                enterSelectionMode(selecting: message.id)
+            }
+        )
     }
 
     private func toggleSelectionMode() {
@@ -894,128 +1058,36 @@ struct ClusterGalleryView<Detail: View>: View {
         }
     }
 
-    private func card(_ message: EnhancedMessage) -> some View {
-        let ratio = aspectRatio(for: message)
-        let index = visibleMessages.firstIndex(where: { $0.id == message.id }) ?? 0
-        let isSelected = selectedIds.contains(message.id)
-
-        return Button {
-            if isSelectionMode {
-                toggleSelection(message.id)
-            } else {
-                openMessageDetail(at: index, message: message)
-            }
-        } label: {
-            cardLabel(message: message, aspectRatio: ratio, isSelected: isSelected)
-        }
-        .buttonStyle(ScaleButtonStyle())
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.45).onEnded { _ in
-                guard !isSelectionMode else { return }
-                enterSelectionMode(selecting: message.id)
-            }
-        )
-        .frame(maxWidth: .infinity)
-        .aspectRatio(ratio, contentMode: .fit)
-        .onAppear {
-            onHydrateMedia?(message)
-        }
-    }
-
-    @ViewBuilder
-    private func cardLabel(
-        message: EnhancedMessage,
-        aspectRatio ratio: CGFloat,
-        isSelected: Bool
-    ) -> some View {
-        let isVideo = message.type == .video
-        let isDownloading = isDownloadingMedia?(message.id) ?? false
-
-        let linkRawUrl = extractURL(from: message.content ?? "")
-        let linkHost = URL(string: linkRawUrl)?.host ?? ""
-        let linkContent = message.content ?? ""
-
-        return Group {
-            switch selectedTab {
-            case .media:
-                MediaGridTileView(
-                    message: message,
-                    progress: nil,
-                    downsamplingSize: CGSize(
-                        width: 400 * UIScreen.main.scale,
-                        height: max(400 / ratio, 1) * UIScreen.main.scale
-                    ),
-                    isDownloadingMedia: isDownloading,
-                    downloadProgress: downloadProgress?(message.id)
-                )
-                .overlay(alignment: .bottomLeading) {
-                    if isVideo, !isDownloading {
-                        HStack(spacing: 4) {
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.white)
-                                .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
-                            if let durationStr = message.formattedDuration {
-                                Text(durationStr)
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
-                            }
-                        }
-                        .padding(8)
-                    }
+    private func linkCard(message: EnhancedMessage, linkHost: String, linkContent: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "link.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.blue)
+                if !linkHost.isEmpty {
+                    Text(linkHost)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.blue)
                 }
-            case .links:
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "link.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(.blue)
-                        if !linkHost.isEmpty {
-                            Text(linkHost)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    Spacer()
-                    Text(linkContent)
-                        .font(.system(size: 12))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.85))
-                        .lineLimit(3)
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .background(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.6))
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3), lineWidth: 1)
-                )
             }
+            Spacer()
+            Text(linkContent)
+                .font(.system(size: 12))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.85))
+                .lineLimit(3)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.6))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay {
-            if isSelectionMode, isSelected {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.black.opacity(0.38))
-                    .allowsHitTesting(false)
-            }
-        }
-        .overlay(alignment: .topTrailing) {
-            if isSelectionMode {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(isSelected ? .white : .white.opacity(0.92))
-                    .shadow(color: .black.opacity(0.35), radius: 2, x: 0, y: 1)
-                    .padding(8)
-            }
-        }
-        .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3), lineWidth: 1)
+        )
     }
 
     private func openMessageDetail(at index: Int, message: EnhancedMessage) {
-        if selectedTab == .links {
+        if scope == .conversationShared, selectedTab == .links {
             if let content = message.content {
                 ChatLinkOpener.openFirstLink(in: content)
             }
@@ -1079,7 +1151,6 @@ struct ClusterGalleryView<Detail: View>: View {
     }
 
     private func aspectRatio(for message: EnhancedMessage) -> CGFloat {
-        guard selectedTab == .media else { return 1.4 }
         if let w = message.mediaWidth, let h = message.mediaHeight, w > 0, h > 0 {
             return min(max(CGFloat(w) / CGFloat(h), 0.5), 1.9)
         }

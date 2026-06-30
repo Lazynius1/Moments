@@ -38,6 +38,13 @@ enum ChatNavigationIntentStore {
         }
     }
 
+    static func clearBuzz(for conversationId: String) {
+        updateIntent(conversationId: conversationId) {
+            $0.playBuzzOnOpen = false
+            $0.buzzEventId = nil
+        }
+    }
+
     static func clearHighlights(for conversationId: String) {
         updateIntent(conversationId: conversationId) { $0.highlightMessageIds.removeAll() }
     }

@@ -70,14 +70,6 @@ struct GlassmorphicMessageRow: View {
         groupPosition == .first || groupPosition == .single
     }
 
-    /// El reply va embebido dentro de la burbuja (estilo WhatsApp) solo para texto plano.
-    private var usesEmbeddedReply: Bool {
-        message.type == .text
-            && message.content != nil
-            && message.storyReplyData == nil
-            && !message.isDeleted
-    }
-
     private var timestampLeadingInset: CGFloat {
         isCurrentUser ? 0 : ChatIncomingMessageLayout.gutterInset
     }
@@ -101,10 +93,10 @@ struct GlassmorphicMessageRow: View {
                         }
 
                         VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: reactionTimestampSpacing) {
-                            if let originalMessage = repliedMessage, !usesEmbeddedReply {
-                                GlassmorphicReplyPreview(
-                                    message: originalMessage,
-                                    isParentMessageFromCurrentUser: isCurrentUser,
+                            if let originalMessage = repliedMessage {
+                                StackedReplyQuote(
+                                    repliedMessage: originalMessage,
+                                    isOutgoingRow: isCurrentUser,
                                     otherParticipantName: otherParticipantName,
                                     onTap: { onReplyTap?(originalMessage.id) }
                                 )
@@ -304,6 +296,16 @@ struct GlassmorphicMessageBubble: View {
         return message.isStarred(by: userId)
     }
 
+    /// Forma de burbuja para media/audio que une esquinas en ráfagas (igual que el texto).
+    private func mediaBubbleShape(cornerRadius: CGFloat) -> ChatBubbleShape {
+        ChatBubbleShape(
+            side: isCurrentUser ? .trailing : .leading,
+            position: groupPosition,
+            cornerRadius: cornerRadius,
+            joinedRadius: 6
+        )
+    }
+
     @ViewBuilder
     private func attachBubbleBadges<Content: View>(
         to content: Content,
@@ -322,15 +324,16 @@ struct GlassmorphicMessageBubble: View {
 
     @ViewBuilder
     private func textMessageBody(_ content: String) -> some View {
+        // El reply ya se muestra apilado encima de la burbuja, no embebido dentro.
         ChatTextBubbleView(
             text: content,
             isOutgoing: isCurrentUser,
             groupPosition: groupPosition,
             reactions: reactions,
             isStarred: isStarredByCurrentUser,
-            repliedMessage: repliedMessage,
+            repliedMessage: nil,
             otherParticipantName: otherParticipantName,
-            onReplyTap: repliedMessage.flatMap { replied in onReplyTap.map { tap in { tap(replied.id) } } },
+            onReplyTap: nil,
             onReaction: onReaction
         )
     }
@@ -380,11 +383,6 @@ struct GlassmorphicMessageBubble: View {
                                 }
 
                                 textMessageBody(content)
-
-                                if let url = detectFirstURL(in: content) {
-                                    LinkPreviewCard(url: url)
-                                        .padding(.top, 4)
-                                }
                             }
                         }
 
@@ -408,7 +406,7 @@ struct GlassmorphicMessageBubble: View {
                                 }
                             )
                             .frame(width: 208, height: 272)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .clipShape(mediaBubbleShape(cornerRadius: 16))
                         )
                         .onAppear {
                             onHydrateMedia?(message)
@@ -423,7 +421,8 @@ struct GlassmorphicMessageBubble: View {
                                 isCurrentUser: isCurrentUser,
                                 isSending: message.status == .sending,
                                 progress: progress,
-                                adaptiveColors: adaptiveColors
+                                adaptiveColors: adaptiveColors,
+                                groupPosition: groupPosition
                             )
                         )
                         .onAppear {
@@ -450,7 +449,7 @@ struct GlassmorphicMessageBubble: View {
                                 }
                             )
                             .frame(width: 208, height: 272)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .clipShape(mediaBubbleShape(cornerRadius: 16))
                         )
                         .onAppear {
                             onHydrateMedia?(message)
@@ -574,9 +573,6 @@ struct GlassmorphicMessageBubble: View {
         }
     }
 
-    private func detectFirstURL(in text: String) -> URL? {
-        ChatLinkOpener.firstURL(in: text)
-    }
 }
 
 // MARK: - Link opening
@@ -586,8 +582,18 @@ enum ChatLinkOpener {
         guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
             return nil
         }
-        let range = NSRange(text.startIndex..., in: text)
-        return detector.firstMatch(in: text, options: [], range: range)?.url
+        let searchable = linkSearchableText(from: text)
+        let range = NSRange(searchable.startIndex..., in: searchable)
+        return detector.firstMatch(in: searchable, options: [], range: range)?.url
+    }
+
+    static func containsLink(in text: String) -> Bool {
+        firstURL(in: text) != nil
+    }
+
+    /// Texto plano para detectar URLs (quita delimitadores de spoiler `||`).
+    private static func linkSearchableText(from text: String) -> String {
+        text.replacingOccurrences(of: "||", with: "")
     }
 
     static func open(_ url: URL) {
@@ -672,11 +678,51 @@ class LinkMetadataCache {
 
 struct LinkPreviewCard: View {
     let url: URL
+    /// Integrado dentro de la burbuja: ancho completo y colores que combinan con la burbuja.
+    var embedded: Bool = false
+    var isOutgoing: Bool = false
     @State private var title: String? = nil
     @State private var host: String? = nil
     @State private var image: UIImage? = nil
     @State private var isLoading = true
     @Environment(\.colorScheme) var colorScheme
+
+    private var maxCardWidth: CGFloat? { embedded ? nil : 240 }
+    private var imageMaxHeight: CGFloat { embedded ? 150 : 120 }
+    private var cornerRadius: CGFloat { embedded ? 13 : 10 }
+
+    private var titleColor: Color {
+        if embedded && isOutgoing { return .white }
+        return colorScheme == .dark ? .white : .black
+    }
+
+    private var hostColor: Color {
+        if embedded && isOutgoing { return .white.opacity(0.85) }
+        return .blue
+    }
+
+    private var panelBackground: Color {
+        if embedded {
+            return isOutgoing
+                ? Color.white.opacity(0.16)
+                : Color.white.opacity(colorScheme == .dark ? 0.08 : 0.55)
+        }
+        return Color.white.opacity(colorScheme == .dark ? 0.08 : 0.6)
+    }
+
+    private var strokeColor: Color {
+        if embedded { return .clear }
+        return Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3)
+    }
+
+    @ViewBuilder
+    private func frameWrap<V: View>(_ view: V) -> some View {
+        if embedded {
+            view.frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            view.frame(maxWidth: 240, alignment: .leading)
+        }
+    }
 
     var body: some View {
         Button {
@@ -685,64 +731,69 @@ struct LinkPreviewCard: View {
         } label: {
             Group {
                 if isLoading {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                        Text(url.host ?? url.absoluteString)
-                            .font(.system(size: 11))
-                            .foregroundColor(.gray)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.4))
-                    .cornerRadius(10)
+                    frameWrap(
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                            Text(url.host ?? url.absoluteString)
+                                .font(.system(size: 11))
+                                .foregroundColor(embedded && isOutgoing ? .white.opacity(0.8) : .gray)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                    )
+                    .background(panelBackground)
+                    .cornerRadius(cornerRadius)
                 } else if let title = title {
                     VStack(alignment: .leading, spacing: 0) {
                         if let image = image {
                             Image(uiImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(maxWidth: 240, maxHeight: 120)
+                                .frame(maxWidth: maxCardWidth ?? .infinity, maxHeight: imageMaxHeight)
                                 .clipped()
                         }
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(title)
-                                .font(.system(size: 12, weight: .bold))
-                                .lineLimit(2)
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                        frameWrap(
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(title)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .lineLimit(2)
+                                    .foregroundColor(titleColor)
 
-                            Text(host ?? "")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(.blue)
-                        }
-                        .padding(8)
-                        .frame(maxWidth: 240, alignment: .leading)
-                        .background(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.6))
+                                Text(host ?? "")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(hostColor)
+                            }
+                            .padding(8)
+                        )
+                        .background(panelBackground)
                     }
-                    .cornerRadius(10)
+                    .cornerRadius(cornerRadius)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .stroke(strokeColor, lineWidth: embedded ? 0 : 1)
                     )
                 } else {
-                    HStack(spacing: 8) {
-                        Image(systemName: "link")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.blue)
-                        Text(url.host ?? url.absoluteString)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .lineLimit(2)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: 240, alignment: .leading)
-                    .background(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.6))
-                    .cornerRadius(10)
+                    frameWrap(
+                        HStack(spacing: 8) {
+                            Image(systemName: "link")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(hostColor)
+                            Text(url.host ?? url.absoluteString)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(titleColor)
+                                .lineLimit(2)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                    )
+                    .background(panelBackground)
+                    .cornerRadius(cornerRadius)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .stroke(strokeColor, lineWidth: embedded ? 0 : 1)
                     )
                 }
             }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Reply swipe metrics (estilo Instagram DM)
 
@@ -105,6 +106,9 @@ struct ChatBubbleReplySwipeContainer<Content: View>: View {
             hasTriggeredHaptic: $hasTriggeredHaptic,
             onReply: onReply
         )
+        .accessibilityAction(named: Text("chat.action.reply")) {
+            onReply()
+        }
         .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -156,9 +160,14 @@ extension View {
                     HapticManager.shared.success()
                     onReply()
                 }
-                withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+                if UIAccessibility.isReduceMotionEnabled {
                     dragOffset.wrappedValue = 0
                     hasTriggeredHaptic.wrappedValue = false
+                } else {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+                        dragOffset.wrappedValue = 0
+                        hasTriggeredHaptic.wrappedValue = false
+                    }
                 }
             }
 
@@ -192,8 +201,12 @@ extension View {
                     timestampRevealOffset.wrappedValue = max(offset, -90)
                 }
                 .onEnded { _ in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                    if UIAccessibility.isReduceMotionEnabled {
                         timestampRevealOffset.wrappedValue = 0
+                    } else {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                            timestampRevealOffset.wrappedValue = 0
+                        }
                     }
                 }
         )

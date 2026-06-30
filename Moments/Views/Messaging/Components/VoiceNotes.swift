@@ -325,6 +325,7 @@ struct GlassmorphicAudioMessage: View {
     let isSending: Bool
     let progress: Double?
     let adaptiveColors: AdaptiveColors
+    var groupPosition: ChatMessageGroupPosition = .single
 
     @State private var isPlaying = false
     @State private var currentTime: Double = 0
@@ -347,11 +348,12 @@ struct GlassmorphicAudioMessage: View {
 
     @StateObject private var proximityManager = SimpleProximityManager()
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
-    /// Tuyos: burbuja invertida (#FAF9F6 / #0B1215). Del otro: glass como el resto del chat.
+    /// Tuyos: mismo color sólido saliente que el texto. Del otro: glass como el resto.
     private var contentColor: Color {
         if isCurrentUser {
-            return colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+            return .white
         }
         return adaptiveColors.messageTextColor
     }
@@ -377,16 +379,25 @@ struct GlassmorphicAudioMessage: View {
         return adaptiveColors.messageBubbleStroke
     }
 
+    private var bubbleShape: ChatBubbleShape {
+        ChatBubbleShape(
+            side: isCurrentUser ? .trailing : .leading,
+            position: groupPosition,
+            cornerRadius: 18,
+            joinedRadius: 6
+        )
+    }
+
     @ViewBuilder
     private var bubbleBackground: some View {
         if isCurrentUser {
-            RoundedRectangle(cornerRadius: 18)
-                .fill(colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215"))
+            bubbleShape
+                .fill(chatOutgoingBubbleColor)
         } else {
-            RoundedRectangle(cornerRadius: 18)
+            bubbleShape
                 .fill(adaptiveColors.messageBubbleBackground)
                 .background(
-                    RoundedRectangle(cornerRadius: 18)
+                    bubbleShape
                         .fill(.ultraThinMaterial)
                 )
         }
@@ -476,6 +487,9 @@ struct GlassmorphicAudioMessage: View {
             .frame(width: VoiceMessageLayout.playButtonSize, height: VoiceMessageLayout.playButtonSize)
         }
         .disabled(!isAudioAvailable || isCheckingAvailability)
+        .accessibilityLabel(Text(isPlaying
+            ? NSLocalizedString("chat.voice.pause", comment: "Pause voice note")
+            : NSLocalizedString("chat.voice.play", comment: "Play voice note")))
     }
 
     private var loadingWaveformPlaceholder: some View {

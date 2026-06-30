@@ -426,6 +426,12 @@ struct NotificationsView: View {
             }
         case .message, .messageReaction, .chatBuzz:
             if let conversationId = firstNotification.conversationId ?? firstNotification.momentId {
+                if firstNotification.type == .chatBuzz {
+                    ChatNavigationIntentStore.enqueueBuzz(
+                        conversationId: conversationId,
+                        buzzEventId: firstNotification.buzzEventId
+                    )
+                }
                 fetchAndNavigateToChat(conversationId: conversationId)
             }
         case .gentleReminder:

@@ -807,6 +807,39 @@ const onBuzzEventCreated = onDocumentCreated(
       });
       if (handled) return null;
 
+      // 🛡️ Rate limit server-side (anti-spam): además del cooldown de cliente, ignoramos ráfagas
+      // del mismo remitente dentro de una ventana corta. El doc se marca procesado y no dispara push.
+      const BUZZ_COOLDOWN_MS = 4000;
+      const buzzCreatedAtMs = (buzz.createdAt && typeof buzz.createdAt.toMillis === 'function')
+        ? buzz.createdAt.toMillis()
+        : Date.now();
+      try {
+        const recentBuzzSnap = await admin.firestore()
+          .collection(`conversations/${conversationId}/buzzEvents`)
+          .where('senderId', '==', senderId)
+          .orderBy('createdAt', 'desc')
+          .limit(5)
+          .get();
+        const isRateLimited = recentBuzzSnap.docs.some((otherDoc) => {
+          if (otherDoc.id === buzzId) return false;
+          const otherTs = otherDoc.get('createdAt');
+          const otherMs = (otherTs && typeof otherTs.toMillis === 'function') ? otherTs.toMillis() : 0;
+          if (otherMs <= 0 || otherMs > buzzCreatedAtMs) return false;
+          return (buzzCreatedAtMs - otherMs) < BUZZ_COOLDOWN_MS;
+        });
+        if (isRateLimited) {
+          await buzzRef.update({
+            processed: true,
+            rateLimited: true,
+            processedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          return null;
+        }
+      } catch (rateError) {
+        // Si falla la consulta (p. ej. índice aún no listo), no bloqueamos el zumbido legítimo.
+        console.warn('buzz rate-limit check skipped:', rateError?.message || rateError);
+      }
+
       const conversationDoc = await admin.firestore().doc(`conversations/${conversationId}`).get();
       if (!conversationDoc.exists) return null;
 
@@ -1385,6 +1418,111 @@ const onConversationVanishModeChanged = onDocumentWritten(
   }
 );
 
+// ⏳ Borrado server-side de mensajes vanish vencidos (timers 24h/7d) por `vanishExpiresAt`.
+// Antes solo se ocultaban en cliente; ahora se eliminan de verdad en ambos extremos.
+// Requiere índice collection-group en messages (isVanishModeMessage ASC, vanishExpiresAt ASC).
+const deleteExpiredVanishMessages = onSchedule(
+  {
+    schedule: 'every 1 hours',
+    timeZone: 'Europe/Madrid',
+    region: 'us-central1',
+    timeoutSeconds: 540,
+    memory: '512MiB',
+    concurrency: 1
+  },
+  async () => {
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+    const batchLimit = 200;
+    const maxBatches = 50;
+    let batches = 0;
+    let deleted = 0;
+
+    try {
+      while (batches < maxBatches) {
+        const snapshot = await db
+          .collectionGroup('messages')
+          .where('isVanishModeMessage', '==', true)
+          .where('vanishExpiresAt', '<', now)
+          .limit(batchLimit)
+          .get();
+
+        if (snapshot.empty) break;
+        batches += 1;
+
+        const storagePaths = [];
+        const batch = db.batch();
+        for (const doc of snapshot.docs) {
+          const data = doc.data() || {};
+          if (typeof data.mediaObjectPath === 'string' && data.mediaObjectPath) {
+            storagePaths.push(data.mediaObjectPath);
+          }
+          if (typeof data.thumbnailObjectPath === 'string' && data.thumbnailObjectPath) {
+            storagePaths.push(data.thumbnailObjectPath);
+          }
+          batch.delete(doc.ref);
+        }
+        await batch.commit();
+        deleted += snapshot.size;
+
+        if (storagePaths.length > 0) {
+          await deleteStorageUrls([...new Set(storagePaths)]);
+        }
+        if (snapshot.size < batchLimit) break;
+      }
+      console.log(`✅ deleteExpiredVanishMessages: deleted=${deleted}, batches=${batches}`);
+    } catch (error) {
+      console.error('❌ deleteExpiredVanishMessages error:', error);
+    }
+  }
+);
+
+// 🧹 Limpieza de `buzzEvents` vencidos (campo `expiresAt`): los zumbidos son efímeros y no deben
+// acumularse para siempre. Requiere índice collection-group en buzzEvents (expiresAt ASC).
+const cleanupExpiredBuzzEvents = onSchedule(
+  {
+    schedule: '30 4 * * *',
+    timeZone: 'Europe/Madrid',
+    region: 'us-central1',
+    timeoutSeconds: 540,
+    memory: '256MiB',
+    concurrency: 1
+  },
+  async () => {
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+    const batchLimit = 300;
+    const maxBatches = 50;
+    let batches = 0;
+    let deleted = 0;
+
+    try {
+      while (batches < maxBatches) {
+        const snapshot = await db
+          .collectionGroup('buzzEvents')
+          .where('expiresAt', '<', now)
+          .limit(batchLimit)
+          .get();
+
+        if (snapshot.empty) break;
+        batches += 1;
+
+        const batch = db.batch();
+        for (const doc of snapshot.docs) {
+          batch.delete(doc.ref);
+        }
+        await batch.commit();
+        deleted += snapshot.size;
+
+        if (snapshot.size < batchLimit) break;
+      }
+      console.log(`✅ cleanupExpiredBuzzEvents: deleted=${deleted}, batches=${batches}`);
+    } catch (error) {
+      console.error('❌ cleanupExpiredBuzzEvents error:', error);
+    }
+  }
+);
+
 
 module.exports = {
   acceptMessageRequest,
@@ -1395,4 +1533,6 @@ module.exports = {
   onFollowRequestReceived,
   onFollowRequestRemoved,
   onConversationVanishModeChanged,
+  deleteExpiredVanishMessages,
+  cleanupExpiredBuzzEvents,
 };

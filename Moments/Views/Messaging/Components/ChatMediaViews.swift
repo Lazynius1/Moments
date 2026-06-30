@@ -180,6 +180,10 @@ struct GlassmorphicImageMessage: View {
         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
         .contentShape(RoundedRectangle(cornerRadius: 16))
         .onTapGesture(perform: onTap)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(NSLocalizedString("chat.a11y.photo", comment: "Photo message")))
+        .accessibilityHint(Text(NSLocalizedString("chat.a11y.openMedia", comment: "Tap to open media")))
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -292,6 +296,10 @@ struct GlassmorphicVideoMessage: View {
         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
         .contentShape(RoundedRectangle(cornerRadius: 16))
         .onTapGesture(perform: onTap)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(NSLocalizedString("chat.a11y.video", comment: "Video message")))
+        .accessibilityHint(Text(NSLocalizedString("chat.a11y.openMedia", comment: "Tap to open media")))
+        .accessibilityAddTraits(.isButton)
     }
 }
 

@@ -10,7 +10,23 @@ import UIKit
 
 @MainActor
 class EnhancedChatViewModel: ObservableObject {
-    @Published var messages: [EnhancedMessage] = []
+    @Published var messages: [EnhancedMessage] = [] {
+        didSet { rebuildMessageIndex() }
+    }
+    private(set) var messagesById: [String: EnhancedMessage] = [:]
+    private(set) var messageIndexById: [String: Int] = [:]
+
+    private func rebuildMessageIndex() {
+        var byId = [String: EnhancedMessage](minimumCapacity: messages.count)
+        var indexById = [String: Int](minimumCapacity: messages.count)
+        for (offset, message) in messages.enumerated() {
+            byId[message.id] = message
+            indexById[message.id] = offset
+        }
+        messagesById = byId
+        messageIndexById = indexById
+    }
+
     @Published var typingUsers: Set<String> = []
     @Published var typingIndicatorEnabled = true
     @Published var isLoading = false
@@ -123,6 +139,9 @@ class EnhancedChatViewModel: ObservableObject {
     private var hiddenForMeMessageIds = Set<String>()
     /// Ocultos optimistamente al cerrar sesión vanish antes de que Firestore confirme `vanishedFor`.
     private var optimisticallyHiddenVanishIds = Set<String>()
+    /// IDs de mensajes entrantes vistos DE VERDAD en esta sesión (no por el mark-read en bloque al salir).
+    /// Solo estos sellan expiración vanish `onceSeen`/timers; «visto al abrir» no debe expirar lo no leído.
+    private var sessionSeenIncomingMessageIds = Set<String>()
     private var seenBuzzEventIds = Set<String>()
 
     @Published var conversation: Conversation
@@ -1365,7 +1384,22 @@ class EnhancedChatViewModel: ObservableObject {
         let droppedMessages = realTimeMessages.filter { !newSet.contains($0.id) }
 
         if !droppedMessages.isEmpty {
+            // Mensajes vanish que desaparecen del snapshot = borrados server-side (purga/expiración).
+            // NO promoverlos a histórico (reaparecerían): se eliminan de verdad localmente.
+            let droppedVanishIds = droppedMessages
+                .filter { $0.isVanishModeMessage == true && $0.type != .chatNotice }
+                .map(\.id)
+            if !droppedVanishIds.isEmpty {
+                optimisticallyHiddenVanishIds.formUnion(droppedVanishIds)
+                for id in droppedVanishIds {
+                    outgoingTempMessages.removeValue(forKey: id)
+                }
+                chatService.purgeVanishMessagesLocally(conversationId: conversationId, messageIds: droppedVanishIds)
+            }
+
+            let droppedVanishIdSet = Set(droppedVanishIds)
             let promotable = messagesRespectingDeletionCutoff(droppedMessages)
+                .filter { !droppedVanishIdSet.contains($0.id) }
             let existingIds = Set(
                 (historicalMessages + realTimeMessages).map(\.id)
             )
@@ -1462,14 +1496,21 @@ class EnhancedChatViewModel: ObservableObject {
 
         chatService.listenToConversationForwardingPreferences(conversationId: conversationId, replaceExisting: false) { [weak self] forwarding, buzz, vanishActive, timer in
             DispatchQueue.main.async {
-                self?.forwardingPreferences = forwarding
-                self?.buzzPreferences = buzz
+                guard let self else { return }
+                self.forwardingPreferences = forwarding
+                self.buzzPreferences = buzz
+                let wasVanishActive = self.vanishModeActive
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
-                    self?.vanishModeActive = vanishActive
+                    self.vanishModeActive = vanishActive
                 }
-                self?.conversation.vanishModeActive = vanishActive
-                self?.vanishMessageTimer = timer
-                if let conversationId = self?.conversation.id {
+                self.conversation.vanishModeActive = vanishActive
+                self.vanishMessageTimer = timer
+                // Desactivación remota (el peer apagó vanish): purgar local para que ambos extremos
+                // borren de verdad, sin depender solo del trigger de Cloud Functions.
+                if wasVanishActive && !vanishActive {
+                    self.purgeVanishMessagesLocally()
+                }
+                if let conversationId = self.conversation.id {
                     NotificationCenter.default.post(
                         name: .conversationVanishModeDidChange,
                         object: nil,
@@ -1489,6 +1530,13 @@ class EnhancedChatViewModel: ObservableObject {
         ) { [weak self] event, isInitialSnapshot in
             Task { @MainActor in
                 guard let self else { return }
+                // Respetar preferencias del receptor también in-app (no solo en el push):
+                // si el usuario actual desactivó zumbidos, no shake ni fila en timeline.
+                let isIncoming = event.senderId != self.currentUserId
+                if isIncoming, self.buzzPreferences[self.currentUserId] == false {
+                    self.seenBuzzEventIds.insert(event.id)
+                    return
+                }
                 guard self.seenBuzzEventIds.insert(event.id).inserted else { return }
                 self.buzzEvents.append(event)
                 self.buzzEvents.sort { $0.createdAt < $1.createdAt }
@@ -1564,6 +1612,19 @@ class EnhancedChatViewModel: ObservableObject {
     func stopListening() {
         pauseChatListenersImmediately()
         isChatVisible = false
+    }
+
+    /// Último buzz entrante aún no reproducido, dentro de la ventana MSN (~5 min).
+    func pendingReplayBuzzEvent(within window: TimeInterval = ChatBuzzProcessedStore.replayWindow) -> ChatBuzzEvent? {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else { return nil }
+        let cutoff = Date().addingTimeInterval(-window)
+        return buzzEvents
+            .filter { event in
+                event.senderId != currentUserId
+                    && event.createdAt >= cutoff
+                    && !ChatBuzzProcessedStore.isProcessed(eventId: event.id, conversationId: conversationId)
+            }
+            .max(by: { $0.createdAt < $1.createdAt })
     }
 
     func sendBuzz(completion: @escaping (Result<Void, Error>) -> Void) {
@@ -2184,13 +2245,16 @@ class EnhancedChatViewModel: ObservableObject {
 
     // MARK: - Read Status
 
-    func markVisibleConversationAsRead() {
+    /// - Parameter sealsVanish: si `true`, los mensajes recién marcados se consideran vistos de verdad
+    ///   y sellan expiración vanish. El mark-read en bloque al salir debe pasar `false`: marca «visto»
+    ///   (paridad WhatsApp) sin expirar vanish de mensajes que el usuario no llegó a ver.
+    func markVisibleConversationAsRead(sealsVanish: Bool = true) {
         guard isChatVisible else { return }
-        applyOptimisticReadLocally()
+        applyOptimisticReadLocally(sealsVanish: sealsVanish)
         markUnreadMessagesAsRead(messages)
     }
 
-    private func applyOptimisticReadLocally() {
+    private func applyOptimisticReadLocally(sealsVanish: Bool = true) {
         var didChange = false
         var markedIds: [String] = []
 
@@ -2216,7 +2280,10 @@ class EnhancedChatViewModel: ObservableObject {
         }
 
         guard didChange else { return }
-        stampVanishExpiryIfNeeded(messageIds: Set(markedIds))
+        if sealsVanish {
+            sessionSeenIncomingMessageIds.formUnion(markedIds)
+            stampVanishExpiryIfNeeded(messageIds: Set(markedIds))
+        }
         rebuildMessagesList()
     }
 
@@ -2376,11 +2443,22 @@ class EnhancedChatViewModel: ObservableObject {
     func handleChatDismissedForVanishMode() {
         guard let conversationId = conversation.id else { return }
 
-        applyOptimisticReadLocally()
-
+        // Calcular elegibilidad ANTES del mark-read en bloque del cierre: así no ocultamos
+        // mensajes entrantes que el usuario nunca llegó a ver (solo «pasó por encima»).
         let eligibleIds = messages
-            .filter { $0.shouldHideVanishOnChatDismiss(for: currentUserId, timer: vanishMessageTimer) }
+            .filter { message in
+                guard message.shouldHideVanishOnChatDismiss(for: currentUserId, timer: vanishMessageTimer) else {
+                    return false
+                }
+                if message.senderId == currentUserId { return true }
+                // Entrante: solo expira si se vio de verdad esta sesión o ya estaba expirado por timer.
+                return sessionSeenIncomingMessageIds.contains(message.id)
+                    || VanishMessageTimer.isExpired(message.vanishExpiresAt)
+            }
             .map(\.id)
+
+        applyOptimisticReadLocally(sealsVanish: false)
+
         guard !eligibleIds.isEmpty else { return }
 
         optimisticallyHiddenVanishIds.formUnion(eligibleIds)
