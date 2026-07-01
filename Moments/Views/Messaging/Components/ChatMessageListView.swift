@@ -261,6 +261,17 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         return dataSource.itemIdentifier(for: IndexPath(item: index, section: 0))
     }
 
+    private func changedRowIds(
+        oldRowsById: [String: ChatRenderRow],
+        newRowsById: [String: ChatRenderRow],
+        orderedIds: [String]
+    ) -> [String] {
+        orderedIds.filter { id in
+            guard let oldRow = oldRowsById[id], let newRow = newRowsById[id] else { return false }
+            return oldRow.visualSignature != newRow.visualSignature
+        }
+    }
+
     private func isLastRowVisible() -> Bool {
         guard let lastIndex = orderedItemIds.indices.last,
               let lastVisibleRowIndex else { return false }
@@ -396,15 +407,24 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         loadViewIfNeeded()
         guard dataSource != nil else { return }
 
-        rowsById = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        rebuildMessageIdToRowIdIndex(rows)
+        let oldRowsById = rowsById
         let oldIds = orderedItemIds
+        let newRowsById = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let newIds = rows.map(\.id)
-        guard newIds != oldIds || !hasLoadedInitial else { return }
-        orderedItemIds = newIds
-
         let isInitial = !hasLoadedInitial
         let wasAtBottom = currentIsAtBottom
+        let changedRowIds = changedRowIds(
+            oldRowsById: oldRowsById,
+            newRowsById: newRowsById,
+            orderedIds: newIds
+        )
+
+        rowsById = newRowsById
+        rebuildMessageIdToRowIdIndex(rows)
+
+        guard newIds != oldIds || !hasLoadedInitial || !changedRowIds.isEmpty else { return }
+        orderedItemIds = newIds
+
         let isPrepend = !oldIds.isEmpty
             && newIds.count > oldIds.count
             && (Array(newIds.suffix(oldIds.count)) == oldIds
@@ -414,6 +434,23 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             ? collectionView.contentSize.height - collectionView.contentOffset.y
             : nil
         let prependAnchorRowId: String? = isPrepend ? topVisibleRowId : nil
+
+        if !isInitial, newIds == oldIds, !changedRowIds.isEmpty {
+            var snapshot = dataSource.snapshot()
+            snapshot.reconfigureItems(changedRowIds)
+            dataSource.apply(snapshot, animatingDifferences: false) { [weak self] in
+                guard let self else { return }
+                self.collectionView.layoutIfNeeded()
+                self.updateBottomAnchorInset()
+                if wasAtBottom {
+                    self.forceScrollToBottom(animated: false)
+                } else {
+                    self.recomputeBottomPinnedState()
+                }
+                self.resolvePendingScrollIfPossible()
+            }
+            return
+        }
 
         var snapshot = NSDiffableDataSourceSnapshot<Int, String>()
         snapshot.appendSections([0])
@@ -467,7 +504,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
                 forceScrollToBottom(animated: animated)
             }
         case .deferred:
-            needsDeferredInitialScroll = true
+            needsDeferredInitialScroll = false
         case .row(let id, let position):
             needsDeferredInitialScroll = false
             scrollToRow(id: id, at: position, animated: animated)
@@ -657,7 +694,12 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
         var snapshot = dataSource.snapshot()
         snapshot.reconfigureItems(targetIds)
-        dataSource.apply(snapshot, animatingDifferences: false)
+        dataSource.apply(snapshot, animatingDifferences: false) { [weak self] in
+            guard let self else { return }
+            self.collectionView.layoutIfNeeded()
+            self.updateBottomAnchorInset()
+            self.recomputeBottomPinnedState()
+        }
     }
 
     private func scheduleHistoryLoadIfNeeded() {
@@ -924,5 +966,120 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
         completeScrollIntentAfterAnimation()
+    }
+}
+
+private extension ChatRenderRow {
+    var visualSignature: Int {
+        var hasher = Hasher()
+        switch self {
+        case .header(let date):
+            hasher.combine(0)
+            hasher.combine(date.timeIntervalSinceReferenceDate)
+        case .message(let item):
+            hasher.combine(1)
+            hasher.combine(item.visualSignature)
+        case .buzz(let event):
+            hasher.combine(2)
+            hasher.combine(event.id)
+            hasher.combine(event.senderId)
+            hasher.combine(event.createdAt.timeIntervalSinceReferenceDate)
+        case .typing:
+            hasher.combine(3)
+        case .historyStart:
+            hasher.combine(4)
+        }
+        return hasher.finalize()
+    }
+}
+
+private extension MessageItem {
+    var visualSignature: Int {
+        var hasher = Hasher()
+        switch self {
+        case .single(let message):
+            hasher.combine(0)
+            hasher.combine(message.visualRenderSignature)
+        case .mediaCluster(let messages):
+            hasher.combine(1)
+            hasher.combine(messages.count)
+            messages.forEach { hasher.combine($0.visualRenderSignature) }
+        }
+        return hasher.finalize()
+    }
+}
+
+private extension EnhancedMessage {
+    var visualRenderSignature: Int {
+        var hasher = Hasher()
+        hasher.combine(id)
+        hasher.combine(senderId)
+        hasher.combine(type.rawValue)
+        hasher.combine(content)
+        hasher.combine(mediaUrl)
+        hasher.combine(thumbnailUrl)
+        hasher.combine(mediaObjectPath)
+        hasher.combine(thumbnailObjectPath)
+        hasher.combine(duration)
+        hasher.combine(fileName)
+        hasher.combine(fileSize)
+        hasher.combine(mediaWidth)
+        hasher.combine(mediaHeight)
+        hasher.combine(latitude)
+        hasher.combine(longitude)
+        hasher.combine(locationName)
+        hasher.combine(locationAddress)
+        hasher.combine(isLiveLocation)
+        hasher.combine(liveLocationExpiresAt?.timeIntervalSinceReferenceDate)
+        hasher.combine(liveLocationDuration)
+        hasher.combine(liveLocationStoppedAt?.timeIntervalSinceReferenceDate)
+        hasher.combine(liveLocationSessionId)
+        hasher.combine(locationUpdatedAt?.timeIntervalSinceReferenceDate)
+        hasher.combine(timestamp.timeIntervalSinceReferenceDate)
+        hasher.combine(status.rawValue)
+        hasher.combine(isRead)
+        hasher.combine(isDeleted)
+        hasher.combine(deletedAt?.timeIntervalSinceReferenceDate)
+        hasher.combine(editedAt?.timeIntervalSinceReferenceDate)
+        hasher.combine(replyTo)
+        hasher.combine(expirationDate?.timeIntervalSinceReferenceDate)
+        hasher.combine(isViewed)
+        hasher.combine(mediaBatchId)
+        hasher.combine(isForwarded)
+        hasher.combine(isVanishModeMessage)
+        hasher.combine(vanishExpiresAt?.timeIntervalSinceReferenceDate)
+        hasher.combine(stableDictionarySignature(reactions))
+        hasher.combine(stableDictionarySignature(storyReplyData))
+        hasher.combine(stableDictionarySignature(sharedMomentData))
+        hasher.combine(stableDictionarySignature(sharedStoryData))
+        hasher.combine(stableArraySignature(viewedBy))
+        hasher.combine(stableArraySignature(readBy))
+        hasher.combine(stableArraySignature(starredBy))
+        hasher.combine(stableArraySignature(vanishedFor))
+        return hasher.finalize()
+    }
+
+    private func stableArraySignature(_ values: [String]?) -> Int {
+        var hasher = Hasher()
+        (values ?? []).sorted().forEach { hasher.combine($0) }
+        return hasher.finalize()
+    }
+
+    private func stableDictionarySignature(_ values: [String: String]?) -> Int {
+        var hasher = Hasher()
+        (values ?? [:]).sorted(by: { $0.key < $1.key }).forEach { key, value in
+            hasher.combine(key)
+            hasher.combine(value)
+        }
+        return hasher.finalize()
+    }
+
+    private func stableDictionarySignature(_ values: [String: [String]]?) -> Int {
+        var hasher = Hasher()
+        (values ?? [:]).sorted(by: { $0.key < $1.key }).forEach { key, value in
+            hasher.combine(key)
+            value.sorted().forEach { hasher.combine($0) }
+        }
+        return hasher.finalize()
     }
 }
