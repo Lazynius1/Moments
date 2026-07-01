@@ -195,7 +195,10 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     private let strictAtBottomThreshold: CGFloat = 8
     private let loadOlderItemThreshold = 5
     private let historyLoadDebounceNs: UInt64 = 300_000_000
-    private let vanishEngageThreshold: CGFloat = 8
+    /// Dedos mínimos antes de armar vanish (evita activación accidental al hacer scroll).
+    private let vanishEngageThreshold: CGFloat = 18
+    /// IG levanta el hilo entero; limitamos el bounce nativo inferior para no “estirar” el scroll.
+    private let maxBottomOverscrollWhileIdle: CGFloat = 4
 
     private var vanishPullOverlay: ChatVanishPullOverlayView!
     private var vanishPanGesture: UIPanGestureRecognizer!
@@ -876,12 +879,27 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         guard gestureRecognizer === vanishPanGesture else { return true }
         guard canEngageVanishPan() else { return false }
         guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
+        if isVanishPanActive { return true }
+
         let velocity = pan.velocity(in: collectionView)
-        return velocity.y <= 0 || isVanishPanActive
+        let translationY = pan.translation(in: collectionView).y
+        let upwardTranslation = max(0, -translationY)
+        let isDeliberateUpwardPull = velocity.y < -80 || upwardTranslation >= vanishEngageThreshold
+        return isDeliberateUpwardPull
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         guard !isClampingBottomScroll else { return }
+
+        if !isVanishPanActive, isStrictlyAtBottom {
+            let maxY = maxContentOffsetY(in: scrollView)
+            let overscrollCap = maxY + maxBottomOverscrollWhileIdle
+            if scrollView.contentOffset.y > overscrollCap {
+                isClampingBottomScroll = true
+                scrollView.contentOffset.y = overscrollCap
+                isClampingBottomScroll = false
+            }
+        }
 
         recomputeBottomPinnedState()
         reportContentOffset(scrollView.contentOffset.y)

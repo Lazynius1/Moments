@@ -9,16 +9,19 @@ struct VanishPullResult {
 
 enum ChatVanishSwipeMetrics {
     /// Lift adicional tras revelar UI para completar el arco (IG: ~frames 8→14).
-    static let activationDistance: CGFloat = 100
+    static let activationDistance: CGFloat = 96
     static let maxPull: CGFloat = 200
     static let completionThreshold: CGFloat = 0.96
     /// Lift mínimo del hilo antes de mostrar anillo/texto (IG: frames 1–5 solo suben chat).
     static let minLiftBeforeUIReveal: CGFloat = 58
     /// Cada cuántos puntos de lift efectivo (post-reveal) dispara un tick háptico.
-    static let hapticStepPoints: CGFloat = 8
+    static let hapticStepPoints: CGFloat = 10
     static let pullAmplification: CGFloat = 1.0
     /// Tope de elevación del hilo.
     static let maxConversationLift: CGFloat = 168
+    /// Exponente > 1: poco lift al inicio, más al final (efecto “estirar” de IG).
+    static let liftCurveExponent: CGFloat = 1.08
+    static let liftCurveScale: CGFloat = 0.48
 
     /// Curva elástica suave — más resistencia al final del pull.
     static func rubberBandPull(from translation: CGFloat) -> CGFloat {
@@ -34,10 +37,11 @@ enum ChatVanishSwipeMetrics {
         scaledPull(from: max(0, upward))
     }
 
-    /// Lift del hilo: empieza en cuanto tiras (IG fase 1, sin UI).
+    /// Lift del hilo con resistencia sub-lineal (IG: el dedo recorre más que el chat sube).
     static func conversationLift(fingerUpward upward: CGFloat) -> CGFloat {
         guard upward > 0 else { return 0 }
-        return min(upward * 0.98, maxConversationLift)
+        let resisted = pow(upward, liftCurveExponent) * liftCurveScale
+        return min(resisted, maxConversationLift)
     }
 
     static func shouldRevealVanishUI(lift: CGFloat) -> Bool {
