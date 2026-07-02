@@ -1,4 +1,4 @@
-// ModernVideoPlayer.swift - CON COMPORTAMIENTO INSTAGRAM
+// ModernVideoPlayer.swift
 import SwiftUI
 import AVFoundation
 
@@ -13,7 +13,7 @@ class GlobalVideoManager: ObservableObject {
     private var preservedPlayerConsumerIds: Set<String> = []
     private var pendingDetailHandoffMomentIds: Set<String> = []
     
-    // ✅ ESTILO INSTAGRAM: Si el usuario activa el sonido en algún video, todos los posteriores tienen sonido
+    // Si el usuario activa el sonido en algún video, todos los posteriores tienen sonido
     @Published private(set) var userHasEnabledSoundInSession: Bool = false
     
     private init() {
@@ -34,7 +34,7 @@ class GlobalVideoManager: ObservableObject {
     func registerPlayer(_ playerId: String, manager: VideoPlayerManager) {
         allPlayers[playerId] = manager
         
-        // ✅ ESTILO INSTAGRAM: Si el usuario ya activó el sonido en esta sesión, aplicar a este video también
+        // Si el usuario ya activó el sonido en esta sesión, aplicar a este video también
         if userHasEnabledSoundInSession {
             manager.setMuted(false, respectSilentMode: true)
         }
@@ -84,7 +84,7 @@ class GlobalVideoManager: ObservableObject {
         userHasEnabledSoundInSession = true
     }
 
-    // ✅ ESTILO INSTAGRAM: Toggle mute que activa/desactiva el sonido para toda la sesión
+    // Toggle mute que activa/desactiva el sonido para toda la sesión
     func toggleMute(_ playerId: String) {
         guard let manager = allPlayers[playerId] else { return }
         
@@ -842,7 +842,7 @@ class VideoPlayerManager: ObservableObject {
         }
     }
     
-    // ✅ ESTILO INSTAGRAM: Toggle mute respetando el modo silencioso del iPhone
+    // Toggle mute respetando el modo silencioso del iPhone
     func toggleMute(respectSilentMode: Bool = false) {
         guard let player = player else { return }
         

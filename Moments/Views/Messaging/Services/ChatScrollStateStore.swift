@@ -52,7 +52,7 @@ enum ChatScrollTarget: Equatable, Codable {
     }
 }
 
-/// Ya no se persiste posición de scroll entre sesiones (paridad Instagram: cada apertura va al
+/// Ya no se persiste posición de scroll entre sesiones: cada apertura va al
 /// fondo o al primer no leído). Solo se conserva la limpieza de claves antiguas para usuarios que
 /// actualizan desde versiones que sí guardaban este estado.
 enum ChatScrollStateStore {

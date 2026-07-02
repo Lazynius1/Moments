@@ -7,7 +7,7 @@ enum ChatListInitialScrollPolicy: Equatable {
     case deferred
 }
 
-/// Intenciones de scroll serializadas (inspirado en `ChatHistoryListNode` / `ListView` de Telegram-iOS).
+/// Intenciones de scroll serializadas.
 enum ChatListScrollIntent: Equatable {
     case scrollToBottom(animated: Bool)
     case scrollToRow(id: String, position: UICollectionView.ScrollPosition, animated: Bool)
@@ -17,6 +17,8 @@ final class ChatMessageListController: ObservableObject {
     fileprivate weak var viewController: ChatMessageListViewController?
 
     var initialScrollPolicy: ChatListInitialScrollPolicy = .automaticBottom
+    /// Alturas medidas por fila: persiste entre recreaciones del view controller (pushes, sheets).
+    let rowHeightCache = ChatRowHeightCache()
 
     func enqueue(_ intent: ChatListScrollIntent) {
         viewController?.enqueue(intent)
@@ -27,7 +29,11 @@ final class ChatMessageListController: ObservableObject {
     }
 
     func forceScrollToBottom(animated: Bool) {
-        viewController?.forceScrollToBottom(animated: animated)
+        viewController?.forceScrollToBottom(animated: animated, allowDuringNavigation: false)
+    }
+
+    func forceScrollToBottomIgnoringNavigation(animated: Bool) {
+        viewController?.forceScrollToBottom(animated: animated, allowDuringNavigation: true)
     }
 
     func scrollToMessage(id: String, animated: Bool) {
@@ -88,6 +94,20 @@ final class ChatMessageListController: ObservableObject {
     func frameInWindow(forRowId rowId: String) -> CGRect? {
         viewController?.frameInWindow(forRowId: rowId)
     }
+
+    func resolvedRowId(forMessageId messageId: String) -> String? {
+        viewController?.resolvedRowId(forMessageId: messageId)
+    }
+
+    func containsRow(id: String) -> Bool {
+        viewController?.containsRow(id: id) ?? false
+    }
+
+    /// Mientras está definido, `apply(rows:)` no fuerza scroll al fondo aunque el usuario estuviera abajo.
+    var scrollNavigationTargetRowId: String? {
+        get { viewController?.scrollNavigationTargetRowId }
+        set { viewController?.scrollNavigationTargetRowId = newValue }
+    }
 }
 
 struct ChatMessageListView: UIViewControllerRepresentable {
@@ -135,7 +155,65 @@ struct ChatMessageListView: UIViewControllerRepresentable {
             }
         }
         viewController.initialScrollPolicy = controller.initialScrollPolicy
+        viewController.rowHeightCache = controller.rowHeightCache
         controller.viewController = viewController
+    }
+}
+
+/// Compositional layout con supresión opcional del `contentOffsetAdjustment` que UIKit aplica
+/// al procesar tamaños preferidos de celdas self-sizing. Ese ajuste re-ancla el scroll a las
+/// filas que estaban visibles (el fondo) de forma silenciosa —sin `scrollViewDidScroll`— y
+/// deshace cualquier salto programático a un mensaje lejano con celdas aún sin medir.
+final class ChatNavigationAwareCompositionalLayout: UICollectionViewCompositionalLayout {
+    var suppressesPreferredOffsetAdjustment = false
+    /// Notifica cada altura real medida por self-sizing para alimentar la caché de alturas.
+    var onPreferredHeightMeasured: ((IndexPath, CGFloat) -> Void)?
+
+    override func invalidationContext(
+        forPreferredLayoutAttributes preferredAttributes: UICollectionViewLayoutAttributes,
+        withOriginalAttributes originalAttributes: UICollectionViewLayoutAttributes
+    ) -> UICollectionViewLayoutInvalidationContext {
+        let context = super.invalidationContext(
+            forPreferredLayoutAttributes: preferredAttributes,
+            withOriginalAttributes: originalAttributes
+        )
+        onPreferredHeightMeasured?(preferredAttributes.indexPath, preferredAttributes.frame.height)
+        if suppressesPreferredOffsetAdjustment {
+            context.contentOffsetAdjustment = .zero
+        }
+        return context
+    }
+}
+
+/// Métricas compartidas entre el section provider y los cálculos de posición por caché.
+private enum ChatListLayoutMetrics {
+    static let estimatedRowHeight: CGFloat = 60
+    static let interGroupSpacing: CGFloat = 2
+    static let sectionTopInset: CGFloat = 10
+    static let sectionBottomInset: CGFloat = 4
+}
+
+/// Caché de alturas reales por fila (estilo Telegram `ListView`): con alturas estimadas, cada
+/// celda nunca medida hace bailar el contentSize y los scrolls programáticos aterrizan lejos.
+/// Con las alturas reales cacheadas, los saltos aciertan a la primera. Vive en el controller
+/// (sobrevive a recreaciones del view controller) y se invalida si cambia el ancho.
+final class ChatRowHeightCache {
+    private var heights: [String: CGFloat] = [:]
+    private var referenceWidth: CGFloat = 0
+
+    func syncWidth(_ width: CGFloat) {
+        guard width > 0, abs(width - referenceWidth) > 0.5 else { return }
+        referenceWidth = width
+        heights.removeAll()
+    }
+
+    func height(for rowId: String) -> CGFloat? {
+        heights[rowId]
+    }
+
+    func store(_ height: CGFloat, for rowId: String) {
+        guard height > 0 else { return }
+        heights[rowId] = height
     }
 }
 
@@ -169,10 +247,17 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         }
     }
     var isVanishModeActive = false
+    var scrollNavigationTargetRowId: String? {
+        didSet {
+            navigationAwareLayout?.suppressesPreferredOffsetAdjustment = scrollNavigationTargetRowId != nil
+        }
+    }
 
     private(set) var currentIsAtBottom = true
     private(set) var isStrictlyAtBottom = true
 
+    private var navigationAwareLayout: ChatNavigationAwareCompositionalLayout?
+    var rowHeightCache: ChatRowHeightCache?
     private var collectionView: UICollectionView!
     private var dataSource: UICollectionViewDiffableDataSource<Int, String>!
     private var rowsById: [String: ChatRenderRow] = [:]
@@ -195,18 +280,18 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     private let strictAtBottomThreshold: CGFloat = 8
     private let loadOlderItemThreshold = 5
     private let historyLoadDebounceNs: UInt64 = 300_000_000
-    /// Dedos mínimos antes de armar vanish (evita activación accidental al hacer scroll).
+    /// Dedos mínimos antes de armar vanish por pan (evita activación accidental al hacer scroll).
     private let vanishEngageThreshold: CGFloat = 18
-    /// IG levanta el hilo entero; limitamos el bounce nativo inferior para no “estirar” el scroll.
-    private let maxBottomOverscrollWhileIdle: CGFloat = 4
 
     private var vanishPullOverlay: ChatVanishPullOverlayView!
     private var vanishPanGesture: UIPanGestureRecognizer!
     private var isVanishPanActive = false
+    private var isVanishOverscrollActive = false
     private var vanishPanPull: CGFloat = 0
     private var vanishDidCrossThreshold = false
     private var vanishLastHapticStep = -1
     private var isClampingBottomScroll = false
+    private var isEnforcingNavTarget = false
     private var currentVanishLift: CGFloat = 0
     private var pendingContentOffsetReport: CGFloat?
     private var contentOffsetReportScheduled = false
@@ -291,8 +376,10 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         // (p.ej. el inset inferior se reajusta cuando el composer termina de medirse, después de
         // ya haber forzado el scroll al fondo) y estábamos pegados abajo, la lista sigue al fondo
         // en vez de marcar "no estás abajo" — así no aparece la flecha sin que nadie haya scrolleado.
+        // Excepción: una navegación a mensaje (nav target) también debe poder despegar, si no este
+        // clamp revierte en silencio cualquier salto a un destacado/búsqueda.
         let isUserDriven = collectionView.isDragging || collectionView.isTracking || collectionView.isDecelerating
-        if !strict, isStrictlyAtBottom, !isUserDriven, !orderedItemIds.isEmpty {
+        if !strict, isStrictlyAtBottom, !isUserDriven, scrollNavigationTargetRowId == nil, !orderedItemIds.isEmpty {
             let lastIndex = orderedItemIds.count - 1
             isClampingBottomScroll = true
             collectionView.scrollToItem(at: IndexPath(item: lastIndex, section: 0), at: .bottom, animated: false)
@@ -351,7 +438,9 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        rowHeightCache?.syncWidth(collectionView.bounds.width)
         updateBottomAnchorInset()
+        enforceNavigationTargetIfNeeded(context: "layout")
         guard needsDeferredInitialScroll,
               collectionView.bounds.height > 0,
               !orderedItemIds.isEmpty else { return }
@@ -359,18 +448,48 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         applyInitialScrollPolicy(animated: false)
     }
 
+    /// El compositional layout con alturas estimadas restaura el offset en silencio
+    /// (contentOffsetAdjustment al medir celdas) anclándose a las filas del fondo, deshaciendo
+    /// cualquier salto a un mensaje lejano. Mientras haya nav target, se re-impone el destino en
+    /// cada pasada de layout/scroll no iniciada por el usuario; el drag del usuario lo libera.
+    private func enforceNavigationTargetIfNeeded(context: String) {
+        guard let navId = scrollNavigationTargetRowId, !isEnforcingNavTarget else { return }
+        guard !collectionView.isDragging, !collectionView.isTracking, !collectionView.isDecelerating else { return }
+        let resolved = resolvedRowId(forMessageId: navId)
+        guard let index = orderedItemIds.firstIndex(of: resolved) else { return }
+        let indexPath = IndexPath(item: index, section: 0)
+        guard let attrs = collectionView.collectionViewLayout.layoutAttributesForItem(at: indexPath) else { return }
+        let targetY = clampedOffsetY(toReveal: attrs.frame, at: .centeredVertically)
+        guard abs(collectionView.contentOffset.y - targetY) > 40 else { return }
+        ChatScrollDebug.log("nav enforce (\(context)) offset \(Int(collectionView.contentOffset.y)) → \(Int(targetY))")
+        isEnforcingNavTarget = true
+        collectionView.contentOffset.y = targetY
+        isEnforcingNavTarget = false
+    }
+
     private func configureCollectionView() {
-        let layout = UICollectionViewCompositionalLayout { _, _ in
+        let layout = ChatNavigationAwareCompositionalLayout { _, _ in
             let itemSize = NSCollectionLayoutSize(
                 widthDimension: .fractionalWidth(1.0),
-                heightDimension: .estimated(60)
+                heightDimension: .estimated(ChatListLayoutMetrics.estimatedRowHeight)
             )
             let item = NSCollectionLayoutItem(layoutSize: itemSize)
             let group = NSCollectionLayoutGroup.vertical(layoutSize: itemSize, subitems: [item])
             let section = NSCollectionLayoutSection(group: group)
-            section.interGroupSpacing = 2
-            section.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 0, bottom: 4, trailing: 0)
+            section.interGroupSpacing = ChatListLayoutMetrics.interGroupSpacing
+            section.contentInsets = NSDirectionalEdgeInsets(
+                top: ChatListLayoutMetrics.sectionTopInset,
+                leading: 0,
+                bottom: ChatListLayoutMetrics.sectionBottomInset,
+                trailing: 0
+            )
             return section
+        }
+        navigationAwareLayout = layout
+        layout.suppressesPreferredOffsetAdjustment = scrollNavigationTargetRowId != nil
+        layout.onPreferredHeightMeasured = { [weak self] indexPath, height in
+            guard let self, indexPath.item < self.orderedItemIds.count else { return }
+            self.rowHeightCache?.store(height, for: self.orderedItemIds[indexPath.item])
         }
 
         collectionView = UICollectionView(frame: view.bounds, collectionViewLayout: layout)
@@ -442,7 +561,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
                 guard let self else { return }
                 self.collectionView.layoutIfNeeded()
                 self.updateBottomAnchorInset()
-                if wasAtBottom {
+                if wasAtBottom, self.scrollNavigationTargetRowId == nil {
                     self.forceScrollToBottom(animated: false)
                 } else {
                     self.recomputeBottomPinnedState()
@@ -488,7 +607,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
                 DispatchQueue.main.async {
                     self.onPrependFinished?()
                 }
-            } else if wasAtBottom {
+            } else if wasAtBottom, self.scrollNavigationTargetRowId == nil {
                 self.scrollToBottom(animated: animated)
             }
             self.resolvePendingScrollIfPossible()
@@ -512,6 +631,10 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     func scrollToBottom(animated: Bool) {
+        if scrollNavigationTargetRowId != nil {
+            ChatScrollDebug.log("scrollToBottom blocked — nav target=\(scrollNavigationTargetRowId!)")
+            return
+        }
         guard !orderedItemIds.isEmpty else { return }
         recomputeBottomPinnedState()
         guard !isStrictlyAtBottom else { return }
@@ -523,7 +646,11 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         )
     }
 
-    func forceScrollToBottom(animated: Bool) {
+    func forceScrollToBottom(animated: Bool, allowDuringNavigation: Bool = false) {
+        if !allowDuringNavigation, scrollNavigationTargetRowId != nil {
+            ChatScrollDebug.log("forceScrollToBottom blocked — nav target=\(scrollNavigationTargetRowId!)")
+            return
+        }
         resetVanishPullState(animated: false)
         guard !orderedItemIds.isEmpty else { return }
 
@@ -586,8 +713,8 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             scrollToBottom(animated: animated)
             finishScrollIntentProcessing(wasAnimated: animated)
         case .scrollToRow(let id, let position, let animated):
-            scrollToRow(id: id, at: position, animated: animated)
-            finishScrollIntentProcessing(wasAnimated: animated)
+            let didScroll = scrollToRow(id: id, at: position, animated: animated)
+            finishScrollIntentProcessing(wasAnimated: didScroll && animated)
         }
     }
 
@@ -607,25 +734,111 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         processScrollIntentQueue()
     }
 
-    func scrollToRow(id: String, at position: UICollectionView.ScrollPosition, animated: Bool) {
-        guard let index = orderedItemIds.firstIndex(of: id) else {
+    @discardableResult
+    func scrollToRow(id: String, at position: UICollectionView.ScrollPosition, animated: Bool) -> Bool {
+        let resolvedId = resolvedRowId(forMessageId: id)
+        guard let index = orderedItemIds.firstIndex(of: resolvedId) else {
+            ChatScrollDebug.log("scrollToRow pending — messageId=\(id) resolved=\(resolvedId) not in list (count=\(orderedItemIds.count))")
             pendingScrollToId = id
             pendingScrollPosition = position
             pendingScrollAnimated = animated
-            return
+            return false
         }
         pendingScrollToId = nil
-        collectionView.scrollToItem(at: IndexPath(item: index, section: 0), at: position, animated: animated)
+        ChatScrollDebug.log("scrollToRow index=\(index) messageId=\(id) rowId=\(resolvedId) animated=\(animated)")
+        forceScrollToRow(at: index, position: position, animated: animated)
+        return true
+    }
+
+    /// Estabiliza el scroll a una fila ARBITRARIA (no solo el fondo) cuando de por medio hay
+    /// celdas auto-dimensionadas nunca medidas: un único `scrollToItem` calcula la posición usando
+    /// alturas ESTIMADAS para todo lo no medido, y en una conversación larga puede aterrizar lejos
+    /// del objetivo real (o directamente no moverse de forma perceptible). Se repite
+    /// scroll → invalidateLayout → layout hasta que el contentSize deje de moverse, igual que
+    /// `forceScrollToBottom` ya hace para el índice final.
+    private func forceScrollToRow(at index: Int, position: UICollectionView.ScrollPosition, animated: Bool) {
+        let indexPath = IndexPath(item: index, section: 0)
+
+        // Primer disparo con la caché de alturas medidas: posicionar el offset cerca del destino
+        // real ANTES de forzar layout hace que se midan directamente las celdas de la zona
+        // objetivo, en vez de converger a base de iteraciones desde una posición equivocada.
+        if let cache = rowHeightCache {
+            let estimatedFrame = estimatedFrameForItem(at: index, cache: cache)
+            let firstShot = clampedOffsetY(toReveal: estimatedFrame, at: position)
+            if abs(collectionView.contentOffset.y - firstShot) > 2 {
+                collectionView.setContentOffset(CGPoint(x: collectionView.contentOffset.x, y: firstShot), animated: false)
+            }
+        }
+
+        // Converger sobre el OFFSET OBJETIVO, no sobre la altura del contenido: al medirse las
+        // celdas estimadas, el layout self-sizing compensa el offset para mantener estable el
+        // contenido que estaba visible (las filas del fondo) y deshace el scrollToItem. Se
+        // recalcula el destino desde los atributos ya medidos y se fija hasta que aguante.
+        for _ in 0..<12 {
+            collectionView.layoutIfNeeded()
+            guard let attrs = collectionView.collectionViewLayout.layoutAttributesForItem(at: indexPath) else {
+                // Ítems fuera del rect preparado pueden no tener atributos aún: scrollToItem
+                // fuerza al layout a prepararlos y la siguiente iteración converge con frames reales.
+                collectionView.scrollToItem(at: indexPath, at: position, animated: false)
+                continue
+            }
+            let targetY = clampedOffsetY(toReveal: attrs.frame, at: position)
+            if abs(collectionView.contentOffset.y - targetY) <= 2 { break }
+            collectionView.setContentOffset(CGPoint(x: collectionView.contentOffset.x, y: targetY), animated: false)
+        }
+        collectionView.layoutIfNeeded()
+    }
+
+    private func estimatedFrameForItem(at index: Int, cache: ChatRowHeightCache) -> CGRect {
+        var y = ChatListLayoutMetrics.sectionTopInset
+        for item in 0..<index {
+            let height = cache.height(for: orderedItemIds[item]) ?? ChatListLayoutMetrics.estimatedRowHeight
+            y += height + ChatListLayoutMetrics.interGroupSpacing
+        }
+        let height = cache.height(for: orderedItemIds[index]) ?? ChatListLayoutMetrics.estimatedRowHeight
+        return CGRect(x: 0, y: y, width: collectionView.bounds.width, height: height)
+    }
+
+    private func clampedOffsetY(toReveal frame: CGRect, at position: UICollectionView.ScrollPosition) -> CGFloat {
+        let inset = collectionView.adjustedContentInset
+        let viewport = collectionView.bounds.height
+        let raw: CGFloat
+        if position.contains(.top) {
+            raw = frame.minY - inset.top
+        } else if position.contains(.bottom) {
+            raw = frame.maxY - viewport + inset.bottom
+        } else {
+            raw = frame.midY - viewport / 2
+        }
+        let minY = -inset.top
+        let maxY = max(minY, collectionView.collectionViewLayout.collectionViewContentSize.height - viewport + inset.bottom)
+        return min(max(raw, minY), maxY)
+    }
+
+    func resolvedRowId(forMessageId messageId: String) -> String {
+        messageIdToRowId[messageId] ?? messageId
+    }
+
+    func containsRow(id: String) -> Bool {
+        orderedItemIds.contains(resolvedRowId(forMessageId: id))
     }
 
     private func resolvePendingScrollIfPossible() {
-        guard let id = pendingScrollToId, let index = orderedItemIds.firstIndex(of: id) else { return }
+        if let navMessageId = scrollNavigationTargetRowId {
+            let resolved = resolvedRowId(forMessageId: navMessageId)
+            if let index = orderedItemIds.firstIndex(of: resolved) {
+                ChatScrollDebug.log("resolvePendingScroll nav → index=\(index) rowId=\(resolved)")
+                pendingScrollToId = nil
+                forceScrollToRow(at: index, position: .centeredVertically, animated: false)
+                return
+            }
+        }
+        guard let messageId = pendingScrollToId else { return }
+        let resolved = resolvedRowId(forMessageId: messageId)
+        guard let index = orderedItemIds.firstIndex(of: resolved) else { return }
+        ChatScrollDebug.log("resolvePendingScroll pending → index=\(index) rowId=\(resolved)")
         pendingScrollToId = nil
-        collectionView.scrollToItem(
-            at: IndexPath(item: index, section: 0),
-            at: pendingScrollPosition,
-            animated: pendingScrollAnimated
-        )
+        forceScrollToRow(at: index, position: pendingScrollPosition, animated: pendingScrollAnimated)
     }
 
     func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
@@ -729,7 +942,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     /// Anclaje inferior estilo chat: si el contenido no llena el viewport, se empuja hacia abajo
-    /// con un inset superior (igual que iMessage/WhatsApp/Telegram). Lista no invertida lo necesita.
+    /// con un inset superior. Lista no invertida lo necesita.
     private func updateBottomAnchorInset() {
         guard let collectionView else { return }
         let safeTop = collectionView.safeAreaInsets.top
@@ -739,7 +952,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         let contentHeight = collectionView.collectionViewLayout.collectionViewContentSize.height
         let extraTop = max(0, available - contentHeight)
         guard abs(collectionView.contentInset.top - extraTop) > 0.5 else { return }
-        let wasPinned = isStrictlyAtBottom || currentIsAtBottom
+        let wasPinned = (isStrictlyAtBottom || currentIsAtBottom) && scrollNavigationTargetRowId == nil
         collectionView.contentInset.top = extraTop
         if wasPinned {
             forceScrollToBottom(animated: false)
@@ -757,6 +970,86 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             self.pendingContentOffsetReport = nil
             self.onContentOffsetChanged?(offset)
         }
+    }
+
+    private func bottomOverscroll(in scrollView: UIScrollView) -> CGFloat {
+        max(0, scrollView.contentOffset.y - maxContentOffsetY(in: scrollView))
+    }
+
+    private func applyVanishFromOverscroll(_ rawOverscroll: CGFloat, isDragging: Bool) {
+        guard isVanishGestureEnabled, isStrictlyAtBottom else {
+            if rawOverscroll <= 0 {
+                clearVanishOverscrollPresentation()
+            }
+            return
+        }
+
+        guard rawOverscroll > 0 else {
+            if isVanishOverscrollActive || isVanishPanActive {
+                clearVanishOverscrollPresentation()
+            }
+            return
+        }
+
+        if isDragging, !isVanishOverscrollActive, !isVanishPanActive {
+            isVanishOverscrollActive = true
+            onVanishDraggingChanged?(true)
+        }
+
+        let lift = ChatVanishSwipeMetrics.conversationLift(fingerUpward: rawOverscroll)
+        currentVanishLift = lift
+
+        if ChatVanishSwipeMetrics.shouldRevealVanishUI(lift: lift) {
+            let progress = ChatVanishSwipeMetrics.progress(lift: lift)
+            updateVanishHaptics(lift: lift, progress: progress)
+            vanishPullOverlay.setRevealLayout(
+                composerBottomInset: composerBottomInset,
+                conversationLift: lift
+            )
+            vanishPullOverlay.update(
+                lift: lift,
+                progress: progress,
+                isActive: isVanishModeActive,
+                isDragging: true,
+                colorScheme: traitCollection.userInterfaceStyle
+            )
+        } else {
+            vanishPullOverlay.hide()
+        }
+    }
+
+    private func clearVanishOverscrollPresentation() {
+        guard isVanishOverscrollActive || isVanishPanActive || currentVanishLift > 0 else { return }
+        isVanishOverscrollActive = false
+        isVanishPanActive = false
+        onVanishDraggingChanged?(false)
+        vanishPanPull = 0
+        currentVanishLift = 0
+        vanishDidCrossThreshold = false
+        vanishLastHapticStep = -1
+        vanishPullOverlay.hide()
+    }
+
+    private func finishVanishOverscrollRelease(completed: Bool) {
+        let progress = ChatVanishSwipeMetrics.progress(lift: currentVanishLift)
+        let effectivePull = ChatVanishSwipeMetrics.effectiveLiftForCompletion(currentVanishLift)
+
+        guard isVanishOverscrollActive || isVanishPanActive || currentVanishLift > 0 else { return }
+
+        isVanishOverscrollActive = false
+        isVanishPanActive = false
+        onVanishDraggingChanged?(false)
+        vanishPanPull = 0
+        vanishDidCrossThreshold = false
+        vanishLastHapticStep = -1
+        vanishPullOverlay.hide()
+        currentVanishLift = 0
+
+        onVanishPullReleased?(VanishPullResult(
+            completed: completed,
+            progress: progress,
+            effectivePull: effectivePull
+        ))
     }
 
     private func canEngageVanishPan() -> Bool {
@@ -782,50 +1075,28 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             if !isVanishPanActive {
                 isVanishPanActive = true
                 onVanishDraggingChanged?(true)
-                pinScrollToBottomIfNeeded()
             }
 
             vanishPanPull = upward
 
-            let lift = ChatVanishSwipeMetrics.conversationLift(fingerUpward: upward)
-            currentVanishLift = lift
-            collectionView.transform = CGAffineTransform(translationX: 0, y: -lift)
-
-            if ChatVanishSwipeMetrics.shouldRevealVanishUI(lift: lift) {
-                let progress = ChatVanishSwipeMetrics.progress(lift: lift)
-                updateVanishHaptics(lift: lift, progress: progress)
-                vanishPullOverlay.setRevealLayout(
-                    composerBottomInset: composerBottomInset,
-                    conversationLift: lift
-                )
-                vanishPullOverlay.update(
-                    lift: lift,
-                    progress: progress,
-                    isActive: isVanishModeActive,
-                    isDragging: true,
-                    colorScheme: traitCollection.userInterfaceStyle
-                )
-            } else {
-                vanishPullOverlay.hide()
-            }
+            let maxY = maxContentOffsetY(in: collectionView)
+            let rubberBanded = ChatVanishSwipeMetrics.rubberBandPull(from: translationY)
+            isClampingBottomScroll = true
+            collectionView.contentOffset.y = maxY + rubberBanded
+            isClampingBottomScroll = false
+            applyVanishFromOverscroll(rubberBanded, isDragging: true)
 
         case .ended, .cancelled:
-            let completed = vanishDidCrossThreshold
+            let completedByThreshold = vanishDidCrossThreshold
                 && ChatVanishSwipeMetrics.effectiveLiftForCompletion(currentVanishLift) > 0
-            finishVanishPan(gesture: gesture, completed: completed)
+            // Flick estilo IG: un tirón rápido y decidido completa aunque el dedo no llegue
+            // a la distancia del umbral.
+            let completedByFlick = gesture.velocity(in: collectionView).y < -900
+                && ChatVanishSwipeMetrics.progress(lift: currentVanishLift) >= 0.5
+            finishVanishPan(gesture: gesture, completed: completedByThreshold || completedByFlick)
 
         default:
             break
-        }
-    }
-
-    private func pinScrollToBottomIfNeeded() {
-        guard let collectionView else { return }
-        let maxY = maxContentOffsetY(in: collectionView)
-        if collectionView.contentOffset.y < maxY - 0.5 {
-            isClampingBottomScroll = true
-            collectionView.contentOffset.y = maxY
-            isClampingBottomScroll = false
         }
     }
 
@@ -852,62 +1123,14 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     private func finishVanishPan(gesture: UIPanGestureRecognizer, completed: Bool) {
-        let progress = ChatVanishSwipeMetrics.progress(lift: currentVanishLift)
-        let effectivePull = ChatVanishSwipeMetrics.effectiveLiftForCompletion(currentVanishLift)
-
-        guard isVanishPanActive || collectionView.transform != .identity else { return }
-
-        isVanishPanActive = false
-        onVanishDraggingChanged?(false)
         gesture.setTranslation(.zero, in: collectionView)
-
-        UIView.animate(
-            withDuration: 0.4,
-            delay: 0,
-            usingSpringWithDamping: 0.85,
-            initialSpringVelocity: 0,
-            options: [.allowUserInteraction, .beginFromCurrentState]
-        ) {
-            self.collectionView.transform = .identity
-        }
-
-        vanishPullOverlay.hide()
-        vanishPanPull = 0
-        currentVanishLift = 0
-        vanishDidCrossThreshold = false
-        vanishLastHapticStep = -1
-
-        onVanishPullReleased?(VanishPullResult(
-            completed: completed,
-            progress: progress,
-            effectivePull: effectivePull
-        ))
+        guard isVanishPanActive || currentVanishLift > 0 else { return }
+        finishVanishOverscrollRelease(completed: completed)
     }
 
     func resetVanishPullState(animated: Bool) {
-        guard isVanishPanActive || collectionView.transform != .identity else { return }
-
-        isVanishPanActive = false
-        onVanishDraggingChanged?(false)
-        vanishPanPull = 0
-        currentVanishLift = 0
-        vanishDidCrossThreshold = false
-        vanishLastHapticStep = -1
-        vanishPullOverlay.hide()
-
-        if animated {
-            UIView.animate(
-                withDuration: 0.4,
-                delay: 0,
-                usingSpringWithDamping: 0.85,
-                initialSpringVelocity: 0,
-                options: [.allowUserInteraction, .beginFromCurrentState]
-            ) {
-                self.collectionView.transform = .identity
-            }
-        } else {
-            collectionView.transform = .identity
-        }
+        guard isVanishPanActive || isVanishOverscrollActive || currentVanishLift > 0 else { return }
+        clearVanishOverscrollPresentation()
     }
 
     func gestureRecognizer(
@@ -930,34 +1153,40 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         return isDeliberateUpwardPull
     }
 
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        // El usuario toma el control: soltar el nav target para no pelear contra su gesto.
+        if scrollNavigationTargetRowId != nil {
+            ChatScrollDebug.log("nav target released — user drag")
+            scrollNavigationTargetRowId = nil
+        }
+    }
+
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         guard !isClampingBottomScroll else { return }
 
-        if !isVanishPanActive, isStrictlyAtBottom {
-            let maxY = maxContentOffsetY(in: scrollView)
-            let overscrollCap = maxY + maxBottomOverscrollWhileIdle
-            if scrollView.contentOffset.y > overscrollCap {
-                isClampingBottomScroll = true
-                scrollView.contentOffset.y = overscrollCap
-                isClampingBottomScroll = false
-            }
+        enforceNavigationTargetIfNeeded(context: "didScroll")
+
+        let overscroll = bottomOverscroll(in: scrollView)
+        if isVanishGestureEnabled, isStrictlyAtBottom, !isVanishPanActive {
+            applyVanishFromOverscroll(overscroll, isDragging: scrollView.isDragging || scrollView.isTracking)
         }
 
         recomputeBottomPinnedState()
         reportContentOffset(scrollView.contentOffset.y)
         scheduleHistoryLoadIfNeeded()
 
-        if isVanishPanActive {
-            pinScrollToBottomIfNeeded()
-        }
-
-        if !isStrictlyAtBottom, isVanishPanActive {
-            resetVanishPullState(animated: false)
+        if !isStrictlyAtBottom, isVanishPanActive || isVanishOverscrollActive {
+            clearVanishOverscrollPresentation()
         }
     }
 
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        // no-op
+        guard !isVanishPanActive else { return }
+        guard isVanishOverscrollActive || currentVanishLift > 0 else { return }
+
+        let completed = vanishDidCrossThreshold
+            && ChatVanishSwipeMetrics.effectiveLiftForCompletion(currentVanishLift) > 0
+        finishVanishOverscrollRelease(completed: completed)
     }
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {

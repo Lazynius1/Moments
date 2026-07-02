@@ -474,7 +474,7 @@ struct TextStyleOption: View {
     }
 }
 
-// MARK: - FontSizeSlider (Instagram-style cónico)
+// MARK: - FontSizeSlider (cónico)
 struct FontSizeSlider: View {
     @Binding var value: CGFloat
     let range: ClosedRange<CGFloat>
@@ -490,7 +490,7 @@ struct FontSizeSlider: View {
             let knobY = 16 + (1 - progress) * trackHeight
 
             ZStack(alignment: .top) {
-                // Tapered track background (Instagram wedge)
+                // Tapered track background
                 TaperedSliderTrack()
                     .fill(Color.white.opacity(0.32))
                     .frame(width: 16)

@@ -8,18 +8,21 @@ struct VanishPullResult {
 }
 
 enum ChatVanishSwipeMetrics {
-    /// Lift adicional tras revelar UI para completar el arco (IG: ~frames 8→14).
-    static let activationDistance: CGFloat = 96
+    /// Lift adicional tras revelar UI para completar el arco (~frames 8→14).
+    /// Ojo con subirlo: el lift máximo alcanzable es 0.48·maxPull^1.08 ≈ 147 (el rubber-band
+    /// capa el pull en maxPull asintóticamente). El umbral de completado debe quedar por debajo:
+    /// con 64 y threshold 0.9 se completa a ~160pt de recorrido real de dedo (feel Instagram).
+    static let activationDistance: CGFloat = 64
     static let maxPull: CGFloat = 200
-    static let completionThreshold: CGFloat = 0.96
-    /// Lift mínimo del hilo antes de mostrar anillo/texto (IG: frames 1–5 solo suben chat).
+    static let completionThreshold: CGFloat = 0.9
+    /// Lift mínimo del hilo antes de mostrar anillo/texto (frames 1–5 solo suben chat).
     static let minLiftBeforeUIReveal: CGFloat = 58
     /// Cada cuántos puntos de lift efectivo (post-reveal) dispara un tick háptico.
     static let hapticStepPoints: CGFloat = 10
     static let pullAmplification: CGFloat = 1.0
     /// Tope de elevación del hilo.
     static let maxConversationLift: CGFloat = 168
-    /// Exponente > 1: poco lift al inicio, más al final (efecto “estirar” de IG).
+    /// Exponente > 1: poco lift al inicio, más al final (efecto “estirar”).
     static let liftCurveExponent: CGFloat = 1.08
     static let liftCurveScale: CGFloat = 0.48
 
@@ -37,7 +40,7 @@ enum ChatVanishSwipeMetrics {
         scaledPull(from: max(0, upward))
     }
 
-    /// Lift del hilo con resistencia sub-lineal (IG: el dedo recorre más que el chat sube).
+    /// Lift del hilo con resistencia sub-lineal (el dedo recorre más que el chat sube).
     static func conversationLift(fingerUpward upward: CGFloat) -> CGFloat {
         guard upward > 0 else { return 0 }
         let resisted = pow(upward, liftCurveExponent) * liftCurveScale
@@ -197,7 +200,7 @@ final class ChatVanishPullOverlayView: UIView {
                 ? NSLocalizedString("chat.vanish.swipe.hint.off", comment: "")
                 : NSLocalizedString("chat.vanish.swipe.hint", comment: "")
         }
-        hintLabel.textColor = palette.secondary
+        hintLabel.textColor = palette.secondary.withAlphaComponent(0.62)
     }
 
     private static func uiPalette(for colorScheme: UIUserInterfaceStyle) -> (primary: UIColor, secondary: UIColor) {
@@ -237,7 +240,7 @@ final class ChatVanishPullOverlayView: UIView {
     }
 
     private func configureLabel() {
-        hintLabel.font = .systemFont(ofSize: legacyPoppinsSize(12), weight: .medium)
+        hintLabel.font = .systemFont(ofSize: legacyPoppinsSize(10), weight: .regular)
         hintLabel.textAlignment = .center
         hintLabel.numberOfLines = 0
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -248,7 +251,7 @@ final class ChatVanishPullOverlayView: UIView {
             ringContainer.centerXAnchor.constraint(equalTo: centerXAnchor),
             ringContainer.widthAnchor.constraint(equalToConstant: ringSize),
             ringContainer.heightAnchor.constraint(equalToConstant: ringSize),
-            hintLabel.topAnchor.constraint(equalTo: ringContainer.bottomAnchor, constant: 8),
+            hintLabel.topAnchor.constraint(equalTo: ringContainer.bottomAnchor, constant: 6),
             hintLabel.leadingAnchor.constraint(equalTo: leadingAnchor),
             hintLabel.trailingAnchor.constraint(equalTo: trailingAnchor),
             hintLabel.bottomAnchor.constraint(equalTo: bottomAnchor)
@@ -306,13 +309,13 @@ struct ChatVanishPullRevealLayer: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             ChatVanishModeProgressIndicator(progress: progress)
             Text(hintKey)
-                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundStyle(adaptiveColors.secondary)
+                .font(.system(size: legacyPoppinsSize(10), weight: .regular))
+                .foregroundStyle(adaptiveColors.secondary.opacity(0.62))
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 28)
         }
         .opacity(revealOpacity)
         .scaleEffect(0.94 + min(progress, 1) * 0.06)
@@ -366,13 +369,22 @@ struct ChatDisappearingNoticeRow: View {
     var onTurnOn: (() -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
+
+    private var noticeFont: Font {
+        .system(size: legacyPoppinsSize(10), weight: .regular)
+    }
+
+    private var actionFont: Font {
+        .system(size: legacyPoppinsSize(10), weight: .medium)
+    }
 
     private var bodyColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.62) : Color.black.opacity(0.52)
+        colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.42)
     }
 
     private var actionColor: Color {
-        colorScheme == .dark ? Color.orange : Color(red: 0.78, green: 0.24, blue: 0.18)
+        chatOutgoingBubbleColor
     }
 
     private var isSelfActor: Bool {
@@ -433,10 +445,10 @@ struct ChatDisappearingNoticeRow: View {
             + Text(LocalizedStringKey("chat.vanish.notice.enabled.suffix"))
             + Text(" ")
             + Text(LocalizedStringKey("chat.vanish.notice.change"))
+                .font(actionFont)
                 .foregroundColor(actionColor)
-                .fontWeight(.semibold)
         )
-        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+        .font(noticeFont)
         .foregroundStyle(bodyColor)
         .multilineTextAlignment(.center)
         .onTapGesture {
@@ -461,10 +473,10 @@ struct ChatDisappearingNoticeRow: View {
             bodyText
             + Text(" ")
             + Text(LocalizedStringKey("chat.vanish.notice.turnOn"))
+                .font(actionFont)
                 .foregroundColor(actionColor)
-                .fontWeight(.semibold)
         )
-        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+        .font(noticeFont)
         .foregroundStyle(bodyColor)
         .multilineTextAlignment(.center)
         .onTapGesture {
@@ -474,7 +486,7 @@ struct ChatDisappearingNoticeRow: View {
 
     private func plainNotice(_ key: String) -> some View {
         Text(LocalizedStringKey(key))
-            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+            .font(noticeFont)
             .foregroundStyle(bodyColor)
             .multilineTextAlignment(.center)
     }

@@ -69,7 +69,7 @@ extension StoryEditingView {
             }
         }
 
-        /// Tipografías del carrusel Aa (estilo Instagram).
+        /// Tipografías del carrusel Aa.
         static var fontPickerStyles: [TextStyle] {
             [
                 .modern, .classic, .clean, .grotesk, .bold, .oswald, .spartan, .squeeze,

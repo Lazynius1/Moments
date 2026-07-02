@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Estado derivado del overlay flotante (mapping a `ChatController.updateDownButtonVisibility` en Telegram-iOS).
+/// Estado derivado del overlay flotante.
 struct ChatFloatingNavigationState: Equatable {
     var showsSearchControls: Bool = false
     var showsScrollToBottom: Bool = false
@@ -28,7 +28,7 @@ struct ChatFloatingNavigationState: Equatable {
     }
 }
 
-/// Un solo bloque flotante abajo-derecha (`ChatHistoryNavigationButtons` en Telegram-iOS).
+/// Un solo bloque flotante abajo-derecha.
 struct ChatFloatingNavigationOverlay: View {
     let state: ChatFloatingNavigationState
     let counterText: String

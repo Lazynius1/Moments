@@ -247,7 +247,7 @@ struct StackedReplyQuote: View {
     }
 }
 
-/// Reply citado EMBEBIDO dentro de la burbuja (estilo WhatsApp): barra de color,
+/// Reply citado EMBEBIDO dentro de la burbuja: barra de color,
 /// fondo tintado, llena el ancho de la burbuja y queda pegado encima del texto.
 struct EmbeddedReplyView: View {
     let repliedMessage: EnhancedMessage

@@ -150,7 +150,7 @@ enum SharedStoryAccessEvaluator {
     }
 }
 
-// MARK: - Share sheet (solo mensajes, estilo IG)
+// MARK: - Share sheet (solo mensajes)
 
 struct StoryShareBottomSheet: View {
     let story: Story
@@ -563,7 +563,7 @@ enum StoryShareCardMetrics {
     static let cornerRadius: CGFloat = 12
 }
 
-/// Story compartida estilo Instagram Direct: NO usa tarjeta, es la propia media
+/// Story compartida: NO usa tarjeta, es la propia media
 /// vertical (9:16) redondeada, con el autor superpuesto arriba en blanco.
 struct StoryPreviewCard: View {
     let sharedStoryData: [String: String]

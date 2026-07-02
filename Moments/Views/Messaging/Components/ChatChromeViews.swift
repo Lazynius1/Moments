@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Swipe back nativo (Instagram-style)
+// MARK: - Swipe back nativo
 
 /// Reactiva `interactivePopGestureRecognizer` aunque el back button del sistema esté oculto.
 private struct NavigationInteractivePopEnabler: UIViewControllerRepresentable {
@@ -37,7 +37,7 @@ private struct NavigationInteractivePopEnabler: UIViewControllerRepresentable {
             }
             guard (navigationController?.viewControllers.count ?? 0) > 1 else { return false }
 
-            // Bajar teclado al iniciar el swipe back, como Instagram.
+            // Bajar teclado al iniciar el swipe back.
             view.window?.endEditing(true)
             return true
         }
@@ -153,21 +153,32 @@ extension ToolbarContent {
     }
 }
 
-/// Spinner fijo arriba del hilo al paginar historial (estilo Instagram).
+/// Cápsula glass flotante al paginar historial (misma familia que `ChatBuzzToast`).
 struct ChatHistoryLoadingIndicator: View {
     let adaptiveColors: AdaptiveColors
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var shape: Capsule { Capsule(style: .continuous) }
 
     var body: some View {
         HStack(spacing: 8) {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: adaptiveColors.primary))
-                .scaleEffect(0.85)
+                .progressViewStyle(CircularProgressViewStyle(
+                    tint: colorScheme == .dark ? .white : adaptiveColors.primary
+                ))
+                .scaleEffect(0.78)
             Text("chat.loadingOlderMessages")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(adaptiveColors.secondary)
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.92) : .black.opacity(0.82))
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .momentsChromeGlass(in: shape, interactive: false)
+        .clipShape(shape)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.12), radius: 14, x: 0, y: 8)
         .allowsHitTesting(false)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -462,7 +473,7 @@ struct MessagingActionToast: View {
     }
 }
 
-// MARK: - Scroll down FAB (estilo Telegram)
+// MARK: - Scroll down FAB
 
 struct ChatScrollDownButton: View {
     let pendingCount: Int
@@ -516,7 +527,7 @@ struct ChatScrollDownButton: View {
     }
 }
 
-// MARK: - Búsqueda in-thread (estilo Telegram)
+// MARK: - Búsqueda in-thread
 
 struct ChatInThreadSearchField: View {
     @Binding var text: String

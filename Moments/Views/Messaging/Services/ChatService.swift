@@ -1627,6 +1627,9 @@ class ChatService: ObservableObject {
                     if let rawMap = data["lastDeletedAt"] as? [String: Timestamp] {
                         conversation.lastDeletedAt = rawMap.mapValues { $0.dateValue() }
                     }
+                    if let rawMap = data["lastReadAt"] as? [String: Timestamp] {
+                        conversation.lastReadAt = rawMap.mapValues { $0.dateValue() }
+                    }
                     conversation.vanishModeActive = data["vanishModeActive"] as? Bool ?? false
                     conversation.vanishModeEnabledBy = data["vanishModeEnabledBy"] as? String
                     if let enabledAt = data["vanishModeEnabledAt"] as? Timestamp {

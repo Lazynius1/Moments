@@ -1,7 +1,7 @@
 import Foundation
 
 /// Centralized locale-aware formatting for dates, times, counts, and distances.
-/// Feed timestamps use compact Instagram-style units (`time.*` keys).
+/// Feed timestamps use compact units (`time.*` keys).
 /// Absolute dates and measurements use native `FormatStyle` / Foundation formatters with `Locale.current`.
 /// No user-visible `DateFormatter.dateFormat = ...` should live outside this file.
 enum MomentsFormat {
@@ -11,7 +11,7 @@ enum MomentsFormat {
     enum RelativeTimeStyle {
         /// Compact feed style: `5 min ago` / `hace 5 min` via `time.*` localization keys.
         case compact
-        /// Locale-native relative wording, limited to a single unit for Instagram-like brevity.
+        /// Locale-native relative wording, limited to a single unit for brevity.
         case conversational(unitsStyle: RelativeDateTimeFormatter.UnitsStyle = .abbreviated)
     }
 

@@ -113,7 +113,7 @@ struct StoryUserDeckPager<Content: View>: View {
         CGFloat(index - currentUserIndex) + dragOffset / width
     }
 
-    // MARK: - Gesture (simultáneo + exclusión por startLocation, estilo IG)
+    // MARK: - Gesture (simultáneo + exclusión por startLocation)
 
     private func deckDragGesture(width: CGFloat, height: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 12, coordinateSpace: .named(storyDeckCoordinateSpaceName))

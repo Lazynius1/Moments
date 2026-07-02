@@ -70,12 +70,15 @@ extension GlassmorphicChatView {
     }
 
     func syncPendingIncomingMessagesOnOpen() {
+        if hasUnreadIncomingMessages() {
+            initializeUnreadDividerIfNeeded()
+            pendingIncomingMessages = unreadIncomingMessageCount()
+            return
+        }
         if isPinnedToBottom || shouldOpenAtBottom() {
             pendingIncomingMessages = 0
-            if !hasUnreadIncomingMessages() {
-                unreadDividerMessageId = nil
-                unreadDividerInitialized = true
-            }
+            unreadDividerMessageId = nil
+            unreadDividerInitialized = true
         } else {
             pendingIncomingMessages = unreadIncomingMessageCount()
         }
@@ -124,8 +127,9 @@ extension GlassmorphicChatView {
     }
 
     func messageIsReadyForScroll(_ messageId: String) -> Bool {
-        viewModel.messages.contains(where: { $0.id == messageId })
-            && messageRowIsLaidOut(messageId)
+        guard viewModel.messages.contains(where: { $0.id == messageId }) else { return false }
+        guard let rowId = messageRowId(containingMessageId: messageId) else { return false }
+        return chatListController.containsRow(id: rowId)
     }
 
     func resolveInitialScrollTarget() -> ChatScrollTarget? {
@@ -142,7 +146,7 @@ extension GlassmorphicChatView {
             return nil
         }
 
-        // No se guarda posición arbitraria, pero los no leídos tienen prioridad (estilo Telegram):
+        // No se guarda posición arbitraria, pero los no leídos tienen prioridad:
         // abrir en el primer no leído; si no hay, al último mensaje.
         if let unreadId = viewModel.messages.first(where: {
             !$0.isRead && $0.senderId != viewModel.currentUserId
@@ -157,18 +161,21 @@ extension GlassmorphicChatView {
     }
 
     func messageRowId(containingMessageId messageId: String) -> String? {
+        if chatListController.containsRow(id: messageId) {
+            return chatListController.resolvedRowId(forMessageId: messageId) ?? messageId
+        }
         for row in viewModel.chatRenderRows {
             guard case .message(let item) = row else { continue }
             switch item {
             case .single(let message) where message.id == messageId:
-                return item.id
+                return row.id
             case .mediaCluster(let messages) where messages.contains(where: { $0.id == messageId }):
-                return item.id
+                return row.id
             default:
                 continue
             }
         }
-        return messageId
+        return nil
     }
 
     func pendingBuzzReplayNeedsRetry() -> Bool {
@@ -211,19 +218,50 @@ extension GlassmorphicChatView {
 
     func initializeUnreadDividerIfNeeded() {
         guard !unreadDividerInitialized else { return }
+        guard hasUnreadIncomingMessages() else { return }
         guard !viewModel.messages.isEmpty else { return }
 
-        unreadDividerMessageId = viewModel.messages.first {
+        guard let firstUnreadId = viewModel.messages.first(where: {
             !$0.isRead && $0.senderId != viewModel.currentUserId
-        }?.id
+        })?.id else { return }
+
+        unreadDividerMessageId = firstUnreadId
         unreadDividerCount = unreadIncomingMessageCount()
         unreadDividerInitialized = true
+        ChatScrollDebug.log("unread divider frozen id=\(firstUnreadId) count=\(unreadDividerCount)")
+        reconfigureUnreadDividerRow(for: firstUnreadId)
+    }
+
+    /// Las celdas hostean su propio árbol SwiftUI: cambiar `unreadDividerMessageId` después de que
+    /// la fila ya esté construida no la re-renderiza (updates in-place), así que el divisor no
+    /// aparecía hasta que el scroll reciclaba la celda. Forzar reconfigure de la fila afectada.
+    func reconfigureUnreadDividerRow(for messageId: String?) {
+        guard let messageId else { return }
+        // Un salto de runloop para que el reconfigure se encole después del re-render de SwiftUI
+        // (la celda debe reconstruirse con el closure de contenido ya actualizado).
+        DispatchQueue.main.async {
+            chatListController.reconfigure(messageIds: [messageId])
+        }
     }
 
     func shouldShowUnreadDivider(before item: MessageItem) -> Bool {
         guard let dividerId = unreadDividerMessageId else { return false }
+        guard hasUnreadIncomingMessages() else { return false }
         let rowId = messageRowId(containingMessageId: dividerId) ?? dividerId
-        return item.id == rowId
+        guard item.id == rowId else { return false }
+
+        guard let dividerIndex = viewModel.messages.firstIndex(where: { $0.id == dividerId }) else {
+            return false
+        }
+        // Hace falta historial leído antes del primer no leído; si la ventana cargada
+        // empieza justo en el no leído, el historial puede estar en páginas sin cargar.
+        if dividerIndex > 0,
+           viewModel.messages[..<dividerIndex].contains(where: {
+               $0.isRead || $0.senderId == viewModel.currentUserId
+           }) {
+            return true
+        }
+        return viewModel.canLoadMore
     }
 
     func installScreenshotObserverIfNeeded() {

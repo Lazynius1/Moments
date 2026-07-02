@@ -327,7 +327,7 @@ class NotificationService: UNNotificationServiceExtension {
 
     // MARK: - Media previews
 
-    /// Tipos que NUNCA muestran media en la notificación (privacidad), igual que WhatsApp:
+    /// Tipos que NUNCA muestran media en la notificación (privacidad):
     /// solo el texto genérico ("📷 Foto").
     private static let viewOnceMessageTypes: Set<String> = ["viewOnceImage", "viewOnceVideo", "ephemeral"]
 

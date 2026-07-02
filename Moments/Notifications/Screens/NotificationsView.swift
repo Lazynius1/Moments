@@ -120,6 +120,7 @@ struct NotificationsView: View {
         .animation(.spring(response: 0.32, dampingFraction: 0.84), value: viewModel.pendingDeletion?.id)
         .animation(.spring(response: 0.38, dampingFraction: 0.86), value: groupedFollowersOverlayGroup?.id)
         .onAppear {
+            applyPendingNotificationsFilterIfNeeded()
             Task {
                 await viewModel.refreshNotifications()
             }
@@ -172,6 +173,12 @@ struct NotificationsView: View {
         }
     }
     
+    private func applyPendingNotificationsFilterIfNeeded() {
+        guard let filter = NotificationOpenIntentStore.consumeFilter(),
+              let tab = NotificationOpenIntentStore.tab(for: filter) else { return }
+        viewModel.selectedTab = tab
+    }
+
     private func clearNotificationsAutomatically() {
         
         // 1. Marcar notificaciones como vistas en Firebase

@@ -698,7 +698,7 @@ class EncryptionService: ObservableObject {
         }
     }
     
-    // MARK: - 🛡️ SISTEMA 100% ROBUSTO - Como WhatsApp
+    // MARK: - Sistema robusto de cifrado
     private func setupEncryptionRobust() async {
         encryptionStatus = .initializing
         
@@ -872,7 +872,7 @@ class EncryptionService: ObservableObject {
         }
     }
     
-    // MARK: - 🔄 RECUPERACIÓN CON REINTENTOS COMO WHATSAPP
+    // MARK: - Recuperación con reintentos
     private func recoverKeyFromFirestoreWithRetry(
         conversationId: String,
         conversationData: [String: Any],

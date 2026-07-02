@@ -4,7 +4,7 @@ import FirebaseFirestore
 import Kingfisher
 import Combine
 
-/// Avatares estilo Instagram: uno grande o dos solapados en horizontal (atrás izquierda, delante derecha).
+/// Avatares: uno grande o dos solapados en horizontal (atrás izquierda, delante derecha).
 struct NotificationLeadingAvatarView: View {
     let senderIds: [String]
     let colorScheme: ColorScheme
@@ -57,7 +57,7 @@ struct NotificationLeadingAvatarView: View {
     }
 }
 
-/// Miniatura vertical de historia (estilo Instagram).
+/// Miniatura vertical de historia.
 struct NotificationStoryThumbnailView: View {
     let imagePath: String?
     let reaction: String?

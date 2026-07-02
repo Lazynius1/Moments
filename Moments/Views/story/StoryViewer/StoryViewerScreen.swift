@@ -448,7 +448,7 @@ struct StoryViewerScreen: View {
             // MARK: - 5. INPUT AREA
             if !isUIHidden {
                 if isOwnStory && !isKeyboardVisible {
-                    // Historia propia: centrar acciones en el hueco bajo el marco (estilo IG).
+                    // Historia propia: centrar acciones en el hueco bajo el marco.
                     glassmorphicBottomArea
                         .padding(.horizontal, 16)
                         .frame(width: geometry.size.width)
@@ -1140,7 +1140,7 @@ struct StoryViewerScreen: View {
                             Spacer(minLength: 0)
                         }
 
-                        // Iconos agrupados (estilo IG: pegados a la derecha del input)
+                        // Iconos agrupados pegados a la derecha del input
                         HStack(spacing: 2) {
                             if authorAllowsReactions && (messageText.isEmpty || !authorAllowsMessages) {
                                 storyViewerReplyActionButton(

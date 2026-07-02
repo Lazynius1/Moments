@@ -36,6 +36,7 @@ class NotificationNavigationService: ObservableObject {
     }
     
     func navigateToNotifications(filter: String?) {
+        NotificationOpenIntentStore.enqueue(filter: filter)
         AppRouter.shared.navigate(to: .notifications(filter: filter))
     }
     

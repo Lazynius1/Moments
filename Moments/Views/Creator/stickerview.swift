@@ -1468,7 +1468,7 @@ struct StickerPickerView: View {
         self.generateSticker(username: username, userId: "", profileImage: nil)
     }
 
-    // MARK: - Función principal para generar el sticker (ESTILO INSTAGRAM)
+    // MARK: - Función principal para generar el sticker
     private func generateSticker(username: String, userId: String, profileImage: UIImage?) {
 
         let text = "@\(username)"

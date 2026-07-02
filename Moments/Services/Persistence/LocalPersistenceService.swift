@@ -762,6 +762,37 @@ final class LocalPersistenceService: ObservableObject {
         return cached.reversed().map { $0.toEnhancedMessage() }
     }
 
+    /// Página de mensajes estrictamente posteriores al cursor (incluye el ancla si coincide).
+    func loadMessagesAfter(
+        conversationId: String,
+        cursor: MessageSyncCursor,
+        cutoffDate: Date? = nil,
+        limit: Int
+    ) -> [EnhancedMessage] {
+        guard limit > 0, let context = modelContext else { return [] }
+
+        let cutoff = cutoffDate
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId
+                && (cutoff == nil || $0.timestamp > cutoff!)
+                && (
+                    $0.timestamp > cursor.timestamp
+                        || ($0.timestamp == cursor.timestamp && $0.id >= cursor.messageId)
+                )
+        }
+        var descriptor = FetchDescriptor<CachedMessage>(
+            predicate: predicate,
+            sortBy: [
+                SortDescriptor(\.timestamp, order: .forward),
+                SortDescriptor(\.id, order: .forward)
+            ]
+        )
+        descriptor.fetchLimit = limit
+
+        guard let cached = try? context.fetch(descriptor) else { return [] }
+        return cached.map { $0.toEnhancedMessage() }
+    }
+
     /// Búsqueda local en caché SwiftData (texto descifrado ya persistido).
     func searchMessageIds(conversationId: String, query: String, limit: Int = 100) -> [String] {
         guard limit > 0, let context = modelContext else { return [] }
@@ -925,10 +956,22 @@ final class LocalPersistenceService: ObservableObject {
         return (try? context.fetchCount(FetchDescriptor<CachedMessage>())) ?? 0
     }
 
-    func unreadMessageCount(for conversationId: String, currentUserId: String) -> Int {
+    func unreadMessageCount(for conversationId: String, currentUserId: String, since lastReadAt: Date? = nil) -> Int {
         guard let context = modelContext else { return 0 }
-        let predicate = #Predicate<CachedMessage> { message in
-            message.conversationId == conversationId && message.senderId != currentUserId && !message.isRead
+        let predicate: Predicate<CachedMessage>
+        if let lastReadAt {
+            // Mensajes anteriores al último "leído" del usuario cuentan como leídos aunque el
+            // doc individual quedara sin marcar (datos antiguos con isRead desincronizado).
+            predicate = #Predicate<CachedMessage> { message in
+                message.conversationId == conversationId
+                    && message.senderId != currentUserId
+                    && !message.isRead
+                    && message.timestamp > lastReadAt
+            }
+        } else {
+            predicate = #Predicate<CachedMessage> { message in
+                message.conversationId == conversationId && message.senderId != currentUserId && !message.isRead
+            }
         }
         let descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
         return (try? context.fetchCount(descriptor)) ?? 0

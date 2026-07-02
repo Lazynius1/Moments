@@ -30,7 +30,7 @@ private enum StoryAudienceBottomInfo {
     }
 }
 
-// Barra inferior para historias propias (estilo IG: Actividad + audiencia + acciones).
+// Barra inferior para historias propias (Actividad + audiencia + acciones).
 struct StoryOwnStoryBottomBar: View {
     let viewers: [StoryViewer]
     let reactions: [StoryReaction]
@@ -419,7 +419,7 @@ struct StoryNoInteractionsNotice: View {
     }
 }
 
-/// Zonas laterales de navegación alineadas al rect del canvas (estilo IG).
+/// Zonas laterales de navegación alineadas al rect del canvas.
 struct StoryNavigationTouchAreas: View {
     let canvasSize: CGSize
     var sideWidthFraction: CGFloat = StoryGestureCoordinator.navigationSideWidthFraction

@@ -69,7 +69,7 @@ struct ChatGiphyPickerContent: View {
         colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5)
     }
 
-    /// Reparte ítems en dos columnas (estilo masonry IG: flujo alterno).
+    /// Reparte ítems en dos columnas (masonry: flujo alterno).
     private var gifColumns: ([GiphyGif], [GiphyGif]) {
         var left: [GiphyGif] = []
         var right: [GiphyGif] = []

@@ -461,7 +461,7 @@ struct ProfileGridPreviewEditorView: View {
     }
 }
 
-// MARK: - Icono del botón modo (esquinas IG: 2 en Rellenar, 4 en Ajustar)
+// MARK: - Icono del botón modo (2 esquinas en Rellenar, 4 en Ajustar)
 
 private struct GridPreviewModeChipIcon: View {
     let fitMode: MomentGridPreviewFitMode

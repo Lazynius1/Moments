@@ -8,7 +8,7 @@ enum VideoPlaybackActivationMode: Equatable {
     case alwaysWhenVisible
 }
 
-/// Estilo de controles del reproductor (Instagram Reels 2026 vs clásico).
+/// Estilo de controles del reproductor (moderno vs clásico).
 enum VideoPlaybackChromeStyle {
     /// Barra de progreso, mute persistente, overlay play grande al tap.
     case classic
@@ -16,7 +16,7 @@ enum VideoPlaybackChromeStyle {
     case socialReels
 }
 
-/// Controles centrados al pausar (patrón Instagram Reels 2026).
+/// Controles centrados al pausar.
 struct SocialVideoPausedControls: View {
     let isMuted: Bool
     let onToggleMute: () -> Void

@@ -45,6 +45,9 @@ struct FeedNotificationRoutingModifier: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowExploreView"))) { _ in
                 showExplore = true
             }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToNotifications"))) { _ in
+                showNotifications = true
+            }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenNotifications"))) { _ in
                 showNotifications = true
             }

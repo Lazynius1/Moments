@@ -329,7 +329,7 @@ private struct StoryVerticalBrushSlider: View {
             let knobY = 16 + (1 - progress) * trackHeight
 
             ZStack(alignment: .top) {
-                // Tapered track background (Instagram style)
+                // Tapered track background
                 TaperedSliderTrack()
                     .fill(Color.white.opacity(0.32))
                     .frame(width: 16)

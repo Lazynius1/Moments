@@ -36,6 +36,11 @@ extension GlassmorphicChatView {
     func routeInitialScrollInList() {
         guard !viewModel.chatRenderRows.isEmpty else { return }
 
+        if let highlightId = pendingSearchHighlightId, !highlightId.isEmpty {
+            scheduleSearchHighlightScrollInList(to: highlightId)
+            return
+        }
+
         reloadNotificationOpenIntent()
         reconcileScrollStateForCurrentConversation()
         initializeUnreadDividerIfNeeded()
@@ -73,6 +78,11 @@ extension GlassmorphicChatView {
         guard !didReapplyFrozenScrollPosition else { return }
         didReapplyFrozenScrollPosition = true
 
+        if pendingSearchHighlightId != nil {
+            ChatScrollDebug.log("routeInitialScrollInList skipped bottom snap — pending highlight")
+            return
+        }
+
         // No se restaura posición guardada. Si estábamos pegados al fondo, mantenerlo
         // (p.ej. tras la transición caché→live). Si el usuario está scrolleado arriba a
         // media conversación, no tocamos su posición: el prepend del controller la preserva.
@@ -84,22 +94,33 @@ extension GlassmorphicChatView {
     func scrollToTargetInList(_ target: ChatScrollTarget, animated: Bool) {
         switch target {
         case .bottom:
-            chatListController.forceScrollToBottom(animated: animated)
+            chatListController.forceScrollToBottomIgnoringNavigation(animated: animated)
         case .firstUnread(let messageId):
-            let rowId = messageRowId(containingMessageId: messageId) ?? messageId
+            guard let rowId = messageRowId(containingMessageId: messageId) else {
+                ChatScrollDebug.log("scrollToTarget firstUnread — row not ready for \(messageId)")
+                return
+            }
             isPinnedToBottom = false
             listIsAtBottom = false
-            chatListController.scrollToRow(id: rowId, at: .top, animated: animated)
+            chatListController.scrollToRow(id: messageId, at: .top, animated: animated)
         case .highlightedMessage(let messageId):
-            let rowId = messageRowId(containingMessageId: messageId) ?? messageId
+            guard messageRowId(containingMessageId: messageId) != nil else {
+                ChatScrollDebug.log("scrollToTarget highlight — row not ready for \(messageId)")
+                chatListController.scrollToRow(id: messageId, at: .centeredVertically, animated: animated)
+                return
+            }
             isPinnedToBottom = false
             listIsAtBottom = false
-            chatListController.scrollToRow(id: rowId, at: .centeredVertically, animated: animated)
+            chatListController.scrollToRow(id: messageId, at: .centeredVertically, animated: animated)
         }
     }
 
-    /// Scroll al fondo tras el layout (estilo Telegram `scrollToEndOfHistory` + reintentos).
+    /// Scroll al fondo tras el layout con reintentos.
     func scheduleInitialScrollToBottom() {
+        guard pendingSearchHighlightId == nil else {
+            ChatScrollDebug.log("scheduleInitialScrollToBottom skipped — pending highlight")
+            return
+        }
         initialScrollTask?.cancel()
         initialScrollTask = Task { @MainActor in
             defer { initialScrollTask = nil }
@@ -127,9 +148,8 @@ extension GlassmorphicChatView {
         isPinnedToBottom = pinsToBottom
         listIsAtBottom = pinsToBottom
         if pinsToBottom {
-            clearUnreadDividerAndMarkReadIfNeeded()
+            frozenInitialScrollTarget = viewModel.messages.last.map { .bottom(messageId: $0.id) }
         }
-        frozenInitialScrollTarget = viewModel.messages.last.map { .bottom(messageId: $0.id) }
         viewModel.prefetchUnresolvedMediaIfNeeded()
         processPendingReactionHighlightsInList()
         processPendingBuzzInList()
@@ -139,14 +159,22 @@ extension GlassmorphicChatView {
 
     func scrollToBottomFromUserAction(animated: Bool = true) {
         listBottomSnapTask?.cancel()
+        searchHighlightScrollTask?.cancel()
+        navigationTargetReleaseTask?.cancel()
+        pendingSearchHighlightId = nil
+        chatListController.scrollNavigationTargetRowId = nil
         guard !viewModel.chatRenderRows.isEmpty else { return }
         pendingIncomingMessages = 0
         listIsAtBottom = false
         isPinnedToBottom = false
-        chatListController.forceScrollToBottom(animated: animated && !reduceMotion)
+        chatListController.forceScrollToBottomIgnoringNavigation(animated: animated && !reduceMotion)
     }
 
     func scheduleListBottomSnap(reason: ListBottomSnapReason, animated: Bool? = nil) {
+        if reason != .userRequested, pendingSearchHighlightId != nil {
+            ChatScrollDebug.log("scheduleListBottomSnap(\(reason)) blocked — pending highlight")
+            return
+        }
         if reason == .userRequested {
             scrollToBottomFromUserAction(animated: animated ?? true)
             return
@@ -196,6 +224,7 @@ extension GlassmorphicChatView {
         let isLastMessageMine = viewModel.messages.last?.senderId == viewModel.currentUserId
 
         if isLastMessageMine {
+            dismissUnreadDividerOnUserReply()
             if !isPinnedToBottom {
                 scheduleListBottomSnap(reason: .userRequested, animated: true)
             }
@@ -215,6 +244,18 @@ extension GlassmorphicChatView {
         highlightScrollTask = Task { @MainActor in
             defer { highlightScrollTask = nil }
 
+            isPinnedToBottom = false
+            listIsAtBottom = false
+            didReapplyFrozenScrollPosition = true
+            frozenInitialScrollTarget = .highlightedMessage(messageId: messageId)
+            let rowId = messageRowId(containingMessageId: messageId) ?? messageId
+            chatListController.scrollNavigationTargetRowId = messageId
+            ChatScrollDebug.log("single highlight nav messageId=\(messageId) rowId=\(rowId)")
+
+            if !viewModel.messages.contains(where: { $0.id == messageId }) {
+                _ = await viewModel.navigateToMessage(messageId: messageId)
+            }
+
             let delays: [UInt64] = [0, 200_000_000, 600_000_000, 1_500_000_000, 3_000_000_000]
             for delay in delays {
                 if Task.isCancelled { return }
@@ -229,6 +270,8 @@ extension GlassmorphicChatView {
                     scrollToTargetInList(.highlightedMessage(messageId: messageId), animated: !reduceMotion)
                     highlightMessages([messageId], scroll: false)
                     finishInitialOpenInList(pinsToBottom: false)
+                    frozenInitialScrollTarget = nil
+                    chatListController.scrollNavigationTargetRowId = nil
                     if let conversationId = viewModel.conversation.id {
                         ChatNavigationIntentStore.clearHighlights(for: conversationId)
                         reloadNotificationOpenIntent()
@@ -238,10 +281,7 @@ extension GlassmorphicChatView {
                 }
 
                 if !viewModel.messages.contains(where: { $0.id == messageId }) {
-                    viewModel.loadMessageForHighlightIfNeeded(messageId: messageId)
-                    if viewModel.canLoadMore, !viewModel.isLoadingMore {
-                        loadOlderHistoryIfNeeded()
-                    }
+                    _ = await viewModel.navigateToMessage(messageId: messageId)
                 }
             }
         }
@@ -330,35 +370,132 @@ extension GlassmorphicChatView {
 
     func scheduleSearchHighlightScrollInList(to messageId: String) {
         searchHighlightScrollTask?.cancel()
+        initialScrollTask?.cancel()
+        listBottomSnapTask?.cancel()
+        composerSnapTask?.cancel()
+        navigationTargetReleaseTask?.cancel()
         guard !messageId.isEmpty else { return }
+
+        ChatScrollDebug.log("scheduleSearchHighlightScroll → messageId=\(messageId)")
+
+        isPinnedToBottom = false
+        listIsAtBottom = false
+        didReapplyFrozenScrollPosition = true
+        hasCompletedInitialScroll = true
+        frozenInitialScrollTarget = .highlightedMessage(messageId: messageId)
+
+        let rowId = messageRowId(containingMessageId: messageId) ?? messageId
+        chatListController.scrollNavigationTargetRowId = messageId
+        ChatScrollDebug.log("nav target messageId=\(messageId) rowId=\(rowId)")
 
         searchHighlightScrollTask = Task { @MainActor in
             defer { searchHighlightScrollTask = nil }
-            let delays: [UInt64] = [0, 120_000_000, 350_000_000, 800_000_000, 1_600_000_000, 3_000_000_000]
+
+            let alreadyLoaded = viewModel.messages.contains(where: { $0.id == messageId })
+            ChatScrollDebug.log("message in viewModel: \(alreadyLoaded) (total=\(viewModel.messages.count))")
+
+            if !alreadyLoaded {
+                ChatScrollDebug.log("navigateToMessage starting…")
+                let loaded = await viewModel.navigateToMessage(messageId: messageId)
+                ChatScrollDebug.log("navigateToMessage finished loaded=\(loaded) messages=\(viewModel.messages.count)")
+                if Task.isCancelled { return }
+                if !loaded {
+                    ChatScrollDebug.log("navigateToMessage FAILED — giving up")
+                    pendingSearchHighlightId = nil
+                    frozenInitialScrollTarget = nil
+                    chatListController.scrollNavigationTargetRowId = nil
+                    return
+                }
+            }
+
+            let delays: [UInt64] = [0, 50_000_000, 120_000_000, 250_000_000, 500_000_000, 1_000_000_000, 2_000_000_000, 4_000_000_000]
             for delay in delays {
                 if Task.isCancelled { return }
                 if delay > 0 {
                     try? await Task.sleep(nanoseconds: delay)
                 }
-                guard pendingSearchHighlightId == messageId else { return }
-
-                if viewModel.messages.contains(where: { $0.id == messageId }) {
-                    isPinnedToBottom = false
-                    listIsAtBottom = false
-                    let rowId = messageRowId(containingMessageId: messageId) ?? messageId
-                    chatListController.scrollToRow(id: rowId, at: .centeredVertically, animated: !reduceMotion)
-                    highlightMessages([messageId], scroll: false)
-                    pendingSearchHighlightId = nil
+                guard pendingSearchHighlightId == messageId else {
+                    ChatScrollDebug.log("highlight cancelled — pending id changed")
                     return
                 }
-                viewModel.loadMessageForHighlightIfNeeded(messageId: messageId)
+
+                let ready = messageIsReadyForScroll(messageId)
+                let inMessages = viewModel.messages.contains(where: { $0.id == messageId })
+                let rowReady = messageRowIsLaidOut(messageId)
+                ChatScrollDebug.log("scroll retry ready=\(ready) inMessages=\(inMessages) rowLaidOut=\(rowReady)")
+
+                if ready {
+                    completeSearchHighlightScroll(to: messageId)
+                    return
+                }
             }
-            if pendingSearchHighlightId == messageId {
-                pendingSearchHighlightId = nil
+
+            let fallbackRowId = messageRowId(containingMessageId: messageId) ?? messageId
+            ChatScrollDebug.log("fallback scrollToRow messageId=\(messageId) rowId=\(fallbackRowId)")
+            chatListController.scrollToRow(
+                id: messageId,
+                at: .centeredVertically,
+                animated: false
+            )
+            highlightMessages([messageId], scroll: false)
+            finishInitialOpenInList(pinsToBottom: false)
+            pendingSearchHighlightId = nil
+            frozenInitialScrollTarget = nil
+            scheduleScrollNavigationTargetRelease(for: messageId)
+        }
+    }
+
+    func completeSearchHighlightScroll(to messageId: String) {
+        let rowId = messageRowId(containingMessageId: messageId) ?? messageId
+        ChatScrollDebug.log("completeSearchHighlightScroll messageId=\(messageId) rowId=\(rowId)")
+        // Sin animación: un apply de filas a mitad de la animación la cancela sin que llegue
+        // scrollViewDidEndScrollingAnimation, dejando la cola de intents y el offset a medias.
+        scrollToTargetInList(.highlightedMessage(messageId: messageId), animated: false)
+        highlightMessages([messageId], scroll: false)
+        finishInitialOpenInList(pinsToBottom: false)
+        pendingSearchHighlightId = nil
+        frozenInitialScrollTarget = nil
+        scheduleScrollNavigationTargetRelease(for: messageId)
+    }
+
+    /// El nav target bloquea los snaps al fondo de `apply(rows:)` mientras el salto se asienta.
+    /// Soltarlo en caliente dejaba que un apply posterior (llegada de la ventana de navegación)
+    /// viera `wasAtBottom` con la animación aún sin arrancar y devolviera la lista al fondo.
+    /// Antes de soltar, se re-afirma el scroll por si un reload canceló la animación a mitad.
+    func scheduleScrollNavigationTargetRelease(for messageId: String) {
+        navigationTargetReleaseTask?.cancel()
+        navigationTargetReleaseTask = Task { @MainActor in
+            defer { navigationTargetReleaseTask = nil }
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            guard !Task.isCancelled else { return }
+            guard chatListController.scrollNavigationTargetRowId == messageId else { return }
+            chatListController.scrollToRow(id: messageId, at: .centeredVertically, animated: false)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            if chatListController.scrollNavigationTargetRowId == messageId {
+                chatListController.scrollNavigationTargetRowId = nil
             }
         }
     }
 
+    /// Salto a un mensaje desde fuera del hilo (p. ej. destacados en Conversation Settings).
+    func handleJumpToMessageFromOutside(_ messageId: String) {
+        guard !messageId.isEmpty else { return }
+        ChatScrollDebug.log("handleJumpToMessageFromOutside id=\(messageId)")
+        pendingSearchHighlightId = messageId
+        scheduleSearchHighlightScrollInList(to: messageId)
+    }
+
+    /// Consumido desde el onChange del flag de settings y desde onAppear al volver al chat:
+    /// el que llegue primero se lo lleva. El delay deja terminar la animación del pop para que
+    /// el scroll no aterrice a mitad de transición.
+    func consumeDeferredJumpToMessageIfNeeded() {
+        guard let messageId = deferredJumpToMessageId else { return }
+        deferredJumpToMessageId = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            handleJumpToMessageFromOutside(messageId)
+        }
+    }
 
     var activeSearchHighlightTerm: String {
         isSearchVisible ? searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) : ""

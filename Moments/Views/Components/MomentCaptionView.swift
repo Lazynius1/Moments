@@ -134,7 +134,7 @@ struct MomentCaptionView: View {
     }
 }
 
-// MARK: - Reels (estilo IG: 2 líneas colapsado, expandido con scroll cap ~10 líneas)
+// MARK: - Reels (2 líneas colapsado, expandido con scroll cap ~10 líneas)
 
 private struct ReelsCaptionBody: View {
     let content: String

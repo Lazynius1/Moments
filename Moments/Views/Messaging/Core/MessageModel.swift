@@ -32,7 +32,10 @@ struct Conversation: Identifiable, Codable, Hashable {
     /// Timestamp del momento en que cada usuario borró la conversación (punto de corte).
     /// Los mensajes y buzz events con timestamp ≤ este valor se ocultan para ese usuario.
     var lastDeletedAt: [String: Date]?
-    /// Modo desaparecer activo en el hilo (estilo Instagram Disappearing Messages).
+    /// Última vez que cada usuario marcó la conversación como leída (server timestamp).
+    /// Mensajes entrantes con timestamp ≤ este valor cuentan como leídos para ese usuario.
+    var lastReadAt: [String: Date]?
+    /// Modo desaparecer activo en el hilo.
     var vanishModeActive: Bool?
     var vanishModeEnabledBy: String?
     var vanishModeEnabledAt: Date?
@@ -124,6 +127,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.buzzPreferences = [:]
         self.forwardingPreferences = [:]
         self.lastDeletedAt = nil
+        self.lastReadAt = nil
         self.vanishModeActive = false
         self.vanishModeEnabledBy = nil
         self.vanishModeEnabledAt = nil
@@ -154,8 +158,9 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.readReceiptPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .readReceiptPreferences) ?? [:]
         self.buzzPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .buzzPreferences) ?? [:]
         self.forwardingPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .forwardingPreferences) ?? [:]
-        // lastDeletedAt se hidrata manualmente desde Firestore (Timestamp → Date)
+        // lastDeletedAt/lastReadAt se hidratan manualmente desde Firestore (Timestamp → Date)
         self.lastDeletedAt = nil
+        self.lastReadAt = nil
         self.vanishModeActive = try container.decodeIfPresent(Bool.self, forKey: .vanishModeActive) ?? false
         self.vanishModeEnabledBy = try container.decodeIfPresent(String.self, forKey: .vanishModeEnabledBy)
         if let enabledAt = try container.decodeIfPresent(Timestamp.self, forKey: .vanishModeEnabledAt) {
@@ -257,7 +262,11 @@ struct Conversation: Identifiable, Codable, Hashable {
               let isRead = readStatus[currentUserId] else { return 0 }
         if isRead { return 0 }
         guard let id = id else { return 1 }
-        let dbCount = LocalPersistenceService.shared.unreadMessageCount(for: id, currentUserId: currentUserId)
+        let dbCount = LocalPersistenceService.shared.unreadMessageCount(
+            for: id,
+            currentUserId: currentUserId,
+            since: lastReadAt?[currentUserId]
+        )
         return dbCount > 0 ? dbCount : 1
     }
 
@@ -1478,7 +1487,7 @@ extension EnhancedMessage {
         return nil
     }
 
-    /// Etiqueta de tamaño estilo WhatsApp ("245 KB", "1,2 MB") — tamaño del fichero completo.
+    /// Etiqueta de tamaño ("245 KB", "1,2 MB") — tamaño del fichero completo.
     var formattedDownloadSize: String? {
         guard let bytes = estimatedDownloadByteCount else { return nil }
         let formatter = ByteCountFormatter()

@@ -68,6 +68,7 @@ class MessagingViewModel: ObservableObject {
         updated.forwardingPreferences = conversation.forwardingPreferences
         updated.buzzPreferences = conversation.buzzPreferences
         updated.lastDeletedAt = conversation.lastDeletedAt
+        updated.lastReadAt = conversation.lastReadAt
         updated.vanishModeActive = conversation.vanishModeActive
         updated.vanishModeEnabledBy = conversation.vanishModeEnabledBy
         updated.vanishModeEnabledAt = conversation.vanishModeEnabledAt
@@ -241,6 +242,7 @@ class MessagingViewModel: ObservableObject {
                         self.conversations[i].forwardingPreferences = existing.forwardingPreferences
                         self.conversations[i].buzzPreferences = existing.buzzPreferences
                         self.conversations[i].lastDeletedAt = existing.lastDeletedAt
+                        self.conversations[i].lastReadAt = existing.lastReadAt
                         self.conversations[i].vanishModeActive = existing.vanishModeActive
                         self.conversations[i].vanishModeEnabledBy = existing.vanishModeEnabledBy
                         self.conversations[i].vanishModeEnabledAt = existing.vanishModeEnabledAt
@@ -279,6 +281,7 @@ class MessagingViewModel: ObservableObject {
                         self.filteredConversations[i].forwardingPreferences = existing.forwardingPreferences
                         self.filteredConversations[i].buzzPreferences = existing.buzzPreferences
                         self.filteredConversations[i].lastDeletedAt = existing.lastDeletedAt
+                        self.filteredConversations[i].lastReadAt = existing.lastReadAt
                         self.filteredConversations[i].vanishModeActive = existing.vanishModeActive
                         self.filteredConversations[i].vanishModeEnabledBy = existing.vanishModeEnabledBy
                         self.filteredConversations[i].vanishModeEnabledAt = existing.vanishModeEnabledAt

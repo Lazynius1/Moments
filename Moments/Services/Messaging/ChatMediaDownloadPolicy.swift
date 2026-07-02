@@ -110,7 +110,7 @@ enum ChatMediaDownloadPolicy {
     }
 
     /// Miniaturas de preview (~KB): se permiten con cualquier policy de auto-descarga
-    /// del fichero completo (comportamiento tipo WhatsApp: blur real antes del tap).
+    /// del fichero completo (blur real antes del tap).
     static func shouldDownloadThumbnailPreview(force: Bool = false) -> Bool {
         if force { return true }
         return NetworkMonitor.shared.isConnected

@@ -126,6 +126,7 @@ class EnhancedChatViewModel: ObservableObject {
     private static let staleChatWindowSize = 6
     private static let staleChatThresholdDays = 45
     private static let historyPageSize = 50
+    private static let navigationWindowRadius = 25
     @Published private(set) var forwardingPreferences: [String: Bool] = [:]
     @Published private(set) var buzzPreferences: [String: Bool] = [:]
     @Published private(set) var vanishModeActive = false
@@ -147,6 +148,9 @@ class EnhancedChatViewModel: ObservableObject {
     /// IDs de mensajes entrantes vistos DE VERDAD en esta sesión (no por el mark-read en bloque al salir).
     /// Solo estos sellan expiración vanish `onceSeen`/timers; «visto al abrir» no debe expirar lo no leído.
     private var sessionSeenIncomingMessageIds = Set<String>()
+    // Ids marcados leídos en local cuya escritura al servidor puede no haber aterrizado aún:
+    // el eco del listener no debe revivirlos como no leídos (resucitaría el divisor).
+    private var locallyReadMessageIds = Set<String>()
     private var seenBuzzEventIds = Set<String>()
 
     @Published var conversation: Conversation
@@ -733,7 +737,7 @@ class EnhancedChatViewModel: ObservableObject {
         refreshMediaMetadataIfNeeded(for: message)
     }
 
-    /// Descarga solo la miniatura cifrada (~KB) para preview borroso tipo WhatsApp.
+    /// Descarga solo la miniatura cifrada (~KB) para preview borroso.
     func hydrateThumbnailPreviewIfNeeded(for message: EnhancedMessage) {
         guard message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil else { return }
         if let urlString = message.thumbnailUrl,
@@ -1018,6 +1022,9 @@ class EnhancedChatViewModel: ObservableObject {
 
         // 4. Preservar temporales y estados locales
         var finalMessages = preserveTemporaryMessages(sortedMessages)
+        for message in finalMessages {
+            preserveLocalReadState(into: message)
+        }
         persistDiskCachedMediaURLs(into: &finalMessages)
         commitMessagesPresentation(finalMessages)
         syncLiveReactionOverlays(from: finalMessages)
@@ -1294,6 +1301,35 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
+    private func fetchMessagesAfterFromFirestore(
+        conversationId: String,
+        after cursor: MessageSyncCursor,
+        cutoffDate: Date?,
+        limit: Int
+    ) async throws -> [EnhancedMessage] {
+        try await withCheckedThrowingContinuation { continuation in
+            chatService.fetchMessagesAfter(
+                conversationId: conversationId,
+                after: cursor,
+                cutoffDate: cutoffDate,
+                limit: limit
+            ) { result in
+                continuation.resume(with: result)
+            }
+        }
+    }
+
+    private func fetchMessageFromFirestore(
+        conversationId: String,
+        messageId: String
+    ) async throws -> EnhancedMessage? {
+        try await withCheckedThrowingContinuation { continuation in
+            chatService.fetchMessage(conversationId: conversationId, messageId: messageId) { result in
+                continuation.resume(with: result)
+            }
+        }
+    }
+
     private func initialWindowSize() -> Int {
         let days = Calendar.current.dateComponents([.day], from: conversation.timestamp, to: Date()).day ?? 0
         return days > Self.staleChatThresholdDays ? Self.staleChatWindowSize : Self.recentChatWindowSize
@@ -1302,24 +1338,151 @@ class EnhancedChatViewModel: ObservableObject {
     func loadMessageForHighlightIfNeeded(messageId: String) {
         guard !messageId.isEmpty else { return }
         guard !messages.contains(where: { $0.id == messageId }) else { return }
-        guard let conversationId = conversation.id else { return }
-        guard requestedHighlightMessageIds.insert(messageId).inserted else { return }
+        Task { @MainActor [weak self] in
+            _ = await self?.navigateToMessage(messageId: messageId)
+        }
+    }
 
-        chatService.fetchMessage(conversationId: conversationId, messageId: messageId) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                switch result {
-                case .success(let message):
-                    guard let message else { return }
-                    guard !self.messages.contains(where: { $0.id == message.id }) else { return }
-                    self.historicalMessages.append(message)
-                    self.rebuildMessagesList()
-                    LocalPersistenceService.shared.appendMessages([message], conversationId: conversationId)
-                case .failure(let error):
-                    print("Error loading highlighted message: \(error)")
+    /// Carga una ventana de historial centrada en `messageId` y reemplaza el slice visible (como
+    /// `navigateToMessage` / `ChatHistoryLocationInput` en Telegram-iOS).
+    @discardableResult
+    func navigateToMessage(messageId: String) async -> Bool {
+        guard !messageId.isEmpty else { return false }
+        if messages.contains(where: { $0.id == messageId }) {
+            ChatScrollDebug.log("navigateToMessage: already in messages")
+            return true
+        }
+        guard let conversationId = conversation.id else {
+            ChatScrollDebug.log("navigateToMessage: no conversationId")
+            return false
+        }
+        guard requestedHighlightMessageIds.insert(messageId).inserted else {
+            ChatScrollDebug.log("navigateToMessage: deduped in-flight")
+            return messages.contains(where: { $0.id == messageId })
+        }
+        defer { requestedHighlightMessageIds.remove(messageId) }
+
+        ChatScrollDebug.log("navigateToMessage: loading window for \(messageId)")
+
+        let cutoff = effectiveDeletedAtCutoff()
+        let radius = Self.navigationWindowRadius
+
+        let anchor: EnhancedMessage
+        if let cached = (historicalMessages + realTimeMessages).first(where: { $0.id == messageId }) {
+            anchor = cached
+        } else if let local = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
+            .first(where: { $0.id == messageId }) {
+            anchor = local
+        } else {
+            do {
+                guard let fetched = try await fetchMessageFromFirestore(
+                    conversationId: conversationId,
+                    messageId: messageId
+                ) else {
+                    return false
                 }
+                anchor = fetched
+                LocalPersistenceService.shared.appendMessages([fetched], conversationId: conversationId)
+            } catch {
+                print("Error loading navigation anchor message: \(error)")
+                return false
             }
         }
+
+        let cursor = MessageSyncCursor(timestamp: anchor.timestamp, messageId: anchor.id)
+        var window = mergeNavigationWindow(
+            before: LocalPersistenceService.shared.loadMessagesBefore(
+                conversationId: conversationId,
+                cursor: cursor,
+                cutoffDate: cutoff,
+                limit: radius
+            ),
+            anchor: anchor,
+            after: LocalPersistenceService.shared.loadMessagesAfter(
+                conversationId: conversationId,
+                cursor: cursor,
+                cutoffDate: cutoff,
+                limit: radius + 1
+            )
+        )
+
+        let needsRemoteWindow = window.count < radius
+            || !window.contains(where: { $0.id == messageId })
+
+        if needsRemoteWindow, NetworkMonitor.shared.isConnected {
+            do {
+                async let older = fetchOlderMessagesFromFirestore(
+                    conversationId: conversationId,
+                    before: anchor.timestamp,
+                    cutoffDate: cutoff,
+                    limit: radius
+                )
+                async let newer = fetchMessagesAfterFromFirestore(
+                    conversationId: conversationId,
+                    after: cursor,
+                    cutoffDate: cutoff,
+                    limit: radius
+                )
+                let remoteBefore = try await older
+                let remoteAfter = try await newer
+                window = mergeNavigationWindow(
+                    before: remoteBefore,
+                    anchor: anchor,
+                    after: remoteAfter
+                )
+                if !window.isEmpty {
+                    LocalPersistenceService.shared.appendMessages(window, conversationId: conversationId)
+                }
+            } catch {
+                print("Error loading navigation window: \(error)")
+            }
+        }
+
+        guard window.contains(where: { $0.id == messageId }) else {
+            ChatScrollDebug.log("navigateToMessage: window missing target (window=\(window.count))")
+            return false
+        }
+        applyMessageNavigationWindow(window)
+        let success = messages.contains(where: { $0.id == messageId })
+        ChatScrollDebug.log("navigateToMessage: applied window=\(window.count) success=\(success)")
+        return success
+    }
+
+    private func mergeNavigationWindow(
+        before: [EnhancedMessage],
+        anchor: EnhancedMessage,
+        after: [EnhancedMessage]
+    ) -> [EnhancedMessage] {
+        var seen = Set<String>()
+        var merged: [EnhancedMessage] = []
+        merged.reserveCapacity(before.count + after.count + 1)
+        for message in (before + [anchor] + after) where seen.insert(message.id).inserted {
+            merged.append(message)
+        }
+        return merged.sorted { lhs, rhs in
+            if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
+            return lhs.id < rhs.id
+        }
+    }
+
+    private func applyMessageNavigationWindow(_ window: [EnhancedMessage]) {
+        let sorted = window.sorted { lhs, rhs in
+            if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
+            return lhs.id < rhs.id
+        }
+        guard let lastInWindow = sorted.last else { return }
+
+        let windowIds = Set(sorted.map(\.id))
+        let windowEnd = MessageSyncCursor(timestamp: lastInWindow.timestamp, messageId: lastInWindow.id)
+
+        historicalMessages = sorted
+        realTimeMessages = realTimeMessages.filter { message in
+            if windowIds.contains(message.id) { return false }
+            return MessageSyncCursor(timestamp: message.timestamp, messageId: message.id).isAfter(windowEnd)
+        }
+
+        canLoadMore = sorted.count >= Self.navigationWindowRadius
+        rebuildMessagesList()
     }
 
     // ✅ NUEVA: Función para reemplazar mensaje temporal
@@ -1359,15 +1522,20 @@ class EnhancedChatViewModel: ObservableObject {
         )
 
         if conversation.readStatus[currentUserId] == true {
-            LocalPersistenceService.shared.markConversationReadLocally(
-                conversationId: conversationId,
-                currentUserId: currentUserId
-            )
-            recentMessages = recentMessages.map { message in
-                guard message.senderId != currentUserId, !message.isRead else { return message }
-                var updated = message
-                updated.isRead = true
-                return updated
+            let hasUnreadIncoming = recentMessages.contains {
+                $0.senderId != currentUserId && !$0.isRead
+            }
+            if !hasUnreadIncoming {
+                LocalPersistenceService.shared.markConversationReadLocally(
+                    conversationId: conversationId,
+                    currentUserId: currentUserId
+                )
+                recentMessages = recentMessages.map { message in
+                    guard message.senderId != currentUserId, !message.isRead else { return message }
+                    var updated = message
+                    updated.isRead = true
+                    return updated
+                }
             }
         }
 
@@ -1447,6 +1615,21 @@ class EnhancedChatViewModel: ObservableObject {
         LocalPersistenceService.shared.reconcileMessages(realTimeMessages, conversationId: conversationId)
         stampVanishExpiryIfNeeded()
         isFirstFetch = false
+    }
+
+    // `readBy` incluye al lector aunque tenga los acuses de lectura desactivados (en ese caso
+    // el servidor nunca escribe `isRead`), así que también cuenta como leído para este usuario.
+    // `lastReadAt` sanea datos antiguos: mensajes anteriores al último "leído" de la conversación
+    // cuentan como leídos aunque el doc individual quedara sin marcar.
+    private func preserveLocalReadState(into incoming: EnhancedMessage) {
+        guard !incoming.isRead, incoming.senderId != currentUserId else { return }
+        if locallyReadMessageIds.contains(incoming.id) || incoming.readBy?.contains(currentUserId) == true {
+            incoming.isRead = true
+            return
+        }
+        if let lastRead = conversation.lastReadAt?[currentUserId], incoming.timestamp <= lastRead {
+            incoming.isRead = true
+        }
     }
 
     private func preserveLocalMediaFields(from existing: EnhancedMessage?, into incoming: EnhancedMessage) {
@@ -1573,6 +1756,15 @@ class EnhancedChatViewModel: ObservableObject {
 
         typingIndicatorEnabled = resolvedTypingIndicatorPreference(for: conversationId)
         applyTypingPreference(conversationId: conversationId)
+    }
+
+    /// La sesión se cachea en ChatSessionEngine: al reutilizarla hay que traer el `lastReadAt`
+    /// fresco de la lista para que el saneado de leídos no trabaje con datos viejos.
+    func mergeConversationReadMetadata(from fresh: Conversation) {
+        guard let freshId = fresh.id, freshId == conversation.id else { return }
+        if let lastReadAt = fresh.lastReadAt, lastReadAt != conversation.lastReadAt {
+            conversation.lastReadAt = lastReadAt
+        }
     }
 
     func activateChatSession() {
@@ -2269,14 +2461,17 @@ class EnhancedChatViewModel: ObservableObject {
 
     /// - Parameter sealsVanish: si `true`, los mensajes recién marcados se consideran vistos de verdad
     ///   y sellan expiración vanish. El mark-read en bloque al salir debe pasar `false`: marca «visto»
-    ///   (paridad WhatsApp) sin expirar vanish de mensajes que el usuario no llegó a ver.
+    ///   sin expirar vanish de mensajes que el usuario no llegó a ver.
     func markVisibleConversationAsRead(sealsVanish: Bool = true) {
         guard isChatVisible else { return }
-        applyOptimisticReadLocally(sealsVanish: sealsVanish)
-        markUnreadMessagesAsRead(messages)
+        // Capturar los ids antes del optimistic-read local: EnhancedMessage es clase y el
+        // marcado local muta las mismas instancias, dejando sin nada que escribir al servidor.
+        let markedIds = applyOptimisticReadLocally(sealsVanish: sealsVanish)
+        markUnreadMessagesAsRead(messageIds: markedIds)
     }
 
-    private func applyOptimisticReadLocally(sealsVanish: Bool = true) {
+    @discardableResult
+    private func applyOptimisticReadLocally(sealsVanish: Bool = true) -> [String] {
         var didChange = false
         var markedIds: [String] = []
 
@@ -2301,12 +2496,15 @@ class EnhancedChatViewModel: ObservableObject {
             LocalPersistenceService.shared.markConversationReadLocally(conversationId: conversationId, currentUserId: currentUserId)
         }
 
-        guard didChange else { return }
+        locallyReadMessageIds.formUnion(markedIds)
+
+        guard didChange else { return markedIds }
         if sealsVanish {
             sessionSeenIncomingMessageIds.formUnion(markedIds)
             stampVanishExpiryIfNeeded(messageIds: Set(markedIds))
         }
         rebuildMessagesList()
+        return markedIds
     }
 
     private func hydrateLocallyHiddenVanishMessages(from loaded: [EnhancedMessage]) {
@@ -2317,20 +2515,15 @@ class EnhancedChatViewModel: ObservableObject {
         optimisticallyHiddenVanishIds.formUnion(hiddenIds)
     }
 
-    private func markUnreadMessagesAsRead(_ messages: [EnhancedMessage]) {
+    private func markUnreadMessagesAsRead(messageIds: [String]) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
         }
 
-        let unreadMessages = messages.filter {
-            !$0.isRead && $0.senderId != currentUserId
-        }
-
-        if unreadMessages.isEmpty {
+        if messageIds.isEmpty {
             // Si no hay mensajes individuales sin leer, de todos modos marcamos el documento de la conversación como leído (útil si se marcó como no leído manualmente).
             chatService.markConversationAsRead(conversationId: conversationId, userId: currentUserId)
         } else {
-            let messageIds = unreadMessages.map { $0.id }
             chatService.markMessagesAsRead(
                 conversationId: conversationId,
                 messageIds: messageIds,
@@ -2824,7 +3017,9 @@ class EnhancedChatViewModel: ObservableObject {
     func prepareSearchJump(to messageId: String) {
         guard !messageId.isEmpty else { return }
         guard !messages.contains(where: { $0.id == messageId }) else { return }
-        loadMessageForHighlightIfNeeded(messageId: messageId)
+        Task { @MainActor [weak self] in
+            _ = await self?.navigateToMessage(messageId: messageId)
+        }
     }
 
     private static func mergeSearchResultIds(_ ids: [String]) -> [String] {

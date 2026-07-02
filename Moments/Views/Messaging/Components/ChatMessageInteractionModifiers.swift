@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Reply swipe metrics (estilo Instagram DM)
+// MARK: - Reply swipe metrics
 
 enum ChatReplySwipeMetrics {
     static let activationDistance: CGFloat = 84
@@ -73,7 +73,7 @@ struct ChatReplySwipeIndicator: View {
     }
 }
 
-/// Contenedor: burbuja se desliza; el indicador queda fijo en el hueco (estilo Instagram).
+/// Contenedor: burbuja se desliza; el indicador queda fijo en el hueco.
 struct ChatBubbleReplySwipeContainer<Content: View>: View {
     @Binding var dragOffset: CGFloat
     @Binding var hasTriggeredHaptic: Bool

@@ -1,7 +1,7 @@
 import SwiftUI
 import Kingfisher
 
-// MARK: - Story grid estilo Instagram (edge-to-edge, 9:16, fecha grande, duración vídeo)
+// MARK: - Story grid (edge-to-edge, 9:16, fecha grande, duración vídeo)
 
 struct HighlightStoryGrid: View {
     let stories: [Story]

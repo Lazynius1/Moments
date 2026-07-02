@@ -16,9 +16,14 @@ extension GlassmorphicChatView {
                    viewModel.isLoadingOlderHistory,
                    !isPinnedToBottom {
                     ChatHistoryLoadingIndicator(adaptiveColors: adaptiveColors)
-                        .padding(.top, 8)
+                        .padding(.top, 10)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.86),
+                value: viewModel.isLoadingOlderHistory
+            )
     }
 
     var listRows: [ChatRenderRow] {
@@ -95,13 +100,19 @@ extension GlassmorphicChatView {
                 deferListStateUpdate {
                     if count == 0 {
                         pendingIncomingMessages = 0
+                        let previousDividerId = unreadDividerMessageId
                         unreadDividerMessageId = nil
+                        reconfigureUnreadDividerRow(for: previousDividerId)
                         if !hasCompletedInitialScroll {
                             reconcileScrollStateForCurrentConversation()
                             routeInitialScrollInList()
                         }
-                    } else if hasCompletedInitialScroll, !isPinnedToBottom {
+                    } else if hasCompletedInitialScroll {
                         pendingIncomingMessages = count
+                        if unreadDividerMessageId == nil {
+                            unreadDividerInitialized = false
+                            initializeUnreadDividerIfNeeded()
+                        }
                     }
                 }
             }
@@ -127,12 +138,14 @@ extension GlassmorphicChatView {
             .onChange(of: pendingReplyScrollMessageId) { _, messageId in
                 guard let messageId else { return }
                 pendingReplyScrollMessageId = nil
-                jumpToMessageInList(messageId)
+                pendingSearchHighlightId = messageId
+                scheduleSearchHighlightScrollInList(to: messageId)
             }
             .onChange(of: pendingScrollMessageId) { _, messageId in
                 guard let messageId else { return }
                 pendingScrollMessageId = nil
-                jumpToMessageInList(messageId)
+                pendingSearchHighlightId = messageId
+                scheduleSearchHighlightScrollInList(to: messageId)
             }
             .onChange(of: pendingPinnedBottomSnap) { _, shouldSnap in
                 guard shouldSnap else { return }
@@ -254,25 +267,21 @@ extension GlassmorphicChatView {
 
     func handleListAtBottomChange(_ atBottom: Bool) {
         isPinnedToBottom = atBottom
-        if atBottom {
-            pendingIncomingMessages = 0
-            if hasCompletedInitialScroll {
-                clearUnreadDividerAndMarkReadIfNeeded()
-            }
-        }
     }
 
     func handleListRowsChange() {
         scrollContentExceedsViewport = chatListController.contentExceedsViewport
         initializeUnreadDividerIfNeeded()
-        if !hasUnreadIncomingMessages() {
-            unreadDividerMessageId = nil
-        }
         if !isPinnedToBottom {
             pendingIncomingMessages = unreadIncomingMessageCount()
         }
         if isSearchVisible, !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             syncSearchMatchesFromViewModel()
+        }
+        if let highlightId = pendingSearchHighlightId,
+           messageIsReadyForScroll(highlightId) {
+            completeSearchHighlightScroll(to: highlightId)
+            return
         }
         if !hasCompletedInitialScroll || pendingInitialScrollRoute {
             routeInitialScrollInList()

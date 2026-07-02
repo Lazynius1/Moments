@@ -25,6 +25,7 @@ final class ChatSessionEngine: ObservableObject {
         conversationById[conversationId] = conversation
 
         if let existing = sessions[conversationId] {
+            existing.mergeConversationReadMetadata(from: conversation)
             return existing
         }
 

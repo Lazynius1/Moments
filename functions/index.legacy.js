@@ -5872,7 +5872,7 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
       //  - Solo embebemos el ciphertext (fast-path) si el payload total queda bajo un
       //    margen seguro. Si no cabe, lo omitimos y el NSE resuelve el texto haciendo
       //    fetch del mensaje (conversationId + messageId) y descifrando en el dispositivo.
-      // view-once nunca expone media en la notificación (privacidad, igual que WhatsApp).
+      // view-once nunca expone media en la notificación (privacidad).
       const isViewOnceMessage = message.type === 'viewOnceImage'
         || message.type === 'viewOnceVideo'
         || message.type === 'ephemeral';
@@ -11485,7 +11485,7 @@ exports.cleanupIncompleteAuthAccounts = onSchedule(
 //      thumbnails…) — tanto los referenciados en los mensajes como cualquier
 //      archivo huérfano que esté en el directorio de Storage de cada participante.
 //   3. El documento de la conversación.
-// Esto replica el comportamiento de WhatsApp/Instagram.
+// Limpieza de datos de cuenta al eliminar usuario.
 // ─────────────────────────────────────────────────────────────────────────────
 exports.cleanupDeletedConversation = onDocumentWritten(
   {

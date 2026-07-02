@@ -97,7 +97,7 @@ extension View {
         }
     }
 
-    /// Efecto Instagram: la celda origen queda vacía mientras el hero sale y vuelve al cerrar.
+    /// La celda origen queda vacía mientras el hero sale y vuelve al cerrar.
     func profileGridLiftedSource(moment: Moment, gridIndex: Int) -> some View {
         modifier(ProfileGridLiftedSourceModifier(moment: moment, gridIndex: gridIndex))
     }
@@ -174,7 +174,7 @@ enum ProfileGridHeroLayout {
     /// Máximo width/height → landscape (16:9)
     static let peekMaxWidthOverHeight: CGFloat = 16.0 / 9.0
 
-    // Lift IG (vídeo ref. ~0.52s abrir / ~0.36s cerrar): smooth, sin rebote.
+    // Lift (vídeo ref. ~0.52s abrir / ~0.36s cerrar): smooth, sin rebote.
     static let peekLiftAnimation = Animation.smooth(duration: 0.46, extraBounce: 0)
     static let peekDismissAnimation = Animation.smooth(duration: 0.31, extraBounce: 0)
     static let peekSpring = peekLiftAnimation
@@ -187,12 +187,12 @@ enum ProfileGridHeroLayout {
     static let retractPeekSplit: CGFloat = 0.34
     static let retractFadeStart: CGFloat = 0.74
 
-    /// IG: el hueco aparece en los primeros ~14% del lift; al cerrar vuelve en el tramo final.
+    /// El hueco aparece en los primeros ~14% del lift; al cerrar vuelve en el tramo final.
     static func liftedSourceThumbnailOpacity(peekProgress: CGFloat) -> CGFloat {
         ProfileGridHeroMotion.smoothstep(1 - min(1, peekProgress / 0.14))
     }
 
-    /// IG: crece anclado en la celda, luego flota al centro (no lerp lineal único).
+    /// Crece anclado en la celda, luego flota al centro (no lerp lineal único).
     static func peekHeroFrame(origin: CGRect, destination: CGRect, progress: CGFloat) -> CGRect {
         let growT = ProfileGridHeroMotion.smoothstep(min(1, progress / 0.50))
         let moveT = ProfileGridHeroMotion.smoothstep(
@@ -416,7 +416,7 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
         }
     }
 
-    /// Footer/info: entra tarde, cuando el media ya creció (IG muestra foto antes que chrome).
+    /// Footer/info: entra tarde, cuando el media ya creció.
     var heroChromeRevealOpacity: CGFloat {
         switch phase {
         case .menuPeek:

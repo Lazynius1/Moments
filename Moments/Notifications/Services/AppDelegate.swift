@@ -17,7 +17,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         UNUserNotificationCenter.current().delegate = self
 
         // ✅ Registrar la categoría de respuesta rápida (campo de texto al hacer
-        // long-press en la notificación de mensaje, estilo WhatsApp/Instagram).
+        // long-press en la notificación de mensaje).
         UNUserNotificationCenter.current().setNotificationCategories([
             ChatNotificationReply.makeCategory()
         ])

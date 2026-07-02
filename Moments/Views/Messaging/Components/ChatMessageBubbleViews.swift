@@ -118,7 +118,7 @@ struct GlassmorphicMessageRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
 
-                // Instagram-style reveal timestamp
+                // Reveal timestamp al deslizar
                 MessageTimestamp(
                     message: message,
                     isCurrentUser: isCurrentUser,

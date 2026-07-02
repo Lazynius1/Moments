@@ -240,7 +240,7 @@ const cleanupIncompleteAuthAccounts = onSchedule(
 //      thumbnails…) — tanto los referenciados en los mensajes como cualquier
 //      archivo huérfano que esté en el directorio de Storage de cada participante.
 //   3. El documento de la conversación.
-// Esto replica el comportamiento de WhatsApp/Instagram.
+// Limpieza de datos de cuenta al eliminar usuario.
 // ─────────────────────────────────────────────────────────────────────────────
 const cleanupDeletedConversation = onDocumentWritten(
   {

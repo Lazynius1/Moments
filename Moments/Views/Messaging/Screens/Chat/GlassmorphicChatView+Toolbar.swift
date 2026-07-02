@@ -48,7 +48,7 @@ extension GlassmorphicChatView {
             .frame(maxWidth: .infinity)
     }
 
-    /// Fila completa del header en modo búsqueda: pill glass + botón X circular (Telegram master).
+    /// Fila completa del header en modo búsqueda: pill glass + botón X circular.
     var chatHeaderSearchBar: some View {
         HStack(spacing: 8) {
             chatHeaderSearchField

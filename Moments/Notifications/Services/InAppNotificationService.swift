@@ -95,6 +95,10 @@ class InAppNotificationService: ObservableObject {
             showBanner = false
         }
         dismissTimer?.cancel()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self, !self.showBanner else { return }
+            self.currentNotification = nil
+        }
     }
 
     func pauseDismissTimer() {

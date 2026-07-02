@@ -235,7 +235,7 @@ enum ChatVoiceWaveformGenerator {
     }
 }
 
-// MARK: - Single active voice playback (como WhatsApp / Instagram)
+// MARK: - Single active voice playback
 
 @MainActor
 final class ChatAudioPlaybackCenter {

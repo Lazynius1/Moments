@@ -512,7 +512,7 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
       //  - Solo embebemos el ciphertext (fast-path) si el payload total queda bajo un
       //    margen seguro. Si no cabe, lo omitimos y el NSE resuelve el texto haciendo
       //    fetch del mensaje (conversationId + messageId) y descifrando en el dispositivo.
-      // view-once nunca expone media en la notificación (privacidad, igual que WhatsApp):
+      // view-once nunca expone media en la notificación (privacidad):
       // solo el texto genérico ("📷 Foto"). Vanish mode: mismo tratamiento que previews off.
       const isViewOnceMessage = message.type === 'viewOnceImage'
         || message.type === 'viewOnceVideo'

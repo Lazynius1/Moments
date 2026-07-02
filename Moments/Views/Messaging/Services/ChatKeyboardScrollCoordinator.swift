@@ -1,7 +1,7 @@
 import Combine
 import UIKit
 
-/// Observa el ciclo de vida del teclado para sincronizar scroll del chat (paridad WhatsApp/iMessage).
+/// Observa el ciclo de vida del teclado para sincronizar scroll del chat.
 final class ChatKeyboardScrollCoordinator: NSObject, ObservableObject {
     @Published private(set) var keyboardHeight: CGFloat = 0
     @Published private(set) var isVisible = false

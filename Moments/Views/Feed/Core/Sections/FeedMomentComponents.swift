@@ -258,7 +258,7 @@ struct ModernPostCardView: View {
             // ✅ Guardar el ratio REAL para el long press reveal
             _realAspectRatio = State(initialValue: safeRatio)
 
-            // ✅ REGLA INSTAGRAM: Todo contenido más vertical que 4:5 se cropea en el feed.
+            // Todo contenido más vertical que 4:5 se cropea en el feed.
             // Vídeos se ven completos al hacer tap (Reels viewer).
             let displayRatio: CGFloat
             if safeRatio < 0.8 {
@@ -670,7 +670,7 @@ struct ModernPostCardView: View {
             let aspectRatioFromDB = ProcessedMedia.AspectRatio(from: savedAspectRatio)
             let expectedRatioValue = aspectRatioFromDB.value
 
-            // ✅ REGLA INSTAGRAM: Todo contenido más vertical que 4:5 se cropea
+            // Todo contenido más vertical que 4:5 se cropea
             let displayRatio: CGFloat
             if expectedRatioValue < 0.8 && expectedRatioValue > 0 {
                 displayRatio = 0.8
@@ -1010,7 +1010,7 @@ struct ModernPostCardView: View {
 }
 // ✅ COMPONENTES AUXILIARES (reusables)
 
-// Enhanced Carousel View — ScrollView paging (estilo Instagram, sin lazy-swap ni TabView)
+// Enhanced Carousel View — ScrollView paging (sin lazy-swap ni TabView)
 struct EnhancedCarouselView: View {
     let mediaItems: [MediaItem]
     @Binding var currentIndex: Int

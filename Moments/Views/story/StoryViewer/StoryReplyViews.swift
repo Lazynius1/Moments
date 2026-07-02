@@ -13,7 +13,7 @@ import SwiftData
 // MARK: - Story reply preview (DM)
 
 private enum StoryReplyPreviewMetrics {
-    /// Miniatura vertical tipo IG (más alta que antes).
+    /// Miniatura vertical (más alta que antes).
     static let width: CGFloat = 76
     static let height: CGFloat = 118
     static let cornerRadius: CGFloat = 14
@@ -159,7 +159,7 @@ struct StoryTextReplyContent: View {
     }
 }
 
-// MARK: - Acceso a preview (tipo Instagram: autor sí, resto si sigue activa)
+// MARK: - Acceso a preview (autor sí, resto si sigue activa)
 
 struct StoryReplyGatedThumbnailView: View {
     let storyReplyData: [String: String]

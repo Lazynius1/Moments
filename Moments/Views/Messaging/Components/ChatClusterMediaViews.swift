@@ -1114,7 +1114,7 @@ struct ClusterGalleryView<Detail: View>: View {
             return
         }
 
-        // WhatsApp: solo descargar; el usuario vuelve a pulsar cuando esté listo.
+        // Solo descargar; el usuario vuelve a pulsar cuando esté listo.
         onOpenMedia?(message) { _ in }
     }
 

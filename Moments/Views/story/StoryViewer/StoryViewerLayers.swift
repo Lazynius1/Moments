@@ -23,7 +23,7 @@ struct StorySegmentProgressChrome: View {
     }
 }
 
-// MARK: - Floating reaction burst (estilo IG, sin doble tap)
+// MARK: - Floating reaction burst (sin doble tap)
 
 /// Capa de reacciones flotantes aislada del chrome de stories.
 struct StoryFloatingReactionLayer: View {

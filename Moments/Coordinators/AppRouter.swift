@@ -64,11 +64,16 @@ extension AppRouter {
         guard let destination = pending else { return }
 
         switch destination {
-        case .moment(let momentId, _):
+        case .moment(let momentId, let authorId):
             context.selectedTab.wrappedValue = 0
+            var userInfo: [String: Any] = [:]
+            if !authorId.isEmpty {
+                userInfo["userId"] = authorId
+            }
             NotificationCenter.default.post(
                 name: NSNotification.Name("NavigateToMoment"),
-                object: momentId
+                object: momentId,
+                userInfo: userInfo.isEmpty ? nil : userInfo
             )
 
         case .profile(let userId):
@@ -108,7 +113,8 @@ extension AppRouter {
             )
 
         case .notifications(let filter):
-            context.selectedTab.wrappedValue = 4
+            context.selectedTab.wrappedValue = 0
+            NotificationOpenIntentStore.enqueue(filter: filter)
             NotificationCenter.default.post(
                 name: NSNotification.Name("NavigateToNotifications"),
                 object: filter

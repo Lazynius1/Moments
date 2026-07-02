@@ -5,12 +5,16 @@ import FirebaseAuth
 
 struct InAppBannerView: View {
     @ObservedObject var service = InAppNotificationService.shared
-    @StateObject private var navigationService = NotificationNavigationService.shared
+    @ObservedObject private var navigationService = NotificationNavigationService.shared
     @Environment(\.colorScheme) var colorScheme
     @GestureState private var dragOffset = CGSize.zero
     @State private var isQuickReplyExpanded = false
     @State private var suppressTapUntil: Date = .distantPast
     @State private var contentPreviewImage: String?
+
+    private var isBannerInteractive: Bool {
+        service.showBanner
+    }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -26,10 +30,11 @@ struct InAppBannerView: View {
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
-                .zIndex(2000)
                 .padding(.top, 10)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .top)
+        .allowsHitTesting(isBannerInteractive)
         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: service.showBanner)
         .animation(.spring(response: 0.35, dampingFraction: 0.82), value: isQuickReplyExpanded)
         .onChange(of: service.showBanner) { _, isVisible in
@@ -301,38 +306,15 @@ struct InAppBannerView: View {
         collapseQuickReply()
         service.dismissManually()
 
-        if isSystemBanner(notification) {
-            if notification.type == .mediaModeration, let momentId = notification.momentId {
-                navigationService.navigateToMoment(momentId: momentId, userId: notification.senderId)
-            }
-            return
+        // Navegar en el siguiente ciclo del run loop: el overlay deja de interceptar toques
+        // en cuanto showBanner pasa a false (allowsHitTesting).
+        DispatchQueue.main.async {
+            self.routeBannerTap(notification)
         }
+    }
 
+    private func routeBannerTap(_ notification: Notification) {
         switch notification.type {
-        case .comment, .like, .reaction, .photoTag:
-            if let momentId = notification.momentId {
-                navigationService.navigateToMoment(momentId: momentId, userId: momentAuthorId(for: notification))
-            }
-        case .mention:
-            if let storyId = notification.storyId {
-                navigationService.navigateToStory(storyId: storyId, authorId: storyAuthorId(for: notification))
-            } else if let momentId = notification.momentId {
-                navigationService.navigateToMoment(momentId: momentId, userId: momentAuthorId(for: notification))
-            }
-        case .newFollower, .mutualConnection:
-            navigationService.navigateToProfile(userId: notification.senderId)
-        case .followRequest, .requestAccepted:
-            navigationService.navigateToNotifications(filter: "requests")
-        case .storyReaction:
-            if let storyId = notification.storyId {
-                navigationService.navigateToStory(storyId: storyId, authorId: storyAuthorId(for: notification))
-            }
-        case .storyChainContinued:
-            if let chainId = notification.chainId {
-                AppRouter.shared.navigate(to: .storyChain(chainId: chainId, title: notification.chainTitle ?? ""))
-            } else if let storyId = notification.storyId {
-                navigationService.navigateToStory(storyId: storyId, authorId: storyAuthorId(for: notification))
-            }
         case .message:
             if let conversationId = notification.conversationId {
                 navigationService.navigateToConversation(conversationId: conversationId)
@@ -349,20 +331,31 @@ struct InAppBannerView: View {
                 ChatNavigationIntentStore.enqueueBuzz(conversationId: conversationId, buzzEventId: notification.buzzEventId)
                 navigationService.navigateToConversation(conversationId: conversationId)
             }
-        case .gentleReminder:
-            AppRouter.shared.navigate(to: .creator)
         case .dataExportReady:
             if let rawUrl = notification.downloadURL,
                let url = URL(string: rawUrl),
                UIApplication.shared.canOpenURL(url) {
                 UIApplication.shared.open(url)
             }
-        case .echoSuggestion:
-            if let echoId = notification.echoId {
-                AppRouter.shared.navigate(to: .echoSuggestion(echoId: echoId))
-            }
         default:
-            break
+            navigationService.navigateToNotifications(filter: notificationsFilter(for: notification.type))
+        }
+    }
+
+    private func notificationsFilter(for type: NotificationType) -> String? {
+        switch type {
+        case .followRequest, .requestAccepted:
+            return "requests"
+        case .reaction:
+            return "reactions"
+        case .comment:
+            return "comments"
+        case .storyReaction:
+            return "stories"
+        case .newFollower, .mutualConnection:
+            return "follows"
+        default:
+            return nil
         }
     }
 
@@ -374,10 +367,6 @@ struct InAppBannerView: View {
                 ?? notification.senderId
         }
         return notification.storyAuthorId ?? notification.targetAuthorId ?? notification.senderId
-    }
-
-    private func momentAuthorId(for notification: Notification) -> String {
-        notification.targetAuthorId ?? Auth.auth().currentUser?.uid ?? notification.senderId
     }
 
     private func colorFor(_ type: NotificationType) -> Color {

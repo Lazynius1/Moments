@@ -513,7 +513,7 @@ extension GlassmorphicChatView {
     }
 
     func restoreScrollUIState() {
-        // Apertura fresca: Telegram abre al fondo (o al primer no leído), no restaura offset de sesiones anteriores.
+        // Apertura fresca: al fondo (o al primer no leído), sin restaurar offset de sesiones anteriores.
         // `didHydrateScrollStateOnce` evita que un segundo `onAppear` (p. ej. cerrar un sheet) relance el routing.
         guard !didHydrateScrollStateOnce else { return }
         didHydrateScrollStateOnce = true
@@ -521,6 +521,9 @@ extension GlassmorphicChatView {
         didReapplyFrozenScrollPosition = false
         frozenInitialScrollTarget = nil
         pendingInitialScrollRoute = false
+        unreadDividerMessageId = nil
+        unreadDividerCount = 0
+        unreadDividerInitialized = false
         isPinnedToBottom = true
         listIsAtBottom = true
     }
@@ -538,10 +541,26 @@ extension GlassmorphicChatView {
     }
 
     func clearUnreadDividerAndMarkReadIfNeeded(sealsVanish: Bool = true) {
+        let previousDividerId = unreadDividerMessageId
         unreadDividerMessageId = nil
         unreadDividerInitialized = true
         pendingIncomingMessages = 0
         viewModel.markVisibleConversationAsRead(sealsVanish: sealsVanish)
+        reconfigureUnreadDividerRow(for: previousDividerId)
+    }
+
+    /// Estilo WhatsApp: el divisor desaparece al responder, no al llegar al fondo.
+    func dismissUnreadDividerOnUserReply() {
+        guard unreadDividerMessageId != nil || hasUnreadIncomingMessages() else { return }
+        ChatScrollDebug.log("unread divider dismissed — user replied")
+        clearUnreadDividerAndMarkReadIfNeeded(sealsVanish: false)
+    }
+
+    /// Marca leído al salir del hilo (estilo WhatsApp: no depende de llegar al fondo).
+    func markConversationReadOnExit(sealsVanish: Bool = false) {
+        guard unreadDividerMessageId != nil || hasUnreadIncomingMessages() else { return }
+        ChatScrollDebug.log("markConversationReadOnExit sealsVanish=\(sealsVanish)")
+        clearUnreadDividerAndMarkReadIfNeeded(sealsVanish: sealsVanish)
     }
 
     func shouldOpenAtBottom() -> Bool {
@@ -552,6 +571,7 @@ extension GlassmorphicChatView {
         restoreScrollUIState()
         reloadNotificationOpenIntent()
         reconcileScrollStateForCurrentConversation()
+        consumeDeferredJumpToMessageIfNeeded()
 
         if let intent = notificationOpenIntent, !intent.highlightMessageIds.isEmpty {
             hasCompletedInitialScroll = false
@@ -582,13 +602,19 @@ extension GlassmorphicChatView {
 
     // ✅ REFACTORIZADO: Acciones al desaparecer
     func onDisappearActions() {
-        // Al salir marcamos «visto» (paridad WhatsApp) pero NO sellamos expiración vanish:
-        // eso lo hace handleChatDismissedForVanishMode solo para lo visto de verdad.
-        clearUnreadDividerAndMarkReadIfNeeded(sealsVanish: false)
+        // Empujar Settings/Perfil no es salir del chat: conservar scroll y sesión activa.
+        if showingConversationSettings || showingUserProfile {
+            return
+        }
+
+        // Al salir del hilo marcamos leído (estilo WhatsApp); no al llegar al fondo.
+        markConversationReadOnExit(sealsVanish: false)
         initialScrollTask?.cancel()
         initialScrollTask = nil
         highlightScrollTask?.cancel()
         highlightScrollTask = nil
+        navigationTargetReleaseTask?.cancel()
+        navigationTargetReleaseTask = nil
         listBottomSnapTask?.cancel()
         listBottomSnapTask = nil
         composerSnapTask?.cancel()

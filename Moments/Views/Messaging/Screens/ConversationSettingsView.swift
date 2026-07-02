@@ -16,6 +16,7 @@ struct ConversationSettingsView: View {
     @State private var otherUserLastSeen: Date?
     @State private var statusListener: ListenerRegistration?
     @State private var liveOtherParticipantUsername: String = ""
+    @State private var pendingJumpMessageId: String? = nil
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -69,17 +70,21 @@ struct ConversationSettingsView: View {
         .onDisappear {
             statusListener?.remove()
         }
-        .sheet(isPresented: $viewModel.showStarredMessages) {
+        .sheet(isPresented: $viewModel.showStarredMessages, onDismiss: {
+            // Pop diferido: si se hace dismiss() con el sheet aún animando, SwiftUI ignora el pop
+            // y el salto al mensaje nunca llega al chat.
+            guard let messageId = pendingJumpMessageId else { return }
+            pendingJumpMessageId = nil
+            onJumpToMessage?(messageId)
+            dismiss()
+        }) {
             ConversationStarredMessagesView(
                 messages: viewModel.starredMessages,
                 currentUserId: viewModel.currentUserId,
                 otherParticipantName: otherParticipantDisplayName,
                 onSelect: { messageId in
+                    pendingJumpMessageId = messageId
                     viewModel.showStarredMessages = false
-                    dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        onJumpToMessage?(messageId)
-                    }
                 }
             )
             .presentationDetents([.medium, .large])

@@ -64,7 +64,7 @@ struct EnhancedNotificationRow: View {
             
             trailingContent
 
-            // Indicador de no leído (estilo IG): punto de acento mientras la notificación esté pendiente.
+            // Indicador de no leído: punto de acento mientras la notificación esté pendiente.
             if group.isUnread {
                 Circle()
                     .fill(colorScheme == .dark ? Color.white : Color.black)
@@ -140,7 +140,7 @@ struct EnhancedNotificationRow: View {
         uniqueSenderIds(in: group)
     }
 
-    /// Dos caras si hay 2 actores; con 3+ solo la más reciente (estilo Instagram).
+    /// Dos caras si hay 2 actores; con 3+ solo la más reciente.
     var displaySenderIds: [String] {
         let ids = uniqueSenderIdList
         if ids.count >= 3 {

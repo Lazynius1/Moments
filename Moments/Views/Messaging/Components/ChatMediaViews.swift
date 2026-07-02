@@ -19,7 +19,7 @@ struct ChatMediaResolvingPlaceholder: View {
     }
 }
 
-/// Overlay centrado estilo WhatsApp: flecha + tamaño del fichero completo.
+/// Overlay centrado: flecha + tamaño del fichero completo.
 struct ChatMediaDownloadOverlay: View {
     let sizeLabel: String?
 

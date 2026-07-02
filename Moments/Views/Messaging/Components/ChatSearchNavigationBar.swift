@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Barra de búsqueda a ancho completo (equivalente a `ChatSearchNavigationContentNode` en Telegram-iOS).
+/// Barra de búsqueda a ancho completo.
 struct ChatSearchNavigationBar: View {
     @Binding var text: String
     var focused: FocusState<Bool>.Binding

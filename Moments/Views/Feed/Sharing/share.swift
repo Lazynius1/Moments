@@ -1119,7 +1119,7 @@ enum SharedDMMediaCardMetrics {
     static let cornerRadius: CGFloat = 12
 }
 
-// MARK: - Tarjeta estilo Instagram (cabecera arriba · media limpia · caption debajo)
+// MARK: - Tarjeta compartida (cabecera arriba · media limpia · caption debajo)
 
 enum SharedDMPostCardMetrics {
     static let width: CGFloat = 248
@@ -1140,7 +1140,7 @@ func parseSharedAspectRatio(_ raw: String?) -> CGFloat {
     return 1.0
 }
 
-/// Tarjeta de POST compartido estilo Instagram Direct: contenedor gris, cabecera
+/// Tarjeta de POST compartido: contenedor gris, cabecera
 /// con autor arriba, la media respetando su proporción, y el caption ("usuario
 /// texto") debajo.
 struct SharedDMPostCard<Media: View>: View {

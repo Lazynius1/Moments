@@ -30,7 +30,7 @@ class HapticManager {
         notificationFeedback.prepare()
     }
 
-    /// Tick háptico continuo durante pull de vanish (estilo IG).
+    /// Tick háptico continuo durante pull de vanish.
     func vanishPullStep() {
         selectionFeedback.selectionChanged()
         selectionFeedback.prepare()

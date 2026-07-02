@@ -81,7 +81,9 @@ struct GlassmorphicChatView: View {
     @State var currentSearchMatchIndex: Int = 0
     @State var pendingSearchTargetId: String? = nil
     @State var pendingSearchHighlightId: String? = nil
+    @State var deferredJumpToMessageId: String? = nil
     @State var searchHighlightScrollTask: Task<Void, Never>? = nil
+    @State var navigationTargetReleaseTask: Task<Void, Never>? = nil
     @State var timestampRevealOffset: CGFloat = 0
     @State var pendingScrollMessageId: String? = nil
     @State var buzzShakeProgress: CGFloat = 1
@@ -213,7 +215,7 @@ struct GlassmorphicChatView: View {
         let conversationId = conversation.id ?? ""
         _session = ObservedObject(wrappedValue: resolved)
         _messageText = State(initialValue: ChatDraftStore.shared.draft(for: conversationId))
-        // Paridad Instagram: cada apertura arranca fresca y va al fondo (no se restaura posición).
+        // Cada apertura arranca fresca y va al fondo (no se restaura posición).
         _hasCompletedInitialScroll = State(initialValue: false)
         _isPinnedToBottom = State(initialValue: true)
         _didReapplyFrozenScrollPosition = State(initialValue: false)
@@ -315,7 +317,7 @@ struct GlassmorphicChatView: View {
                 ConversationSettingsView(
                     conversation: viewModel.conversation,
                     onJumpToMessage: { messageId in
-                        pendingSearchTargetId = messageId
+                        deferredJumpToMessageId = messageId
                     }
                 )
                 .toolbar(.hidden, for: .tabBar)
@@ -324,6 +326,7 @@ struct GlassmorphicChatView: View {
                 if !isShowing {
                     viewModel.refreshTypingIndicatorPreference()
                     viewModel.refreshForwardingPreference()
+                    consumeDeferredJumpToMessageIfNeeded()
                 }
             }
             .navigationDestination(isPresented: $showingUserProfile) {
@@ -431,9 +434,6 @@ struct GlassmorphicChatView: View {
             }
             .onChange(of: viewModel.messages.map(\.id)) { _, _ in
                 initializeUnreadDividerIfNeeded()
-                if !hasUnreadIncomingMessages() {
-                    unreadDividerMessageId = nil
-                }
                 if isSearchVisible && !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     syncSearchMatchesFromViewModel()
                 }

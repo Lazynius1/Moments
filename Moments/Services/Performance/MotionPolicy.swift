@@ -55,7 +55,7 @@ enum MotionPolicy {
         }
     }
 
-    /// Presets de spring alineados con micro-interacciones tipo Instagram.
+    /// Presets de spring alineados con micro-interacciones de la app.
     enum Spring {
         static var press: Animation { .spring(response: 0.28, dampingFraction: 0.72) }
         static var toggle: Animation { .spring(response: 0.32, dampingFraction: 0.78) }

@@ -617,7 +617,7 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
     }
 }
 
-// MARK: - Instagram-style underline tab bar
+// MARK: - Underline tab bar
 
 struct SocialConnectionUnderlineTabBar: View {
     let tabItems: [SocialConnectionTabItem]

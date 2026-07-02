@@ -10,7 +10,7 @@ struct ChatMessage: Identifiable, Equatable {
     let isUser: Bool
     let timestamp: Date
     let isHistorical: Bool // ✅ NUEVO: Flag para mensajes históricos
-    let isSystem: Bool // ✅ NUEVO: Flag para mensajes del sistema (como WhatsApp)
+    let isSystem: Bool // Flag para mensajes del sistema
 
     init(
         id: UUID = UUID(),

@@ -1434,17 +1434,46 @@ class FirestoreService: ObservableObject {
 
 
 
-    func fetchMomentAuthorId(momentId: String, completion: @escaping (String?) -> Void) {
-        db.collectionGroup("moments")
-            .whereField(FieldPath.documentID(), isEqualTo: momentId)
-            .limit(to: 1)
-            .getDocuments { snapshot, _ in
-                guard let document = snapshot?.documents.first,
-                      let moment = try? document.data(as: Moment.self) else {
-                    completion(nil)
+    func fetchMomentAuthorId(momentId: String, preferredUserId: String? = nil, completion: @escaping (String?) -> Void) {
+        var candidateUserIds: [String] = []
+        if let preferredUserId, !preferredUserId.isEmpty {
+            candidateUserIds.append(preferredUserId)
+        }
+        if let currentUserId = Auth.auth().currentUser?.uid, !currentUserId.isEmpty {
+            candidateUserIds.append(currentUserId)
+        }
+        let uniqueUserIds = Array(Set(candidateUserIds))
+        resolveMomentAuthorId(momentId: momentId, candidateUserIds: uniqueUserIds, index: 0, completion: completion)
+    }
+
+    private func resolveMomentAuthorId(
+        momentId: String,
+        candidateUserIds: [String],
+        index: Int,
+        completion: @escaping (String?) -> Void
+    ) {
+        guard index < candidateUserIds.count else {
+            completion(nil)
+            return
+        }
+
+        let userId = candidateUserIds[index]
+        db.collection("users")
+            .document(userId)
+            .collection("moments")
+            .document(momentId)
+            .getDocument { [weak self] snapshot, _ in
+                if let snapshot, snapshot.exists,
+                   let moment = try? snapshot.data(as: Moment.self) {
+                    completion(moment.authorId)
                     return
                 }
-                completion(moment.authorId)
+                self?.resolveMomentAuthorId(
+                    momentId: momentId,
+                    candidateUserIds: candidateUserIds,
+                    index: index + 1,
+                    completion: completion
+                )
             }
     }
 

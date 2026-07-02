@@ -63,7 +63,7 @@ enum ChatCacheStore {
     }
 
     /// Re-enlaza rutas `file://` si el fichero sigue en App Group (p. ej. tras reiniciar la app).
-    /// Firestore no persiste URLs locales; WhatsApp guarda la ruta en SQLite — nosotros la derivamos del disco.
+    /// Firestore no persiste URLs locales; la ruta local se deriva del disco.
     static func localURLsIfPresent(for message: EnhancedMessage) -> (mediaUrl: String?, thumbnailUrl: String?) {
         guard !message.isDeleted else { return (nil, nil) }
 
