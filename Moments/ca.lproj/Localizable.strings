@@ -261,6 +261,25 @@
 "creator.files.selected" = "arxiu(s) seleccionat(s)";
 "creator.done" = "Fet";
 "storyTextEditor.done" = "Fet";
+
+"storyTextEffect.none" = "Cap";
+"storyTextEffect.sticker" = "Sticker";
+"storyTextEffect.outline" = "Contorn";
+"storyTextEffect.gradient" = "Degradat";
+"storyTextEffect.neon" = "Neó";
+"storyTextEffect.glow" = "Brillantor";
+"storyTextEffect.glass" = "Vidre";
+"storyTextEffect.sparkle" = "Espurna";
+"storyTextEffect.pixel" = "Pixel";
+"storyTextEffect.holographic" = "Holo";
+"storyTextEffect.tape" = "Cinta";
+"storyTextEffect.pulse" = "Pols";
+"storyTextEffect.marker" = "Marcador";
+"storyTextEffect.chalk" = "Guix";
+"storyTextEffect.textShimmer" = "Brillantor+";
+"storyTextEffect.echo" = "Eco";
+"storyTextEffect.depth" = "Relleu";
+"storyTextEffect.glitch" = "Glitch";
 "creator.intensity" = "Intensitat";
 "creator.searching" = "Buscant...";
 "creator.useCurrentLocation" = "Utilitzar ubicació actual";

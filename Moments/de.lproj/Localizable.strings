@@ -263,6 +263,25 @@
 "creator.files.selected" = "Datei(en) ausgewählt";
 "creator.done" = "Fertig";
 "storyTextEditor.done" = "Fertig";
+
+"storyTextEffect.none" = "Ohne";
+"storyTextEffect.sticker" = "Sticker";
+"storyTextEffect.outline" = "Kontur";
+"storyTextEffect.gradient" = "Verlauf";
+"storyTextEffect.neon" = "Neon";
+"storyTextEffect.glow" = "Glühen";
+"storyTextEffect.glass" = "Glas";
+"storyTextEffect.sparkle" = "Funkeln";
+"storyTextEffect.pixel" = "Pixel";
+"storyTextEffect.holographic" = "Holo";
+"storyTextEffect.tape" = "Band";
+"storyTextEffect.pulse" = "Puls";
+"storyTextEffect.marker" = "Marker";
+"storyTextEffect.chalk" = "Kreide";
+"storyTextEffect.textShimmer" = "Glanz";
+"storyTextEffect.echo" = "Echo";
+"storyTextEffect.depth" = "Relief";
+"storyTextEffect.glitch" = "Glitch";
 "creator.intensity" = "Intensität";
 "creator.searching" = "Suche läuft...";
 "creator.useCurrentLocation" = "Aktuellen Standort verwenden";

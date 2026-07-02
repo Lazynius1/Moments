@@ -39,6 +39,12 @@ extension StoryEditingView {
         case elegant
         case deco
         case meme
+        case arcade
+        case cyber
+        case retro
+        case groovy
+        case stencil
+        case glam
 
         var displayName: String {
             switch self {
@@ -66,16 +72,24 @@ extension StoryEditingView {
             case .elegant: return "Elegant"
             case .deco: return "Deco"
             case .meme: return "Meme"
+            case .arcade: return "Arcade"
+            case .cyber: return "Cyber"
+            case .retro: return "Retro"
+            case .groovy: return "Groovy"
+            case .stencil: return "Stencil"
+            case .glam: return "Glam"
             }
         }
 
-        /// Tipografías del carrusel Aa.
+        /// Tipografías del carrusel Aa, agrupadas por familia estética.
+        /// Fuera del carrusel (casi idénticas a otra que sí está, siguen decodificando historias
+        /// viejas): .spartan ≈ .grotesk, .squeeze ≈ .oswald, .casual ≈ .signature, .editorial ≈ .classic.
         static var fontPickerStyles: [TextStyle] {
             [
-                .modern, .classic, .clean, .grotesk, .bold, .oswald, .spartan, .squeeze,
-                .rounded, .poster, .editorial, .slab, .elegant, .fancy, .deco,
-                .signature, .casual, .indie, .handwritten, .marker,
-                .typewriter, .meme, .neon, .chalk
+                .modern, .classic, .clean, .grotesk, .bold, .oswald, .stencil, .cyber,
+                .rounded, .poster, .glam, .slab, .elegant, .fancy, .deco, .groovy,
+                .retro, .signature, .indie, .handwritten, .marker,
+                .typewriter, .arcade, .meme, .neon, .chalk
             ]
         }
 
@@ -137,6 +151,18 @@ extension StoryEditingView {
                 return StoryTextStylePreset(letterSpacing: 2.0, defaultColor: .white)
             case .meme:
                 return StoryTextStylePreset(defaultColor: .white, defaultStroke: .thick, fontSizeOffset: 3)
+            case .arcade:
+                return StoryTextStylePreset(letterSpacing: 0.5, defaultColor: .white, fontSizeOffset: 2)
+            case .cyber:
+                return StoryTextStylePreset(usesAllCaps: true, letterSpacing: 1.5, defaultColor: .white, fontSizeOffset: 1)
+            case .retro:
+                return StoryTextStylePreset(usesAllCaps: true, letterSpacing: 1.0, defaultColor: .white, fontSizeOffset: 4)
+            case .groovy:
+                return StoryTextStylePreset(defaultColor: .white, fontSizeOffset: 2)
+            case .stencil:
+                return StoryTextStylePreset(usesAllCaps: true, letterSpacing: 0.8, defaultColor: .white, fontSizeOffset: 1)
+            case .glam:
+                return StoryTextStylePreset(defaultColor: .white, fontSizeOffset: 3)
             }
         }
 
@@ -195,6 +221,12 @@ extension StoryEditingView {
             case .elegant: return StoryFontRegistry.uiFont(fileName: "CormorantGaramond-Italic", size: size)
             case .deco: return StoryFontRegistry.uiFont(fileName: "PoiretOne-Regular", size: size)
             case .meme: return StoryFontRegistry.uiFont(fileName: "Bangers-Regular", size: size)
+            case .arcade: return StoryFontRegistry.uiFont(fileName: "Silkscreen-Regular", size: size)
+            case .cyber: return StoryFontRegistry.uiFont(fileName: "Audiowide-Regular", size: size)
+            case .retro: return StoryFontRegistry.uiFont(fileName: "Monoton-Regular", size: size)
+            case .groovy: return StoryFontRegistry.uiFont(fileName: "Shrikhand-Regular", size: size)
+            case .stencil: return StoryFontRegistry.uiFont(fileName: "BlackOpsOne-Regular", size: size)
+            case .glam: return StoryFontRegistry.uiFont(fileName: "AbrilFatface-Regular", size: size)
             }
         }
 
@@ -228,6 +260,12 @@ extension StoryEditingView {
             case .elegant: return .italicSystemFont(ofSize: size)
             case .deco: return .systemFont(ofSize: size, weight: .light)
             case .meme: return .boldSystemFont(ofSize: size)
+            case .arcade: return .monospacedSystemFont(ofSize: size, weight: .bold)
+            case .cyber: return .systemFont(ofSize: size, weight: .heavy)
+            case .retro: return .systemFont(ofSize: size, weight: .light)
+            case .groovy: return .boldSystemFont(ofSize: size)
+            case .stencil: return .systemFont(ofSize: size, weight: .black)
+            case .glam: return UIFont(name: "Georgia-Bold", size: size) ?? .boldSystemFont(ofSize: size)
             }
         }
 
@@ -295,6 +333,9 @@ extension StoryEditingView {
         case chalk
         case pixel
         case shimmer
+        case echo
+        case depth
+        case glitch
 
         var displayName: String {
             momentsToolbarLabel
@@ -339,7 +380,8 @@ extension StoryEditingView {
             case .chalk, .pixel:
                 return (Color.black.opacity(0.62), 1.0, 1.0, 1.0)
             case .none, .marker, .glow, .neon, .sparkle, .shimmer, .textShimmer,
-                 .sticker, .outline, .gradient, .glass, .holographic, .tape, .pulse:
+                 .sticker, .outline, .gradient, .glass, .holographic, .tape, .pulse,
+                 .echo, .depth, .glitch:
                 return nil
             }
         }
@@ -353,7 +395,8 @@ extension StoryEditingView {
                 shadow.shadowOffset = CGSize(width: 1, height: 1)
                 return shadow
             case .none, .marker, .glow, .neon, .sparkle, .shimmer, .textShimmer,
-                 .sticker, .outline, .gradient, .glass, .holographic, .tape, .pulse:
+                 .sticker, .outline, .gradient, .glass, .holographic, .tape, .pulse,
+                 .echo, .depth, .glitch:
                 return nil
             }
         }

@@ -26,7 +26,13 @@ enum StoryFontRegistry {
         "GreatVibes-Regular",
         "PermanentMarker-Regular",
         "IndieFlower-Regular",
-        "LeagueSpartan-Bold"
+        "LeagueSpartan-Bold",
+        "Silkscreen-Regular",
+        "Audiowide-Regular",
+        "Monoton-Regular",
+        "Shrikhand-Regular",
+        "BlackOpsOne-Regular",
+        "AbrilFatface-Regular"
     ]
 
     static func registerFontsIfNeeded() {

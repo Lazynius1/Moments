@@ -278,22 +278,30 @@ final class StoryTextOverlayContainerView: UIView {
     private let plateLayer = CALayer()
     private let sparkleLayer = CALayer()
     private let gradientLayer = CAGradientLayer()
+    private let echoReplicator = CAReplicatorLayer()
+    private let echoTextLayer = CATextLayer()
     private let glassEffectView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
     private let glowLabel = UILabel()
     private let textLabel = UILabel()
     private var holographicAnimationKey = "moments.text.holographic"
+    private var glitchAnimationKey = "moments.text.glitch"
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         isUserInteractionEnabled = false
         layer.addSublayer(plateLayer)
         layer.addSublayer(gradientLayer)
+        layer.addSublayer(echoReplicator)
         layer.addSublayer(sparkleLayer)
         addSubview(glassEffectView)
         addSubview(glowLabel)
         addSubview(textLabel)
         sparkleLayer.isHidden = true
         gradientLayer.isHidden = true
+        echoReplicator.isHidden = true
+        echoReplicator.addSublayer(echoTextLayer)
+        echoTextLayer.contentsScale = UIScreen.main.scale
+        echoTextLayer.isWrapped = true
         glassEffectView.isHidden = true
         glassEffectView.isUserInteractionEnabled = false
         glassEffectView.layer.cornerRadius = 10
@@ -353,6 +361,10 @@ final class StoryTextOverlayContainerView: UIView {
         glowLabel.isHidden = true
         gradientLayer.mask = nil
         gradientLayer.removeAnimation(forKey: holographicAnimationKey)
+        echoReplicator.isHidden = true
+        echoTextLayer.removeAllAnimations()
+        glowLabel.layer.removeAnimation(forKey: glitchAnimationKey)
+        textLabel.layer.removeAnimation(forKey: glitchAnimationKey)
         resetLabelLayers()
         resetSparkles()
 
@@ -379,9 +391,15 @@ final class StoryTextOverlayContainerView: UIView {
             applyTape(configuration: configuration, attributed: attributed, alignment: alignment, textFrame: textFrame)
         case .textShimmer:
             applyTextShimmer(configuration: configuration, attributed: attributed, alignment: alignment, textFrame: textFrame)
+        case .echoStack:
+            applyEcho(configuration: configuration, attributed: attributed, alignment: alignment, textFrame: textFrame)
+        case .longShadow:
+            applyLongShadow(configuration: configuration, attributed: attributed, alignment: alignment, textFrame: textFrame)
+        case .glitchSplit:
+            applyGlitch(configuration: configuration, attributed: attributed, alignment: alignment)
         case .markerHighlight:
             applyMarker(configuration: configuration, textFrame: textFrame)
-            textLabel.attributedText = attributed
+            textLabel.attributedText = markerAttributed(attributed, configuration: configuration)
         case .chalkDust:
             applyChalk(configuration: configuration, attributed: attributed, alignment: alignment)
         case .pixelBitmap:
@@ -809,14 +827,149 @@ final class StoryTextOverlayContainerView: UIView {
         textLabel.layer.masksToBounds = false
     }
 
+    /// Rotulador: el color elegido es el SUBRAYADOR y el texto va en su color de contraste.
+    /// (Antes placa y texto compartían color — negro sobre negro — y no se leía nada.)
     private func applyMarker(configuration: StoryTextRenderConfiguration, textFrame: CGRect) {
         let padH: CGFloat = 14
         let padV: CGFloat = 8
+        let highlight = UIColor(configuration.textColor)
         plateLayer.isHidden = false
-        plateLayer.backgroundColor = UIColor(configuration.textColor).withAlphaComponent(0.35).cgColor
+        plateLayer.backgroundColor = highlight.withAlphaComponent(0.92).cgColor
         plateLayer.cornerRadius = 6
         plateLayer.frame = textFrame.insetBy(dx: -padH, dy: -padV)
         plateLayer.zPosition = -1
+    }
+
+    private func markerAttributed(_ attributed: NSAttributedString, configuration: StoryTextRenderConfiguration) -> NSAttributedString {
+        let mutable = NSMutableAttributedString(attributedString: attributedWithoutShadow(attributed))
+        let range = NSRange(location: 0, length: mutable.length)
+        let contrast = StoryTextAttributesBuilder.contrastUIColor(for: configuration.textColor)
+        mutable.addAttribute(.foregroundColor, value: contrast, range: range)
+        return mutable
+    }
+
+    private func applyEcho(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment,
+        textFrame: CGRect
+    ) {
+        let clean = attributedWithoutShadow(attributed)
+        textLabel.attributedText = clean
+        textLabel.textAlignment = alignment
+
+        let range = NSRange(location: 0, length: clean.length)
+        let echoText = NSMutableAttributedString(attributedString: clean)
+        echoText.addAttribute(
+            .foregroundColor,
+            value: UIColor(configuration.textColor).withAlphaComponent(0.5),
+            range: range
+        )
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        echoReplicator.isHidden = false
+        echoReplicator.frame = textFrame
+        echoReplicator.zPosition = -1
+        echoReplicator.instanceCount = 3
+        echoReplicator.instanceTransform = CATransform3DMakeTranslation(6, 6, 0)
+        echoReplicator.instanceAlphaOffset = -0.16
+        echoTextLayer.frame = CGRect(origin: .zero, size: textFrame.size)
+        echoTextLayer.string = echoText
+        echoTextLayer.alignmentMode = textLayerAlignmentMode(for: alignment)
+        echoTextLayer.opacity = 1
+        CATransaction.commit()
+    }
+
+    private func applyLongShadow(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment,
+        textFrame: CGRect
+    ) {
+        let clean = attributedWithoutShadow(attributed)
+        textLabel.attributedText = clean
+        textLabel.textAlignment = alignment
+
+        let range = NSRange(location: 0, length: clean.length)
+        let shadowText = NSMutableAttributedString(attributedString: clean)
+        shadowText.addAttribute(
+            .foregroundColor,
+            value: UIColor.black.withAlphaComponent(0.32),
+            range: range
+        )
+
+        // Extrusión 3D estilo póster: el replicator apila copias desplazadas 1pt en diagonal.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        echoReplicator.isHidden = false
+        echoReplicator.frame = textFrame
+        echoReplicator.zPosition = -1
+        echoReplicator.instanceCount = 14
+        echoReplicator.instanceTransform = CATransform3DMakeTranslation(1, 1, 0)
+        echoReplicator.instanceAlphaOffset = -0.045
+        echoTextLayer.frame = CGRect(origin: .zero, size: textFrame.size)
+        echoTextLayer.string = shadowText
+        echoTextLayer.alignmentMode = textLayerAlignmentMode(for: alignment)
+        echoTextLayer.opacity = 1
+        CATransaction.commit()
+    }
+
+    private func applyGlitch(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment
+    ) {
+        let clean = attributedWithoutShadow(attributed)
+        let range = NSRange(location: 0, length: clean.length)
+
+        // Canal cian detrás, desplazado a la izquierda.
+        let cyan = NSMutableAttributedString(attributedString: clean)
+        cyan.addAttribute(.foregroundColor, value: UIColor(red: 0, green: 1, blue: 0.94, alpha: 0.85), range: range)
+        glowLabel.isHidden = false
+        glowLabel.attributedText = cyan
+        glowLabel.textAlignment = alignment
+        glowLabel.transform = CGAffineTransform(translationX: -2.2, y: -1.2)
+
+        // Canal magenta con el replicator, desplazado a la derecha.
+        let magenta = NSMutableAttributedString(attributedString: clean)
+        magenta.addAttribute(.foregroundColor, value: UIColor(red: 1, green: 0.17, blue: 0.84, alpha: 0.85), range: range)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        echoReplicator.isHidden = false
+        echoReplicator.frame = textLabel.frame.applying(CGAffineTransform(translationX: 2.2, y: 1.2))
+        echoReplicator.zPosition = -1
+        echoReplicator.instanceCount = 1
+        echoReplicator.instanceTransform = CATransform3DIdentity
+        echoReplicator.instanceAlphaOffset = 0
+        echoTextLayer.frame = CGRect(origin: .zero, size: textLabel.frame.size)
+        echoTextLayer.string = magenta
+        echoTextLayer.alignmentMode = textLayerAlignmentMode(for: alignment)
+        echoTextLayer.opacity = 1
+        CATransaction.commit()
+
+        // Núcleo en el color elegido, por encima de ambos canales.
+        textLabel.attributedText = clean
+        textLabel.textAlignment = alignment
+
+        // Micro-jitter horizontal intermitente en los canales.
+        let jitter = CAKeyframeAnimation(keyPath: "transform.translation.x")
+        jitter.values = [0, 1.6, -1.2, 0, 0, 2.0, 0, -1.4, 0]
+        jitter.keyTimes = [0, 0.06, 0.12, 0.2, 0.55, 0.6, 0.68, 0.74, 1]
+        jitter.duration = 2.4
+        jitter.repeatCount = .infinity
+        jitter.isAdditive = true
+        jitter.isRemovedOnCompletion = false
+        glowLabel.layer.add(jitter, forKey: glitchAnimationKey)
+
+        let jitterMirror = CAKeyframeAnimation(keyPath: "transform.translation.x")
+        jitterMirror.values = [0, -1.6, 1.2, 0, 0, -2.0, 0, 1.4, 0]
+        jitterMirror.keyTimes = jitter.keyTimes
+        jitterMirror.duration = 2.4
+        jitterMirror.repeatCount = .infinity
+        jitterMirror.isAdditive = true
+        jitterMirror.isRemovedOnCompletion = false
+        echoTextLayer.add(jitterMirror, forKey: glitchAnimationKey)
     }
 
     private func applyChalk(

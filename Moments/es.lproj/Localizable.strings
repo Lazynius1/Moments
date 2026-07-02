@@ -291,6 +291,9 @@
 "storyTextEffect.marker" = "Marcador";
 "storyTextEffect.chalk" = "Tiza";
 "storyTextEffect.textShimmer" = "Brillo+";
+"storyTextEffect.echo" = "Eco";
+"storyTextEffect.depth" = "Relieve";
+"storyTextEffect.glitch" = "Glitch";
 "storyTextGradient.removeStop" = "Quitar color";
 "storyTextGradient.preset.moments" = "Moments";
 "storyTextGradient.preset.sunset" = "Atardecer";

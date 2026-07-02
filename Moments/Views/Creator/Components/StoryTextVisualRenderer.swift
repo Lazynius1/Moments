@@ -19,13 +19,16 @@ enum StoryTextVisualTreatment: String, Equatable {
     case holographicFill
     case tapeLabel
     case textShimmer
+    case echoStack
+    case longShadow
+    case glitchSplit
 }
 
 extension StoryEditingView.TextEffect {
     static var momentsVisualToolbar: [StoryEditingView.TextEffect] {
         [
-            .none, .sticker, .outline, .gradient, .neon, .glow, .glass,
-            .sparkle, .pixel, .holographic, .tape, .pulse
+            .none, .sticker, .outline, .gradient, .neon, .glitch, .echo, .depth,
+            .glow, .glass, .sparkle, .pixel, .holographic, .tape, .pulse
         ]
     }
 
@@ -45,6 +48,9 @@ extension StoryEditingView.TextEffect {
         case .holographic: return .holographicFill
         case .tape: return .tapeLabel
         case .textShimmer, .shimmer: return .textShimmer
+        case .echo: return .echoStack
+        case .depth: return .longShadow
+        case .glitch: return .glitchSplit
         case .none: return .plain
         }
     }
@@ -66,6 +72,9 @@ extension StoryEditingView.TextEffect {
         case .marker: return NSLocalizedString("storyTextEffect.marker", comment: "Marker")
         case .chalk: return NSLocalizedString("storyTextEffect.chalk", comment: "Chalk")
         case .textShimmer, .shimmer: return NSLocalizedString("storyTextEffect.textShimmer", comment: "Shimmer")
+        case .echo: return NSLocalizedString("storyTextEffect.echo", comment: "Echo")
+        case .depth: return NSLocalizedString("storyTextEffect.depth", comment: "Depth")
+        case .glitch: return NSLocalizedString("storyTextEffect.glitch", comment: "Glitch")
         }
     }
 

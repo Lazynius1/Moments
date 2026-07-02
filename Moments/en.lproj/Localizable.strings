@@ -282,6 +282,9 @@
 "storyTextEffect.marker" = "Marker";
 "storyTextEffect.chalk" = "Chalk";
 "storyTextEffect.textShimmer" = "Shimmer";
+"storyTextEffect.echo" = "Echo";
+"storyTextEffect.depth" = "Depth";
+"storyTextEffect.glitch" = "Glitch";
 "storyTextGradient.removeStop" = "Remove color";
 "storyTextGradient.preset.moments" = "Moments";
 "storyTextGradient.preset.sunset" = "Sunset";

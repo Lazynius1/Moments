@@ -86,7 +86,10 @@ enum StoryTextAttributesBuilder {
         var textBackgroundColor: UIColor? = nil
         var textForegroundColor: UIColor = UIColor(selectedColor)
 
-        if config.visualTreatment == .plain || config.visualTreatment == .boxedCaption {
+        // Solo .plain usa el fondo por atributo (tiras por línea). Para .boxedCaption la placa
+        // redondeada la pinta el contenedor; duplicarlo aquí dejaba una tira tipo "subrayado"
+        // encima de la placa en Mono/Strong.
+        if config.visualTreatment == .plain {
             textBackgroundColor = backgroundUIColor(
                 fill: config.textBackgroundFill,
                 selectedColor: selectedColor,
@@ -188,6 +191,10 @@ enum StoryTextAttributesBuilder {
             glowPad = 36
         case .memeStrong, .stickerCutout, .outlinePop:
             glowPad = 20
+        case .echoStack, .longShadow:
+            glowPad = 26
+        case .glitchSplit:
+            glowPad = 16
         default:
             glowPad = 12
         }
