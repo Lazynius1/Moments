@@ -914,6 +914,8 @@
 "chat.vanish.notice.enabled.suffix" = ".";
 "chat.vanish.notice.change" = "Canviar";
 "chat.vanish.notice.disabled" = "Has desactivat els missatges que desapareixen.";
+"chat.vanish.notice.preview.enabled" = "Els missatges que desapareixen estan activats";
+"chat.vanish.notice.preview.disabled" = "Els missatges que desapareixen estan desactivats";
 "chat.vanish.notice.disabled.self" = "Has desactivat els missatges que desapareixen.";
 "chat.vanish.notice.disabled.other" = "%@ ha desactivat els missatges que desapareixen.";
 "chat.vanish.notice.turnOn" = "Activar";
@@ -930,6 +932,7 @@
 "chat.buzz.cooldown" = "Espera una mica abans d'enviar un altre brunzit";
 "chat.draft.preview" = "Esborrany: %@";
 "chat.unreadCount.preview" = "%d missatges nous";
+"chat.preview.reacted" = "Ha reaccionat al teu missatge";
 "chat.buzz.blocked" = "Aquesta persona no accepta brunzits";
 "chat.giphy.searchGif" = "Cerca GIFs";
 "chat.giphy.searchSticker" = "Cerca adhesius";

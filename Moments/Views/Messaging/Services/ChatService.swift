@@ -1256,7 +1256,30 @@ class ChatService: ObservableObject {
             }
         }
     }
-    
+
+    func setLastMessageReaction(
+        conversationId: String,
+        messageId: String,
+        emoji: String,
+        byUserId: String,
+        completion: @escaping (Error?) -> Void
+    ) {
+        let payload: [String: Any] = [
+            "lastMessageReaction": [
+                "messageId": messageId,
+                "emoji": emoji,
+                "byUserId": byUserId
+            ]
+        ]
+        db.collection("conversations").document(conversationId).updateData(payload, completion: completion)
+    }
+
+    func clearLastMessageReaction(conversationId: String, completion: @escaping (Error?) -> Void) {
+        db.collection("conversations").document(conversationId).updateData([
+            "lastMessageReaction": FieldValue.delete()
+        ], completion: completion)
+    }
+
     // MARK: - User Permissions
     func canSendMessage(from senderId: String, to userId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
         FirestoreService().fetchUserProfile(userId: userId) { result in
@@ -1630,6 +1653,20 @@ class ChatService: ObservableObject {
                     if let rawMap = data["lastReadAt"] as? [String: Timestamp] {
                         conversation.lastReadAt = rawMap.mapValues { $0.dateValue() }
                     }
+                    conversation.lastMessageSenderId = data["lastMessageSenderId"] as? String
+                    if let rawMap = data["lastMessageSeenAt"] as? [String: Timestamp], !rawMap.isEmpty {
+                        conversation.lastMessageSeenAt = rawMap.mapValues { $0.dateValue() }
+                    }
+                    if let rawReaction = data["lastMessageReaction"] as? [String: String],
+                       let messageId = rawReaction["messageId"],
+                       let emoji = rawReaction["emoji"],
+                       let byUserId = rawReaction["byUserId"] {
+                        conversation.lastMessageReaction = ConversationLastMessageReaction(
+                            messageId: messageId,
+                            emoji: emoji,
+                            byUserId: byUserId
+                        )
+                    }
                     conversation.vanishModeActive = data["vanishModeActive"] as? Bool ?? false
                     conversation.vanishModeEnabledBy = data["vanishModeEnabledBy"] as? String
                     if let enabledAt = data["vanishModeEnabledAt"] as? Timestamp {
@@ -1706,7 +1743,13 @@ class ChatService: ObservableObject {
     }
 
     // MARK: - Message Status
-    func markMessagesAsRead(conversationId: String, messageIds: [String], readerId: String, completion: @escaping (Error?) -> Void) {
+    func markMessagesAsRead(
+        conversationId: String,
+        messageIds: [String],
+        readerId: String,
+        marksLastMessageSeen: Bool = false,
+        completion: @escaping (Error?) -> Void
+    ) {
         guard !IncognitoModeService.isActiveSnapshot else {
             completion(nil)
             return
@@ -1752,11 +1795,15 @@ class ChatService: ObservableObject {
                 }
                 
                 let conversationRef = Firestore.firestore().collection("conversations").document(conversationId)
-                batch.updateData([
+                var conversationUpdate: [String: Any] = [
                     "readStatus.\(readerId)": true,
                     "lastReadAt.\(readerId)": FieldValue.serverTimestamp()
-                ], forDocument: conversationRef)
-                
+                ]
+                if marksLastMessageSeen, finalEnabled {
+                    conversationUpdate["lastMessageSeenAt.\(readerId)"] = FieldValue.serverTimestamp()
+                }
+                batch.updateData(conversationUpdate, forDocument: conversationRef)
+
                 batch.commit { error in
                     completion(error)
                 }
@@ -2187,7 +2234,10 @@ class ChatService: ObservableObject {
             var updateData: [String: Any] = [
                 "lastMessage": lastMessage,
                 "timestamp": FieldValue.serverTimestamp(),
-                "readStatus.\(senderId)": true
+                "readStatus.\(senderId)": true,
+                "lastMessageSenderId": senderId,
+                "lastMessageSeenAt": [String: Any](),
+                "lastMessageReaction": FieldValue.delete()
             ]
             
             // ✅ Restaurar sólo al remitente para respetar las reglas de deletedFor por usuario.
@@ -2236,6 +2286,10 @@ class ChatService: ObservableObject {
             hydrated.buzzPreferences = conversation.buzzPreferences
             hydrated.forwardingPreferences = conversation.forwardingPreferences
             hydrated.lastDeletedAt = conversation.lastDeletedAt
+            hydrated.lastReadAt = conversation.lastReadAt
+            hydrated.lastMessageSenderId = conversation.lastMessageSenderId
+            hydrated.lastMessageSeenAt = conversation.lastMessageSeenAt
+            hydrated.lastMessageReaction = conversation.lastMessageReaction
             hydrated.vanishModeActive = conversation.vanishModeActive
             hydrated.vanishModeEnabledBy = conversation.vanishModeEnabledBy
             hydrated.vanishModeEnabledAt = conversation.vanishModeEnabledAt
@@ -2300,6 +2354,14 @@ class ChatService: ObservableObject {
                     let trimmedContent = decryptedContent.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmedContent.isEmpty {
                         return trimmedContent
+                    }
+                    continue
+                }
+
+                if messageType == .chatNotice {
+                    let noticeText = EnhancedMessage.chatNoticePreviewText(for: data["content"] as? String ?? "")
+                    if !noticeText.isEmpty {
+                        return noticeText
                     }
                     continue
                 }

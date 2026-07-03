@@ -83,7 +83,6 @@ struct GlassmorphicChatView: View {
     @State var pendingSearchHighlightId: String? = nil
     @State var deferredJumpToMessageId: String? = nil
     @State var searchHighlightScrollTask: Task<Void, Never>? = nil
-    @State var navigationTargetReleaseTask: Task<Void, Never>? = nil
     @State var timestampRevealOffset: CGFloat = 0
     @State var pendingScrollMessageId: String? = nil
     @State var buzzShakeProgress: CGFloat = 1

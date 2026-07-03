@@ -69,19 +69,38 @@ extension GlassmorphicChatView {
         viewModel.unreadIncomingCount
     }
 
-    func syncPendingIncomingMessagesOnOpen() {
-        if hasUnreadIncomingMessages() {
-            initializeUnreadDividerIfNeeded()
-            pendingIncomingMessages = unreadIncomingMessageCount()
+    func clearUnreadDividerUI() {
+        let previousDividerId = unreadDividerMessageId
+        unreadDividerMessageId = nil
+        unreadDividerInitialized = true
+        unreadDividerCount = 0
+        reconfigureUnreadDividerRow(for: previousDividerId)
+    }
+
+    func refreshPendingIncomingState() {
+        let unreadCount = unreadIncomingMessageCount()
+        unreadDividerCount = unreadCount
+        if unreadCount == 0 {
+            pendingIncomingMessages = 0
+            clearUnreadDividerUI()
             return
         }
-        if isPinnedToBottom || shouldOpenAtBottom() {
+
+        if isPinnedToBottom {
             pendingIncomingMessages = 0
-            unreadDividerMessageId = nil
-            unreadDividerInitialized = true
-        } else {
-            pendingIncomingMessages = unreadIncomingMessageCount()
+            clearUnreadDividerUI()
+            return
         }
+
+        pendingIncomingMessages = unreadCount
+        if unreadDividerMessageId == nil {
+            unreadDividerInitialized = false
+            initializeUnreadDividerIfNeeded()
+        }
+    }
+
+    func syncPendingIncomingMessagesOnOpen() {
+        refreshPendingIncomingState()
     }
 
     func reconcileScrollStateForCurrentConversation() {
@@ -91,7 +110,7 @@ extension GlassmorphicChatView {
         if hasHighlightIntent { return }
 
         if !hasUnreadIncomingMessages() {
-            unreadDividerMessageId = nil
+            clearUnreadDividerUI()
             if case .firstUnread = frozenInitialScrollTarget {
                 frozenInitialScrollTarget = viewModel.messages.last.map { .bottom(messageId: $0.id) }
                 isPinnedToBottom = true

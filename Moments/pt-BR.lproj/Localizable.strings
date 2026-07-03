@@ -913,6 +913,8 @@
 "chat.vanish.notice.enabled.suffix" = ".";
 "chat.vanish.notice.change" = "Alterar";
 "chat.vanish.notice.disabled" = "Você desativou mensagens que desaparecem.";
+"chat.vanish.notice.preview.enabled" = "Mensagens que desaparecem estão ativadas";
+"chat.vanish.notice.preview.disabled" = "Mensagens que desaparecem estão desativadas";
 "chat.vanish.notice.disabled.self" = "Você desativou mensagens que desaparecem.";
 "chat.vanish.notice.disabled.other" = "%@ desativou mensagens que desaparecem.";
 "chat.vanish.notice.turnOn" = "Ativar";
@@ -929,6 +931,7 @@
 "chat.buzz.cooldown" = "Espere um pouco antes de enviar outro chacoalhão";
 "chat.draft.preview" = "Rascunho: %@";
 "chat.unreadCount.preview" = "%d novas mensagens";
+"chat.preview.reacted" = "Reagiu à sua mensagem";
 "chat.buzz.blocked" = "Esta pessoa não aceita chacoalhões";
 "chat.giphy.searchGif" = "Buscar GIFs";
 "chat.giphy.searchSticker" = "Buscar figurinhas";

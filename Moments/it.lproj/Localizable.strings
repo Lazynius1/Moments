@@ -913,6 +913,8 @@
 "chat.vanish.notice.enabled.suffix" = ".";
 "chat.vanish.notice.change" = "Modifica";
 "chat.vanish.notice.disabled" = "Hai disattivato i messaggi che scompaiono.";
+"chat.vanish.notice.preview.enabled" = "I messaggi che scompaiono sono attivi";
+"chat.vanish.notice.preview.disabled" = "I messaggi che scompaiono sono disattivati";
 "chat.vanish.notice.disabled.self" = "Hai disattivato i messaggi che scompaiono.";
 "chat.vanish.notice.disabled.other" = "%@ ha disattivato i messaggi che scompaiono.";
 "chat.vanish.notice.turnOn" = "Attiva";
@@ -929,6 +931,7 @@
 "chat.buzz.cooldown" = "Attendi un po' prima di inviare un altro trillo";
 "chat.draft.preview" = "Bozza: %@";
 "chat.unreadCount.preview" = "%d nuovi messaggi";
+"chat.preview.reacted" = "Ha reagito al tuo messaggio";
 "chat.buzz.blocked" = "Questa persona non accetta trilli";
 "chat.giphy.searchGif" = "Cerca GIF";
 "chat.giphy.searchSticker" = "Cerca sticker";

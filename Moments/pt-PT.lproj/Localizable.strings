@@ -1723,6 +1723,8 @@
 "chat.vanish.notice.enabled.suffix" = ".";
 "chat.vanish.notice.change" = "Alterar";
 "chat.vanish.notice.disabled" = "Desativaste mensagens que desaparecem.";
+"chat.vanish.notice.preview.enabled" = "As mensagens que desaparecem estão ativadas";
+"chat.vanish.notice.preview.disabled" = "As mensagens que desaparecem estão desativadas";
 "chat.vanish.notice.disabled.self" = "Desativaste mensagens que desaparecem.";
 "chat.vanish.notice.disabled.other" = "%@ desativou mensagens que desaparecem.";
 "chat.vanish.notice.turnOn" = "Ativar";
@@ -1739,6 +1741,7 @@
 "chat.buzz.cooldown" = "Espera um pouco antes de enviar outro abanão";
 "chat.draft.preview" = "Rascunho: %@";
 "chat.unreadCount.preview" = "%d novas mensagens";
+"chat.preview.reacted" = "Reagiu à tua mensagem";
 "chat.buzz.blocked" = "Esta pessoa não aceita abanões";
 "chat.giphy.searchGif" = "Procurar GIFs";
 "chat.giphy.searchSticker" = "Procurar autocolantes";

@@ -541,12 +541,9 @@ extension GlassmorphicChatView {
     }
 
     func clearUnreadDividerAndMarkReadIfNeeded(sealsVanish: Bool = true) {
-        let previousDividerId = unreadDividerMessageId
-        unreadDividerMessageId = nil
-        unreadDividerInitialized = true
         pendingIncomingMessages = 0
+        clearUnreadDividerUI()
         viewModel.markVisibleConversationAsRead(sealsVanish: sealsVanish)
-        reconfigureUnreadDividerRow(for: previousDividerId)
     }
 
     /// Estilo WhatsApp: el divisor desaparece al responder, no al llegar al fondo.
@@ -613,8 +610,6 @@ extension GlassmorphicChatView {
         initialScrollTask = nil
         highlightScrollTask?.cancel()
         highlightScrollTask = nil
-        navigationTargetReleaseTask?.cancel()
-        navigationTargetReleaseTask = nil
         listBottomSnapTask?.cancel()
         listBottomSnapTask = nil
         composerSnapTask?.cancel()

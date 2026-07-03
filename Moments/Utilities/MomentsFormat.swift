@@ -11,6 +11,7 @@ enum MomentsFormat {
     enum RelativeTimeStyle {
         /// Compact feed style: `5 min ago` / `hace 5 min` via `time.*` localization keys.
         case compact
+        case compactBare
         /// Locale-native relative wording, limited to a single unit for brevity.
         case conversational(unitsStyle: RelativeDateTimeFormatter.UnitsStyle = .abbreviated)
     }
@@ -52,6 +53,8 @@ enum MomentsFormat {
         switch style {
         case .compact:
             return compactRelativeTime(from: date, relativeTo: reference)
+        case .compactBare:
+            return compactBareRelativeTime(from: date, relativeTo: reference)
         case .conversational(let unitsStyle):
             return singleUnitRelativeTime(from: date, relativeTo: reference, unitsStyle: unitsStyle)
         }
@@ -200,7 +203,7 @@ enum MomentsFormat {
 
     // MARK: - Private
 
-    private static func compactRelativeTime(from date: Date, relativeTo reference: Date) -> String {
+    private static func compactUnitString(from date: Date, relativeTo reference: Date) -> String? {
         let calendar = Calendar.current
         let components = calendar.dateComponents(
             [.year, .month, .weekOfYear, .day, .hour, .minute, .second],
@@ -208,32 +211,53 @@ enum MomentsFormat {
             to: reference
         )
 
-        var timeString = ""
-
         if let year = components.year, year > 0 {
             let unit = NSLocalizedString(year == 1 ? "time.unit.yr" : "time.unit.yrs", comment: "Year unit")
-            timeString = compactValueAndUnit(year, unit: unit)
-        } else if let month = components.month, month > 0 {
+            return compactValueAndUnit(year, unit: unit)
+        }
+        if let month = components.month, month > 0 {
             let unit = NSLocalizedString(month == 1 ? "time.unit.mo" : "time.unit.mos", comment: "Month unit")
-            timeString = compactValueAndUnit(month, unit: unit)
-        } else if let week = components.weekOfYear, week > 0 {
+            return compactValueAndUnit(month, unit: unit)
+        }
+        if let week = components.weekOfYear, week > 0 {
             let unit = NSLocalizedString("time.unit.wk", comment: "Week unit")
-            timeString = compactValueAndUnit(week, unit: unit)
-        } else if let day = components.day, day > 0 {
+            return compactValueAndUnit(week, unit: unit)
+        }
+        if let day = components.day, day > 0 {
             let unit = NSLocalizedString("time.unit.d", comment: "Day unit")
-            timeString = compactValueAndUnit(day, unit: unit)
-        } else if let hour = components.hour, hour > 0 {
+            return compactValueAndUnit(day, unit: unit)
+        }
+        if let hour = components.hour, hour > 0 {
             let unit = NSLocalizedString("time.unit.h", comment: "Hour unit")
-            timeString = compactValueAndUnit(hour, unit: unit)
-        } else if let minute = components.minute, minute > 0 {
+            return compactValueAndUnit(hour, unit: unit)
+        }
+        if let minute = components.minute, minute > 0 {
             let unit = NSLocalizedString("time.unit.min", comment: "Minute unit")
-            timeString = compactValueAndUnit(minute, unit: unit)
-        } else {
+            return compactValueAndUnit(minute, unit: unit)
+        }
+        return nil
+    }
+
+    private static func compactRelativeTime(from date: Date, relativeTo reference: Date) -> String {
+        guard let timeString = compactUnitString(from: date, relativeTo: reference) else {
             return NSLocalizedString("time.now", comment: "Just now")
         }
-
         let format = NSLocalizedString("time.ago", comment: "Time ago")
         return String(format: format, timeString)
+    }
+
+    private static func compactBareRelativeTime(from date: Date, relativeTo reference: Date) -> String {
+        let calendar = Calendar.current
+        guard calendar.dateComponents([.weekOfYear], from: date, to: reference).weekOfYear ?? 0 < 1 else {
+            if calendar.isDate(date, equalTo: reference, toGranularity: .year) {
+                return date.formatted(.dateTime.month(.abbreviated).day())
+            }
+            return date.formatted(.dateTime.month(.abbreviated).day().year())
+        }
+        guard let timeString = compactUnitString(from: date, relativeTo: reference) else {
+            return NSLocalizedString("time.now", comment: "Just now")
+        }
+        return timeString
     }
 
     private static func singleUnitRelativeTime(

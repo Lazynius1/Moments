@@ -19,6 +19,9 @@ final class CachedConversation {
     var forwardingPreferencesData: Data? // [String: Bool] encoded
     var lastDeletedAtData: Data? // [String: Date] encoded
     var lastReadAtData: Data? // [String: Date] encoded
+    var lastMessageSenderId: String?
+    var lastMessageSeenAtData: Data?
+    var lastMessageReactionData: Data?
     var lastSyncedAt: Date
     var vanishModeActive: Bool = false
 
@@ -37,6 +40,9 @@ final class CachedConversation {
          forwardingPreferencesData: Data? = nil,
          lastDeletedAtData: Data? = nil,
          lastReadAtData: Data? = nil,
+         lastMessageSenderId: String? = nil,
+         lastMessageSeenAtData: Data? = nil,
+         lastMessageReactionData: Data? = nil,
          lastSyncedAt: Date = Date(),
          vanishModeActive: Bool = false) {
         self.id = id
@@ -54,6 +60,9 @@ final class CachedConversation {
         self.forwardingPreferencesData = forwardingPreferencesData
         self.lastDeletedAtData = lastDeletedAtData
         self.lastReadAtData = lastReadAtData
+        self.lastMessageSenderId = lastMessageSenderId
+        self.lastMessageSeenAtData = lastMessageSeenAtData
+        self.lastMessageReactionData = lastMessageReactionData
         self.lastSyncedAt = lastSyncedAt
         self.vanishModeActive = vanishModeActive
     }
@@ -67,6 +76,8 @@ extension CachedConversation {
         let forwardingPreferencesData = try? encoder.encode(conversation.forwardingPreferences)
         let lastDeletedAtData = try? encoder.encode(conversation.lastDeletedAt)
         let lastReadAtData = try? encoder.encode(conversation.lastReadAt)
+        let lastMessageSeenAtData = try? encoder.encode(conversation.lastMessageSeenAt)
+        let lastMessageReactionData = try? encoder.encode(conversation.lastMessageReaction)
 
         return CachedConversation(
             id: conversation.id ?? UUID().uuidString,
@@ -84,6 +95,9 @@ extension CachedConversation {
             forwardingPreferencesData: forwardingPreferencesData,
             lastDeletedAtData: lastDeletedAtData,
             lastReadAtData: lastReadAtData,
+            lastMessageSenderId: conversation.lastMessageSenderId,
+            lastMessageSeenAtData: lastMessageSeenAtData,
+            lastMessageReactionData: lastMessageReactionData,
             lastSyncedAt: Date(),
             vanishModeActive: conversation.vanishModeActive ?? false
         )
@@ -116,6 +130,16 @@ extension CachedConversation {
             return try? decoder.decode([String: Date].self, from: data)
         }()
 
+        let lastMessageSeenAt: [String: Date]? = {
+            guard let data = lastMessageSeenAtData else { return nil }
+            return try? decoder.decode([String: Date].self, from: data)
+        }()
+
+        let lastMessageReaction: ConversationLastMessageReaction? = {
+            guard let data = lastMessageReactionData else { return nil }
+            return try? decoder.decode(ConversationLastMessageReaction.self, from: data)
+        }()
+
         var conversation = Conversation(
             id: id,
             participants: participants,
@@ -133,6 +157,9 @@ extension CachedConversation {
         conversation.forwardingPreferences = forwardingPreferences
         conversation.lastDeletedAt = lastDeletedAt
         conversation.lastReadAt = lastReadAt
+        conversation.lastMessageSenderId = lastMessageSenderId
+        conversation.lastMessageSeenAt = lastMessageSeenAt
+        conversation.lastMessageReaction = lastMessageReaction
         conversation.vanishModeActive = vanishModeActive
         return conversation
     }

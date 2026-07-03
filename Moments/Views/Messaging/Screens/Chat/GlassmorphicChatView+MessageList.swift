@@ -8,21 +8,66 @@ import CoreLocation
 import MapKit
 
 extension GlassmorphicChatView {
+    var shouldShowHistoryLoadNotice: Bool {
+        switch viewModel.historyLoadNotice {
+        case .hidden:
+            return false
+        case .loadingRemote, .offline, .error:
+            return hasCompletedInitialScroll && !isPinnedToBottom
+        }
+    }
+
+    var historyLoadNoticeTextKey: LocalizedStringKey {
+        switch viewModel.historyLoadNotice {
+        case .hidden, .loadingRemote:
+            return "chat.loadingOlderMessages"
+        case .offline:
+            return "network.offline.title"
+        case .error:
+            return "common.error"
+        }
+    }
+
+    var historyLoadNoticeShowsProgress: Bool {
+        if case .loadingRemote = viewModel.historyLoadNotice {
+            return true
+        }
+        return false
+    }
+
+    var historyLoadNoticeRetryTextKey: LocalizedStringKey? {
+        switch viewModel.historyLoadNotice {
+        case .offline, .error:
+            return "messaging.retry"
+        case .hidden, .loadingRemote:
+            return nil
+        }
+    }
+
+    func retryHistoryLoadFromNotice() {
+        viewModel.clearHistoryLoadNotice()
+        loadOlderHistoryIfNeeded()
+    }
+
     // ✅ Lista de mensajes — orden cronológico + anclaje inferior nativo (sin invertir LazyVStack)
     var messagesListSection: some View {
         invertedMessagesList
             .overlay(alignment: .top) {
-                if hasCompletedInitialScroll,
-                   viewModel.isLoadingOlderHistory,
-                   !isPinnedToBottom {
-                    ChatHistoryLoadingIndicator(adaptiveColors: adaptiveColors)
-                        .padding(.top, 10)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                if shouldShowHistoryLoadNotice {
+                    ChatHistoryLoadingIndicator(
+                        adaptiveColors: adaptiveColors,
+                        textKey: historyLoadNoticeTextKey,
+                        showsProgress: historyLoadNoticeShowsProgress,
+                        retryTextKey: historyLoadNoticeRetryTextKey,
+                        onTap: historyLoadNoticeRetryTextKey == nil ? nil : retryHistoryLoadFromNotice
+                    )
+                    .padding(.top, 10)
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
             .animation(
                 reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.86),
-                value: viewModel.isLoadingOlderHistory
+                value: viewModel.historyLoadNotice
             )
     }
 
@@ -41,6 +86,16 @@ extension GlassmorphicChatView {
         chatMessageListWithReconfigure
     }
 
+    var listUpdateTransaction: ChatListUpdateTransaction {
+        ChatListUpdateTransaction(
+            kind: viewModel.chatTimelineMutation.kind,
+            rows: listRows,
+            anchorRowId: viewModel.chatTimelineMutation.anchorMessageId
+                .flatMap { messageRowId(containingMessageId: $0) },
+            reason: viewModel.chatTimelineMutation.reason
+        )
+    }
+
     var chatMessageListWithReconfigure: some View {
         chatMessageListWithNotifications
             .onChange(of: searchQuery) { _, _ in chatListController.reconfigureVisible() }
@@ -53,7 +108,12 @@ extension GlassmorphicChatView {
             }
             .onChange(of: viewModel.downloadProgress) { old, new in
                 let changed = changedProgressKeys(old, new)
-                if !changed.isEmpty { chatListController.reconfigure(messageIds: changed) }
+                if !changed.isEmpty {
+                    ChatScrollDebug.log("downloadProgress onChange changed=\(changed.count) pinned=\(isPinnedToBottom) loadingOlder=\(viewModel.isLoadingOlderHistory)")
+                    if !viewModel.isLoadingOlderHistory {
+                        chatListController.reconfigure(messageIds: changed)
+                    }
+                }
             }
     }
 
@@ -99,34 +159,20 @@ extension GlassmorphicChatView {
             .onChange(of: viewModel.unreadIncomingCount) { _, count in
                 deferListStateUpdate {
                     if count == 0 {
-                        pendingIncomingMessages = 0
-                        let previousDividerId = unreadDividerMessageId
-                        unreadDividerMessageId = nil
-                        reconfigureUnreadDividerRow(for: previousDividerId)
+                        refreshPendingIncomingState()
                         if !hasCompletedInitialScroll {
                             reconcileScrollStateForCurrentConversation()
                             routeInitialScrollInList()
                         }
                     } else if hasCompletedInitialScroll {
-                        pendingIncomingMessages = count
-                        if unreadDividerMessageId == nil {
-                            unreadDividerInitialized = false
-                            initializeUnreadDividerIfNeeded()
-                        }
+                        refreshPendingIncomingState()
                     }
                 }
             }
             .onChange(of: viewModel.messages.count) { oldCount, newCount in
                 deferListStateUpdate {
                     guard hasCompletedInitialScroll, !isPinnedToBottom else { return }
-                    pendingIncomingMessages = unreadIncomingMessageCount()
-                    if newCount > oldCount, viewModel.isLoadingOlderHistory {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                            if viewModel.isLoadingOlderHistory {
-                                viewModel.endHistoryScrollRestoration()
-                            }
-                        }
-                    }
+                    refreshPendingIncomingState()
                 }
             }
             .onChange(of: pendingSearchTargetId) { _, targetId in
@@ -189,7 +235,7 @@ extension GlassmorphicChatView {
                     handleListAtBottomChange(atBottom)
                 }
             }
-            .onChange(of: viewModel.chatRenderRows.map(\.id)) { _, _ in
+            .onChange(of: listRows.map(\.id)) { _, _ in
                 deferListStateUpdate {
                     handleListRowsChange()
                 }
@@ -206,11 +252,13 @@ extension GlassmorphicChatView {
 
     var chatMessageListBase: some View {
         ChatMessageListView(
-            rows: listRows,
+            transaction: listUpdateTransaction,
             controller: chatListController,
             isAtBottom: $listIsAtBottom,
             onReachedTop: {
                 deferListStateUpdate {
+                    ChatScrollDebug.log("onReachedTop fired pinned=\(isPinnedToBottom) loadingOlder=\(viewModel.isLoadingOlderHistory) canLoadMore=\(viewModel.canLoadMore)")
+                    chatListController.prepareHistoryPrepend()
                     loadOlderHistoryIfNeeded()
                 }
             },
@@ -224,6 +272,7 @@ extension GlassmorphicChatView {
                 scrollContentExceedsViewport = chatListController.contentExceedsViewport
             },
             onPrependFinished: {
+                ChatScrollDebug.log("onPrependFinished pinned=\(isPinnedToBottom) listAtBottom=\(listIsAtBottom)")
                 viewModel.endHistoryScrollRestoration()
             },
             onPrefetchRows: { rows in
@@ -273,7 +322,7 @@ extension GlassmorphicChatView {
         scrollContentExceedsViewport = chatListController.contentExceedsViewport
         initializeUnreadDividerIfNeeded()
         if !isPinnedToBottom {
-            pendingIncomingMessages = unreadIncomingMessageCount()
+            refreshPendingIncomingState()
         }
         if isSearchVisible, !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             syncSearchMatchesFromViewModel()

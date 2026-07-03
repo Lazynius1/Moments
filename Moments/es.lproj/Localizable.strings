@@ -935,6 +935,8 @@
 "chat.vanish.notice.enabled.suffix" = ".";
 "chat.vanish.notice.change" = "Cambiar";
 "chat.vanish.notice.disabled" = "Has desactivado los mensajes que desaparecen.";
+"chat.vanish.notice.preview.enabled" = "Los mensajes que desaparecen están activados";
+"chat.vanish.notice.preview.disabled" = "Los mensajes que desaparecen están desactivados";
 "chat.vanish.notice.disabled.self" = "Has desactivado los mensajes que desaparecen.";
 "chat.vanish.notice.disabled.other" = "%@ ha desactivado los mensajes que desaparecen.";
 "chat.vanish.notice.turnOn" = "Activar";
@@ -951,6 +953,7 @@
 "chat.buzz.cooldown" = "Espera un poco antes de enviar otro zumbido";
 "chat.draft.preview" = "Borrador: %@";
 "chat.unreadCount.preview" = "%d mensajes nuevos";
+"chat.preview.reacted" = "Reaccionó a tu mensaje";
 "chat.buzz.blocked" = "Esta persona no acepta zumbidos";
 "chat.giphy.searchGif" = "Buscar GIFs";
 "chat.giphy.searchSticker" = "Buscar stickers";

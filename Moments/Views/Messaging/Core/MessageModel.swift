@@ -2,6 +2,12 @@ import Foundation
 import FirebaseFirestore
 import FirebaseAuth
 
+struct ConversationLastMessageReaction: Codable, Equatable {
+    let messageId: String
+    let emoji: String
+    let byUserId: String
+}
+
 // MARK: - Conversation Model
 struct Conversation: Identifiable, Codable, Hashable {
     @DocumentID var id: String?
@@ -44,6 +50,9 @@ struct Conversation: Identifiable, Codable, Hashable {
     var vanishSettingsNoticeMessageId: String?
     /// ID del notice inline de vanish desactivado (anti-spam al togglear OFF muy rápido).
     var vanishDisabledNoticeMessageId: String?
+    var lastMessageSenderId: String?
+    var lastMessageSeenAt: [String: Date]?
+    var lastMessageReaction: ConversationLastMessageReaction?
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -132,6 +141,9 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.vanishModeEnabledBy = nil
         self.vanishModeEnabledAt = nil
         self.vanishMessageTimer = VanishMessageTimer.default.rawValue
+        self.lastMessageSenderId = nil
+        self.lastMessageSeenAt = nil
+        self.lastMessageReaction = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -172,6 +184,9 @@ struct Conversation: Identifiable, Codable, Hashable {
             ?? VanishMessageTimer.default.rawValue
         self.vanishSettingsNoticeMessageId = try container.decodeIfPresent(String.self, forKey: .vanishSettingsNoticeMessageId)
         self.vanishDisabledNoticeMessageId = try container.decodeIfPresent(String.self, forKey: .vanishDisabledNoticeMessageId)
+        self.lastMessageSenderId = nil
+        self.lastMessageSeenAt = nil
+        self.lastMessageReaction = nil
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1051,8 +1066,26 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case .viewOnceVideo:
             return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
         case .chatNotice:
-            return NSLocalizedString(content ?? "", comment: "Chat system notice")
+            return EnhancedMessage.chatNoticePreviewText(for: content ?? "")
         }
+    }
+
+    static func chatNoticePreviewText(for token: String) -> String {
+        if VanishMessageTimer.parseEnabledNotice(token) != nil || token == "chat.vanish.enabled" {
+            return NSLocalizedString("chat.vanish.notice.preview.enabled", comment: "Disappearing messages turned on")
+        }
+        if token == VanishMessageTimer.disabledNoticeToken || token == "chat.vanish.disabled" {
+            return NSLocalizedString("chat.vanish.notice.preview.disabled", comment: "Disappearing messages turned off")
+        }
+        if token == VanishMessageTimer.screenshotNoticeToken {
+            return NSLocalizedString("chat.vanish.screenshot", comment: "")
+        }
+        if token == VanishMessageTimer.screenRecordingNoticeToken {
+            return NSLocalizedString("chat.vanish.screenRecording", comment: "")
+        }
+        guard !token.isEmpty else { return "" }
+        let localized = NSLocalizedString(token, comment: "Chat system notice")
+        return localized == token ? "" : localized
     }
 
     // ✅ NUEVAS: Propiedades y funciones para view-once

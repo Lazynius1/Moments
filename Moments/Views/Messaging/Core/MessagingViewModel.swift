@@ -24,6 +24,47 @@ class MessagingViewModel: ObservableObject {
     private var userSearchWorkItem: DispatchWorkItem?
     private var activeSearchQuery: String = ""
     private var activeUserSearchQuery: String = ""
+    private var locallyReadConversationIds: Set<String> = []
+    private var conversationReadObserver: NSObjectProtocol?
+
+    init() {
+        conversationReadObserver = NotificationCenter.default.addObserver(
+            forName: .conversationMarkedReadLocally,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let conversationId = notification.userInfo?["conversationId"] as? String else { return }
+            self?.markConversationReadOptimistically(conversationId)
+        }
+    }
+
+    private func markConversationReadOptimistically(_ conversationId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        locallyReadConversationIds.insert(conversationId)
+
+        func markRead(_ list: inout [Conversation]) {
+            guard let index = list.firstIndex(where: { $0.id == conversationId }) else { return }
+            list[index].readStatus[currentUserId] = true
+        }
+
+        markRead(&conversations)
+        markRead(&archivedConversations)
+        hasUnreadMessages = (conversations + archivedConversations).contains { !($0.readStatus[currentUserId] ?? true) }
+    }
+
+    private func reconcilingOptimisticReadState(_ list: [Conversation], currentUserId: String) -> [Conversation] {
+        guard !locallyReadConversationIds.isEmpty else { return list }
+        return list.map { conversation in
+            guard let id = conversation.id, locallyReadConversationIds.contains(id) else { return conversation }
+            if conversation.readStatus[currentUserId] == true {
+                locallyReadConversationIds.remove(id)
+                return conversation
+            }
+            var patched = conversation
+            patched.readStatus[currentUserId] = true
+            return patched
+        }
+    }
 
     private func updatingConversation(
         _ conversation: Conversation,
@@ -69,6 +110,9 @@ class MessagingViewModel: ObservableObject {
         updated.buzzPreferences = conversation.buzzPreferences
         updated.lastDeletedAt = conversation.lastDeletedAt
         updated.lastReadAt = conversation.lastReadAt
+        updated.lastMessageSenderId = conversation.lastMessageSenderId
+        updated.lastMessageSeenAt = conversation.lastMessageSeenAt
+        updated.lastMessageReaction = conversation.lastMessageReaction
         updated.vanishModeActive = conversation.vanishModeActive
         updated.vanishModeEnabledBy = conversation.vanishModeEnabledBy
         updated.vanishModeEnabledAt = conversation.vanishModeEnabledAt
@@ -154,6 +198,9 @@ class MessagingViewModel: ObservableObject {
     deinit {
         searchWorkItem?.cancel()
         userSearchWorkItem?.cancel()
+        if let conversationReadObserver {
+            NotificationCenter.default.removeObserver(conversationReadObserver)
+        }
         if let userId = Auth.auth().currentUser?.uid {
             Task { @MainActor in
                 ChatService.shared.removeConversationsListener(for: userId)
@@ -165,11 +212,17 @@ class MessagingViewModel: ObservableObject {
         let cachedConversations = sortConversationsForInbox(LocalPersistenceService.shared.loadConversations())
         if !cachedConversations.isEmpty {
             DispatchQueue.main.async {
-                let active = cachedConversations.filter { !$0.isArchived(for: userId) }
-                let archived = cachedConversations.filter { $0.isArchived(for: userId) }
+                let active = self.reconcilingOptimisticReadState(
+                    cachedConversations.filter { !$0.isArchived(for: userId) },
+                    currentUserId: userId
+                )
+                let archived = self.reconcilingOptimisticReadState(
+                    cachedConversations.filter { $0.isArchived(for: userId) },
+                    currentUserId: userId
+                )
                 self.conversations = active
                 self.archivedConversations = archived
-                self.hasUnreadMessages = cachedConversations.contains { !($0.readStatus[userId] ?? true) }
+                self.hasUnreadMessages = (active + archived).contains { !($0.readStatus[userId] ?? true) }
             }
         }
 
@@ -179,11 +232,17 @@ class MessagingViewModel: ObservableObject {
                 switch result {
                 case .success(let conversations):
                     let filtered = conversations.filter { $0.id != nil && !$0.id!.isEmpty }
-                    let active = self.sortConversationsForInbox(filtered.filter { !$0.isArchived(for: userId) })
-                    let archived = self.sortConversationsForInbox(filtered.filter { $0.isArchived(for: userId) })
+                    let active = self.reconcilingOptimisticReadState(
+                        self.sortConversationsForInbox(filtered.filter { !$0.isArchived(for: userId) }),
+                        currentUserId: userId
+                    )
+                    let archived = self.reconcilingOptimisticReadState(
+                        self.sortConversationsForInbox(filtered.filter { $0.isArchived(for: userId) }),
+                        currentUserId: userId
+                    )
                     self.conversations = active
                     self.archivedConversations = archived
-                    self.hasUnreadMessages = filtered.contains { !($0.readStatus[userId] ?? true) }
+                    self.hasUnreadMessages = (active + archived).contains { !($0.readStatus[userId] ?? true) }
                     self.errorMessage = nil
 
                     LocalPersistenceService.shared.saveConversations(active + archived, sync: self.isFirstFetch)
@@ -243,6 +302,9 @@ class MessagingViewModel: ObservableObject {
                         self.conversations[i].buzzPreferences = existing.buzzPreferences
                         self.conversations[i].lastDeletedAt = existing.lastDeletedAt
                         self.conversations[i].lastReadAt = existing.lastReadAt
+                        self.conversations[i].lastMessageSenderId = existing.lastMessageSenderId
+                        self.conversations[i].lastMessageSeenAt = existing.lastMessageSeenAt
+                        self.conversations[i].lastMessageReaction = existing.lastMessageReaction
                         self.conversations[i].vanishModeActive = existing.vanishModeActive
                         self.conversations[i].vanishModeEnabledBy = existing.vanishModeEnabledBy
                         self.conversations[i].vanishModeEnabledAt = existing.vanishModeEnabledAt
@@ -282,6 +344,9 @@ class MessagingViewModel: ObservableObject {
                         self.filteredConversations[i].buzzPreferences = existing.buzzPreferences
                         self.filteredConversations[i].lastDeletedAt = existing.lastDeletedAt
                         self.filteredConversations[i].lastReadAt = existing.lastReadAt
+                        self.filteredConversations[i].lastMessageSenderId = existing.lastMessageSenderId
+                        self.filteredConversations[i].lastMessageSeenAt = existing.lastMessageSeenAt
+                        self.filteredConversations[i].lastMessageReaction = existing.lastMessageReaction
                         self.filteredConversations[i].vanishModeActive = existing.vanishModeActive
                         self.filteredConversations[i].vanishModeEnabledBy = existing.vanishModeEnabledBy
                         self.filteredConversations[i].vanishModeEnabledAt = existing.vanishModeEnabledAt

@@ -10,9 +10,30 @@ import UIKit
 
 @MainActor
 class EnhancedChatViewModel: ObservableObject {
+    enum HistoryLoadNotice: Equatable {
+        case hidden
+        case loadingRemote
+        case offline
+        case error
+    }
+
+    struct ChatTimelineMutation: Equatable {
+        let kind: ChatListUpdateKind
+        let reason: ChatTimelineUpdateReason
+        let anchorMessageId: String?
+
+        static let initial = ChatTimelineMutation(
+            kind: .initial,
+            reason: .layout,
+            anchorMessageId: nil
+        )
+    }
+
     @Published var messages: [EnhancedMessage] = [] {
         didSet { rebuildMessageIndex() }
     }
+    @Published private(set) var chatTimelineMutation: ChatTimelineMutation = .initial
+    private var forcedNextTimelineMutation: ChatTimelineMutation?
     private(set) var messagesById: [String: EnhancedMessage] = [:]
     private(set) var messageIndexById: [String: Int] = [:]
     private(set) var unreadIncomingCount = 0
@@ -91,12 +112,64 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     private func commitMessagesPresentation(_ messages: [EnhancedMessage]) {
+        let previousMessages = self.messages
+        if let forcedNextTimelineMutation {
+            chatTimelineMutation = forcedNextTimelineMutation
+            self.forcedNextTimelineMutation = nil
+        } else {
+            chatTimelineMutation = deriveTimelineMutation(
+                oldMessages: previousMessages,
+                newMessages: messages
+            )
+        }
         self.messages = Array(messages)
         pruneUploadProgress(for: messages)
         pruneLocalMessageStates(for: messages)
         if let momentsViewModel = self as? MomentsChatViewModel {
             momentsViewModel.syncMessagePresentation()
         }
+    }
+
+    private func deriveTimelineMutation(
+        oldMessages: [EnhancedMessage],
+        newMessages: [EnhancedMessage]
+    ) -> ChatTimelineMutation {
+        guard !newMessages.isEmpty else {
+            return ChatTimelineMutation(kind: .replaceAll, reason: .layout, anchorMessageId: nil)
+        }
+        guard !oldMessages.isEmpty else {
+            return .initial
+        }
+
+        let oldIds = oldMessages.map(\.id)
+        let newIds = newMessages.map(\.id)
+
+        if newIds == oldIds {
+            return ChatTimelineMutation(kind: .reconfigureRows, reason: .layout, anchorMessageId: nil)
+        }
+
+        if newIds.count > oldIds.count {
+            if Array(newIds.suffix(oldIds.count)) == oldIds {
+                return ChatTimelineMutation(
+                    kind: .prependHistory,
+                    reason: .history,
+                    anchorMessageId: oldMessages.first?.id
+                )
+            }
+
+            if Array(newIds.prefix(oldIds.count)) == oldIds {
+                let reason: ChatTimelineUpdateReason = newMessages.last?.senderId == currentUserId
+                    ? .outgoing
+                    : .incoming
+                return ChatTimelineMutation(
+                    kind: .appendMessages,
+                    reason: reason,
+                    anchorMessageId: nil
+                )
+            }
+        }
+
+        return ChatTimelineMutation(kind: .replaceAll, reason: .layout, anchorMessageId: nil)
     }
     @Published var isTyping = false {
         didSet {
@@ -122,6 +195,7 @@ class EnhancedChatViewModel: ObservableObject {
     @Published var isLoadingMore = false
     @Published var isLoadingOlderHistory = false
     @Published var canLoadMore = true
+    @Published private(set) var historyLoadNotice: HistoryLoadNotice = .hidden
     private static let recentChatWindowSize = 20
     private static let staleChatWindowSize = 6
     private static let staleChatThresholdDays = 45
@@ -152,6 +226,7 @@ class EnhancedChatViewModel: ObservableObject {
     // el eco del listener no debe revivirlos como no leídos (resucitaría el divisor).
     private var locallyReadMessageIds = Set<String>()
     private var seenBuzzEventIds = Set<String>()
+    private var historyLoadNoticeTask: Task<Void, Never>?
 
     @Published var conversation: Conversation
     let currentUserId: String
@@ -999,14 +1074,6 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
-    // ✅ NUEVA: Función para limpiar estados locales después de un tiempo
-    private func cleanupLocalStates() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
-            self.localMessageStates.removeAll()
-            self.uploadProgress = [:]
-        }
-    }
-
     private func rebuildMessagesList() {
         // 1. Unir real-time + históricos (PRIORIDAD AL REAL-TIME para cambios de estado)
         let allMessages = messagesRespectingDeletionCutoff(realTimeMessages + historicalMessages)
@@ -1171,23 +1238,6 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
-    /// Mensaje propio con reacción de otra persona; solo si hay exactamente uno (apertura sin push).
-    func soleOwnMessageWithExternalReactionId() -> String? {
-        let matching = messages.filter { message in
-            guard message.senderId == currentUserId else { return false }
-            let reactions = liveReactionOverlays[message.id] ?? message.reactions
-            guard let reactions, !reactions.isEmpty else { return false }
-            return reactionIncludesOtherParticipant(reactions)
-        }
-        guard matching.count == 1, let id = matching.last?.id else { return nil }
-        return id
-    }
-
-    func preferredHighlightMessageIdForOpen(intentHighlightIds: Set<String>) -> String? {
-        if let intentId = intentHighlightIds.first { return intentId }
-        return soleOwnMessageWithExternalReactionId()
-    }
-
     // ✅ FUNCIÓN: Cargar más mensajes (SwiftData primero, luego Firestore)
     func loadMoreMessages() {
         guard !isLoadingMore, canLoadMore, let conversationId = conversation.id, let oldest = messages.first else {
@@ -1196,6 +1246,8 @@ class EnhancedChatViewModel: ObservableObject {
 
         isLoadingMore = true
         isLoadingOlderHistory = true
+        historyLoadNoticeTask?.cancel()
+        historyLoadNotice = .hidden
 
         let cutoff = effectiveDeletedAtCutoff()
         let pageSize = Self.historyPageSize
@@ -1220,8 +1272,16 @@ class EnhancedChatViewModel: ObservableObject {
             }
 
             guard NetworkMonitor.shared.isConnected else {
-                self.finishHistoryLoad(canLoadMore: false)
+                self.historyLoadNotice = .offline
+                self.finishHistoryLoad(canLoadMore: self.canLoadMore)
+                self.endHistoryScrollRestoration()
                 return
+            }
+
+            self.historyLoadNoticeTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 450_000_000)
+                guard let self, self.isLoadingOlderHistory else { return }
+                self.historyLoadNotice = .loadingRemote
             }
 
             do {
@@ -1243,11 +1303,15 @@ class EnhancedChatViewModel: ObservableObject {
                     LocalPersistenceService.shared.appendMessages(novel, conversationId: conversationId)
                 }
 
-                let hasMore = !novel.isEmpty && novel.count >= pageSize
+                let hasMore = olderMessages.count >= pageSize
                 self.finishHistoryLoad(canLoadMore: hasMore)
+                if novel.isEmpty {
+                    self.endHistoryScrollRestoration()
+                }
             } catch {
-
+                self.historyLoadNotice = .error
                 self.finishHistoryLoad(canLoadMore: self.canLoadMore)
+                self.endHistoryScrollRestoration()
             }
         }
     }
@@ -1270,17 +1334,20 @@ class EnhancedChatViewModel: ObservableObject {
     private func finishHistoryLoad(canLoadMore: Bool) {
         self.canLoadMore = canLoadMore
         isLoadingMore = false
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            guard let self, self.isLoadingOlderHistory else { return }
-            self.endHistoryScrollRestoration()
-        }
     }
 
     /// La vista llama esto cuando el scroll quedó re-anclado tras prepend.
     func endHistoryScrollRestoration() {
+        historyLoadNoticeTask?.cancel()
         isLoadingOlderHistory = false
+        if historyLoadNotice == .loadingRemote {
+            historyLoadNotice = .hidden
+        }
+    }
 
+    func clearHistoryLoadNotice() {
+        historyLoadNoticeTask?.cancel()
+        historyLoadNotice = .hidden
     }
 
     private func fetchOlderMessagesFromFirestore(
@@ -1335,16 +1402,6 @@ class EnhancedChatViewModel: ObservableObject {
         return days > Self.staleChatThresholdDays ? Self.staleChatWindowSize : Self.recentChatWindowSize
     }
 
-    func loadMessageForHighlightIfNeeded(messageId: String) {
-        guard !messageId.isEmpty else { return }
-        guard !messages.contains(where: { $0.id == messageId }) else { return }
-        Task { @MainActor [weak self] in
-            _ = await self?.navigateToMessage(messageId: messageId)
-        }
-    }
-
-    /// Carga una ventana de historial centrada en `messageId` y reemplaza el slice visible (como
-    /// `navigateToMessage` / `ChatHistoryLocationInput` en Telegram-iOS).
     @discardableResult
     func navigateToMessage(messageId: String) async -> Bool {
         guard !messageId.isEmpty else { return false }
@@ -1406,8 +1463,11 @@ class EnhancedChatViewModel: ObservableObject {
             )
         )
 
-        let needsRemoteWindow = window.count < radius
+        let expectedWindowCount = (radius * 2) + 1
+        let needsRemoteWindow = window.count < expectedWindowCount
             || !window.contains(where: { $0.id == messageId })
+
+        var reachedStartOfHistory: Bool?
 
         if needsRemoteWindow, NetworkMonitor.shared.isConnected {
             do {
@@ -1425,6 +1485,7 @@ class EnhancedChatViewModel: ObservableObject {
                 )
                 let remoteBefore = try await older
                 let remoteAfter = try await newer
+                reachedStartOfHistory = remoteBefore.count < radius
                 window = mergeNavigationWindow(
                     before: remoteBefore,
                     anchor: anchor,
@@ -1442,7 +1503,7 @@ class EnhancedChatViewModel: ObservableObject {
             ChatScrollDebug.log("navigateToMessage: window missing target (window=\(window.count))")
             return false
         }
-        applyMessageNavigationWindow(window)
+        applyMessageNavigationWindow(window, anchorMessageId: messageId, reachedStartOfHistory: reachedStartOfHistory)
         let success = messages.contains(where: { $0.id == messageId })
         ChatScrollDebug.log("navigateToMessage: applied window=\(window.count) success=\(success)")
         return success
@@ -1465,7 +1526,11 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
-    private func applyMessageNavigationWindow(_ window: [EnhancedMessage]) {
+    private func applyMessageNavigationWindow(
+        _ window: [EnhancedMessage],
+        anchorMessageId: String,
+        reachedStartOfHistory: Bool?
+    ) {
         let sorted = window.sorted { lhs, rhs in
             if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
             return lhs.id < rhs.id
@@ -1481,28 +1546,13 @@ class EnhancedChatViewModel: ObservableObject {
             return MessageSyncCursor(timestamp: message.timestamp, messageId: message.id).isAfter(windowEnd)
         }
 
-        canLoadMore = sorted.count >= Self.navigationWindowRadius
+        forcedNextTimelineMutation = ChatTimelineMutation(
+            kind: .jump,
+            reason: .highlight,
+            anchorMessageId: anchorMessageId
+        )
+        canLoadMore = !(reachedStartOfHistory ?? false)
         rebuildMessagesList()
-    }
-
-    // ✅ NUEVA: Función para reemplazar mensaje temporal
-    private func replaceTemporaryMessage(messageId: String, with sentMessage: EnhancedMessage) {
-        // ✅ Limpiar estado local ya que el mensaje se ha enviado
-        localMessageStates.removeValue(forKey: messageId)
-
-        if let index = messages.firstIndex(where: { $0.id == messageId }) {
-            DispatchQueue.main.async {
-                self.messages[index] = sentMessage
-                self.cleanupLocalStates()
-                self.objectWillChange.send()
-            }
-        } else {
-            DispatchQueue.main.async {
-                self.messages.append(sentMessage)
-                self.cleanupLocalStates()
-                self.objectWillChange.send()
-            }
-        }
     }
 
     // MARK: - Lifecycle
@@ -1765,6 +1815,9 @@ class EnhancedChatViewModel: ObservableObject {
         if let lastReadAt = fresh.lastReadAt, lastReadAt != conversation.lastReadAt {
             conversation.lastReadAt = lastReadAt
         }
+        conversation.lastMessageSenderId = fresh.lastMessageSenderId
+        conversation.lastMessageSeenAt = fresh.lastMessageSeenAt
+        conversation.lastMessageReaction = fresh.lastMessageReaction
     }
 
     func activateChatSession() {
@@ -1820,9 +1873,6 @@ class EnhancedChatViewModel: ObservableObject {
         cancellables.removeAll()
     }
 
-    func startListening() {
-        activateChatSession()
-    }
     func stopListening() {
         pauseChatListenersImmediately()
         isChatVisible = false
@@ -2383,6 +2433,7 @@ class EnhancedChatViewModel: ObservableObject {
 
         EmojiUsageStore.increment(emoji, userId: currentUserId)
 
+        let wasToggleOff = message.reactions?[emoji]?.contains(currentUserId) ?? false
         let updated = MessageReactionMutation.apply(
             to: message.reactions,
             emoji: emoji,
@@ -2401,6 +2452,18 @@ class EnhancedChatViewModel: ObservableObject {
                     self?.error = error.localizedDescription
                 }
             }
+        }
+
+        guard message.id == messages.last?.id, message.senderId != currentUserId else { return }
+        if wasToggleOff {
+            chatService.clearLastMessageReaction(conversationId: conversationId) { _ in }
+        } else {
+            chatService.setLastMessageReaction(
+                conversationId: conversationId,
+                messageId: message.id,
+                emoji: emoji,
+                byUserId: currentUserId
+            ) { _ in }
         }
     }
 
@@ -2468,6 +2531,15 @@ class EnhancedChatViewModel: ObservableObject {
         // marcado local muta las mismas instancias, dejando sin nada que escribir al servidor.
         let markedIds = applyOptimisticReadLocally(sealsVanish: sealsVanish)
         markUnreadMessagesAsRead(messageIds: markedIds)
+        clearLastMessageReactionIfViewedBySender()
+    }
+
+    private func clearLastMessageReactionIfViewedBySender() {
+        guard let conversationId = conversation.id,
+              let reaction = conversation.lastMessageReaction,
+              reaction.byUserId != currentUserId else { return }
+        conversation.lastMessageReaction = nil
+        chatService.clearLastMessageReaction(conversationId: conversationId) { _ in }
     }
 
     @discardableResult
@@ -2494,6 +2566,11 @@ class EnhancedChatViewModel: ObservableObject {
                 LocalPersistenceService.shared.markMessagesAsRead(conversationId: conversationId, messageIds: markedIds)
             }
             LocalPersistenceService.shared.markConversationReadLocally(conversationId: conversationId, currentUserId: currentUserId)
+            NotificationCenter.default.post(
+                name: .conversationMarkedReadLocally,
+                object: nil,
+                userInfo: ["conversationId": conversationId]
+            )
         }
 
         locallyReadMessageIds.formUnion(markedIds)
@@ -2524,10 +2601,14 @@ class EnhancedChatViewModel: ObservableObject {
             // Si no hay mensajes individuales sin leer, de todos modos marcamos el documento de la conversación como leído (útil si se marcó como no leído manualmente).
             chatService.markConversationAsRead(conversationId: conversationId, userId: currentUserId)
         } else {
+            let marksLastMessageSeen = messages.last.map {
+                messageIds.contains($0.id) && $0.senderId != currentUserId
+            } ?? false
             chatService.markMessagesAsRead(
                 conversationId: conversationId,
                 messageIds: messageIds,
-                readerId: currentUserId
+                readerId: currentUserId,
+                marksLastMessageSeen: marksLastMessageSeen
             ) { error in
                 if error != nil {
                     // Error marking messages as read
@@ -3012,14 +3093,6 @@ class EnhancedChatViewModel: ObservableObject {
         activeSearchToken = UUID()
         searchResults = []
         isSearchingHistory = false
-    }
-
-    func prepareSearchJump(to messageId: String) {
-        guard !messageId.isEmpty else { return }
-        guard !messages.contains(where: { $0.id == messageId }) else { return }
-        Task { @MainActor [weak self] in
-            _ = await self?.navigateToMessage(messageId: messageId)
-        }
     }
 
     private static func mergeSearchResultIds(_ ids: [String]) -> [String] {

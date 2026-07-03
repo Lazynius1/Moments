@@ -156,29 +156,54 @@ extension ToolbarContent {
 /// Cápsula glass flotante al paginar historial (misma familia que `ChatBuzzToast`).
 struct ChatHistoryLoadingIndicator: View {
     let adaptiveColors: AdaptiveColors
+    var textKey: LocalizedStringKey = "chat.loadingOlderMessages"
+    var showsProgress: Bool = true
+    var retryTextKey: LocalizedStringKey? = nil
+    var onTap: (() -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
 
     private var shape: Capsule { Capsule(style: .continuous) }
 
     var body: some View {
-        HStack(spacing: 8) {
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(
-                    tint: colorScheme == .dark ? .white : adaptiveColors.primary
-                ))
-                .scaleEffect(0.78)
-            Text("chat.loadingOlderMessages")
-                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.92) : .black.opacity(0.82))
+        Group {
+            if let onTap {
+                Button(action: onTap) {
+                    content
+                }
+                .buttonStyle(.plain)
+            } else {
+                content
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
         .momentsChromeGlass(in: shape, interactive: false)
         .clipShape(shape)
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.12), radius: 14, x: 0, y: 8)
-        .allowsHitTesting(false)
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(onTap == nil ? [] : .isButton)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        HStack(spacing: 8) {
+            if showsProgress {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(
+                        tint: colorScheme == .dark ? .white : adaptiveColors.primary
+                    ))
+                    .scaleEffect(0.78)
+            }
+            Text(textKey)
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.92) : .black.opacity(0.82))
+            if let retryTextKey {
+                Text(retryTextKey)
+                    .font(.system(size: legacyPoppinsSize(12), weight: .bold))
+                    .foregroundStyle(adaptiveColors.primary)
+            }
+        }
     }
 }
 

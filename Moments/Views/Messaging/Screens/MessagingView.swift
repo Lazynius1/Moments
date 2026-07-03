@@ -1225,12 +1225,21 @@ struct GlassmorphicConversationRow: View {
                     format: NSLocalizedString("chat.draft.preview", comment: "Draft conversation preview"),
                     cleanDraft
                 )
+            } else if let reaction = conversation.lastMessageReaction,
+                      conversation.lastMessageSenderId == currentUserId {
+                return "\(reaction.emoji) " + NSLocalizedString("chat.preview.reacted", comment: "Reacted to your message")
             } else if conversation.unreadCount >= 2 {
                 let format = NSLocalizedString("chat.unreadCount.preview", comment: "X new messages preview")
                 if format == "chat.unreadCount.preview" {
                     return String(format: "%d mensajes nuevos", conversation.unreadCount)
                 }
                 return String(format: format, conversation.unreadCount)
+            } else if conversation.lastMessageSenderId == currentUserId,
+                      let seenAt = conversation.lastMessageSeenAt?[conversation.otherParticipantId] {
+                let seenAgo = MomentsFormat.relativeTime(from: seenAt, style: .compactBare)
+                return String(format: NSLocalizedString("time.viewed", comment: "Viewed X ago"), seenAgo)
+            } else if conversation.lastMessageSenderId == currentUserId {
+                return NSLocalizedString("chat.status.sent", comment: "Sent")
             } else {
                 return conversation.messagePreview
             }
@@ -1243,7 +1252,7 @@ struct GlassmorphicConversationRow: View {
         }()
 
         let secondaryColor = colorScheme == .dark ? Color.white.opacity(0.45) : Color.black.opacity(0.38)
-        let relativeTime = MomentsFormat.relativeTime(from: conversation.timestamp)
+        let relativeTime = MomentsFormat.relativeTime(from: conversation.timestamp, style: .compactBare)
 
         let row = HStack(spacing: 6) {
             Text(
