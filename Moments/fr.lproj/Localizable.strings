@@ -2772,7 +2772,7 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Nouveautes sur Moments !";
-"whatsNew.subtitle" = "Messages ephemeres, wizz, chats archives, reponse rapide depuis les notifications et un chat plus rapide et plus soigne.";
+"whatsNew.subtitle" = "Messages ephemeres, wizz, chats archives, reponse rapide depuis les notifications, nouvelles polices pour les stories et un chat plus rapide et plus soigne avec un telechargement de donnees repense.";
 "whatsNew.button" = "Decouvrir Moments 2.16";
 
 "whatsNew.vanish.title" = "Messages ephemeres";
@@ -2785,7 +2785,7 @@
 "whatsNew.archived.description" = "Range des conversations hors de ta boite principale et retrouve-les quand tu veux, avec les non-lus.";
 
 "whatsNew.fasterChat.title" = "Chat plus rapide";
-"whatsNew.fasterChat.description" = "Les messages et les photos sont enregistres sur ton telephone pour ouvrir les conversations tout de suite et charger l'historique plus fluidement.";
+"whatsNew.fasterChat.description" = "Les messages et les photos sont enregistres sur ton telephone pour ouvrir les conversations tout de suite et charger l'historique plus fluidement. Les chats que tu as deja ouverts chargent maintenant presque instantanement.";
 
 "whatsNew.notifications.title" = "Notifications ameliorees";
 "whatsNew.notifications.description" = "Reponds en maintenant la notification enfoncee et vois plus clairement quand on t'envoie des photos, des videos ou un wizz.";
@@ -2793,8 +2793,14 @@
 "whatsNew.chatPolish.title" = "Chat plus soigne";
 "whatsNew.chatPolish.description" = "Reponses dans la bulle, liste plus compacte, glisse pour revenir en arriere et notes vocales plus confortables.";
 
+"whatsNew.storyFonts.title" = "Nouvelles polices pour les stories";
+"whatsNew.storyFonts.description" = "6 nouvelles polices et 3 nouveaux effets de texte pour tes stories, ainsi que des corrections du surlignage et des styles avec fond.";
+
 "whatsNew.social.title" = "Activite et visites";
 "whatsNew.social.description" = "Consulte ton activite partagee avec une autre personne et vois plus clairement qui visite ton profil.";
+
+"whatsNew.dataExport.title" = "Telecharge tes donnees a ta maniere";
+"whatsNew.dataExport.description" = "Choisis de telecharger uniquement tes conversations, et inclus tes chats et conversations Nova dechiffres avec ton code PIN de recuperation.";
 
 "whatsNew.discovery.title" = "Pour toi et plus";
 "whatsNew.discovery.description" = "Decouvre des moments de nouvelles personnes, des dates plus naturelles dans ta langue et des ameliorations de stabilite dans toute l'app.";

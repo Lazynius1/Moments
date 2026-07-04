@@ -2793,7 +2793,7 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Missatges que desapareixen, brunzits, xats arxivats, resposta rapida des de les notificacions i un xat mes rapid i polit.";
+"whatsNew.subtitle" = "Missatges que desapareixen, brunzits, xats arxivats, resposta rapida des de les notificacions, fonts noves per a histories i un xat mes rapid i polit amb la descarrega de dades renovada.";
 "whatsNew.button" = "Explorar Moments 2.16";
 
 "whatsNew.vanish.title" = "Missatges que desapareixen";
@@ -2806,7 +2806,7 @@
 "whatsNew.archived.description" = "Guarda converses fora de la safata principal i recupera-les quan vulguis, amb els no llegits.";
 
 "whatsNew.fasterChat.title" = "Xat mes rapid";
-"whatsNew.fasterChat.description" = "Els missatges i les fotos es guarden al teu telefon per obrir converses a l'instant i carregar l'historial amb mes suavitat.";
+"whatsNew.fasterChat.description" = "Els missatges i les fotos es guarden al teu telefon per obrir converses a l'instant i carregar l'historial amb mes suavitat. Els xats que ja has obert abans carreguen gairebe a l'instant.";
 
 "whatsNew.notifications.title" = "Notificacions millorades";
 "whatsNew.notifications.description" = "Respon mantenint premuda la notificacio i veu millor quan t'envien fotos, videos o un brunzit.";
@@ -2814,8 +2814,14 @@
 "whatsNew.chatPolish.title" = "Xat mes polit";
 "whatsNew.chatPolish.description" = "Respostes dins la bombolla, llista mes compacta, deslitza per tornar i notes de veu mes comodes.";
 
+"whatsNew.storyFonts.title" = "Fonts noves per a histories";
+"whatsNew.storyFonts.description" = "6 tipografies i 3 efectes de text nous per a les teves histories, a mes d'arranjaments en el ressaltat i en els estils amb fons.";
+
 "whatsNew.social.title" = "Activitat i visites";
 "whatsNew.social.description" = "Consulta la teva activitat compartida amb una altra persona i revisa qui visita el teu perfil amb mes claredat.";
+
+"whatsNew.dataExport.title" = "Descarrega les teves dades a la teva manera";
+"whatsNew.dataExport.description" = "Tria descarregar només les teves converses, i inclou els teus xats i converses amb Nova desxifrats amb el teu PIN de recuperacio.";
 
 "whatsNew.discovery.title" = "Per a tu i mes";
 "whatsNew.discovery.description" = "Descobreix moments de gent nova, dates mes naturals en el teu idioma i millores d'estabilitat a tota l'app.";

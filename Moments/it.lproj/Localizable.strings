@@ -2772,7 +2772,7 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novita su Moments!";
-"whatsNew.subtitle" = "Messaggi che scompaiono, trilli, chat archiviate, risposta rapida dalle notifiche e una chat piu veloce e curata.";
+"whatsNew.subtitle" = "Messaggi che scompaiono, trilli, chat archiviate, risposta rapida dalle notifiche, nuovi font per le stories e una chat piu veloce e curata con lo scaricamento dei dati rinnovato.";
 "whatsNew.button" = "Scopri Moments 2.16";
 
 "whatsNew.vanish.title" = "Messaggi che scompaiono";
@@ -2785,7 +2785,7 @@
 "whatsNew.archived.description" = "Metti le conversazioni fuori dalla posta in arrivo principale e recuperale quando vuoi, con i non letti.";
 
 "whatsNew.fasterChat.title" = "Chat piu veloce";
-"whatsNew.fasterChat.description" = "Messaggi e foto vengono salvati sul telefono cosi le conversazioni si aprono subito e la cronologia si carica con piu fluidita.";
+"whatsNew.fasterChat.description" = "Messaggi e foto vengono salvati sul telefono cosi le conversazioni si aprono subito e la cronologia si carica con piu fluidita. Le chat che hai gia aperto ora si caricano quasi all'istante.";
 
 "whatsNew.notifications.title" = "Notifiche migliorate";
 "whatsNew.notifications.description" = "Rispondi tenendo premuta la notifica e vedi meglio quando ti inviano foto, video o un trillo.";
@@ -2793,8 +2793,14 @@
 "whatsNew.chatPolish.title" = "Chat piu curata";
 "whatsNew.chatPolish.description" = "Risposte nella bolla, elenco piu compatto, scorri per tornare indietro e note vocali piu comode.";
 
+"whatsNew.storyFonts.title" = "Nuovi font per le stories";
+"whatsNew.storyFonts.description" = "6 nuovi font e 3 nuovi effetti di testo per le tue stories, oltre a correzioni per l'evidenziatore e gli stili con sfondo.";
+
 "whatsNew.social.title" = "Attivita e visite";
 "whatsNew.social.description" = "Consulta la tua attivita condivisa con un'altra persona e controlla piu chiaramente chi visita il tuo profilo.";
+
+"whatsNew.dataExport.title" = "Scarica i tuoi dati come vuoi tu";
+"whatsNew.dataExport.description" = "Scegli di scaricare solo le tue conversazioni e includi le tue chat e conversazioni con Nova decifrate con il tuo PIN di recupero.";
 
 "whatsNew.discovery.title" = "Per te e altro";
 "whatsNew.discovery.description" = "Scopri moments di persone nuove, date piu naturali nella tua lingua e miglioramenti di stabilita in tutta l'app.";

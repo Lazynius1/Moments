@@ -2772,7 +2772,7 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Neu in Moments!";
-"whatsNew.subtitle" = "Verschwindende Nachrichten, Anstupser, archivierte Chats, Schnellantwort aus Benachrichtigungen und ein schnellerer, verfeinerter Chat.";
+"whatsNew.subtitle" = "Verschwindende Nachrichten, Anstupser, archivierte Chats, Schnellantwort aus Benachrichtigungen, neue Story-Schriftarten und ein schnellerer, verfeinerter Chat mit uberarbeitetem Datendownload.";
 "whatsNew.button" = "Moments 2.16 entdecken";
 
 "whatsNew.vanish.title" = "Verschwindende Nachrichten";
@@ -2785,7 +2785,7 @@
 "whatsNew.archived.description" = "Räume Unterhaltungen aus deinem Posteingang aus und hole sie jederzeit zuruck, inklusive ungelesener Nachrichten.";
 
 "whatsNew.fasterChat.title" = "Schnellerer Chat";
-"whatsNew.fasterChat.description" = "Nachrichten und Fotos werden auf deinem Handy gespeichert, damit Chats sofort offnen und der Verlauf flussiger ladet.";
+"whatsNew.fasterChat.description" = "Nachrichten und Fotos werden auf deinem Handy gespeichert, damit Chats sofort offnen und der Verlauf flussiger ladet. Chats, die du schon geoffnet hast, laden jetzt fast sofort.";
 
 "whatsNew.notifications.title" = "Bessere Benachrichtigungen";
 "whatsNew.notifications.description" = "Antworte, indem du die Benachrichtigung gedruckt haltst, und sieh klarer, wenn dir Fotos, Videos oder ein Anstupser geschickt werden.";
@@ -2793,8 +2793,14 @@
 "whatsNew.chatPolish.title" = "Verfeinerter Chat";
 "whatsNew.chatPolish.description" = "Antworten in der Sprechblase, kompaktere Liste, Wischen zum Zuruckgehen und bequemere Sprachnachrichten.";
 
+"whatsNew.storyFonts.title" = "Neue Story-Schriftarten";
+"whatsNew.storyFonts.description" = "6 neue Schriftarten und 3 neue Texteffekte fur deine Storys, außerdem Korrekturen bei Textmarker-Hervorhebungen und Stilen mit Hintergrund.";
+
 "whatsNew.social.title" = "Aktivitat und Besuche";
 "whatsNew.social.description" = "Sieh deine geteilte Aktivitat mit einer anderen Person und prufe klarer, wer dein Profil besucht.";
+
+"whatsNew.dataExport.title" = "Lade deine Daten nach deinen Wunschen herunter";
+"whatsNew.dataExport.description" = "Lade nur deine Unterhaltungen herunter und schließe deine Chats und Nova-Unterhaltungen ein, entschlusselt mit deiner Wiederherstellungs-PIN.";
 
 "whatsNew.discovery.title" = "Fur dich und mehr";
 "whatsNew.discovery.description" = "Entdecke Momente von neuen Personen, naturlichere Datumsangaben in deiner Sprache und Stabilitatsverbesserungen in der ganzen App.";

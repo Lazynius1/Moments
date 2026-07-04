@@ -38,9 +38,19 @@ struct WhatsNewView: View {
                 description: NSLocalizedString("whatsNew.chatPolish.description", comment: "")
             ),
             WhatsNewFeature(
+                icon: .system("textformat"),
+                title: NSLocalizedString("whatsNew.storyFonts.title", comment: ""),
+                description: NSLocalizedString("whatsNew.storyFonts.description", comment: "")
+            ),
+            WhatsNewFeature(
                 icon: .attachment(.mutuals),
                 title: NSLocalizedString("whatsNew.social.title", comment: ""),
                 description: NSLocalizedString("whatsNew.social.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("lock.doc.fill"),
+                title: NSLocalizedString("whatsNew.dataExport.title", comment: ""),
+                description: NSLocalizedString("whatsNew.dataExport.description", comment: "")
             ),
             WhatsNewFeature(
                 icon: .system("sparkles"),

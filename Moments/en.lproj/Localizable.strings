@@ -2781,7 +2781,7 @@
 
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Disappearing messages, buzzes, archived chats, quick reply from notifications, and a faster, more polished chat.";
+"whatsNew.subtitle" = "Disappearing messages, buzzes, archived chats, quick reply from notifications, new story fonts, and a faster, more polished chat with a refreshed data download.";
 "whatsNew.button" = "Explore Moments 2.16";
 
 "whatsNew.vanish.title" = "Disappearing messages";
@@ -2794,7 +2794,7 @@
 "whatsNew.archived.description" = "Move conversations out of your main inbox and bring them back anytime, unread count included.";
 
 "whatsNew.fasterChat.title" = "Faster chat";
-"whatsNew.fasterChat.description" = "Messages and photos are saved on your phone so conversations open right away and history loads more smoothly.";
+"whatsNew.fasterChat.description" = "Messages and photos are saved on your phone so conversations open right away and history loads more smoothly. Chats you've already opened now load almost instantly.";
 
 "whatsNew.notifications.title" = "Better notifications";
 "whatsNew.notifications.description" = "Reply by pressing and holding the notification and get clearer previews for photos, videos, and buzzes.";
@@ -2802,8 +2802,14 @@
 "whatsNew.chatPolish.title" = "Refined chat";
 "whatsNew.chatPolish.description" = "Replies inside the bubble, a more compact list, swipe to go back, and more comfortable voice notes.";
 
+"whatsNew.storyFonts.title" = "New story fonts";
+"whatsNew.storyFonts.description" = "6 new fonts and 3 new text effects for your stories, plus fixes for marker highlights and boxed text styles.";
+
 "whatsNew.social.title" = "Activity and visits";
 "whatsNew.social.description" = "See your shared activity with someone else and check who visits your profile more clearly.";
+
+"whatsNew.dataExport.title" = "Download your data, your way";
+"whatsNew.dataExport.description" = "Choose to download just your conversations, and include your chats and Nova conversations decrypted with your recovery PIN.";
 
 "whatsNew.discovery.title" = "For You and more";
 "whatsNew.discovery.description" = "Discover moments from new people, more natural dates in your language, and stability improvements across the app.";
