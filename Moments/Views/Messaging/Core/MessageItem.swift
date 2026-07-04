@@ -22,11 +22,11 @@ enum ChatRenderRow: Identifiable {
 
     var id: String {
         switch self {
-        case .header(let date): return "header-\(date.timeIntervalSince1970)"
-        case .message(let item): return item.id
-        case .buzz(let event): return "buzz-\(event.id)"
-        case .typing: return "typing-indicator"
-        case .historyStart: return "history-start"
+        case .header(let date): return "row:header:\(date.timeIntervalSince1970)"
+        case .message(let item): return "row:message:\(item.id)"
+        case .buzz(let event): return "row:buzz:\(event.id)"
+        case .typing: return "row:synthetic:typing-indicator"
+        case .historyStart: return "row:synthetic:history-start"
         }
     }
 }
