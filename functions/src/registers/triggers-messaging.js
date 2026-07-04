@@ -1477,6 +1477,27 @@ const deleteExpiredVanishMessages = onSchedule(
   }
 );
 
+
+const onVanishMessageDeleted = onDocumentDeleted(
+  'conversations/{conversationId}/messages/{messageId}',
+  async (event) => {
+    const data = event.data?.data() || {};
+    if (data.isVanishModeMessage !== true) return null;
+
+    const storagePaths = [];
+    if (typeof data.mediaObjectPath === 'string' && data.mediaObjectPath) {
+      storagePaths.push(data.mediaObjectPath);
+    }
+    if (typeof data.thumbnailObjectPath === 'string' && data.thumbnailObjectPath) {
+      storagePaths.push(data.thumbnailObjectPath);
+    }
+    if (storagePaths.length > 0) {
+      await deleteStorageUrls([...new Set(storagePaths)]);
+    }
+    return null;
+  }
+);
+
 // 🧹 Limpieza de `buzzEvents` vencidos (campo `expiresAt`): los zumbidos son efímeros y no deben
 // acumularse para siempre. Requiere índice collection-group en buzzEvents (expiresAt ASC).
 const cleanupExpiredBuzzEvents = onSchedule(
@@ -1533,6 +1554,7 @@ module.exports = {
   onFollowRequestReceived,
   onFollowRequestRemoved,
   onConversationVanishModeChanged,
+  onVanishMessageDeleted,
   deleteExpiredVanishMessages,
   cleanupExpiredBuzzEvents,
 };

@@ -166,7 +166,7 @@ extension ChatService {
                 .document(conversationId)
                 .collection("messages")
                 .document(messageId)
-            batch.updateData(["vanishedFor": FieldValue.arrayUnion([userId])], forDocument: ref)
+            batch.deleteDocument(ref)
         }
 
         batch.commit { error in
