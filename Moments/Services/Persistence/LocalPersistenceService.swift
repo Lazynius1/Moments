@@ -1515,25 +1515,42 @@ final class LocalPersistenceService: ObservableObject {
     
     func cleanupOldChats() {
         guard let context = modelContext else { return }
-        
+
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -maxDataAgeDays, to: Date()) ?? Date()
-        
-        // 1. Limpiar mensajes antiguos (y su media en disco)
-        let messagePredicate = #Predicate<CachedMessage> { $0.timestamp < cutoffDate }
-        if let staleMessages = try? context.fetch(FetchDescriptor<CachedMessage>(predicate: messagePredicate)) {
-            for message in staleMessages {
+        let staleThresholdDate = Calendar.current.date(byAdding: .day, value: -EnhancedChatViewModel.staleChatThresholdDays, to: Date()) ?? Date()
+
+        let conversationIds = Set((try? context.fetch(FetchDescriptor<CachedMessage>()))?.map(\.conversationId) ?? [])
+
+        for conversationId in conversationIds {
+            var latestDescriptor = FetchDescriptor<CachedMessage>(
+                predicate: #Predicate { $0.conversationId == conversationId },
+                sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+            )
+            latestDescriptor.fetchLimit = 1
+            let latestTimestamp = (try? context.fetch(latestDescriptor))?.first?.timestamp
+            let isStale = latestTimestamp.map { $0 < staleThresholdDate } ?? true
+            let keepCount = isStale ? EnhancedChatViewModel.staleChatWindowSize : EnhancedChatViewModel.recentChatWindowSize
+
+            var recentDescriptor = FetchDescriptor<CachedMessage>(
+                predicate: #Predicate { $0.conversationId == conversationId },
+                sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+            )
+            recentDescriptor.fetchLimit = keepCount
+            let protectedIds = Set((try? context.fetch(recentDescriptor))?.map(\.id) ?? [])
+
+            let stalePredicate = #Predicate<CachedMessage> {
+                $0.conversationId == conversationId && $0.timestamp < cutoffDate
+            }
+            guard let staleCandidates = try? context.fetch(FetchDescriptor<CachedMessage>(predicate: stalePredicate)) else { continue }
+            for message in staleCandidates where !protectedIds.contains(message.id) {
                 ChatCacheStore.deleteMessageFiles(
                     conversationId: message.conversationId,
                     messageId: message.id
                 )
+                context.delete(message)
             }
         }
-        do {
-            try context.delete(model: CachedMessage.self, where: messagePredicate)
-        } catch {
-            AppLog.debug("❌ LocalPersistence: Error limpiando mensajes antiguos: \(error)")
-        }
-        
+
         // 2. Limpiar conversaciones que no han tenido actividad en X días
         let chatPredicate = #Predicate<CachedConversation> { $0.timestamp < cutoffDate && !$0.isPinned }
         do {
@@ -1541,7 +1558,7 @@ final class LocalPersistenceService: ObservableObject {
         } catch {
             AppLog.debug("❌ LocalPersistence: Error limpiando chats antiguos: \(error)")
         }
-        
+
         saveContext()
         ChatCacheStore.enforceRetention()
     }

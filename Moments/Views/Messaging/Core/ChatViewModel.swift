@@ -61,6 +61,7 @@ class EnhancedChatViewModel: ObservableObject {
     @Published var downloadProgress: [String: Double] = [:]
 
     private func setUploadProgress(_ progress: Double, for messageId: String) {
+        guard shouldPublishProgressUpdate(previous: uploadProgress[messageId], next: progress) else { return }
         var updated = uploadProgress
         updated[messageId] = progress
         uploadProgress = updated
@@ -74,9 +75,16 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     private func setDownloadProgress(_ progress: Double, for messageId: String) {
+        guard shouldPublishProgressUpdate(previous: downloadProgress[messageId], next: progress) else { return }
         var updated = downloadProgress
         updated[messageId] = progress
         downloadProgress = updated
+    }
+
+    private func shouldPublishProgressUpdate(previous: Double?, next: Double) -> Bool {
+        guard let previous else { return true }
+        if next <= 0 || next >= 1 { return next != previous }
+        return abs(next - previous) >= 0.03
     }
 
     private func clearDownloadProgress(for messageId: String) {
@@ -196,9 +204,9 @@ class EnhancedChatViewModel: ObservableObject {
     @Published var isLoadingOlderHistory = false
     @Published var canLoadMore = true
     @Published private(set) var historyLoadNotice: HistoryLoadNotice = .hidden
-    private static let recentChatWindowSize = 20
-    private static let staleChatWindowSize = 6
-    private static let staleChatThresholdDays = 45
+    static let recentChatWindowSize = 20
+    static let staleChatWindowSize = 6
+    static let staleChatThresholdDays = 45
     private static let historyPageSize = 50
     private static let navigationWindowRadius = 25
     @Published private(set) var forwardingPreferences: [String: Bool] = [:]
@@ -1815,9 +1823,15 @@ class EnhancedChatViewModel: ObservableObject {
         if let lastReadAt = fresh.lastReadAt, lastReadAt != conversation.lastReadAt {
             conversation.lastReadAt = lastReadAt
         }
-        conversation.lastMessageSenderId = fresh.lastMessageSenderId
-        conversation.lastMessageSeenAt = fresh.lastMessageSeenAt
-        conversation.lastMessageReaction = fresh.lastMessageReaction
+        if fresh.lastMessageSenderId != conversation.lastMessageSenderId {
+            conversation.lastMessageSenderId = fresh.lastMessageSenderId
+        }
+        if fresh.lastMessageSeenAt != conversation.lastMessageSeenAt {
+            conversation.lastMessageSeenAt = fresh.lastMessageSeenAt
+        }
+        if fresh.lastMessageReaction != conversation.lastMessageReaction {
+            conversation.lastMessageReaction = fresh.lastMessageReaction
+        }
     }
 
     func activateChatSession() {

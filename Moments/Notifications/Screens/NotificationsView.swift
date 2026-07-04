@@ -348,62 +348,69 @@ struct NotificationsView: View {
     private var notificationsListView: some View {
         List {
             ForEach(viewModel.dateKeys, id: \.self) { dateKey in
-                Section {
-                    ForEach(viewModel.groupedByDate[dateKey] ?? []) { group in
-                        EnhancedNotificationRow(
-                            group: group,
-                            viewModel: viewModel,
-                            colorScheme: colorScheme,
-                            onTapAction: {
-                                handleNotificationTap(group: group)
-                            },
-                            onShowGroupedFollowers: { overlayGroup in
-                                groupedFollowersOverlayGroup = overlayGroup
-                            },
-                            onModerationReviewTap: { notification in
-                                moderationReviewNotification = notification
-                            }
-                        )
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button {
-                                HapticManager.shared.lightImpact()
-                                viewModel.deleteNotificationGroup(group)
-                            } label: {
-                                Label(
-                                    NSLocalizedString("notifications.delete", comment: "Delete notification"),
-                                    systemImage: "trash.fill"
-                                )
-                            }
-                            .tint(colorScheme == .dark ? Color(hex: "FF453A") : Color(hex: "FF3B30"))
+                NotificationDateHeaderView(dateString: dateKey, colorScheme: colorScheme)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+
+                ForEach(viewModel.groupedByDate[dateKey] ?? []) { group in
+                    EnhancedNotificationRow(
+                        group: group,
+                        viewModel: viewModel,
+                        colorScheme: colorScheme,
+                        onTapAction: {
+                            handleNotificationTap(group: group)
+                        },
+                        onShowGroupedFollowers: { overlayGroup in
+                            groupedFollowersOverlayGroup = overlayGroup
+                        },
+                        onModerationReviewTap: { notification in
+                            moderationReviewNotification = notification
                         }
+                    )
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button {
+                            HapticManager.shared.lightImpact()
+                            viewModel.deleteNotificationGroup(group)
+                        } label: {
+                            Label(
+                                NSLocalizedString("notifications.delete", comment: "Delete notification"),
+                                systemImage: "trash.fill"
+                            )
+                        }
+                        .tint(colorScheme == .dark ? Color(hex: "FF453A") : Color(hex: "FF3B30"))
                     }
-                } header: {
-                    NotificationDateHeaderView(dateString: dateKey, colorScheme: colorScheme)
                 }
             }
 
             if viewModel.canLoadMore {
-                Section {
-                    Button(NSLocalizedString("notifications.loadMore", comment: "Load more button")) {
-                        viewModel.loadMoreNotifications()
-                    }
-                    .disabled(viewModel.isLoadingMore)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                    if viewModel.isLoadingMore {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    }
+                Button(NSLocalizedString("notifications.loadMore", comment: "Load more button")) {
+                    viewModel.loadMoreNotifications()
                 }
+                .disabled(viewModel.isLoadingMore)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+
+                if viewModel.isLoadingMore {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .padding(.top, 4)
+        .refreshable {
+            await viewModel.refreshNotifications()
+        }
     }
     
 

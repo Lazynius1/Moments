@@ -323,8 +323,8 @@ struct TagUserSearchOverlay: View {
             if shouldShowResultsPanel {
                 Group {
                     if isSearching {
-                        ProgressView()
-                            .tint(.primary)
+                        UserRowSkeletonList(rows: 2, avatarSize: 42)
+                            .padding(.horizontal, 14)
                             .frame(maxWidth: .infinity, minHeight: 88)
                     } else if searchResults.isEmpty {
                         Text(NSLocalizedString("common.noResults", value: "No users found", comment: ""))

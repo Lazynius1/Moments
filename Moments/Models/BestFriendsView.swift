@@ -17,7 +17,9 @@ struct BestFriendsView: View {
                 .ignoresSafeArea()
 
             if viewModel.isLoading {
-                ProgressView()
+                UserRowSkeletonList(rows: 6)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
             } else if hasAnyUsers == false {
                 emptyStateView
             } else {

@@ -18,8 +18,7 @@ struct MapPlaceStoryDeckView: View {
             Color.black.ignoresSafeArea()
 
             if isLoading {
-                ProgressView()
-                    .tint(.white)
+                StoryViewerSkeletonView(segmentCount: max(previews.count, 1))
             } else if let story = stories[safe: currentIndex] {
                 StoryViewerScreen(
                     story: story,

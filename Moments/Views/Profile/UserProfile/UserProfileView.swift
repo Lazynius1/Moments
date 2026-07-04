@@ -138,7 +138,7 @@ struct UserProfilePillTabs: View {
                     }
                 }
                 .padding(.horizontal, 3)
-                .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: visualIndex(for: proxy.size.width))
+                .animation(MotionPolicy.animation(.smooth(duration: 0.18, extraBounce: 0.01), value: visualIndex(for: proxy.size.width)), value: visualIndex(for: proxy.size.width))
 
                 Capsule()
                     .fill(Color.black.opacity(0.001))
@@ -256,7 +256,7 @@ struct UserProfileFloatingTabBar: View {
                     if tab != selectedTab {
                         HapticManager.shared.selection()
                     }
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                    MotionPolicy.withOptionalAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
                         selectedTab = tab
                     }
                 }) {
@@ -377,6 +377,7 @@ struct UserProfileView: View {
                 )
                 .zIndex(100)
             }
+            .offlineBannerOverlay()
         }
         .environmentObject(heroCoordinator)
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
@@ -465,7 +466,7 @@ struct UserProfileView: View {
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.userId))
         }
-        .animation(.easeInOut(duration: 0.3), value: socialConnectionsRoute)
+        .animation(MotionPolicy.animation(.easeInOut(duration: 0.3), value: socialConnectionsRoute), value: socialConnectionsRoute)
         .confirmationDialog(
             NSLocalizedString("userProfile.unfollow.confirm.title", comment: "Unfollow confirmation title"),
             isPresented: $showingUnfollowConfirmation,
@@ -572,7 +573,13 @@ struct UserProfileView: View {
     private func contentView(safeAreaTop: CGFloat, safeAreaBottom: CGFloat) -> some View {
         Group {
             if viewModel.isLoading {
-                UserModernLoadingView()
+                VStack(spacing: 0) {
+                    Color.clear
+                        .frame(height: safeAreaTop + ProfileHeaderCollapseMetrics.topContentInset)
+                    ProfileHeaderSkeletonView()
+                    ProfileMomentsGridSkeletonView()
+                        .padding(.top, 20)
+                }
             } else if viewModel.isBlockedByCurrentUser {
                 UserModernBlockedByMeProfileView(
                     userProfile: viewModel.userProfile,
@@ -589,6 +596,18 @@ struct UserProfileView: View {
                 UserModernUnavailableProfileView(
                     safeAreaTop: safeAreaTop,
                     safeAreaBottom: safeAreaBottom,
+                    onDismiss: {
+                        dismiss()
+                    }
+                )
+            } else if viewModel.isOffline && viewModel.userProfile == nil {
+                // ✅ Sin caché y sin red: honesto sobre el motivo, en vez de "privado"/"no disponible"
+                UserModernOfflineProfileView(
+                    safeAreaTop: safeAreaTop,
+                    safeAreaBottom: safeAreaBottom,
+                    onRetry: {
+                        viewModel.fetchProfile()
+                    },
                     onDismiss: {
                         dismiss()
                     }

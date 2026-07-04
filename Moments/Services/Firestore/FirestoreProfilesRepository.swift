@@ -317,6 +317,52 @@ extension FirestoreService {
         })
     }
 
+    /// Une `fetchUserProfile` + `checkPublicProfileAvailability` en una sola lectura del mismo
+    /// documento: ambas leían `users/{userId}` por separado para derivar cosas distintas del mismo
+    /// snapshot.
+    func fetchUserProfileWithAvailability(
+        userId: String,
+        completion: @escaping (Result<AppUser, Error>, PublicProfileAvailability) -> Void
+    ) {
+        db.collection("users").document(userId).getDocument(source: .default) { snapshot, error in
+            if let error {
+                completion(.failure(error), .available)
+                return
+            }
+
+            guard let document = snapshot, document.exists, let data = document.data() else {
+                completion(
+                    .failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.documentNotFound", comment: "Document not found")])),
+                    .unavailable
+                )
+                return
+            }
+
+            let availability = Self.publicProfileAvailability(from: data)
+
+            do {
+                let user = try document.data(as: AppUser.self)
+                completion(.success(user), availability)
+            } catch {
+                completion(.failure(error), availability)
+            }
+        }
+    }
+
+    private static func publicProfileAvailability(from data: [String: Any]) -> PublicProfileAvailability {
+        let isActive = data["isActive"] as? Bool ?? true
+        guard isActive else { return .unavailable }
+
+        let isSuspended = data["isSuspended"] as? Bool ?? false
+        guard isSuspended else { return .available }
+
+        if let suspendedUntil = data["suspendedUntil"] as? Timestamp,
+           Date() > suspendedUntil.dateValue() {
+            return .available
+        }
+        return .unavailable
+    }
+
     func checkPublicProfileAvailability(userId: String, completion: @escaping (PublicProfileAvailability) -> Void) {
         db.collection("users").document(userId).getDocument(source: .default) { snapshot, error in
             if error != nil {

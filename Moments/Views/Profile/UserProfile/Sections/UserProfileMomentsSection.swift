@@ -101,6 +101,9 @@ struct UserModernMomentThumbnail: View {
                             )
                             .overlay(ProgressView().tint(UserProfileColors.accent))
                     }
+                    .downsampling(size: CGSize(width: size, height: size))
+                    .scaleFactor(UIScreen.main.scale)
+                    .cancelOnDisappear(true)
                     .resizable()
             }
             .contentShape(Rectangle())
@@ -182,6 +185,9 @@ struct UserModernMomentThumbnail: View {
                 .placeholder {
                     Rectangle().fill(UserProfileColors.cardBackground)
                 }
+                .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
+                .scaleFactor(UIScreen.main.scale)
+                .cancelOnDisappear(true)
                 .resizable()
                 .scaledToFill()
                 .frame(width: cellWidth, height: cellHeight)
@@ -302,6 +308,9 @@ struct UserModernMomentThumbnail: View {
                                 }
                             )
                     }
+                    .downsampling(size: CGSize(width: size, height: size))
+                    .scaleFactor(UIScreen.main.scale)
+                    .cancelOnDisappear(true)
                     .resizable()
             }
             .contentShape(Rectangle())

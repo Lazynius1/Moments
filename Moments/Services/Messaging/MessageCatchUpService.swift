@@ -37,9 +37,11 @@ final class MessageCatchUpService {
 
         Task {
             await preloadKeys(for: batch.compactMap(\.id))
-            for conversation in batch {
-                guard let conversationId = conversation.id else { continue }
-                await sync(conversationId: conversationId)
+            await withTaskGroup(of: Void.self) { group in
+                for conversation in batch {
+                    guard let conversationId = conversation.id else { continue }
+                    group.addTask { await self.sync(conversationId: conversationId) }
+                }
             }
         }
     }

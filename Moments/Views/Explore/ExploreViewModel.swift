@@ -28,6 +28,8 @@ class ExploreViewModel: ObservableObject {
     private var currentUserId: String?
     private var blockedUsers: Set<String> = []
     private var followStateObserver: NSObjectProtocol?
+    private var searchWorkItem: DispatchWorkItem?
+    private var activeSearchQuery: String = ""
 
     init() {
         followStateObserver = NotificationCenter.default.addObserver(
@@ -49,6 +51,7 @@ class ExploreViewModel: ObservableObject {
         if let followStateObserver {
             NotificationCenter.default.removeObserver(followStateObserver)
         }
+        searchWorkItem?.cancel()
     }
 
 
@@ -721,41 +724,34 @@ extension ExploreViewModel {
 
     // ✅ NUEVA FUNCIÓN: Búsqueda inteligente que reemplaza searchUsers
     func smartSearch(query: String) {
-
+        activeSearchQuery = query
+        searchWorkItem?.cancel()
 
         if query.isEmpty {
-            // Limpiar resultados
             searchedUsers = []
             filteredMoments = self.moments
-
             return
         }
 
-        let searchType = detectSearchType(query: query)
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, self.activeSearchQuery == query else { return }
 
-
-        switch searchType {
-        case .hashtag(let hashtag):
-
-            searchHashtags(hashtag: hashtag)
-
-        case .username(let username):
-
-            searchUsers(username: username)
-
-        case .location(let location):
-
-            searchLocations(location: location)
-
-        case .mixed(let cleanQuery):
-
-            searchEverything(query: cleanQuery)
+            switch self.detectSearchType(query: query) {
+            case .hashtag(let hashtag):
+                self.searchHashtags(hashtag: hashtag)
+            case .username(let username):
+                self.searchUsers(username: username)
+            case .location(let location):
+                self.searchLocations(location: location)
+            case .mixed(let cleanQuery):
+                self.searchEverything(query: cleanQuery)
+            }
         }
+
+        searchWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
         // NOTA: El historial se guarda explícitamente en .onSubmit o al tocar un resultado
         // para evitar que cada pulsación de tecla genere una entrada en el historial.
-
-        // ✅ NUEVO: Debug final
-
     }
 
     // ✅ DETECTAR tipo de búsqueda

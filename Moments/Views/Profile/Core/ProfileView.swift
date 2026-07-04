@@ -150,7 +150,7 @@ struct ProfilePillTabs: View {
                     }
                 }
                 .padding(.horizontal, 3)
-                .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: visualIndex(for: proxy.size.width))
+                .animation(MotionPolicy.animation(.smooth(duration: 0.18, extraBounce: 0.01), value: visualIndex(for: proxy.size.width)), value: visualIndex(for: proxy.size.width))
 
                 Capsule()
                     .fill(Color.black.opacity(0.001))
@@ -268,7 +268,7 @@ struct ProfileFloatingTabBar: View {
                     if tab != selectedTab {
                         HapticManager.shared.selection()
                     }
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                    MotionPolicy.withOptionalAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
                         selectedTab = tab
                     }
                 }) {
@@ -531,7 +531,7 @@ struct ProfileView: View {
                         )
                     }
                 }
-                .animation(.easeInOut(duration: 0.3), value: socialConnectionsRoute)
+                .animation(MotionPolicy.animation(.easeInOut(duration: 0.3), value: socialConnectionsRoute), value: socialConnectionsRoute)
                 .onChange(of: selectedTab) { _, newTab in
                     if newTab == 4 {
                         isShowingSettings = false

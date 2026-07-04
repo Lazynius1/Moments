@@ -126,9 +126,13 @@ struct UserModernPublicProfileView: View {
                         switch selectedTab {
                         case .moments:
                             if viewModel.moments.isEmpty {
-                                UserModernEmptyMomentsView()
-                                    .padding(.horizontal, 20)
-                                    .frame(maxWidth: UIScreen.main.bounds.width - 40)
+                                if viewModel.isLoadingMoments {
+                                    ProfileMomentsGridSkeletonView()
+                                } else {
+                                    UserModernEmptyMomentsView()
+                                        .padding(.horizontal, 20)
+                                        .frame(maxWidth: UIScreen.main.bounds.width - 40)
+                                }
                             } else {
                                 GeometryReader { geometry in
                                     ProfileMomentsBentoGrid(
@@ -274,7 +278,7 @@ struct UserModernPublicProfileView: View {
             } pinnedTabs: {
                 UserProfileFloatingTabBar(selectedTab: $selectedTab)
             }
-            .animation(.easeOut(duration: 0.18), value: tabsArePinned)
+            .animation(MotionPolicy.animation(.easeOut(duration: 0.18), value: tabsArePinned), value: tabsArePinned)
             .zIndex(10)
             }
             .coordinateSpace(name: "profileGridOverlay")

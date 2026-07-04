@@ -25,30 +25,34 @@ extension ChatService {
         }
         let cachedById = Dictionary(uniqueKeysWithValues: cached.map { ($0.id, $0) })
         let hasLocalCache = !cached.isEmpty
+        let currentUserId = Auth.auth().currentUser?.uid
 
-        var messages: [EnhancedMessage] = []
+        var indexedMessages: [Int: EnhancedMessage] = [:]
+        var indicesNeedingHydration: [(index: Int, doc: QueryDocumentSnapshot, data: [String: Any])] = []
+        var orderedIndices: [Int] = []
 
-        for doc in documents {
+        for (index, doc) in documents.enumerated() {
             let data = doc.data()
 
-                if let deletedFor = data["deletedFor"] as? [String],
-                   let currentUserId = Auth.auth().currentUser?.uid,
-                   deletedFor.contains(currentUserId) {
-                    continue
-                }
+            if let deletedFor = data["deletedFor"] as? [String],
+               let currentUserId,
+               deletedFor.contains(currentUserId) {
+                continue
+            }
 
-                if let vanishedFor = data["vanishedFor"] as? [String],
-                   let currentUserId = Auth.auth().currentUser?.uid,
-                   vanishedFor.contains(currentUserId) {
-                    continue
-                }
+            if let vanishedFor = data["vanishedFor"] as? [String],
+               let currentUserId,
+               vanishedFor.contains(currentUserId) {
+                continue
+            }
 
-                if let cutoff = cutoffDate,
+            if let cutoff = cutoffDate,
                let msgTimestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
                msgTimestamp <= cutoff {
                 continue
             }
 
+            orderedIndices.append(index)
             let messageId = data["id"] as? String ?? doc.documentID
 
             if hasLocalCache,
@@ -56,18 +60,31 @@ extension ChatService {
                !Self.snapshotNeedsFullHydrate(data: data, cached: existing) {
                 var message = existing
                 Self.applySnapshotMetadata(to: &message, from: data)
-                messages.append(message)
+                indexedMessages[index] = message
             } else {
-                let message = await buildEnhancedMessage(
-                    from: data,
-                    docId: doc.documentID,
-                    conversationId: conversationId
-                )
-                messages.append(message)
+                indicesNeedingHydration.append((index, doc, data))
             }
         }
 
-        return messages
+        if !indicesNeedingHydration.isEmpty {
+            await withTaskGroup(of: (Int, EnhancedMessage).self) { group in
+                for item in indicesNeedingHydration {
+                    group.addTask {
+                        let message = await self.buildEnhancedMessage(
+                            from: item.data,
+                            docId: item.doc.documentID,
+                            conversationId: conversationId
+                        )
+                        return (item.index, message)
+                    }
+                }
+                for await (index, message) in group {
+                    indexedMessages[index] = message
+                }
+            }
+        }
+
+        return orderedIndices.compactMap { indexedMessages[$0] }
     }
 
     private static func snapshotNeedsFullHydrate(data: [String: Any], cached: EnhancedMessage) -> Bool {

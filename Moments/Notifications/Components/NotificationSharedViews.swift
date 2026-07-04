@@ -90,8 +90,7 @@ struct NotificationSkeletonRow: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
-        .opacity(isAnimating ? 0.5 : 1.0)
-        .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isAnimating)
+        .shimmer(isAnimating: isAnimating)
         .onAppear {
             isAnimating = true
         }

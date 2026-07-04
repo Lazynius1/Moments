@@ -565,6 +565,7 @@ class SuggestedUsersViewModel: ObservableObject {
         firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             DispatchQueue.main.async {
                 if error == nil {
+                    HapticManager.shared.mediumImpact()
                     self?.userButtonStates[userId] = .following
                     FollowStateStore.shared.setState(.following, for: userId)
                     self?.followedUserIds.insert(userId) // Agregar a usuarios seguidos

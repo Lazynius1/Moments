@@ -552,12 +552,9 @@ struct MomentDetailView: View {
             .padding(.horizontal, 20)
             
             if viewModel.isLoadingComments {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-                .padding(.vertical, 32)
+                CommentRowSkeletonList(rows: 2)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
             } else if viewModel.comments.isEmpty {
                 // Estado vacío de comentarios mejorado
                 VStack(spacing: 16) {

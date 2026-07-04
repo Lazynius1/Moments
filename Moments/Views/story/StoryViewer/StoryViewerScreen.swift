@@ -580,6 +580,9 @@ struct StoryViewerScreen: View {
                     stopAndCleanupStory()
                     removeKeyboardNotifications()
                     cleanupAudioSession()
+                    if let storyId = story.id {
+                        storyViewModel.stopObservingReactions(storyId: storyId)
+                    }
                 }
                 .onChange(of: story.id) { oldStoryId, newStoryId in
                     if let chainId = story.chainId {

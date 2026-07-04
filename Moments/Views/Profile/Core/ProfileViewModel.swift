@@ -20,9 +20,11 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     @Published var taggedMoments: [Moment] = [] // ✅ NUEVO
     @Published var isLoadingTagged: Bool = false // ✅ NUEVO
     @Published var isLoading: Bool = true
+    @Published var isLoadingMoments: Bool = true
     @Published var errorMessage: String?
     @Published var profileImagePath: String?
     @Published var isRefreshing: Bool = false
+    @Published var isOffline: Bool = false
 
     private let firestoreService = FirestoreService()
     private let storageService = StorageService()
@@ -65,10 +67,15 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
             self.moments = sortProfileMoments(cachedMoments)
         }
 
+        // ✅ Independiente del fetch del perfil: si solo falla el documento de perfil
+        // (o no hay red), los moments ya cacheados no deben perderse ni bloquearse.
+        self.fetchMoments(userId: userId)
+
         self.firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
             guard let self = self else { return }
             switch result {
             case .success(let profile):
+                self.isOffline = false
                 self.userProfile = profile
                 self.profileImagePath = profile.profileImagePath
 
@@ -79,13 +86,25 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
                 self.fetchConnections(userId: userId)
                 self.fetchVisits(userId: userId)
-                self.fetchMoments(userId: userId)
                 self.fetchCustomAudienceListNames(userId: userId)
             case .failure(let error):
-                self.errorMessage = "Error al cargar el perfil: \(error.localizedDescription)"
+                if self.isNetworkError(error) {
+                    self.isOffline = true
+                } else {
+                    self.errorMessage = "Error al cargar el perfil: \(error.localizedDescription)"
+                }
                 self.isLoading = false
             }
         }
+    }
+
+    private func isNetworkError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            return true
+        }
+        return nsError.domain == FirestoreErrorDomain
+            && (nsError.code == FirestoreErrorCode.unavailable.rawValue || nsError.code == FirestoreErrorCode.deadlineExceeded.rawValue)
     }
 
     // ✅ NUEVA FUNCIÓN: Fetch conexiones con verificación directa
@@ -211,6 +230,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 case .success(let moments):
                     DispatchQueue.main.async {
                     self.moments = self.sortProfileMoments(moments)
+                    self.isLoadingMoments = false
 
                     // ✅ SwiftData: Guardar moments del perfil en caché local
                     Task { @MainActor in
@@ -219,7 +239,13 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     }
                 }
             case .failure(let error):
-                self.errorMessage = "Error al cargar momentos: \(error.localizedDescription)"
+                DispatchQueue.main.async {
+                    // ✅ No pisar los moments ya cacheados si el fetch falla (p. ej. sin red)
+                    self.isLoadingMoments = false
+                    if !self.isNetworkError(error) {
+                        self.errorMessage = "Error al cargar momentos: \(error.localizedDescription)"
+                    }
+                }
             }
         }
     }
@@ -538,6 +564,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 DispatchQueue.main.async {
                     let nextState: FollowButtonState = isPrivate ? .requestPendingCancellable : .following
                     FollowStateStore.shared.setState(nextState, for: userId)
+                    HapticManager.shared.mediumImpact()
 
                     guard !isPrivate else { return }
 
@@ -592,6 +619,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
             // Actualizar UI inmediatamente
             DispatchQueue.main.async {
+                HapticManager.shared.lightImpact()
                 if let mutualIndex = self.mutuals.firstIndex(where: { $0.id == userId }) {
                     self.mutuals.remove(at: mutualIndex)
                 }

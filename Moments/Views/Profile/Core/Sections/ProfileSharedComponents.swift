@@ -1,43 +1,6 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Vista de carga
-struct ModernLoadingView: View {
-    @State private var isAnimating = false
-    @Environment(\.colorScheme) var colorScheme
-
-    var body: some View {
-        VStack(spacing: 20) {
-            ZStack {
-                Circle()
-                    .stroke(ProfileColors.accent.opacity(0.3), lineWidth: 4)
-                    .frame(width: 60, height: 60)
-
-                Circle()
-                    .trim(from: 0, to: 0.7)
-                    .stroke(
-                        LinearGradient(
-                            colors: [ProfileColors.accent, ProfileColors.textPrimary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
-                    .frame(width: 60, height: 60)
-                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
-                    .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: isAnimating)
-            }
-
-                            Text("profile.loading")
-                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(ProfileColors.textSecondary)
-        }
-        .onAppear {
-            isAnimating = true
-        }
-    }
-}
-
 // MARK: - Vista de error
 struct ModernErrorView: View {
     let errorMessage: String

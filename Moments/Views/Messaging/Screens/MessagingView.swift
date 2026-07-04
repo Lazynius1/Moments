@@ -718,6 +718,11 @@ struct MessagingView: View {
              .chatScrollEdgeEffect()
              .scrollDisabled(conversationMenuSelection != nil)
              .onPreferenceChange(ConversationRowFrameKey.self) { conversationRowFrames = $0 }
+             .refreshable {
+                 if let userId = Auth.auth().currentUser?.uid {
+                     viewModel.fetchConversations(for: userId)
+                 }
+             }
          }
      }
 

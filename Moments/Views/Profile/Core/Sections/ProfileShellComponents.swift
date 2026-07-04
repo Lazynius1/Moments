@@ -106,7 +106,13 @@ struct ModernProfileContentView: View {
 
     var body: some View {
         if viewModel.isLoading {
-            ModernLoadingView()
+            VStack(spacing: 0) {
+                Color.clear
+                    .frame(height: safeAreaTop + ProfileHeaderCollapseMetrics.topContentInset)
+                ProfileHeaderSkeletonView()
+                ProfileMomentsGridSkeletonView()
+                    .padding(.top, 20)
+            }
         } else if let errorMessage = viewModel.errorMessage {
             ModernErrorView(errorMessage: errorMessage, onRetry: {
                 if let userId = Auth.auth().currentUser?.uid {
@@ -185,9 +191,13 @@ struct ModernProfileContentView: View {
                             switch selectedProfileTab {
                             case .moments:
                                 if viewModel.moments.isEmpty {
-                                    ModernEmptyMomentsView()
-                                        .padding(.horizontal, 20)
-                                        .frame(maxWidth: UIScreen.main.bounds.width - 40)
+                                    if viewModel.isLoadingMoments {
+                                        ProfileMomentsGridSkeletonView()
+                                    } else {
+                                        ModernEmptyMomentsView()
+                                            .padding(.horizontal, 20)
+                                            .frame(maxWidth: UIScreen.main.bounds.width - 40)
+                                    }
                                 } else {
                                     GeometryReader { geometry in
                                         ProfileMomentsBentoGrid(
@@ -359,7 +369,7 @@ struct ModernProfileContentView: View {
                     ProfileFloatingTabBar(selectedTab: $selectedProfileTab)
                 }
                 .padding(.top, safeAreaTop)
-                .animation(.easeOut(duration: 0.18), value: tabsArePinned)
+                .animation(MotionPolicy.animation(.easeOut(duration: 0.18), value: tabsArePinned), value: tabsArePinned)
                 .zIndex(10)
             }
             .coordinateSpace(name: "profileGridOverlay")

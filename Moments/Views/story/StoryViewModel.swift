@@ -16,6 +16,7 @@ class StoryViewModel: ObservableObject {
     private var lastFetchRingUserIds: [String] = []
     /// Orden fijado desde el anillo del feed; tiene prioridad sobre fetchFollowing.
     private var lockedRingNavigationOrder: [String] = []
+    private var reactionListeners: [String: ListenerRegistration] = [:]
 
     func setRingNavigationOrder(_ userIds: [String]) {
         let order = userIds.filter { !$0.isEmpty }
@@ -35,6 +36,12 @@ class StoryViewModel: ObservableObject {
     private let storyRepository = StoryRepository()
     private let playbackCoordinator = StoryPlaybackCoordinator()
     private var isFirstFetch = true
+
+    deinit {
+        for listener in reactionListeners.values {
+            listener.remove()
+        }
+    }
 
 
     // MARK: - Obtener historias para un usuario específico
@@ -540,11 +547,17 @@ class StoryViewModel: ObservableObject {
 
 
     func fetchReactions(for userId: String, storyId: String) {
-        storyRepository.observeReactions(userId: userId, storyId: storyId) { [weak self] reactions in
+        reactionListeners[storyId]?.remove()
+        reactionListeners[storyId] = storyRepository.observeReactions(userId: userId, storyId: storyId) { [weak self] reactions in
             DispatchQueue.main.async {
                 self?.storyReactions[storyId] = reactions
             }
         }
+    }
+
+    func stopObservingReactions(storyId: String) {
+        reactionListeners[storyId]?.remove()
+        reactionListeners.removeValue(forKey: storyId)
     }
 
     func fetchViewers(for userId: String, storyId: String, completion: @escaping ([StoryViewer]) -> Void) {

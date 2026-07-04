@@ -141,6 +141,7 @@ extension GlassmorphicChatView {
                 }
                 guard !viewModel.chatRenderRows.isEmpty else { continue }
                 chatListController.perform(.bottom(animated: false))
+                break
             }
 
             finishInitialOpenInList(pinsToBottom: true)

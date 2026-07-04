@@ -14,6 +14,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     @Published var commonConnections: [AppUser] = []
     @Published var suggestedConnectionsForViewer: [AppUser] = []
     @Published var moments: [Moment] = []
+    @Published var isLoadingMoments: Bool = true
     @Published var taggedMoments: [Moment] = [] // ✅ NUEVO
     @Published var isLoadingTagged: Bool = false // ✅ NUEVO
     @Published var isFollowing: Bool = false
@@ -25,6 +26,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     @Published var canViewSocialLists: Bool = false
     @Published var isRefreshing: Bool = false
     @Published var isProfileUnavailable: Bool = false
+    @Published var isOffline: Bool = false
     @Published var isInBestFriends: Bool = false
     @Published var isMutedByCurrentUser: Bool = false
     @Published var isMutualRelationship: Bool = false
@@ -91,6 +93,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         isProfileUnavailable = false
         loadViewerContext(currentUserId: currentUserId)
 
+        // ✅ Restaurar de inmediato la última decisión de privacidad conocida, para no
+        // caer en "cuenta privada" por defecto si la red tarda o falla.
+        if let cachedCanView = cachedCanViewContent() {
+            self.canViewContent = cachedCanView
+        }
+
         // ✅ SwiftData: Carga inicial desde caché local
         if let cachedProfile = LocalPersistenceService.shared.loadUser(userId: userId) {
             DispatchQueue.main.async {
@@ -106,6 +114,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             }
         }
 
+        // ✅ SwiftData: Moments cacheados del perfil (evita el flash a "No moments yet" sin red)
+        let cachedMoments = LocalPersistenceService.shared.loadProfileMoments(userId: userId)
+        if !cachedMoments.isEmpty && self.moments.isEmpty {
+            self.moments = cachedMoments
+        }
+
         // ✅ Cargar conexiones del caché
         let cachedConnections = LocalPersistenceService.shared.loadConnections(userId: userId)
         if !cachedConnections.followers.isEmpty || !cachedConnections.following.isEmpty || !cachedConnections.mutuals.isEmpty {
@@ -118,19 +132,19 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
         checkIfBlocked()
 
-        firestoreService.checkPublicProfileAvailability(userId: userId) { [weak self] availability in
+        firestoreService.fetchUserProfileWithAvailability(userId: userId) { [weak self] result, availability in
             guard let self = self else { return }
-            guard availability == .unavailable else { return }
-            DispatchQueue.main.async {
-                self.userProfile = nil
-                self.canViewContent = false
-                self.isProfileUnavailable = true
-                self.isLoading = false
-            }
-        }
 
-        firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
-            guard let self = self else { return }
+            if availability == .unavailable {
+                DispatchQueue.main.async {
+                    self.userProfile = nil
+                    self.canViewContent = false
+                    self.isProfileUnavailable = true
+                    self.isLoading = false
+                }
+                return
+            }
+
             switch result {
             case .success(let profile):
                 DispatchQueue.main.async {
@@ -156,6 +170,10 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                         self.userProfile = nil
                         self.canViewContent = false
                         self.isProfileUnavailable = true
+                    } else if self.isNetworkError(error) {
+                        // ✅ Sin red: no lo tratamos como "privado" ni "no disponible".
+                        // El estado ya restaurado desde caché (perfil + canViewContent) se mantiene tal cual.
+                        self.isOffline = true
                     }
                     self.isLoading = false
                 }
@@ -167,6 +185,32 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         let nsError = error as NSError
         let documentNotFound = NSLocalizedString("errors.documentNotFound", comment: "Document not found")
         return nsError.code == -1 && nsError.localizedDescription == documentNotFound
+    }
+
+    private func isNetworkError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            return true
+        }
+        return nsError.domain == FirestoreErrorDomain
+            && (nsError.code == FirestoreErrorCode.unavailable.rawValue || nsError.code == FirestoreErrorCode.deadlineExceeded.rawValue)
+    }
+
+    /// Recuerda la última decisión de visibilidad conocida para este perfil, para poder
+    /// restaurarla de inmediato si una futura carga falla por falta de red (en vez de
+    /// mostrar por defecto "cuenta privada").
+    private static func canViewContentCacheKey(for userId: String) -> String {
+        "userProfile.canViewContent.\(userId)"
+    }
+
+    private func cachedCanViewContent() -> Bool? {
+        let key = Self.canViewContentCacheKey(for: userId)
+        guard UserDefaults.standard.object(forKey: key) != nil else { return nil }
+        return UserDefaults.standard.bool(forKey: key)
+    }
+
+    private func persistCanViewContent(_ value: Bool) {
+        UserDefaults.standard.set(value, forKey: Self.canViewContentCacheKey(for: userId))
     }
 
     // ✅ FUNCIÓN DE REFRESH COMPLETA
@@ -246,6 +290,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     private func checkContentVisibility(currentUserId: String) {
         if currentUserId == userId {
             canViewContent = true
+            persistCanViewContent(true)
             checkConnectionsVisibility(currentUserId: currentUserId) {
                 self.fetchConnectionsDirect()
             }
@@ -256,6 +301,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.canViewContent = canView
+                self.persistCanViewContent(canView)
                 if canView {
                     self.checkConnectionsVisibility(currentUserId: currentUserId) {
                         self.fetchConnectionsDirect()
@@ -510,6 +556,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
     func fetchMoments(completion: (() -> Void)? = nil) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
+            isLoadingMoments = false
             completion?()
             return
         }
@@ -522,6 +569,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
             if let result = await BackendFeedService.shared.fetchProfileMoments(targetUserId: self.userId, limit: 50) {
                 self.moments = result.moments
+                self.isLoadingMoments = false
+                LocalPersistenceService.shared.saveProfileMoments(result.moments, userId: self.userId, sync: true)
                 completion?()
                 return
             }
@@ -537,12 +586,15 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                     self.filterMomentsForAudience(moments: allMoments, viewerId: currentUserId) { filteredMoments in
                         DispatchQueue.main.async {
                             self.moments = filteredMoments
+                            self.isLoadingMoments = false
+                            LocalPersistenceService.shared.saveProfileMoments(filteredMoments, userId: self.userId, sync: true)
                             completion?()
                         }
                     }
                 case .failure:
                     DispatchQueue.main.async {
-                        self.moments = []
+                        // ✅ No pisar los moments ya cacheados si el fetch falla (p. ej. sin red)
+                        self.isLoadingMoments = false
                         completion?()
                     }
                 }
@@ -992,6 +1044,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 return
             }
             DispatchQueue.main.async {
+                HapticManager.shared.notification(.warning)
                 self.isBlockedByCurrentUser = true
                 self.isProfileUnavailable = true
                 self.followButtonState = .blocked
@@ -1008,6 +1061,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 return
             }
             DispatchQueue.main.async {
+                HapticManager.shared.lightImpact()
                 self.isBlockedByCurrentUser = false
                 self.isProfileUnavailable = false
                 self.checkFollowButtonState()

@@ -113,7 +113,8 @@ final class StoryRepository {
         }
     }
 
-    func observeReactions(userId: String, storyId: String, onChange: @escaping ([StoryReaction]) -> Void) {
+    @discardableResult
+    func observeReactions(userId: String, storyId: String, onChange: @escaping ([StoryReaction]) -> Void) -> ListenerRegistration {
         firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
             .collection("reactions")
             .order(by: "timestamp", descending: true)

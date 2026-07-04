@@ -345,13 +345,9 @@ struct MapPlaceBottomSheet: View {
     }
 
     private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView().tint(adaptiveColors.accent)
-            Text(NSLocalizedString("maps.bottomSheet.loading.moments", comment: ""))
-                .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(adaptiveColors.secondary)
-        }
-        .frame(height: 220)
+        LocationMomentCardSkeletonView()
+            .padding(.horizontal, 20)
+            .frame(height: 220)
     }
 
     private var emptyView: some View {

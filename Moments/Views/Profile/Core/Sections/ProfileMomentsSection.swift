@@ -172,6 +172,9 @@ struct ModernMomentThumbnail: View {
                             )
                             .overlay(ProgressView().tint(Color(hex: "007AFF")))
                     }
+                    .downsampling(size: CGSize(width: size, height: size))
+                    .scaleFactor(UIScreen.main.scale)
+                    .cancelOnDisappear(true)
                     .resizable()
             }
             .contentShape(Rectangle())

@@ -7,6 +7,8 @@ enum ChatReplySwipeMetrics {
     static let activationDistance: CGFloat = 84
     static let maxDrag: CGFloat = 108
     static let indicatorSize: CGFloat = 32
+    /// Cada cuántos puntos de arrastre dispara un tick háptico (mismo patrón que el pull de vanish).
+    static let hapticStepPoints: CGFloat = 12
 
     static func rubberBandMagnitude(_ raw: CGFloat) -> CGFloat {
         guard raw > 0 else { return 0 }
@@ -137,6 +139,8 @@ extension View {
                 }
                 guard abs(horizontal) > vertical * 2.1, abs(horizontal) > 8 else { return }
 
+                let previousMagnitude = abs(dragOffset.wrappedValue)
+
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
@@ -152,6 +156,14 @@ extension View {
                     hasTriggeredHaptic.wrappedValue = true
                 } else if progress < 0.9, hasTriggeredHaptic.wrappedValue {
                     hasTriggeredHaptic.wrappedValue = false
+                } else if progress < 1 {
+                    // Tick por cada paso de arrastre, mismo patrón que el pull de vanish.
+                    let newMagnitude = abs(dragOffset.wrappedValue)
+                    let previousStep = Int(previousMagnitude / ChatReplySwipeMetrics.hapticStepPoints)
+                    let newStep = Int(newMagnitude / ChatReplySwipeMetrics.hapticStepPoints)
+                    if newStep != previousStep {
+                        HapticManager.shared.selection()
+                    }
                 }
             }
             .onEnded { _ in

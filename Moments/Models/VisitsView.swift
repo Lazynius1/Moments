@@ -782,29 +782,7 @@ struct VisitsTabSkeletonView: View {
             }
             .padding(.bottom, 40)
         }
-        .shimmering(active: true)
-    }
-}
-
-private struct VisitsSkeletonShimmerModifier: ViewModifier {
-    let active: Bool
-    @State private var phase: CGFloat = 0
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(active ? 0.55 + (sin(phase) * 0.15) : 1)
-            .onAppear {
-                guard active else { return }
-                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
-                    phase = .pi * 2
-                }
-            }
-    }
-}
-
-private extension View {
-    func shimmering(active: Bool) -> some View {
-        modifier(VisitsSkeletonShimmerModifier(active: active))
+        .shimmer(isAnimating: true)
     }
 }
 

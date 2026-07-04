@@ -1025,6 +1025,7 @@ class FeedViewModel {
                 switch result {
                 case .success(let canView):
                     guard canView else { return } // No crear listener si no puede ver el momento
+                    guard self.momentListeners[momentId] != nil else { return } // Ya no elegible (scrolleado fuera antes de resolver el permiso)
 
                     // ✅ Solo crear listener si tiene permisos
                     let commentListener = self.firestoreService.db.collection("users").document(authorId)

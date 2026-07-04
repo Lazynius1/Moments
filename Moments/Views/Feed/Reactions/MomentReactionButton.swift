@@ -291,7 +291,7 @@ struct EpicReactionButton: View {
     }
     
     private func removeReactionWithAnimation() {
-        HapticManager.shared.selection()
+        HapticManager.shared.lightImpact()
         
         // ✅ OPTIMISTIC REMOVAL: Update local state immediately (No delay)
         withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
@@ -960,6 +960,7 @@ struct ReactionsListSheet: View {
                 DispatchQueue.main.async {
                     followLoadingStates[userId] = false
                     if error == nil {
+                        HapticManager.shared.lightImpact()
                         followStates[userId] = .canFollow
                         FollowStateStore.shared.setState(.canFollow, for: userId)
                     } else {
@@ -982,6 +983,7 @@ struct ReactionsListSheet: View {
                 DispatchQueue.main.async {
                     followLoadingStates[userId] = false
                     if error == nil {
+                        HapticManager.shared.mediumImpact()
                         let newState: FollowButtonState = currentState == .canRequestFollow ? .requestPendingCancellable : .following
                         followStates[userId] = newState
                         FollowStateStore.shared.setState(newState, for: userId)

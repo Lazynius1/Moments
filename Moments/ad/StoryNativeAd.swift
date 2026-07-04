@@ -1004,46 +1004,6 @@ struct StoryAdLoadingView: View {
     
 }
 
-// MARK: - Shimmer Effect Extension
-extension View {
-    func shimmer(isAnimating: Bool) -> some View {
-        self.modifier(ShimmerModifier(isAnimating: isAnimating))
-    }
-}
-
-struct ShimmerModifier: ViewModifier {
-    let isAnimating: Bool
-    @State private var phase: CGFloat = 0
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.white.opacity(0),
-                                Color.white.opacity(0.3),
-                                Color.white.opacity(0)
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .rotationEffect(.degrees(45))
-                    .offset(x: phase)
-                    .clipped()
-            )
-            .onAppear {
-                if isAnimating {
-                    withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                        phase = 300
-                    }
-                }
-            }
-    }
-}
-
 // MARK: - Helpers para verificar estado Plus
 struct PlusStatusHelper {
     static func shouldShowAds(for user: AppUser?) -> Bool {

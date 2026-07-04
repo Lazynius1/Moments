@@ -436,6 +436,84 @@ struct UserModernUnavailableProfileView: View {
     }
 }
 
+// MARK: - Sin conexión — shell unificado
+struct UserModernOfflineProfileView: View {
+    let safeAreaTop: CGFloat
+    let safeAreaBottom: CGFloat
+    let onRetry: () -> Void
+    let onDismiss: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Text("")
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                HStack {
+                    ProfileChromeIconButton(
+                        systemName: "chevron.left",
+                        foregroundColor: colorScheme == .dark ? .white : .black,
+                        preset: .navigationBack,
+                        action: onDismiss
+                    )
+                    Spacer()
+                    Color.clear.frame(
+                        width: MomentsGlassButtonPreset.navigationBack.controlSize,
+                        height: MomentsGlassButtonPreset.navigationBack.controlSize
+                    )
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
+
+            Spacer()
+
+            VStack(spacing: 14) {
+                Image(systemName: "wifi.slash")
+                    .font(.system(size: 36, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.44) : .black.opacity(0.36))
+
+                VStack(spacing: 6) {
+                    Text(NSLocalizedString("userProfile.offline.title", comment: "Offline title"))
+                        .font(.system(size: legacyPoppinsSize(20), weight: .bold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .multilineTextAlignment(.center)
+
+                    Text(NSLocalizedString("userProfile.offline.description", comment: "Offline description"))
+                        .font(.system(size: legacyPoppinsSize(14)))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.56) : .black.opacity(0.50))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+
+                Button(action: onRetry) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 16))
+                        Text(NSLocalizedString("profile.error.retryButton", comment: "Retry button"))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(ProfileColors.accent)
+                    .clipShape(Capsule())
+                    .shadow(color: ProfileColors.accent.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity)
+
+            Spacer()
+            Spacer()
+                .frame(height: safeAreaBottom + 24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 // MARK: - Bloqueado por mí — shell unificado
 struct UserModernBlockedByMeProfileView: View {
     let userProfile: AppUser?

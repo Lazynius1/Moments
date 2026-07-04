@@ -293,19 +293,11 @@ struct ModernCommentsView: View {
     private var enhancedCommentsListView: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                // ✅ NUEVO: Indicador de carga cuando isLoading es true
+                // ✅ Skeleton adaptado a la fila real de comentario mientras carga
                 if isLoading {
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
-                            .scaleEffect(1.2)
-                        
-                        Text("modernComments.loading")
-                            .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.gray)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 60)
+                    CommentRowSkeletonList(rows: 4)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
                 } else {
                     ForEach(rootComments) { comment in
                         EnhancedModernCommentRow(
@@ -1163,6 +1155,7 @@ struct ModernCommentsView: View {
             switch result {
             case .success:
                 DispatchQueue.main.async {
+                    HapticManager.shared.notification(.warning)
                     // ✅ Optimistic update
                     withAnimation {
                         self.comments.removeAll { $0.id == commentId }
@@ -1175,7 +1168,7 @@ struct ModernCommentsView: View {
             }
         }
     }
-    
+
     private func toggleLike(_ comment: Comment) {
         guard let commentId = comment.id,
               let _ = Auth.auth().currentUser?.uid,
