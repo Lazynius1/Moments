@@ -2333,14 +2333,21 @@
 "dataExport.connections.title" = "Connexions";
 "dataExport.connections.description" = "Llista de seguidors i seguint";
 "dataExport.activity.title" = "Activitat";
-"dataExport.activity.description" = "Historial d'ús i estadístiques";
+"dataExport.activity.description" = "Llocs que has visitat";
 "dataExport.options.title" = "Opcions d'Exportació";
 "dataExport.complete.title" = "Exportació Completa";
-"dataExport.complete.description" = "Inclou totes les teves dades en format JSON i arxius multimèdia";
+"dataExport.complete.description" = "Totes les teves dades i arxius multimèdia. Introdueix el teu PIN de recuperació a sota per incloure també les teves converses";
+"dataExport.complete.size" = "Varia segons el teu contingut — es pot dividir en diversos arxius";
 "dataExport.textOnly.title" = "Només Dades de Text";
-"dataExport.textOnly.description" = "Informació de perfil, missatges i configuracions sense multimèdia";
+"dataExport.textOnly.description" = "El teu perfil, publicacions, comentaris i converses en text, sense fotos ni vídeos";
+"dataExport.textOnly.size" = "Normalment uns quants MB";
 "dataExport.mediaOnly.title" = "Només Multimèdia";
-"dataExport.mediaOnly.description" = "Totes les teves fotos i vídeos sense dades de text";
+"dataExport.mediaOnly.description" = "Totes les teves fotos i vídeos, incloent-hi els compartits en converses, sense cap dada de text";
+"dataExport.mediaOnly.size" = "Varia segons les teves fotos i vídeos — es pot dividir en diversos arxius";
+"dataExport.conversationsOnly.title" = "Només Converses";
+"dataExport.conversationsOnly.description" = "Només els teus xats i converses de Nova, desxifrats amb el teu PIN de recuperació — res més";
+"dataExport.conversationsOnly.size" = "Varia segons el contingut multimèdia compartit — es pot dividir en diversos arxius";
+"dataExport.conversationsOnly.pinRequired" = "Introdueix el teu PIN de recuperació a sota per exportar les teves converses.";
 "dataExport.format.title" = "Format de Dades";
 "dataExport.format.json.title" = "JSON";
 "dataExport.format.json.description" = "Llegible per màquines";
@@ -2368,9 +2375,15 @@
 
 /* Data Export - Additional Text */
 "dataExport.privacy.bullet4" = "• Les dades estan encriptades i protegides";
+"dataExport.pin.title" = "PIN de recuperació (opcional)";
+"dataExport.pin.description" = "Les teves converses i xats de Nova estan xifrats d'extrem a extrem. Introdueix el teu PIN de recuperació per incloure'ls en aquest export.";
+"dataExport.pin.placeholder" = "PIN de 6 dígits";
+"dataExport.pin.incorrect" = "El PIN de recuperació no és correcte.";
 "dataExport.alreadyRequested" = "Ja has sol·licitat una descàrrega recentment. Pots fer una altra sol·licitud en %@ dies.";
 "dataExport.success.message" = "La teva sol·licitud de descàrrega ha estat enviada. Rebràs un email amb l'enllaç de descàrrega en les properes 24-48 hores.";
 "dataExport.ok" = "D'acord";
+"dataExport.download" = "Descarregar";
+"dataExport.downloadPart" = "Descarregar part %d de %d";
 
 /* Account Management */
 "accountManagement.section.title" = "Gestió del compte";
@@ -3542,6 +3555,8 @@
 "userProfile.unavailable.description" = "No pots veure aquest perfil en aquest moment.";
 "userProfile.unavailable.username" = "Usuari";
 "userProfile.unavailable.bio" = "Aquest perfil no està disponible";
+"userProfile.offline.title" = "Sense connexió a internet";
+"userProfile.offline.description" = "Comprova la teva connexió i torna-ho a provar.";
 "chat.profileUnavailable" = "Perfil no disponible";
 "chat.input.unavailable" = "No es poden enviar missatges a aquest perfil.";
 "messaging.profileUnavailable.preview" = "Perfil no disponible";

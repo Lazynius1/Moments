@@ -1002,9 +1002,19 @@ class EncryptionService: ObservableObject {
         
         // 3. Si todo falla, crear nueva clave y notificar
         if conversationKeys[conversationId] == nil {
-            
+
             do {
-                let newKey = try await createNewSharedConversationKey(conversationId: conversationId)
+                guard let currentUserId = Auth.auth().currentUser?.uid else {
+                    throw EncryptionError.keyNotFound
+                }
+                let snapshot = try await db.collection("conversations").document(conversationId).getDocument()
+                let participants = (snapshot.data()?["participants"] as? [String]) ?? [currentUserId]
+
+                let newKey = try await createNewSharedConversationKey(
+                    conversationId: conversationId,
+                    participants: participants,
+                    currentUserId: currentUserId
+                )
                 await cacheConversationKey(conversationId: conversationId, key: newKey)
                 
                 // Marcar que hubo rotación por corrupción
@@ -1327,6 +1337,41 @@ class EncryptionService: ObservableObject {
             }
             throw EncryptionError.invalidPIN
         }
+    }
+
+    func verifyRecoveryPIN(_ pin: String) async -> Bool {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return false }
+
+        let trimmedPIN = pin.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedPIN.count == 6, trimmedPIN.allSatisfy(\.isNumber) else { return false }
+
+        guard
+            let data = try? await db.collection("users")
+                .document(currentUserId)
+                .collection("chatRecovery")
+                .document("default")
+                .getDocument()
+                .data(),
+            let bundle = ChatRecoveryBundle(map: data),
+            let salt = Data(base64Encoded: bundle.salt),
+            let encryptedPrivateKey = Data(base64Encoded: bundle.encryptedPrivateKey)
+        else {
+            return false
+        }
+
+        guard
+            let pinKey = try? ChatRecoveryCrypto.derivePINKey(
+                pin: trimmedPIN,
+                salt: salt,
+                iterations: bundle.kdfParams.iterations,
+                keyLength: bundle.kdfParams.keyLength
+            )
+        else {
+            return false
+        }
+
+        guard let sealedBox = try? AES.GCM.SealedBox(combined: encryptedPrivateKey) else { return false }
+        return (try? AES.GCM.open(sealedBox, using: pinKey)) != nil
     }
 
     func removeLocalChatIdentity() async throws {
@@ -1778,7 +1823,11 @@ class EncryptionService: ObservableObject {
 
             if let participants = data["participants"] as? [String],
                participants.contains(currentUserId) {
-                let sharedKey = try await createNewSharedConversationKey(conversationId: conversationId)
+                let sharedKey = try await createNewSharedConversationKey(
+                    conversationId: conversationId,
+                    participants: participants,
+                    currentUserId: currentUserId
+                )
                 await persistWrappedKeyIfNeeded(
                     conversationId: conversationId,
                     conversationData: data,
@@ -1801,14 +1850,40 @@ class EncryptionService: ObservableObject {
     }
     
     // MARK: - 🛡️ ATOMIC Key Creation (evita race conditions)
-    private func createNewSharedConversationKey(conversationId: String) async throws -> SymmetricKey {
-        let deviceId = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "unknown" }
-        
+    private func createNewSharedConversationKey(
+        conversationId: String,
+        participants: [String],
+        currentUserId: String
+    ) async throws -> SymmetricKey {
         let newKey = SymmetricKey(size: .bits256)
+
+        if
+            let wrappedKeys = try? await withTimeout(seconds: 5, operation: {
+                try await self.buildWrappedConversationKeys(
+                    for: participants,
+                    conversationKey: newKey,
+                    wrappedBy: currentUserId
+                )
+            }),
+            wrappedKeys.count == participants.count
+        {
+            let uploadData: [String: Any] = [
+                "wrappedKeys": wrappedKeys,
+                "conversationKeyVersion": 1,
+                "encryptionVersion": "3.0"
+            ]
+            try await db.collection("conversations")
+                .document(conversationId)
+                .setData(uploadData, merge: true)
+            await cacheConversationKey(conversationId: conversationId, key: newKey)
+            return newKey
+        }
+
+        let deviceId = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "unknown" }
         let keyData = newKey.withUnsafeBytes { Data($0) }
         let keyDataString = keyData.base64EncodedString()
         let metadata = KeyMetadata(keyId: UUID().uuidString, deviceId: deviceId)
-        
+
         let uploadData: [String: Any] = [
             "encryptionKey": keyDataString,
             "encryptionKeyCreatedAt": FieldValue.serverTimestamp(),
@@ -1817,14 +1892,14 @@ class EncryptionService: ObservableObject {
             "lastKeyUpdate": FieldValue.serverTimestamp(),
             "createdByDevice": deviceId
         ]
-        
+
         // Atomic write with merge
         try await db.collection("conversations")
             .document(conversationId)
             .setData(uploadData, merge: true)
-        
+
         await cacheConversationKey(conversationId: conversationId, key: newKey)
-        
+
         return newKey
     }
     
@@ -2211,13 +2286,45 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🔄 KEY ROTATION (Nueva funcionalidad)
     func rotateConversationKey(for conversationId: String, reason: KeyRotationReason = .manual) async throws -> Bool {
-        
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            throw EncryptionError.keyNotFound
+        }
+
         // Generate new key
         let newKey = SymmetricKey(size: .bits256)
+
+        let snapshot = try await db.collection("conversations").document(conversationId).getDocument()
+        let participants = (snapshot.data()?["participants"] as? [String]) ?? [currentUserId]
+
+        if
+            let wrappedKeys = try? await withTimeout(seconds: 5, operation: {
+                try await self.buildWrappedConversationKeys(
+                    for: participants,
+                    conversationKey: newKey,
+                    wrappedBy: currentUserId
+                )
+            }),
+            wrappedKeys.count == participants.count
+        {
+            let rotationData: [String: Any] = [
+                "wrappedKeys": wrappedKeys,
+                "conversationKeyVersion": FieldValue.increment(Int64(1)),
+                "encryptionVersion": "3.0",
+                "sharedEncryptionKey": FieldValue.delete(),
+                "encryptionKey": FieldValue.delete(),
+                "lastKeyRotation": FieldValue.serverTimestamp(),
+                "rotationReason": reason.rawValue,
+                "rotatedByDevice": UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+            ]
+            try await db.collection("conversations").document(conversationId).setData(rotationData, merge: true)
+            await cacheConversationKey(conversationId: conversationId, key: newKey)
+            await updateMetrics { $0.keyRotations += 1 }
+            return true
+        }
+
         let keyData = newKey.withUnsafeBytes { Data($0) }
         let keyDataString = keyData.base64EncodedString()
-        
-        // Update Firestore with new key
+
         let rotationData: [String: Any] = [
             "sharedEncryptionKey": keyDataString,
             "lastKeyRotation": FieldValue.serverTimestamp(),
@@ -2225,16 +2332,16 @@ class EncryptionService: ObservableObject {
             "encryptionVersion": "2.0",
             "rotatedByDevice": UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
         ]
-        
+
         try await db.collection("conversations")
             .document(conversationId)
             .updateData(rotationData)
-        
+
         // Update local cache
         await cacheConversationKey(conversationId: conversationId, key: newKey)
-        
+
         await updateMetrics { $0.keyRotations += 1 }
-        
+
         return true
     }
     

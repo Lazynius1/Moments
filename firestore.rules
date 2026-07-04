@@ -1110,7 +1110,7 @@ service cloud.firestore {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow create: if request.auth != null && request.auth.uid == userId
                       && request.resource.data.userEmail == request.auth.token.email;
-        allow update: if request.auth != null && request.auth.uid == userId;
+        allow update: if false;
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
 

@@ -5,6 +5,7 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const { defineSecret } = require('firebase-functions/params');
 const { RekognitionClient, DetectModerationLabelsCommand } = require('@aws-sdk/client-rekognition');
 const JSZip = require('jszip');
+const archiver = require('archiver');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -66,6 +67,7 @@ module.exports = {
   RekognitionClient,
   DetectModerationLabelsCommand,
   JSZip,
+  archiver,
   crypto,
   path,
   fs,

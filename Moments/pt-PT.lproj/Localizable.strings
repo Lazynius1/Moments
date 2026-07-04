@@ -3151,14 +3151,21 @@
 "dataExport.connections.title" = "Ligações";
 "dataExport.connections.description" = "Lista de seguidores e seguidos";
 "dataExport.activity.title" = "Atividade";
-"dataExport.activity.description" = "Histórico de utilização e estatísticas";
+"dataExport.activity.description" = "Lugares que visitaste";
 "dataExport.options.title" = "Opções de exportação";
 "dataExport.complete.title" = "Exportação completa";
-"dataExport.complete.description" = "Inclui todos os teus dados em formato JSON e ficheiros multimédia";
+"dataExport.complete.description" = "Todos os teus dados e ficheiros multimédia. Introduz o teu PIN de recuperação abaixo para incluir também as tuas conversas";
+"dataExport.complete.size" = "Varia consoante o teu conteúdo — pode ser dividido em vários ficheiros";
 "dataExport.textOnly.title" = "Apenas dados de texto";
-"dataExport.textOnly.description" = "Informações do perfil, mensagens e definições sem multimédia";
+"dataExport.textOnly.description" = "O teu perfil, publicações, comentários e conversas em texto, sem fotografias ou vídeos";
+"dataExport.textOnly.size" = "Normalmente alguns MB";
 "dataExport.mediaOnly.title" = "Apenas multimédia";
-"dataExport.mediaOnly.description" = "Todas as tuas fotografias e vídeos sem dados de texto";
+"dataExport.mediaOnly.description" = "Todas as tuas fotografias e vídeos, incluindo multimédia partilhado em conversas, sem quaisquer dados de texto";
+"dataExport.mediaOnly.size" = "Varia consoante as tuas fotografias e vídeos — pode ser dividido em vários ficheiros";
+"dataExport.conversationsOnly.title" = "Apenas conversas";
+"dataExport.conversationsOnly.description" = "Apenas os teus chats e conversas com a Nova, desencriptados com o teu PIN de recuperação — nada mais";
+"dataExport.conversationsOnly.size" = "Varia consoante o multimédia partilhado — pode ser dividido em vários ficheiros";
+"dataExport.conversationsOnly.pinRequired" = "Introduz o teu PIN de recuperação abaixo para exportar as tuas conversas.";
 "dataExport.format.title" = "Formato dos dados";
 "dataExport.format.json.title" = "JSON";
 "dataExport.format.json.description" = "Legível por máquina";
@@ -3186,9 +3193,15 @@
 
 /* Data Export - Additional Text */
 "dataExport.privacy.bullet4" = "• Os dados são encriptados e protegidos";
+"dataExport.pin.title" = "PIN de recuperação (opcional)";
+"dataExport.pin.description" = "As tuas conversas e chats da Nova estão encriptados de ponta a ponta. Introduz o teu PIN de recuperação para os incluir nesta exportação.";
+"dataExport.pin.placeholder" = "PIN de 6 dígitos";
+"dataExport.pin.incorrect" = "Esse PIN de recuperação não está correto.";
 "dataExport.alreadyRequested" = "Já pediste um download recentemente. Podes fazer outro pedido dentro de %@ dias.";
 "dataExport.success.message" = "O teu pedido de download foi enviado. Vais receber um email com a ligação de download nas próximas 24 a 48 horas.";
 "dataExport.ok" = "OK";
+"dataExport.download" = "Transferir";
+"dataExport.downloadPart" = "Transferir parte %d de %d";
 
 /* Notifications */
 "notifications.error.unknown" = "Ocorreu um erro desconhecido";
@@ -4333,6 +4346,8 @@
 "userProfile.unavailable.description" = "Não consegues ver este perfil no momento.";
 "userProfile.unavailable.username" = "Utilizador";
 "userProfile.unavailable.bio" = "Este perfil não está disponível";
+"userProfile.offline.title" = "Sem ligação à internet";
+"userProfile.offline.description" = "Verifica a tua ligação e tenta novamente.";
 "chat.profileUnavailable" = "Perfil indisponível";
 "chat.input.unavailable" = "Não podes enviar mensagens para este perfil.";
 "messaging.profileUnavailable.preview" = "Perfil indisponível";

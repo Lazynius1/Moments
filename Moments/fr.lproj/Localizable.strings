@@ -2341,14 +2341,21 @@
 "dataExport.connections.title" = "Connexions";
 "dataExport.connections.description" = "Liste des abonnés et abonnements";
 "dataExport.activity.title" = "Activité";
-"dataExport.activity.description" = "Historique d’utilisation et statistiques";
+"dataExport.activity.description" = "Lieux que vous avez visités";
 "dataExport.options.title" = "Options d’export";
 "dataExport.complete.title" = "Export complet";
-"dataExport.complete.description" = "Inclut toutes vos données au format JSON et les fichiers multimédias";
+"dataExport.complete.description" = "Toutes vos données et fichiers multimédias. Saisissez votre code PIN de récupération ci-dessous pour inclure aussi vos conversations";
+"dataExport.complete.size" = "Varie selon votre contenu — peut être divisé en plusieurs fichiers";
 "dataExport.textOnly.title" = "Données texte uniquement";
-"dataExport.textOnly.description" = "Informations du profil, messages et réglages sans les médias";
+"dataExport.textOnly.description" = "Votre profil, publications, commentaires et conversations en texte, sans photos ni vidéos";
+"dataExport.textOnly.size" = "Généralement quelques Mo";
 "dataExport.mediaOnly.title" = "Multimédia uniquement";
-"dataExport.mediaOnly.description" = "Toutes vos photos et vidéos sans les données texte";
+"dataExport.mediaOnly.description" = "Toutes vos photos et vidéos, y compris les médias partagés dans les conversations, sans aucune donnée texte";
+"dataExport.mediaOnly.size" = "Varie selon vos photos et vidéos — peut être divisé en plusieurs fichiers";
+"dataExport.conversationsOnly.title" = "Conversations uniquement";
+"dataExport.conversationsOnly.description" = "Seulement vos discussions et conversations Nova, déchiffrées avec votre code PIN de récupération — rien d’autre";
+"dataExport.conversationsOnly.size" = "Varie selon les médias partagés — peut être divisé en plusieurs fichiers";
+"dataExport.conversationsOnly.pinRequired" = "Saisissez votre code PIN de récupération ci-dessous pour exporter vos conversations.";
 "dataExport.format.title" = "Format des données";
 "dataExport.format.json.title" = "JSON";
 "dataExport.format.json.description" = "Lisible par machine";
@@ -2376,9 +2383,15 @@
 
 /* Data Export - Additional Text */
 "dataExport.privacy.bullet4" = "• Les données sont chiffrées et protégées";
+"dataExport.pin.title" = "Code PIN de récupération (facultatif)";
+"dataExport.pin.description" = "Tes conversations et chats Nova sont chiffrés de bout en bout. Saisis ton code PIN de récupération pour les inclure dans cet export.";
+"dataExport.pin.placeholder" = "Code PIN à 6 chiffres";
+"dataExport.pin.incorrect" = "Ce code PIN de récupération est incorrect.";
 "dataExport.alreadyRequested" = "Vous avez déjà demandé un téléchargement récemment. Vous pourrez faire une autre demande dans %@ jours.";
 "dataExport.success.message" = "Votre demande de téléchargement a été envoyée. Vous recevrez un e-mail avec le lien de téléchargement dans les prochaines 24 à 48 heures.";
 "dataExport.ok" = "OK";
+"dataExport.download" = "Télécharger";
+"dataExport.downloadPart" = "Télécharger la partie %d sur %d";
 
 /* Notifications */
 "notifications.error.unknown" = "An unknown error occurred";
@@ -3522,6 +3535,8 @@
 "userProfile.unavailable.description" = "You can't view this profile right now.";
 "userProfile.unavailable.username" = "Utilisateur";
 "userProfile.unavailable.bio" = "Ce profil n'est pas disponible";
+"userProfile.offline.title" = "Pas de connexion internet";
+"userProfile.offline.description" = "Vérifie ta connexion et réessaie.";
 "chat.profileUnavailable" = "Profil indisponible";
 "chat.input.unavailable" = "Vous ne pouvez pas envoyer de messages à ce profil.";
 "messaging.profileUnavailable.preview" = "Profil indisponible";

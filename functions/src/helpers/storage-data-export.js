@@ -9,6 +9,7 @@ const {
   RekognitionClient,
   DetectModerationLabelsCommand,
   JSZip,
+  archiver,
   crypto,
   path,
   fs,
@@ -62,7 +63,164 @@ async function fetchUserSubcollection(userId, name) {
   return snap.docs.map((doc) => ({ documentId: doc.id, ...toSerializable(doc.data()) }));
 }
 
-async function fetchUserConversations(userId) {
+async function fetchUserComments(userId) {
+  const snap = await admin.firestore()
+    .collectionGroup('comments')
+    .where('authorId', '==', userId)
+    .get();
+
+  return snap.docs.map((doc) => {
+    const momentRef = doc.ref.parent.parent;
+    const momentAuthorRef = momentRef ? momentRef.parent.parent : null;
+    return {
+      documentId: doc.id,
+      momentId: momentRef ? momentRef.id : null,
+      momentAuthorId: momentAuthorRef ? momentAuthorRef.id : null,
+      ...toSerializable(doc.data())
+    };
+  });
+}
+
+async function fetchUserReactions(userId) {
+  const snap = await admin.firestore()
+    .collectionGroup('reactions')
+    .where('userId', '==', userId)
+    .get();
+
+  return snap.docs.map((doc) => {
+    const contentRef = doc.ref.parent.parent;
+    const authorRef = contentRef ? contentRef.parent.parent : null;
+    const contentType = contentRef ? contentRef.parent.id : null;
+    return {
+      documentId: doc.id,
+      contentType,
+      contentId: contentRef ? contentRef.id : null,
+      contentAuthorId: authorRef ? authorRef.id : null,
+      ...toSerializable(doc.data())
+    };
+  });
+}
+
+function aesGcmOpenCombinedBase64(base64Combined, keyBuffer) {
+  if (typeof base64Combined !== 'string' || !keyBuffer) return null;
+  const combined = Buffer.from(base64Combined, 'base64');
+  if (combined.length < 12 + 16 || keyBuffer.length !== 32) return null;
+  const iv = combined.subarray(0, 12);
+  const tag = combined.subarray(combined.length - 16);
+  const ciphertext = combined.subarray(12, combined.length - 16);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuffer, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}
+
+function derivePinKey(pin, saltBase64, iterations, keyLength) {
+  const salt = Buffer.from(saltBase64, 'base64');
+  return crypto.pbkdf2Sync(Buffer.from(pin, 'utf8'), salt, iterations, keyLength, 'sha256');
+}
+
+const EXPORT_PIN_MAX_ATTEMPTS = 5;
+const EXPORT_PIN_LOCKOUT_MS = 5 * 60 * 1000;
+
+async function checkAndRegisterPinAttempt(userId, mode) {
+  const stateRef = admin.firestore().collection('users').doc(userId).collection('chatRecovery').doc('exportPinState');
+  const stateSnap = await stateRef.get();
+  const state = stateSnap.data() || {};
+
+  const lockedUntilMs = state.lockedUntil ? state.lockedUntil.toMillis() : 0;
+  if (lockedUntilMs > Date.now()) {
+    return { locked: true, remainingMs: lockedUntilMs - Date.now() };
+  }
+
+  if (mode === 'success') {
+    await stateRef.set({ failedAttempts: 0, lockedUntil: admin.firestore.FieldValue.delete() }, { merge: true });
+    return { locked: false };
+  }
+
+  if (mode === 'fail') {
+    const failedAttempts = (state.failedAttempts || 0) + 1;
+    if (failedAttempts >= EXPORT_PIN_MAX_ATTEMPTS) {
+      await stateRef.set({
+        failedAttempts: 0,
+        lockedUntil: admin.firestore.Timestamp.fromMillis(Date.now() + EXPORT_PIN_LOCKOUT_MS)
+      }, { merge: true });
+    } else {
+      await stateRef.set({ failedAttempts }, { merge: true });
+    }
+  }
+
+  return { locked: false };
+}
+
+async function unwrapRecoveryBundle(userId, pin) {
+  if (typeof pin !== 'string' || !/^\d{6}$/.test(pin.trim())) return null;
+  const trimmedPin = pin.trim();
+
+  const lockState = await checkAndRegisterPinAttempt(userId, 'check');
+  if (lockState.locked) return null;
+
+  const bundleSnap = await admin.firestore()
+    .collection('users').doc(userId).collection('chatRecovery').doc('default').get();
+  const bundle = bundleSnap.data();
+  if (!bundle || !bundle.encryptedPrivateKey || !bundle.salt || !bundle.kdfParams) return null;
+
+  const iterations = bundle.kdfParams.iterations || 200000;
+  const keyLength = bundle.kdfParams.keyLength || 32;
+  const pinKey = derivePinKey(trimmedPin, bundle.salt, iterations, keyLength);
+
+  let chatPrivateKeyBuffer = null;
+  try {
+    chatPrivateKeyBuffer = aesGcmOpenCombinedBase64(bundle.encryptedPrivateKey, pinKey);
+  } catch (error) {
+    chatPrivateKeyBuffer = null;
+  }
+  if (!chatPrivateKeyBuffer || chatPrivateKeyBuffer.length !== 32) {
+    await checkAndRegisterPinAttempt(userId, 'fail');
+    return null;
+  }
+
+  await checkAndRegisterPinAttempt(userId, 'success');
+
+  let novaUserKeyBuffer = null;
+  if (bundle.encryptedUserKey) {
+    try {
+      novaUserKeyBuffer = aesGcmOpenCombinedBase64(bundle.encryptedUserKey, pinKey);
+      if (novaUserKeyBuffer && novaUserKeyBuffer.length !== 32) novaUserKeyBuffer = null;
+    } catch (error) {
+      novaUserKeyBuffer = null;
+    }
+  }
+
+  return { chatPrivateKeyBuffer, novaUserKeyBuffer };
+}
+
+const X25519_PKCS8_PREFIX = Buffer.from('302e020100300506032b656e04220420', 'hex');
+
+function x25519SharedSecret(privateKeyRaw32, publicKeyRaw32) {
+  const der = Buffer.concat([X25519_PKCS8_PREFIX, privateKeyRaw32]);
+  const privateKey = crypto.createPrivateKey({ key: der, format: 'der', type: 'pkcs8' });
+  const publicKey = crypto.createPublicKey({
+    key: { kty: 'OKP', crv: 'X25519', x: publicKeyRaw32.toString('base64url') },
+    format: 'jwk'
+  });
+  return crypto.diffieHellman({ privateKey, publicKey });
+}
+
+function unwrapConversationKeyForUser(wrappedKeyMap, chatPrivateKeyBuffer) {
+  if (!wrappedKeyMap || !chatPrivateKeyBuffer) return null;
+  try {
+    const senderPublicKey = Buffer.from(wrappedKeyMap.senderPublicKey, 'base64');
+    const sharedSecret = x25519SharedSecret(chatPrivateKeyBuffer, senderPublicKey);
+    const wrappingKey = Buffer.from(
+      crypto.hkdfSync('sha256', sharedSecret, Buffer.alloc(0), Buffer.from('moments.chat.wrap.v1', 'utf8'), 32)
+    );
+    const conversationKey = aesGcmOpenCombinedBase64(wrappedKeyMap.wrappedKey, wrappingKey);
+    return conversationKey ? conversationKey.toString('base64') : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function fetchUserConversations(userId, chatPrivateKeyBuffer) {
   const conversationsSnap = await admin.firestore()
     .collection('conversations')
     .where('participants', 'array-contains', userId)
@@ -72,7 +230,7 @@ async function fetchUserConversations(userId) {
   for (const convoDoc of conversationsSnap.docs) {
     const conversationId = convoDoc.id;
     const conversationData = convoDoc.data() || {};
-    const sharedKey = await fetchConversationSharedKey(conversationId, conversationData);
+    const sharedKey = await fetchConversationSharedKey(conversationId, conversationData, userId, chatPrivateKeyBuffer);
     const messagesSnap = await admin.firestore()
       .collection('conversations')
       .doc(conversationId)
@@ -89,32 +247,49 @@ async function fetchUserConversations(userId) {
       if (typeof rawMessage.content === 'string' && rawMessage.content.trim().length > 0) {
         const decrypted = decryptChatContent(rawMessage.content, sharedKey);
         serializedMessage.contentDecrypted = decrypted;
+        if (rawMessage.type === 'location') {
+          serializedMessage.locationDecrypted = decodeLocationPayload(decrypted);
+        }
       }
       return serializedMessage;
     });
 
-    conversations.push({
+    const conversation = {
       conversationId,
       ...toSerializable(conversationData),
       messages
+    };
+    Object.defineProperty(conversation, '_conversationKey', {
+      value: sharedKey,
+      enumerable: false
     });
+    conversations.push(conversation);
   }
   return conversations;
 }
 
-async function fetchConversationSharedKey(conversationId, conversationData) {
+async function fetchConversationSharedKey(conversationId, conversationData, userId, chatPrivateKeyBuffer) {
   if (typeof conversationData.sharedEncryptionKey === 'string' && conversationData.sharedEncryptionKey.length > 0) {
     return conversationData.sharedEncryptionKey;
   }
   if (typeof conversationData.encryptionKey === 'string' && conversationData.encryptionKey.length > 0) {
     return conversationData.encryptionKey;
   }
+  if (
+    chatPrivateKeyBuffer
+    && conversationData.wrappedKeys
+    && typeof conversationData.wrappedKeys === 'object'
+    && conversationData.wrappedKeys[userId]
+  ) {
+    const unwrapped = unwrapConversationKeyForUser(conversationData.wrappedKeys[userId], chatPrivateKeyBuffer);
+    if (unwrapped) return unwrapped;
+  }
   try {
     const sharedDoc = await admin.firestore()
       .collection('conversations')
       .doc(conversationId)
       .collection('encryption')
-      .doc('shared')
+      .doc('shared_key')
       .get();
     const data = sharedDoc.data() || {};
     if (typeof data.encryptionKey === 'string' && data.encryptionKey.length > 0) {
@@ -144,8 +319,63 @@ function decryptChatContent(encryptedContent, keyBase64) {
   }
 }
 
-async function fetchNovaConversations(userId) {
-  const [titlesSnap, conversationsSnap] = await Promise.all([
+function decodeLocationPayload(decryptedContentJson) {
+  if (typeof decryptedContentJson !== 'string' || !decryptedContentJson.trim()) return null;
+  try {
+    const parsed = JSON.parse(decryptedContentJson);
+    if (typeof parsed.lat !== 'number' || typeof parsed.lng !== 'number') return null;
+    return {
+      latitude: parsed.lat,
+      longitude: parsed.lng,
+      name: typeof parsed.name === 'string' ? parsed.name : null,
+      address: typeof parsed.address === 'string' ? parsed.address : null
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function deriveChatMediaKey(conversationKeyBuffer, conversationId, messageId, purpose) {
+  const salt = Buffer.from('moments.chat.media.salt.v1', 'utf8');
+  const info = Buffer.from(`moments.chat.media.v1|${conversationId}|${messageId}|${purpose}`, 'utf8');
+  return Buffer.from(crypto.hkdfSync('sha256', conversationKeyBuffer, salt, info, 32));
+}
+
+function chatMediaAuthenticatedData(conversationId, messageId, purpose, contentType) {
+  return Buffer.from(`moments.chat.media.aad.v1|${conversationId}|${messageId}|${purpose}|${contentType}`, 'utf8');
+}
+
+function decryptChatMediaBuffer(encryptedBuffer, metadata, conversationKeyBase64, conversationId, messageId) {
+  if (!encryptedBuffer || !metadata || !conversationKeyBase64) return null;
+  try {
+    const conversationKeyBuffer = Buffer.from(conversationKeyBase64, 'base64');
+    if (conversationKeyBuffer.length !== 32) return null;
+
+    const mediaKey = deriveChatMediaKey(conversationKeyBuffer, conversationId, messageId, metadata.purpose);
+    const aad = chatMediaAuthenticatedData(conversationId, messageId, metadata.purpose, metadata.contentType);
+
+    if (encryptedBuffer.length < 12 + 16) return null;
+    const iv = encryptedBuffer.subarray(0, 12);
+    const tag = encryptedBuffer.subarray(encryptedBuffer.length - 16);
+    const ciphertext = encryptedBuffer.subarray(12, encryptedBuffer.length - 16);
+
+    const decipher = crypto.createDecipheriv('aes-256-gcm', mediaKey, iv);
+    decipher.setAuthTag(tag);
+    decipher.setAAD(aad);
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  } catch (error) {
+    return null;
+  }
+}
+
+async function fetchNovaConversations(userId, novaUserKeyBuffer) {
+  const [newSnap, titlesSnap, conversationsSnap] = await Promise.all([
+    admin.firestore()
+      .collection('users')
+      .doc(userId)
+      .collection('novaConversations')
+      .orderBy('lastUpdated', 'desc')
+      .get(),
     admin.firestore()
       .collection('geminiConversationTitles')
       .where('userId', '==', userId)
@@ -158,9 +388,45 @@ async function fetchNovaConversations(userId) {
       .get()
   ]);
 
+  const novaKeyBase64 = novaUserKeyBuffer ? novaUserKeyBuffer.toString('base64') : null;
+
+  const decorateWithDecryptedTitle = (item) => {
+    if (novaKeyBase64 && typeof item.title === 'string' && item.title.trim().length > 0) {
+      item.titleDecrypted = decryptChatContent(item.title, novaKeyBase64);
+    }
+    return item;
+  };
+
+  const decorateConversation = (item) => {
+    decorateWithDecryptedTitle(item);
+    if (Array.isArray(item.messages)) {
+      item.messages = item.messages.map((message) => {
+        if (novaKeyBase64 && typeof message.text === 'string' && message.text.trim().length > 0) {
+          message.textDecrypted = decryptChatContent(message.text, novaKeyBase64);
+        }
+        return message;
+      });
+    }
+    return item;
+  };
+
+  const newConversations = newSnap.docs
+    .map((doc) => ({ conversationId: doc.id, ...toSerializable(doc.data()) }))
+    .map(decorateConversation);
+  const newIds = new Set(newConversations.map((conversation) => conversation.conversationId));
+
+  const legacyConversations = conversationsSnap.docs
+    .map((doc) => ({ conversationId: doc.id, ...toSerializable(doc.data()) }))
+    .filter((conversation) => !newIds.has(conversation.conversationId))
+    .map(decorateConversation);
+
+  const titles = titlesSnap.docs
+    .map((doc) => ({ conversationId: doc.id, ...toSerializable(doc.data()) }))
+    .map(decorateWithDecryptedTitle);
+
   return {
-    titles: titlesSnap.docs.map((doc) => ({ conversationId: doc.id, ...toSerializable(doc.data()) })),
-    conversations: conversationsSnap.docs.map((doc) => ({ conversationId: doc.id, ...toSerializable(doc.data()) }))
+    titles,
+    conversations: [...newConversations, ...legacyConversations]
   };
 }
 
@@ -176,6 +442,9 @@ function inferFileExtension(url, contentType = '') {
   if (ct.includes('image/gif')) return 'gif';
   if (ct.includes('video/mp4')) return 'mp4';
   if (ct.includes('video/quicktime')) return 'mov';
+  if (ct.includes('audio/mp4') || ct.includes('audio/x-m4a') || ct.includes('audio/m4a')) return 'm4a';
+  if (ct.includes('audio/aac')) return 'aac';
+  if (ct.includes('audio/mpeg')) return 'mp3';
   try {
     const pathname = new URL(url).pathname;
     const ext = path.extname(pathname).replace('.', '').toLowerCase();
@@ -874,14 +1143,10 @@ function storageObjectIsAllowedForExport(objectName, userId, authorizedConversat
   return authorizedConversationIds.some((conversationId) => storageObjectBelongsToConversation(objectName, conversationId));
 }
 
-async function addMediaFilesToZip(zip, mediaUrls, userId, authorizedConversationIds = []) {
+async function collectMediaFileEntries(mediaUrls, userId, authorizedConversationIds = [], manager, destPrefix = 'media') {
   const uniqueUrls = Array.from(new Set((mediaUrls || []).filter((url) => typeof url === 'string' && url.trim().length > 0)));
   const bucket = admin.storage().bucket();
-  const limits = {
-    maxFiles: 120,
-    maxTotalBytes: 200 * 1024 * 1024,
-    maxSingleFileBytes: 30 * 1024 * 1024
-  };
+  const limits = EXPORT_MEDIA_LIMITS;
   let totalBytes = 0;
   const manifest = {
     requested: uniqueUrls.length,
@@ -933,8 +1198,8 @@ async function addMediaFilesToZip(zip, mediaUrls, userId, authorizedConversation
       }
 
       const ext = inferFileExtension(objectName, metadata.contentType || '');
-      const fileName = `media/media_${String(manifest.downloaded.length + 1).padStart(4, '0')}.${ext}`;
-      zip.file(fileName, buffer);
+      const fileName = `${destPrefix}/media_${String(manifest.downloaded.length + 1).padStart(4, '0')}.${ext}`;
+      await manager.addFile(fileName, buffer);
       totalBytes += buffer.length;
       manifest.downloaded.push({
         file: fileName,
@@ -953,57 +1218,116 @@ async function addMediaFilesToZip(zip, mediaUrls, userId, authorizedConversation
   return manifest;
 }
 
-function collectMediaUrlsFromPayload(payload, userId) {
-  const urls = new Set();
+function collectMediaUrlsByCategory(payload, userId) {
   const bucket = admin.storage().bucket();
-  const pushIfAllowed = (url, isAllowedObjectName) => {
+  const categories = { moments: new Set(), stories: new Set(), profile: new Set() };
+  const pushTo = (category, url) => {
     if (typeof url !== 'string' || !url.trim()) return;
-
     const trimmed = url.trim();
     const objectName = storageObjectNameFromExportMediaUrl(trimmed, bucket.name);
-    if (objectName && isAllowedObjectName(objectName)) {
-      urls.add(trimmed);
+    if (objectName && storageObjectBelongsToUser(objectName, userId)) {
+      categories[category].add(trimmed);
     }
-  };
-  const pushUserOwned = (url) => {
-    pushIfAllowed(url, (objectName) => storageObjectBelongsToUser(objectName, userId));
-  };
-  const pushConversationOwned = (url, conversationId) => {
-    pushIfAllowed(url, (objectName) => storageObjectBelongsToConversation(objectName, conversationId));
   };
 
   for (const moment of payload.moments || []) {
-    pushUserOwned(moment.imagePath);
-    pushUserOwned(moment.imageUrl);
-    pushUserOwned(moment.videoUrl);
+    pushTo('moments', moment.imagePath);
+    pushTo('moments', moment.imageUrl);
+    pushTo('moments', moment.videoUrl);
     if (Array.isArray(moment.mediaItems)) {
-      for (const item of moment.mediaItems) pushUserOwned(item?.url);
+      for (const item of moment.mediaItems) pushTo('moments', item?.url);
     }
   }
 
   for (const story of payload.stories || []) {
     const mediaItem = story.mediaItem || {};
-    pushUserOwned(mediaItem.url);
-    pushUserOwned(mediaItem.thumbnailUrl);
-    pushUserOwned(story.backgroundFrameURL);
-    pushUserOwned(story.backgroundBlurredFrameURL);
+    pushTo('stories', mediaItem.url);
+    pushTo('stories', mediaItem.thumbnailUrl);
+    pushTo('stories', story.backgroundFrameURL);
+    pushTo('stories', story.backgroundBlurredFrameURL);
   }
 
-  for (const convo of payload.conversations || []) {
-    const conversationId = convo.conversationId;
-    for (const msg of convo.messages || []) {
-      pushConversationOwned(msg.mediaUrl, conversationId);
-      pushConversationOwned(msg.thumbnailUrl, conversationId);
-    }
-  }
+  pushTo('profile', payload.profile?.profileImagePath);
 
-  pushUserOwned(payload.profile?.profileImagePath);
-  return Array.from(urls);
+  return {
+    moments: Array.from(categories.moments),
+    stories: Array.from(categories.stories),
+    profile: Array.from(categories.profile)
+  };
 }
 
-async function buildDataExportPayload(userId, exportType, requestedFormat) {
+const PROFILE_INTERNAL_FIELDS = [
+  'chatKey',
+  'fcmToken',
+  'fcmTokenUpdatedAt',
+  'deviceInfo',
+  'conversationStatus',
+  'onlineStatus',
+  'incognito'
+];
+
+function stripInternalFields(records, fields) {
+  if (!Array.isArray(records)) return records;
+  return records.map((record) => {
+    const cleaned = { ...record };
+    for (const field of fields) delete cleaned[field];
+    return cleaned;
+  });
+}
+
+function cleanProfileForExport(profile) {
+  const cleaned = { ...(profile || {}) };
+  for (const field of PROFILE_INTERNAL_FIELDS) {
+    delete cleaned[field];
+  }
+  return cleaned;
+}
+
+async function fetchUsernamesForIds(userIds) {
+  const uniqueIds = Array.from(new Set((userIds || []).filter((id) => typeof id === 'string' && id.trim().length > 0)));
+  const usernames = new Map();
+  await Promise.all(uniqueIds.map(async (id) => {
+    try {
+      const snap = await admin.firestore().collection('users').doc(id).get();
+      const username = snap.exists ? snap.data().username : null;
+      usernames.set(id, typeof username === 'string' && username.trim().length > 0 ? username : id);
+    } catch (error) {
+      usernames.set(id, id);
+    }
+  }));
+  return usernames;
+}
+
+function usernamesForList(idList, usernameMap) {
+  return (Array.isArray(idList) ? idList : []).map((id) => usernameMap.get(id) || id);
+}
+
+const MOMENT_INTERNAL_FIELDS = [
+  'moderationReason', 'moderationCategory', 'canRestore', 'confidence', 'mediaType', 'moderationDetails',
+  'originalAudience', 'reviewRequired', 'moderatedBy', 'moderatedAt', 'originalMediaURL', 'restoredBy',
+  'isModerationHidden', 'restoredAt', 'restoreReason', 'moderatorNotes', 'reviewedAt', 'reviewComplete',
+  'reviewedBy', 'hiddenLayerCount', 'hasHiddenLayers', 'gridPreviewOffsetX', 'gridPreviewOffsetY',
+  'gridPreviewScale', 'gridPreviewBackground', 'gridPreviewFitMode', 'customListId', 'scheduledDate'
+];
+
+const STORY_INTERNAL_FIELDS = [
+  'moderatedBy', 'combinedScore', 'isModerationHidden', 'moderationReason', 'moderationCategory',
+  'visualScore', 'moderationDetails', 'moderatedAt', 'reviewRequired', 'videoProcessingUpdatedAt',
+  'videoProcessingError', 'videoProcessingStatus', 'canRestore', 'confidence', 'mediaType',
+  'originalAudience', 'originalMediaURL', 'restoredBy', 'restoredAt', 'restoreReason', 'moderatorNotes',
+  'reviewedAt', 'reviewComplete', 'reviewedBy', 'drawingData', 'customListId', 'chainId', 'chainPosition',
+  'chainTitle', 'continuationAudience', 'continuationCustomViewers', 'mapVisibility', 'stickers'
+];
+
+const NOTIFICATION_INTERNAL_FIELDS = [
+  'processed', 'processedAt', 'echoId', 'notificationId', 'moderatedMediaCount', 'moderationCategory',
+  'moderationScope', 'moderationType', 'totalMediaCount', 'moderatedMediaIndex', 'downloadPartsCount',
+  'requestId', 'downloadURL', 'storyPreviewUrl'
+];
+
+async function buildDataExportPayload(userId, exportType, requestedFormat, pin) {
   const userSnap = await admin.firestore().collection('users').doc(userId).get();
-  const profile = userSnap.exists ? toSerializable(userSnap.data()) : {};
+  const profile = userSnap.exists ? cleanProfileForExport(toSerializable(userSnap.data())) : {};
 
   const payload = {
     exportInfo: {
@@ -1016,29 +1340,84 @@ async function buildDataExportPayload(userId, exportType, requestedFormat) {
     profile
   };
 
-  if (exportType !== 'mediaOnly') {
-    payload.moments = await fetchUserSubcollection(userId, 'moments');
-    payload.stories = await fetchUserSubcollection(userId, 'stories');
+  const recoveredKeys = typeof pin === 'string' && pin.trim().length > 0
+    ? await unwrapRecoveryBundle(userId, pin)
+    : null;
+  payload.exportInfo.conversationsIncluded = Boolean(recoveredKeys);
+
+  if (exportType === 'conversationsOnly') {
+    if (recoveredKeys) {
+      payload.conversations = await fetchUserConversations(userId, recoveredKeys.chatPrivateKeyBuffer);
+      payload.nova = await fetchNovaConversations(userId, recoveredKeys.novaUserKeyBuffer);
+      Object.defineProperty(payload.nova, '_novaUserKeyBuffer', {
+        value: recoveredKeys.novaUserKeyBuffer,
+        enumerable: false
+      });
+    }
+  } else if (exportType !== 'mediaOnly') {
+    payload.moments = stripInternalFields(await fetchUserSubcollection(userId, 'moments'), MOMENT_INTERNAL_FIELDS);
+    payload.stories = stripInternalFields(await fetchUserSubcollection(userId, 'stories'), STORY_INTERNAL_FIELDS);
     payload.following = await fetchUserSubcollection(userId, 'following');
-    payload.followers = await fetchUserSubcollection(userId, 'followers');
+    payload.followers = stripInternalFields(await fetchUserSubcollection(userId, 'followers'), ['processed']);
     payload.mutuals = await fetchUserSubcollection(userId, 'mutuals');
-    payload.notifications = await fetchUserSubcollection(userId, 'notifications');
-    payload.activityStats = await fetchUserSubcollection(userId, 'dailyStats');
-    payload.loginActivity = await fetchUserSubcollection(userId, 'loginActivity');
+    payload.notifications = stripInternalFields(await fetchUserSubcollection(userId, 'notifications'), NOTIFICATION_INTERNAL_FIELDS);
     payload.savedMoments = await fetchUserSubcollection(userId, 'savedMoments');
     payload.visits = await fetchUserSubcollection(userId, 'visits');
     payload.visitSummaries = await fetchUserSubcollection(userId, 'visitSummaries');
-    payload.conversations = await fetchUserConversations(userId);
-    payload.nova = await fetchNovaConversations(userId);
+    payload.comments = await fetchUserComments(userId);
+    payload.reactions = stripInternalFields(await fetchUserReactions(userId), ['processed']);
+
+    const idsNeedingUsernames = [
+      ...payload.following.map((item) => item.userId),
+      ...payload.followers.map((item) => item.userId),
+      ...payload.mutuals.map((item) => item.userId),
+      ...payload.reactions.map((item) => item.contentAuthorId),
+      ...payload.comments.map((item) => item.momentAuthorId),
+      ...(profile.bestFriends || []),
+      ...(profile.blockedUsers || []),
+      ...(profile.muteSettings?.mutedUsers || [])
+    ];
+    const usernameMap = await fetchUsernamesForIds(idsNeedingUsernames);
+    payload.following = payload.following.map((item) => ({ username: usernameMap.get(item.userId) || item.userId, timestamp: item.timestamp }));
+    payload.followers = payload.followers.map((item) => ({ username: usernameMap.get(item.userId) || item.userId, timestamp: item.timestamp }));
+    payload.mutuals = payload.mutuals.map((item) => ({ username: usernameMap.get(item.userId) || item.userId, timestamp: item.timestamp }));
+    payload.reactions = payload.reactions.map((item) => {
+      const { contentAuthorId, userId: _reactorId, documentId: _reactionDocId, ...rest } = item;
+      return { ...rest, contentAuthorUsername: usernameMap.get(contentAuthorId) || contentAuthorId };
+    });
+    payload.comments = payload.comments.map((item) => {
+      const { momentAuthorId, ...rest } = item;
+      return { ...rest, momentAuthorUsername: usernameMap.get(momentAuthorId) || momentAuthorId };
+    });
+    if (Array.isArray(profile.bestFriends)) payload.profile.bestFriends = usernamesForList(profile.bestFriends, usernameMap);
+    if (Array.isArray(profile.blockedUsers)) payload.profile.blockedUsers = usernamesForList(profile.blockedUsers, usernameMap);
+    if (profile.muteSettings && Array.isArray(profile.muteSettings.mutedUsers)) {
+      payload.profile.muteSettings = { ...profile.muteSettings, mutedUsers: usernamesForList(profile.muteSettings.mutedUsers, usernameMap) };
+    }
+
+    if (recoveredKeys) {
+      payload.conversations = await fetchUserConversations(userId, recoveredKeys.chatPrivateKeyBuffer);
+      payload.nova = await fetchNovaConversations(userId, recoveredKeys.novaUserKeyBuffer);
+      Object.defineProperty(payload.nova, '_novaUserKeyBuffer', {
+        value: recoveredKeys.novaUserKeyBuffer,
+        enumerable: false
+      });
+    }
   } else {
-    // For media-only exports we still need source docs to discover media URLs.
     payload.moments = await fetchUserSubcollection(userId, 'moments');
     payload.stories = await fetchUserSubcollection(userId, 'stories');
-    payload.conversations = await fetchUserConversations(userId);
+    if (recoveredKeys) {
+      payload.conversations = await fetchUserConversations(userId, recoveredKeys.chatPrivateKeyBuffer);
+      payload.nova = await fetchNovaConversations(userId, recoveredKeys.novaUserKeyBuffer);
+      Object.defineProperty(payload.nova, '_novaUserKeyBuffer', {
+        value: recoveredKeys.novaUserKeyBuffer,
+        enumerable: false
+      });
+    }
   }
 
-  if (exportType !== 'textOnly') {
-    payload.mediaUrls = collectMediaUrlsFromPayload(payload, userId);
+  if (exportType !== 'textOnly' && exportType !== 'conversationsOnly') {
+    payload.mediaUrlsByCategory = collectMediaUrlsByCategory(payload, userId);
     Object.defineProperty(payload, '_mediaAuthorizedConversationIds', {
       value: (payload.conversations || [])
         .map((conversation) => conversation.conversationId)
@@ -1048,10 +1427,8 @@ async function buildDataExportPayload(userId, exportType, requestedFormat) {
   }
 
   if (exportType === 'mediaOnly') {
-    // Keep output lightweight and privacy-friendly.
     delete payload.moments;
     delete payload.stories;
-    delete payload.conversations;
   }
 
   return payload;
@@ -1098,7 +1475,9 @@ function buildCsvFiles(payload) {
     ['following', payload.following],
     ['followers', payload.followers],
     ['mutuals', payload.mutuals],
-    ['saved_moments', payload.savedMoments]
+    ['saved_moments', payload.savedMoments],
+    ['comments', payload.comments],
+    ['reactions', payload.reactions]
   ];
   for (const [name, rows] of mappings) {
     if (!Array.isArray(rows) || rows.length === 0) continue;
@@ -1114,70 +1493,572 @@ function buildCsvFiles(payload) {
 
 function buildReadmeContent(payload, requestedFormat, exportType) {
   const now = new Date().toISOString();
-  return [
+  const conversationsIncluded = Boolean(payload?.exportInfo?.conversationsIncluded);
+
+  const lines = [
     '# Moments Data Export',
     '',
     `Generated at: ${now}`,
     `Format requested: ${requestedFormat}`,
     `Export type: ${exportType}`,
-    '',
-    'Included:',
-    '- export.json (full structured data)',
-    '- meta.json (metadata)',
-    '- conversations/*.json (direct messages with best-effort decrypted text)',
-    '- nova/*.json (Nova conversations/titles; encrypted text when key is unavailable server-side)',
-    '- media/* (downloaded media files when requested and reachable)',
-    '- csv/*.csv (if CSV format was requested)',
     ''
-  ].join('\n');
+  ];
+
+  if (exportType === 'conversationsOnly') {
+    lines.push(
+      'This export only includes your conversations and Nova/assistant chats.',
+      'Your posts, stories, comments, connections and activity are NOT part of this export.',
+      ''
+    );
+    if (conversationsIncluded) {
+      lines.push(
+        'Folders:',
+        '- conversations/{contact}/transcript.txt (readable chat log) and messages.json (structured data)',
+        '- conversations/{contact}/media/ (decrypted photos, videos, voice notes, files from that chat)',
+        '- nova/{conversation}/transcript.txt and conversation.json (your Nova/assistant chats, decrypted)'
+      );
+    } else {
+      lines.push(
+        'NOTHING was included because no recovery PIN was provided (or the PIN entered was incorrect).',
+        'Request a new export with this option and enter your recovery PIN to receive your conversations.'
+      );
+    }
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  lines.push('Folders:');
+  lines.push('- profile/profile.json (your account info)');
+  if (exportType !== 'textOnly') lines.push('- profile/media/ (your profile picture)');
+  lines.push('- connections/following.json, followers.json, mutuals.json');
+  if (exportType !== 'mediaOnly') lines.push('- content/moments.json, stories.json, saved_moments.json');
+  if (exportType !== 'textOnly') lines.push('- content/media/moments/, content/media/stories/ (your posted photos and videos)');
+  if (exportType !== 'mediaOnly') {
+    lines.push(
+      '- comments_and_reactions/comments.json, reactions.json',
+      '- activity/notifications.json, visits.json, visit_summaries.json'
+    );
+  }
+  lines.push(
+    '- csv/*.csv (if CSV format was requested)',
+    '- meta.json (export metadata)'
+  );
+
+  if (conversationsIncluded) {
+    if (exportType !== 'mediaOnly') lines.push('- conversations/{contact}/transcript.txt (readable chat log) and messages.json (structured data)');
+    if (exportType !== 'textOnly') lines.push('- conversations/{contact}/media/ (decrypted photos, videos, voice notes, files from that chat)');
+    if (exportType !== 'mediaOnly') lines.push('- nova/{conversation}/transcript.txt and conversation.json (your Nova/assistant chats, decrypted)');
+  } else {
+    lines.push(
+      '',
+      'NOT included: your conversations and Nova/assistant chats.',
+      'These are end-to-end encrypted and were not included because no recovery PIN was provided',
+      '(or the PIN entered was incorrect). Request a new export and enter your recovery PIN to',
+      'include them in readable form.'
+    );
+  }
+
+  lines.push('');
+  return lines.join('\n');
 }
 
-async function buildExportZipBuffer(payload, requestedFormat, exportType, userId) {
-  const zip = new JSZip();
-  zip.file('export.json', JSON.stringify(payload, null, 2));
-  zip.file('meta.json', JSON.stringify(payload.exportInfo || {}, null, 2));
-  zip.file('README.txt', buildReadmeContent(payload, requestedFormat, exportType));
+function conversationDisplayName(conversation, userId, participantData) {
+  const otherIds = (conversation.participants || []).filter((id) => id !== userId);
+  if (otherIds.length === 0) return conversation.conversationId || 'conversation';
+  const names = otherIds.map((id) => (participantData[id] || {}).username || id);
+  return names.join('_');
+}
 
-  for (const conversation of payload.conversations || []) {
-    const fileId = sanitizeFileName(conversation.conversationId || 'conversation');
-    zip.file(`conversations/${fileId}.json`, JSON.stringify(conversation, null, 2));
+function uniqueFolderName(baseName, usedNames) {
+  const safeName = sanitizeFileName(baseName || 'conversation') || 'conversation';
+  let candidate = safeName;
+  let suffix = 2;
+  while (usedNames.has(candidate)) {
+    candidate = `${safeName}_${suffix}`;
+    suffix += 1;
+  }
+  usedNames.add(candidate);
+  return candidate;
+}
+
+function formatTimestampForTranscript(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().replace('T', ' ').slice(0, 16);
+}
+
+function cleanConversationMetadata(conversation, folderName) {
+  const participantData = conversation.participantData || {};
+  const participants = (conversation.participants || []).map((id) => (participantData[id] || {}).username || id);
+  return {
+    conversationId: conversation.conversationId,
+    displayName: folderName,
+    participants,
+    isPinned: Boolean(conversation.isPinned),
+    isMuted: Boolean(conversation.isMuted),
+    vanishModeActive: Boolean(conversation.vanishModeActive),
+    createdAt: conversation.encryptionKeyCreatedAt || null,
+    lastActivityAt: conversation.timestamp || null
+  };
+}
+
+function cleanMessageForExport(message, participantData) {
+  const cleaned = {
+    id: message.messageId || message.id,
+    senderUsername: (participantData[message.senderId] || {}).username || message.senderId,
+    timestamp: message.timestamp,
+    type: message.type,
+    isDeleted: Boolean(message.isDeleted)
+  };
+  if (typeof message.contentDecrypted === 'string') cleaned.text = message.contentDecrypted;
+  if (message.locationDecrypted) cleaned.location = message.locationDecrypted;
+  if (message.mediaFile) cleaned.mediaFile = message.mediaFile;
+  if (message.thumbnailFile) cleaned.thumbnailFile = message.thumbnailFile;
+  if (
+    typeof message.content === 'string'
+    && message.content.trim().length > 0
+    && !cleaned.text
+    && !cleaned.location
+    && !cleaned.mediaFile
+  ) {
+    cleaned.undecryptable = true;
+  }
+  return cleaned;
+}
+
+function buildConversationTranscript(displayName, cleanedMessages) {
+  const lines = [`Chat with ${displayName}`, ''];
+  for (const message of cleanedMessages) {
+    const when = formatTimestampForTranscript(message.timestamp);
+    const who = message.senderUsername;
+    let line;
+    if (message.text) {
+      line = message.text;
+    } else if (message.location) {
+      line = `[location] ${message.location.name || ''} ${message.location.address || ''}`.trim();
+    } else if (message.mediaFile) {
+      line = `[media] ${message.mediaFile}`;
+    } else if (message.isDeleted) {
+      line = '[deleted message]';
+    } else if (message.undecryptable) {
+      line = '[message could not be decrypted]';
+    } else {
+      line = `[${message.type || 'message'}]`;
+    }
+    lines.push(`[${when}] ${who}: ${line}`);
+  }
+  return lines.join('\n');
+}
+
+async function collectConversationEntries(conversations, limits, manager, userId, options = {}) {
+  const includeMedia = options.includeMedia !== false;
+  const includeText = options.includeText !== false;
+  const bucket = admin.storage().bucket();
+  let downloadedCount = 0;
+  let totalBytes = 0;
+  const manifest = { downloaded: [], skipped: [] };
+  const usedFolderNames = new Set();
+
+  for (const conversation of conversations || []) {
+    const participantData = conversation.participantData || {};
+    const folderName = uniqueFolderName(conversationDisplayName(conversation, userId, participantData), usedFolderNames);
+    const conversationKey = conversation._conversationKey;
+
+    for (const message of (includeMedia ? (conversation.messages || []) : [])) {
+      const attachments = [
+        { field: 'mediaFile', suffix: '', objectPath: message.mediaObjectPath, metadata: message.mediaEncryption },
+        { field: 'thumbnailFile', suffix: '_thumb', objectPath: message.thumbnailObjectPath, metadata: message.thumbnailEncryption }
+      ];
+
+      for (const attachment of attachments) {
+        if (!attachment.objectPath || !attachment.metadata) continue;
+
+        if (!storageObjectBelongsToConversation(attachment.objectPath, conversation.conversationId)) {
+          manifest.skipped.push({ objectPath: attachment.objectPath, reason: 'not_authorized_for_export' });
+          continue;
+        }
+        if (!conversationKey) {
+          manifest.skipped.push({ objectPath: attachment.objectPath, reason: 'missing_conversation_key' });
+          continue;
+        }
+        if (downloadedCount >= limits.maxFiles) {
+          manifest.skipped.push({ objectPath: attachment.objectPath, reason: 'max_files_reached' });
+          continue;
+        }
+        if (totalBytes >= limits.maxTotalBytes) {
+          manifest.skipped.push({ objectPath: attachment.objectPath, reason: 'max_total_size_reached' });
+          continue;
+        }
+
+        try {
+          const file = bucket.file(attachment.objectPath);
+          const [encryptedBuffer] = await file.download();
+          if (encryptedBuffer.length > limits.maxSingleFileBytes) {
+            manifest.skipped.push({ objectPath: attachment.objectPath, reason: 'single_file_too_large' });
+            continue;
+          }
+
+          const decrypted = decryptChatMediaBuffer(
+            encryptedBuffer,
+            attachment.metadata,
+            conversationKey,
+            conversation.conversationId,
+            message.messageId
+          );
+          if (!decrypted) {
+            manifest.skipped.push({ objectPath: attachment.objectPath, reason: 'decryption_failed' });
+            continue;
+          }
+          if ((totalBytes + decrypted.length) > limits.maxTotalBytes) {
+            manifest.skipped.push({ objectPath: attachment.objectPath, reason: 'max_total_size_reached' });
+            continue;
+          }
+
+          const ext = attachment.metadata.fileExtension
+            || inferFileExtension(attachment.objectPath, attachment.metadata.contentType || '');
+          const relativeFile = `${sanitizeFileName(message.messageId)}${attachment.suffix}.${ext}`;
+          const zipPath = `conversations/${folderName}/media/${relativeFile}`;
+          await manager.addFile(zipPath, decrypted);
+          message[attachment.field] = `media/${relativeFile}`;
+
+          totalBytes += decrypted.length;
+          downloadedCount += 1;
+          manifest.downloaded.push({ file: zipPath, bytes: decrypted.length });
+        } catch (error) {
+          manifest.skipped.push({
+            objectPath: attachment.objectPath,
+            reason: String(error?.name || error?.message || 'download_error')
+          });
+        }
+      }
+    }
+
+    if (includeText) {
+      const cleanedMessages = (conversation.messages || []).map((message) => cleanMessageForExport(message, participantData));
+      const cleanedConversation = cleanConversationMetadata(conversation, folderName);
+      cleanedConversation.messages = cleanedMessages;
+
+      await manager.addFile(`conversations/${folderName}/messages.json`, JSON.stringify(cleanedConversation, null, 2));
+      await manager.addFile(`conversations/${folderName}/transcript.txt`, buildConversationTranscript(folderName, cleanedMessages));
+    }
   }
 
+  manifest.totalDownloadedBytes = totalBytes;
+  return manifest;
+}
+
+function deriveNovaBlobKey(novaUserKeyBuffer, userId, purpose) {
+  const salt = Buffer.from('moments.nova.blob.salt.v1', 'utf8');
+  const info = Buffer.from(`moments.nova.blob.v1|${userId}|${purpose}`, 'utf8');
+  return Buffer.from(crypto.hkdfSync('sha256', novaUserKeyBuffer, salt, info, 32));
+}
+
+function novaBlobAuthenticatedData(userId, purpose) {
+  return Buffer.from(`moments.nova.blob.aad.v1|${userId}|${purpose}`, 'utf8');
+}
+
+function decryptNovaBlobBuffer(encryptedBuffer, novaUserKeyBuffer, userId, purpose) {
+  if (!encryptedBuffer || !novaUserKeyBuffer) return null;
+  try {
+    const blobKey = deriveNovaBlobKey(novaUserKeyBuffer, userId, purpose);
+    const aad = novaBlobAuthenticatedData(userId, purpose);
+
+    if (encryptedBuffer.length < 12 + 16) return null;
+    const iv = encryptedBuffer.subarray(0, 12);
+    const tag = encryptedBuffer.subarray(encryptedBuffer.length - 16);
+    const ciphertext = encryptedBuffer.subarray(12, encryptedBuffer.length - 16);
+
+    const decipher = crypto.createDecipheriv('aes-256-gcm', blobKey, iv);
+    decipher.setAuthTag(tag);
+    decipher.setAAD(aad);
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  } catch (error) {
+    return null;
+  }
+}
+
+function novaImageObjectPath(storedPath) {
+  const trimmed = String(storedPath || '').trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('https://firebasestorage.googleapis.com')) {
+    try {
+      const url = new URL(trimmed);
+      const marker = '/o/';
+      const idx = url.pathname.indexOf(marker);
+      if (idx === -1) return trimmed;
+      return decodeURIComponent(url.pathname.slice(idx + marker.length));
+    } catch (error) {
+      return trimmed;
+    }
+  }
+  if (trimmed.includes('://')) return trimmed;
+  return trimmed;
+}
+
+function novaConversationDisplayName(conversation) {
+  if (typeof conversation.titleDecrypted === 'string' && conversation.titleDecrypted.trim().length > 0) {
+    return conversation.titleDecrypted.trim();
+  }
+  const createdAt = formatTimestampForTranscript(conversation.createdAt) || 'conversation';
+  return `${createdAt}_${(conversation.conversationId || '').slice(0, 8)}`;
+}
+
+function cleanNovaMessage(message) {
+  const cleaned = {
+    id: message.id,
+    role: message.isUser ? 'user' : 'nova'
+  };
+  if (typeof message.textDecrypted === 'string') cleaned.text = message.textDecrypted;
+  if (message.imageFile) cleaned.imageFile = message.imageFile;
+  if (
+    typeof message.text === 'string'
+    && message.text.trim().length > 0
+    && !cleaned.text
+    && !cleaned.imageFile
+  ) {
+    cleaned.undecryptable = true;
+  }
+  return cleaned;
+}
+
+function buildNovaTranscript(displayName, cleanedMessages) {
+  const lines = [`Nova conversation: ${displayName}`, ''];
+  for (const message of cleanedMessages) {
+    const who = message.role === 'user' ? 'You' : 'Nova';
+    let line;
+    if (message.text) {
+      line = message.text;
+    } else if (message.imageFile) {
+      line = `[image] ${message.imageFile}`;
+    } else if (message.undecryptable) {
+      line = '[message could not be decrypted]';
+    } else {
+      line = '[message]';
+    }
+    lines.push(`${who}: ${line}`);
+  }
+  return lines.join('\n');
+}
+
+async function collectNovaImageEntries(novaPayload, userId, limits, manager, options = {}) {
+  const includeMedia = options.includeMedia !== false;
+  const includeText = options.includeText !== false;
+  const manifest = { downloaded: [], skipped: [] };
+  if (!novaPayload) return manifest;
+
+  const novaUserKeyBuffer = novaPayload._novaUserKeyBuffer;
+  const bucket = admin.storage().bucket();
+  let downloadedCount = 0;
+  let totalBytes = 0;
+  const usedFolderNames = new Set();
+
+  for (const conversation of novaPayload.conversations || []) {
+    const folderName = uniqueFolderName(novaConversationDisplayName(conversation), usedFolderNames);
+
+    if (includeMedia && novaUserKeyBuffer) {
+      for (const message of conversation.messages || []) {
+        if (typeof message.imageData !== 'string' || !message.imageData.trim()) continue;
+
+        const objectPath = novaImageObjectPath(message.imageData);
+        if (!objectPath || objectPath.includes('://')) {
+          manifest.skipped.push({ messageId: message.id, reason: 'unsupported_media_origin' });
+          continue;
+        }
+        if (downloadedCount >= limits.maxFiles || totalBytes >= limits.maxTotalBytes) {
+          manifest.skipped.push({ messageId: message.id, reason: 'max_files_reached' });
+          continue;
+        }
+
+        try {
+          const [encryptedBuffer] = await bucket.file(objectPath).download();
+          if (encryptedBuffer.length > limits.maxSingleFileBytes) {
+            manifest.skipped.push({ messageId: message.id, reason: 'single_file_too_large' });
+            continue;
+          }
+
+          const purpose = `conversationImage|${conversation.conversationId}|${message.id}`;
+          const decrypted = decryptNovaBlobBuffer(encryptedBuffer, novaUserKeyBuffer, userId, purpose);
+          if (!decrypted) {
+            manifest.skipped.push({ messageId: message.id, reason: 'decryption_failed' });
+            continue;
+          }
+
+          const fileName = `${sanitizeFileName(message.id)}.jpg`;
+          const zipPath = `nova/${folderName}/media/${fileName}`;
+          await manager.addFile(zipPath, decrypted);
+          message.imageFile = `media/${fileName}`;
+
+          totalBytes += decrypted.length;
+          downloadedCount += 1;
+          manifest.downloaded.push({ file: zipPath, bytes: decrypted.length });
+        } catch (error) {
+          manifest.skipped.push({ messageId: message.id, reason: String(error?.name || error?.message || 'download_error') });
+        }
+      }
+    }
+
+    if (includeText) {
+      const cleanedMessages = (conversation.messages || []).map(cleanNovaMessage);
+      const cleanedConversation = {
+        conversationId: conversation.conversationId,
+        displayName: folderName,
+        createdAt: conversation.createdAt || null,
+        lastUpdated: conversation.lastUpdated || null,
+        messages: cleanedMessages
+      };
+
+      await manager.addFile(`nova/${folderName}/conversation.json`, JSON.stringify(cleanedConversation, null, 2));
+      await manager.addFile(`nova/${folderName}/transcript.txt`, buildNovaTranscript(folderName, cleanedMessages));
+    }
+  }
+
+  manifest.totalDownloadedBytes = totalBytes;
+  return manifest;
+}
+
+const EXPORT_MEDIA_LIMITS = {
+  maxFiles: 20000,
+  maxTotalBytes: 50 * 1024 * 1024 * 1024,
+  maxSingleFileBytes: 250 * 1024 * 1024
+};
+
+const ZIP_PART_MAX_BYTES = 500 * 1024 * 1024;
+
+function createZipPartManager(maxPartBytes) {
+  const parts = [];
+  let currentArchive = null;
+  let currentStream = null;
+  let currentDone = null;
+  let currentPath = null;
+  let currentSize = 0;
+  let addedAny = false;
+
+  function startPart() {
+    currentPath = path.join(os.tmpdir(), `export_part_${parts.length + 1}_${Date.now()}_${Math.random().toString(36).slice(2)}.zip`);
+    currentStream = fs.createWriteStream(currentPath);
+    currentArchive = archiver('zip', { zlib: { level: 6 } });
+    currentDone = new Promise((resolve, reject) => {
+      currentStream.on('close', resolve);
+      currentStream.on('error', reject);
+      currentArchive.on('error', reject);
+    });
+    currentArchive.pipe(currentStream);
+    currentSize = 0;
+  }
+
+  async function closePart() {
+    await currentArchive.finalize();
+    await currentDone;
+    const bytes = fs.statSync(currentPath).size;
+    parts.push({ path: currentPath, bytes });
+  }
+
+  startPart();
+
+  async function addFile(zipPath, content) {
+    const buffer = Buffer.isBuffer(content) ? content : Buffer.from(String(content));
+    if (currentSize > 0 && currentSize + buffer.length > maxPartBytes) {
+      await closePart();
+      startPart();
+    }
+    currentArchive.append(buffer, { name: zipPath });
+    currentSize += buffer.length;
+    addedAny = true;
+  }
+
+  async function finalize() {
+    if (!addedAny && parts.length === 0) {
+      currentArchive.abort();
+      currentStream.destroy();
+      fs.unlink(currentPath, () => {});
+      return [];
+    }
+    await closePart();
+    return parts;
+  }
+
+  return { addFile, finalize };
+}
+
+async function buildExportZipParts(payload, requestedFormat, exportType, userId) {
+  const manager = createZipPartManager(ZIP_PART_MAX_BYTES);
+
+  const conversationOptions = {
+    includeMedia: exportType !== 'textOnly',
+    includeText: exportType !== 'mediaOnly'
+  };
+  const conversationMediaManifest = await collectConversationEntries(payload.conversations, EXPORT_MEDIA_LIMITS, manager, userId, conversationOptions);
+  const novaMediaManifest = await collectNovaImageEntries(payload.nova, userId, EXPORT_MEDIA_LIMITS, manager, conversationOptions);
+
+  const mediaByCategory = payload.mediaUrlsByCategory || { moments: [], stories: [], profile: [] };
+  let momentsMediaManifest = null;
+  let storiesMediaManifest = null;
+  let profileMediaManifest = null;
+  if (exportType !== 'textOnly' && exportType !== 'conversationsOnly') {
+    momentsMediaManifest = await collectMediaFileEntries(mediaByCategory.moments, userId, [], manager, 'content/media/moments');
+    storiesMediaManifest = await collectMediaFileEntries(mediaByCategory.stories, userId, [], manager, 'content/media/stories');
+    profileMediaManifest = await collectMediaFileEntries(mediaByCategory.profile, userId, [], manager, 'profile/media');
+  }
+
+  const metaZip = new JSZip();
+  metaZip.file('meta.json', JSON.stringify(payload.exportInfo || {}, null, 2));
+  metaZip.file('README.txt', buildReadmeContent(payload, requestedFormat, exportType));
+
+  metaZip.file('profile/profile.json', JSON.stringify(payload.profile || {}, null, 2));
+
+  metaZip.file('connections/following.json', JSON.stringify(payload.following || [], null, 2));
+  metaZip.file('connections/followers.json', JSON.stringify(payload.followers || [], null, 2));
+  metaZip.file('connections/mutuals.json', JSON.stringify(payload.mutuals || [], null, 2));
+
+  if (payload.moments) metaZip.file('content/moments.json', JSON.stringify(payload.moments, null, 2));
+  if (payload.stories) metaZip.file('content/stories.json', JSON.stringify(payload.stories, null, 2));
+  if (payload.savedMoments) metaZip.file('content/saved_moments.json', JSON.stringify(payload.savedMoments, null, 2));
+
+  if (payload.comments) metaZip.file('comments_and_reactions/comments.json', JSON.stringify(payload.comments, null, 2));
+  if (payload.reactions) metaZip.file('comments_and_reactions/reactions.json', JSON.stringify(payload.reactions, null, 2));
+
+  if (payload.notifications) metaZip.file('activity/notifications.json', JSON.stringify(payload.notifications, null, 2));
+  if (payload.visits) metaZip.file('activity/visits.json', JSON.stringify(payload.visits, null, 2));
+  if (payload.visitSummaries) metaZip.file('activity/visit_summaries.json', JSON.stringify(payload.visitSummaries, null, 2));
+
+  metaZip.file('conversations/media_manifest.json', JSON.stringify(conversationMediaManifest, null, 2));
   if (payload.nova) {
-    zip.file('nova/titles.json', JSON.stringify(payload.nova.titles || [], null, 2));
-    zip.file('nova/conversations.json', JSON.stringify(payload.nova.conversations || [], null, 2));
+    metaZip.file('nova/media_manifest.json', JSON.stringify(novaMediaManifest, null, 2));
   }
+  if (momentsMediaManifest) metaZip.file('content/media/moments_manifest.json', JSON.stringify(momentsMediaManifest, null, 2));
+  if (storiesMediaManifest) metaZip.file('content/media/stories_manifest.json', JSON.stringify(storiesMediaManifest, null, 2));
+  if (profileMediaManifest) metaZip.file('profile/media_manifest.json', JSON.stringify(profileMediaManifest, null, 2));
 
   if (String(requestedFormat || '').toLowerCase() === 'csv') {
     const csvFiles = buildCsvFiles(payload);
     for (const csvFile of csvFiles) {
-      zip.file(csvFile.path, csvFile.content);
+      metaZip.file(csvFile.path, csvFile.content);
     }
   }
 
-  if (exportType !== 'textOnly') {
-    const authorizedConversationIds = Array.isArray(payload._mediaAuthorizedConversationIds)
-      ? payload._mediaAuthorizedConversationIds
-      : (payload.conversations || [])
-        .map((conversation) => conversation.conversationId)
-        .filter((conversationId) => typeof conversationId === 'string' && conversationId.trim().length > 0);
-    const mediaManifest = await addMediaFilesToZip(zip, payload.mediaUrls || [], userId, authorizedConversationIds);
-    zip.file('media/manifest.json', JSON.stringify(mediaManifest, null, 2));
-  }
-
-  return zip.generateAsync({
+  const metaBuffer = await metaZip.generateAsync({
     type: 'nodebuffer',
     compression: 'DEFLATE',
     compressionOptions: { level: 6 }
   });
+  const metaPath = path.join(os.tmpdir(), `export_meta_${Date.now()}_${Math.random().toString(36).slice(2)}.zip`);
+  fs.writeFileSync(metaPath, metaBuffer);
+
+  const mediaParts = await manager.finalize();
+  return [{ path: metaPath, bytes: metaBuffer.length }, ...mediaParts];
 }
 
 module.exports = {
   toSerializable,
   fetchUserSubcollection,
+  fetchUserComments,
   fetchUserConversations,
   fetchConversationSharedKey,
   decryptChatContent,
+  decodeLocationPayload,
+  decryptChatMediaBuffer,
+  collectConversationEntries,
   fetchNovaConversations,
   sanitizeFileName,
   inferFileExtension,
@@ -1210,13 +2091,13 @@ module.exports = {
   storageObjectNameFromExportMediaUrl,
   storageObjectBelongsToConversation,
   storageObjectIsAllowedForExport,
-  addMediaFilesToZip,
-  collectMediaUrlsFromPayload,
+  collectMediaFileEntries,
+  collectMediaUrlsByCategory,
   buildDataExportPayload,
   escapeCsvCell,
   flattenRow,
   rowsToCsv,
   buildCsvFiles,
   buildReadmeContent,
-  buildExportZipBuffer,
+  buildExportZipParts,
 };

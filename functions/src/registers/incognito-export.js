@@ -7,6 +7,7 @@ const {
   onSchedule,
   onRequest,
   admin,
+  fs,
   OPENAI_API_KEY,
   SIGHTENGINE_USER,
   SIGHTENGINE_SECRET,
@@ -30,7 +31,7 @@ const {
   buildCsvFiles,
   buildDataExportPayload,
   buildDefaultIncognitoState,
-  buildExportZipBuffer,
+  buildExportZipParts,
   buildForYouDiscoveryContext,
   buildGentleReminderState,
   buildInlineKeyboardButton,
@@ -188,8 +189,9 @@ const resumeIncognito = createIncognitoHandler('resume');
 
 const onDataExportRequestCreated = onDocumentCreated({
   document: 'users/{userId}/dataExportRequests/{requestId}',
-  timeoutSeconds: 540,
-  memory: '1GiB'
+  timeoutSeconds: 3600,
+  memory: '8GiB',
+  maxInstances: 2
 }, async (event) => {
   const userId = event.params.userId;
   const requestId = event.params.requestId;
@@ -201,15 +203,17 @@ const onDataExportRequestCreated = onDocumentCreated({
 
   const exportType = requestData.exportType || 'complete';
   const requestedFormat = requestData.format || 'json';
+  const pin = typeof requestData.pin === 'string' ? requestData.pin : null;
 
   try {
     await requestRef.update({
       status: 'processing',
       progress: 0.1,
+      pin: admin.firestore.FieldValue.delete(),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    const payload = await buildDataExportPayload(userId, exportType, requestedFormat);
+    const payload = await buildDataExportPayload(userId, exportType, requestedFormat, pin);
 
     await requestRef.update({
       status: 'uploading',
@@ -219,28 +223,31 @@ const onDataExportRequestCreated = onDocumentCreated({
 
     const now = new Date();
     const stamp = now.toISOString().replace(/[:.]/g, '-');
-    const objectName = `exports/${userId}/moments_export_${stamp}.zip`;
-    const file = admin.storage().bucket().file(objectName);
-    const body = await buildExportZipBuffer(payload, requestedFormat, exportType, userId);
-
-    await file.save(body, {
-      resumable: false,
-      metadata: {
-        contentType: 'application/zip',
-        cacheControl: 'private, max-age=0, no-cache'
-      }
-    });
-
+    const parts = await buildExportZipParts(payload, requestedFormat, exportType, userId);
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const [downloadURL] = await file.getSignedUrl({
-      action: 'read',
-      expires: expiresAt
-    });
+
+    const downloadParts = [];
+    const bucket = admin.storage().bucket();
+    for (let i = 0; i < parts.length; i += 1) {
+      const suffix = parts.length > 1 ? `_part${i + 1}of${parts.length}` : '';
+      const objectName = `exports/${userId}/moments_export_${stamp}${suffix}.zip`;
+      await bucket.upload(parts[i].path, {
+        destination: objectName,
+        metadata: {
+          contentType: 'application/zip',
+          cacheControl: 'private, max-age=0, no-cache'
+        }
+      });
+      fs.unlink(parts[i].path, () => {});
+      const [url] = await bucket.file(objectName).getSignedUrl({ action: 'read', expires: expiresAt });
+      downloadParts.push({ index: i + 1, total: parts.length, bytes: parts[i].bytes, downloadURL: url });
+    }
 
     await requestRef.update({
       status: 'ready',
       progress: 1.0,
-      downloadURL,
+      downloadURL: downloadParts[0].downloadURL,
+      downloadParts,
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
       expirationDate: admin.firestore.Timestamp.fromDate(expiresAt),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp()
@@ -255,7 +262,8 @@ const onDataExportRequestCreated = onDocumentCreated({
         // Sin texto fijo: el cliente muestra la cadena localizada
         // (notifications.message.dataExportReady) según el idioma del dispositivo.
         message: '',
-        downloadURL,
+        downloadURL: downloadParts[0].downloadURL,
+        downloadPartsCount: downloadParts.length,
         senderId: 'system',
         senderUsername: 'Moments',
         timestamp: admin.firestore.FieldValue.serverTimestamp(),

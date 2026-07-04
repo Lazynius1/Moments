@@ -71,27 +71,36 @@ struct DataExportView: View {
                                 title: NSLocalizedString("dataExport.complete.title", comment: "Complete export title"),
                                 description: NSLocalizedString("dataExport.complete.description", comment: "Complete export description"),
                                 icon: "doc.fill.badge.plus",
-                                estimatedSize: "50-200 MB",
+                                estimatedSize: NSLocalizedString("dataExport.complete.size", comment: "Complete export estimated size"),
                                 isSelected: viewModel.selectedExportType == .complete,
                                 onTap: { viewModel.selectedExportType = .complete }
                             )
-                            
+
                             ExportOptionCard(
                                 title: NSLocalizedString("dataExport.textOnly.title", comment: "Text only export title"),
                                 description: NSLocalizedString("dataExport.textOnly.description", comment: "Text only export description"),
                                 icon: "doc.text.fill",
-                                estimatedSize: "1-5 MB",
+                                estimatedSize: NSLocalizedString("dataExport.textOnly.size", comment: "Text only export estimated size"),
                                 isSelected: viewModel.selectedExportType == .textOnly,
                                 onTap: { viewModel.selectedExportType = .textOnly }
                             )
-                            
+
                             ExportOptionCard(
                                 title: NSLocalizedString("dataExport.mediaOnly.title", comment: "Media only export title"),
                                 description: NSLocalizedString("dataExport.mediaOnly.description", comment: "Media only export description"),
                                 icon: "photo.fill.on.rectangle.fill",
-                                estimatedSize: "10-150 MB",
+                                estimatedSize: NSLocalizedString("dataExport.mediaOnly.size", comment: "Media only export estimated size"),
                                 isSelected: viewModel.selectedExportType == .mediaOnly,
                                 onTap: { viewModel.selectedExportType = .mediaOnly }
+                            )
+
+                            ExportOptionCard(
+                                title: NSLocalizedString("dataExport.conversationsOnly.title", comment: "Conversations only export title"),
+                                description: NSLocalizedString("dataExport.conversationsOnly.description", comment: "Conversations only export description"),
+                                icon: "lock.message.fill",
+                                estimatedSize: NSLocalizedString("dataExport.conversationsOnly.size", comment: "Conversations only export estimated size"),
+                                isSelected: viewModel.selectedExportType == .conversationsOnly,
+                                onTap: { viewModel.selectedExportType = .conversationsOnly }
                             )
                         }
                     }
@@ -126,6 +135,38 @@ struct DataExportView: View {
                         CurrentRequestSection(request: currentRequest)
                             .padding(.horizontal)
                     }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(NSLocalizedString("dataExport.pin.title", comment: "Recovery PIN prompt title"))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                        Text(NSLocalizedString("dataExport.pin.description", comment: "Recovery PIN prompt description"))
+                            .font(.system(size: legacyPoppinsSize(13)))
+                            .foregroundColor(.gray)
+
+                        SecureField(
+                            NSLocalizedString("dataExport.pin.placeholder", comment: "Recovery PIN placeholder"),
+                            text: $viewModel.recoveryPIN
+                        )
+                        .keyboardType(.numberPad)
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.05))
+                        )
+                        .onChange(of: viewModel.recoveryPIN) { _, newValue in
+                            viewModel.recoveryPIN = String(newValue.filter(\.isNumber).prefix(6))
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(SettingsProfileColors.accent(colorScheme).opacity(0.1))
+                    )
+                    .padding(.horizontal)
                     
                     // Privacy Notice
                     VStack(alignment: .leading, spacing: 12) {
@@ -344,11 +385,11 @@ struct FormatButton: View {
             VStack(spacing: 8) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(isSelected ? .white : (colorScheme == .dark ? .white : .black))
-                
+                    .foregroundColor(isSelected ? SettingsProfileColors.accentContrastingText(colorScheme) : (colorScheme == .dark ? .white : .black))
+
                 Text(description)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(isSelected ? .white.opacity(0.8) : .gray)
+                    .foregroundColor(isSelected ? SettingsProfileColors.accentContrastingText(colorScheme).opacity(0.8) : .gray)
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
@@ -445,6 +486,30 @@ struct CurrentRequestSection: View {
                 }
                 .frame(height: 6)
             }
+
+            if case .ready = request.status, !request.downloadURLs.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(request.downloadURLs.enumerated()), id: \.offset) { index, urlString in
+                        Button(action: {
+                            guard let url = URL(string: urlString) else { return }
+                            UIApplication.shared.open(url)
+                        }) {
+                            HStack {
+                                Image(systemName: "arrow.down.circle.fill")
+                                Text(
+                                    request.downloadURLs.count > 1
+                                        ? String(format: NSLocalizedString("dataExport.downloadPart", comment: "Download part N of total"), index + 1, request.downloadURLs.count)
+                                        : NSLocalizedString("dataExport.download", comment: "Download button")
+                                )
+                                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                                Spacer()
+                            }
+                            .foregroundColor(.blue)
+                        }
+                    }
+                }
+                .padding(.top, 4)
+            }
         }
         .padding()
         .background(
@@ -463,6 +528,7 @@ enum ExportType {
     case complete
     case textOnly
     case mediaOnly
+    case conversationsOnly
 }
 
 enum ExportFormat {
@@ -506,12 +572,14 @@ struct DataExportRequest {
     let progress: Double
     let exportType: ExportType
     let format: ExportFormat
+    var downloadURLs: [String] = []
 }
 
 // MARK: - ViewModel
 class DataExportViewModel: ObservableObject {
     @Published var selectedExportType: ExportType = .complete
     @Published var selectedFormat: ExportFormat = .json
+    @Published var recoveryPIN: String = ""
     @Published var currentRequest: DataExportRequest?
     @Published var isProcessing = false
     @Published var showSuccess = false
@@ -578,7 +646,8 @@ class DataExportViewModel: ObservableObject {
         
         let progress = data["progress"] as? Double ?? 0.0
         let estimatedCompletion = (data["estimatedCompletion"] as? Timestamp)?.dateValue()
-        
+        let downloadURLs = (data["downloadParts"] as? [[String: Any]])?.compactMap { $0["downloadURL"] as? String } ?? []
+
         currentRequest = DataExportRequest(
             id: documentId,
             requestDate: requestDate,
@@ -586,7 +655,8 @@ class DataExportViewModel: ObservableObject {
             status: status,
             progress: progress,
             exportType: selectedExportType,
-            format: selectedFormat
+            format: selectedFormat,
+            downloadURLs: downloadURLs
         )
     }
     
@@ -595,14 +665,35 @@ class DataExportViewModel: ObservableObject {
             showErrorAlert(NSLocalizedString("dataExport.userNotAuthenticated", comment: "User not authenticated error"))
             return
         }
-        
+
+        let trimmedPIN = recoveryPIN.trimmingCharacters(in: .whitespacesAndNewlines)
+        if selectedExportType == .conversationsOnly && trimmedPIN.isEmpty {
+            showErrorAlert(NSLocalizedString("dataExport.conversationsOnly.pinRequired", comment: "PIN required for conversations-only export error"))
+            return
+        }
+
         isProcessing = true
-        
+        recoveryPIN = ""
+
+        Task { @MainActor in
+            if !trimmedPIN.isEmpty {
+                let isValid = await EncryptionService.shared.verifyRecoveryPIN(trimmedPIN)
+                guard isValid else {
+                    self.isProcessing = false
+                    self.showErrorAlert(NSLocalizedString("dataExport.pin.incorrect", comment: "Incorrect recovery PIN error"))
+                    return
+                }
+            }
+            self.submitExportRequest(userId: userId, pin: trimmedPIN.isEmpty ? nil : trimmedPIN)
+        }
+    }
+
+    private func submitExportRequest(userId: String, pin: String?) {
         let requestId = UUID().uuidString
         let requestDate = Date()
         let estimatedCompletion = Calendar.current.date(byAdding: .day, value: 2, to: requestDate)
-        
-        let requestData: [String: Any] = [
+
+        var requestData: [String: Any] = [
             "id": requestId,
             "requestDate": Timestamp(date: requestDate),
             "estimatedCompletion": estimatedCompletion != nil ? Timestamp(date: estimatedCompletion!) : NSNull(),
@@ -612,7 +703,11 @@ class DataExportViewModel: ObservableObject {
             "format": formatString(selectedFormat),
             "userEmail": Auth.auth().currentUser?.email ?? ""
         ]
-        
+
+        if let pin {
+            requestData["pin"] = pin
+        }
+
         db.collection("users").document(userId).collection("dataExportRequests").document(requestId)
             .setData(requestData) { [weak self] error in
                 DispatchQueue.main.async {
@@ -673,6 +768,7 @@ class DataExportViewModel: ObservableObject {
         case .complete: return "complete"
         case .textOnly: return "textOnly"
         case .mediaOnly: return "mediaOnly"
+        case .conversationsOnly: return "conversationsOnly"
         }
     }
     

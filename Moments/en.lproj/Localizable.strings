@@ -2350,14 +2350,21 @@
 "dataExport.connections.title" = "Connections";
 "dataExport.connections.description" = "List of followers and following";
 "dataExport.activity.title" = "Activity";
-"dataExport.activity.description" = "Usage history and statistics";
+"dataExport.activity.description" = "Places you've visited";
 "dataExport.options.title" = "Export Options";
 "dataExport.complete.title" = "Complete Export";
-"dataExport.complete.description" = "Includes all your data in JSON format and multimedia files";
+"dataExport.complete.description" = "All your data and media files. Enter your recovery PIN below to also include your conversations";
+"dataExport.complete.size" = "Varies with your content — may be split into multiple files";
 "dataExport.textOnly.title" = "Text Data Only";
-"dataExport.textOnly.description" = "Profile information, messages and settings without multimedia";
+"dataExport.textOnly.description" = "Your profile, posts, comments and conversations as text, without photos or videos";
+"dataExport.textOnly.size" = "Usually a few MB";
 "dataExport.mediaOnly.title" = "Multimedia Only";
-"dataExport.mediaOnly.description" = "All your photos and videos without text data";
+"dataExport.mediaOnly.description" = "All your photos and videos, including media shared in conversations, without any text data";
+"dataExport.mediaOnly.size" = "Varies with your photos and videos — may be split into multiple files";
+"dataExport.conversationsOnly.title" = "Conversations Only";
+"dataExport.conversationsOnly.description" = "Just your chats and Nova conversations, decrypted with your recovery PIN — nothing else";
+"dataExport.conversationsOnly.size" = "Varies with shared media — may be split into multiple files";
+"dataExport.conversationsOnly.pinRequired" = "Enter your recovery PIN below to export your conversations.";
 "dataExport.format.title" = "Data Format";
 "dataExport.format.json.title" = "JSON";
 "dataExport.format.json.description" = "Machine readable";
@@ -2385,9 +2392,15 @@
 
 /* Data Export - Additional Text */
 "dataExport.privacy.bullet4" = "• Data is encrypted and protected";
+"dataExport.pin.title" = "Recovery PIN (optional)";
+"dataExport.pin.description" = "Your conversations and Nova chats are end-to-end encrypted. Enter your recovery PIN to include them in this export.";
+"dataExport.pin.placeholder" = "6-digit PIN";
+"dataExport.pin.incorrect" = "That recovery PIN isn't correct.";
 "dataExport.alreadyRequested" = "You have already requested a download recently. You can make another request in %@ days.";
 "dataExport.success.message" = "Your download request has been sent. You will receive an email with the download link in the next 24-48 hours.";
 "dataExport.ok" = "OK";
+"dataExport.download" = "Download";
+"dataExport.downloadPart" = "Download part %d of %d";
 
 /* Notifications */
 "notifications.error.unknown" = "An unknown error occurred";
@@ -3534,6 +3547,8 @@
 "userProfile.unavailable.description" = "You can't view this profile right now.";
 "userProfile.unavailable.username" = "User";
 "userProfile.unavailable.bio" = "This profile is not available";
+"userProfile.offline.title" = "No internet connection";
+"userProfile.offline.description" = "Check your connection and try again.";
 "chat.profileUnavailable" = "Profile unavailable";
 "chat.input.unavailable" = "You can't send messages to this profile.";
 "messaging.profileUnavailable.preview" = "Profile unavailable";
