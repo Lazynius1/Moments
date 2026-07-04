@@ -110,6 +110,48 @@ service cloud.firestore {
              );
     }
 
+
+    function isValidChatRecoveryBundle(data) {
+      return data.keys().hasOnly([
+               'keyId',
+               'encryptedPrivateKey',
+               'nonce',
+               'salt',
+               'kdf',
+               'kdfParams',
+               'keyVersion',
+               'encryptedUserKey',
+               'createdAt',
+               'updatedAt'
+             ]) &&
+             data.keys().hasAll(['encryptedPrivateKey', 'nonce', 'salt', 'kdf', 'kdfParams', 'keyVersion']) &&
+             (!('keyId' in data) || data.keyId is string) &&
+             data.encryptedPrivateKey is string &&
+             data.encryptedPrivateKey.size() >= 40 &&
+             data.encryptedPrivateKey.size() <= 5468 &&
+             data.nonce is string &&
+             data.nonce.size() > 0 &&
+             data.nonce.size() <= 128 &&
+             data.salt is string &&
+             data.salt.size() >= 20 &&
+             data.salt.size() <= 32 &&
+             data.kdf == 'PBKDF2' &&
+             data.kdfParams is map &&
+             data.kdfParams.keys().hasOnly(['iterations', 'keyLength', 'hash']) &&
+             data.kdfParams.iterations == 200000 &&
+             data.kdfParams.keyLength == 32 &&
+             data.kdfParams.hash == 'SHA256' &&
+             data.keyVersion is int &&
+             data.keyVersion >= 1 &&
+             data.keyVersion <= 10 &&
+             (!('encryptedUserKey' in data) ||
+               (data.encryptedUserKey is string &&
+                data.encryptedUserKey.size() >= 40 &&
+                data.encryptedUserKey.size() <= 5468)) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
     // ✅ NUEVA: Función para verificar si un usuario puede participar en conversaciones
     function canParticipateInConversations(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true);
@@ -313,7 +355,16 @@ service cloud.firestore {
             }
 
             match /chatRecovery/{bundleId} {
-              allow read, write: if request.auth != null &&
+              allow read: if request.auth != null &&
+                request.auth.uid == userId &&
+                bundleId == "default" &&
+                get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true);
+              allow create, update: if request.auth != null &&
+                request.auth.uid == userId &&
+                bundleId == "default" &&
+                get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true) &&
+                isValidChatRecoveryBundle(request.resource.data);
+              allow delete: if request.auth != null &&
                 request.auth.uid == userId &&
                 bundleId == "default" &&
                 get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true);
