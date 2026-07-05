@@ -95,7 +95,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
         // ✅ Restaurar de inmediato la última decisión de privacidad conocida, para no
         // caer en "cuenta privada" por defecto si la red tarda o falla.
-        if let cachedCanView = cachedCanViewContent() {
+        if let cachedCanView = cachedCanViewContent(currentUserId: currentUserId) {
             self.canViewContent = cachedCanView
         }
 
@@ -115,7 +115,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         }
 
         // ✅ SwiftData: Moments cacheados del perfil (evita el flash a "No moments yet" sin red)
-        let cachedMoments = LocalPersistenceService.shared.loadProfileMoments(userId: userId)
+        let cachedMoments = LocalPersistenceService.shared.loadProfileMoments(userId: userId, viewerId: currentUserId)
         if !cachedMoments.isEmpty && self.moments.isEmpty {
             self.moments = cachedMoments
         }
@@ -196,21 +196,20 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             && (nsError.code == FirestoreErrorCode.unavailable.rawValue || nsError.code == FirestoreErrorCode.deadlineExceeded.rawValue)
     }
 
-    /// Recuerda la última decisión de visibilidad conocida para este perfil, para poder
-    /// restaurarla de inmediato si una futura carga falla por falta de red (en vez de
-    /// mostrar por defecto "cuenta privada").
-    private static func canViewContentCacheKey(for userId: String) -> String {
-        "userProfile.canViewContent.\(userId)"
+    /// Recuerda la última decisión de visibilidad conocida para este par visor/perfil, para
+    /// restaurarla si una futura carga falla por falta de red sin compartirla entre cuentas.
+    private static func canViewContentCacheKey(for userId: String, currentUserId: String) -> String {
+        "userProfile.canViewContent.\(currentUserId).\(userId)"
     }
 
-    private func cachedCanViewContent() -> Bool? {
-        let key = Self.canViewContentCacheKey(for: userId)
+    private func cachedCanViewContent(currentUserId: String) -> Bool? {
+        let key = Self.canViewContentCacheKey(for: userId, currentUserId: currentUserId)
         guard UserDefaults.standard.object(forKey: key) != nil else { return nil }
         return UserDefaults.standard.bool(forKey: key)
     }
 
-    private func persistCanViewContent(_ value: Bool) {
-        UserDefaults.standard.set(value, forKey: Self.canViewContentCacheKey(for: userId))
+    private func persistCanViewContent(_ value: Bool, currentUserId: String) {
+        UserDefaults.standard.set(value, forKey: Self.canViewContentCacheKey(for: userId, currentUserId: currentUserId))
     }
 
     // ✅ FUNCIÓN DE REFRESH COMPLETA
@@ -290,7 +289,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     private func checkContentVisibility(currentUserId: String) {
         if currentUserId == userId {
             canViewContent = true
-            persistCanViewContent(true)
+            persistCanViewContent(true, currentUserId: currentUserId)
             checkConnectionsVisibility(currentUserId: currentUserId) {
                 self.fetchConnectionsDirect()
             }
@@ -301,7 +300,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.canViewContent = canView
-                self.persistCanViewContent(canView)
+                self.persistCanViewContent(canView, currentUserId: currentUserId)
                 if canView {
                     self.checkConnectionsVisibility(currentUserId: currentUserId) {
                         self.fetchConnectionsDirect()
@@ -570,7 +569,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             if let result = await BackendFeedService.shared.fetchProfileMoments(targetUserId: self.userId, limit: 50) {
                 self.moments = result.moments
                 self.isLoadingMoments = false
-                LocalPersistenceService.shared.saveProfileMoments(result.moments, userId: self.userId, sync: true)
+                LocalPersistenceService.shared.saveProfileMoments(result.moments, userId: self.userId, viewerId: currentUserId, sync: true)
                 completion?()
                 return
             }
@@ -587,7 +586,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                         DispatchQueue.main.async {
                             self.moments = filteredMoments
                             self.isLoadingMoments = false
-                            LocalPersistenceService.shared.saveProfileMoments(filteredMoments, userId: self.userId, sync: true)
+                            LocalPersistenceService.shared.saveProfileMoments(filteredMoments, userId: self.userId, viewerId: currentUserId, sync: true)
                             completion?()
                         }
                     }

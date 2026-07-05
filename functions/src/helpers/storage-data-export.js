@@ -113,9 +113,49 @@ function aesGcmOpenCombinedBase64(base64Combined, keyBuffer) {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
 
-function derivePinKey(pin, saltBase64, iterations, keyLength) {
-  const salt = Buffer.from(saltBase64, 'base64');
-  return crypto.pbkdf2Sync(Buffer.from(pin, 'utf8'), salt, iterations, keyLength, 'sha256');
+const RECOVERY_KDF_ITERATIONS = 200000;
+const RECOVERY_KDF_KEY_LENGTH = 32;
+const RECOVERY_SALT_BYTES = 32;
+const RECOVERY_AES_GCM_MIN_BYTES = 12 + 16;
+const RECOVERY_AES_GCM_MAX_BYTES = 4096;
+
+function decodeBoundedBase64(value, minBytes, maxBytes) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > Math.ceil(maxBytes / 3) * 4 + 4) {
+    return null;
+  }
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value) || value.length % 4 !== 0) {
+    return null;
+  }
+
+  const decoded = Buffer.from(value, 'base64');
+  if (decoded.length < minBytes || decoded.length > maxBytes) return null;
+  return decoded;
+}
+
+function validateRecoveryBundle(bundle) {
+  if (!bundle || typeof bundle !== 'object') return null;
+  if (bundle.kdf !== 'PBKDF2') return null;
+
+  const params = bundle.kdfParams;
+  if (!params || typeof params !== 'object') return null;
+  if (params.iterations !== RECOVERY_KDF_ITERATIONS || params.keyLength !== RECOVERY_KDF_KEY_LENGTH || params.hash !== 'SHA256') {
+    return null;
+  }
+
+  const salt = decodeBoundedBase64(bundle.salt, RECOVERY_SALT_BYTES, RECOVERY_SALT_BYTES);
+  const encryptedPrivateKey = decodeBoundedBase64(bundle.encryptedPrivateKey, RECOVERY_AES_GCM_MIN_BYTES, RECOVERY_AES_GCM_MAX_BYTES);
+  if (!salt || !encryptedPrivateKey) return null;
+
+  if (bundle.encryptedUserKey !== undefined && bundle.encryptedUserKey !== null) {
+    const encryptedUserKey = decodeBoundedBase64(bundle.encryptedUserKey, RECOVERY_AES_GCM_MIN_BYTES, RECOVERY_AES_GCM_MAX_BYTES);
+    if (!encryptedUserKey) return null;
+  }
+
+  return { salt, iterations: RECOVERY_KDF_ITERATIONS, keyLength: RECOVERY_KDF_KEY_LENGTH };
+}
+
+function derivePinKey(pin, saltBuffer, iterations, keyLength) {
+  return crypto.pbkdf2Sync(Buffer.from(pin, 'utf8'), saltBuffer, iterations, keyLength, 'sha256');
 }
 
 const EXPORT_PIN_MAX_ATTEMPTS = 5;
@@ -161,11 +201,15 @@ async function unwrapRecoveryBundle(userId, pin) {
   const bundleSnap = await admin.firestore()
     .collection('users').doc(userId).collection('chatRecovery').doc('default').get();
   const bundle = bundleSnap.data();
-  if (!bundle || !bundle.encryptedPrivateKey || !bundle.salt || !bundle.kdfParams) return null;
+  const validatedBundle = validateRecoveryBundle(bundle);
+  if (!validatedBundle) return null;
 
-  const iterations = bundle.kdfParams.iterations || 200000;
-  const keyLength = bundle.kdfParams.keyLength || 32;
-  const pinKey = derivePinKey(trimmedPin, bundle.salt, iterations, keyLength);
+  const pinKey = derivePinKey(
+    trimmedPin,
+    validatedBundle.salt,
+    validatedBundle.iterations,
+    validatedBundle.keyLength
+  );
 
   let chatPrivateKeyBuffer = null;
   try {

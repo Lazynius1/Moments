@@ -606,9 +606,10 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
     }
 
     private func loadMoments(for userId: String) {
+        let viewerId = Auth.auth().currentUser?.uid
         // 1. Load from local cache for immediate UI
         Task { @MainActor in
-            let cached = LocalPersistenceService.shared.loadProfileMoments(userId: userId)
+            let cached = LocalPersistenceService.shared.loadProfileMoments(userId: userId, viewerId: viewerId)
             let filtered = cached.filter { moment in
                 let isArchived = moment.isArchived ?? false
                 let isReel = moment.isReelCandidate
@@ -629,7 +630,7 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
             switch result {
             case .success(let moments):
                 Task { @MainActor in
-                    LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, sync: true)
+                    LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, viewerId: viewerId, sync: true)
                 }
 
                 let filtered = moments.filter { moment in
@@ -659,9 +660,10 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
     }
 
     private func loadReels(for userId: String) {
+        let viewerId = Auth.auth().currentUser?.uid
         // 1. Load from local cache
         Task { @MainActor in
-            let cached = LocalPersistenceService.shared.loadProfileMoments(userId: userId)
+            let cached = LocalPersistenceService.shared.loadProfileMoments(userId: userId, viewerId: viewerId)
             let filtered = cached.filter { moment in
                 let isArchived = moment.isArchived ?? false
                 let isReel = moment.isReelCandidate
@@ -682,7 +684,7 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
             switch result {
             case .success(let moments):
                 Task { @MainActor in
-                    LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, sync: true)
+                    LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, viewerId: viewerId, sync: true)
                 }
 
                 let filtered = moments.filter { moment in

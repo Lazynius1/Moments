@@ -1367,6 +1367,31 @@ async function reconcileEchoAfterMomentDeletion({ momentId, authorId }) {
 }
 
 
+function addVanishMessageStoragePath(storagePathsByUid, data, fieldName) {
+  const uid = typeof data.senderId === 'string' ? data.senderId.trim() : '';
+  const storagePath = typeof data[fieldName] === 'string' ? data[fieldName].trim() : '';
+
+  if (!uid || !storagePath) {
+    return;
+  }
+
+  if (!storagePathsByUid.has(uid)) {
+    storagePathsByUid.set(uid, new Set());
+  }
+
+  storagePathsByUid.get(uid).add(storagePath);
+}
+
+async function deleteVanishMessageStoragePaths(storagePathsByUid) {
+  for (const [uid, storagePaths] of storagePathsByUid.entries()) {
+    if (storagePaths.size === 0) {
+      continue;
+    }
+
+    await deleteStorageUrls([...storagePaths], uid);
+  }
+}
+
 async function purgeVanishMessagesForConversation(conversationId) {
   const messagesRef = admin.firestore()
     .collection('conversations')
@@ -1383,25 +1408,18 @@ async function purgeVanishMessagesForConversation(conversationId) {
       break;
     }
 
-    const storagePaths = [];
+    const storagePathsByUid = new Map();
     const batch = admin.firestore().batch();
 
     for (const doc of snapshot.docs) {
       const data = doc.data() || {};
-      if (typeof data.mediaObjectPath === 'string' && data.mediaObjectPath) {
-        storagePaths.push(data.mediaObjectPath);
-      }
-      if (typeof data.thumbnailObjectPath === 'string' && data.thumbnailObjectPath) {
-        storagePaths.push(data.thumbnailObjectPath);
-      }
+      addVanishMessageStoragePath(storagePathsByUid, data, 'mediaObjectPath');
+      addVanishMessageStoragePath(storagePathsByUid, data, 'thumbnailObjectPath');
       batch.delete(doc.ref);
     }
 
+    await deleteVanishMessageStoragePaths(storagePathsByUid);
     await batch.commit();
-
-    if (storagePaths.length > 0) {
-      await deleteStorageUrls([...new Set(storagePaths)]);
-    }
   }
 }
 
@@ -1450,24 +1468,18 @@ const deleteExpiredVanishMessages = onSchedule(
         if (snapshot.empty) break;
         batches += 1;
 
-        const storagePaths = [];
+        const storagePathsByUid = new Map();
         const batch = db.batch();
         for (const doc of snapshot.docs) {
           const data = doc.data() || {};
-          if (typeof data.mediaObjectPath === 'string' && data.mediaObjectPath) {
-            storagePaths.push(data.mediaObjectPath);
-          }
-          if (typeof data.thumbnailObjectPath === 'string' && data.thumbnailObjectPath) {
-            storagePaths.push(data.thumbnailObjectPath);
-          }
+          addVanishMessageStoragePath(storagePathsByUid, data, 'mediaObjectPath');
+          addVanishMessageStoragePath(storagePathsByUid, data, 'thumbnailObjectPath');
           batch.delete(doc.ref);
         }
+
+        await deleteVanishMessageStoragePaths(storagePathsByUid);
         await batch.commit();
         deleted += snapshot.size;
-
-        if (storagePaths.length > 0) {
-          await deleteStorageUrls([...new Set(storagePaths)]);
-        }
         if (snapshot.size < batchLimit) break;
       }
       console.log(`✅ deleteExpiredVanishMessages: deleted=${deleted}, batches=${batches}`);

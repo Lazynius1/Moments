@@ -221,11 +221,18 @@ final class LocalPersistenceService: ObservableObject {
         trimExploreMoments()
     }
     
+    private func profileMomentsSection(userId: String, viewerId: String?) -> String {
+        if let viewerId, !viewerId.isEmpty {
+            return "profile_\(viewerId)_\(userId)"
+        }
+        return "profile_\(userId)"
+    }
+
     /// Guarda moments del perfil de un usuario
-    func saveProfileMoments(_ moments: [Moment], userId: String, sync: Bool = true) {
+    func saveProfileMoments(_ moments: [Moment], userId: String, viewerId: String? = nil, sync: Bool = true) {
         guard let context = modelContext else { return }
         
-        let section = "profile_\(userId)"
+        let section = profileMomentsSection(userId: userId, viewerId: viewerId)
         
         // ✅ SYNC: Borrar lo anterior de este perfil (por defecto true para perfiles)
         if sync {
@@ -295,10 +302,10 @@ final class LocalPersistenceService: ObservableObject {
     }
     
     /// Carga moments del perfil de un usuario
-    func loadProfileMoments(userId: String) -> [Moment] {
+    func loadProfileMoments(userId: String, viewerId: String? = nil) -> [Moment] {
         guard let context = modelContext else { return [] }
         
-        let section = "profile_\(userId)"
+        let section = profileMomentsSection(userId: userId, viewerId: viewerId)
         let predicate = #Predicate<CachedMoment> { $0.feedSection == section }
         var descriptor = FetchDescriptor<CachedMoment>(
             predicate: predicate,
