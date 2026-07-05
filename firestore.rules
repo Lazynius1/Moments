@@ -1608,7 +1608,7 @@ service cloud.firestore {
           'lastMessage', 'lastMessageTime', 'lastMessageSenderId', 'lastMessageType',
           'updatedAt', 'unreadCount', 'deletedFor', 'lastDeletedAt',
           'timestamp', 'readStatus', 'lastReadAt',
-          'encryptionKey', 'encryptionKeyCreatedAt', 'encryptionVersion',
+          'encryptionKey', 'encryptionKeyCreatedAt', 'encryptionVersion', 'conversationKeyVersion',
           'wrappedKeys', 'forwardingPreferences', 'buzzPreferences',
           'vanishModeActive', 'vanishModeEnabledBy', 'vanishModeEnabledAt', 'vanishMessageTimer',
           'vanishSettingsNoticeMessageId', 'vanishDisabledNoticeMessageId'
@@ -1629,10 +1629,18 @@ service cloud.firestore {
             request.resource.data.encryptionKeyCreatedAt is timestamp &&
             request.resource.data.get('encryptionVersion','1.0') is string))
           &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['conversationKeyVersion']) ||
+           (request.resource.data.conversationKeyVersion is int &&
+            request.resource.data.conversationKeyVersion >= resource.data.get('conversationKeyVersion', 0)))
+          &&
           (!('wrappedKeys' in request.resource.data)
            || (
              request.resource.data.wrappedKeys is map
-             && (!('wrappedKeys' in resource.data) || request.resource.data.wrappedKeys.diff(resource.data.wrappedKeys).affectedKeys().hasOnly(resource.data.participants))
+             && ((!('wrappedKeys' in resource.data) && request.resource.data.wrappedKeys.keys().hasOnly(resource.data.participants))
+                 || (('wrappedKeys' in resource.data)
+                     && (request.resource.data.wrappedKeys.diff(resource.data.wrappedKeys).affectedKeys().hasOnly([request.auth.uid])
+                         || (request.resource.data.wrappedKeys.diff(resource.data.wrappedKeys).affectedKeys().hasAll(resource.data.participants)
+                             && request.resource.data.wrappedKeys.diff(resource.data.wrappedKeys).affectedKeys().hasOnly(resource.data.participants)))))
              && (! (request.auth.uid in request.resource.data.wrappedKeys)
                  || (
                    request.resource.data.wrappedKeys[request.auth.uid].keys().hasAll(['wrappedKey','senderPublicKey','recipientKeyId','wrappedBy'])
