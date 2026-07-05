@@ -1629,10 +1629,13 @@ service cloud.firestore {
             request.resource.data.encryptionKeyCreatedAt is timestamp &&
             request.resource.data.get('encryptionVersion','1.0') is string))
           &&
-          (!('wrappedKeys' in request.resource.data)
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['wrappedKeys'])
            || (
              request.resource.data.wrappedKeys is map
-             && (!('wrappedKeys' in resource.data) || request.resource.data.wrappedKeys.diff(resource.data.wrappedKeys).affectedKeys().hasOnly(resource.data.participants))
+             && ((('wrappedKeys' in resource.data)
+                  && request.resource.data.wrappedKeys.diff(resource.data.wrappedKeys).affectedKeys().hasOnly([request.auth.uid]))
+                 || (!('wrappedKeys' in resource.data)
+                     && request.resource.data.wrappedKeys.keys().hasOnly([request.auth.uid])))
              && (! (request.auth.uid in request.resource.data.wrappedKeys)
                  || (
                    request.resource.data.wrappedKeys[request.auth.uid].keys().hasAll(['wrappedKey','senderPublicKey','recipientKeyId','wrappedBy'])
