@@ -87,6 +87,9 @@ struct ReelsViewer: View {
                     // ✅ INSTANT PLAYBACK: Precargar dinámicamente al scrollear
                     preloadUpcomingVideos(from: newIndex)
                 }
+                .onDisappear {
+                    ReelPrebufferService.shared.discard()
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -104,6 +107,12 @@ struct ReelsViewer: View {
             let upcomingVideos = videos[(index + 1)..<endIndex]
             let urls = upcomingVideos.flatMap(\.preloadURLStrings)
             VideoPreloader.shared.preloadAssets(urls: urls)
+
+            let nextVideo = videos[index + 1]
+            let nextURL = nextVideo.moment.videoPlaybackSource()?.playbackURL ?? nextVideo.playbackURL
+            if let nextURL {
+                ReelPrebufferService.shared.prebuffer(urlString: nextURL.absoluteString)
+            }
         }
     }
 }
@@ -1207,7 +1216,11 @@ class ReelVideoPlayerManager: ObservableObject {
             return
         }
 
-        playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
+        if let preparedItem = ReelPrebufferService.shared.takePreparedItem(for: url.absoluteString) {
+            playerItem = preparedItem
+        } else {
+            playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
+        }
         let tier = adaptiveController?.currentTier ?? VideoPlaybackSelector.shared.recommendedTier()
         if let playerItem {
             VideoPlaybackSelector.shared.configure(playerItem: playerItem, tier: tier)

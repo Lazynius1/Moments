@@ -27,6 +27,7 @@ struct FeedPresentationModifier: ViewModifier {
     @Binding var targetConversationId: String?
 
     let profileZoomNamespace: Namespace.ID
+    let storyZoomNamespace: Namespace.ID
     let messagingViewModel: MessagingViewModel
     let firestoreService: FirestoreService
     let updateMoment: (Moment, EditMomentPayload) -> Void
@@ -58,6 +59,7 @@ struct FeedPresentationModifier: ViewModifier {
                 )
                     .environmentObject(firestoreService)
                     .ignoresSafeArea(.keyboard)
+                    .navigationTransition(.zoom(sourceID: "story-ring-\(selectedStoryUserId)", in: storyZoomNamespace))
             }
             .fullScreenCover(isPresented: $showStories) {
                 StoriesView(ringNavigationUserIds: storyRingNavigationUserIds)
@@ -170,6 +172,7 @@ extension View {
         showEchoHistory: Binding<Bool>,
         targetConversationId: Binding<String?>,
         profileZoomNamespace: Namespace.ID,
+        storyZoomNamespace: Namespace.ID,
         messagingViewModel: MessagingViewModel,
         firestoreService: FirestoreService,
         updateMoment: @escaping (Moment, EditMomentPayload) -> Void,
@@ -201,6 +204,7 @@ extension View {
                 showEchoHistory: showEchoHistory,
                 targetConversationId: targetConversationId,
                 profileZoomNamespace: profileZoomNamespace,
+                storyZoomNamespace: storyZoomNamespace,
                 messagingViewModel: messagingViewModel,
                 firestoreService: firestoreService,
                 updateMoment: updateMoment,

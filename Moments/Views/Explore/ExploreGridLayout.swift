@@ -517,21 +517,19 @@ struct ExploreMomentThumbnail: View {
 
     private func loadVideoThumbnail(from videoURL: String) {
         guard videoThumbnail == nil, !isLoadingVideoThumbnail else { return }
-        guard let url = URL(string: videoURL) else { return }
+
+        if let cached = VideoThumbnailCache.shared.cachedThumbnail(for: videoURL) {
+            videoThumbnail = cached
+            return
+        }
 
         isLoadingVideoThumbnail = true
-        let asset = AVURLAsset(url: url)
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 480, height: 480)
-
-        generator.generateCGImagesAsynchronously(
-            forTimes: [NSValue(time: CMTime(seconds: 1, preferredTimescale: 1))]
-        ) { _, cgImage, _, _, _ in
-            DispatchQueue.main.async {
+        Task {
+            let image = await VideoThumbnailCache.shared.thumbnail(for: videoURL)
+            await MainActor.run {
                 isLoadingVideoThumbnail = false
-                if let cgImage {
-                    videoThumbnail = UIImage(cgImage: cgImage)
+                if let image {
+                    videoThumbnail = image
                 }
             }
         }

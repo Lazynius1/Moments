@@ -801,21 +801,12 @@ private struct SavedMomentGridCard: View {
     }
 
     private func generateThumbnail(for videoPath: String) {
-        guard generatedThumbnail == nil, let videoURL = URL(string: videoPath) else { return }
+        guard generatedThumbnail == nil else { return }
 
         Task {
-            let asset = AVURLAsset(url: videoURL)
-            let generator = AVAssetImageGenerator(asset: asset)
-            generator.appliesPreferredTrackTransform = true
-
-            do {
-                let (cgImage, _) = try await generator.image(at: CMTime(seconds: 0.8, preferredTimescale: 600))
-                let thumbnail = UIImage(cgImage: cgImage)
-                await MainActor.run {
-                    self.generatedThumbnail = thumbnail
-                }
-            } catch {
-                // Keep fallback placeholder if thumbnail extraction fails.
+            let image = await VideoThumbnailCache.shared.thumbnail(for: videoPath)
+            await MainActor.run {
+                self.generatedThumbnail = image ?? self.generatedThumbnail
             }
         }
     }

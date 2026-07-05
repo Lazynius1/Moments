@@ -289,26 +289,14 @@ struct ActivityCommentMomentPreview: View {
     }
 
     private func generateThumbnail(for videoPath: String) {
-        guard !isGeneratingThumbnail, generatedVideoThumbnail == nil, let videoURL = URL(string: videoPath) else { return }
+        guard !isGeneratingThumbnail, generatedVideoThumbnail == nil else { return }
         isGeneratingThumbnail = true
 
         Task {
-            let asset = AVURLAsset(url: videoURL)
-            let generator = AVAssetImageGenerator(asset: asset)
-            generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: 500, height: 500)
-
-            do {
-                let (cgImage, _) = try await generator.image(at: CMTime(seconds: 0.8, preferredTimescale: 600))
-                let thumbnail = UIImage(cgImage: cgImage)
-                await MainActor.run {
-                    self.generatedVideoThumbnail = thumbnail
-                    self.isGeneratingThumbnail = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.isGeneratingThumbnail = false
-                }
+            let image = await VideoThumbnailCache.shared.thumbnail(for: videoPath)
+            await MainActor.run {
+                self.generatedVideoThumbnail = image ?? self.generatedVideoThumbnail
+                self.isGeneratingThumbnail = false
             }
         }
     }
@@ -906,26 +894,14 @@ struct ActivityReactionMomentCard: View {
     }
 
     private func generateThumbnail(for videoPath: String) {
-        guard !isGeneratingThumbnail, generatedVideoThumbnail == nil, let videoURL = URL(string: videoPath) else { return }
+        guard !isGeneratingThumbnail, generatedVideoThumbnail == nil else { return }
         isGeneratingThumbnail = true
 
         Task {
-            let asset = AVURLAsset(url: videoURL)
-            let generator = AVAssetImageGenerator(asset: asset)
-            generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: 700, height: 700)
-
-            do {
-                let (cgImage, _) = try await generator.image(at: CMTime(seconds: 0.8, preferredTimescale: 600))
-                let thumbnail = UIImage(cgImage: cgImage)
-                await MainActor.run {
-                    self.generatedVideoThumbnail = thumbnail
-                    self.isGeneratingThumbnail = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.isGeneratingThumbnail = false
-                }
+            let image = await VideoThumbnailCache.shared.thumbnail(for: videoPath)
+            await MainActor.run {
+                self.generatedVideoThumbnail = image ?? self.generatedVideoThumbnail
+                self.isGeneratingThumbnail = false
             }
         }
     }
@@ -1092,26 +1068,14 @@ struct ActivityPortraitMomentCard: View {
     }
 
     private func generateThumbnail(for videoPath: String) {
-        guard !isGeneratingThumbnail, generatedVideoThumbnail == nil, let videoURL = URL(string: videoPath) else { return }
+        guard !isGeneratingThumbnail, generatedVideoThumbnail == nil else { return }
         isGeneratingThumbnail = true
 
         Task {
-            let asset = AVURLAsset(url: videoURL)
-            let generator = AVAssetImageGenerator(asset: asset)
-            generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: 700, height: 1244)
-
-            do {
-                let (cgImage, _) = try await generator.image(at: CMTime(seconds: 0.8, preferredTimescale: 600))
-                let thumbnail = UIImage(cgImage: cgImage)
-                await MainActor.run {
-                    self.generatedVideoThumbnail = thumbnail
-                    self.isGeneratingThumbnail = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.isGeneratingThumbnail = false
-                }
+            let image = await VideoThumbnailCache.shared.thumbnail(for: videoPath)
+            await MainActor.run {
+                self.generatedVideoThumbnail = image ?? self.generatedVideoThumbnail
+                self.isGeneratingThumbnail = false
             }
         }
     }

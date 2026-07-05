@@ -10,6 +10,29 @@ import MapKit
 import AVFoundation
 import SwiftData
 
+// Sesión de audio de stories en cola serie fuera del main thread: setActive
+// síncrono (sobre todo el false con notifyOthersOnDeactivation) causaba
+// micro-tirones de >100ms al cambiar de story.
+enum StoryAudioSession {
+    private static let queue = DispatchQueue(label: "com.moments.storyAudioSession", qos: .userInitiated)
+
+    static func activate() {
+        queue.async {
+            let session = AVAudioSession.sharedInstance()
+            if session.category != .playback {
+                try? session.setCategory(.playback, mode: .moviePlayback, options: [])
+            }
+            try? session.setActive(true)
+        }
+    }
+
+    static func deactivate() {
+        queue.async {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+    }
+}
+
 // MARK: - Glassmorphic Story Video Player
 struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     let url: URL
@@ -26,8 +49,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         let controller = AVPlayerViewController()
 
         // ✅ AUDIO FIX: Activar sesión de audio para que suene aunque esté en silencio
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback, options: [])
-        try? AVAudioSession.sharedInstance().setActive(true)
+        StoryAudioSession.activate()
 
         // ✅ USAR VIDEOPRELOADER PARA INICIO INSTANTÁNEO
         let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
@@ -227,7 +249,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             player = nil
 
             // ✅ CLEANUP DE AUDIO SESSION
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            StoryAudioSession.deactivate()
         }
     }
 }

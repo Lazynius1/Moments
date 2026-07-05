@@ -35,6 +35,7 @@ struct FeedHeaderBar: View {
 
     let colorScheme: ColorScheme
     let pendingEchoes: [Echo]
+    let storyZoomNamespace: Namespace.ID
     let onOpenStory: (String) -> Void
 
     var body: some View {
@@ -52,7 +53,9 @@ struct FeedHeaderBar: View {
                             storyAudiences: storyRingCoordinator.storyUsers.first?.userId == Auth.auth().currentUser?.uid
                                 ? (storyRingCoordinator.storyUsers.first?.storyAudiences ?? []) : [],
                             colorScheme: colorScheme,
-                            storyUploadService: storyUploadService
+                            storyUploadService: storyUploadService,
+                            zoomNamespace: storyZoomNamespace,
+                            zoomSourceID: (Auth.auth().currentUser?.uid).map { "story-ring-\($0)" }
                         ) {
                             if let currentUserId = Auth.auth().currentUser?.uid,
                                storyRingCoordinator.storyUsers.first?.hasStory == true,
@@ -73,7 +76,9 @@ struct FeedHeaderBar: View {
                                 storyViewedStatus: storyUser.storyViewedStatus,
                                 storyAudiences: storyUser.storyAudiences,
                                 isOwnStory: false,
-                                colorScheme: colorScheme
+                                colorScheme: colorScheme,
+                                zoomNamespace: storyZoomNamespace,
+                                zoomSourceID: "story-ring-\(storyUser.userId)"
                             ) {
                                 guard !storyUser.userId.isEmpty else { return }
                                 onOpenStory(storyUser.userId)

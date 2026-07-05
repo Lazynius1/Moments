@@ -143,26 +143,13 @@ struct StripThumbCell: View {
     }
 
     private func generateThumbnail(from videoPath: String) {
-        guard !isGenerating, generatedThumbnail == nil,
-              let url = URL(string: videoPath) else { return }
+        guard !isGenerating, generatedThumbnail == nil else { return }
         isGenerating = true
         Task {
-            let asset = AVURLAsset(url: url)
-            let gen = AVAssetImageGenerator(asset: asset)
-            gen.appliesPreferredTrackTransform = true
-            gen.maximumSize = CGSize(width: 200, height: 200)
-
-            do {
-                let (cgImage, _) = try await gen.image(at: CMTime(seconds: 0.5, preferredTimescale: 600))
-                let ui = UIImage(cgImage: cgImage)
-                await MainActor.run {
-                    generatedThumbnail = ui
-                    isGenerating = false
-                }
-            } catch {
-                await MainActor.run {
-                    isGenerating = false
-                }
+            let image = await VideoThumbnailCache.shared.thumbnail(for: videoPath)
+            await MainActor.run {
+                generatedThumbnail = image ?? generatedThumbnail
+                isGenerating = false
             }
         }
     }

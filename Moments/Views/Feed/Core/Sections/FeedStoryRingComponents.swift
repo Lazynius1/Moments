@@ -35,6 +35,8 @@ struct RealStoryCircle: View {
     let storyAudiences: [String?]
     let isOwnStory: Bool
     let colorScheme: ColorScheme
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     let action: () -> Void
 
     private let avatarSize = StoryRingLayout.feedHeaderAvatarSize
@@ -65,6 +67,11 @@ struct RealStoryCircle: View {
                 )
             }
             .buttonStyle(.momentsPress(scale: 0.94, haptic: .none))
+            .modifier(HighlightZoomSourceModifier(
+                namespace: zoomNamespace,
+                sourceID: zoomSourceID,
+                size: StoryRingLayout.outerFrameSize(avatarSize: avatarSize, lineWidth: lineWidth)
+            ))
 
             LiveUsernameContent(userId: userId, fallbackUsername: fallbackUsername) { username in
                 Text(username)
@@ -92,6 +99,8 @@ struct YourStoryCircleWithProgress: View {
     let storyAudiences: [String?]
     let colorScheme: ColorScheme
     @ObservedObject var storyUploadService: BackgroundStoryUploadService
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     let action: () -> Void
 
     private let avatarSize = StoryRingLayout.feedHeaderAvatarSize
@@ -142,6 +151,11 @@ struct YourStoryCircleWithProgress: View {
                 }
             }
             .buttonStyle(.momentsPress(scale: 0.94, haptic: .none))
+            .modifier(HighlightZoomSourceModifier(
+                namespace: zoomNamespace,
+                sourceID: zoomSourceID,
+                size: StoryRingLayout.outerFrameSize(avatarSize: avatarSize, lineWidth: lineWidth)
+            ))
 
             if let uploadingStory = storyUploadService.uploadingStory {
                 StoryUploadStatusLabel(uploadingStory: uploadingStory)

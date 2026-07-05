@@ -46,6 +46,7 @@ struct FeedView: View {
     @State private var selectedUserId: String = ""
     @State private var selectedProfileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
+    @Namespace private var storyZoomNamespace
     // 🔗 STORY CHAINS: Variables para navegación
     @State private var showStoryChain = false
     @State private var selectedChainId: String = ""
@@ -279,6 +280,7 @@ struct FeedView: View {
             showEchoHistory: $showEchoHistory,
             targetConversationId: $targetConversationId,
             profileZoomNamespace: profileZoomNamespace,
+            storyZoomNamespace: storyZoomNamespace,
             messagingViewModel: messagingViewModel,
             firestoreService: firestoreService,
             updateMoment: updateMoment,
@@ -435,6 +437,7 @@ struct FeedView: View {
                 badgeService: badgeService,
                 colorScheme: colorScheme,
                 pendingEchoes: pendingEchoes,
+                storyZoomNamespace: storyZoomNamespace,
                 onOpenStory: openStoryViewer
             )
             .offset(y: isFeedHeaderHidden ? -(feedHeaderHeight + 20) : 0)
