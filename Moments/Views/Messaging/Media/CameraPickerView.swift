@@ -30,6 +30,16 @@ private func momentsCaptureRect(in size: CGSize, topInset: CGFloat, bottomInset:
     return momentsAspectRect(aspectRatio: momentsCaptureAspectRatio, in: availableRect)
 }
 
+private enum CameraPickerChrome {
+    static func foreground(for colorScheme: ColorScheme) -> Color {
+        MomentsChromeGlass.contentColor(for: colorScheme)
+    }
+
+    static func stroke(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.10)
+    }
+}
+
 // MARK: - Enhanced Camera Picker with Fixed Gallery and Useful Options
 struct EnhancedCameraPickerView: View {
     let onMediaCaptured: (Data, MediaType, Bool) -> Void
@@ -123,12 +133,20 @@ struct EnhancedCameraPickerView: View {
 
     @State private var cameraViewController: CameraViewController?
 
-    private var controlStrokeColor: Color {
+    private var overlayStrokeColor: Color {
         isEphemeralMode ? Color(hex: "FFCC33").opacity(0.45) : Color.white.opacity(0.18)
     }
 
-    private var controlForegroundColor: Color {
+    private var overlayForegroundColor: Color {
         isEphemeralMode ? Color(hex: "FFCC33") : .white
+    }
+
+    private var chromeForegroundColor: Color {
+        CameraPickerChrome.foreground(for: colorScheme)
+    }
+
+    private var chromeStrokeColor: Color {
+        CameraPickerChrome.stroke(for: colorScheme)
     }
 
     private var safeAreaTintColor: Color {
@@ -237,7 +255,7 @@ struct EnhancedCameraPickerView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(chromeForegroundColor)
                         .frame(width: 42, height: 42)
                         .background {
                             Color.clear
@@ -245,7 +263,7 @@ struct EnhancedCameraPickerView: View {
                         }
                         .overlay(
                             Circle()
-                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                .stroke(chromeStrokeColor, lineWidth: 1)
                         )
                 }
 
@@ -271,7 +289,7 @@ struct EnhancedCameraPickerView: View {
                 Text(isEphemeralMode ? NSLocalizedString("camera.mode.ephemeral", comment: "Ephemeral mode") : NSLocalizedString("camera.mode.normal", comment: "Normal mode"))
                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
             }
-            .foregroundColor(isEphemeralMode ? .black : .white)
+            .foregroundColor(isEphemeralMode ? .black : chromeForegroundColor)
             .padding(.horizontal, 10)
             .frame(height: 42)
             .background {
@@ -286,7 +304,7 @@ struct EnhancedCameraPickerView: View {
             }
             .overlay(
                 Capsule()
-                    .stroke(controlStrokeColor, lineWidth: 1)
+                    .stroke(isEphemeralMode ? overlayStrokeColor : chromeStrokeColor, lineWidth: 1)
             )
         }
     }
@@ -295,7 +313,7 @@ struct EnhancedCameraPickerView: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(controlForegroundColor)
+                .foregroundColor(overlayForegroundColor)
                 .frame(width: 42, height: 42)
                 .background {
                     Color.clear
@@ -303,7 +321,7 @@ struct EnhancedCameraPickerView: View {
                 }
                 .overlay(
                     Circle()
-                        .stroke(controlStrokeColor, lineWidth: 1)
+                        .stroke(overlayStrokeColor, lineWidth: 1)
                 )
         }
     }
@@ -428,7 +446,7 @@ struct EnhancedCameraPickerView: View {
                 }
                 .overlay(
                     Circle()
-                        .stroke(controlStrokeColor, lineWidth: 1)
+                        .stroke(overlayStrokeColor, lineWidth: 1)
                 )
         }
     }
@@ -746,6 +764,14 @@ private struct CameraMediaPreviewOverlay: View {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }
 
+    private var chromeForegroundColor: Color {
+        CameraPickerChrome.foreground(for: colorScheme)
+    }
+
+    private var chromeStrokeColor: Color {
+        CameraPickerChrome.stroke(for: colorScheme)
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let topInset = proxy.safeAreaInsets.top
@@ -785,7 +811,7 @@ private struct CameraMediaPreviewOverlay: View {
                         Button(action: onClose) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundColor(chromeForegroundColor)
                                 .frame(width: 42, height: 42)
                                 .background {
                                     Color.clear
@@ -793,7 +819,7 @@ private struct CameraMediaPreviewOverlay: View {
                                 }
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                        .stroke(chromeStrokeColor, lineWidth: 1)
                                 )
                         }
 
@@ -832,7 +858,7 @@ private struct CameraMediaPreviewOverlay: View {
                                     Text(NSLocalizedString("camera.preview.retake", comment: "Retake media"))
                                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 }
-                                .foregroundColor(.white)
+                                .foregroundColor(chromeForegroundColor)
                                 .padding(.horizontal, 14)
                                 .frame(minWidth: 112)
                                 .frame(height: 42)
@@ -842,7 +868,7 @@ private struct CameraMediaPreviewOverlay: View {
                                 }
                                 .overlay(
                                     Capsule()
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                        .stroke(chromeStrokeColor, lineWidth: 1)
                                 )
                             }
 
@@ -859,7 +885,7 @@ private struct CameraMediaPreviewOverlay: View {
                                     Text(NSLocalizedString("camera.preview.send", comment: "Send media"))
                                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 }
-                                .foregroundColor(preview.isEphemeral ? .black : .white)
+                                .foregroundColor(preview.isEphemeral ? .black : chromeForegroundColor)
                                 .padding(.horizontal, 14)
                                 .frame(minWidth: 112)
                                 .frame(height: 42)
@@ -875,7 +901,7 @@ private struct CameraMediaPreviewOverlay: View {
                                 }
                                 .overlay(
                                     Capsule()
-                                        .stroke(preview.isEphemeral ? Color.clear : Color.white.opacity(0.14), lineWidth: 1)
+                                        .stroke(preview.isEphemeral ? Color.clear : chromeStrokeColor, lineWidth: 1)
                                 )
                                 .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 4)
                             }
@@ -1396,11 +1422,11 @@ class CameraViewController: UIViewController {
 
             AVCaptureDevice.requestAccess(for: .audio) { _ in
                 DispatchQueue.main.async {
-                    if self.captureSession.canSetSessionPreset(.photo) {
-                        self.captureSession.sessionPreset = .photo
-                    } else {
-                        self.captureSession.sessionPreset = .high
-                    }
+                    // .photo captura al aspecto nativo del sensor (a menudo 4:3), distinto
+                    // del que usa el preview en vivo — el recorte a 9:16 quedaba desalineado
+                    // entre lo que se ve y lo que se captura. .high (igual que en historias)
+                    // mantiene el mismo aspecto en preview y captura.
+                    self.captureSession.sessionPreset = .high
                     self.setupCameraInput(position: .back)
                     self.setupAudioInputIfAvailable()
                     self.setupOutputs()
@@ -1511,6 +1537,14 @@ class CameraViewController: UIViewController {
     func capturePhoto() {
         let settings = AVCapturePhotoSettings()
 
+        // Sin esto, iOS prioriza calidad (Smart HDR/Deep Fusion) por defecto,
+        // añadiendo 1-2s de procesado al disparo — inaceptable para chat.
+        if photoOutput.maxPhotoQualityPrioritization != .speed {
+            settings.photoQualityPrioritization = .balanced
+        } else {
+            settings.photoQualityPrioritization = .speed
+        }
+
         // Configure flash
         if cameraPosition == .back {
             switch flashMode {
@@ -1553,10 +1587,22 @@ class CameraViewController: UIViewController {
     private func processedCapturedPhotoData(from imageData: Data) -> Data? {
         guard let image = UIImage(data: imageData) else { return nil }
 
-        let normalizedImage = image.normalizedUp()
+        let correctedImage = correctImageOrientation(image)
+        let normalizedImage = correctedImage.normalizedUp()
         let previewMatchedImage = cropImageToVisiblePreview(normalizedImage) ?? normalizedImage
 
         return previewMatchedImage.jpegData(compressionQuality: 0.95)
+    }
+
+    // Misma corrección que la cámara de historias (CameraPreviewView): el JPEG que
+    // devuelve photoOutput para la cámara frontal no trae el orientation tag correcto
+    // con este mismo pipeline de rotationAngle+mirroring, y normalizedUp() por sí solo
+    // no lo arregla — hay que reetiquetar el cgImage como .leftMirrored antes.
+    private func correctImageOrientation(_ image: UIImage) -> UIImage {
+        if currentCameraPosition == .front, let cgImage = image.cgImage {
+            return UIImage(cgImage: cgImage, scale: image.scale, orientation: .leftMirrored)
+        }
+        return image
     }
 
     private func cropImageToVisiblePreview(_ image: UIImage) -> UIImage? {

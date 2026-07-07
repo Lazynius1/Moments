@@ -246,69 +246,113 @@ final class NovaAgent: ObservableObject {
         executor.resetTurn()
         executor.attachedImageForTurn = mediaImage
 
-        let parts = NovaAIService.userParts(text: userText, image: image)
-        var step = 0
-        var pending: [ModelContent] = [ModelContent(role: "user", parts: parts)]
-        var seen = Set<String>()
+        let memoryContext = await relevantFactsContext(for: userText)
+        let parts = NovaAIService.userParts(text: userText, image: image, memoryContext: memoryContext)
+        let pending = [ModelContent(role: "user", parts: parts)]
+        let historySnapshot = chatSession.history
 
-        while step < NovaToolExecutor.maxStepsPerTurn {
-            if step == 0, pending.count == 1, pending[0].role == "user" {
-                // Firebase AI tool calls currently require preserving internal thought
-                // signatures across the turn. The non-streaming chat path is more reliable here
-                // than sendMessageStream when the model decides to call tools.
-                let response = try await chatSession.sendMessage(pending)
-                let calls = response.functionCalls
+        // Streaming para turnos de texto puro (la mayoría). Si el modelo decide
+        // llamar tools, se descarta este intento y se repite por el camino
+        // no-streaming, que preserva los thought signatures de forma fiable.
+        var streamedText = ""
+        var sawToolCalls = false
+        var streamFailed = false
 
-                if !calls.isEmpty {
-                    conversationHistory[botMessageIndex].text = NSLocalizedString("nova.confirm.preparing", comment: "")
-                    step += 1
-                    if let finalText = try await handleToolCalls(
-                        calls,
-                        chat: chatSession,
-                        seen: &seen,
-                        botIndex: botMessageIndex
-                    ) {
-                        conversationHistory[botMessageIndex].text = finalText
-                    }
-                    return
+        do {
+            let stream = try chatSession.sendMessageStream(pending)
+            for try await chunk in stream {
+                if !chunk.functionCalls.isEmpty {
+                    sawToolCalls = true
                 }
+                guard !sawToolCalls else { continue }
 
-                if mediaImage != nil {
-                    if try await handleMomentPublishFallback(
-                        userText: userText,
-                        image: mediaImage!,
-                        chat: chatSession,
-                        botIndex: botMessageIndex
-                    ) {
-                        return
+                if let textChunk = chunk.text, !textChunk.isEmpty {
+                    streamedText += textChunk
+                    if agentStatus != .streaming {
+                        agentStatus = .streaming
                     }
+                    conversationHistory[botMessageIndex].text = streamedText
                 }
-
-                conversationHistory[botMessageIndex].text = response.text ?? ""
-                return
             }
+        } catch {
+            streamFailed = true
+            LogConfig.log("Nova stream failed, retrying non-streaming: \(error.localizedDescription)", category: "Nova")
+        }
 
-            let response = try await chatSession.sendMessage(pending)
-            pending = []
-
-            if !response.functionCalls.isEmpty {
-                step += 1
-                if let finalText = try await handleToolCalls(
-                    response.functionCalls,
+        if !sawToolCalls, !streamFailed {
+            if let mediaImage {
+                if try await handleMomentPublishFallback(
+                    userText: userText,
+                    image: mediaImage,
                     chat: chatSession,
-                    seen: &seen,
                     botIndex: botMessageIndex
                 ) {
-                    conversationHistory[botMessageIndex].text = finalText
+                    return
                 }
+            }
+            if !streamedText.isEmpty {
                 return
             }
+        }
 
-            conversationHistory[botMessageIndex].text = response.text ?? ""
+        // Reconstruir la sesión desde el snapshot para que el intento en
+        // streaming no contamine el historial, y resolver el turno completo
+        // (tools incluidas) por el camino no-streaming.
+        bootstrapChatSession(history: historySnapshot)
+        guard let freshChat = self.chatSession, let freshExecutor = toolExecutor else {
+            throw NovaAgentError.missingUser
+        }
+        freshExecutor.resetTurn()
+        freshExecutor.attachedImageForTurn = mediaImage
+        conversationHistory[botMessageIndex].text = ""
+        agentStatus = .thinking
+
+        let response = try await freshChat.sendMessage(pending)
+        let calls = response.functionCalls
+
+        if !calls.isEmpty {
+            conversationHistory[botMessageIndex].text = NSLocalizedString("nova.confirm.preparing", comment: "")
+            var seen = Set<String>()
+            if let finalText = try await handleToolCalls(
+                calls,
+                chat: freshChat,
+                seen: &seen,
+                botIndex: botMessageIndex
+            ) {
+                conversationHistory[botMessageIndex].text = finalText
+            }
             return
         }
 
-        throw NovaAgentError.stepLimitReached
+        if let mediaImage {
+            if try await handleMomentPublishFallback(
+                userText: userText,
+                image: mediaImage,
+                chat: freshChat,
+                botIndex: botMessageIndex
+            ) {
+                return
+            }
+        }
+
+        conversationHistory[botMessageIndex].text = response.text ?? ""
+    }
+
+    private func relevantFactsContext(for query: String) async -> String? {
+        guard let facts = userMemory?.facts, facts.count > 10 else { return nil }
+
+        let topInSystem = Set(
+            facts.sorted { $0.relevanceScore > $1.relevanceScore }.prefix(10).map(\.id)
+        )
+        let candidates = facts.filter { !topInSystem.contains($0.id) }
+        guard !candidates.isEmpty else { return nil }
+
+        let relevant = await Task.detached(priority: .userInitiated) {
+            NovaEmbeddingService.shared.findSimilarFacts(query: query, facts: candidates, limit: 4)
+        }.value
+
+        guard !relevant.isEmpty else { return nil }
+        return relevant.map { "- [\($0.type.rawValue)] \($0.content)" }.joined(separator: "\n")
     }
 
     @discardableResult
@@ -316,9 +360,13 @@ final class NovaAgent: ObservableObject {
         _ calls: [FunctionCallPart],
         chat: Chat,
         seen: inout Set<String>,
-        botIndex: Int
+        botIndex: Int,
+        depth: Int = 1
     ) async throws -> String? {
         guard let executor = toolExecutor else { return nil }
+        guard depth <= NovaToolExecutor.maxStepsPerTurn else {
+            throw NovaAgentError.stepLimitReached
+        }
 
         for call in calls {
             let signature = "\(call.name)-\(call.args)"
@@ -355,7 +403,8 @@ final class NovaAgent: ObservableObject {
                 modelResponse.functionCalls,
                 chat: chat,
                 seen: &seen,
-                botIndex: botIndex
+                botIndex: botIndex,
+                depth: depth + 1
             )
         }
 
@@ -463,6 +512,41 @@ final class NovaAgent: ObservableObject {
         default:
             return NSLocalizedString("nova.agent.tool.generic", comment: "Working")
         }
+    }
+
+    // MARK: - Regenerate / Edit
+
+    func regenerateLastResponse() {
+        guard !isLoading, confirmationContinuation == nil else { return }
+        guard let lastUserIndex = conversationHistory.lastIndex(where: { $0.isUser }) else { return }
+        let userMessage = conversationHistory[lastUserIndex]
+
+        sendTask?.cancel()
+        Task {
+            conversationHistory.removeSubrange(lastUserIndex...)
+            await rebuildChatFromHistoryAsync()
+            inputText = userMessage.text
+            selectedImage = userMessage.image
+            sendMessage()
+        }
+    }
+
+    func beginEditingLastUserMessage() {
+        guard !isLoading, confirmationContinuation == nil else { return }
+        guard let lastUserIndex = conversationHistory.lastIndex(where: { $0.isUser }) else { return }
+        let userMessage = conversationHistory[lastUserIndex]
+
+        sendTask?.cancel()
+        Task {
+            conversationHistory.removeSubrange(lastUserIndex...)
+            await rebuildChatFromHistoryAsync()
+            inputText = userMessage.text
+            selectedImage = userMessage.image
+        }
+    }
+
+    var canRetouchLastExchange: Bool {
+        !isLoading && confirmationContinuation == nil && conversationHistory.contains(where: \.isUser)
     }
 
     // MARK: - Session

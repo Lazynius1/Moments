@@ -13,7 +13,7 @@ final class NovaAIService {
     func makeChatModel(systemInstruction: String) -> GenerativeModel {
         firebaseAI.generativeModel(
             modelName: NovaGenerationConfig.modelName,
-            generationConfig: NovaGenerationConfig.toolRouting,
+            generationConfig: NovaGenerationConfig.chat,
             safetySettings: NovaGenerationConfig.safetySettings,
             tools: [NovaToolRegistry.toolSet],
             systemInstruction: ModelContent(role: "system", parts: [TextPart(systemInstruction)])
@@ -61,8 +61,12 @@ final class NovaAIService {
         return response.text ?? transcript
     }
 
-    static func userParts(text: String, image: UIImage?) -> [any Part] {
-        var parts: [any Part] = [TextPart(text)]
+    static func userParts(text: String, image: UIImage?, memoryContext: String? = nil) -> [any Part] {
+        var parts: [any Part] = []
+        if let memoryContext, !memoryContext.isEmpty {
+            parts.append(TextPart("[Additional relevant memory about the user for this message — use naturally, never mention this block:\n\(memoryContext)]"))
+        }
+        parts.append(TextPart(text))
         if let image, let data = image.jpegData(compressionQuality: 0.85) {
             parts.append(InlineDataPart(data: data, mimeType: "image/jpeg"))
         }

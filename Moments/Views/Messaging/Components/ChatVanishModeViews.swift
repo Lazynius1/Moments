@@ -561,6 +561,20 @@ private extension VanishMessageTimer {
     }
 }
 
+struct ChatViewOnceInboxIndicator: View {
+    private let tintColor = Color(hex: "007AFF")
+
+    var body: some View {
+        Image(systemName: "play.fill")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundColor(.white)
+            .offset(x: 1)
+            .frame(width: 22, height: 22)
+            .liquidGlass(in: Circle(), variant: .clear, tint: tintColor)
+            .accessibilityLabel(Text(LocalizedStringKey("chat.viewOnce.tapToView")))
+    }
+}
+
 struct ChatVanishInboxIndicator: View {
     let isUnread: Bool
 

@@ -53,6 +53,10 @@ struct Conversation: Identifiable, Codable, Hashable {
     var lastMessageSenderId: String?
     var lastMessageSeenAt: [String: Date]?
     var lastMessageReaction: ConversationLastMessageReaction?
+    /// Tipo del último mensaje (Firestore + hidratación local).
+    var lastMessageType: MessageType?
+    /// View-once entrante aún no abierto por el usuario actual.
+    var lastMessageViewOncePending: Bool = false
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -144,6 +148,8 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.lastMessageSenderId = nil
         self.lastMessageSeenAt = nil
         self.lastMessageReaction = nil
+        self.lastMessageType = nil
+        self.lastMessageViewOncePending = false
     }
 
     init(from decoder: Decoder) throws {
@@ -187,6 +193,8 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.lastMessageSenderId = nil
         self.lastMessageSeenAt = nil
         self.lastMessageReaction = nil
+        self.lastMessageType = nil
+        self.lastMessageViewOncePending = false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -289,6 +297,41 @@ struct Conversation: Identifiable, Codable, Hashable {
     var isActive: Bool {
         // Aquí podrías verificar que ningún participante haya bloqueado al otro
         return true // Por ahora retornamos true
+    }
+
+    /// Indica si el último mensaje del hilo es del usuario actual (para preview estilo Instagram).
+    /// Infiere desde metadatos de lectura/reacción cuando `lastMessageSenderId` no llegó sincronizado.
+    func isOwnLastMessage(for currentUserId: String) -> Bool {
+        if lastMessageSenderId == currentUserId { return true }
+        if lastMessageSeenAt?[otherParticipantId] != nil { return true }
+        if let reaction = lastMessageReaction, reaction.byUserId == otherParticipantId { return true }
+        return false
+    }
+
+    /// Botón play azul en inbox (Instagram) cuando hay view-once entrante sin abrir.
+    func showsViewOnceInboxPlayButton(for currentUserId: String) -> Bool {
+        guard lastMessageViewOncePending,
+              let type = lastMessageType,
+              type.isViewOnce,
+              !isOwnLastMessage(for: currentUserId) else {
+            return false
+        }
+        return true
+    }
+
+    /// Preview de lista estilo Instagram: view-once entrante → "Foto"/"Video" genérico.
+    func inboxMessagePreview(for currentUserId: String) -> String {
+        if let type = lastMessageType,
+           type.isViewOnce,
+           !isOwnLastMessage(for: currentUserId) {
+            switch type {
+            case .viewOnceVideo:
+                return NSLocalizedString("chat.preview.video", comment: "")
+            default:
+                return NSLocalizedString("chat.preview.photo", comment: "")
+            }
+        }
+        return messagePreview
     }
 
     // Obtener preview del último mensaje para notificaciones
@@ -456,8 +499,8 @@ enum MessageType: String, CaseIterable, Codable {
         case .ephemeral: return NSLocalizedString("chat.preview.ephemeral", comment: "")
         case .sharedMoment: return NSLocalizedString("chat.preview.sharedMoment", comment: "")
         case .sharedStory: return NSLocalizedString("chat.preview.sharedStory", comment: "")
-        case .viewOnceImage: return NSLocalizedString("chat.preview.viewOncePhoto", comment: "")
-        case .viewOnceVideo: return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
+        case .viewOnceImage: return NSLocalizedString("chat.preview.photo", comment: "")
+        case .viewOnceVideo: return NSLocalizedString("chat.preview.video", comment: "")
         case .chatNotice: return ""
         }
     }
@@ -1062,9 +1105,9 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case .sharedStory:
             return NSLocalizedString("chat.preview.sharedStory", comment: "")
         case .viewOnceImage:
-            return NSLocalizedString("chat.preview.viewOncePhoto", comment: "")
+            return NSLocalizedString("chat.preview.photo", comment: "")
         case .viewOnceVideo:
-            return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
+            return NSLocalizedString("chat.preview.video", comment: "")
         case .chatNotice:
             return EnhancedMessage.chatNoticePreviewText(for: content ?? "")
         }

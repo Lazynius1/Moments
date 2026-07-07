@@ -5,6 +5,8 @@ import UIKit
 struct EnhancedChatBubble: View {
     let message: ChatMessage
     let username: String
+    var onRegenerate: (() -> Void)? = nil
+    var onEdit: (() -> Void)? = nil
     @State private var displayedText: String = ""
     @State private var isTyping: Bool = false
     @State private var animationTimer: Timer?
@@ -65,6 +67,21 @@ struct EnhancedChatBubble: View {
                                     RoundedRectangle(cornerRadius: 20)
                                         .stroke(NovaColors.borderColor, lineWidth: 1)
                                 )
+                                .contextMenu {
+                                    if let onEdit {
+                                        Button {
+                                            onEdit()
+                                        } label: {
+                                            Label(NSLocalizedString("nova.message.edit", comment: "Edit last message"), systemImage: "pencil")
+                                        }
+                                    }
+                                    Button {
+                                        UIPasteboard.general.string = message.text
+                                        HapticManager.shared.lightImpact()
+                                    } label: {
+                                        Label(NSLocalizedString("chat.action.copy", comment: "Copy"), systemImage: "doc.on.doc")
+                                    }
+                                }
                         }
 
                         Text("nova.you")
@@ -113,6 +130,17 @@ struct EnhancedChatBubble: View {
                             } else {
                                 // Botones de acción (siempre visibles para históricos)
                                 HStack(spacing: 8) {
+                                    if let onRegenerate {
+                                        Button(action: {
+                                            HapticManager.shared.lightImpact()
+                                            onRegenerate()
+                                        }) {
+                                            Image(systemName: "arrow.clockwise")
+                                                .font(.system(size: 12))
+                                                .foregroundColor(NovaColors.textSecondary)
+                                        }
+                                    }
+
                                     Button(action: {
                                         UIPasteboard.general.string = message.text
                                         HapticManager.shared.lightImpact()
@@ -301,7 +329,7 @@ struct EnhancedFormattedText: View {
                 case .link:
                     LinkView(text: section.content, url: section.url ?? "")
                 case .codeBlock:
-                    CodeBlockView(text: section.content)
+                    CodeBlockView(text: section.content, language: section.url)
                 case .quote:
                     QuoteView(text: section.content)
                 case .regular:
@@ -314,9 +342,35 @@ struct EnhancedFormattedText: View {
     private func parseText(_ text: String) -> [TextSection] {
         var sections: [TextSection] = []
         let lines = text.components(separatedBy: "\n")
+        var codeBuffer: [String] = []
+        var codeLanguage = ""
+        var inCodeBlock = false
+
+        func flushCodeBlock() {
+            let body = codeBuffer.joined(separator: "\n")
+            sections.append(TextSection(type: .codeBlock, content: body, url: codeLanguage.isEmpty ? nil : codeLanguage))
+            codeBuffer = []
+            codeLanguage = ""
+            inCodeBlock = false
+        }
 
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+
+            if trimmedLine.hasPrefix("```") {
+                if inCodeBlock {
+                    flushCodeBlock()
+                } else {
+                    inCodeBlock = true
+                    codeLanguage = String(trimmedLine.dropFirst(3)).trimmingCharacters(in: .whitespaces).lowercased()
+                }
+                continue
+            }
+
+            if inCodeBlock {
+                codeBuffer.append(line)
+                continue
+            }
 
             if trimmedLine.isEmpty {
                 continue
@@ -347,10 +401,6 @@ struct EnhancedFormattedText: View {
             else if trimmedLine.contains("[") && trimmedLine.contains("](") {
                 sections.append(contentsOf: parseLinksInLine(trimmedLine))
             }
-            // Code blocks ```
-            else if trimmedLine.hasPrefix("```") {
-                sections.append(TextSection(type: .codeBlock, content: trimmedLine))
-            }
             // Quotes (> texto)
             else if trimmedLine.hasPrefix(">") {
                 let content = trimmedLine.replacingOccurrences(of: ">", with: "").trimmingCharacters(in: .whitespaces)
@@ -360,6 +410,10 @@ struct EnhancedFormattedText: View {
             else {
                 sections.append(TextSection(type: .regular, content: trimmedLine))
             }
+        }
+
+        if inCodeBlock, !codeBuffer.isEmpty {
+            flushCodeBlock()
         }
 
         return sections
@@ -532,18 +586,17 @@ struct LinkView: View {
 
 struct CodeBlockView: View {
     let text: String
+    var language: String? = nil
     @State private var isCopied = false
 
     var body: some View {
-        let code = text.replacingOccurrences(of: "```", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let lines = code.components(separatedBy: "\n")
-        let language = lines.first?.lowercased() ?? "swift"
-        let cleanCode = lines.count > 1 ? lines.dropFirst().joined(separator: "\n") : code
+        let cleanCode = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let label = (language?.isEmpty == false ? language! : "code")
 
         VStack(alignment: .leading, spacing: 0) {
             // Header del bloque de código
             HStack {
-                Text(language.uppercased())
+                Text(label.uppercased())
                     .font(.custom("SF Mono-Bold", size: 10))
                     .foregroundColor(NovaColors.textSecondary)
 
@@ -560,7 +613,9 @@ struct CodeBlockView: View {
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
-                        Text(isCopied ? "Copiado" : "Copiar")
+                        Text(isCopied
+                            ? NSLocalizedString("nova.code.copied", comment: "Code copied")
+                            : NSLocalizedString("chat.action.copy", comment: "Copy"))
                     }
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(isCopied ? .green : NovaColors.primary)
@@ -634,6 +689,14 @@ struct RegularTextView: View {
         applyRegex(pattern: #"(?<!\*)\*([^*]+)\*(?!\*)"#, to: &attributedString, originalText: text) { matchText in
             var attr = AttributedString(matchText.replacingOccurrences(of: "*", with: ""))
             attr.font = .system(size: 16).italic()
+            return attr
+        }
+
+        // 3. Código inline `texto`
+        applyRegex(pattern: #"`([^`]+)`"#, to: &attributedString, originalText: text) { matchText in
+            var attr = AttributedString(matchText.replacingOccurrences(of: "`", with: ""))
+            attr.font = .system(size: 14, design: .monospaced)
+            attr.backgroundColor = NovaColors.secondaryBackground
             return attr
         }
 

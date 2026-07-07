@@ -1221,7 +1221,8 @@ class EnhancedChatViewModel: ObservableObject {
                     message.senderId == currentUserId,
                     let liveReactions = update.reactionsByMessage[messageId],
                     !liveReactions.isEmpty,
-                    reactionIncludesOtherParticipant(liveReactions)
+                    reactionIncludesOtherParticipant(liveReactions),
+                    isChatVisible
                 else { continue }
 
                 NotificationCenter.default.post(
@@ -1229,7 +1230,8 @@ class EnhancedChatViewModel: ObservableObject {
                     object: nil,
                     userInfo: [
                         "conversationId": conversationId,
-                        "messageId": messageId
+                        "messageId": messageId,
+                        "isLiveReaction": true
                     ]
                 )
             }
@@ -1878,6 +1880,7 @@ class EnhancedChatViewModel: ObservableObject {
 
     private func detachChatListeners() {
         guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
+        hasReceivedInitialReactionSnapshot = false
         chatService.removeListener(for: conversationId)
         chatService.stopTyping(conversationId: conversationId, userId: currentUserId)
         typingTimer?.invalidate()
@@ -2545,15 +2548,6 @@ class EnhancedChatViewModel: ObservableObject {
         // marcado local muta las mismas instancias, dejando sin nada que escribir al servidor.
         let markedIds = applyOptimisticReadLocally(sealsVanish: sealsVanish)
         markUnreadMessagesAsRead(messageIds: markedIds)
-        clearLastMessageReactionIfViewedBySender()
-    }
-
-    private func clearLastMessageReactionIfViewedBySender() {
-        guard let conversationId = conversation.id,
-              let reaction = conversation.lastMessageReaction,
-              reaction.byUserId != currentUserId else { return }
-        conversation.lastMessageReaction = nil
-        chatService.clearLastMessageReaction(conversationId: conversationId) { _ in }
     }
 
     @discardableResult
@@ -2615,9 +2609,12 @@ class EnhancedChatViewModel: ObservableObject {
             // Si no hay mensajes individuales sin leer, de todos modos marcamos el documento de la conversación como leído (útil si se marcó como no leído manualmente).
             chatService.markConversationAsRead(conversationId: conversationId, userId: currentUserId)
         } else {
-            let marksLastMessageSeen = messages.last.map {
-                messageIds.contains($0.id) && $0.senderId != currentUserId
-            } ?? false
+            let marksLastMessageSeen = {
+                guard let lastIncoming = messages.last(where: { $0.senderId != currentUserId }) else {
+                    return false
+                }
+                return messageIds.contains(lastIncoming.id)
+            }()
             chatService.markMessagesAsRead(
                 conversationId: conversationId,
                 messageIds: messageIds,

@@ -54,7 +54,7 @@ struct GlassmorphicReplyBar: View {
 
                 Spacer()
 
-                if let mediaUrl = message.thumbnailUrl ?? message.mediaUrl, let url = URL(string: mediaUrl) {
+                if !message.isViewOnce, let mediaUrl = message.thumbnailUrl ?? message.mediaUrl, let url = URL(string: mediaUrl) {
                     KFImage(url)
                         .resizable()
                         .scaledToFill()
@@ -138,7 +138,7 @@ struct GlassmorphicReplyPreview: View {
 
                     Spacer()
 
-                    if let mediaUrl = message.thumbnailUrl ?? message.mediaUrl, let url = URL(string: mediaUrl) {
+                    if !message.isViewOnce, let mediaUrl = message.thumbnailUrl ?? message.mediaUrl, let url = URL(string: mediaUrl) {
                         KFImage(url)
                             .resizable()
                             .scaledToFill()
@@ -222,7 +222,7 @@ struct StackedReplyQuote: View {
 
     private var quoteSnippet: some View {
         HStack(spacing: 7) {
-            if let mediaUrl = repliedMessage.thumbnailUrl ?? repliedMessage.mediaUrl, let url = URL(string: mediaUrl) {
+            if !repliedMessage.isViewOnce, let mediaUrl = repliedMessage.thumbnailUrl ?? repliedMessage.mediaUrl, let url = URL(string: mediaUrl) {
                 KFImage(url)
                     .resizable()
                     .scaledToFill()
@@ -312,7 +312,7 @@ struct EmbeddedReplyView: View {
 
             Spacer(minLength: 0)
 
-            if let mediaUrl = repliedMessage.thumbnailUrl ?? repliedMessage.mediaUrl, let url = URL(string: mediaUrl) {
+            if !repliedMessage.isViewOnce, let mediaUrl = repliedMessage.thumbnailUrl ?? repliedMessage.mediaUrl, let url = URL(string: mediaUrl) {
                 KFImage(url)
                     .resizable()
                     .scaledToFill()

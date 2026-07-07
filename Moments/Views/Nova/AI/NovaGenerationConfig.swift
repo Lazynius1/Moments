@@ -10,17 +10,7 @@ enum NovaGenerationConfig {
             topP: 0.95,
             topK: 40,
             maxOutputTokens: 2048,
-            thinkingConfig: ThinkingConfig(thinkingBudget: 0)
-        )
-    }
-
-    static var toolRouting: GenerationConfig {
-        GenerationConfig(
-            temperature: 0,
-            topP: 0.95,
-            topK: 20,
-            maxOutputTokens: 1024,
-            thinkingConfig: ThinkingConfig(thinkingBudget: 0)
+            thinkingConfig: ThinkingConfig(thinkingBudget: 512)
         )
     }
 

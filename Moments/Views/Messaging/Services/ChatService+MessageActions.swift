@@ -39,7 +39,8 @@ extension ChatService {
                     self.updateConversation(
                         conversationId: destinationConversationId,
                         lastMessage: self.neutralConversationPreview(for: .text),
-                        senderId: senderId
+                        senderId: senderId,
+                        messageType: .text
                     ) { _ in
                         completion(.success(sentMessage))
                     }

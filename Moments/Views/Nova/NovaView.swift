@@ -176,6 +176,14 @@ private struct NovaSecureContent: View {
         }
     }
 
+    private var lastAssistantMessageId: UUID? {
+        viewModel.conversationHistory.last(where: { !$0.isUser && !$0.isSystem })?.id
+    }
+
+    private var lastUserMessageId: UUID? {
+        viewModel.conversationHistory.last(where: \.isUser)?.id
+    }
+
     @ViewBuilder
     private func novaMessageList(
         proxy: ScrollViewProxy,
@@ -195,7 +203,11 @@ private struct NovaSecureContent: View {
             ForEach(viewModel.conversationHistory) { message in
                 EnhancedChatBubble(
                     message: message,
-                    username: viewModel.userData?.username ?? NSLocalizedString("nova.user", comment: "Default user name")
+                    username: viewModel.userData?.username ?? NSLocalizedString("nova.user", comment: "Default user name"),
+                    onRegenerate: (viewModel.canRetouchLastExchange && message.id == lastAssistantMessageId)
+                        ? { viewModel.regenerateLastResponse() } : nil,
+                    onEdit: (viewModel.canRetouchLastExchange && message.id == lastUserMessageId)
+                        ? { viewModel.beginEditingLastUserMessage() } : nil
                 )
                 .id("\(message.id)_\(message.isHistorical ? "historical" : "new")")
             }

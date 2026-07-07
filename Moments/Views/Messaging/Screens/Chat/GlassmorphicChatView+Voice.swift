@@ -267,7 +267,7 @@ extension GlassmorphicChatView {
         guard let dividerId = unreadDividerMessageId else { return false }
         guard hasUnreadIncomingMessages() else { return false }
         let rowId = messageRowId(containingMessageId: dividerId) ?? dividerId
-        guard item.id == rowId else { return false }
+        guard ChatRenderRow.message(item).id == rowId else { return false }
 
         guard let dividerIndex = viewModel.messages.firstIndex(where: { $0.id == dividerId }) else {
             return false

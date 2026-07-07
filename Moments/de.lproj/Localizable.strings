@@ -3593,6 +3593,9 @@
 "profileEditor.deletePhoto.title" = "Profilfoto löschen";
 "nova.easterEgg.title" = "Easter Egg freigeschaltet";
 "nova.easterEgg.primaryButton" = "Großartig";
+"nova.conversation.fallbackTitle" = "Chat %@";
+"nova.message.edit" = "Nachricht bearbeiten";
+"nova.code.copied" = "Kopiert";
 "question.answer.title" = "Eine Frage stellen";
 "question.answer.subtitle" = "Deine Frage wird privat an den Story-Autor gesendet.";
 "question.promptLabel" = "Sticker";

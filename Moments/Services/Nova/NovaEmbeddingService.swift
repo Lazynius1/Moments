@@ -1,99 +1,80 @@
 import Foundation
 import NaturalLanguage
 
-// MARK: - 🔍 SERVICIO DE EMBEDDINGS (RAG)
-// Genera vectores semánticos y busca hechos relevantes
-class NovaEmbeddingService {
+// Embeddings on-device para dedup semántico y búsqueda de hechos de memoria.
+final class NovaEmbeddingService {
     static let shared = NovaEmbeddingService()
 
-    // Cache del embedding model para evitar recargarlo
     private var embeddingModel: NLEmbedding?
-    private var isModelLoading = false
-    private var modelLoadCompletion: [() -> Void] = []
     private let modelQueue = DispatchQueue(label: "com.glowsy.embedding.model", qos: .userInitiated)
 
     private init() {
-        // Cargar modelo en background para no bloquear UI
-        loadModelAsync()
-    }
-
-    private func loadModelAsync() {
         modelQueue.async { [weak self] in
-            guard let self = self else { return }
-            self.isModelLoading = true
-            if let model = NLEmbedding.sentenceEmbedding(for: .spanish) {
-                self.embeddingModel = model
-                print("✅ NovaEmbeddingService: Modelo en ESPAÑOL cargado (async).")
-            } else if let model = NLEmbedding.sentenceEmbedding(for: .english) {
-                self.embeddingModel = model
-                print("⚠️ NovaEmbeddingService: Modelo en ESPAÑOL no disponible. Usando INGLÉS.")
-            } else {
-                print("🚨 NovaEmbeddingService: No se pudo cargar ningún modelo de embedding.")
-            }
-            self.isModelLoading = false
+            self?.loadModelLocked()
         }
     }
 
-    private func ensureModelLoaded() {
+    private func loadModelLocked() {
         guard embeddingModel == nil else { return }
 
-        modelQueue.sync {
-            guard self.embeddingModel == nil else { return }
-
-            if let model = NLEmbedding.sentenceEmbedding(for: .spanish) {
-                self.embeddingModel = model
-                print("✅ NovaEmbeddingService: Modelo en ESPAÑOL cargado (sync fallback).")
-            } else if let model = NLEmbedding.sentenceEmbedding(for: .english) {
-                self.embeddingModel = model
-                print("⚠️ NovaEmbeddingService: Modelo en ESPAÑOL no disponible. Usando INGLÉS (sync fallback).")
-            } else {
-                print("🚨 NovaEmbeddingService: No se pudo cargar ningún modelo de embedding (sync fallback).")
+        for language in Self.preferredEmbeddingLanguages() {
+            if let model = NLEmbedding.sentenceEmbedding(for: language) {
+                embeddingModel = model
+                LogConfig.log("NovaEmbeddingService: modelo cargado (\(language.rawValue))", category: "Nova")
+                return
             }
         }
+        LogConfig.log("NovaEmbeddingService: sin modelo de embeddings disponible", category: "Nova")
     }
 
-    // MARK: - 🧬 Generación de Embeddings
+    private static func preferredEmbeddingLanguages() -> [NLLanguage] {
+        let code = Locale.preferredLanguages.first
+            .flatMap { Locale(identifier: $0).language.languageCode?.identifier } ?? "en"
 
-    /// Genera un vector de 512 dimensiones para un texto dado
-    func generateEmbedding(for text: String) -> [Double]? {
-        if embeddingModel == nil {
-            ensureModelLoaded()
+        let primary: NLLanguage
+        switch code {
+        case "es", "ca": primary = .spanish
+        case "de": primary = .german
+        case "fr": primary = .french
+        case "it": primary = .italian
+        case "pt": primary = .portuguese
+        default: primary = .english
         }
-        guard let model = embeddingModel else { return nil }
+        return primary == .english ? [.english] : [primary, .english]
+    }
 
-        // Normalizar texto (opcional pero recomendado)
+    private func loadedModel() -> NLEmbedding? {
+        if let embeddingModel { return embeddingModel }
+        modelQueue.sync {
+            loadModelLocked()
+        }
+        return embeddingModel
+    }
+
+    func generateEmbedding(for text: String) -> [Double]? {
+        guard let model = loadedModel() else { return nil }
+
         let cleanText = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanText.isEmpty else { return nil }
 
         return model.vector(for: cleanText)
     }
 
-    // MARK: - 🔎 Búsqueda Semántica
-
-    /// Encuentra los hechos más similares a una query
     func findSimilarFacts(query: String, facts: [NovaFact], limit: Int = 5) -> [NovaFact] {
-        guard let queryVector = generateEmbedding(for: query) else {
-            print("⚠️ NovaEmbeddingService: No se pudo, generar embedding para query.")
-            return []
-        }
+        guard let queryVector = generateEmbedding(for: query) else { return [] }
 
-        // Calcular similitud coseno para cada hecho que tenga embedding
+        let threshold = 0.5
         let scoredFacts = facts.compactMap { fact -> (NovaFact, Double)? in
-            guard let factVector = fact.embedding else { return nil }
+            guard let factVector = fact.embedding ?? generateEmbedding(for: fact.content) else { return nil }
             let similarity = cosineSimilarity(queryVector, factVector)
             return (fact, similarity)
         }
 
-        // Ordenar por similitud descendente y tomar los top N
-        // Umbral mínimo de 0.6 para evitar ruido irrelevante
-        let threshold = 0.5
-        let topFacts = scoredFacts
+        return scoredFacts
             .filter { $0.1 > threshold }
             .sorted { $0.1 > $1.1 }
             .prefix(limit)
             .map { $0.0 }
-
-        return Array(topFacts)
     }
 
     /// True when candidate is semantically redundant with any existing fact.

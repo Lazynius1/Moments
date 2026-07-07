@@ -1473,6 +1473,33 @@ service cloud.firestore {
         && request.resource.data.lastReadAt[request.auth.uid] is timestamp;
     }
 
+    function onlyConversationLastMessageSeenAtUpdated() {
+      return (!('lastMessageSeenAt' in request.resource.data))
+        || (
+          request.resource.data.lastMessageSeenAt is map
+          && (
+            (!('lastMessageSeenAt' in resource.data) && request.resource.data.lastMessageSeenAt.keys().hasOnly([request.auth.uid]))
+            || (('lastMessageSeenAt' in resource.data) && request.resource.data.lastMessageSeenAt.diff(resource.data.lastMessageSeenAt).affectedKeys().hasOnly([request.auth.uid]))
+          )
+          && request.resource.data.lastMessageSeenAt[request.auth.uid] is timestamp
+        );
+    }
+
+    function onlyConversationLastMessageReactionUpdated() {
+      return (!('lastMessageReaction' in request.resource.data))
+        || (
+          request.resource.data.lastMessageReaction is map
+          && request.resource.data.lastMessageReaction.keys().hasAll(['messageId', 'emoji', 'byUserId'])
+          && request.resource.data.lastMessageReaction.keys().hasOnly(['messageId', 'emoji', 'byUserId'])
+          && request.resource.data.lastMessageReaction.messageId is string
+          && request.resource.data.lastMessageReaction.messageId.size() > 0
+          && request.resource.data.lastMessageReaction.emoji is string
+          && request.resource.data.lastMessageReaction.emoji.size() > 0
+          && request.resource.data.lastMessageReaction.byUserId is string
+          && request.resource.data.lastMessageReaction.byUserId == request.auth.uid
+        );
+    }
+
     function onlyConversationReadStatusForMeUpdated() {
       return request.resource.data.readStatus is map
         && (
@@ -1606,6 +1633,7 @@ service cloud.firestore {
         canParticipateInConversations(request.auth.uid) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'lastMessage', 'lastMessageTime', 'lastMessageSenderId', 'lastMessageType',
+          'lastMessageSeenAt', 'lastMessageReaction',
           'updatedAt', 'unreadCount', 'deletedFor', 'lastDeletedAt',
           'timestamp', 'readStatus', 'lastReadAt',
           'encryptionKey', 'encryptionKeyCreatedAt', 'encryptionVersion', 'conversationKeyVersion',
@@ -1623,6 +1651,10 @@ service cloud.firestore {
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['readStatus']) || onlyConversationReadStatusForMeUpdated())
           &&
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastReadAt']) || onlyConversationLastReadAtUpdated())
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessageSeenAt']) || onlyConversationLastMessageSeenAtUpdated())
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessageReaction']) || onlyConversationLastMessageReactionUpdated())
           &&
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['encryptionKey','encryptionKeyCreatedAt','encryptionVersion']) ||
            (request.resource.data.encryptionKey is string &&

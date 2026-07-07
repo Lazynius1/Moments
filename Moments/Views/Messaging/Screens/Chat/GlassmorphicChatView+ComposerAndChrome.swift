@@ -227,7 +227,7 @@ extension GlassmorphicChatView {
     // ✅ REFACTORIZADO: Renderizar cada item del chat por separado para evitar errores del compilador
     @ViewBuilder
     func renderMessageItem(_ item: MessageItem, in messages: [EnhancedMessage], proxy: ScrollViewProxy?) -> some View {
-        let rowId = item.id
+        let rowId = ChatRenderRow.message(item).id
         let isMenuSelected = messageMenuSelection?.rowId == rowId
         let isBubbleHighlighted = isMessageItemHighlighted(item)
 
@@ -555,7 +555,6 @@ extension GlassmorphicChatView {
 
     /// Marca leído al salir del hilo (estilo WhatsApp: no depende de llegar al fondo).
     func markConversationReadOnExit(sealsVanish: Bool = false) {
-        guard unreadDividerMessageId != nil || hasUnreadIncomingMessages() else { return }
         ChatScrollDebug.log("markConversationReadOnExit sealsVanish=\(sealsVanish)")
         clearUnreadDividerAndMarkReadIfNeeded(sealsVanish: sealsVanish)
     }

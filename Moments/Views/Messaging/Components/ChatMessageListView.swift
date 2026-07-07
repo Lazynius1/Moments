@@ -369,10 +369,13 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     private let historyPrefetchItemThreshold = 14
     private let historyLoadDebounceNs: UInt64 = 180_000_000
     /// Dedos mínimos antes de armar vanish por pan (evita activación accidental al hacer scroll).
-    private let vanishEngageThreshold: CGFloat = 18
+    private let vanishEngageThreshold: CGFloat = 44
+    private let vanishToggleCooldown: TimeInterval = 2.0
+    private var lastVanishToggleAt: Date?
 
     private var vanishPullOverlay: ChatVanishPullOverlayView!
     private var vanishPanGesture: UIPanGestureRecognizer!
+    private var keyboardDismissTapGesture: UITapGestureRecognizer!
     private var isVanishPanActive = false
     private var isVanishOverscrollActive = false
     private var vanishPanPull: CGFloat = 0
@@ -494,6 +497,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         configureCollectionView()
         configureDataSource()
         configureVanishGesture()
+        configureKeyboardDismissGesture()
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -522,6 +526,21 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         // matando el long-press antes de completarse. Ambos gestos deben poder coexistir.
         vanishPanGesture.cancelsTouchesInView = false
         collectionView.addGestureRecognizer(vanishPanGesture)
+    }
+
+    // keyboardDismissMode = .interactive solo funciona arrastrando contenido con
+    // overflow; en conversaciones cortas no hay nada que arrastrar y el teclado
+    // quedaba atrapado hasta salir del chat. Un tap simple en la lista lo cierra.
+    private func configureKeyboardDismissGesture() {
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleListTapToDismissKeyboard))
+        tap.delegate = self
+        tap.cancelsTouchesInView = false
+        collectionView.addGestureRecognizer(tap)
+        keyboardDismissTapGesture = tap
+    }
+
+    @objc private func handleListTapToDismissKeyboard() {
+        view.window?.endEditing(true)
     }
 
     override func viewDidLayoutSubviews() {
@@ -1365,9 +1384,14 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
                 && ChatVanishSwipeMetrics.effectiveLiftForCompletion(currentVanishLift) > 0
             // Flick estilo IG: un tirón rápido y decidido completa aunque el dedo no llegue
             // a la distancia del umbral.
-            let completedByFlick = gesture.velocity(in: collectionView).y < -900
+            let completedByFlick = gesture.velocity(in: collectionView).y < -1400
                 && ChatVanishSwipeMetrics.progress(lift: currentVanishLift) >= 0.5
-            finishVanishPan(gesture: gesture, completed: completedByThreshold || completedByFlick)
+            let withinCooldown = lastVanishToggleAt.map { Date().timeIntervalSince($0) < vanishToggleCooldown } ?? false
+            let completed = (completedByThreshold || completedByFlick) && !withinCooldown
+            if completed {
+                lastVanishToggleAt = Date()
+            }
+            finishVanishPan(gesture: gesture, completed: completed)
 
         default:
             break
@@ -1414,6 +1438,18 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         true
     }
 
+    // El tap para cerrar teclado cede ante cualquier otro gesto de la celda (long-press
+    // del menú contextual, doble-tap de reacción rápida, swipe de reply): sin esto,
+    // competir por el mismo toque a nivel de collectionView podía matar el long-press
+    // de SwiftUI antes de completarse. Defensa en profundidad además del fix real
+    // (rowId sin prefijo en renderMessageItem, que era la causa de que no saliera el menú).
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        gestureRecognizer === keyboardDismissTapGesture && otherGestureRecognizer !== keyboardDismissTapGesture
+    }
+
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard gestureRecognizer === vanishPanGesture else { return true }
         guard canEngageVanishPan() else { return false }
@@ -1423,7 +1459,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         let velocity = pan.velocity(in: collectionView)
         let translationY = pan.translation(in: collectionView).y
         let upwardTranslation = max(0, -translationY)
-        let isDeliberateUpwardPull = velocity.y < -80 || upwardTranslation >= vanishEngageThreshold
+        let isDeliberateUpwardPull = velocity.y < -400 || upwardTranslation >= vanishEngageThreshold
         return isDeliberateUpwardPull
     }
 

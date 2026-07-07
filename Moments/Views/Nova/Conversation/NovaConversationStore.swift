@@ -15,6 +15,8 @@ final class NovaConversationStore: ObservableObject {
     @Published var isLoading = false
     @Published var lastError: String?
     private var imageReferenceCache: [String: String] = [:]
+    private var encryptedTextCache: [String: String] = [:]
+    private static let encryptedTextCacheLimit = 600
 
     private var legacyTitlesCollection: CollectionReference { db.collection("geminiConversationTitles") }
     private var legacyConversationsCollection: CollectionReference { db.collection("geminiConversations") }
@@ -34,13 +36,9 @@ final class NovaConversationStore: ObservableObject {
         defer { isLoading = false }
 
         do {
-            async let newSnapshot = userConversationsCollection(for: userId)
-                .order(by: "lastUpdated", descending: true)
-                .limit(to: 20)
-                .getDocuments()
+            let skipLegacy = UserDefaults.standard.bool(forKey: Self.legacyDrainedKey(for: userId))
 
-            async let legacySnapshot = legacyTitlesCollection
-                .whereField("userId", isEqualTo: userId)
+            async let newSnapshot = userConversationsCollection(for: userId)
                 .order(by: "lastUpdated", descending: true)
                 .limit(to: 20)
                 .getDocuments()
@@ -48,7 +46,6 @@ final class NovaConversationStore: ObservableObject {
             var merged: [String: ConversationTitle] = [:]
 
             let resolvedNewSnapshot = try await newSnapshot
-            let resolvedLegacySnapshot = try await legacySnapshot
 
             for document in resolvedNewSnapshot.documents {
                 if let title = await decryptConversationTitle(fromConversationData: document.data(), userId: userId) {
@@ -56,10 +53,22 @@ final class NovaConversationStore: ObservableObject {
                 }
             }
 
-            for document in resolvedLegacySnapshot.documents {
-                if let title = await decryptTitle(from: document.data(), userId: userId),
-                   merged[title.id] == nil {
-                    merged[title.id] = title
+            if !skipLegacy {
+                let resolvedLegacySnapshot = try await legacyTitlesCollection
+                    .whereField("userId", isEqualTo: userId)
+                    .order(by: "lastUpdated", descending: true)
+                    .limit(to: 20)
+                    .getDocuments()
+
+                if resolvedLegacySnapshot.documents.isEmpty {
+                    UserDefaults.standard.set(true, forKey: Self.legacyDrainedKey(for: userId))
+                }
+
+                for document in resolvedLegacySnapshot.documents {
+                    if let title = await decryptTitle(from: document.data(), userId: userId),
+                       merged[title.id] == nil {
+                        merged[title.id] = title
+                    }
                 }
             }
 
@@ -263,7 +272,7 @@ final class NovaConversationStore: ObservableObject {
     private func encryptMessages(_ messages: [ChatMessage], for userId: String, conversationId: String) async throws -> [SavedChatMessage] {
         var saved: [SavedChatMessage] = []
         for message in messages where !message.isSystem {
-            let encryptedText = await encryptionService.encryptNovaData(message.text, for: userId) ?? message.text
+            let encryptedText = await encryptedText(for: message, userId: userId)
             let imageReference = try await resolveImageReference(for: message, userId: userId, conversationId: conversationId)
             let encryptedImage = await encryptImageData(imageReference, for: userId)
             saved.append(
@@ -276,6 +285,20 @@ final class NovaConversationStore: ObservableObject {
             )
         }
         return saved
+    }
+
+    private func encryptedText(for message: ChatMessage, userId: String) async -> String {
+        let cacheKey = "\(userId)|\(message.id.uuidString)|\(message.text.count)|\(message.text.hashValue)"
+        if let cached = encryptedTextCache[cacheKey] {
+            return cached
+        }
+
+        let encrypted = await encryptionService.encryptNovaData(message.text, for: userId) ?? message.text
+        if encryptedTextCache.count >= Self.encryptedTextCacheLimit {
+            encryptedTextCache.removeAll()
+        }
+        encryptedTextCache[cacheKey] = encrypted
+        return encrypted
     }
 
     private func encryptImageData(_ imageData: String?, for userId: String) async -> String? {
@@ -353,6 +376,10 @@ final class NovaConversationStore: ObservableObject {
 
     private func cacheKey(conversationId: String, messageId: String) -> String {
         "\(conversationId)|\(messageId)"
+    }
+
+    private static func legacyDrainedKey(for userId: String) -> String {
+        "novaLegacyTitlesDrained-\(userId)"
     }
 
     private func saveUserConversation(_ conversation: SavedConversation, for userId: String) async throws {
@@ -439,7 +466,10 @@ final class NovaConversationStore: ObservableObject {
     }
 
     private func fallbackTitle() -> String {
-        "Chat \(MomentsFormat.smartDate(from: Date(), context: .timeOnly))"
+        String(
+            format: NSLocalizedString("nova.conversation.fallbackTitle", comment: "Fallback Nova chat title with time"),
+            MomentsFormat.smartDate(from: Date(), context: .timeOnly)
+        )
     }
 }
 

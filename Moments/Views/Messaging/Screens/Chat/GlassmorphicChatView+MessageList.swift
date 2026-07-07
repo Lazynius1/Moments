@@ -126,8 +126,10 @@ extension GlassmorphicChatView {
                     let messageId = notification.userInfo?["messageId"] as? String
                 else { return }
                 reloadNotificationOpenIntent()
-                let shouldScroll = notificationOpenIntent?.highlightMessageIds.contains(messageId) == true
-                if shouldScroll {
+                let hasNavigationIntent = notificationOpenIntent?.highlightMessageIds.contains(messageId) == true
+                let isLiveReaction = notification.userInfo?["isLiveReaction"] as? Bool ?? false
+                guard hasNavigationIntent || isLiveReaction else { return }
+                if hasNavigationIntent {
                     scheduleSingleHighlightScrollInList()
                 } else {
                     highlightMessages([messageId], scroll: false)

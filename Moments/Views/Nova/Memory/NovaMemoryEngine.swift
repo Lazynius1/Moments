@@ -147,6 +147,11 @@ actor NovaMemoryEngine {
             }
             seen.insert(normalizedKey)
 
+            let candidate = NovaFact(content: normalized, type: fact.type)
+            if NovaEmbeddingService.shared.isNearDuplicate(candidate, existing: existingFacts) {
+                return nil
+            }
+
             let resolvedType = refinedFactType(for: normalized, originalType: fact.type)
             let importance = inferredImportance(for: normalized, type: resolvedType)
             return NovaFact(content: normalized, type: resolvedType, importance: importance)

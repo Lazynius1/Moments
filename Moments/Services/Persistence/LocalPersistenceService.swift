@@ -657,6 +657,11 @@ final class LocalPersistenceService: ObservableObject {
         if let existing {
             existing.lastMessage = message.preview
             existing.timestamp = message.timestamp
+            existing.lastMessageSenderId = message.senderId
+            if message.senderId == Auth.auth().currentUser?.uid {
+                existing.lastMessageSeenAtData = nil
+                existing.lastMessageReactionData = nil
+            }
             existing.lastSyncedAt = Date()
 
             if let currentUserId = Auth.auth().currentUser?.uid,
@@ -685,6 +690,7 @@ final class LocalPersistenceService: ObservableObject {
                 isPinned: false,
                 isMuted: false,
                 isArchived: false,
+                lastMessageSenderId: message.senderId,
                 lastSyncedAt: Date()
             )
             context.insert(cached)
@@ -1708,19 +1714,29 @@ final class LocalPersistenceService: ObservableObject {
     
     private func updateCachedConversation(_ existing: CachedConversation, from new: CachedConversation) {
         existing.participants = new.participants
-        existing.lastMessage = new.lastMessage
-        existing.timestamp = new.timestamp
         existing.readStatusData = new.readStatusData
         existing.otherParticipantId = new.otherParticipantId
         existing.otherParticipantUsername = new.otherParticipantUsername
         existing.otherParticipantProfileImagePath = new.otherParticipantProfileImagePath
         existing.isPinned = new.isPinned
         existing.isMuted = new.isMuted
+        existing.isArchived = new.isArchived
         existing.readReceiptPreferencesData = new.readReceiptPreferencesData
         existing.forwardingPreferencesData = new.forwardingPreferencesData
         existing.lastDeletedAtData = new.lastDeletedAtData
+        existing.lastReadAtData = new.lastReadAtData
         existing.vanishModeActive = new.vanishModeActive
+        existing.lastMessageSenderId = new.lastMessageSenderId ?? existing.lastMessageSenderId
+        existing.lastMessageSeenAtData = new.lastMessageSeenAtData
+        existing.lastMessageReactionData = new.lastMessageReactionData
         existing.lastSyncedAt = Date()
+
+        if new.timestamp > existing.timestamp {
+            existing.timestamp = new.timestamp
+            existing.lastMessage = new.lastMessage
+        } else if new.timestamp == existing.timestamp {
+            existing.lastMessage = new.lastMessage
+        }
     }
     
     private func shouldPreserveLocalMediaURL(existing: String?, incoming: String?, isDeleted: Bool) -> Bool {

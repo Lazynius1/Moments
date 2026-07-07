@@ -144,7 +144,8 @@ extension ChatService {
                     self.updateConversation(
                         conversationId: conversationId,
                         lastMessage: self.neutralConversationPreview(for: .sharedMoment),
-                        senderId: senderId
+                        senderId: senderId,
+                        messageType: .sharedMoment
                     ) { _ in
                         completion(.success(sentMessage))
                     }
@@ -216,7 +217,8 @@ extension ChatService {
                     self.updateConversation(
                         conversationId: conversationId,
                         lastMessage: self.neutralConversationPreview(for: .sharedStory),
-                        senderId: senderId
+                        senderId: senderId,
+                        messageType: .sharedStory
                     ) { _ in
                         completion(.success(sentMessage))
                     }
@@ -381,7 +383,8 @@ extension ChatService {
                 self.updateConversation(
                     conversationId: message.conversationId,
                     lastMessage: lastMessagePreview,
-                    senderId: message.senderId
+                    senderId: message.senderId,
+                    messageType: message.type
                 ) { _ in
                     let updatedMessage: EnhancedMessage = {
                         let m = message

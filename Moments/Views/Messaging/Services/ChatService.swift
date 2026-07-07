@@ -1073,7 +1073,8 @@ class ChatService: ObservableObject {
                 self?.updateConversation(
                     conversationId: conversationId,
                     lastMessage: self?.neutralConversationPreview(for: messageType) ?? MessageType.text.conversationPreview,
-                    senderId: senderId
+                    senderId: senderId,
+                    messageType: messageType
                 ) { updateError in
                     if updateError != nil {
                         // Silently handle error
@@ -1654,6 +1655,9 @@ class ChatService: ObservableObject {
                         conversation.lastReadAt = rawMap.mapValues { $0.dateValue() }
                     }
                     conversation.lastMessageSenderId = data["lastMessageSenderId"] as? String
+                    if let rawType = data["lastMessageType"] as? String {
+                        conversation.lastMessageType = MessageType(rawValue: rawType)
+                    }
                     if let rawMap = data["lastMessageSeenAt"] as? [String: Timestamp], !rawMap.isEmpty {
                         conversation.lastMessageSeenAt = rawMap.mapValues { $0.dateValue() }
                     }
@@ -2207,7 +2211,13 @@ class ChatService: ObservableObject {
     }
     
     // MARK: - Conversation Management
-    func updateConversation(conversationId: String, lastMessage: String, senderId: String, completion: @escaping (Error?) -> Void) {
+    func updateConversation(
+        conversationId: String,
+        lastMessage: String,
+        senderId: String,
+        messageType: MessageType? = nil,
+        completion: @escaping (Error?) -> Void
+    ) {
         db.collection("conversations").document(conversationId).getDocument { snapshot, error in
             if let error = error {
                 completion(error)
@@ -2236,9 +2246,12 @@ class ChatService: ObservableObject {
                 "timestamp": FieldValue.serverTimestamp(),
                 "readStatus.\(senderId)": true,
                 "lastMessageSenderId": senderId,
-                "lastMessageSeenAt": [String: Any](),
+                "lastMessageSeenAt": FieldValue.delete(),
                 "lastMessageReaction": FieldValue.delete()
             ]
+            if let messageType {
+                updateData["lastMessageType"] = messageType.rawValue
+            }
             
             // ✅ Restaurar sólo al remitente para respetar las reglas de deletedFor por usuario.
             if shouldRestoreSender {
@@ -2255,18 +2268,35 @@ class ChatService: ObservableObject {
         type.conversationPreview
     }
 
+    private struct ConversationLatestSnapshot {
+        let preview: String
+        let timestamp: Date?
+        let senderId: String?
+        let messageType: MessageType?
+        let viewOncePending: Bool
+    }
+
     private func hydrateConversationPreviews(_ conversations: [Conversation]) async -> [Conversation] {
         guard !conversations.isEmpty else { return [] }
         var hydratedConversations: [Conversation] = []
         hydratedConversations.reserveCapacity(conversations.count)
 
         for conversation in conversations {
-            let hydratedPreview = await resolveLatestConversationPreview(for: conversation)
+            let snapshot = await resolveLatestConversationSnapshot(for: conversation)
+            let resolvedTimestamp = resolvedConversationTimestamp(
+                conversation: conversation,
+                latestMessageTimestamp: snapshot.timestamp
+            )
+            let resolvedSenderId = resolvedLastMessageSenderId(
+                conversation: conversation,
+                latestMessageTimestamp: snapshot.timestamp,
+                latestMessageSenderId: snapshot.senderId
+            )
             var hydrated = Conversation(
                 id: conversation.id,
                 participants: conversation.participants,
-                lastMessage: hydratedPreview,
-                timestamp: conversation.timestamp,
+                lastMessage: snapshot.preview,
+                timestamp: resolvedTimestamp,
                 readStatus: conversation.readStatus,
                 otherParticipantId: conversation.otherParticipantId,
                 otherParticipantUsername: conversation.otherParticipantUsername,
@@ -2287,9 +2317,11 @@ class ChatService: ObservableObject {
             hydrated.forwardingPreferences = conversation.forwardingPreferences
             hydrated.lastDeletedAt = conversation.lastDeletedAt
             hydrated.lastReadAt = conversation.lastReadAt
-            hydrated.lastMessageSenderId = conversation.lastMessageSenderId
+            hydrated.lastMessageSenderId = resolvedSenderId
             hydrated.lastMessageSeenAt = conversation.lastMessageSeenAt
             hydrated.lastMessageReaction = conversation.lastMessageReaction
+            hydrated.lastMessageType = snapshot.messageType ?? conversation.lastMessageType
+            hydrated.lastMessageViewOncePending = snapshot.viewOncePending
             hydrated.vanishModeActive = conversation.vanishModeActive
             hydrated.vanishModeEnabledBy = conversation.vanishModeEnabledBy
             hydrated.vanishModeEnabledAt = conversation.vanishModeEnabledAt
@@ -2302,17 +2334,109 @@ class ChatService: ObservableObject {
         return hydratedConversations
     }
 
-    private func resolveLatestConversationPreview(for conversation: Conversation) async -> String {
-        // Intentar descifrar el último texto en local para cualquier conversación
-        // con identificador (no solo v3); si no hay clave disponible se cae al neutro.
+    private func resolvedConversationTimestamp(
+        conversation: Conversation,
+        latestMessageTimestamp: Date?
+    ) -> Date {
+        var best = conversation.timestamp
+        if let latestMessageTimestamp, latestMessageTimestamp > best {
+            best = latestMessageTimestamp
+        }
+        if let conversationId = conversation.id,
+           let localTimestamp = LocalPersistenceService.shared.lastMessageTimestamp(for: conversationId),
+           localTimestamp > best {
+            best = localTimestamp
+        }
+        return best
+    }
+
+    private func resolvedLastMessageSenderId(
+        conversation: Conversation,
+        latestMessageTimestamp: Date?,
+        latestMessageSenderId: String?
+    ) -> String? {
+        if let latestMessageTimestamp, latestMessageTimestamp > conversation.timestamp {
+            return latestMessageSenderId ?? conversation.lastMessageSenderId
+        }
+        return conversation.lastMessageSenderId ?? latestMessageSenderId
+    }
+
+    private func viewOncePendingInSnapshot(
+        messageType: MessageType,
+        messageSenderId: String?,
+        messageData: [String: Any]
+    ) -> Bool {
+        guard messageType.isViewOnce,
+              let currentUserId = Auth.auth().currentUser?.uid,
+              let senderId = messageSenderId,
+              senderId != currentUserId else {
+            return false
+        }
+        let viewedBy = messageData["viewedBy"] as? [String] ?? []
+        return !viewedBy.contains(currentUserId)
+    }
+
+    private func fallbackViewOncePending(for conversation: Conversation) -> Bool {
+        guard let type = conversation.lastMessageType,
+              type.isViewOnce,
+              let currentUserId = Auth.auth().currentUser?.uid else {
+            return false
+        }
+        guard conversation.lastMessageSenderId != currentUserId else { return false }
+        return !(conversation.readStatus[currentUserId] ?? true)
+    }
+
+    private func makeConversationSnapshot(
+        preview: String,
+        timestamp: Date?,
+        senderId: String?,
+        messageType: MessageType?,
+        messageData: [String: Any]? = nil,
+        fallbackConversation: Conversation? = nil
+    ) -> ConversationLatestSnapshot {
+        let pending: Bool = {
+            if let messageType, let messageData {
+                return viewOncePendingInSnapshot(
+                    messageType: messageType,
+                    messageSenderId: senderId,
+                    messageData: messageData
+                )
+            }
+            if let fallbackConversation {
+                return fallbackViewOncePending(for: fallbackConversation)
+            }
+            return false
+        }()
+
+        return ConversationLatestSnapshot(
+            preview: preview,
+            timestamp: timestamp,
+            senderId: senderId,
+            messageType: messageType,
+            viewOncePending: pending
+        )
+    }
+
+    private func resolveLatestConversationSnapshot(for conversation: Conversation) async -> ConversationLatestSnapshot {
         guard let conversationId = conversation.id else {
-            return conversation.lastMessage ?? ""
+            return makeConversationSnapshot(
+                preview: conversation.lastMessage ?? "",
+                timestamp: nil,
+                senderId: nil,
+                messageType: conversation.lastMessageType,
+                fallbackConversation: conversation
+            )
         }
 
-        // Respetar el ajuste de privacidad "Mostrar vista previa" POR CONVERSACIÓN (default: ON).
         let previewEnabled = ChatPreviewPrivacy.isUserPreviewEnabled(for: conversationId)
         guard previewEnabled else {
-            return conversation.lastMessage ?? ""
+            return makeConversationSnapshot(
+                preview: conversation.lastMessage ?? "",
+                timestamp: nil,
+                senderId: nil,
+                messageType: conversation.lastMessageType,
+                fallbackConversation: conversation
+            )
         }
 
         do {
@@ -2337,12 +2461,20 @@ class ChatService: ObservableObject {
                     continue
                 }
 
+                let messageTimestamp = (data["timestamp"] as? Timestamp)?.dateValue()
+                let messageSenderId = data["senderId"] as? String
                 let isVanishMessage = ChatPreviewPrivacy.isVanishModeMessage(in: data)
                 if !ChatPreviewPrivacy.shouldRevealPreview(
                     for: conversationId,
                     isVanishModeMessage: isVanishMessage
                 ) {
-                    return neutralConversationPreview(for: messageType)
+                    return makeConversationSnapshot(
+                        preview: neutralConversationPreview(for: messageType),
+                        timestamp: messageTimestamp,
+                        senderId: messageSenderId,
+                        messageType: messageType,
+                        messageData: data
+                    )
                 }
 
                 if messageType == .text {
@@ -2353,7 +2485,13 @@ class ChatService: ObservableObject {
                     let decryptedContent = await decryptMessageContent(encryptedContent, for: conversationId)
                     let trimmedContent = decryptedContent.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmedContent.isEmpty {
-                        return trimmedContent
+                        return makeConversationSnapshot(
+                            preview: trimmedContent,
+                            timestamp: messageTimestamp,
+                            senderId: messageSenderId,
+                            messageType: messageType,
+                            messageData: data
+                        )
                     }
                     continue
                 }
@@ -2361,18 +2499,46 @@ class ChatService: ObservableObject {
                 if messageType == .chatNotice {
                     let noticeText = EnhancedMessage.chatNoticePreviewText(for: data["content"] as? String ?? "")
                     if !noticeText.isEmpty {
-                        return noticeText
+                        return makeConversationSnapshot(
+                            preview: noticeText,
+                            timestamp: messageTimestamp,
+                            senderId: messageSenderId,
+                            messageType: messageType,
+                            messageData: data
+                        )
                     }
                     continue
                 }
 
-                return neutralConversationPreview(for: messageType)
+                return makeConversationSnapshot(
+                    preview: neutralConversationPreview(for: messageType),
+                    timestamp: messageTimestamp,
+                    senderId: messageSenderId,
+                    messageType: messageType,
+                    messageData: data
+                )
             }
         } catch {
-            return conversation.lastMessage ?? ""
+            return makeConversationSnapshot(
+                preview: conversation.lastMessage ?? "",
+                timestamp: nil,
+                senderId: nil,
+                messageType: conversation.lastMessageType,
+                fallbackConversation: conversation
+            )
         }
 
-        return conversation.lastMessage ?? ""
+        return makeConversationSnapshot(
+            preview: conversation.lastMessage ?? "",
+            timestamp: nil,
+            senderId: nil,
+            messageType: conversation.lastMessageType,
+            fallbackConversation: conversation
+        )
+    }
+
+    private func resolveLatestConversationPreview(for conversation: Conversation) async -> String {
+        await resolveLatestConversationSnapshot(for: conversation).preview
     }
     
     func ensureEncryptionService() -> EncryptionService {
