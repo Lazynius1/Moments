@@ -9,7 +9,7 @@ import MapKit
 
 extension MomentsChatViewModel {
     // MARK: - New Media Message Functions
-    func sendImageMessage(_ imageData: Data) {
+    func sendImageMessage(_ imageData: Data, replyTo: String? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = NSLocalizedString("chat.error.invalidConversation.image", comment: "Invalid conversation ID when sending image")
             return
@@ -31,6 +31,7 @@ extension MomentsChatViewModel {
             type: .image,
             mediaUrl: localPreview,
             status: .sending,
+            replyTo: replyTo,
             isVanishModeMessage: outgoingVanishMessageFlag
         )
 
@@ -42,7 +43,8 @@ extension MomentsChatViewModel {
             type: .image,
             mediaData: imageData,
             messageId: messageId,
-            isVanishModeMessage: marksOutgoingAsVanish
+            isVanishModeMessage: marksOutgoingAsVanish,
+            replyTo: replyTo
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -116,7 +118,7 @@ extension MomentsChatViewModel {
     }
 
     // ✅ NUEVA función para enviar mensajes view-once
-    func sendViewOnceMessage(data: Data, mediaType: EnhancedCameraPickerView.MediaType) {
+    func sendViewOnceMessage(data: Data, mediaType: EnhancedCameraPickerView.MediaType, allowReplay: Bool = false, replyTo: String? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = NSLocalizedString("chat.error.invalidConversation.viewOnce", comment: "Invalid conversation ID when sending view-once message")
             return
@@ -132,9 +134,11 @@ extension MomentsChatViewModel {
             senderId: currentUserId,
             type: messageType,
             status: .sending,
+            replyTo: replyTo,
             isViewed: false,
             isVanishModeMessage: outgoingVanishMessageFlag
         )
+        tempMessage.allowReplay = allowReplay ? true : nil
 
         appendOutgoingMessage(tempMessage)
 
@@ -144,7 +148,9 @@ extension MomentsChatViewModel {
             mediaData: data,
             mediaType: mediaType,
             messageId: messageId,
-            isVanishModeMessage: marksOutgoingAsVanish
+            isVanishModeMessage: marksOutgoingAsVanish,
+            allowReplay: allowReplay,
+            replyTo: replyTo
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {

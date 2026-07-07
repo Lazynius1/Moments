@@ -139,6 +139,16 @@ extension ChatService {
         if let viewedBy = data["viewedBy"] as? [String] {
             message.viewedBy = viewedBy
         }
+        if let allowReplay = data["allowReplay"] as? Bool {
+            message.allowReplay = allowReplay
+        }
+        if let replayedBy = data["replayedBy"] as? [String] {
+            message.replayedBy = replayedBy
+        }
+        ViewOnceReplaySessionStore.shared.apply(
+            to: message,
+            viewerId: Auth.auth().currentUser?.uid
+        )
         if let readBy = data["readBy"] as? [String] {
             message.readBy = readBy
         }

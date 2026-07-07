@@ -16,7 +16,7 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
     func makeUIView(context: Context) -> CameraPreviewView {
         let view = CameraPreviewView(frame: .zero)
         view.delegate = context.coordinator
-        view.currentDeviceOrientation = deviceOrientation
+        view.updateDeviceOrientation(deviceOrientation)
         return view
     }
 
@@ -24,7 +24,7 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
         uiView.updateCameraPosition(cameraPosition)
         uiView.updateFlashMode(flashMode)
         uiView.updateZoom(zoomLevel)
-        uiView.currentDeviceOrientation = deviceOrientation
+        uiView.updateDeviceOrientation(deviceOrientation)
 
         if capturePhotoTrigger {
             uiView.capturePhoto()
@@ -77,7 +77,8 @@ class CameraPreviewView: UIView {
     private var currentFlashMode: AVCaptureDevice.FlashMode = .off
     private var currentZoom: CGFloat = 1.0
     private var captureEventInteraction: AVCaptureEventInteraction?
-    var currentDeviceOrientation: UIDeviceOrientation = .portrait
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    private var currentDeviceOrientation: UIDeviceOrientation = .portrait
 
     var isCurrentlyRecording: Bool {
         return movieOutput?.isRecording ?? false
@@ -199,6 +200,10 @@ class CameraPreviewView: UIView {
 
         layer.addSublayer(previewLayer)
         self.videoPreviewLayer = previewLayer
+        if let camera = currentCamera {
+            rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: camera, previewLayer: previewLayer)
+        }
+        configurePreviewConnection()
     }
 
     func updateCameraPosition(_ position: AVCaptureDevice.Position) {
@@ -234,14 +239,41 @@ class CameraPreviewView: UIView {
         }
 
         session.commitConfiguration()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.rotationCoordinator = AVCaptureDevice.RotationCoordinator(
+                device: newCamera,
+                previewLayer: self.videoPreviewLayer
+            )
+            self.configurePreviewConnection()
+        }
 
         // Reset zoom
         currentZoom = 1.0
         updateCameraZoom(1.0)
     }
 
+    private func configurePreviewConnection() {
+        guard let previewConnection = videoPreviewLayer?.connection else { return }
+        applyRotation(to: previewConnection, forPreview: true)
+        if previewConnection.isVideoMirroringSupported {
+            previewConnection.automaticallyAdjustsVideoMirroring = false
+            previewConnection.isVideoMirrored = (currentPosition == .front)
+        }
+    }
+
     func updateFlashMode(_ mode: AVCaptureDevice.FlashMode) {
         currentFlashMode = mode
+    }
+
+    func updateDeviceOrientation(_ orientation: UIDeviceOrientation) {
+        guard orientation.isValidInterfaceOrientation,
+              orientation != currentDeviceOrientation else {
+            return
+        }
+
+        currentDeviceOrientation = orientation
+        configurePreviewConnection()
     }
 
     func updateZoom(_ level: CGFloat) {
@@ -285,21 +317,9 @@ class CameraPreviewView: UIView {
         settings.flashMode = currentFlashMode
 
         if let photoConnection = photoOutput.connection(with: .video) {
-            let orientation = currentDeviceOrientation
-            let rotationAngle: CGFloat = {
-                switch orientation {
-                case .portrait: return 90.0
-                case .portraitUpsideDown: return 270.0
-                case .landscapeLeft: return 0.0
-                case .landscapeRight: return 180.0
-                default: return 90.0
-                }
-            }()
-
-            if photoConnection.isVideoRotationAngleSupported(rotationAngle) {
-                photoConnection.videoRotationAngle = rotationAngle
-            }
+            applyRotation(to: photoConnection, forPreview: false)
             if photoConnection.isVideoMirroringSupported {
+                photoConnection.automaticallyAdjustsVideoMirroring = false
                 photoConnection.isVideoMirrored = (currentPosition == .front)
             }
         }
@@ -312,21 +332,9 @@ class CameraPreviewView: UIView {
               !movieOutput.isRecording else { return }
 
         if let videoConnection = movieOutput.connection(with: .video) {
-            let orientation = currentDeviceOrientation
-            let rotationAngle: CGFloat = {
-                switch orientation {
-                case .portrait: return 90.0
-                case .portraitUpsideDown: return 270.0
-                case .landscapeLeft: return 0.0
-                case .landscapeRight: return 180.0
-                default: return 90.0
-                }
-            }()
-
-            if videoConnection.isVideoRotationAngleSupported(rotationAngle) {
-                videoConnection.videoRotationAngle = rotationAngle
-            }
+            applyRotation(to: videoConnection, forPreview: false)
             if videoConnection.isVideoMirroringSupported {
+                videoConnection.automaticallyAdjustsVideoMirroring = false
                 videoConnection.isVideoMirrored = (currentPosition == .front)
             }
         }
@@ -356,85 +364,28 @@ class CameraPreviewView: UIView {
         return documentsPath.appendingPathComponent(fileName)
     }
 
-    private func exportVideoMatchingVisiblePreview(from inputURL: URL, completion: @escaping (URL?) -> Void) {
-        let asset = AVURLAsset(url: inputURL)
+    private func applyRotation(to connection: AVCaptureConnection, forPreview: Bool) {
+        let rotationAngle: CGFloat
+        if #available(iOS 17.0, *), let rotationCoordinator {
+            rotationAngle = forPreview
+                ? rotationCoordinator.videoRotationAngleForHorizonLevelPreview
+                : rotationCoordinator.videoRotationAngleForHorizonLevelCapture
+        } else {
+            rotationAngle = fallbackVideoRotationAngle()
+        }
 
-        Task {
-            do {
-                let videoTracks = try await asset.loadTracks(withMediaType: .video)
-                guard let videoTrack = videoTracks.first else {
-                    await MainActor.run {
-                        completion(nil)
-                    }
-                    return
-                }
+        if connection.isVideoRotationAngleSupported(rotationAngle) {
+            connection.videoRotationAngle = rotationAngle
+        }
+    }
 
-                let duration = try await asset.load(.duration)
-
-                let composition = AVMutableComposition()
-                guard let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
-                    await MainActor.run {
-                        completion(nil)
-                    }
-                    return
-                }
-
-                try compositionVideoTrack.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: videoTrack, at: .zero)
-
-                let audioTracks = try await asset.loadTracks(withMediaType: .audio)
-                if let audioTrack = audioTracks.first,
-                   let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
-                    try? compositionAudioTrack.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: audioTrack, at: .zero)
-                }
-
-                let naturalSize = try await videoTrack.load(.naturalSize)
-                let preferredTransform = try await videoTrack.load(.preferredTransform)
-
-                let transformedRect = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform).standardized
-                let orientedSize = transformedRect.size
-                let cropRect = creatorMomentsAspectRect(aspectRatio: creatorMomentsCaptureAspectRatio, in: CGRect(origin: .zero, size: orientedSize)).integral
-
-                let instruction = AVMutableVideoCompositionInstruction()
-                instruction.timeRange = CMTimeRange(start: .zero, duration: duration)
-
-                let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
-                let translationToOrigin = CGAffineTransform(translationX: -transformedRect.origin.x, y: -transformedRect.origin.y)
-                let cropTranslation = CGAffineTransform(translationX: -cropRect.origin.x, y: -cropRect.origin.y)
-                let finalTransform = preferredTransform.concatenating(translationToOrigin).concatenating(cropTranslation)
-                layerInstruction.setTransform(finalTransform, at: .zero)
-
-                instruction.layerInstructions = [layerInstruction]
-
-                let videoComposition = AVMutableVideoComposition()
-                videoComposition.instructions = [instruction]
-                videoComposition.renderSize = cropRect.size
-                let nominalFrameRate = try await videoTrack.load(.nominalFrameRate)
-                videoComposition.frameDuration = CMTime(value: 1, timescale: max(Int32(nominalFrameRate.rounded()), 30))
-
-                let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("story_cropped_\(UUID().uuidString).mov")
-                try? FileManager.default.removeItem(at: outputURL)
-
-                guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
-                    await MainActor.run {
-                        completion(nil)
-                    }
-                    return
-                }
-
-                exportSession.outputURL = outputURL
-                exportSession.outputFileType = .mov
-                exportSession.shouldOptimizeForNetworkUse = true
-                exportSession.videoComposition = videoComposition
-
-                try await exportSession.export(to: outputURL, as: .mov)
-                await MainActor.run {
-                    completion(outputURL)
-                }
-            } catch {
-                await MainActor.run {
-                    completion(nil)
-                }
-            }
+    private func fallbackVideoRotationAngle() -> CGFloat {
+        switch currentDeviceOrientation {
+        case .portrait: return 90.0
+        case .portraitUpsideDown: return 270.0
+        case .landscapeLeft: return 0.0
+        case .landscapeRight: return 180.0
+        default: return 90.0
         }
     }
 
@@ -496,8 +447,6 @@ extension CameraPreviewView: AVCaptureFileOutputRecordingDelegate {
             return
         }
 
-        // Ya no recortamos el video a 9:16 si se grabó en horizontal.
-        // AVCaptureConnection ya orientó y capturó el video de forma óptima.
         DispatchQueue.main.async { [weak self] in
             self?.delegate?.parent.onVideoCaptured(outputFileURL)
         }

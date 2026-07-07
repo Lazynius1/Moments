@@ -31,6 +31,22 @@ struct StoryDrawingEditorOverlay: View {
         StoryEditorChromeColor.icon(colorScheme)
     }
 
+    private var chromeSecondaryColor: Color {
+        chromeIconColor.opacity(colorScheme == .dark ? 0.58 : 0.62)
+    }
+
+    private var chromeDividerColor: Color {
+        chromeIconColor.opacity(colorScheme == .dark ? 0.16 : 0.12)
+    }
+
+    private var chromeStrokeColor: Color {
+        chromeIconColor.opacity(colorScheme == .dark ? 0.12 : 0.10)
+    }
+
+    private var chromeTintColor: Color {
+        MomentsChromeGlass.canvasTint(for: colorScheme)
+    }
+
     init(isPresented: Binding<Bool>, drawingImage: Binding<UIImage?>) {
         self._isPresented = isPresented
         self._drawingImage = drawingImage
@@ -173,7 +189,7 @@ struct StoryDrawingEditorOverlay: View {
 
                             Divider()
                                 .frame(height: 20)
-                                .background(Color.white.opacity(0.3))
+                                .background(chromeDividerColor)
 
                             // Moments backgrounds: Light (#FAF9F6) & Dark (#0B1215)
                             colorSwatch(UIColor(hex: "FAF9F6"))
@@ -181,7 +197,7 @@ struct StoryDrawingEditorOverlay: View {
 
                             Divider()
                                 .frame(height: 20)
-                                .background(Color.white.opacity(0.3))
+                                .background(chromeDividerColor)
 
                             ForEach(drawingPalette, id: \.self) { paletteColor in
                                 colorSwatch(paletteColor)
@@ -207,10 +223,12 @@ struct StoryDrawingEditorOverlay: View {
                         brushButton(icon: "eraser", brushType: .eraser)
                     }
                     .frame(height: 44)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.white.opacity(0.14))
+                    .momentsChromeGlass(
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+                        interactive: false,
+                        tint: chromeTintColor
                     )
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.20 : 0.10), radius: 12, x: 0, y: 6)
                     .padding(.horizontal, 12)
                 }
                 .padding(.bottom, bottomPadding)
@@ -242,7 +260,7 @@ struct StoryDrawingEditorOverlay: View {
 
     private var toolbarDivider: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.12))
+            .fill(chromeDividerColor)
             .frame(width: 1, height: 24)
     }
 
@@ -251,7 +269,7 @@ struct StoryDrawingEditorOverlay: View {
         return Button(action: { brush = brushType }) {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: isSelected ? .semibold : .medium))
-                .foregroundColor(.white.opacity(isSelected ? 1.0 : 0.55))
+                .foregroundColor(isSelected ? chromeIconColor : chromeSecondaryColor)
                 .shadow(color: isSelected && brushType == .glow ? Color(color).opacity(0.8) : Color.clear, radius: 6)
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
@@ -275,12 +293,18 @@ struct StoryDrawingEditorOverlay: View {
         ), supportsOpacity: false)
         .labelsHidden()
         .frame(width: 24, height: 24)
+        .overlay(
+            Circle()
+                .stroke(chromeStrokeColor, lineWidth: 1)
+        )
     }
 
     private func colorSwatch(_ paletteColor: UIColor) -> some View {
         let isSelected = color == paletteColor
         let swatchColor = Color(paletteColor)
-        let strokeColor = swatchColor == .white ? Color.gray.opacity(0.9) : Color.white.opacity(0.92)
+        let isLightSwatch = isPerceptuallyLight(paletteColor)
+        let strokeColor = isLightSwatch ? Color.black.opacity(0.50) : Color.white.opacity(0.92)
+        let selectedStrokeColor = isLightSwatch ? Color.black.opacity(0.90) : Color.white
 
         return Button(action: {
             color = paletteColor
@@ -292,12 +316,24 @@ struct StoryDrawingEditorOverlay: View {
                 .overlay(
                     Circle()
                         .stroke(
-                            isSelected ? Color.white : strokeColor,
-                            lineWidth: isSelected ? 2 : 1
+                            isSelected ? selectedStrokeColor : strokeColor,
+                            lineWidth: isSelected ? 2.5 : 1
                         )
                 )
+                .shadow(color: .black.opacity(isLightSwatch ? 0.16 : 0.10), radius: 2, x: 0, y: 1)
         }
         .buttonStyle(.plain)
+    }
+
+    private func isPerceptuallyLight(_ color: UIColor) -> Bool {
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        guard color.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+            return false
+        }
+        return (0.299 * red + 0.587 * green + 0.114 * blue) > 0.78
     }
 
     private func topBarTopPadding(_ safeAreaTop: CGFloat) -> CGFloat {

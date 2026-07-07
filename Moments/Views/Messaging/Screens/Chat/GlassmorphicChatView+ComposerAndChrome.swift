@@ -312,6 +312,10 @@ extension GlassmorphicChatView {
                             anchorCornerRadius: cornerRadius
                         )
                     },
+                    onViewOnceOpen: { targetMessage, isReplaySession in
+                        presentViewOnceViewer(message: targetMessage, isReplaySession: isReplaySession)
+                    },
+                    viewOnceZoomNamespace: viewOnceZoomNamespace,
                     progress: viewModel.uploadProgress[liveMessage.id],
                     downloadProgress: viewModel.downloadProgress[liveMessage.id],
                     isDownloadingMedia: viewModel.isDownloadingMedia(liveMessage.id),
@@ -621,6 +625,17 @@ extension GlassmorphicChatView {
         buzzToastText = nil
 
         if !conversationId.isEmpty {
+            let pendingReplays = ViewOnceReplaySessionStore.shared.drainAvailable(conversationId: conversationId)
+            pendingReplays.forEach { pending in
+                ChatService.shared.deleteViewOnceAfterViewing(
+                    conversationId: pending.conversationId,
+                    messageId: pending.messageId
+                ) { error in
+                    if let error {
+                        LogConfig.log("Pending replay delete failed: \(error.localizedDescription)", category: "Chat")
+                    }
+                }
+            }
             ChatSessionEngine.shared.deactivate(conversationId: conversationId)
         }
 

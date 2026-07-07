@@ -609,7 +609,7 @@ class ChatService: ObservableObject {
         }
     }
     
-    func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, mediaBatchId: String? = nil, isVanishModeMessage: Bool = false, vanishExpiresAt: Date? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, mediaBatchId: String? = nil, isVanishModeMessage: Bool = false, vanishExpiresAt: Date? = nil, replyTo: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let finalMessageId = messageId ?? UUID().uuidString
         uploadMedia(data: mediaData, type: type, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
@@ -639,14 +639,14 @@ class ChatService: ObservableObject {
                     deletedAt: nil,
                     editedAt: nil,
                     reactions: nil,
-                    replyTo: nil,
+                    replyTo: replyTo,
                     expirationDate: nil,
                     isViewed: false,
                     mediaBatchId: mediaBatchId,
                     isVanishModeMessage: isVanishModeMessage ? true : nil,
                     vanishExpiresAt: vanishExpiresAt
                 )
-                
+
                 self?.sendMessage(message, useServerTimestamp: true, completion: completion)
                 
             case .failure(let error):
@@ -914,7 +914,6 @@ class ChatService: ObservableObject {
                 
                 Task {
                     LocalPersistenceService.shared.saveAction(action)
-                    print("💾 ChatService: Mensaje guardado en outbox (offline)")
                     completion(.success(pendingMessage)) // Éxito optimista
                 }
                 return

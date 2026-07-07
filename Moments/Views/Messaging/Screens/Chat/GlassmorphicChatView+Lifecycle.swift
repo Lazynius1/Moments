@@ -20,7 +20,7 @@ extension GlassmorphicChatView {
         }
     }
 
-    func handleCameraCapture(data: Data, mediaType: EnhancedCameraPickerView.MediaType, isEphemeral: Bool) {
+    func handleCameraCapture(data: Data, mediaType: EnhancedCameraPickerView.MediaType, mode: ChatMediaSendMode) {
         guard !isOtherParticipantUnavailable else {
             showEnhancedCamera = false
             return
@@ -30,19 +30,69 @@ extension GlassmorphicChatView {
             return
         }
 
-        if isEphemeral {
-            viewModel.sendViewOnceMessage(data: data, mediaType: mediaType)
+        let replyTo = pendingCameraReplyToMessageId
+        pendingCameraReplyToMessageId = nil
 
-        } else {
+        switch mode {
+        case .viewOnce:
+            viewModel.sendViewOnceMessage(data: data, mediaType: mediaType, allowReplay: false, replyTo: replyTo)
+        case .allowReplay:
+            viewModel.sendViewOnceMessage(data: data, mediaType: mediaType, allowReplay: true, replyTo: replyTo)
+        case .keepInChat:
             if mediaType == .image {
-                viewModel.sendImageMessage(data)
+                viewModel.sendImageMessage(data, replyTo: replyTo)
             } else {
-                viewModel.sendVideoMessage(data: data)
+                viewModel.sendVideoMessage(data: data, mediaBatchId: nil, replyTo: replyTo)
             }
-
         }
 
         showEnhancedCamera = false
+    }
+
+    // El visor de view-once se cierra a sí mismo (dismiss del fullScreenCover) al
+    // pedir la cámara; sin este pequeño delay, showEnhancedCamera=true compite con
+    // ese dismiss y SwiftUI puede no presentar el segundo fullScreenCover.
+    func openCameraForReply(to messageId: String) {
+        pendingCameraReplyToMessageId = messageId
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            showEnhancedCamera = true
+        }
+    }
+
+    func presentViewOnceViewer(message: EnhancedMessage, isReplaySession: Bool) {
+        let authorName = message.senderId == viewModel.currentUserId
+            ? NSLocalizedString("chat.reply.you", comment: "You")
+            : otherParticipantDisplayName
+        viewOnceViewerPresentation = ViewOnceViewerPresentation(
+            message: message,
+            authorName: authorName,
+            isReplaySession: isReplaySession
+        )
+    }
+
+    func handleViewOnceViewerViewed(_ presentation: ViewOnceViewerPresentation) {
+        let message = presentation.message
+        let viewerId = viewModel.currentUserId
+
+        if message.allowReplay == true, !presentation.isReplaySession {
+            ViewOnceReplaySessionStore.shared.markAvailable(message: message, viewerId: viewerId)
+            message.replayAvailableInCurrentChatSession = true
+        }
+
+        ChatService.shared.markViewOnceAsViewed(
+            conversationId: message.conversationId,
+            messageId: message.id,
+            viewerId: viewerId
+        ) { _ in }
+    }
+
+    func handleViewOnceReplayConsumed(_ presentation: ViewOnceViewerPresentation) {
+        let message = presentation.message
+        let viewerId = viewModel.currentUserId
+
+        ViewOnceReplaySessionStore.shared.markConsumed(message: message, viewerId: viewerId)
+        message.replayAvailableInCurrentChatSession = false
+        message.replayConsumedInCurrentChatSession = true
     }
 
     func refreshOtherParticipantUsername() {

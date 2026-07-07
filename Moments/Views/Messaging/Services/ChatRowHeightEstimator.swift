@@ -17,7 +17,8 @@ enum ChatRowHeightEstimator {
     private static let locationHeight: CGFloat = 205
     private static let liveLocationExtraHeight: CGFloat = 40
     private static let fileHeight: CGFloat = 72
-    private static let viewOnceHeight: CGFloat = 170
+    private static let viewOncePillHeight: CGFloat = 50
+    private static let viewOnceRowVerticalPadding: CGFloat = 10
     private static let ephemeralHeight: CGFloat = 150
     private static let sharedPreviewHeight: CGFloat = 220
     private static let chatNoticeHeight: CGFloat = 36
@@ -77,7 +78,7 @@ enum ChatRowHeightEstimator {
         case .file:
             return fileHeight
         case .viewOnceImage, .viewOnceVideo:
-            return viewOnceHeight
+            return viewOnceHeight(for: message)
         case .ephemeral:
             return ephemeralHeight
         case .sharedMoment, .sharedStory:
@@ -120,6 +121,14 @@ enum ChatRowHeightEstimator {
         if let caption = message.content, !caption.isEmpty {
             height += textHeight(for: message, bubbleWidth: bubbleWidth) - textVerticalPadding
         }
+        if let reactions = message.reactions, !reactions.isEmpty {
+            height += reactionsRowHeight
+        }
+        return height
+    }
+
+    private static func viewOnceHeight(for message: EnhancedMessage) -> CGFloat {
+        var height = viewOncePillHeight + viewOnceRowVerticalPadding
         if let reactions = message.reactions, !reactions.isEmpty {
             height += reactionsRowHeight
         }

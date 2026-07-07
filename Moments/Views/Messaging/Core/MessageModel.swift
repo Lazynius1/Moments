@@ -687,6 +687,11 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
 
     // ✅ NUEVOS: Campos para view-once
     var viewedBy: [String]? // IDs de usuarios que han visto el mensaje view-once
+    // Modo "permitir repetición": el receptor puede ver el media una segunda vez.
+    var allowReplay: Bool?
+    var replayedBy: [String]?
+    @Published var replayAvailableInCurrentChatSession: Bool = false
+    @Published var replayConsumedInCurrentChatSession: Bool = false
     /// Lectores registrados aunque el destinatario tenga read receipts desactivados (solo vanish/timer).
     var readBy: [String]?
     var starredBy: [String]?
@@ -706,6 +711,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData
         case mediaBatchId
         case viewedBy
+        case allowReplay
+        case replayedBy
         case readBy
         case starredBy, isForwarded
         case isVanishModeMessage
@@ -815,6 +822,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
 
         // ✅ NUEVO: Decodificar viewedBy
         self.viewedBy = try container.decodeIfPresent([String].self, forKey: .viewedBy)
+        self.allowReplay = try container.decodeIfPresent(Bool.self, forKey: .allowReplay)
+        self.replayedBy = try container.decodeIfPresent([String].self, forKey: .replayedBy)
         self.readBy = try container.decodeIfPresent([String].self, forKey: .readBy)
         self.starredBy = try container.decodeIfPresent([String].self, forKey: .starredBy)
         self.isForwarded = try container.decodeIfPresent(Bool.self, forKey: .isForwarded)
@@ -891,6 +900,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
 
         // ✅ NUEVO: Codificar viewedBy
         try container.encodeIfPresent(viewedBy, forKey: .viewedBy)
+        try container.encodeIfPresent(allowReplay, forKey: .allowReplay)
+        try container.encodeIfPresent(replayedBy, forKey: .replayedBy)
         try container.encodeIfPresent(readBy, forKey: .readBy)
         try container.encodeIfPresent(starredBy, forKey: .starredBy)
         try container.encodeIfPresent(isForwarded, forKey: .isForwarded)
@@ -1142,6 +1153,17 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     func hasBeenViewedBy(userId: String) -> Bool {
         guard isViewOnce else { return false }
         return viewedBy?.contains(userId) ?? false
+    }
+
+    func hasBeenReplayedBy(userId: String) -> Bool {
+        guard isViewOnce else { return false }
+        return replayedBy?.contains(userId) ?? false
+    }
+
+    /// El receptor puede repetir la vista: modo allow-replay, ya visto y sin repetir.
+    func canReplayViewOnce(userId: String) -> Bool {
+        guard isViewOnce, allowReplay == true, senderId != userId else { return false }
+        return hasBeenViewedBy(userId: userId) && !hasBeenReplayedBy(userId: userId)
     }
 
     /// Obtiene el estado del view-once para un usuario específico

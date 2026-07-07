@@ -18,6 +18,14 @@ struct StoryEditingView: View {
     let initialChainId: String?
     let initialChainTitle: String?
     let initialChainPosition: Int?
+
+    // Modo chat (cámara del chat estilo IG): en vez de publicar historia, aplana
+    // el resultado y lo devuelve para enviarlo como mensaje con el modo elegido.
+    var chatRecipientUserId: String? = nil
+    var onChatSend: ((Data, EnhancedCameraPickerView.MediaType, ChatMediaSendMode) -> Void)? = nil
+    @State private var chatSendMode: ChatMediaSendMode = .viewOnce
+
+    private var isChatSendMode: Bool { onChatSend != nil }
     @State private var alertMessage = ""
     @State private var showAlert = false
     @State private var showDiscardChangesAlert = false
@@ -753,6 +761,10 @@ struct StoryEditingView: View {
                                 .momentsChromeGlass(in: Capsule())
                         }
                     } else {
+                        if isChatSendMode && activeEditorMode == .idle && !isEditingReveal {
+                            chatTopToolbarView()
+                        }
+
                         Button(action: { saveToGallery() }) {
                             Image(systemName: "arrow.down.circle")
                                 .font(.title2)
@@ -867,10 +879,31 @@ struct StoryEditingView: View {
         .zIndex(5000)
     }
 
+    // En modo chat las herramientas van en horizontal (estilo IG DM);
+    // en modo historia mantienen la columna vertical clásica.
     @ViewBuilder
     private func sideToolbarView() -> some View {
         if activeEditingStickerId == nil {
-            VStack(spacing: 12) {
+            if isChatSendMode {
+                EmptyView()
+            } else {
+                VStack(spacing: 12) {
+                    editingToolButtons()
+                }
+                .padding(.trailing, 16)
+            }
+        }
+    }
+
+    private func chatTopToolbarView() -> some View {
+        HStack(spacing: 8) {
+            editingToolButtons()
+        }
+    }
+
+    @ViewBuilder
+    private func editingToolButtons() -> some View {
+            Group {
                 EditingToolIcon(icon: "textformat.alt") {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
                         beginCreatingTextOverlay(canvasSize: currentMediaCanvasRect().size)
@@ -912,7 +945,7 @@ struct StoryEditingView: View {
                     }
                 }
 
-                if !isContinuingChain {
+                if !isContinuingChain && !isChatSendMode {
                     Button(action: {
                         withAnimation(.spring()) { isCreatingChain.toggle() }
                     }) {
@@ -925,7 +958,7 @@ struct StoryEditingView: View {
                     }
                 }
 
-                if showsStoryExpirationSelector {
+                if showsStoryExpirationSelector && !isChatSendMode {
                     Button(action: {
                         storyExpirationHours = storyExpirationHours == 24 ? 48 : 24
                     }) {
@@ -946,8 +979,6 @@ struct StoryEditingView: View {
                     .accessibilityHint(String(format: NSLocalizedString("storyEditor.expiration.optionAccessibility", comment: "Story expiration option accessibility"), storyExpirationHours))
                 }
             }
-            .padding(.trailing, 16)
-        }
     }
 
     @ViewBuilder
@@ -962,7 +993,7 @@ struct StoryEditingView: View {
                 }
 
                 Group {
-                    if activeEditorMode == .idle && !isEditingReveal {
+                    if activeEditorMode == .idle && !isEditingReveal && !isChatSendMode {
                         HStack {
                             Spacer()
                             sideToolbarView()
@@ -1040,6 +1071,10 @@ struct StoryEditingView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else if isChatSendMode {
+                chatSendBottomBar()
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
             } else {
                 HStack(spacing: 12) {
                     Group {
@@ -1280,6 +1315,135 @@ struct StoryEditingView: View {
             return max(0, keyboardHeight - 10)
         }
         return 0
+    }
+
+    @ViewBuilder
+    private func chatSendBottomBar() -> some View {
+        HStack {
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    chatSendMode = chatSendMode.next
+                }
+                HapticManager.shared.selection()
+            }) {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .stroke(style: StrokeStyle(lineWidth: 1.6, dash: [3.5, 3.5]))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .frame(width: 30, height: 30)
+
+                        if let icon = chatSendMode.innerSystemIcon {
+                            Image(systemName: icon)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                        } else {
+                            Text("1")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                        }
+                    }
+
+                    Text(chatSendMode.label)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                }
+                .padding(.leading, 10)
+                .padding(.trailing, 16)
+                .padding(.vertical, 9)
+                .momentsChromeGlass(in: Capsule(), interactive: true)
+            }
+            .disabled(isPublishing)
+
+            Spacer()
+
+            Button(action: { chatSend() }) {
+                HStack(spacing: 8) {
+                    if let chatRecipientUserId {
+                        AsyncProfileImageView(userId: chatRecipientUserId)
+                            .frame(width: 30, height: 30)
+                            .clipShape(Circle())
+                    }
+
+                    Text("camera.preview.send")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
+
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
+                }
+                .padding(.leading, 9)
+                .padding(.trailing, 18)
+                .padding(.vertical, 9)
+                .background(colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215"))
+                .clipShape(Capsule())
+            }
+            .disabled(isPublishing || isEditingSticker)
+            .opacity(isEditingSticker ? 0 : 1)
+        }
+    }
+
+    private func chatSend() {
+        guard let onChatSend else { return }
+        guard !isPublishing else { return }
+        isPublishing = true
+
+        let contentRect = currentMediaCanvasRect()
+        commitActiveTextOverlayIfNeeded(canvasSize: contentRect.size)
+
+        if let media = selectedMediaItems.first, media.type == .video, let videoURL = media.videoURL {
+            let targetSize = storyRenderTargetSize()
+            let editorCanvasSize = contentRect.size
+            let preRenderedImage = renderStoryWithOverlays()
+            let preRenderedOverlay = renderStoryOverlayImage(targetSize: targetSize, screenSize: editorCanvasSize)
+            let preRenderedBackground = storyBackgroundImage(baseImage: renderPaletteSourceImage(for: media), targetSize: targetSize)
+            let shouldBake = shouldBakeCurrentOverlaysIntoVideo(media)
+            let capturedScale = imageScale
+            let capturedOffset = imageOffset
+            let capturedRotation = imageRotation
+            let mode = chatSendMode
+
+            Task.detached(priority: .userInitiated) {
+                do {
+                    let prepared = try await self.prepareMediaForStoryUpload(
+                        from: media,
+                        preRenderedImage: preRenderedImage,
+                        preRenderedOverlay: preRenderedOverlay,
+                        preRenderedBackground: preRenderedBackground,
+                        shouldBake: shouldBake,
+                        targetSize: targetSize,
+                        editorCanvasSize: editorCanvasSize,
+                        imageScale: capturedScale,
+                        imageOffset: capturedOffset,
+                        imageRotation: capturedRotation
+                    )
+                    let finalURL = prepared.mediaItem.videoURL ?? videoURL
+                    let data = try Data(contentsOf: finalURL)
+                    await MainActor.run {
+                        isPublishing = false
+                        HapticManager.shared.mediumImpact()
+                        onChatSend(data, .video, mode)
+                    }
+                } catch {
+                    await MainActor.run {
+                        isPublishing = false
+                        alertMessage = NSLocalizedString("storyEditor.error.publishStart", comment: "Error starting story upload")
+                        showAlert = true
+                    }
+                }
+            }
+            return
+        }
+
+        let finalImage = renderStoryWithOverlays()
+        guard let data = finalImage.jpegData(compressionQuality: 0.9) else {
+            isPublishing = false
+            return
+        }
+        isPublishing = false
+        HapticManager.shared.mediumImpact()
+        onChatSend(data, .image, chatSendMode)
     }
 
     @ViewBuilder

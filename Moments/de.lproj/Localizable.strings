@@ -1057,6 +1057,16 @@
 "chat.viewOnce.viewed" = "Angesehen";
 "chat.viewOnce.sent" = "Gesendet";
 "chat.viewOnce.alreadyViewed" = "Bereits angesehen";
+"chat.viewOnce.tapToReplay" = "Zum erneuten Ansehen tippen";
+"chat.viewOnce.replayAfterClose" = "Du kannst es noch einmal ansehen";
+"chat.viewOnce.replayed" = "Erneut angesehen";
+"chat.viewOnce.replyPlaceholder" = "Nachricht senden...";
+"chat.viewOnce.replySent" = "Gesendet";
+"chat.camera.header" = "Nachricht";
+"chat.camera.mode.viewOnce" = "Einmal ansehen";
+"chat.camera.mode.allowReplay" = "Wiedergabe erlauben";
+"chat.camera.mode.keepInChat" = "Im Chat behalten";
+"chat.camera.saved" = "Gespeichert";
 "chat.preview.photo" = "📷 Foto";
 "chat.preview.video" = "🎥 Video";
 "chat.preview.audio" = "🎵 Audio";

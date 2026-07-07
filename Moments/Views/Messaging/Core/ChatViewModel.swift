@@ -550,6 +550,10 @@ class EnhancedChatViewModel: ObservableObject {
             guard let index = mergedMessages.firstIndex(where: { $0.id == existing.id }) else { continue }
             guard !mergedMessages[index].isDeleted, !existing.isDeleted else { continue }
 
+            if mergedMessages[index].replyTo == nil, let replyTo = existing.replyTo {
+                mergedMessages[index].replyTo = replyTo
+            }
+
             if let localUrl = existing.mediaUrl,
                let url = URL(string: localUrl),
                url.isFileURL,
@@ -636,6 +640,7 @@ class EnhancedChatViewModel: ObservableObject {
         let previous = messages[index]
         sentMessage.mediaUrl = sentMessage.mediaUrl ?? fallbackMediaUrl ?? previous.mediaUrl
         sentMessage.thumbnailUrl = sentMessage.thumbnailUrl ?? fallbackThumbnailUrl ?? previous.thumbnailUrl
+        sentMessage.replyTo = sentMessage.replyTo ?? previous.replyTo
         messages[index] = sentMessage
 
         commitMessagesPresentation(messages)
@@ -1451,7 +1456,6 @@ class EnhancedChatViewModel: ObservableObject {
                 anchor = fetched
                 LocalPersistenceService.shared.appendMessages([fetched], conversationId: conversationId)
             } catch {
-                print("Error loading navigation anchor message: \(error)")
                 return false
             }
         }
@@ -1505,7 +1509,6 @@ class EnhancedChatViewModel: ObservableObject {
                     LocalPersistenceService.shared.appendMessages(window, conversationId: conversationId)
                 }
             } catch {
-                print("Error loading navigation window: \(error)")
             }
         }
 
@@ -2167,10 +2170,14 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     func sendVideoMessage(data: Data) {
-        sendVideoMessage(data: data, mediaBatchId: nil)
+        sendVideoMessage(data: data, mediaBatchId: nil, replyTo: nil)
     }
 
     func sendVideoMessage(data: Data, mediaBatchId: String?) {
+        sendVideoMessage(data: data, mediaBatchId: mediaBatchId, replyTo: nil)
+    }
+
+    func sendVideoMessage(data: Data, mediaBatchId: String?, replyTo: String?) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = "No se puede enviar el video: ID de conversación no válido"
             return
@@ -2191,6 +2198,7 @@ class EnhancedChatViewModel: ObservableObject {
             type: .video,
             mediaUrl: localPreview,
             status: .sending,
+            replyTo: replyTo,
             mediaBatchId: mediaBatchId,
             isVanishModeMessage: vanishModeActive ? true : nil,
             vanishExpiresAt: nil
@@ -2207,7 +2215,8 @@ class EnhancedChatViewModel: ObservableObject {
             messageId: messageId, // ✅ Pasar el mismo ID
             mediaBatchId: mediaBatchId,
             isVanishModeMessage: vanishModeActive,
-            vanishExpiresAt: nil
+            vanishExpiresAt: nil,
+            replyTo: replyTo
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {

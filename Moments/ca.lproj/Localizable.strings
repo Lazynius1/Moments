@@ -1058,6 +1058,16 @@
 "chat.viewOnce.viewed" = "Vist";
 "chat.viewOnce.sent" = "Enviat";
 "chat.viewOnce.alreadyViewed" = "Ja vist";
+"chat.viewOnce.tapToReplay" = "Toca per tornar a veure";
+"chat.viewOnce.replayAfterClose" = "Podràs veure-ho un cop més";
+"chat.viewOnce.replayed" = "Repetida";
+"chat.viewOnce.replyPlaceholder" = "Enviar missatge...";
+"chat.viewOnce.replySent" = "Enviat";
+"chat.camera.header" = "Missatge";
+"chat.camera.mode.viewOnce" = "Veure un cop";
+"chat.camera.mode.allowReplay" = "Permetre repetició";
+"chat.camera.mode.keepInChat" = "Desar al xat";
+"chat.camera.saved" = "Desat";
 "chat.preview.photo" = "📷 Foto";
 "chat.preview.video" = "🎥 Vídeo";
 "chat.preview.audio" = "🎵 Àudio";

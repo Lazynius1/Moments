@@ -259,7 +259,6 @@ class MessagingViewModel: ObservableObject {
                             error.localizedDescription
                         )
                     }
-                    print("⚠️ MessagingViewModel: Fallo fetch de Firestore: \(error.localizedDescription)")
                 }
             }
         }

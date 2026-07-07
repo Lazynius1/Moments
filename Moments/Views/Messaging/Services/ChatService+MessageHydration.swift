@@ -2,6 +2,88 @@ import Foundation
 import FirebaseFirestore
 import FirebaseAuth
 
+final class ViewOnceReplaySessionStore {
+    struct PendingReplay {
+        let conversationId: String
+        let messageId: String
+        let viewerId: String
+    }
+
+    static let shared = ViewOnceReplaySessionStore()
+
+    private let queue = DispatchQueue(label: "com.moments.viewOnceReplaySessionStore")
+    private var availableKeys: Set<String> = []
+    private var consumedKeys: Set<String> = []
+
+    private init() {}
+
+    func markAvailable(message: EnhancedMessage, viewerId: String) {
+        guard let key = key(message: message, viewerId: viewerId) else { return }
+        queue.sync {
+            availableKeys.insert(key)
+            consumedKeys.remove(key)
+        }
+    }
+
+    func markConsumed(message: EnhancedMessage, viewerId: String) {
+        guard let key = key(message: message, viewerId: viewerId) else { return }
+        queue.sync {
+            availableKeys.remove(key)
+            consumedKeys.insert(key)
+        }
+    }
+
+    func apply(to message: EnhancedMessage, viewerId: String?) {
+        guard let viewerId, let key = key(message: message, viewerId: viewerId) else { return }
+
+        let state = queue.sync {
+            (available: availableKeys.contains(key), consumed: consumedKeys.contains(key))
+        }
+
+        guard state.available || state.consumed else { return }
+
+        if state.available, message.allowReplay == true, !message.hasBeenReplayedBy(userId: viewerId) {
+            message.replayAvailableInCurrentChatSession = true
+            message.replayConsumedInCurrentChatSession = false
+        } else if state.consumed {
+            message.replayAvailableInCurrentChatSession = false
+            message.replayConsumedInCurrentChatSession = true
+        }
+    }
+
+    func clear(conversationId: String) {
+        _ = drainAvailable(conversationId: conversationId)
+    }
+
+    func drainAvailable(conversationId: String) -> [PendingReplay] {
+        let prefix = conversationId + "|"
+        return queue.sync {
+            let pending = availableKeys
+                .filter { $0.hasPrefix(prefix) }
+                .compactMap(Self.pendingReplay(from:))
+            availableKeys = Set(availableKeys.filter { !$0.hasPrefix(prefix) })
+            consumedKeys = Set(consumedKeys.filter { !$0.hasPrefix(prefix) })
+            return pending
+        }
+    }
+
+    private func key(message: EnhancedMessage, viewerId: String) -> String? {
+        guard message.isViewOnce,
+              message.allowReplay == true,
+              message.senderId != viewerId,
+              !viewerId.isEmpty else {
+            return nil
+        }
+        return "\(message.conversationId)|\(message.id)|\(viewerId)"
+    }
+
+    private static func pendingReplay(from key: String) -> PendingReplay? {
+        let parts = key.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count == 3 else { return nil }
+        return PendingReplay(conversationId: parts[0], messageId: parts[1], viewerId: parts[2])
+    }
+}
+
 extension ChatService {
     func createBasicMessageData(from message: EnhancedMessage) -> [String: Any] {
         var data: [String: Any] = [
@@ -40,6 +122,9 @@ extension ChatService {
         }
         if let mediaHeight = message.mediaHeight {
             data["mediaHeight"] = mediaHeight
+        }
+        if let replyTo = message.replyTo {
+            data["replyTo"] = replyTo
         }
         if message.isVanishModeMessage == true {
             data["isVanishModeMessage"] = true
@@ -119,7 +204,7 @@ extension ChatService {
             )
         }
 
-        return EnhancedMessage(
+        let parsedMessage = EnhancedMessage(
             id: id,
             conversationId: conversationId,
             senderId: senderId,
@@ -168,6 +253,13 @@ extension ChatService {
             vanishedFor: data["vanishedFor"] as? [String],
             vanishExpiresAt: (data["vanishExpiresAt"] as? Timestamp)?.dateValue()
         )
+        parsedMessage.allowReplay = data["allowReplay"] as? Bool
+        parsedMessage.replayedBy = data["replayedBy"] as? [String]
+        ViewOnceReplaySessionStore.shared.apply(
+            to: parsedMessage,
+            viewerId: Auth.auth().currentUser?.uid
+        )
+        return parsedMessage
     }
 
     func resolveEncryptedMediaForMessage(_ message: EnhancedMessage, forceDownload: Bool = false) async -> (mediaUrl: String?, thumbnailUrl: String?)? {

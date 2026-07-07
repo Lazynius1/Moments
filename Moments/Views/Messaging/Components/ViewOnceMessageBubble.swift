@@ -2,18 +2,34 @@ import SwiftUI
 import Kingfisher
 import AVFoundation
 import AVKit
+import FirebaseAuth
 
 // MARK: - View-Once Message Bubble
 struct ViewOnceMessageBubble: View {
-    let message: EnhancedMessage
+    @ObservedObject var message: EnhancedMessage
     let isCurrentUser: Bool
     let otherParticipantName: String
     let progress: Double? // ✅ New: Real-time upload progress
-    let onViewed: () -> Void
-    @State private var isViewed = false
-    @State private var showFullScreen = false
+    var onOpenViewer: ((Bool) -> Void)? = nil
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     @Environment(\.colorScheme) var colorScheme
     @State private var shimmerOffset: CGFloat = -1
+
+    private var currentUserId: String {
+        Auth.auth().currentUser?.uid ?? ""
+    }
+
+    private var replayAvailable: Bool {
+        message.allowReplay == true
+            && message.replayAvailableInCurrentChatSession
+            && !message.replayConsumedInCurrentChatSession
+            && !message.hasBeenReplayedBy(userId: currentUserId)
+    }
+
+    private var effectiveViewed: Bool {
+        message.isViewed || message.replayAvailableInCurrentChatSession
+    }
     
     private let signatureGradient = LinearGradient(
         colors: [Color.blue, Color.purple, Color.pink],
@@ -35,14 +51,22 @@ struct ViewOnceMessageBubble: View {
                     adaptiveColors: adaptiveColors
                 )
             } else {
-                // Caso Receptor: Unread o Opened
-                ZStack {
+                // Caso Receptor: Unread, Replay disponible u Opened
+                ZStack(alignment: isCurrentUser ? .trailing : .leading) {
                     ViewOnceOpenedBubble(
                         message: message,
                         adaptiveColors: adaptiveColors
                     )
-                    .opacity(message.isViewed ? 1 : 0)
-                    
+                    .opacity(effectiveViewed && !replayAvailable ? 1 : 0)
+
+                    ViewOnceReplayBubble(
+                        message: message,
+                        adaptiveColors: adaptiveColors,
+                        onTap: { openReplay() }
+                    )
+                    .opacity(effectiveViewed && replayAvailable ? 1 : 0)
+                    .allowsHitTesting(effectiveViewed && replayAvailable)
+
                     ViewOnceUnreadBubble(
                         message: message,
                         adaptiveColors: adaptiveColors,
@@ -50,30 +74,107 @@ struct ViewOnceMessageBubble: View {
                             openViewOnceMessage()
                         }
                     )
-                    .opacity(message.isViewed ? 0 : 1)
-                    .allowsHitTesting(!message.isViewed)
+                    .opacity(effectiveViewed ? 0 : 1)
+                    .allowsHitTesting(!effectiveViewed)
                 }
             }
         }
-        .fullScreenCover(isPresented: $showFullScreen) {
-            ViewOnceImmersiveViewer(
-                message: message,
-                authorName: isCurrentUser ? NSLocalizedString("chat.reply.you", comment: "You") : otherParticipantName,
-                onViewed: {
-                    isViewed = true
-                    onViewed()
-                }
-            )
-        }
+        .modifier(ViewOnceZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID))
     }
-    
+
     private func openViewOnceMessage() {
         // ✅ Solo se puede abrir si NO ha sido visto
-        guard !message.isViewed else {
+        guard !effectiveViewed else {
             return
         }
-        
-        showFullScreen = true
+
+        onOpenViewer?(false)
+    }
+
+    private func openReplay() {
+        guard replayAvailable else {
+            return
+        }
+        onOpenViewer?(true)
+    }
+}
+
+private struct ViewOnceZoomSourceModifier: ViewModifier {
+    let namespace: Namespace.ID?
+    let sourceID: String?
+
+    func body(content: Content) -> some View {
+        if let namespace, let sourceID {
+            content.matchedTransitionSource(id: sourceID, in: namespace) { source in
+                source.clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            }
+        } else {
+            content
+        }
+    }
+}
+
+// Píldora compacta estilo Instagram compartida por los estados del view-once.
+private struct ViewOncePillBubble: View {
+    let adaptiveColors: AdaptiveColors
+    let glyph: AnyView
+    let label: String
+    var labelWeight: Font.Weight = .semibold
+    var labelOpacity: CGFloat = 1.0
+    var showsDashedRing = true
+    var showsUnreadDot = false
+
+    private let signatureGradient = LinearGradient(
+        colors: [Color.blue, Color.purple, Color.pink],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                if showsDashedRing {
+                    Circle()
+                        .stroke(style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
+                        .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7))
+                        .frame(width: 30, height: 30)
+                }
+                glyph
+            }
+            .frame(width: 30, height: 30)
+
+            Text(label)
+                .font(.system(size: legacyPoppinsSize(14), weight: labelWeight))
+                .foregroundColor(adaptiveColors.messageTextColor.opacity(labelOpacity))
+
+            if showsUnreadDot {
+                Circle()
+                    .fill(signatureGradient)
+                    .frame(width: 8, height: 8)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            ZStack {
+                Capsule().fill(.ultraThinMaterial)
+                Capsule().fill(adaptiveColors.messageBubbleBackground.opacity(0.3))
+            }
+        )
+        .overlay(
+            Capsule().stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.8)
+        )
+    }
+}
+
+private func viewOnceTypeText(for message: EnhancedMessage) -> String {
+    switch message.type {
+    case .viewOnceImage:
+        return NSLocalizedString("chat.viewOnce.photo", comment: "")
+    case .viewOnceVideo:
+        return NSLocalizedString("chat.viewOnce.video", comment: "")
+    default:
+        return NSLocalizedString("chat.viewOnce.media", comment: "")
     }
 }
 
@@ -82,112 +183,43 @@ struct ViewOnceUnreadBubble: View {
     let message: EnhancedMessage
     let adaptiveColors: AdaptiveColors
     let onTap: () -> Void
-    
-    private let signatureGradient = LinearGradient(
-        colors: [Color.blue, Color.purple, Color.pink],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-    
+
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
-                // Icon with Glass background
-                ZStack {
-                    Circle()
-                        .fill(adaptiveColors.messageBubbleBackground)
-                        .frame(width: 50, height: 50)
-                    
-                    AttachmentIconView(icon: .ephemeral, preset: .viewOnceBubble, tintColor: .white)
-                        .overlay(
-                            signatureGradient
-                                .mask(AttachmentIconView(icon: .ephemeral, preset: .viewOnceBubble, tintColor: .white))
-                        )
-                }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(getTypeText())
-                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+            ViewOncePillBubble(
+                adaptiveColors: adaptiveColors,
+                glyph: AnyView(
+                    Image(systemName: message.type == .viewOnceVideo ? "play.fill" : "camera.fill")
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(adaptiveColors.messageTextColor)
-                    
-                    Text("chat.viewOnce.tapToView")
-                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(adaptiveColors.messageTextColor.opacity(0.8))
-                    
-                    // Simple message with signature colors
-                    HStack(spacing: 4) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 10))
-                        Text("chat.viewOnce.autoDelete")
-                            .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                    }
-                    .foregroundColor(.clear)
-                    .overlay(
-                        signatureGradient
-                            .mask(
-                                HStack(spacing: 4) {
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 10))
-                                    Text("chat.viewOnce.autoDelete")
-                                        .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                                }
-                            )
-                    )
-                }
-                
-                Spacer()
-                
-                // Unopened indicator with Glow
-                ZStack {
-                    Circle()
-                        .fill(signatureGradient)
-                        .frame(width: 10, height: 10)
-                        .blur(radius: 2)
-                    
-                    Circle()
-                        .fill(signatureGradient)
-                        .frame(width: 8, height: 8)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(.ultraThinMaterial)
-                    
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(adaptiveColors.messageBubbleBackground.opacity(0.3))
-                }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(signatureGradient.opacity(0.3), lineWidth: 1.5)
+                ),
+                label: viewOnceTypeText(for: message),
+                showsUnreadDot: true
             )
         }
         .buttonStyle(PlainButtonStyle())
     }
-    
-    private func getIconName() -> String {
-        switch message.type {
-        case .viewOnceImage:
-            return "camera.circle.fill"
-        case .viewOnceVideo:
-            return "video.circle.fill"
-        default:
-            return "camera.circle.fill"
+}
+
+// MARK: - View-Once Replay Bubble (allow replay: una repetición disponible)
+struct ViewOnceReplayBubble: View {
+    let message: EnhancedMessage
+    let adaptiveColors: AdaptiveColors
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            ViewOncePillBubble(
+                adaptiveColors: adaptiveColors,
+                glyph: AnyView(
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(adaptiveColors.messageTextColor)
+                ),
+                label: NSLocalizedString("chat.viewOnce.tapToReplay", comment: "Tap to replay")
+            )
         }
-    }
-    
-    private func getTypeText() -> String {
-        switch message.type {
-        case .viewOnceImage:
-            return NSLocalizedString("chat.viewOnce.photo", comment: "")
-        case .viewOnceVideo:
-            return NSLocalizedString("chat.viewOnce.video", comment: "")
-        default:
-            return NSLocalizedString("chat.viewOnce.media", comment: "")
-        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -195,48 +227,19 @@ struct ViewOnceUnreadBubble: View {
 struct ViewOnceOpenedBubble: View {
     let message: EnhancedMessage
     let adaptiveColors: AdaptiveColors
-    
+
     var body: some View {
-        HStack(spacing: 12) {
-            // Opened icon
-            Image(systemName: "eye.slash.circle")
-                .font(.system(size: 20))
-                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.3))
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(getTypeText())
-                    .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
-                
-                Text("chat.viewOnce.alreadyViewed")
-                    .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.3))
-                    .italic()
-            }
-            
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(adaptiveColors.messageBubbleBackground.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(adaptiveColors.messageBubbleStroke.opacity(0.5), lineWidth: 0.5)
-                )
+        ViewOncePillBubble(
+            adaptiveColors: adaptiveColors,
+            glyph: AnyView(
+                Image(systemName: "eye.slash")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.4))
+            ),
+            label: NSLocalizedString("chat.viewOnce.alreadyViewed", comment: "Already viewed"),
+            labelWeight: .medium,
+            labelOpacity: 0.45
         )
-    }
-    
-    private func getTypeText() -> String {
-        switch message.type {
-        case .viewOnceImage:
-            return NSLocalizedString("chat.viewOnce.photoOpened", comment: "")
-        case .viewOnceVideo:
-            return NSLocalizedString("chat.viewOnce.videoOpened", comment: "")
-        default:
-            return NSLocalizedString("chat.viewOnce.mediaOpened", comment: "")
-        }
     }
 }
 
@@ -245,102 +248,40 @@ struct ViewOnceSentBubble: View {
     let message: EnhancedMessage
     let progress: Double? // ✅ New
     let adaptiveColors: AdaptiveColors
-    
-    private let signatureGradient = LinearGradient(
-        colors: [Color.blue, Color.purple, Color.pink],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-    
+
+    private var statusText: String {
+        if message.isViewed {
+            if message.allowReplay == true, message.replayedBy?.isEmpty == false {
+                return NSLocalizedString("chat.viewOnce.replayed", comment: "Replayed")
+            }
+            return NSLocalizedString("chat.viewOnce.viewed", comment: "Viewed")
+        }
+        return viewOnceTypeText(for: message)
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(getTypeText())
-                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(adaptiveColors.messageTextColor)
-                
-                HStack(spacing: 4) {
-                    Image(systemName: "eye.slash.fill")
-                        .font(.system(size: 10))
-                    Text("chat.viewOnce.viewOnce")
-                        .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                }
-                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7))
-                
-                if message.isViewed {
-                    HStack(spacing: 2) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 10))
-                        Text("chat.viewOnce.viewed")
-                            .font(.system(size: legacyPoppinsSize(10), weight: .medium))
+        ZStack {
+            ViewOncePillBubble(
+                adaptiveColors: adaptiveColors,
+                glyph: AnyView(
+                    Group {
+                        if message.status == .sending, let uploadProgress = progress {
+                            MediaProgressRing(progress: uploadProgress, size: 26, lineWidth: 2)
+                        } else if message.isViewed {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
+                        } else {
+                            Image(systemName: message.type == .viewOnceVideo ? "play.fill" : "camera.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(adaptiveColors.messageTextColor)
+                        }
                     }
-                    .foregroundColor(.green.opacity(0.8))
-                } else {
-                    Text("chat.viewOnce.sent")
-                        .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                        .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
-                }
-            }
-            
-            Spacer()
-            
-            // Sent icon with signature gradient
-            ZStack {
-                Circle()
-                    .fill(adaptiveColors.messageBubbleBackground.opacity(0.5))
-                    .frame(width: 36, height: 36)
-                
-                AttachmentIconView(icon: .ephemeral, preset: .viewOnceBadge, tintColor: .white)
-                    .overlay(
-                        signatureGradient
-                            .mask(AttachmentIconView(icon: .ephemeral, preset: .viewOnceBadge, tintColor: .white))
-                    )
-                
-                // ✅ Progress Overlay (Smaller)
-                if message.status == .sending, let uploadProgress = progress {
-                    MediaProgressRing(progress: uploadProgress, size: 36, lineWidth: 2.5)
-                        .transition(.opacity)
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
-                
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(adaptiveColors.messageBubbleBackground.opacity(0.2))
-            }
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(signatureGradient.opacity(0.2), lineWidth: 1)
-        )
-    }
-    
-    private func getIconName() -> String {
-        switch message.type {
-        case .viewOnceImage:
-            return "camera.fill"
-        case .viewOnceVideo:
-            return "video.fill"
-        default:
-            return "camera.fill"
-        }
-    }
-    
-    private func getTypeText() -> String {
-        switch message.type {
-        case .viewOnceImage:
-            return NSLocalizedString("chat.viewOnce.photo", comment: "")
-        case .viewOnceVideo:
-            return NSLocalizedString("chat.viewOnce.video", comment: "")
-        default:
-            return NSLocalizedString("chat.viewOnce.media", comment: "")
+                ),
+                label: statusText,
+                labelWeight: message.isViewed ? .medium : .semibold,
+                labelOpacity: message.isViewed ? 0.5 : 1.0
+            )
         }
     }
 }
-
-

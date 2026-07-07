@@ -94,7 +94,7 @@ struct StoryCameraView: View {
 
                 // Bottom controls
                 recordingStatusView
-                    .position(x: captureRect.midX, y: captureRect.maxY - 58)
+                    .position(x: captureRect.midX, y: captureRect.maxY - 108)
 
                 bottomSideControls
                     .frame(width: min(captureRect.width + 54, proxy.size.width - 72))
@@ -331,7 +331,9 @@ struct StoryCameraView: View {
     private func startRecordingTimer() {
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             recordingDuration += 0.1
-            if recordingDuration >= 60 { // Max 60 seconds
+            // Tope real del auto-split (5 partes × 60s); pasar de 60s ya no corta,
+            // el vídeo se publica dividido en partes automáticamente.
+            if recordingDuration >= StoryVideoProcessingService.maxAutoSplitDuration {
                 stopRecording()
             }
         }
@@ -377,8 +379,10 @@ struct StoryCameraView: View {
             do {
                 let (cgImage, _) = try await generator.image(at: .zero)
                 let thumbnail = UIImage(cgImage: cgImage)
+                let videoDuration = (try? await StoryVideoProcessingService.shared.duration(for: videoURL)) ?? 0
 
                 let detectedRatio = CreatorMedia.AspectRatio.fromRatio(thumbnail.size.width / thumbnail.size.height)
+                let needsAutoSplit = videoDuration > StoryVideoProcessingService.maxStorySegmentDuration
 
                 await MainActor.run {
                     startsInTextMode = false
@@ -388,7 +392,9 @@ struct StoryCameraView: View {
                         videoURL: videoURL,
                         type: .video,
                         aspectRatio: detectedRatio,
-                        recommendedAspectRatio: detectedRatio
+                        recommendedAspectRatio: detectedRatio,
+                        storyVideoMode: needsAutoSplit ? .autoSplit : .normal,
+                        videoDuration: videoDuration > 0 ? videoDuration : nil
                     )
                     selectedMediaItems = [processedMedia]
                     currentFlow = .storyEditing

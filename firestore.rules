@@ -1276,7 +1276,7 @@ service cloud.firestore {
       return message.keys().hasAll(['id', 'conversationId', 'senderId', 'type', 'status', 'isRead', 'isDeleted', 'isViewed']) &&
              message.keys().hasOnly([
                'id', 'conversationId', 'senderId', 'type', 'status', 'isRead', 'isDeleted', 'isViewed',
-               'isViewOnce', 'viewedBy', 'statusUpdatedAt',
+               'isViewOnce', 'viewedBy', 'allowReplay', 'replayedBy', 'statusUpdatedAt',
                'content', 'mediaUrl', 'thumbnailUrl', 'mediaObjectPath', 'thumbnailObjectPath',
                'mediaEncryption', 'thumbnailEncryption', 'duration', 'fileName', 'fileSize',
                'mediaWidth', 'mediaHeight', 'latitude', 'longitude', 'locationName', 'locationAddress',
@@ -1298,6 +1298,8 @@ service cloud.firestore {
              message.isViewed is bool &&
              (!("isViewOnce" in message) || message.isViewOnce is bool) &&
              (!('viewedBy' in message) || message.viewedBy is list) &&
+             (!('allowReplay' in message) || message.allowReplay is bool) &&
+             (!('replayedBy' in message) || message.replayedBy is list) &&
              (!('statusUpdatedAt' in message) || message.statusUpdatedAt is timestamp) &&
              // ✅ NUEVO: campos opcionales de ubicación (fija + en vivo)
              (!('latitude' in message) || message.latitude is number) &&
@@ -1578,7 +1580,7 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead','status','isViewed','statusUpdatedAt','readBy']);
     }
     function onlyViewOnceFieldsUpdated() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isViewed','viewedBy']);
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isViewed','viewedBy','replayedBy']);
     }
     // ✅ NUEVO: actualización de ubicación en vivo por el remitente
     // Las coordenadas viajan cifradas dentro de `content`.

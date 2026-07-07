@@ -410,7 +410,6 @@ extension ChatService {
     }
 
     private func getFileExtension(for type: MessageType) -> String {
-        print("📤 ChatService: getFileExtension requested for type: \(type)")
         switch type {
         case .image, .viewOnceImage, .ephemeral: return "jpg"
         case .gif: return "gif"
@@ -419,7 +418,6 @@ extension ChatService {
         case .audio: return "m4a"
         case .file: return "pdf"
         default:
-            print("📤 ChatService: getFileExtension falling back to default (txt) for type: \(type)")
             return "txt"
         }
     }

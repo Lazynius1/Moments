@@ -25,6 +25,8 @@ struct GlassmorphicMessageRow: View {
     let onStopLiveLocation: ((String) -> Void)?
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let onLongPress: ((CGRect, CGFloat) -> Void)?
+    var onViewOnceOpen: ((EnhancedMessage, Bool) -> Void)? = nil
+    var viewOnceZoomNamespace: Namespace.ID? = nil
     let progress: Double?
     var downloadProgress: Double? = nil
     var isDownloadingMedia: Bool = false
@@ -161,7 +163,9 @@ struct GlassmorphicMessageRow: View {
             onOpenMedia: onOpenMedia,
             onStopLiveLocation: onStopLiveLocation,
             onHydrateMedia: onHydrateMedia,
-            isDownloadingMedia: isDownloadingMedia
+            isDownloadingMedia: isDownloadingMedia,
+            onViewOnceOpen: onViewOnceOpen,
+            viewOnceZoomNamespace: viewOnceZoomNamespace
         )
 
         ChatBubbleReplySwipeContainer(
@@ -285,6 +289,8 @@ struct GlassmorphicMessageBubble: View {
     let onStopLiveLocation: ((String) -> Void)?
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     var isDownloadingMedia: Bool = false
+    var onViewOnceOpen: ((EnhancedMessage, Bool) -> Void)? = nil
+    var viewOnceZoomNamespace: Namespace.ID? = nil
     @Environment(\.colorScheme) var colorScheme
 
     private var adaptiveColors: AdaptiveColors {
@@ -339,10 +345,17 @@ struct GlassmorphicMessageBubble: View {
         )
     }
 
+    private var viewOnceOpenHandler: ((Bool) -> Void)? {
+        guard let handler = self.onViewOnceOpen else { return nil }
+        let targetMessage = self.message
+        return { (isReplaySession: Bool) in handler(targetMessage, isReplaySession) }
+    }
+
     var body: some View {
         Group {
             if message.isDeleted {
                 DeletedMessageBubble(message: message, isCurrentUser: isCurrentUser)
+                    .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
             } else {
                 if message.type == .viewOnceImage || message.type == .viewOnceVideo {
                     attachBubbleBadges(
@@ -351,11 +364,12 @@ struct GlassmorphicMessageBubble: View {
                             isCurrentUser: isCurrentUser,
                             otherParticipantName: otherParticipantName,
                             progress: progress,
-                            onViewed: {
-                                markViewOnceAsViewed()
-                            }
+                            onOpenViewer: viewOnceOpenHandler,
+                            zoomNamespace: viewOnceZoomNamespace,
+                            zoomSourceID: "view-once-\(message.id)"
                         )
                     )
+                    .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
                     .onAppear {
                     }
                 } else {
@@ -553,27 +567,6 @@ struct GlassmorphicMessageBubble: View {
             }
         }
     }
-
-    private func markViewOnceAsViewed() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-
-        let messageId = message.id
-        let conversationId = message.conversationId
-        let callback = onMessageViewed
-
-        ChatService().markViewOnceAsViewed(
-            conversationId: conversationId,
-            messageId: messageId,
-            viewerId: currentUserId
-        ) { error in
-            if error == nil {
-                DispatchQueue.main.async {
-                    callback?(messageId)
-                }
-            }
-        }
-    }
-
 }
 
 // MARK: - Link opening

@@ -249,6 +249,8 @@ extension ChatService {
         mediaType: EnhancedCameraPickerView.MediaType,
         messageId: String? = nil,
         isVanishModeMessage: Bool = false,
+        allowReplay: Bool = false,
+        replyTo: String? = nil,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         let messageType: MessageType = mediaType == .image ? .viewOnceImage : .viewOnceVideo
@@ -281,7 +283,7 @@ extension ChatService {
                     deletedAt: nil,
                     editedAt: nil,
                     reactions: nil,
-                    replyTo: nil,
+                    replyTo: replyTo,
                     expirationDate: nil,
                     isViewed: false,
                     storyReplyData: nil,
@@ -290,9 +292,15 @@ extension ChatService {
                     isVanishModeMessage: isVanishModeMessage ? true : nil
                 )
 
+                message.allowReplay = allowReplay ? true : nil
+
                 var messageData = self?.createBasicMessageData(from: message) ?? [:]
                 messageData["isViewOnce"] = true
                 messageData["viewedBy"] = []
+                if allowReplay {
+                    messageData["allowReplay"] = true
+                    messageData["replayedBy"] = []
+                }
 
                 self?.saveViewOnceMessage(message: message, customData: messageData, completion: completion)
 
@@ -344,6 +352,21 @@ extension ChatService {
         }) { _, error in
             completion(error)
         }
+    }
+
+    func markViewOnceReplayed(
+        conversationId: String,
+        messageId: String,
+        viewerId: String,
+        completion: @escaping (Error?) -> Void
+    ) {
+        db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .document(messageId)
+            .updateData(["replayedBy": FieldValue.arrayUnion([viewerId])]) { error in
+                completion(error)
+            }
     }
 
     private func saveViewOnceMessage(

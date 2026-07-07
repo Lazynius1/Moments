@@ -27,6 +27,17 @@ struct ChatStoryRoute: Identifiable {
     }
 }
 
+struct ViewOnceViewerPresentation: Identifiable {
+    let id = UUID()
+    let message: EnhancedMessage
+    let authorName: String
+    let isReplaySession: Bool
+
+    var zoomSourceID: String {
+        "view-once-\(message.id)"
+    }
+}
+
 // MARK: - Glassmorphic Chat View
 // Actualizar GlassmorphicChatView para incluir navegación
 struct GlassmorphicChatView: View {
@@ -35,6 +46,8 @@ struct GlassmorphicChatView: View {
     @StateObject var keyboardScrollCoordinator = ChatKeyboardScrollCoordinator()
     @State var messageText: String = ""
     @State var showEnhancedCamera = false
+    @State var pendingCameraReplyToMessageId: String?
+    @State var viewOnceViewerPresentation: ViewOnceViewerPresentation?
     @State var activeAttachmentSheet: ChatAttachmentSheetKind?
     @State var plusButtonAnchorFrame: CGRect = .zero
     @State var replyingTo: EnhancedMessage?
@@ -102,6 +115,7 @@ struct GlassmorphicChatView: View {
     @FocusState var isSearchFieldFocused: Bool
     @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @Namespace var viewOnceZoomNamespace
     let privacyService = PrivacyService()
     let firestoreService = FirestoreService()
 
@@ -234,9 +248,36 @@ struct GlassmorphicChatView: View {
             }
             .chatInteractivePopEnabled()
         .fullScreenCover(isPresented: $showEnhancedCamera) {
-            EnhancedCameraPickerView { data, mediaType, isEphemeral in
-                handleCameraCapture(data: data, mediaType: mediaType, isEphemeral: isEphemeral)
+            ChatCameraView(
+                otherUserId: viewModel.conversation.otherParticipantId,
+                otherUsername: otherParticipantDisplayName
+            ) { data, mediaType, mode in
+                handleCameraCapture(data: data, mediaType: mediaType, mode: mode)
             }
+        }
+        .fullScreenCover(item: $viewOnceViewerPresentation) { presentation in
+            ViewOnceImmersiveViewer(
+                message: presentation.message,
+                authorName: presentation.authorName,
+                onViewed: {
+                    handleViewOnceViewerViewed(presentation)
+                },
+                isReplaySession: presentation.isReplaySession,
+                onReplayConsumed: {
+                    handleViewOnceReplayConsumed(presentation)
+                },
+                onSendReply: { text in
+                    viewModel.sendTextMessage(text, replyTo: presentation.message.id)
+                },
+                onSendReaction: { emoji in
+                    viewModel.sendTextMessage(emoji, replyTo: presentation.message.id)
+                },
+                onOpenCameraReply: {
+                    openCameraForReply(to: presentation.message.id)
+                }
+            )
+            .interactiveDismissDisabled(true)
+            .navigationTransition(.zoom(sourceID: presentation.zoomSourceID, in: viewOnceZoomNamespace))
         }
         .onChange(of: activeAttachmentSheet) { _, newValue in
             guard newValue != nil else { return }
