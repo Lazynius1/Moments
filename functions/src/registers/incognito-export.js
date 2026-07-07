@@ -23,7 +23,6 @@ const {
   TELEGRAM_CHAT_ID
 } = b;
 const {
-  addMediaFilesToZip,
   addMediaItemStorageUrls,
   addOwnedBackgroundFrameStorageUrl,
   addStorageUrl,
@@ -53,7 +52,6 @@ const {
   canViewerSeeStory,
   chooseGentleReminderVariant,
   collectDeletedContentStorageUrls,
-  collectMediaUrlsFromPayload,
   countSharedInterests,
   createIncognitoHandler,
   createRekognitionClient,

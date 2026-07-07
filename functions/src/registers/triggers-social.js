@@ -19,7 +19,6 @@ const {
   TELEGRAM_CHAT_ID
 } = b;
 const {
-  addMediaFilesToZip,
   addMediaItemStorageUrls,
   addOwnedBackgroundFrameStorageUrl,
   addStorageUrl,
@@ -30,7 +29,6 @@ const {
   buildCsvFiles,
   buildDataExportPayload,
   buildDefaultIncognitoState,
-  buildExportZipBuffer,
   buildForYouDiscoveryContext,
   buildGentleReminderState,
   buildInlineKeyboardButton,
@@ -49,7 +47,6 @@ const {
   canViewerSeeStory,
   chooseGentleReminderVariant,
   collectDeletedContentStorageUrls,
-  collectMediaUrlsFromPayload,
   countSharedInterests,
   createIncognitoHandler,
   createRekognitionClient,
@@ -470,74 +467,6 @@ async function checkMutualConnection(user1Id, user2Id) {
   } catch (error) {
     console.error('❌ Error verificando conexión mutua:', error);
     return false;
-  }
-}
-
-// ✅ FUNCIÓN AUXILIAR: Enviar notificación de conexión mutua
-async function sendMutualConnectionNotification(receiverData, senderData, receiverId, senderId, count = 1) {
-  try {
-    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(receiverData, {
-      senderId: senderId,
-      candidateTexts: [senderData?.username]
-    });
-    if (isSilencedByMuteSettings) {
-      return;
-    }
-
-    if (!receiverData.fcmToken || isDoNotDisturbActive(receiverData) || !notificationTypeEnabled(receiverData, 'mutualConnection')) {
-      return;
-    }
-
-    // ✅ Usar loc-keys (iOS traduce según el idioma del dispositivo) en lugar de texto fijo en español.
-    const message = {
-      token: receiverData.fcmToken,
-      data: {
-        type: 'mutualConnection',
-        senderId: senderId,
-        userId: receiverId,
-        targetType: 'profile',
-        targetId: senderId,
-        senderUsername: senderData.username,
-        senderProfileImage: senderData.profileImagePath || ''
-      },
-      apns: {
-        headers: {
-          // Compartido por receptor: las mutuas seguidas colapsan en una sola notificación
-          // que se actualiza con el agregado "X y N más" (igual que el push de seguidores).
-          'apns-collapse-id': `mutual_${receiverId}`
-        },
-        payload: {
-          aps: {
-            alert: count > 1
-              ? {
-                  'title-loc-key': 'notification.mutualConnection.multiple.title',
-                  'title-loc-args': [],
-                  'loc-key': 'notification.mutualConnection.multiple.body',
-                  'loc-args': [senderData.username, String(count - 1)]
-                }
-              : {
-                  'title-loc-key': 'notification.mutualConnection.title',
-                  'loc-key': 'notification.mutualConnection.body',
-                  'loc-args': [senderData.username]
-                },
-            badge: 1,
-            sound: 'default',
-            'mutable-content': 1,
-            'thread-id': `mutual_connections_${receiverId}` // ✅ Agrupación para conexiones mutuas
-          }
-        }
-      }
-    };
-
-    await admin.messaging().send(message);
-    console.log(`✅ Notificación de conexión mutua enviada: ${senderData.username} ↔ ${receiverData.username}`);
-
-  } catch (error) {
-    if (error.code === 'messaging/registration-token-not-registered') {
-      await removeInvalidToken(receiverId, receiverData.fcmToken);
-    } else {
-      console.error('❌ Error enviando notificación de conexión mutua:', error);
-    }
   }
 }
 

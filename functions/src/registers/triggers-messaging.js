@@ -19,7 +19,6 @@ const {
   TELEGRAM_CHAT_ID
 } = b;
 const {
-  addMediaFilesToZip,
   addMediaItemStorageUrls,
   addOwnedBackgroundFrameStorageUrl,
   addStorageUrl,
@@ -30,7 +29,6 @@ const {
   buildCsvFiles,
   buildDataExportPayload,
   buildDefaultIncognitoState,
-  buildExportZipBuffer,
   buildForYouDiscoveryContext,
   buildGentleReminderState,
   buildInlineKeyboardButton,
@@ -49,7 +47,6 @@ const {
   canViewerSeeStory,
   chooseGentleReminderVariant,
   collectDeletedContentStorageUrls,
-  collectMediaUrlsFromPayload,
   countSharedInterests,
   createIncognitoHandler,
   createRekognitionClient,
@@ -1537,6 +1534,9 @@ const cleanupExpiredBuzzEvents = onSchedule(
 
 
 module.exports = {
+  // Compartidas con triggers-cleanup
+  purgeNotificationsByField,
+  reconcileEchoAfterMomentDeletion,
   acceptMessageRequest,
   onMessageAdded,
   onMessageReactionAdded,
