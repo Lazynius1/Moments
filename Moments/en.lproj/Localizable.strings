@@ -4227,3 +4227,11 @@
 "chat.request.sent.cancel" = "Cancel";
 "chat.request.report" = "Report";
 "messaging.sentRequest.badge" = "Request sent";
+"settings.privacy.messageRequests.title" = "Message requests";
+"settings.privacy.messageRequests.description" = "Who can send you requests";
+"settings.privacy.messageRequests.everyone" = "Everyone";
+"settings.privacy.messageRequests.following" = "People you follow";
+"settings.privacy.messageRequests.nobody" = "No one";
+"chat.intro.request.blocked" = "This account does not accept message requests.";
+"chat.request.closed.input" = "%@ does not accept message requests";
+"chat.request.error.notAllowed" = "This user does not accept message requests.";

@@ -78,7 +78,7 @@ extension GlassmorphicChatView {
             if !isPendingChat {
                 rows.insert(.historyStart, at: 0)
             }
-            if pendingChatContext?.status != .outgoingRequestDraft {
+            if pendingChatContext?.status != .outgoingRequestDraft, pendingChatContext?.status != .outgoingRequestBlocked {
                 rows.insert(.requestDisclaimer(pendingChatContext), at: 0)
             }
             rows.insert(.conversationIntro(pendingChatContext), at: 0)

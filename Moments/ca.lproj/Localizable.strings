@@ -4217,3 +4217,11 @@
 "chat.request.sent.cancel" = "Cancel·la";
 "chat.request.report" = "Denuncia";
 "messaging.sentRequest.badge" = "Sol·licitud enviada";
+"settings.privacy.messageRequests.title" = "Sol·licituds de missatge";
+"settings.privacy.messageRequests.description" = "Qui pot enviar-te sol·licituds";
+"settings.privacy.messageRequests.everyone" = "Tothom";
+"settings.privacy.messageRequests.following" = "Persones que segueixes";
+"settings.privacy.messageRequests.nobody" = "Ningú";
+"chat.intro.request.blocked" = "Aquest compte no accepta sol·licituds de missatge.";
+"chat.request.closed.input" = "%@ no accepta sol·licituds de missatge";
+"chat.request.error.notAllowed" = "Aquest usuari no accepta sol·licituds de missatge.";

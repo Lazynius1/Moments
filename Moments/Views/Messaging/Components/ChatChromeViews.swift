@@ -249,6 +249,8 @@ struct ChatConversationIntroRow: View {
                 return "chat.intro.request.outgoing"
             case .outgoingRequestSent:
                 return "chat.intro.request.sent"
+            case .outgoingRequestBlocked:
+                return "chat.intro.request.blocked"
             }
         }
         return "chat.intro.normal"

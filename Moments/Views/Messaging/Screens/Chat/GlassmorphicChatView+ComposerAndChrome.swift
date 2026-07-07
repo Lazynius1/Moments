@@ -34,7 +34,7 @@ extension GlassmorphicChatView {
             return "chat.request.disclaimer.incoming"
         case .outgoingRequestSent:
             return "chat.request.disclaimer.sent"
-        case .outgoingRequestDraft:
+        case .outgoingRequestDraft, .outgoingRequestBlocked:
             return "chat.request.disclaimer.outgoing"
         case nil:
             return "chat.intro.disclaimer.normal"
@@ -286,6 +286,8 @@ extension GlassmorphicChatView {
                 UnavailableChatInputBar()
             } else if pendingChatContext?.status == .outgoingRequestSent {
                 PendingRequestSentInputBar(onCancel: cancelPendingMessageRequest)
+            } else if pendingChatContext?.status == .outgoingRequestBlocked {
+                RequestsClosedInputBar(displayName: pendingChatContext?.otherUsername ?? otherParticipantDisplayName)
             } else {
                 VStack(spacing: 0) {
                     if pendingChatContext?.status == .incomingRequestPending {
@@ -354,6 +356,30 @@ extension GlassmorphicChatView {
                     }
                 }
             }
+        }
+    }
+
+    struct RequestsClosedInputBar: View {
+        let displayName: String
+        @Environment(\.colorScheme) var colorScheme
+
+        var body: some View {
+            HStack(spacing: 10) {
+                Image(systemName: "envelope.badge.shield.half.filled")
+                    .font(.system(size: 16, weight: .semibold))
+
+                Text(String(format: NSLocalizedString("chat.request.closed.input", comment: "User does not accept message requests"), displayName))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+                    .lineLimit(2)
+
+                Spacer(minLength: 0)
+            }
+            .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .momentsChromeGlass(in: Capsule(), interactive: false)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
         }
     }
 

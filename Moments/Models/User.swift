@@ -41,6 +41,21 @@ enum OnlineStatus: String, CaseIterable, Codable {
     }
 }
 
+// MARK: - Message Request Policy
+enum MessageRequestPolicy: String, CaseIterable, Codable {
+    case everyone = "everyone"
+    case following = "following"
+    case nobody = "nobody"
+
+    var displayName: String {
+        switch self {
+        case .everyone: return NSLocalizedString("settings.privacy.messageRequests.everyone", comment: "Everyone can send message requests")
+        case .following: return NSLocalizedString("settings.privacy.messageRequests.following", comment: "Only people you follow can send message requests")
+        case .nobody: return NSLocalizedString("settings.privacy.messageRequests.nobody", comment: "Nobody can send message requests")
+        }
+    }
+}
+
 struct AppUser: Identifiable, Codable {
     let id: String
     let username: String
@@ -95,7 +110,10 @@ struct AppUser: Identifiable, Codable {
     
     // ✅ Privacy: Confirmaciones de lectura
     let showReadReceipts: Bool
-    
+
+    // ✅ Privacy: Quién puede enviar solicitudes de mensaje
+    let messageRequestPolicy: MessageRequestPolicy
+
     // ✅ Username change cooldown
     let lastUsernameChange: Date?
 
@@ -138,6 +156,7 @@ struct AppUser: Identifiable, Codable {
         case lastSeen
         case isOnline
         case showReadReceipts
+        case messageRequestPolicy
         case lastUsernameChange
     }
 
@@ -207,6 +226,7 @@ struct AppUser: Identifiable, Codable {
         
         self.isOnline = (try container.decodeIfPresent(Bool.self, forKey: .isOnline)) ?? false
         self.showReadReceipts = (try container.decodeIfPresent(Bool.self, forKey: .showReadReceipts)) ?? true
+        self.messageRequestPolicy = MessageRequestPolicy(rawValue: (try container.decodeIfPresent(String.self, forKey: .messageRequestPolicy)) ?? "") ?? .everyone
         
         // lastUsernameChange puede venir como Timestamp de Firestore
         if let ts = try? container.decodeIfPresent(Timestamp.self, forKey: .lastUsernameChange) {
@@ -255,6 +275,7 @@ struct AppUser: Identifiable, Codable {
         lastSeen: Date? = nil,
         isOnline: Bool = false,
         showReadReceipts: Bool = true,
+        messageRequestPolicy: MessageRequestPolicy = .everyone,
         lastUsernameChange: Date? = nil
     ) {
         self.id = id
@@ -295,6 +316,7 @@ struct AppUser: Identifiable, Codable {
         self.lastSeen = lastSeen
         self.isOnline = isOnline
         self.showReadReceipts = showReadReceipts
+        self.messageRequestPolicy = messageRequestPolicy
         self.lastUsernameChange = lastUsernameChange
     }
 }

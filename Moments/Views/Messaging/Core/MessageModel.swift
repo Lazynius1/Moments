@@ -17,6 +17,7 @@ struct PendingChatContext: Identifiable, Hashable {
     enum Status: String, Hashable {
         case outgoingRequestDraft
         case outgoingRequestSent
+        case outgoingRequestBlocked
         case incomingRequestPending
     }
 
@@ -195,9 +196,17 @@ enum PendingChatContextFactory {
         let stats = await profileStats
         let existingRequest = await pendingRequest
         let counts = await (followersAggregate, visibleMoments)
+
+        let receiverFollowsViewer = relationship.1 != nil
+        let policy = stats?.requestPolicy ?? user.messageRequestPolicy
+        let requestsClosed = policy == .nobody || (policy == .following && !receiverFollowsViewer)
+        let status: PendingChatContext.Status = existingRequest != nil
+            ? .outgoingRequestSent
+            : (requestsClosed ? .outgoingRequestBlocked : .outgoingRequestDraft)
+
         return PendingChatContext(
             outgoingTo: user,
-            status: existingRequest != nil ? .outgoingRequestSent : .outgoingRequestDraft,
+            status: status,
             initialText: existingRequest?.message,
             request: existingRequest,
             followersCount: resolvedCount(user.followersCount, followersCountOverride, stats?.followersCount, counts.0),
@@ -320,7 +329,7 @@ enum PendingChatContextFactory {
         }
     }
 
-    private static func fetchProfileStats(userId: String) async -> (followersCount: Int?, momentsCount: Int?)? {
+    private static func fetchProfileStats(userId: String) async -> (followersCount: Int?, momentsCount: Int?, requestPolicy: MessageRequestPolicy?)? {
         guard !userId.isEmpty else { return nil }
         do {
             let snapshot = try await Firestore.firestore()
@@ -330,7 +339,8 @@ enum PendingChatContextFactory {
             guard let data = snapshot.data() else { return nil }
             return (
                 firstIntValue(from: data, keys: ["followersCount", "followers_count"]),
-                firstIntValue(from: data, keys: ["momentsCount", "moments_count", "postsCount", "posts_count"])
+                firstIntValue(from: data, keys: ["momentsCount", "moments_count", "postsCount", "posts_count"]),
+                (data["messageRequestPolicy"] as? String).flatMap(MessageRequestPolicy.init(rawValue:))
             )
         } catch {
             return nil

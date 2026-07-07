@@ -813,6 +813,8 @@ struct PrivacySection: View {
                 subtitle: NSLocalizedString("settings.sections.mute.subtitle", comment: "Accounts, words and phrases"),
                 action: { isShowingMute = true })
 
+            MessageRequestPolicyRow(viewModel: viewModel)
+
             // Read Receipts toggle — plain row, no divider at bottom (last item)
             HStack(spacing: 14) {
                 Image(systemName: "checkmark.circle")
@@ -863,6 +865,76 @@ struct PrivacySection: View {
         }
 
         return formatted
+    }
+}
+
+struct MessageRequestPolicyRow: View {
+    @Environment(\.colorScheme) var colorScheme
+    @ObservedObject var viewModel: SettingsViewModel
+    @State private var policy: MessageRequestPolicy = .everyone
+    @State private var hasLoaded = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                Image(systemName: "envelope.badge")
+                    .font(.system(size: 19, weight: .regular))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .frame(width: 28, alignment: .center)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(NSLocalizedString("settings.privacy.messageRequests.title", comment: "Message requests"))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    Text(NSLocalizedString("settings.privacy.messageRequests.description", comment: "Who can send you message requests"))
+                        .font(.system(size: legacyPoppinsSize(12)))
+                        .foregroundColor(.gray)
+                }
+
+                Spacer()
+
+                Menu {
+                    ForEach(MessageRequestPolicy.allCases, id: \.rawValue) { option in
+                        Button {
+                            guard option != policy else { return }
+                            policy = option
+                            viewModel.updateMessageRequestPolicy(option)
+                        } label: {
+                            if option == policy {
+                                Label(option.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(option.displayName)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Text(policy.displayName)
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
+                            .lineLimit(1)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundColor(.gray)
+                }
+            }
+            .padding(.vertical, 11)
+            .padding(.horizontal, 4)
+
+            Divider().opacity(0.2).padding(.leading, 42)
+        }
+        .onAppear(perform: loadPolicyIfNeeded)
+    }
+
+    private func loadPolicyIfNeeded() {
+        guard !hasLoaded, let userId = Auth.auth().currentUser?.uid else { return }
+        hasLoaded = true
+        Firestore.firestore().collection("users").document(userId).getDocument { snapshot, _ in
+            let raw = snapshot?.data()?["messageRequestPolicy"] as? String
+            if let loaded = raw.flatMap(MessageRequestPolicy.init(rawValue:)) {
+                policy = loaded
+            }
+        }
     }
 }
 

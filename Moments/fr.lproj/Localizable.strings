@@ -4197,3 +4197,11 @@
 "chat.request.sent.cancel" = "Annuler";
 "chat.request.report" = "Signaler";
 "messaging.sentRequest.badge" = "Demande envoyée";
+"settings.privacy.messageRequests.title" = "Demandes de message";
+"settings.privacy.messageRequests.description" = "Qui peut vous envoyer des demandes";
+"settings.privacy.messageRequests.everyone" = "Tout le monde";
+"settings.privacy.messageRequests.following" = "Personnes que vous suivez";
+"settings.privacy.messageRequests.nobody" = "Personne";
+"chat.intro.request.blocked" = "Ce compte n'accepte pas les demandes de message.";
+"chat.request.closed.input" = "%@ n'accepte pas les demandes de message";
+"chat.request.error.notAllowed" = "Cet utilisateur n'accepte pas les demandes de message.";

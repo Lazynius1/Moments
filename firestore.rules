@@ -1964,7 +1964,15 @@ service cloud.firestore {
                       && request.resource.data.messageType is string
                       && request.resource.data.timestamp is timestamp
                       && canParticipateInConversations(request.auth.uid)
-                      && canParticipateInConversations(request.resource.data.receiverId);
+                      && canParticipateInConversations(request.resource.data.receiverId)
+                      // ✅ Política de solicitudes del receptor: everyone | following | nobody
+                      && (
+                        get(/databases/$(database)/documents/users/$(request.resource.data.receiverId)).data.get('messageRequestPolicy', 'everyone') == 'everyone' ||
+                        (
+                          get(/databases/$(database)/documents/users/$(request.resource.data.receiverId)).data.get('messageRequestPolicy', 'everyone') == 'following' &&
+                          exists(/databases/$(database)/documents/users/$(request.resource.data.receiverId)/following/$(request.auth.uid))
+                        )
+                      );
 
       allow update: if request.auth != null
                       && request.auth.uid == resource.data.senderId

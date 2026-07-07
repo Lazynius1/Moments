@@ -194,9 +194,64 @@ class MessageRequestService: ObservableObject {
         
         
         isLoading = true
-        
-        // Verificar si ya existe una solicitud pendiente
-        checkExistingRequest(senderId: currentUser.uid, receiverId: receiverId) { [weak self] result in
+
+        // Verificar la política de solicitudes del receptor antes de crear
+        verifyReceiverAcceptsRequests(senderId: currentUser.uid, receiverId: receiverId) { [weak self] allowed in
+            guard allowed else {
+                DispatchQueue.main.async {
+                    self?.isLoading = false
+                    completion(.failure(NSError(
+                        domain: "MessageRequest",
+                        code: 403,
+                        userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("chat.request.error.notAllowed", comment: "User does not accept message requests")]
+                    )))
+                }
+                return
+            }
+
+            self?.checkExistingRequestAndSend(
+                senderId: currentUser.uid,
+                receiverId: receiverId,
+                message: message,
+                messageType: messageType,
+                mediaUrl: mediaUrl,
+                thumbnailUrl: thumbnailUrl,
+                completion: completion
+            )
+        }
+    }
+
+    private func verifyReceiverAcceptsRequests(senderId: String, receiverId: String, completion: @escaping (Bool) -> Void) {
+        db.collection("users").document(receiverId).getDocument { [weak self] snapshot, _ in
+            let rawPolicy = snapshot?.data()?["messageRequestPolicy"] as? String
+            let policy = rawPolicy.flatMap(MessageRequestPolicy.init(rawValue:)) ?? .everyone
+
+            switch policy {
+            case .everyone:
+                completion(true)
+            case .nobody:
+                completion(false)
+            case .following:
+                // El receptor debe seguir al emisor: se lee su doc en following del receptor
+                self?.db.collection("users").document(receiverId)
+                    .collection("following").document(senderId)
+                    .getDocument { snapshot, _ in
+                        completion(snapshot?.exists == true)
+                    }
+            }
+        }
+    }
+
+    private func checkExistingRequestAndSend(
+        senderId: String,
+        receiverId: String,
+        message: String,
+        messageType: MessageType,
+        mediaUrl: String?,
+        thumbnailUrl: String?,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        checkExistingRequest(senderId: senderId, receiverId: receiverId) { [weak self] result in
             switch result {
             case .success(let existingRequest):
                 if existingRequest != nil {
@@ -211,7 +266,7 @@ class MessageRequestService: ObservableObject {
                 } else {
                     // Crear nueva solicitud
                     self?.createNewRequest(
-                        senderId: currentUser.uid,
+                        senderId: senderId,
                         receiverId: receiverId,
                         message: message,
                         messageType: messageType,

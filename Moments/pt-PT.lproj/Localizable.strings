@@ -5007,3 +5007,11 @@
 "chat.request.sent.cancel" = "Cancelar";
 "chat.request.report" = "Denunciar";
 "messaging.sentRequest.badge" = "Pedido enviado";
+"settings.privacy.messageRequests.title" = "Pedidos de mensagem";
+"settings.privacy.messageRequests.description" = "Quem pode enviar-te pedidos";
+"settings.privacy.messageRequests.everyone" = "Todos";
+"settings.privacy.messageRequests.following" = "Pessoas que segues";
+"settings.privacy.messageRequests.nobody" = "Ninguém";
+"chat.intro.request.blocked" = "Esta conta não aceita pedidos de mensagem.";
+"chat.request.closed.input" = "%@ não aceita pedidos de mensagem";
+"chat.request.error.notAllowed" = "Este utilizador não aceita pedidos de mensagem.";

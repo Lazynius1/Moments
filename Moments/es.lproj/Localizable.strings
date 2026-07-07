@@ -4248,3 +4248,11 @@
 "chat.request.sent.cancel" = "Cancelar";
 "chat.request.report" = "Denunciar";
 "messaging.sentRequest.badge" = "Solicitud enviada";
+"settings.privacy.messageRequests.title" = "Solicitudes de mensaje";
+"settings.privacy.messageRequests.description" = "Quién puede enviarte solicitudes";
+"settings.privacy.messageRequests.everyone" = "Todos";
+"settings.privacy.messageRequests.following" = "Personas que sigues";
+"settings.privacy.messageRequests.nobody" = "Nadie";
+"chat.intro.request.blocked" = "Esta cuenta no acepta solicitudes de mensaje.";
+"chat.request.closed.input" = "%@ no acepta solicitudes de mensaje";
+"chat.request.error.notAllowed" = "Este usuario no acepta solicitudes de mensaje.";
