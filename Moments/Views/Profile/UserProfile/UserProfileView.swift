@@ -292,14 +292,10 @@ struct UserProfileView: View {
     @State private var socialConnectionsRoute: SocialConnectionsRoute?
     private let userId: String
     @StateObject private var messagingViewModel = MessagingViewModel()
-    @StateObject private var messageRequestService = MessageRequestService()
     @State private var navigateToChat: Bool = false
     @State private var targetConversation: Conversation?
+    @State private var pendingChatContext: PendingChatContext?
     @ObservedObject private var chatAccessCoordinator = ChatAccessCoordinator.shared
-    @State private var showingMessageRequestAlert = false
-    @State private var messageRequestText = ""
-    @State private var messageRequestError: String?
-    @State private var showingSuccessMessage = false
     @State private var showingUnfollowConfirmation = false
     @State private var showingRelationshipSheet = false
 
@@ -348,6 +344,12 @@ struct UserProfileView: View {
     }
 
     var body: some View {
+        NavigationStack {
+            profileContent
+        }
+    }
+
+    private var profileContent: some View {
         GeometryReader { geometry in
             let safeAreaTop = geometry.safeAreaInsets.top
             let safeAreaBottom = geometry.safeAreaInsets.bottom
@@ -426,6 +428,7 @@ struct UserProfileView: View {
                             conversation: conversation,
                             session: ChatSessionEngine.shared.session(for: conversation)
                         )
+                        .navigationTransition(.zoom(sourceID: "profile-message-chat", in: profileZoomNamespace))
                     } else {
                         ChatRecoveryGateView(onCancel: {
                             navigateToChat = false
@@ -434,34 +437,28 @@ struct UserProfileView: View {
                                 conversation: conversation,
                                 session: ChatSessionEngine.shared.session(for: conversation)
                             )
+                            .navigationTransition(.zoom(sourceID: "profile-message-chat", in: profileZoomNamespace))
                         }
                     }
                 }
+            } else {
+                Color.clear
             }
         }
-        .sheet(isPresented: $showingMessageRequestAlert) {
-            MessageRequestModalView(
-                messageText: $messageRequestText,
-                errorMessage: $messageRequestError,
-                showingSuccessMessage: $showingSuccessMessage,
-                onSend: sendMessageRequest,
-                onDismiss: {
-                    showingMessageRequestAlert = false
-                    messageRequestText = ""
-                    messageRequestError = nil
+        .navigationDestination(item: $pendingChatContext) { context in
+            let conversation = context.syntheticConversation(currentUserId: Auth.auth().currentUser?.uid ?? "")
+            GlassmorphicChatView(
+                conversation: conversation,
+                session: ChatSessionEngine.shared.session(for: conversation),
+                pendingChatContext: context,
+                onPendingChatAccepted: { _ in
+                    pendingChatContext = nil
+                },
+                onPendingChatDismissed: {
+                    pendingChatContext = nil
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .interactiveDismissDisabled(false)
-            .presentationBackground(.clear)
-        }
-        .alert(NSLocalizedString("messageRequestModal.success.title", comment: "Success title"), isPresented: $showingSuccessMessage) {
-            Button(NSLocalizedString("common.ok", comment: "OK button")) {
-                showingSuccessMessage = false
-            }
-        } message: {
-            Text(NSLocalizedString("messageRequestModal.success.message", comment: "Success message"))
+            .navigationTransition(.zoom(sourceID: "profile-message-chat", in: profileZoomNamespace))
         }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.userId))
@@ -541,35 +538,6 @@ struct UserProfileView: View {
         }
     }
 
-    // ✅ NUEVA: Función para enviar solicitud de mensaje
-    private func sendMessageRequest() {
-        guard Auth.auth().currentUser?.uid != nil,
-              let targetUser = viewModel.userProfile else { return }
-
-        let message = messageRequestText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !message.isEmpty else {
-            messageRequestError = NSLocalizedString("messageRequestModal.error.empty", comment: "Empty message error")
-            return
-        }
-
-        messageRequestService.sendMessageRequest(
-            to: targetUser.id,
-            message: message
-        ) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    showingMessageRequestAlert = false
-                    messageRequestText = ""
-                    messageRequestError = nil
-                    showingSuccessMessage = true
-                case .failure(let error):
-                    messageRequestError = String(format: NSLocalizedString("messageRequestModal.error.generic", comment: "Generic error"), error.localizedDescription)
-                }
-            }
-        }
-    }
-
     private func contentView(safeAreaTop: CGFloat, safeAreaBottom: CGFloat) -> some View {
         Group {
             if viewModel.isLoading {
@@ -623,10 +591,7 @@ struct UserProfileView: View {
                     safeAreaBottom: safeAreaBottom,
                     navigateToChat: $navigateToChat,
                     targetConversation: $targetConversation,
-                    showingMessageRequestAlert: $showingMessageRequestAlert,
-                    messageRequestText: $messageRequestText,
-                    messageRequestError: $messageRequestError,
-                    showingSuccessMessage: $showingSuccessMessage,
+                    pendingChatContext: $pendingChatContext,
                     onFollowAction: {
                         handleFollowAction()
                     },
@@ -635,7 +600,8 @@ struct UserProfileView: View {
                     },
                     onOpenStories: {
                         storyRoute = UserProfileStoryRoute(userId: userId)
-                    }
+                    },
+                    chatZoomNamespace: profileZoomNamespace
                 )
             } else {
                 // ✅ CORREGIDO: Vista pública con parámetros correctos
@@ -647,11 +613,8 @@ struct UserProfileView: View {
                     socialConnectionsRoute: $socialConnectionsRoute,
                     navigateToChat: $navigateToChat,
                     targetConversation: $targetConversation,
+                    pendingChatContext: $pendingChatContext,
                     scrollOffset: $scrollOffset,
-                    showingMessageRequestAlert: $showingMessageRequestAlert,
-                    messageRequestText: $messageRequestText,
-                    messageRequestError: $messageRequestError,
-                    showingSuccessMessage: $showingSuccessMessage,
                     showProfileImageFullscreen: $showProfileImageFullscreen,
                     onFollowAction: {
                         handleFollowAction()
@@ -662,6 +625,7 @@ struct UserProfileView: View {
                     onOpenStories: {
                         storyRoute = UserProfileStoryRoute(userId: userId)
                     },
+                    chatZoomNamespace: profileZoomNamespace,
                     selectedTab: $selectedTab // ✅ NUEVO
                 )
             }

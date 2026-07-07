@@ -1515,6 +1515,18 @@ private extension ChatRenderRow {
     var visualSignature: Int {
         var hasher = Hasher()
         switch self {
+        case .conversationIntro(let context):
+            hasher.combine(5)
+            hasher.combine(context)
+        case .requestDisclaimer(let context):
+            hasher.combine(6)
+            hasher.combine(context?.id)
+            hasher.combine(context?.status.rawValue)
+        case .pendingRequestMessage(let message):
+            hasher.combine(7)
+            hasher.combine(message.id)
+            hasher.combine(message.text)
+            hasher.combine(message.isOutgoing)
         case .header(let date):
             hasher.combine(0)
             hasher.combine(date.timeIntervalSinceReferenceDate)

@@ -222,6 +222,259 @@ struct ChatHistoryStartHeader: View {
     }
 }
 
+struct ChatConversationIntroRow: View {
+    let context: PendingChatContext?
+    let fallbackName: String
+    let fallbackUserId: String
+    let adaptiveColors: AdaptiveColors
+
+    private var displayName: String {
+        context?.otherUsername ?? fallbackName
+    }
+
+    private var userId: String {
+        context?.otherUserId ?? fallbackUserId
+    }
+
+    private var username: String {
+        context?.otherUsername ?? fallbackName
+    }
+
+    private var subtitleKey: LocalizedStringKey {
+        if let context {
+            switch context.status {
+            case .incomingRequestPending:
+                return "chat.intro.request.incoming"
+            case .outgoingRequestDraft:
+                return "chat.intro.request.outgoing"
+            case .outgoingRequestSent:
+                return "chat.intro.request.sent"
+            }
+        }
+        return "chat.intro.normal"
+    }
+
+    private var statsText: String? {
+        guard let context else { return nil }
+        let followers = context.otherFollowersCount ?? 0
+        let moments = context.otherMomentsCount ?? 0
+        guard followers > 0 || moments > 0 else { return nil }
+        return String(
+            format: NSLocalizedString("chat.intro.profileStats", comment: "Pending chat profile stats"),
+            MomentsFormat.count(followers, style: .profileStat),
+            MomentsFormat.count(moments, style: .profileStat)
+        )
+    }
+
+    private var showsStatusSubtitle: Bool {
+        context?.status != .outgoingRequestDraft
+    }
+
+    private var relationshipText: String? {
+        guard let context else { return nil }
+        if context.viewerFollowsOther == true, context.otherFollowsViewer == true {
+            if let date = [context.viewerFollowedAt, context.otherFollowedViewerAt].compactMap({ $0 }).max() {
+                return String(
+                    format: NSLocalizedString("chat.intro.relationship.mutualSince", comment: "Mutual follow since year"),
+                    username,
+                    yearString(from: date)
+                )
+            }
+            return String(
+                format: NSLocalizedString("chat.intro.relationship.mutual", comment: "Users follow each other"),
+                username
+            )
+        }
+        if context.viewerFollowsOther == true {
+            if let viewerFollowedAt = context.viewerFollowedAt {
+                return String(
+                    format: NSLocalizedString("chat.intro.relationship.viewerFollowsSince", comment: "Viewer follows user since year"),
+                    username,
+                    yearString(from: viewerFollowedAt)
+                )
+            }
+            return String(
+                format: NSLocalizedString("chat.intro.relationship.viewerFollows", comment: "Viewer follows user"),
+                username
+            )
+        }
+        if context.otherFollowsViewer == true {
+            if let otherFollowedViewerAt = context.otherFollowedViewerAt {
+                return String(
+                    format: NSLocalizedString("chat.intro.relationship.otherFollowsViewerSince", comment: "Other follows viewer since year"),
+                    username,
+                    yearString(from: otherFollowedViewerAt)
+                )
+            }
+            return String(
+                format: NSLocalizedString("chat.intro.relationship.otherFollowsViewer", comment: "Other user follows viewer"),
+                username
+            )
+        }
+        return NSLocalizedString("chat.intro.relationship.notMutual", comment: "Users do not follow each other")
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            AsyncProfileImageView(userId: userId)
+                .frame(width: 96, height: 96)
+                .clipShape(Circle())
+
+            VStack(spacing: 5) {
+                HStack(spacing: 5) {
+                    Text(displayName)
+                        .font(.system(size: legacyPoppinsSize(25), weight: .bold))
+                        .foregroundStyle(adaptiveColors.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    if context?.otherIsVerified == true {
+                        VerifiedBadge(size: 20)
+                    }
+                }
+
+                if let statsText {
+                    Text(statsText)
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                        .foregroundStyle(adaptiveColors.secondary)
+                        .lineLimit(1)
+                }
+
+                if showsStatusSubtitle {
+                    Text(subtitleKey)
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                        .foregroundStyle(adaptiveColors.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                }
+
+                if let relationshipText {
+                    Text(relationshipText)
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+                        .foregroundStyle(adaptiveColors.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.top, 46)
+        .padding(.bottom, 22)
+    }
+
+    private func yearString(from date: Date) -> String {
+        String(Calendar.current.component(.year, from: date))
+    }
+}
+
+struct ChatRequestInviteNotice: View {
+    let displayName: String
+    let username: String
+    let adaptiveColors: AdaptiveColors
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "paperplane")
+                .font(.system(size: 21, weight: .semibold))
+                .foregroundStyle(adaptiveColors.secondary)
+                .frame(width: 36, height: 36)
+                .momentsChromeGlass(in: Circle(), interactive: false)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(format: NSLocalizedString("chat.request.invite.title", comment: "Invite user to chat title"), displayName, username))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                    .foregroundStyle(adaptiveColors.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("chat.request.invite.body")
+                    .font(.system(size: legacyPoppinsSize(13), weight: .medium))
+                    .foregroundStyle(adaptiveColors.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(adaptiveColors.secondary.opacity(0.12))
+                .frame(height: 0.5)
+        }
+    }
+}
+
+struct ChatRequestDisclaimerRow: View {
+    let textKey: LocalizedStringKey
+    let adaptiveColors: AdaptiveColors
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 13, weight: .semibold))
+                .padding(.top, 2)
+
+            Text(textKey)
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(adaptiveColors.secondary)
+        .padding(.horizontal, 13)
+        .padding(.vertical, 10)
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16), interactive: false)
+    }
+}
+
+struct PendingRequestMessageRow: View {
+    let message: PendingChatTimelineMessage
+    let adaptiveColors: AdaptiveColors
+
+    var body: some View {
+        HStack {
+            if message.isOutgoing {
+                Spacer(minLength: 48)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                switch message.messageType {
+                case .image:
+                    mediaLabel(systemName: "photo", textKey: "messageRequests.image")
+                case .video:
+                    mediaLabel(systemName: "play.rectangle", textKey: "messageRequests.video")
+                default:
+                    Text(message.text)
+                        .font(.system(size: legacyPoppinsSize(15)))
+                        .foregroundStyle(message.isOutgoing ? Color.white : adaptiveColors.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(message.isOutgoing ? AnyShapeStyle(Color.blue.opacity(0.92)) : AnyShapeStyle(adaptiveColors.cardBackground))
+            )
+
+            if !message.isOutgoing {
+                Spacer(minLength: 48)
+            }
+        }
+    }
+
+    private func mediaLabel(systemName: String, textKey: LocalizedStringKey) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemName)
+            Text(textKey)
+        }
+        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+        .foregroundStyle(message.isOutgoing ? Color.white : adaptiveColors.primary)
+    }
+}
+
 /// Encabezado de sección en listas de mensajes (misma fuente que el toolbar).
 struct MessagingSectionHeader: View {
     let title: LocalizedStringKey

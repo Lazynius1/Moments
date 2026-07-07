@@ -44,7 +44,9 @@ struct GlassmorphicChatView: View {
     @ObservedObject var session: ConversationChatSession
     @StateObject var onlineStatusService = OnlineStatusService()
     @StateObject var keyboardScrollCoordinator = ChatKeyboardScrollCoordinator()
+    @StateObject var pendingMessageRequestService = MessageRequestService()
     @State var messageText: String = ""
+    @State var pendingChatContext: PendingChatContext?
     @State var showEnhancedCamera = false
     @State var pendingCameraReplyToMessageId: String?
     @State var viewOnceViewerPresentation: ViewOnceViewerPresentation?
@@ -119,6 +121,8 @@ struct GlassmorphicChatView: View {
     @Namespace var viewOnceZoomNamespace
     let privacyService = PrivacyService()
     let firestoreService = FirestoreService()
+    let onPendingChatAccepted: ((String) -> Void)?
+    let onPendingChatDismissed: (() -> Void)?
 
     // ✅ NUEVO: Estados para navegación al perfil
     @State var showingUserProfile = false
@@ -222,17 +226,30 @@ struct GlassmorphicChatView: View {
         viewModel.conversation.id ?? ""
     }
 
+    var draftStorageKey: String {
+        viewModel.conversation.id ?? "pending:\(viewModel.conversation.otherParticipantId)"
+    }
+
     var quickReactionEmoji: String { "❤️" }
 
-    init(conversation: Conversation, session: ConversationChatSession? = nil) {
+    init(
+        conversation: Conversation,
+        session: ConversationChatSession? = nil,
+        pendingChatContext: PendingChatContext? = nil,
+        onPendingChatAccepted: ((String) -> Void)? = nil,
+        onPendingChatDismissed: (() -> Void)? = nil
+    ) {
         let resolved = session ?? ChatSessionEngine.shared.session(for: conversation)
-        let conversationId = conversation.id ?? ""
+        let draftKey = conversation.id ?? "pending:\(conversation.otherParticipantId)"
         _session = ObservedObject(wrappedValue: resolved)
-        _messageText = State(initialValue: ChatDraftStore.shared.draft(for: conversationId))
+        _messageText = State(initialValue: ChatDraftStore.shared.draft(for: draftKey))
+        _pendingChatContext = State(initialValue: pendingChatContext)
         // Cada apertura arranca fresca y va al fondo (no se restaura posición).
         _hasCompletedInitialScroll = State(initialValue: false)
         _isPinnedToBottom = State(initialValue: true)
         _didReapplyFrozenScrollPosition = State(initialValue: false)
+        self.onPendingChatAccepted = onPendingChatAccepted
+        self.onPendingChatDismissed = onPendingChatDismissed
     }
 
     // ✅ REFACTOR: Dividido en variables separadas para evitar el error del compilador (timeout AST)
@@ -286,8 +303,26 @@ struct GlassmorphicChatView: View {
         }
         .onChange(of: messageText) { _, newValue in
             guard editingMessage == nil else { return }
-            ChatDraftStore.shared.setDraft(newValue, for: conversationId)
+            ChatDraftStore.shared.setDraft(newValue, for: draftStorageKey)
         }
+        .task {
+            await enrichPendingChatContextIfNeeded()
+        }
+    }
+
+    /// Completa el contexto pendiente con stats y relación social (como hace el emisor)
+    /// cuando el chat se abrió con datos mínimos cacheados de la solicitud.
+    func enrichPendingChatContextIfNeeded() async {
+        guard let context = pendingChatContext,
+              context.direction == .incoming,
+              context.viewerFollowsOther == nil,
+              let request = context.request,
+              let viewerId = Auth.auth().currentUser?.uid else { return }
+
+        let enriched = await PendingChatContextFactory.incoming(request: request, viewerId: viewerId)
+        guard pendingChatContext?.request?.id == request.id,
+              pendingChatContext?.status == .incomingRequestPending else { return }
+        pendingChatContext = enriched
     }
 
     var chatViewWithSettingsAndStories: some View {

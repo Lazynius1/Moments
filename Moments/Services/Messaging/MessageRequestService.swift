@@ -12,6 +12,7 @@ class MessageRequestService: ObservableObject {
     private let firestoreService = FirestoreService()
     
     @Published var pendingRequests: [MessageRequest] = []
+    @Published var outgoingPendingRequests: [MessageRequest] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     
@@ -37,6 +38,7 @@ class MessageRequestService: ObservableObject {
                 DispatchQueue.main.async {
                     self.removeAllListeners()
                     self.pendingRequests = []
+                    self.outgoingPendingRequests = []
                     self.isLoading = false
                     self.errorMessage = nil
                 }
@@ -146,7 +148,35 @@ class MessageRequestService: ObservableObject {
         
         listeners["pendingRequests"] = listener
     }
-    
+
+    // MARK: - Listen to Outgoing Pending Requests
+    func listenToOutgoingPendingRequests(for userId: String) {
+        let listener = db.collection("messageRequests")
+            .whereField("senderId", isEqualTo: userId)
+            .whereField("status", isEqualTo: MessageRequest.RequestStatus.pending.rawValue)
+            .order(by: "timestamp", descending: true)
+            .addSnapshotListener { [weak self] snapshot, error in
+                if error != nil {
+                    if Auth.auth().currentUser == nil {
+                        DispatchQueue.main.async {
+                            self?.outgoingPendingRequests = []
+                        }
+                    }
+                    return
+                }
+
+                let requests = (snapshot?.documents ?? []).compactMap { document in
+                    MessageRequest.fromFirestoreData(document.data(), id: document.documentID)
+                }
+
+                DispatchQueue.main.async {
+                    self?.outgoingPendingRequests = requests
+                }
+            }
+
+        listeners["outgoingPendingRequests"] = listener
+    }
+
     // MARK: - Send Message Request
     func sendMessageRequest(
         to receiverId: String,
@@ -169,16 +199,15 @@ class MessageRequestService: ObservableObject {
         checkExistingRequest(senderId: currentUser.uid, receiverId: receiverId) { [weak self] result in
             switch result {
             case .success(let existingRequest):
-                if let existingRequest = existingRequest {
-                    // Actualizar solicitud existente
-                    self?.updateExistingRequest(
-                        existingRequest,
-                        newMessage: message,
-                        messageType: messageType,
-                        mediaUrl: mediaUrl,
-                        thumbnailUrl: thumbnailUrl,
-                        completion: completion
-                    )
+                if existingRequest != nil {
+                    DispatchQueue.main.async {
+                        self?.isLoading = false
+                        completion(.failure(NSError(
+                            domain: "MessageRequest",
+                            code: 409,
+                            userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("chat.request.error.alreadyPending", comment: "Message request already pending")]
+                        )))
+                    }
                 } else {
                     // Crear nueva solicitud
                     self?.createNewRequest(
@@ -357,7 +386,7 @@ class MessageRequestService: ObservableObject {
     }
     
     // MARK: - Accept Request
-    func acceptRequest(_ request: MessageRequest, completion: @escaping (Result<Void, Error>) -> Void) {
+    func acceptRequest(_ request: MessageRequest, completion: @escaping (Result<AcceptMessageRequestResult, Error>) -> Void) {
         guard let requestId = request.id else {
             completion(.failure(NSError(domain: "Request", code: 400, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messageRequests.acceptError.notAvailable", comment: "Message request is no longer available")])))
             return
@@ -415,9 +444,21 @@ class MessageRequestService: ObservableObject {
                     )
                 }
 
+                guard
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let conversationId = json["conversationId"] as? String,
+                    let messageId = json["messageId"] as? String
+                else {
+                    throw NSError(
+                        domain: "MessageRequest",
+                        code: -2,
+                        userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.serviceUnavailable", comment: "Messaging service unavailable.")]
+                    )
+                }
+
                 await MainActor.run {
                     self.isLoading = false
-                    completion(.success(()))
+                    completion(.success(AcceptMessageRequestResult(conversationId: conversationId, messageId: messageId)))
                 }
             } catch {
                 await MainActor.run {
@@ -444,6 +485,27 @@ class MessageRequestService: ObservableObject {
         }
     }
     
+    // MARK: - Cancel Outgoing Request
+    func cancelRequest(_ request: MessageRequest, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let requestId = request.id else {
+            completion(.failure(NSError(domain: "Request", code: 400, userInfo: [NSLocalizedDescriptionKey: "ID de solicitud no válido"])))
+            return
+        }
+
+        guard Auth.auth().currentUser?.uid == request.senderId else {
+            completion(.failure(NSError(domain: "MessageRequest", code: 403, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messageRequests.acceptError.forbidden", comment: "Message request cannot be accepted by this user")])))
+            return
+        }
+
+        db.collection("messageRequests").document(requestId).delete { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+
     // MARK: - Block User
     func blockUser(_ request: MessageRequest, completion: @escaping (Result<Void, Error>) -> Void) {
         guard let requestId = request.id else {
@@ -492,6 +554,33 @@ class MessageRequestService: ObservableObject {
 
 // MARK: - MessageRequest Extension for Encoding
 extension MessageRequest {
+    static func fromFirestoreData(_ data: [String: Any], id: String) -> MessageRequest? {
+        guard let senderId = data["senderId"] as? String,
+              let receiverId = data["receiverId"] as? String,
+              let message = data["message"] as? String,
+              let statusRaw = data["status"] as? String,
+              let messageTypeRaw = data["messageType"] as? String,
+              let timestamp = data["timestamp"] as? Timestamp,
+              let status = RequestStatus(rawValue: statusRaw),
+              let messageType = MessageType(rawValue: messageTypeRaw) else {
+            return nil
+        }
+
+        return MessageRequest(
+            id: id,
+            senderId: senderId,
+            senderUsername: data["senderUsername"] as? String,
+            senderProfileImagePath: data["senderProfileImagePath"] as? String,
+            receiverId: receiverId,
+            message: message,
+            timestamp: timestamp.dateValue(),
+            status: status,
+            messageType: messageType,
+            mediaUrl: data["mediaUrl"] as? String,
+            thumbnailUrl: data["thumbnailUrl"] as? String
+        )
+    }
+
     func encode() throws -> [String: Any] {
         let firestoreData: [String: Any] = [
             "senderId": senderId,

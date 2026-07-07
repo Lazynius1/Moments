@@ -6,6 +6,7 @@ struct GlassmorphicInputBar: View {
     @Binding var isRecordingVoice: Bool
     @Binding var activeAttachmentSheet: ChatAttachmentSheetKind?
     var isVanishModeActive: Bool = false
+    var allowsAttachments: Bool = true
     let recordingTime: TimeInterval
     let onSend: () -> Void
     let onStartVoiceRecording: () -> Void
@@ -41,7 +42,9 @@ struct GlassmorphicInputBar: View {
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             if !isRecordingVoice {
-                ChatAttachmentPlusButton(isMenuOpen: isMenuOpen, action: toggleAttachmentMenu)
+                if allowsAttachments {
+                    ChatAttachmentPlusButton(isMenuOpen: isMenuOpen, action: toggleAttachmentMenu)
+                }
 
                 HStack(alignment: .center, spacing: 10) {
                     TextField(inputPlaceholder, text: $text, axis: .vertical)
@@ -57,7 +60,7 @@ struct GlassmorphicInputBar: View {
                             isTyping = !newValue.isEmpty
                         }
 
-                    if text.isEmpty {
+                    if text.isEmpty && allowsAttachments {
                         Button(action: onStartVoiceRecording) {
                             AttachmentIconView(
                                 icon: .voice,

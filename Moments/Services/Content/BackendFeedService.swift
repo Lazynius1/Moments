@@ -8,6 +8,7 @@ struct BackendFeedResponse: Codable {
     let nextCursor: FeedCursor?
     let source: String
     let totalCandidates: Int
+    let totalVisibleCount: Int?
 }
 
 struct BackendHighlightsResponse: Codable {
@@ -413,8 +414,9 @@ class BackendFeedService {
     func fetchProfileMoments(
         targetUserId: String? = nil,
         cursor: FeedCursor? = nil,
-        limit: Int = 50
-    ) async -> (moments: [Moment], nextCursor: FeedCursor?, source: String)? {
+        limit: Int = 50,
+        includeTotalCount: Bool = false
+    ) async -> (moments: [Moment], nextCursor: FeedCursor?, source: String, totalVisibleCount: Int?)? {
         guard !isCircuitOpen else {
             LogConfig.log("⚡ BackendFeed profile: Circuit breaker OPEN", category: "BackendFeed")
             return nil
@@ -438,6 +440,9 @@ class BackendFeedService {
             }
             if let targetUserId, !targetUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 body["targetUserId"] = targetUserId
+            }
+            if includeTotalCount {
+                body["includeTotalCount"] = true
             }
 
             let projectId = FirebaseApp.app()?.options.projectID ?? ""
@@ -466,7 +471,7 @@ class BackendFeedService {
             let moments = decoded.moments.map { $0.toMoment() }
             recordSuccess()
             LogConfig.log("✅ BackendFeed profile: \(moments.count) moments (source: \(decoded.source), candidates: \(decoded.totalCandidates))", category: "BackendFeed")
-            return (moments: moments, nextCursor: decoded.nextCursor, source: decoded.source)
+            return (moments: moments, nextCursor: decoded.nextCursor, source: decoded.source, totalVisibleCount: decoded.totalVisibleCount)
         } catch {
             LogConfig.log("❌ BackendFeed profile error: \(error.localizedDescription)", category: "BackendFeed")
             recordFailure()

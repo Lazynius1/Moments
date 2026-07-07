@@ -13,6 +13,11 @@ private struct MessagingProfileRoute: Identifiable, Hashable {
     let id: String
 }
 
+enum NewConversationRoute {
+    case conversation(Conversation)
+    case pending(PendingChatContext)
+}
+
 // MARK: - Glassmorphic Components
 struct GlassmorphicBackground: View {
     let adaptiveColors: AdaptiveColors
@@ -62,6 +67,7 @@ struct MessagingView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var isShowingNewConversation = false
     @State private var selectedConversation: Conversation?
+    @State private var pendingChatContext: PendingChatContext?
     @Binding var targetConversationId: String?
     var onDismiss: (() -> Void)? = nil
 
@@ -169,9 +175,6 @@ struct MessagingView: View {
             .sheet(isPresented: $showingStatusSelector) {
                 statusSelectorSheet
             }
-            .sheet(isPresented: $showingMessageRequests) {
-                messageRequestsSheet
-            }
             .toolbar(.visible, for: .navigationBar)
             .navigationBarHidden(false)
             .navigationBarBackButtonHidden(true)
@@ -186,8 +189,14 @@ struct MessagingView: View {
             .navigationDestination(isPresented: $showingArchivedConversations) {
                 archivedConversationsDestination
             }
+            .navigationDestination(isPresented: $showingMessageRequests) {
+                messageRequestsDestination
+            }
             .navigationDestination(item: $selectedConversation) { conversation in
                 chatDestination(for: conversation)
+            }
+            .navigationDestination(item: $pendingChatContext) { context in
+                pendingChatDestination(for: context)
             }
             .navigationDestination(item: $profileRoute) { route in
                 profileDestination(for: route)
@@ -204,10 +213,11 @@ struct MessagingView: View {
         )
     }
 
-    private var messageRequestsSheet: some View {
-        MessageRequestsView()
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+    private var messageRequestsDestination: some View {
+        MessageRequestsView { request in
+            showingMessageRequests = false
+            pendingChatContext = PendingChatContext(incoming: request)
+        }
     }
 
     private var messagingMainStack: some View {
@@ -249,10 +259,15 @@ struct MessagingView: View {
     }
 
     private var newConversationDestination: some View {
-        GlassmorphicNewConversationView(viewModel: viewModel) { conversation in
+        GlassmorphicNewConversationView(viewModel: viewModel) { route in
             isShowingNewConversation = false
-            if let conversation {
+            switch route {
+            case .some(.conversation(let conversation)):
                 selectedConversation = conversation
+            case .some(.pending(let context)):
+                pendingChatContext = context
+            case .none:
+                break
             }
         }
     }
@@ -276,6 +291,43 @@ struct MessagingView: View {
         )
     }
 
+    private func pendingChatDestination(for context: PendingChatContext) -> some View {
+        let conversation = context.syntheticConversation(currentUserId: Auth.auth().currentUser?.uid ?? "")
+        return GlassmorphicChatView(
+            conversation: conversation,
+            session: ChatSessionEngine.shared.session(for: conversation),
+            pendingChatContext: context,
+            onPendingChatAccepted: { conversationId in
+                openAcceptedRequestConversation(conversationId: conversationId, context: context)
+            },
+            onPendingChatDismissed: {
+                pendingChatContext = nil
+            }
+        )
+    }
+
+    private func openAcceptedRequestConversation(conversationId: String, context: PendingChatContext) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            pendingChatContext = nil
+            return
+        }
+
+        let conversation = Conversation(
+            id: conversationId,
+            participants: [currentUserId, context.otherUserId].sorted(),
+            lastMessage: context.initialText,
+            timestamp: Date(),
+            readStatus: [currentUserId: true, context.otherUserId: true],
+            otherParticipantId: context.otherUserId,
+            otherParticipantUsername: context.otherUsername,
+            otherParticipantProfileImagePath: context.otherProfileImagePath
+        )
+
+        pendingChatContext = nil
+        selectedConversation = conversation
+        viewModel.fetchConversations(for: currentUserId)
+    }
+
     private func profileDestination(for route: MessagingProfileRoute) -> some View {
         UserProfileView(userId: route.id)
             .userProfileZoomDestination(userId: route.id, namespace: profileZoomNamespace)
@@ -285,6 +337,7 @@ struct MessagingView: View {
         if let userId = Auth.auth().currentUser?.uid {
             viewModel.fetchConversations(for: userId)
             messageRequestService.listenToPendingRequests(for: userId)
+            messageRequestService.listenToOutgoingPendingRequests(for: userId)
             updatePendingRequestCount(for: userId)
         }
 
@@ -307,6 +360,7 @@ struct MessagingView: View {
             viewModel.errorMessage = nil
             viewModel.fetchConversations(for: userId)
             messageRequestService.listenToPendingRequests(for: userId)
+            messageRequestService.listenToOutgoingPendingRequests(for: userId)
             updatePendingRequestCount(for: userId)
         } else {
             viewModel.stopListening()
@@ -317,6 +371,7 @@ struct MessagingView: View {
             viewModel.hasUnreadMessages = false
             messageRequestService.removeAllListeners()
             messageRequestService.pendingRequests = []
+            messageRequestService.outgoingPendingRequests = []
             messageRequestService.errorMessage = nil
             ChatAccessCoordinator.shared.invalidate()
             ChatSessionEngine.shared.invalidateAll()
@@ -662,7 +717,7 @@ struct MessagingView: View {
 
                  Spacer()
              }
-         } else if viewModel.conversations.isEmpty && viewModel.archivedConversations.isEmpty && !isSearching {
+         } else if viewModel.conversations.isEmpty && viewModel.archivedConversations.isEmpty && messageRequestService.outgoingPendingRequests.isEmpty && !isSearching {
              VStack(spacing: 20) {
                  Spacer()
 
@@ -876,16 +931,59 @@ struct MessagingView: View {
         }
     }
 
+    private enum MergedListRow: Identifiable {
+        case conversation(Conversation)
+        case outgoingRequest(MessageRequest)
+
+        var id: String {
+            switch self {
+            case .conversation(let conversation): return "conversation:\(conversation.id ?? "")"
+            case .outgoingRequest(let request): return "outgoingRequest:\(request.id ?? request.receiverId)"
+            }
+        }
+
+        var timestamp: Date {
+            switch self {
+            case .conversation(let conversation): return conversation.timestamp
+            case .outgoingRequest(let request): return request.timestamp
+            }
+        }
+    }
+
+    private var mergedConversationRows: [MergedListRow] {
+        let conversationRows = viewModel.conversations
+            .filter { ($0.id?.isEmpty == false) }
+            .map { MergedListRow.conversation($0) }
+        let requestRows = messageRequestService.outgoingPendingRequests
+            .map { MergedListRow.outgoingRequest($0) }
+        return (conversationRows + requestRows).sorted { $0.timestamp > $1.timestamp }
+    }
+
     @ViewBuilder
     private var conversationsSection: some View {
         if !viewModel.archivedConversations.isEmpty {
             archivedConversationsEntryRow
         }
 
-        ForEach(viewModel.conversations) { conversation in
-            if let conversationId = conversation.id, !conversationId.isEmpty {
+        ForEach(mergedConversationRows) { row in
+            switch row {
+            case .conversation(let conversation):
                 conversationRow(conversation)
+            case .outgoingRequest(let request):
+                OutgoingSentRequestRow(request: request) { user in
+                    openOutgoingPendingChat(for: user)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             }
+        }
+    }
+
+    private func openOutgoingPendingChat(for user: AppUser) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        Task { @MainActor in
+            pendingChatContext = await PendingChatContextFactory.outgoing(to: user, from: userId)
         }
     }
 
@@ -951,6 +1049,74 @@ struct MessagingView: View {
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
+    }
+}
+
+// MARK: - Outgoing sent request row
+
+struct OutgoingSentRequestRow: View {
+    let request: MessageRequest
+    let onOpen: (AppUser) -> Void
+
+    @State private var receiver: AppUser?
+    @Environment(\.colorScheme) var colorScheme
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    var body: some View {
+        Button {
+            if let receiver {
+                onOpen(receiver)
+            }
+        } label: {
+            HStack(spacing: 12) {
+                AsyncProfileImageView(userId: request.receiverId)
+                    .frame(width: 48, height: 48)
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(receiver?.username ?? " ")
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                        .foregroundStyle(adaptiveColors.primary)
+                        .lineLimit(1)
+
+                    HStack(spacing: 5) {
+                        Image(systemName: "paperplane")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("messaging.sentRequest.badge")
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(adaptiveColors.secondary)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(adaptiveColors.secondary.opacity(0.6))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .opacity(0.78)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(receiver == nil)
+        .onAppear(perform: loadReceiverIfNeeded)
+    }
+
+    private func loadReceiverIfNeeded() {
+        guard receiver == nil else { return }
+        FirestoreService().fetchUser(userId: request.receiverId) { (result: Result<AppUser, Error>) in
+            if case .success(let user) = result {
+                DispatchQueue.main.async {
+                    receiver = user
+                }
+            }
+        }
     }
 }
 
@@ -1395,7 +1561,7 @@ struct GlassmorphicNewConversationView: View {
     @Namespace private var profileZoomNamespace
     @State private var searchText = ""
     @State private var showingUserProfile: AppUser?
-    let onConversationCreated: (Conversation?) -> Void
+    let onConversationCreated: (NewConversationRoute?) -> Void
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -1548,8 +1714,14 @@ struct GlassmorphicNewConversationView: View {
         guard let userId = Auth.auth().currentUser?.uid else { return }
 
         viewModel.startConversation(with: user, from: userId, initialMessage: nil) { conversation in
-            guard let conversation else { return }
-            onConversationCreated(conversation)
+            if let conversation {
+                onConversationCreated(.conversation(conversation))
+            } else if viewModel.requiresMessageRequest {
+                Task { @MainActor in
+                    let context = await PendingChatContextFactory.outgoing(to: user, from: userId)
+                    onConversationCreated(.pending(context))
+                }
+            }
         }
     }
 }

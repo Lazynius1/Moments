@@ -15,10 +15,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
     @State private var navigateToProfile = false
     @State private var navigateToChat = false
     @State private var targetConversation: Conversation?
-    @State private var showingMessageRequestAlert = false
-    @State private var messageRequestText = ""
-    @State private var messageRequestError: String?
-    @State private var showingSuccessMessage = false
+    @State private var pendingChatContext: PendingChatContext?
     @State private var relationshipState: FollowButtonState = .canFollow
     @State private var showingUnfollowConfirmation = false
     @State private var followedYouAt: Date?
@@ -115,29 +112,19 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
                 }
             }
         }
-        .sheet(isPresented: $showingMessageRequestAlert) {
-            MessageRequestModalView(
-                messageText: $messageRequestText,
-                errorMessage: $messageRequestError,
-                showingSuccessMessage: $showingSuccessMessage,
-                onSend: sendMessageRequest,
-                onDismiss: {
-                    showingMessageRequestAlert = false
-                    messageRequestText = ""
-                    messageRequestError = nil
+        .navigationDestination(item: $pendingChatContext) { context in
+            let conversation = context.syntheticConversation(currentUserId: Auth.auth().currentUser?.uid ?? "")
+            GlassmorphicChatView(
+                conversation: conversation,
+                session: ChatSessionEngine.shared.session(for: conversation),
+                pendingChatContext: context,
+                onPendingChatAccepted: { _ in
+                    pendingChatContext = nil
+                },
+                onPendingChatDismissed: {
+                    pendingChatContext = nil
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .interactiveDismissDisabled(false)
-            .presentationBackground(.clear)
-        }
-        .alert(NSLocalizedString("messageRequestModal.success.title", comment: ""), isPresented: $showingSuccessMessage) {
-            Button(NSLocalizedString("common.ok", comment: "")) {
-                showingSuccessMessage = false
-            }
-        } message: {
-            Text(NSLocalizedString("messageRequestModal.success.message", comment: ""))
         }
         .confirmationDialog(
             NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
@@ -418,40 +405,14 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
             if let conversation {
                 targetConversation = conversation
                 navigateToChat = true
-            } else if let errorMessage = messagingViewModel.errorMessage,
-                      errorMessage.contains("solicitud") || errorMessage.contains("request") {
-                showingMessageRequestAlert = true
-            }
-        }
-    }
-
-    private func sendMessageRequest() {
-        guard Auth.auth().currentUser?.uid != nil else { return }
-
-        messageRequestError = nil
-        messageRequestText = messageRequestText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !messageRequestText.isEmpty else {
-            messageRequestError = NSLocalizedString("messageRequestModal.error.empty", comment: "")
-            return
-        }
-
-        MessageRequestService().sendMessageRequest(
-            to: otherUser.id,
-            message: messageRequestText
-        ) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    showingMessageRequestAlert = false
-                    showingSuccessMessage = true
-                    messageRequestText = ""
-                case .failure(let error):
-                    messageRequestError = String(
-                        format: NSLocalizedString("messageRequestModal.error.generic", comment: ""),
-                        error.localizedDescription
-                    )
-                }
+            } else if messagingViewModel.requiresMessageRequest {
+                pendingChatContext = PendingChatContext(
+                    outgoingTo: otherUser,
+                    viewerFollowsOther: followingSince != nil,
+                    otherFollowsViewer: followedYouAt != nil,
+                    viewerFollowedAt: followingSince,
+                    otherFollowedViewerAt: followedYouAt
+                )
             }
         }
     }

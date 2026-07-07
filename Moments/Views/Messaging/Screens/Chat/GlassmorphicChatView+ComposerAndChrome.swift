@@ -8,6 +8,164 @@ import CoreLocation
 import MapKit
 
 extension GlassmorphicChatView {
+    var isPendingChat: Bool {
+        pendingChatContext != nil
+    }
+
+    var pendingChatCanType: Bool {
+        pendingChatContext?.status == .outgoingRequestDraft
+    }
+
+    var pendingChatTimelineMessage: PendingChatTimelineMessage? {
+        guard let context = pendingChatContext else { return nil }
+        if let request = context.request {
+            return PendingChatTimelineMessage(request: request, currentUserId: viewModel.currentUserId)
+        }
+        guard context.status == .outgoingRequestSent,
+              let text = context.initialText?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty
+        else { return nil }
+        return PendingChatTimelineMessage(outgoingText: text, receiverId: context.otherUserId)
+    }
+
+    var pendingChatDisclaimerKey: LocalizedStringKey {
+        switch pendingChatContext?.status {
+        case .incomingRequestPending:
+            return "chat.request.disclaimer.incoming"
+        case .outgoingRequestSent:
+            return "chat.request.disclaimer.sent"
+        case .outgoingRequestDraft:
+            return "chat.request.disclaimer.outgoing"
+        case nil:
+            return "chat.intro.disclaimer.normal"
+        }
+    }
+
+    func sendPendingMessageRequest(_ text: String) {
+        guard var context = pendingChatContext else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, context.status == .outgoingRequestDraft else { return }
+
+        pendingMessageRequestService.sendMessageRequest(
+            to: context.otherUserId,
+            message: trimmed
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    context.status = .outgoingRequestSent
+                    context.initialText = trimmed
+                    pendingChatContext = context
+                    messageText = ""
+                    isTextFieldFocused = false
+                    ChatDraftStore.shared.clearDraft(for: draftStorageKey)
+                case .failure(let error):
+                    let nsError = error as NSError
+                    if nsError.domain == "MessageRequest", nsError.code == 409 {
+                        context.status = .outgoingRequestSent
+                        context.initialText = nil
+                        pendingChatContext = context
+                        messageText = ""
+                        isTextFieldFocused = false
+                    } else {
+                        showBuzzToast(error.localizedDescription)
+                    }
+                }
+            }
+        }
+    }
+
+    func acceptPendingMessageRequest(thenSend replyText: String? = nil) {
+        guard let context = pendingChatContext,
+              let request = context.request else { return }
+
+        pendingMessageRequestService.acceptRequest(request) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let acceptResult):
+                    let trimmedReply = replyText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    if !trimmedReply.isEmpty, let currentUserId = Auth.auth().currentUser?.uid {
+                        let acceptedConversation = Conversation(
+                            id: acceptResult.conversationId,
+                            participants: [currentUserId, context.otherUserId].sorted(),
+                            lastMessage: context.initialText,
+                            timestamp: Date(),
+                            readStatus: [currentUserId: true, context.otherUserId: true],
+                            otherParticipantId: context.otherUserId,
+                            otherParticipantUsername: context.otherUsername,
+                            otherParticipantProfileImagePath: context.otherProfileImagePath
+                        )
+                        ChatSessionEngine.shared.session(for: acceptedConversation).sendTextMessage(trimmedReply, replyTo: nil)
+                    }
+                    messageText = ""
+                    ChatDraftStore.shared.clearDraft(for: draftStorageKey)
+                    pendingChatContext = nil
+                    onPendingChatAccepted?(acceptResult.conversationId)
+                case .failure(let error):
+                    showBuzzToast(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    func cancelPendingMessageRequest() {
+        guard let context = pendingChatContext,
+              context.direction == .outgoing,
+              let request = context.request else {
+            if let context = pendingChatContext, context.direction == .outgoing {
+                pendingChatContext = context.resetToDraft()
+            }
+            return
+        }
+
+        pendingMessageRequestService.cancelRequest(request) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    let previousText = context.initialText ?? ""
+                    pendingChatContext = context.resetToDraft()
+                    if messageText.isEmpty {
+                        messageText = previousText
+                    }
+                case .failure(let error):
+                    showBuzzToast(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    func deletePendingMessageRequest() {
+        guard let request = pendingChatContext?.request else {
+            onPendingChatDismissed?()
+            return
+        }
+
+        pendingMessageRequestService.rejectRequest(request) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    onPendingChatDismissed?()
+                case .failure(let error):
+                    showBuzzToast(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    func blockPendingMessageRequest() {
+        guard let request = pendingChatContext?.request else { return }
+
+        pendingMessageRequestService.blockUser(request) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    onPendingChatDismissed?()
+                case .failure(let error):
+                    showBuzzToast(error.localizedDescription)
+                }
+            }
+        }
+    }
 
     func sharedMedia(from message: EnhancedMessage) -> SharedMedia? {
         guard let mediaUrl = message.mediaUrl else { return nil }
@@ -126,47 +284,177 @@ extension GlassmorphicChatView {
                 BlockedByMeChatInputBar(onUnblock: unblockOtherParticipantFromChat)
             } else if isOtherParticipantUnavailable {
                 UnavailableChatInputBar()
+            } else if pendingChatContext?.status == .outgoingRequestSent {
+                PendingRequestSentInputBar(onCancel: cancelPendingMessageRequest)
             } else {
-                GlassmorphicInputBar(
-                    text: $messageText,
-                    isTyping: $session.isTyping,
-                    isRecordingVoice: $isRecordingVoice,
-                    activeAttachmentSheet: $activeAttachmentSheet,
-                    isVanishModeActive: viewModel.vanishModeActive,
-                    recordingTime: recordingTime,
-                    onSend: {
-                        let messageToSend = messageText
-
-                        guard !messageToSend.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                            return
-                        }
-
-                        if let editingMessage = editingMessage {
-                            // Save edit
-                            viewModel.editMessage(editingMessage, newContent: messageToSend)
-                            self.editingMessage = nil
-                        } else {
-                            // Send new message
-                            let replyToMessageId = replyingTo?.id
-                            viewModel.sendTextMessage(messageToSend, replyTo: replyToMessageId)
-                            replyingTo = nil
-                            ChatDraftStore.shared.clearDraft(for: conversationId)
-                        }
-
-                        messageText = ""
-                    },
-                    onStartVoiceRecording: {
-                        startVoiceRecording()
-                    },
-                    onStopVoiceRecording: { shouldSend in
-                        stopVoiceRecording(shouldSend: shouldSend)
+                VStack(spacing: 0) {
+                    if pendingChatContext?.status == .incomingRequestPending {
+                        IncomingRequestActionBar(
+                            isLoading: pendingMessageRequestService.isLoading,
+                            onAccept: { acceptPendingMessageRequest() },
+                            onDelete: deletePendingMessageRequest,
+                            onBlock: blockPendingMessageRequest,
+                            onReport: { showingReportSheet = true }
+                        )
                     }
-                )
-                .focused($isTextFieldFocused)
-                .onPreferenceChange(ChatPlusButtonAnchorKey.self) { frame in
-                    plusButtonAnchorFrame = frame
+
+                    if pendingChatCanType, let context = pendingChatContext {
+                        ChatRequestInviteNotice(
+                            displayName: context.otherUsername,
+                            username: context.otherUsername,
+                            adaptiveColors: adaptiveColors
+                        )
+                    }
+
+                    GlassmorphicInputBar(
+                        text: $messageText,
+                        isTyping: $session.isTyping,
+                        isRecordingVoice: $isRecordingVoice,
+                        activeAttachmentSheet: $activeAttachmentSheet,
+                        isVanishModeActive: viewModel.vanishModeActive,
+                        allowsAttachments: !isPendingChat,
+                        recordingTime: recordingTime,
+                        onSend: {
+                            let messageToSend = messageText
+
+                            guard !messageToSend.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                                return
+                            }
+
+                            if pendingChatCanType {
+                                sendPendingMessageRequest(messageToSend)
+                            } else if pendingChatContext?.status == .incomingRequestPending {
+                                acceptPendingMessageRequest(thenSend: messageToSend)
+                            } else if let editingMessage = editingMessage {
+                                // Save edit
+                                viewModel.editMessage(editingMessage, newContent: messageToSend)
+                                self.editingMessage = nil
+                                messageText = ""
+                            } else {
+                                // Send new message
+                                let replyToMessageId = replyingTo?.id
+                                viewModel.sendTextMessage(messageToSend, replyTo: replyToMessageId)
+                                replyingTo = nil
+                                ChatDraftStore.shared.clearDraft(for: draftStorageKey)
+                                messageText = ""
+                            }
+                        },
+                        onStartVoiceRecording: {
+                            guard !isPendingChat else { return }
+                            startVoiceRecording()
+                        },
+                        onStopVoiceRecording: { shouldSend in
+                            guard !isPendingChat else { return }
+                            stopVoiceRecording(shouldSend: shouldSend)
+                        }
+                    )
+                    .focused($isTextFieldFocused)
+                    .onPreferenceChange(ChatPlusButtonAnchorKey.self) { frame in
+                        plusButtonAnchorFrame = frame
+                    }
                 }
             }
+        }
+    }
+
+    struct PendingRequestSentInputBar: View {
+        let onCancel: () -> Void
+        @Environment(\.colorScheme) var colorScheme
+
+        var body: some View {
+            HStack(spacing: 10) {
+                Image(systemName: "paperplane.circle.fill")
+                    .font(.system(size: 17, weight: .semibold))
+
+                Text("chat.request.sent.input")
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+                    .lineLimit(2)
+
+                Spacer(minLength: 6)
+
+                Button(action: onCancel) {
+                    Text("chat.request.sent.cancel")
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
+                }
+                .buttonStyle(.plain)
+            }
+            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.58))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .momentsChromeGlass(in: Capsule(), interactive: false)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+        }
+    }
+
+    struct IncomingRequestActionBar: View {
+        let isLoading: Bool
+        let onAccept: () -> Void
+        let onDelete: () -> Void
+        let onBlock: () -> Void
+        let onReport: () -> Void
+        @Environment(\.colorScheme) var colorScheme
+
+        var body: some View {
+            VStack(spacing: 10) {
+                Button(action: onAccept) {
+                    HStack(spacing: 8) {
+                        if isLoading {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "checkmark.circle.fill")
+                        }
+                        Text("messageRequests.accept")
+                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                    }
+                    .foregroundColor(colorScheme == .dark ? .black : .white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        Capsule()
+                            .fill(colorScheme == .dark ? Color.white : Color.black)
+                    )
+                }
+                .disabled(isLoading)
+
+                HStack(spacing: 10) {
+                    Button(role: .destructive, action: onDelete) {
+                        Text("messageRequests.delete")
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
+                    }
+                    .disabled(isLoading)
+
+                    Button(role: .destructive, action: onBlock) {
+                        Text("messageRequests.blockUser")
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
+                    }
+                    .disabled(isLoading)
+
+                    Button(action: onReport) {
+                        Text("chat.request.report")
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
+                    }
+                    .disabled(isLoading)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
         }
     }
 

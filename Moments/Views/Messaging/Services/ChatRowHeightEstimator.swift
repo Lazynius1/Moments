@@ -27,12 +27,22 @@ enum ChatRowHeightEstimator {
     private static let buzzHeight: CGFloat = 44
     private static let typingHeight: CGFloat = 40
     private static let historyStartHeight: CGFloat = 50
+    private static let conversationIntroHeight: CGFloat = 190
+    private static let requestDisclaimerHeight: CGFloat = 58
 
     static let fallbackHeight: CGFloat = 60
 
     static func estimatedHeight(for row: ChatRenderRow, containerWidth: CGFloat) -> CGFloat {
         let bubbleWidth = max(120, containerWidth * maxBubbleWidthFraction)
         switch row {
+        case .conversationIntro:
+            return conversationIntroHeight
+        case .requestDisclaimer:
+            return requestDisclaimerHeight
+        case .pendingRequestMessage(let message):
+            let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return viewOncePillHeight + viewOnceRowVerticalPadding }
+            return max(46, textHeight(for: text, bubbleWidth: bubbleWidth) + 6)
         case .header:
             return headerHeight
         case .buzz:
@@ -44,6 +54,17 @@ enum ChatRowHeightEstimator {
         case .message(let item):
             return estimatedHeight(for: item, bubbleWidth: bubbleWidth)
         }
+    }
+
+    private static func textHeight(for text: String, bubbleWidth: CGFloat) -> CGFloat {
+        let availableWidth = max(80, bubbleWidth - textHorizontalPadding)
+        let bounding = NSString(string: text).boundingRect(
+            with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: UIFont.systemFont(ofSize: baseFontSize)],
+            context: nil
+        )
+        return ceil(bounding.height) + textVerticalPadding
     }
 
     private static func estimatedHeight(for item: MessageItem, bubbleWidth: CGFloat) -> CGFloat {

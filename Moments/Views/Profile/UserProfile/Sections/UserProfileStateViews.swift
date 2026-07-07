@@ -117,13 +117,11 @@ struct UserModernPrivateProfileView: View {
     let safeAreaBottom: CGFloat
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
-    @Binding var showingMessageRequestAlert: Bool
-    @Binding var messageRequestText: String
-    @Binding var messageRequestError: String?
-    @Binding var showingSuccessMessage: Bool
+    @Binding var pendingChatContext: PendingChatContext?
     let onFollowAction: () -> Void
     let onDismiss: () -> Void
     let onOpenStories: () -> Void
+    let chatZoomNamespace: Namespace.ID
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -198,10 +196,9 @@ struct UserModernPrivateProfileView: View {
                             if let conversation {
                                 targetConversation = conversation
                                 navigateToChat = true
-                            } else if let error = messagingViewModel.errorMessage {
-                                let lowercasedError = error.lowercased()
-                                if lowercasedError.contains("no siguen mutuamente") || lowercasedError.contains("solicitud") {
-                                    showingMessageRequestAlert = true
+                            } else if messagingViewModel.requiresMessageRequest {
+                                Task { @MainActor in
+                                    pendingChatContext = await PendingChatContextFactory.outgoing(to: targetUser, from: currentUserId)
                                 }
                             }
                         }
@@ -219,6 +216,9 @@ struct UserModernPrivateProfileView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .momentsChromeGlass(in: Capsule(), interactive: true)
+                    }
+                    .matchedTransitionSource(id: "profile-message-chat", in: chatZoomNamespace) { source in
+                        source.clipShape(RoundedRectangle(cornerRadius: 22))
                     }
                 }
                 .padding(.horizontal, 20)

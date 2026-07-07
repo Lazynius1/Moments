@@ -8,6 +8,395 @@ struct ConversationLastMessageReaction: Codable, Equatable {
     let byUserId: String
 }
 
+struct PendingChatContext: Identifiable, Hashable {
+    enum Direction: String, Hashable {
+        case outgoing
+        case incoming
+    }
+
+    enum Status: String, Hashable {
+        case outgoingRequestDraft
+        case outgoingRequestSent
+        case incomingRequestPending
+    }
+
+    let id: String
+    let otherUserId: String
+    let otherUsername: String
+    let otherProfileImagePath: String?
+    let otherFollowersCount: Int?
+    let otherMomentsCount: Int?
+    let otherIsVerified: Bool
+    let viewerFollowsOther: Bool?
+    let otherFollowsViewer: Bool?
+    let viewerFollowedAt: Date?
+    let otherFollowedViewerAt: Date?
+    let request: MessageRequest?
+    let direction: Direction
+    var status: Status
+    var initialText: String?
+
+    init(
+        otherUserId: String,
+        otherUsername: String,
+        otherProfileImagePath: String?,
+        otherFollowersCount: Int? = nil,
+        otherMomentsCount: Int? = nil,
+        otherIsVerified: Bool = false,
+        viewerFollowsOther: Bool? = nil,
+        otherFollowsViewer: Bool? = nil,
+        viewerFollowedAt: Date? = nil,
+        otherFollowedViewerAt: Date? = nil,
+        request: MessageRequest? = nil,
+        direction: Direction,
+        status: Status,
+        initialText: String? = nil
+    ) {
+        self.otherUserId = otherUserId
+        self.otherUsername = otherUsername
+        self.otherProfileImagePath = otherProfileImagePath
+        self.otherFollowersCount = otherFollowersCount
+        self.otherMomentsCount = otherMomentsCount
+        self.otherIsVerified = otherIsVerified
+        self.viewerFollowsOther = viewerFollowsOther
+        self.otherFollowsViewer = otherFollowsViewer
+        self.viewerFollowedAt = viewerFollowedAt
+        self.otherFollowedViewerAt = otherFollowedViewerAt
+        self.request = request
+        self.direction = direction
+        self.status = status
+        self.initialText = initialText
+        self.id = request?.id.map { "request:\($0)" } ?? "pending:\(direction.rawValue):\(otherUserId)"
+    }
+
+    init(
+        outgoingTo user: AppUser,
+        status: Status = .outgoingRequestDraft,
+        initialText: String? = nil,
+        request: MessageRequest? = nil,
+        followersCount: Int? = nil,
+        momentsCount: Int? = nil,
+        viewerFollowsOther: Bool? = nil,
+        otherFollowsViewer: Bool? = nil,
+        viewerFollowedAt: Date? = nil,
+        otherFollowedViewerAt: Date? = nil
+    ) {
+        self.init(
+            otherUserId: user.id,
+            otherUsername: user.username,
+            otherProfileImagePath: user.profileImagePath,
+            otherFollowersCount: followersCount ?? user.followersCount,
+            otherMomentsCount: momentsCount ?? user.momentsCount,
+            otherIsVerified: user.isVerified,
+            viewerFollowsOther: viewerFollowsOther,
+            otherFollowsViewer: otherFollowsViewer,
+            viewerFollowedAt: viewerFollowedAt,
+            otherFollowedViewerAt: otherFollowedViewerAt,
+            request: request,
+            direction: .outgoing,
+            status: status,
+            initialText: initialText
+        )
+    }
+
+    func resetToDraft() -> PendingChatContext {
+        PendingChatContext(
+            otherUserId: otherUserId,
+            otherUsername: otherUsername,
+            otherProfileImagePath: otherProfileImagePath,
+            otherFollowersCount: otherFollowersCount,
+            otherMomentsCount: otherMomentsCount,
+            otherIsVerified: otherIsVerified,
+            viewerFollowsOther: viewerFollowsOther,
+            otherFollowsViewer: otherFollowsViewer,
+            viewerFollowedAt: viewerFollowedAt,
+            otherFollowedViewerAt: otherFollowedViewerAt,
+            request: nil,
+            direction: .outgoing,
+            status: .outgoingRequestDraft,
+            initialText: nil
+        )
+    }
+
+    init(incoming request: MessageRequest) {
+        self.init(
+            otherUserId: request.senderId,
+            otherUsername: request.senderUsername ?? NSLocalizedString("common.user", value: "Usuario", comment: "Generic user fallback"),
+            otherProfileImagePath: request.senderProfileImagePath,
+            request: request,
+            direction: .incoming,
+            status: .incomingRequestPending,
+            initialText: request.message
+        )
+    }
+
+    init(
+        incoming request: MessageRequest,
+        sender: AppUser?,
+        followersCount: Int?,
+        momentsCount: Int?,
+        viewerFollowsOther: Bool?,
+        otherFollowsViewer: Bool?,
+        viewerFollowedAt: Date?,
+        otherFollowedViewerAt: Date?
+    ) {
+        self.init(
+            otherUserId: request.senderId,
+            otherUsername: sender?.username ?? request.senderUsername ?? NSLocalizedString("common.user", value: "Usuario", comment: "Generic user fallback"),
+            otherProfileImagePath: sender?.profileImagePath ?? request.senderProfileImagePath,
+            otherFollowersCount: followersCount,
+            otherMomentsCount: momentsCount,
+            otherIsVerified: sender?.isVerified ?? false,
+            viewerFollowsOther: viewerFollowsOther,
+            otherFollowsViewer: otherFollowsViewer,
+            viewerFollowedAt: viewerFollowedAt,
+            otherFollowedViewerAt: otherFollowedViewerAt,
+            request: request,
+            direction: .incoming,
+            status: .incomingRequestPending,
+            initialText: request.message
+        )
+    }
+
+    func syntheticConversation(currentUserId: String) -> Conversation {
+        Conversation(
+            id: nil,
+            participants: [currentUserId, otherUserId].filter { !$0.isEmpty }.sorted(),
+            lastMessage: initialText,
+            timestamp: request?.timestamp ?? Date(),
+            readStatus: [currentUserId: true, otherUserId: false],
+            otherParticipantId: otherUserId,
+            otherParticipantUsername: otherUsername,
+            otherParticipantProfileImagePath: otherProfileImagePath
+        )
+    }
+}
+
+struct AcceptMessageRequestResult: Hashable {
+    let conversationId: String
+    let messageId: String
+}
+
+enum PendingChatContextFactory {
+    static func outgoing(
+        to user: AppUser,
+        from currentUserId: String,
+        followersCountOverride: Int? = nil,
+        momentsCountOverride: Int? = nil
+    ) async -> PendingChatContext {
+        async let viewerFollowedAt = followTimestamp(from: currentUserId, to: user.id)
+        async let otherFollowedViewerAt = followerTimestamp(viewerId: currentUserId, otherId: user.id)
+        async let profileStats = fetchProfileStats(userId: user.id)
+        async let pendingRequest = pendingOutgoingRequest(from: currentUserId, to: user.id)
+        async let followersAggregate = aggregateFollowersCount(userId: user.id)
+        async let visibleMoments = visibleMomentsCount(userId: user.id)
+
+        let relationship = await (viewerFollowedAt, otherFollowedViewerAt)
+        let stats = await profileStats
+        let existingRequest = await pendingRequest
+        let counts = await (followersAggregate, visibleMoments)
+        return PendingChatContext(
+            outgoingTo: user,
+            status: existingRequest != nil ? .outgoingRequestSent : .outgoingRequestDraft,
+            initialText: existingRequest?.message,
+            request: existingRequest,
+            followersCount: resolvedCount(user.followersCount, followersCountOverride, stats?.followersCount, counts.0),
+            momentsCount: momentsCountOverride ?? counts.1 ?? resolvedCount(user.momentsCount, stats?.momentsCount),
+            viewerFollowsOther: relationship.0 != nil,
+            otherFollowsViewer: relationship.1 != nil,
+            viewerFollowedAt: relationship.0,
+            otherFollowedViewerAt: relationship.1
+        )
+    }
+
+    static func incoming(request: MessageRequest, viewerId: String) async -> PendingChatContext {
+        async let sender = fetchUser(userId: request.senderId)
+        async let viewerFollowedAt = followTimestamp(from: viewerId, to: request.senderId)
+        async let otherFollowedViewerAt = followerTimestamp(viewerId: viewerId, otherId: request.senderId)
+        async let profileStats = fetchProfileStats(userId: request.senderId)
+        async let followersAggregate = aggregateFollowersCount(userId: request.senderId)
+        async let visibleMoments = visibleMomentsCount(userId: request.senderId)
+
+        let senderUser = await sender
+        let relationship = await (viewerFollowedAt, otherFollowedViewerAt)
+        let stats = await profileStats
+        let counts = await (followersAggregate, visibleMoments)
+
+        return PendingChatContext(
+            incoming: request,
+            sender: senderUser,
+            followersCount: resolvedCount(senderUser?.followersCount, stats?.followersCount, counts.0),
+            momentsCount: counts.1 ?? resolvedCount(senderUser?.momentsCount, stats?.momentsCount),
+            viewerFollowsOther: relationship.0 != nil,
+            otherFollowsViewer: relationship.1 != nil,
+            viewerFollowedAt: relationship.0,
+            otherFollowedViewerAt: relationship.1
+        )
+    }
+
+    private static func fetchUser(userId: String) async -> AppUser? {
+        guard !userId.isEmpty else { return nil }
+        return try? await FirestoreService().fetchUsersAsync(userIds: [userId]).first
+    }
+
+    static func pendingOutgoingRequest(from senderId: String, to receiverId: String) async -> MessageRequest? {
+        guard !senderId.isEmpty, !receiverId.isEmpty else { return nil }
+        do {
+            let snapshot = try await Firestore.firestore()
+                .collection("messageRequests")
+                .whereField("senderId", isEqualTo: senderId)
+                .whereField("receiverId", isEqualTo: receiverId)
+                .whereField("status", isEqualTo: MessageRequest.RequestStatus.pending.rawValue)
+                .getDocuments()
+            guard let document = snapshot.documents.first else { return nil }
+            return MessageRequest.fromFirestoreData(document.data(), id: document.documentID)
+        } catch {
+            return nil
+        }
+    }
+
+    private static func followTimestamp(from followerId: String, to followedId: String) async -> Date? {
+        guard !followerId.isEmpty, !followedId.isEmpty else { return nil }
+        do {
+            let snapshot = try await Firestore.firestore()
+                .collection("users")
+                .document(followerId)
+                .collection("following")
+                .document(followedId)
+                .getDocument()
+            return (snapshot.data()?["timestamp"] as? Timestamp)?.dateValue()
+        } catch {
+            return nil
+        }
+    }
+
+    /// Lee la propia subcolección `followers` del viewer (en vez de la `following` ajena) para
+    /// evitar el fallo de permisos de Firestore al consultar la lista privada de otro usuario
+    /// (regla `following` exige `showFollowing`, campo que no todos los usuarios tienen seteado).
+    private static func followerTimestamp(viewerId: String, otherId: String) async -> Date? {
+        guard !viewerId.isEmpty, !otherId.isEmpty else { return nil }
+        do {
+            let snapshot = try await Firestore.firestore()
+                .collection("users")
+                .document(viewerId)
+                .collection("followers")
+                .document(otherId)
+                .getDocument()
+            return (snapshot.data()?["timestamp"] as? Timestamp)?.dateValue()
+        } catch {
+            return nil
+        }
+    }
+
+    /// Cuenta seguidores con una aggregate query (1 lectura, sin traer documentos).
+    private static func aggregateFollowersCount(userId: String) async -> Int? {
+        guard !userId.isEmpty else { return nil }
+        return await aggregateCount(
+            Firestore.firestore().collection("users").document(userId).collection("followers")
+        )
+    }
+
+    /// Cuenta solo los moments que el viewer actual puede ver: audiencia, archivados y privacidad
+    /// los resuelve el backend (`getProfileMomentsPage`), igual que el grid del perfil.
+    /// Fallback: aggregate de los públicos (audience == everyone) si el backend no responde.
+    private static func visibleMomentsCount(userId: String) async -> Int? {
+        guard !userId.isEmpty else { return nil }
+        if let result = await BackendFeedService.shared.fetchProfileMoments(targetUserId: userId, limit: 1, includeTotalCount: true),
+           let total = result.totalVisibleCount {
+            return total
+        }
+        return await aggregateCount(
+            Firestore.firestore().collection("users").document(userId).collection("moments")
+                .whereField("audience", isEqualTo: "everyone")
+        )
+    }
+
+    private static func aggregateCount(_ query: Query) async -> Int? {
+        do {
+            let snapshot = try await query.count.getAggregation(source: .server)
+            return snapshot.count.intValue
+        } catch {
+            return nil
+        }
+    }
+
+    private static func fetchProfileStats(userId: String) async -> (followersCount: Int?, momentsCount: Int?)? {
+        guard !userId.isEmpty else { return nil }
+        do {
+            let snapshot = try await Firestore.firestore()
+                .collection("users")
+                .document(userId)
+                .getDocument()
+            guard let data = snapshot.data() else { return nil }
+            return (
+                firstIntValue(from: data, keys: ["followersCount", "followers_count"]),
+                firstIntValue(from: data, keys: ["momentsCount", "moments_count", "postsCount", "posts_count"])
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    private static func resolvedCount(_ values: Int?...) -> Int? {
+        let resolved = values.compactMap { $0 }.max() ?? 0
+        return resolved > 0 ? resolved : nil
+    }
+
+    private static func intValue(from value: Any?) -> Int? {
+        switch value {
+        case let value as Int:
+            return value
+        case let value as Int64:
+            return Int(value)
+        case let value as Double:
+            return Int(value)
+        case let value as NSNumber:
+            return value.intValue
+        default:
+            return nil
+        }
+    }
+
+    private static func firstIntValue(from data: [String: Any], keys: [String]) -> Int? {
+        for key in keys {
+            if let value = intValue(from: data[key]) {
+                return value
+            }
+        }
+        return nil
+    }
+}
+
+struct PendingChatTimelineMessage: Identifiable, Hashable {
+    let id: String
+    let text: String
+    let messageType: MessageType
+    let mediaUrl: String?
+    let thumbnailUrl: String?
+    let timestamp: Date
+    let isOutgoing: Bool
+
+    init(request: MessageRequest, currentUserId: String) {
+        self.id = request.id.map { "pending-request:\($0)" } ?? "pending-request:\(request.senderId):\(request.timestamp.timeIntervalSince1970)"
+        self.text = request.message
+        self.messageType = request.messageType
+        self.mediaUrl = request.mediaUrl
+        self.thumbnailUrl = request.thumbnailUrl
+        self.timestamp = request.timestamp
+        self.isOutgoing = request.senderId == currentUserId
+    }
+
+    init(outgoingText: String, receiverId: String) {
+        self.id = "pending-outgoing:\(receiverId)"
+        self.text = outgoingText
+        self.messageType = .text
+        self.mediaUrl = nil
+        self.thumbnailUrl = nil
+        self.timestamp = Date()
+        self.isOutgoing = true
+    }
+}
+
 // MARK: - Conversation Model
 struct Conversation: Identifiable, Codable, Hashable {
     @DocumentID var id: String?

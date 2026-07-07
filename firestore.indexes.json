@@ -103,6 +103,24 @@
       ]
     },
     {
+      "collectionGroup": "messageRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "senderId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "messages",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

@@ -2073,9 +2073,7 @@ class ChatService: ObservableObject {
                                 completion(.success(conversationId))
                             }
                         } else {
-                            self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id) { _ in
-                                completion(.success(conversationId))
-                            }
+                            completion(.success(conversationId))
                         }
                     } catch {
                         completion(.failure(error))

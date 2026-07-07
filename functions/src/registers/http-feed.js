@@ -2114,9 +2114,13 @@ const getTaggedMomentsPage = onRequest(
 /**
  * 👤 getProfileMomentsPage — Returns moments for a target profile with backend privacy filtering.
  *
- * POST body: { targetUserId?: string, cursor?: { timestamp: number, momentId?: string }, limit?: number }
- * Response: { moments: [...], nextCursor: {...}|null, source: "backend", totalCandidates: N }
+ * POST body: { targetUserId?: string, cursor?: { timestamp: number, momentId?: string }, limit?: number, includeTotalCount?: boolean }
+ * Response: { moments: [...], nextCursor: {...}|null, source: "backend", totalCandidates: N, totalVisibleCount?: N }
+ *
+ * includeTotalCount (solo sin cursor): escanea hasta PROFILE_TOTAL_COUNT_SCAN_CAP moments y devuelve
+ * en totalVisibleCount cuántos puede ver el viewer en total (audiencia/archivados/privacidad aplicados).
  */
+const PROFILE_TOTAL_COUNT_SCAN_CAP = 500;
 const getProfileMomentsPage = onRequest(
   {
     timeoutSeconds: 30,
@@ -2144,6 +2148,8 @@ const getProfileMomentsPage = onRequest(
     const cursorMomentId = typeof body?.cursor?.momentId === 'string' ? body.cursor.momentId.trim() : '';
     const requestedTargetUserId = typeof body?.targetUserId === 'string' ? body.targetUserId.trim() : '';
     const targetUserId = requestedTargetUserId || uid;
+    const includeTotalCount = body?.includeTotalCount === true && !(cursorTimestamp > 0);
+    const scanLimit = includeTotalCount ? PROFILE_TOTAL_COUNT_SCAN_CAP : limit;
     const db = admin.firestore();
 
     try {
@@ -2154,7 +2160,7 @@ const getProfileMomentsPage = onRequest(
       const authorData = authorMap.get(targetUserId);
 
       if (!authorData) {
-        res.status(200).json({ moments: [], nextCursor: null, source: 'backend', totalCandidates: 0 });
+        res.status(200).json({ moments: [], nextCursor: null, source: 'backend', totalCandidates: 0, totalVisibleCount: includeTotalCount ? 0 : undefined });
         return;
       }
 
@@ -2165,9 +2171,9 @@ const getProfileMomentsPage = onRequest(
         query = query.startAfter(admin.firestore.Timestamp.fromMillis(cursorTimestamp));
       }
 
-      const snap = await query.limit(limit).get();
+      const snap = await query.limit(scanLimit).get();
       if (snap.empty) {
-        res.status(200).json({ moments: [], nextCursor: null, source: 'backend', totalCandidates: 0 });
+        res.status(200).json({ moments: [], nextCursor: null, source: 'backend', totalCandidates: 0, totalVisibleCount: includeTotalCount ? 0 : undefined });
         return;
       }
 
@@ -2203,10 +2209,10 @@ const getProfileMomentsPage = onRequest(
       );
 
       const visibleDocs = privacyResults.filter((entry) => entry.canView);
-      const moments = visibleDocs.map(({ doc, data }) => serializeMoment(doc.id, data));
+      const moments = visibleDocs.slice(0, limit).map(({ doc, data }) => serializeMoment(doc.id, data));
 
       let nextCursor = null;
-      if (snap.size >= limit && snap.docs.length > 0) {
+      if (!includeTotalCount && snap.size >= limit && snap.docs.length > 0) {
         const lastDoc = snap.docs[snap.docs.length - 1];
         nextCursor = {
           timestamp: tsToMillis(lastDoc.data().timestamp),
@@ -2215,12 +2221,13 @@ const getProfileMomentsPage = onRequest(
         };
       }
 
-      console.log(`✅ getProfileMomentsPage: viewer=${uid}, target=${targetUserId}, scanned=${snap.size}, returned=${moments.length}`);
+      console.log(`✅ getProfileMomentsPage: viewer=${uid}, target=${targetUserId}, scanned=${snap.size}, returned=${moments.length}${includeTotalCount ? `, totalVisible=${visibleDocs.length}` : ''}`);
       res.status(200).json({
         moments,
         nextCursor,
         source: 'backend',
-        totalCandidates: candidates.length
+        totalCandidates: candidates.length,
+        totalVisibleCount: includeTotalCount ? visibleDocs.length : undefined
       });
     } catch (error) {
       console.error('❌ getProfileMomentsPage error:', error);

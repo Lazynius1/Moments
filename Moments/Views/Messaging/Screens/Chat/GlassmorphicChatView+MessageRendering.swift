@@ -11,6 +11,33 @@ extension GlassmorphicChatView {
     @ViewBuilder
     func chatRenderRow(_ row: ChatRenderRow, index: Int, proxy: ScrollViewProxy?) -> some View {
         switch row {
+        case .conversationIntro(let context):
+            ChatConversationIntroRow(
+                context: context,
+                fallbackName: otherParticipantDisplayName,
+                fallbackUserId: viewModel.conversation.otherParticipantId,
+                adaptiveColors: adaptiveColors
+            )
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
+            .padding(.bottom, 8)
+            .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+        case .requestDisclaimer(let context):
+            ChatRequestDisclaimerRow(
+                textKey: context == nil ? "chat.intro.disclaimer.normal" : pendingChatDisclaimerKey,
+                adaptiveColors: adaptiveColors
+            )
+            .padding(.horizontal, 18)
+            .padding(.vertical, 6)
+            .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+        case .pendingRequestMessage(let message):
+            PendingRequestMessageRow(
+                message: message,
+                adaptiveColors: adaptiveColors
+            )
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
+            .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
         case .header(let date):
             GlassmorphicDateHeader(date: date)
                 .padding(.vertical, 10)

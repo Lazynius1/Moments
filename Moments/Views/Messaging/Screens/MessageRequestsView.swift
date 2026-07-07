@@ -8,25 +8,37 @@ struct MessageRequestsView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     
-    @State private var selectedRequest: MessageRequest?
-    @State private var showingRequestDetail = false
     @State private var showingActionSheet = false
     @State private var actionRequest: MessageRequest?
+    let onOpenRequest: (MessageRequest) -> Void
+
+    init(onOpenRequest: @escaping (MessageRequest) -> Void = { _ in }) {
+        self.onOpenRequest = onOpenRequest
+    }
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
+
+    private var backgroundColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
     
     var body: some View {
         VStack(spacing: 0) {
-            headerView
-            
+            requestCountHeader
+
             if messageRequestService.pendingRequests.isEmpty {
                 emptyStateView
             } else {
                 requestsListView
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(backgroundColor.ignoresSafeArea())
+        .navigationTitle("messageRequests.title")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(backgroundColor, for: .navigationBar)
         .onAppear {
             if let userId = Auth.auth().currentUser?.uid {
                 messageRequestService.listenToPendingRequests(for: userId)
@@ -35,76 +47,32 @@ struct MessageRequestsView: View {
         .onDisappear {
             messageRequestService.removeAllListeners()
         }
-        .sheet(isPresented: $showingRequestDetail) {
-            if let request = selectedRequest {
-                RequestDetailView(request: request)
-            }
-        }
-        .actionSheet(isPresented: $showingActionSheet) {
+        .confirmationDialog("messageRequests.request.title", isPresented: $showingActionSheet) {
             if let request = actionRequest {
-                ActionSheet(
-                    title: Text("messageRequests.request.title"),
-                    message: Text("messageRequests.request.message"),
-                    buttons: [
-                        .default(Text("messageRequests.accept")) {
-                            acceptRequest(request)
-                        },
-                        .destructive(Text("messageRequests.reject")) {
-                            rejectRequest(request)
-                        },
-                        .destructive(Text("messageRequests.blockUser")) {
-                            blockUser(request)
-                        },
-                        .cancel()
-                    ]
-                )
-            } else {
-                ActionSheet(title: Text("messageRequests.error"), buttons: [.cancel()])
+                Button("messageRequests.accept") { acceptRequest(request) }
+                Button("messageRequests.delete", role: .destructive) { rejectRequest(request) }
+                Button("messageRequests.blockUser", role: .destructive) { blockUser(request) }
+                Button("common.cancel", role: .cancel) { }
             }
+        } message: {
+            Text("messageRequests.request.message")
         }
     }
-    
-    // MARK: - Header View
-    private var headerView: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(adaptiveColors.primary)
-                        .frame(width: 38, height: 38)
-                        .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
-                }
-                
-                Spacer()
-                
-                Text("messageRequests.title")
-                    .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
-                
-                Spacer()
-                
-                Color.clear
-                    .frame(width: 38, height: 38)
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 8)
-            
+
+    // MARK: - Request Count Header
+    private var requestCountHeader: some View {
+        Group {
             if !messageRequestService.pendingRequests.isEmpty {
-                HStack {
-                    Spacer()
-                    Text(String(format: NSLocalizedString("messageRequests.count", comment: "Request count"), messageRequestService.pendingRequests.count))
-                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(adaptiveColors.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.clear.momentsChromeGlass(in: Capsule()))
-                    Spacer()
-                }
-                .padding(.horizontal, 14)
+                Text(String(format: NSLocalizedString("messageRequests.count", comment: "Request count"), messageRequestService.pendingRequests.count))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                    .foregroundColor(adaptiveColors.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.clear.momentsChromeGlass(in: Capsule()))
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
             }
         }
-        .padding(.bottom, 16)
     }
     
     // MARK: - Actions
@@ -152,51 +120,48 @@ struct MessageRequestsView: View {
     
     // MARK: - Empty State View
     private var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            
-            Image(systemName: "message.circle")
-                .font(.system(size: 80))
-                .foregroundColor(adaptiveColors.secondary.opacity(0.5))
-            
-                            Text("messageRequests.empty.title")
-                .font(.title3)
-                .fontWeight(.medium)
+        VStack(spacing: 10) {
+            Image(systemName: "message")
+                .font(.system(size: 28, weight: .medium))
+                .foregroundColor(adaptiveColors.secondary.opacity(0.72))
+
+            Text("messageRequests.empty.title")
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                 .foregroundColor(adaptiveColors.primary)
-            
-                            Text("messageRequests.empty.description")
-                .font(.body)
+
+            Text("messageRequests.empty.description")
+                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                 .foregroundColor(adaptiveColors.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            
-            Spacer()
+                .padding(.horizontal, 28)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 96)
     }
     
     // MARK: - Requests List View
     private var requestsListView: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: 0) {
                 ForEach(messageRequestService.pendingRequests) { request in
-                    RequestCardView(request: request) {
-                        selectedRequest = request
-                        showingRequestDetail = true
+                    RequestListRow(request: request) {
+                        onOpenRequest(request)
                     } onAction: {
                         actionRequest = request
                         showingActionSheet = true
                     }
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 20)
+            .padding(.top, 2)
+            .padding(.bottom, 24)
         }
+        .scrollContentBackground(.hidden)
     }
     
 }
 
-// MARK: - Request Card View
-struct RequestCardView: View {
+// MARK: - Request List Row
+struct RequestListRow: View {
     let request: MessageRequest
     let onTap: () -> Void
     let onAction: () -> Void
@@ -208,320 +173,75 @@ struct RequestCardView: View {
     }
     
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                // Profile Image
-                if let profileImagePath = request.senderProfileImagePath {
-                    KFImage(URL(string: profileImagePath))
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 50, height: 50)
-                        .clipShape(Circle())
-                } else {
-                    Circle()
-                        .fill(adaptiveColors.secondary.opacity(0.1))
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                                                    Image(systemName: "person.fill")
-                            .foregroundColor(adaptiveColors.secondary)
-                        )
-                }
-                
-                // Content
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(request.senderUsername ?? "Usuario")
-                            .font(.headline)
-                            .foregroundColor(adaptiveColors.primary)
-                            .lineLimit(1)
-                        
-                        Spacer()
-                        
-                        Text(timeAgoString(from: request.timestamp))
-                            .font(.caption)
-                            .foregroundColor(adaptiveColors.secondary)
-                    }
-                    
-                    Text(request.messagePreview)
-                        .font(.body)
-                        .foregroundColor(adaptiveColors.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                }
-                
-                // Action Button
-                Button(action: onAction) {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(adaptiveColors.secondary)
-                        .frame(width: 34, height: 34)
-                        .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
-                }
+        HStack(spacing: 12) {
+            Button(action: onTap) {
+                avatar
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial)
-            )
+            .buttonStyle(.plain)
+
+            Button(action: onTap) {
+                content
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onAction) {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(adaptiveColors.secondary)
+                    .frame(width: 34, height: 34)
+                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var avatar: some View {
+        if let profileImagePath = request.senderProfileImagePath {
+            KFImage(URL(string: profileImagePath))
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 56, height: 56)
+                .clipShape(Circle())
+        } else {
+            Circle()
+                .fill(adaptiveColors.secondary.opacity(0.12))
+                .frame(width: 56, height: 56)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .foregroundColor(adaptiveColors.secondary)
+                )
+        }
+    }
+
+    private var content: some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(request.senderUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name"))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(adaptiveColors.primary)
+                    .lineLimit(1)
+
+                Text(request.messagePreview)
+                    .font(.system(size: legacyPoppinsSize(14)))
+                    .foregroundColor(adaptiveColors.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(timeAgoString(from: request.timestamp))
+                .font(.system(size: legacyPoppinsSize(12)))
+                .foregroundColor(adaptiveColors.secondary)
+                .lineLimit(1)
+        }
     }
     
     private func timeAgoString(from date: Date) -> String {
         MomentsFormat.relativeTime(from: date)
-    }
-}
-
-// MARK: - Request Detail View
-struct RequestDetailView: View {
-    let request: MessageRequest
-    @Environment(\.colorScheme) var colorScheme
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var messageRequestService: MessageRequestService
-    
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                LinearGradient(
-                    gradient: Gradient(colors: [Color(hex: "007AFF").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                
-                VStack(spacing: 20) {
-                    // User Info
-                    userInfoSection
-                    
-                    // Message Content
-                    messageContentSection
-                    
-                    Spacer()
-                    
-                    // Action Buttons
-                    actionButtonsSection
-                }
-                .padding(20)
-            }
-            .navigationTitle("Solicitud de mensaje")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cerrar") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-    }
-    
-    private var userInfoSection: some View {
-        VStack(spacing: 16) {
-            // Profile Image
-            if let profileImagePath = request.senderProfileImagePath {
-                KFImage(URL(string: profileImagePath))
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 80, height: 80)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(Color(hex: "FF9500"), lineWidth: 3)
-                    )
-            } else {
-                Circle()
-                    .fill(adaptiveColors.secondary.opacity(0.1))
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(adaptiveColors.secondary)
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(Color(hex: "FF9500"), lineWidth: 3)
-                    )
-            }
-            
-            // Username
-                            Text(request.senderUsername ?? "Usuario")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(adaptiveColors.primary)
-            
-            // Timestamp
-                            Text(String(format: NSLocalizedString("messageRequests.sent", comment: "Sent time"), timeAgoString(from: request.timestamp)))
-                .font(.caption)
-                .foregroundColor(adaptiveColors.secondary)
-        }
-        .padding(.top, 20)
-    }
-    
-    private var messageContentSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-                            Text("messageRequests.message")
-                .font(.headline)
-                .foregroundColor(adaptiveColors.primary)
-            
-            VStack(alignment: .leading, spacing: 8) {
-                switch request.messageType {
-                case .text:
-                    Text(request.message)
-                        .font(.body)
-                        .foregroundColor(adaptiveColors.primary)
-                        .padding(16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(adaptiveColors.cardBackground)
-                        )
-                    
-                case .image:
-                    if let mediaUrl = request.mediaUrl {
-                        KFImage(URL(string: mediaUrl))
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: 200)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    
-                case .video:
-                    VStack {
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(adaptiveColors.primary)
-                        Text("messageRequests.video")
-                            .font(.caption)
-                            .foregroundColor(adaptiveColors.secondary)
-                    }
-                    .frame(height: 120)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(adaptiveColors.cardBackground)
-                    )
-                    
-                default:
-                    HStack {
-                        MessageTypeIconView(type: request.messageType, tintColor: adaptiveColors.primary)
-                        Text(request.messagePreview)
-                            .font(.body)
-                            .foregroundColor(adaptiveColors.primary)
-                        Spacer()
-                    }
-                    .padding(16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(adaptiveColors.cardBackground)
-                    )
-                }
-            }
-        }
-    }
-    
-    private var actionButtonsSection: some View {
-        VStack(spacing: 12) {
-            // Accept Button
-            Button(action: { acceptRequest(request) }) {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                    Text("messageRequests.accept")
-                }
-                .font(.headline)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(hex: "34C759"))
-                )
-            }
-            
-            // Reject Button
-            Button(action: { rejectRequest(request) }) {
-                HStack {
-                    Image(systemName: "xmark.circle.fill")
-                    Text("messageRequests.reject")
-                }
-                .font(.headline)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(hex: "FF3B30"))
-                )
-            }
-            
-            // Block Button
-            Button(action: { blockUser(request) }) {
-                HStack {
-                    Image(systemName: "slash.circle.fill")
-                    Text("messageRequests.blockUser")
-                }
-                .font(.subheadline)
-                .foregroundColor(adaptiveColors.secondary)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(adaptiveColors.secondary, lineWidth: 1)
-                )
-            }
-        }
-        .padding(.bottom, 20)
-    }
-    
-
-    private func timeAgoString(from date: Date) -> String {
-        MomentsFormat.relativeTime(from: date, style: .conversational(unitsStyle: .full))
-    }
-    
-    // MARK: - Actions
-    private func acceptRequest(_ request: MessageRequest) {
-        messageRequestService.acceptRequest(request) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    dismiss()
-                case .failure(_):
-                    break
-                }
-            }
-        }
-    }
-    
-    private func rejectRequest(_ request: MessageRequest) {
-        messageRequestService.rejectRequest(request) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    dismiss()
-                case .failure(_):
-                    break
-                }
-            }
-        }
-    }
-    
-    private func blockUser(_ request: MessageRequest) {
-        messageRequestService.blockUser(request) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    dismiss()
-                case .failure(_):
-                    break
-                }
-            }
-        }
     }
 }
 

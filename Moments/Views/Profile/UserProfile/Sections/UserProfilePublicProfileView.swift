@@ -16,15 +16,13 @@ struct UserModernPublicProfileView: View {
     @EnvironmentObject private var heroCoordinator: ProfileGridHeroTransitionCoordinator
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
+    @Binding var pendingChatContext: PendingChatContext?
     @Binding var scrollOffset: CGFloat
-    @Binding var showingMessageRequestAlert: Bool
-    @Binding var messageRequestText: String
-    @Binding var messageRequestError: String?
-    @Binding var showingSuccessMessage: Bool
     @Binding var showProfileImageFullscreen: Bool
     let onFollowAction: () -> Void
     let onDismiss: () -> Void
     let onOpenStories: () -> Void
+    let chatZoomNamespace: Namespace.ID
 
     @State private var showingFullInfo = false // ✅ NUEVO: Colapsable
     @Binding var selectedTab: UserProfileTabType // ✅ NUEVO: Tab seleccionado (Binding)
@@ -47,8 +45,7 @@ struct UserModernPublicProfileView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .top) {
+        ZStack(alignment: .top) {
             ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
@@ -63,18 +60,16 @@ struct UserModernPublicProfileView: View {
                         messagingViewModel: messagingViewModel,
                         navigateToChat: $navigateToChat,
                         targetConversation: $targetConversation,
+                        pendingChatContext: $pendingChatContext,
                         socialConnectionsRoute: $socialConnectionsRoute,
-                        showingMessageRequestAlert: $showingMessageRequestAlert,
-                        messageRequestText: $messageRequestText,
-                        messageRequestError: $messageRequestError,
-                        showingSuccessMessage: $showingSuccessMessage,
                         showProfileImageFullscreen: $showProfileImageFullscreen,
                         onFollowAction: onFollowAction,
                         onDismiss: onDismiss,
                         onOpenStories: onOpenStories,
                         storyRingRefreshTrigger: storyRingRefreshToken,
                         usernameCollapseProgress: usernameCollapseProgress,
-                        showingQRCode: $showingQRCode
+                        showingQRCode: $showingQRCode,
+                        chatZoomNamespace: chatZoomNamespace
                     )
                     .padding(.top, ProfileHeaderCollapseMetrics.headerTopPadding)
                     .padding(.bottom, 4)
@@ -323,7 +318,6 @@ struct UserModernPublicProfileView: View {
                 heroCoordinator.openZoomDetail = { zoomDestination = $0 }
                 heroCoordinator.clearZoomNavigation = { zoomDestination = nil }
             }
-        }
         .profileNavigationSurface(colorScheme: colorScheme)
         .sheet(isPresented: $showingQRCode) {
             QRCodeView(targetUser: viewModel.userProfile)

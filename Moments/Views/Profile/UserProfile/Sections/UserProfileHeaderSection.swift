@@ -115,11 +115,8 @@ struct UserModernProfileHeader: View {
     @EnvironmentObject var authService: AuthService // ✅ NUEVO: Para acceder a badges del usuario visitado
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
+    @Binding var pendingChatContext: PendingChatContext?
     @Binding var socialConnectionsRoute: SocialConnectionsRoute?
-    @Binding var showingMessageRequestAlert: Bool
-    @Binding var messageRequestText: String
-    @Binding var messageRequestError: String?
-    @Binding var showingSuccessMessage: Bool
     @Binding var showProfileImageFullscreen: Bool
     let onFollowAction: () -> Void
     let onDismiss: () -> Void
@@ -127,6 +124,7 @@ struct UserModernProfileHeader: View {
     let storyRingRefreshTrigger: Int
     let usernameCollapseProgress: CGFloat
     @Binding var showingQRCode: Bool
+    let chatZoomNamespace: Namespace.ID
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -245,6 +243,9 @@ struct UserModernProfileHeader: View {
                     .padding(.vertical, 10)
                     .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
+                .matchedTransitionSource(id: "profile-message-chat", in: chatZoomNamespace) { source in
+                    source.clipShape(RoundedRectangle(cornerRadius: 22))
+                }
             }
         }
         .padding(.horizontal, 20)
@@ -258,10 +259,14 @@ struct UserModernProfileHeader: View {
             if let conversation {
                 targetConversation = conversation
                 navigateToChat = true
-            } else {
-                let errorMessage = messagingViewModel.errorMessage ?? ""
-                if errorMessage.contains("no siguen mutuamente") || errorMessage.contains("Se requiere una solicitud") {
-                    showingMessageRequestAlert = true
+            } else if messagingViewModel.requiresMessageRequest {
+                Task { @MainActor in
+                    pendingChatContext = await PendingChatContextFactory.outgoing(
+                        to: targetUser,
+                        from: currentUserId,
+                        followersCountOverride: viewModel.followers.count,
+                        momentsCountOverride: viewModel.moments.count
+                    )
                 }
             }
         }
