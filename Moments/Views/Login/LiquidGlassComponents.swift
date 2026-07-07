@@ -29,9 +29,8 @@ enum AuthFormMetrics {
     }
 
     static func responsiveButtonHeight(for screenHeight: CGFloat) -> CGFloat {
-        if screenHeight < 670 {
-            return 40
-        } else if screenHeight < 850 {
+        // Mínimo 44pt en todos los dispositivos (HIG: target táctil y botón de Apple)
+        if screenHeight < 850 {
             return 44
         } else {
             return 46
@@ -179,7 +178,7 @@ struct LiquidGlassTextField: View {
             }
         }
         .padding(.horizontal, fieldHorizontalPadding)
-        .frame(height: fieldHeight)
+        .frame(minHeight: fieldHeight)
         .background {
             Color.clear
                 .liquidGlass(in: fieldShape, interactive: true)
@@ -266,7 +265,7 @@ struct LiquidGlassSecureField: View {
             }
         }
         .padding(.horizontal, fieldHorizontalPadding)
-        .frame(height: fieldHeight)
+        .frame(minHeight: fieldHeight)
         .background {
             Color.clear
                 .liquidGlass(in: fieldShape, interactive: true)
@@ -335,7 +334,7 @@ struct LiquidGlassButton: View {
             }
             .foregroundColor(foregroundColor)
             .frame(maxWidth: .infinity)
-            .frame(height: AuthFormMetrics.buttonHeight)
+            .frame(minHeight: AuthFormMetrics.buttonHeight)
         }
         .background(backgroundView)
         .disabled(isLoading)
@@ -454,7 +453,7 @@ struct AuthRegistrationPrimaryButton: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: buttonHeight)
+            .frame(minHeight: buttonHeight)
         }
         .background {
             Color.clear

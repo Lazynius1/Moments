@@ -51,10 +51,19 @@ struct ProfileOnboardingView: View {
         case .email:
             return email
         case .apple:
+            let manualEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
             return Auth.auth().currentUser?.email
                 ?? authService.pendingAppleRegistrationEmail
-                ?? NSLocalizedString("register.completeProfile.appleAccount", comment: "Apple account")
+                ?? (manualEmail.isEmpty ? NSLocalizedString("register.completeProfile.appleAccount", comment: "Apple account") : manualEmail)
         }
+    }
+
+    /// Apple solo entrega el email en la primera autorización; si el registro se
+    /// reintenta después, hay que pedirlo manualmente para poder crear el perfil.
+    private var needsAppleEmailInput: Bool {
+        context == .apple
+            && (Auth.auth().currentUser?.email ?? "").isEmpty
+            && (authService.pendingAppleRegistrationEmail ?? "").isEmpty
     }
 
     private var primaryButtonTitle: LocalizedStringKey {
@@ -105,6 +114,7 @@ struct ProfileOnboardingView: View {
             }
         }
         .navigationBarHidden(true)
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .onAppear {
             withAnimation(.easeOut(duration: 0.45)) {
                 isVisible = true
@@ -219,15 +229,34 @@ struct ProfileOnboardingView: View {
                 showsPhoto: true
             )
         case (.apple, 1):
-            OnboardingIdentityStep(
-                selectedPhotoItem: $selectedPhotoItem,
-                profileImage: $profileImage,
-                showingPhotoPicker: $showingPhotoPicker,
-                username: $username,
-                usernameError: $usernameError,
-                usernameSuggestions: $usernameSuggestions,
-                authService: authService
-            )
+            VStack(spacing: AuthFormMetrics.onboardingFieldSpacing) {
+                OnboardingIdentityStep(
+                    selectedPhotoItem: $selectedPhotoItem,
+                    profileImage: $profileImage,
+                    showingPhotoPicker: $showingPhotoPicker,
+                    username: $username,
+                    usernameError: $usernameError,
+                    usernameSuggestions: $usernameSuggestions,
+                    authService: authService
+                )
+
+                if needsAppleEmailInput {
+                    VStack(alignment: .leading, spacing: 8) {
+                        LiquidGlassTextField(
+                            icon: "envelope.fill",
+                            placeholder: NSLocalizedString("onboarding.apple.email.placeholder", comment: "Email placeholder for Apple onboarding"),
+                            text: $email,
+                            keyboardType: .emailAddress,
+                            autocapitalization: .none
+                        )
+
+                        Text("onboarding.apple.email.help")
+                            .font(.footnote)
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
         case (.apple, 2):
             OnboardingProfileInterestsStep(
                 selectedPhotoItem: $selectedPhotoItem,
@@ -296,6 +325,7 @@ struct ProfileOnboardingView: View {
             return selectedInterests.count >= RegisterInterestsPolicy.minimum
         case (.apple, 1):
             return !username.isEmpty && usernameError == nil
+                && (!needsAppleEmailInput || AuthService.isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines)))
         default:
             return privacyPolicyAccepted
         }
@@ -358,7 +388,8 @@ struct ProfileOnboardingView: View {
             authService.completeSocialRegistration(
                 username: username,
                 interests: selectedInterests,
-                profileImage: profileImage
+                profileImage: profileImage,
+                fallbackEmail: needsAppleEmailInput ? email.trimmingCharacters(in: .whitespacesAndNewlines) : nil
             ) { result in
                 DispatchQueue.main.async {
                     isLoading = false

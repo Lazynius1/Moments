@@ -3764,7 +3764,7 @@
 "common.success" = "¡Éxito!";
 "settings.security.passkey.success" = "¡Llave de acceso creada correctamente! Ahora puedes iniciar sesión de forma rápida y segura con Face ID.";
 "settings.security.passkey.create" = "Crear llave de acceso (Passkey)";
-"login.passkey" = "Llave de acceso (Passkey)";
+"login.passkey" = "Entrar con llave de acceso";
 "login.passkey.error.generic" = "No hay llave de acceso en este dispositivo. Si es tu primera vez, regístrate abajo.";
 "settings.security.passkey.description" = "Inicia sesión rápidamente con Face ID sin contraseñas.";
 "settings.security.passkey.generated" = "Llave de acceso generada";
@@ -4256,3 +4256,8 @@
 "chat.intro.request.blocked" = "Esta cuenta no acepta solicitudes de mensaje.";
 "chat.request.closed.input" = "%@ no acepta solicitudes de mensaje";
 "chat.request.error.notAllowed" = "Este usuario no acepta solicitudes de mensaje.";
+"login.passkey.noCredential.title" = "No hay llave de acceso";
+"login.passkey.noCredential.register" = "Crear cuenta";
+"onboarding.apple.email.placeholder" = "Email";
+"onboarding.apple.email.help" = "Necesitamos un email para terminar de crear tu cuenta.";
+"onboarding.apple.email.missing" = "Añade un email para terminar de crear tu cuenta.";

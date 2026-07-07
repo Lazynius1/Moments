@@ -73,6 +73,7 @@ struct LoginView: View {
                 }
             }
             .navigationBarHidden(true)
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             .onAppear {
                 withAnimation {
                     isVisible = true
@@ -207,6 +208,8 @@ struct EnhancedFormView: View {
 
     @EnvironmentObject var authService: AuthService
     @State private var isPasskeyLoading = false
+    @State private var showPasskeyNoCredentialAlert = false
+    @State private var goToRegisterFromPasskey = false
 
     private let buttonHeight = AuthFormMetrics.buttonHeight
     @ScaledMetric(relativeTo: .body) private var buttonFontSize = AuthFormMetrics.buttonFontSize
@@ -229,6 +232,17 @@ struct EnhancedFormView: View {
                 .padding(.top, 10)
         }
         .padding(.bottom, 10)
+        .alert("login.passkey.noCredential.title", isPresented: $showPasskeyNoCredentialAlert) {
+            Button("login.passkey.noCredential.register") {
+                goToRegisterFromPasskey = true
+            }
+            Button("login.ok", role: .cancel) { }
+        } message: {
+            Text("login.passkey.error.generic")
+        }
+        .navigationDestination(isPresented: $goToRegisterFromPasskey) {
+            RegisterView().environmentObject(authService)
+        }
     }
 
     private var loginFormColumn: some View {
@@ -271,7 +285,7 @@ struct EnhancedFormView: View {
             EnhancedDividerView()
 
             SignInWithAppleButton(
-                .signIn,
+                .continue,
                 onRequest: { request in
                     let nonce = authService.startAppleSignIn()
                     request.requestedScopes = [.fullName, .email]
@@ -364,7 +378,7 @@ struct EnhancedFormView: View {
             }
             .foregroundColor(primaryText)
             .frame(maxWidth: .infinity)
-            .frame(height: buttonHeight)
+            .frame(minHeight: buttonHeight)
         }
         .background {
             Color.clear
@@ -405,8 +419,7 @@ struct EnhancedFormView: View {
                     if (error as NSError).code == ASAuthorizationError.canceled.rawValue {
                         return
                     }
-                    errorMessage = mapPasskeyError(error)
-                    showAlert = true
+                    showPasskeyNoCredentialAlert = true
                 }
             }
         }
@@ -512,7 +525,7 @@ struct EnhancedLoginButton: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: buttonHeight)
+            .frame(minHeight: buttonHeight)
         }
         .background {
             Color.clear
@@ -743,6 +756,7 @@ struct EnhancedResetPasswordView: View {
             .padding(.bottom, 28)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .onAppear {
             withAnimation {
                 isVisible = true

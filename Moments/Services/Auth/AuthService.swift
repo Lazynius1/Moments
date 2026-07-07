@@ -1661,7 +1661,7 @@ class AuthService: ObservableObject {
         }
 
     // ✅ NUEVA FUNCIÓN: Completar registro para logins sociales (Apple)
-    func completeSocialRegistration(username: String, interests: [String], profileImage: UIImage?, completion: @escaping (Result<Void, Error>) -> Void) {
+    func completeSocialRegistration(username: String, interests: [String], profileImage: UIImage?, fallbackEmail: String? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
         // ✅ USAR AUTH DIRECTAMENTE: A veces el @Published currentFirebaseUser tarda un ciclo en actualizarse
         let firebaseUser = Auth.auth().currentUser
 
@@ -1670,8 +1670,10 @@ class AuthService: ObservableObject {
             return
         }
 
-        guard let email = firebaseUser?.email ?? pendingAppleRegistrationEmail, !email.isEmpty else {
-            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se encontró el Email del usuario de Firebase"])))
+        // Apple solo entrega el email en la primera autorización; en reintentos llega
+        // el fallback introducido manualmente en el onboarding.
+        guard let email = firebaseUser?.email ?? pendingAppleRegistrationEmail ?? fallbackEmail, !email.isEmpty else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("onboarding.apple.email.missing", comment: "Email required to finish registration")])))
             return
         }
 

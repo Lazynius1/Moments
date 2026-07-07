@@ -3717,7 +3717,7 @@
 "common.success" = "Success!";
 "settings.security.passkey.success" = "Passkey créée avec succès ! Vous pouvez maintenant vous connecter rapidement et en toute sécurité avec Face ID.";
 "settings.security.passkey.create" = "Créer une passkey";
-"login.passkey" = "Passkey";
+"login.passkey" = "Se connecter avec une clé d'accès";
 "login.passkey.error.generic" = "Aucune passkey sur cet appareil. Si c'est votre première fois, inscrivez-vous ci-dessous.";
 "settings.security.passkey.description" = "Connectez-vous rapidement et en toute sécurité avec Face ID.";
 "settings.security.passkey.generated" = "Passkey générée";
@@ -4205,3 +4205,8 @@
 "chat.intro.request.blocked" = "Ce compte n'accepte pas les demandes de message.";
 "chat.request.closed.input" = "%@ n'accepte pas les demandes de message";
 "chat.request.error.notAllowed" = "Cet utilisateur n'accepte pas les demandes de message.";
+"login.passkey.noCredential.title" = "Aucune clé d'accès";
+"login.passkey.noCredential.register" = "Créer un compte";
+"onboarding.apple.email.placeholder" = "E-mail";
+"onboarding.apple.email.help" = "Nous avons besoin d'un e-mail pour finaliser votre compte.";
+"onboarding.apple.email.missing" = "Ajoutez un e-mail pour finaliser votre compte.";
