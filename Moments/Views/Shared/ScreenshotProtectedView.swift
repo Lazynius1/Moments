@@ -12,6 +12,7 @@ struct ScreenshotProtectedView<Content: View>: View {
     let isProtected: Bool
     var fillsContainer: Bool = false
     var cornerRadius: CGFloat? = nil
+    var updateToken: AnyHashable? = nil
     @ViewBuilder let content: () -> Content
 
     var body: some View {
@@ -19,6 +20,7 @@ struct ScreenshotProtectedView<Content: View>: View {
             SecureContentRepresentable(
                 fillsContainer: fillsContainer,
                 cornerRadius: cornerRadius,
+                updateToken: updateToken,
                 content: content
             )
         } else {
@@ -31,6 +33,7 @@ struct ScreenshotProtectedView<Content: View>: View {
 private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
     var fillsContainer: Bool = false
     var cornerRadius: CGFloat? = nil
+    var updateToken: AnyHashable? = nil
     @ViewBuilder let content: () -> Content
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -62,6 +65,7 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
         }
         hostingVC.view.backgroundColor = .clear
         context.coordinator.hostingVC = hostingVC
+        context.coordinator.updateToken = updateToken
 
         // El contenido SwiftUI va dentro del subview interno del UITextField
         // para quedar dentro de su jerarquía segura
@@ -88,16 +92,19 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextField, context: Context) {
-        let finalContent = AnyView(
-            Group {
-                if fillsContainer {
-                    content().ignoresSafeArea(.all)
-                } else {
-                    content()
+        if shouldRefreshContent(context: context) {
+            let finalContent = AnyView(
+                Group {
+                    if fillsContainer {
+                        content().ignoresSafeArea(.all)
+                    } else {
+                        content()
+                    }
                 }
-            }
-        )
-        context.coordinator.hostingVC?.rootView = finalContent
+            )
+            context.coordinator.hostingVC?.rootView = finalContent
+            context.coordinator.updateToken = updateToken
+        }
         applyCanvasClippingIfNeeded(to: uiView)
         if let target = uiView.subviews.first {
             applyCanvasClippingIfNeeded(to: target)
@@ -105,6 +112,11 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
         if let hostingView = context.coordinator.hostingVC?.view {
             applyCanvasClippingIfNeeded(to: hostingView)
         }
+    }
+
+    private func shouldRefreshContent(context: Context) -> Bool {
+        guard let updateToken else { return true }
+        return context.coordinator.updateToken != updateToken
     }
 
     // sizeThatFits (iOS 16+) — le dice a SwiftUI exactamente cuánto mide el contenido
@@ -139,6 +151,7 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
 
     class Coordinator {
         var hostingVC: UIHostingController<AnyView>?
+        var updateToken: AnyHashable?
     }
 }
 
@@ -149,12 +162,14 @@ extension View {
     func screenshotProtected(
         when isProtected: Bool = true,
         fillsContainer: Bool = false,
-        cornerRadius: CGFloat? = nil
+        cornerRadius: CGFloat? = nil,
+        updateToken: AnyHashable? = nil
     ) -> some View {
         ScreenshotProtectedView(
             isProtected: isProtected,
             fillsContainer: fillsContainer,
-            cornerRadius: cornerRadius
+            cornerRadius: cornerRadius,
+            updateToken: updateToken
         ) { self }
     }
 }

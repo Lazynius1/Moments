@@ -100,51 +100,59 @@ struct DeactivationContent: View {
     let reactivateAction: () -> Void
     let logoutAction: () -> Void
     @Binding var isVisible: Bool
+
+    @ScaledMetric(relativeTo: .title) private var titleIconSize: CGFloat = 34
+    @ScaledMetric(relativeTo: .title) private var titleFontSize: CGFloat = 28.5
+    @ScaledMetric(relativeTo: .body) private var subtitleFontSize: CGFloat = 15
     
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 28) {
-                Spacer(minLength: 0)
+        GeometryReader { geometry in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 24)
 
-                VStack(spacing: 14) {
-                    Image(systemName: "moon.stars")
-                        .font(.system(size: 34, weight: .medium))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                    VStack(spacing: 28) {
+                        VStack(spacing: 14) {
+                            Image(systemName: "moon.stars")
+                                .font(.system(size: titleIconSize).weight(.medium))
+                                .foregroundColor(AuthColors.primary(colorScheme))
 
-                    Text(NSLocalizedString("deactivated.title", value: "Cuenta en Reposo", comment: "Sleeping account title"))
-                        .font(.system(size: legacyPoppinsSize(30), weight: .bold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
-                    
-                    Text(NSLocalizedString("deactivated.subtitle", value: "Tu cuenta está desactivada temporalmente pero todos tus datos están seguros.", comment: "Deactivated subtitle"))
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(4)
+                            Text(NSLocalizedString("deactivated.title", value: "Cuenta en Reposo", comment: "Sleeping account title"))
+                                .font(.system(size: titleFontSize).bold())
+                                .foregroundColor(AuthColors.primary(colorScheme))
+
+                            Text(NSLocalizedString("deactivated.subtitle", value: "Tu cuenta está desactivada temporalmente pero todos tus datos están seguros.", comment: "Deactivated subtitle"))
+                                .font(.system(size: subtitleFontSize).weight(.medium))
+                                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(4)
+                        }
+
+                        userCard
+                    }
+
+                    Spacer(minLength: 24)
+
+                    VStack(spacing: 12) {
+                        LiquidGlassButton(
+                            title: NSLocalizedString("deactivated.reactivate", value: "Reactivar Cuenta", comment: "Reactivate button"),
+                            icon: "play.fill",
+                            action: reactivateAction,
+                            isLoading: isReactivating
+                        )
+
+                        LiquidGlassButton(
+                            title: NSLocalizedString("settings.logout", comment: "Logout"),
+                            icon: "rectangle.portrait.and.arrow.right",
+                            action: logoutAction,
+                            style: .secondary
+                        )
+                    }
+                    .padding(.bottom, 30)
                 }
-
-                userCard
-
-                Spacer(minLength: 0)
+                .authScreenContentWidth()
+                .frame(minHeight: geometry.size.height)
             }
-            .padding(.horizontal, 24)
-
-            VStack(spacing: 12) {
-                LiquidGlassButton(
-                    title: NSLocalizedString("deactivated.reactivate", value: "Reactivar Cuenta", comment: "Reactivate button"),
-                    icon: "play.fill",
-                    action: reactivateAction,
-                    isLoading: isReactivating
-                )
-                
-                LiquidGlassButton(
-                    title: NSLocalizedString("settings.logout", comment: "Logout"),
-                    icon: "rectangle.portrait.and.arrow.right",
-                    action: logoutAction,
-                    style: .secondary
-                )
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 30)
         }
         .offset(y: isVisible ? 0 : 30)
         .opacity(isVisible ? 1.0 : 0.0)
@@ -164,6 +172,10 @@ private struct DeactivatedProfileCard: View {
     let profileImagePath: String?
     let username: String
     let email: String?
+
+    @ScaledMetric(relativeTo: .body) private var cardHeight: CGFloat = 340
+    @ScaledMetric(relativeTo: .title3) private var usernameFontSize: CGFloat = 23
+    @ScaledMetric(relativeTo: .footnote) private var emailFontSize: CGFloat = 13
 
     var body: some View {
         GeometryReader { proxy in
@@ -205,13 +217,13 @@ private struct DeactivatedProfileCard: View {
                     HStack(alignment: .bottom) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(username)
-                                .font(.system(size: 23, weight: .bold))
+                                .font(.system(size: usernameFontSize).bold())
                                 .foregroundColor(AuthColors.primary(colorScheme))
                                 .lineLimit(1)
 
                             if let email {
                                 Text(email)
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.system(size: emailFontSize).weight(.medium))
                                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
                                     .lineLimit(1)
                             }
@@ -226,7 +238,7 @@ private struct DeactivatedProfileCard: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         }
-        .frame(height: 420)
+        .frame(height: cardHeight)
         .overlay {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .stroke(AuthColors.subtle(colorScheme, opacity: 0.14), lineWidth: 0.8)

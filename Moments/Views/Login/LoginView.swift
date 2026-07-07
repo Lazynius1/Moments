@@ -34,35 +34,41 @@ struct LoginView: View {
                     DeactivatedAccountView()
                 } else {
                     // Formulario de login normal
-                    VStack(spacing: 0) {
-                        Spacer(minLength: 44)
+                    GeometryReader { geometry in
+                        ScrollView(showsIndicators: false) {
+                            VStack(spacing: 0) {
+                                Spacer(minLength: 24)
 
-                        VStack(spacing: 0) {
-                            EnhancedHeaderView()
-                                .authScreenContentWidth()
-                                .scaleEffect(isVisible ? 1.0 : 0.8)
-                                .opacity(isVisible ? 1.0 : 0.0)
-                                .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+                                VStack(spacing: 0) {
+                                    EnhancedHeaderView()
+                                        .authScreenContentWidth()
+                                        .scaleEffect(isVisible ? 1.0 : 0.8)
+                                        .opacity(isVisible ? 1.0 : 0.0)
+                                        .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
 
-                            Spacer()
-                                .frame(height: 20)
+                                    Spacer()
+                                        .frame(height: 12)
 
-                            EnhancedFormView(
-                                identifier: $identifier,
-                                password: $password,
-                                showPassword: $showPassword,
-                                isLoading: $isLoading,
-                                showResetPassword: $showResetPassword,
-                                errorMessage: $errorMessage,
-                                showAlert: $showAlert,
-                                loginAction: login
-                            )
-                            .offset(y: isVisible ? 0 : 30)
-                            .opacity(isVisible ? 1.0 : 0.0)
-                            .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
+                                    EnhancedFormView(
+                                        identifier: $identifier,
+                                        password: $password,
+                                        showPassword: $showPassword,
+                                        isLoading: $isLoading,
+                                        showResetPassword: $showResetPassword,
+                                        errorMessage: $errorMessage,
+                                        showAlert: $showAlert,
+                                        loginAction: login
+                                    )
+                                    .authScreenContentWidth()
+                                    .offset(y: isVisible ? 0 : 30)
+                                    .opacity(isVisible ? 1.0 : 0.0)
+                                    .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
+                                }
+
+                                Spacer(minLength: 24)
+                            }
+                            .frame(minHeight: geometry.size.height)
                         }
-
-                        Spacer(minLength: 28)
                     }
                 }
             }
@@ -154,6 +160,9 @@ struct LoginView: View {
 // MARK: - Enhanced Header View
 struct EnhancedHeaderView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @ScaledMetric(relativeTo: .title2) private var heroFontSize: CGFloat = 23.75
+    @ScaledMetric(relativeTo: .body) private var logoWidth: CGFloat = 84
+    @ScaledMetric(relativeTo: .body) private var logoHeight: CGFloat = 84
 
     private var primaryText: Color {
         AuthColors.primary(colorScheme)
@@ -164,7 +173,7 @@ struct EnhancedHeaderView: View {
             Image(colorScheme == .dark ? "LoginLogo" : "whatsnew")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 84, height: 84)
+                .frame(width: logoWidth, height: logoHeight)
                 .shadow(color: .white.opacity(0.12), radius: 8, x: 0, y: 0)
                 .overlay(
                     Ellipse()
@@ -176,7 +185,7 @@ struct EnhancedHeaderView: View {
 
             VStack(spacing: 6) {
                 Text("login.hero.title")
-                    .font(.system(size: legacyPoppinsSize(25), weight: .bold))
+                    .font(.system(size: heroFontSize).bold())
                     .foregroundColor(primaryText)
                     .multilineTextAlignment(.center)
             }
@@ -197,9 +206,19 @@ struct EnhancedFormView: View {
     let loginAction: () -> Void
 
     @EnvironmentObject var authService: AuthService
+    @State private var isPasskeyLoading = false
+
+    private let buttonHeight = AuthFormMetrics.buttonHeight
+    @ScaledMetric(relativeTo: .body) private var buttonFontSize = AuthFormMetrics.buttonFontSize
+
+    private var isAuthInProgress: Bool { isLoading || isPasskeyLoading }
 
     private var primaryText: Color {
         AuthColors.primary(colorScheme)
+    }
+
+    private var authActionTint: Color {
+        MomentsChromeGlass.canvasTint(for: colorScheme, opacity: 0.54)
     }
 
     var body: some View {
@@ -207,14 +226,13 @@ struct EnhancedFormView: View {
             loginFormColumn
 
             LoginDisclaimerView()
-                .authScreenContentWidth()
-                .padding(.top, 18)
+                .padding(.top, 10)
         }
-        .padding(.bottom, 18)
+        .padding(.bottom, 10)
     }
 
     private var loginFormColumn: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             LiquidGlassTextField(
                 icon: "person.fill",
                 placeholder: NSLocalizedString("login.usernameOrEmail", comment: ""),
@@ -235,150 +253,171 @@ struct EnhancedFormView: View {
                     showResetPassword = true
                 }) {
                     Text("login.forgotPassword")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.footnote.weight(.medium))
                         .foregroundColor(primaryText.opacity(0.58))
                 }
             }
 
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 EnhancedLoginButton(
                     isLoading: $isLoading,
                     isEnabled: !identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !password.isEmpty,
                     action: loginAction
                 )
 
-                EnhancedDividerView()
-
-                SignInWithAppleButton(
-                    .signIn,
-                    onRequest: { request in
-                        let nonce = authService.startAppleSignIn()
-                        request.requestedScopes = [.fullName, .email]
-                        request.nonce = nonce
-                    },
-                    onCompletion: { result in
-                        switch result {
-                        case .success(let authorization):
-                            if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
-                                guard let nonce = authService.currentNonce else {
-                                    errorMessage = NSLocalizedString("login.apple.error.nonce", comment: "Apple sign in nonce error")
-                                    showAlert = true
-                                    return
-                                }
-
-                                guard let appleIDToken = appleIDCredential.identityToken else {
-                                    errorMessage = NSLocalizedString("login.apple.error.noToken", comment: "Apple sign in token missing")
-                                    showAlert = true
-                                    return
-                                }
-
-                                guard let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
-                                    errorMessage = NSLocalizedString("login.apple.error.invalidToken", comment: "Apple sign in invalid token")
-                                    showAlert = true
-                                    return
-                                }
-
-                                isLoading = true
-                                authService.signInWithApple(
-                                    idToken: idTokenString,
-                                    nonce: nonce,
-                                    fullName: appleIDCredential.fullName?.formatted(),
-                                    email: appleIDCredential.email
-                                ) { result in
-                                    isLoading = false
-                                    switch result {
-                                    case .success(let isComplete):
-                                        if isComplete, let userId = Auth.auth().currentUser?.uid {
-                                            RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "apple")
-                                        }
-                                    case .failure(let error):
-                                        errorMessage = mapAppleError(error)
-                                        showAlert = true
-                                    }
-                                }
-                            }
-                        case .failure(let error):
-                            if (error as NSError).code != 1001 {
-                                errorMessage = mapAppleError(error)
-                                showAlert = true
-                            }
-                        }
-                    }
-                )
-                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: AuthFormMetrics.buttonHeight)
-                .clipShape(RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous))
-
-                // ✅ NUEVO: Botón de Passkeys
-                Button(action: {
-                    isLoading = true
-                    PasskeyService.shared.loginWithPasskey { result in
-                        DispatchQueue.main.async {
-                            isLoading = false
-                            switch result {
-                            case .success(let customToken):
-                                authService.signInWithPasskeyToken(customToken) { loginResult in
-                                    switch loginResult {
-                                    case .success:
-                                        if let userId = Auth.auth().currentUser?.uid {
-                                            RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "passkey")
-                                        }
-                                        errorMessage = nil
-                                    case .failure(let error):
-                                        errorMessage = error.localizedDescription
-                                        showAlert = true
-                                    }
-                                }
-                            case .failure(let error):
-                                if (error as NSError).code == ASAuthorizationError.canceled.rawValue {
-                                    return
-                                }
-                                errorMessage = error.localizedDescription
-                                showAlert = true
-                            }
-                        }
-                    }
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "faceid")
-                            .font(.system(size: 17, weight: .medium))
-                        Text("login.passkey")
-                            .font(.system(size: AuthFormMetrics.buttonFontSize, weight: .semibold))
-                    }
-                    .foregroundColor(primaryText)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: AuthFormMetrics.buttonHeight)
-                }
-                .background {
-                    Color.clear
-                        .liquidGlass(
-                            in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous),
-                            interactive: true
-                        )
-                }
-                .overlay {
-                    RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
-                        .stroke(primaryText.opacity(colorScheme == .dark ? 0.14 : 0.12), lineWidth: 0.5)
-                        .allowsHitTesting(false)
-                }
+                passkeyLoginButton
             }
+
+            EnhancedDividerView()
+
+            SignInWithAppleButton(
+                .signIn,
+                onRequest: { request in
+                    let nonce = authService.startAppleSignIn()
+                    request.requestedScopes = [.fullName, .email]
+                    request.nonce = nonce
+                },
+                onCompletion: { result in
+                    switch result {
+                    case .success(let authorization):
+                        if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+                            guard let nonce = authService.currentNonce else {
+                                errorMessage = NSLocalizedString("login.apple.error.nonce", comment: "Apple sign in nonce error")
+                                showAlert = true
+                                return
+                            }
+
+                            guard let appleIDToken = appleIDCredential.identityToken else {
+                                errorMessage = NSLocalizedString("login.apple.error.noToken", comment: "Apple sign in token missing")
+                                showAlert = true
+                                return
+                            }
+
+                            guard let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+                                errorMessage = NSLocalizedString("login.apple.error.invalidToken", comment: "Apple sign in invalid token")
+                                showAlert = true
+                                return
+                            }
+
+                            isLoading = true
+                            authService.signInWithApple(
+                                idToken: idTokenString,
+                                nonce: nonce,
+                                fullName: appleIDCredential.fullName?.formatted(),
+                                email: appleIDCredential.email
+                            ) { result in
+                                isLoading = false
+                                switch result {
+                                case .success(let isComplete):
+                                    if isComplete, let userId = Auth.auth().currentUser?.uid {
+                                        RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "apple")
+                                    }
+                                case .failure(let error):
+                                    errorMessage = mapAppleError(error)
+                                    showAlert = true
+                                }
+                            }
+                        }
+                    case .failure(let error):
+                        if (error as NSError).code != 1001 {
+                            errorMessage = mapAppleError(error)
+                            showAlert = true
+                        }
+                    }
+                }
+            )
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+            .frame(height: buttonHeight)
+            .clipShape(RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous))
+            .disabled(isAuthInProgress)
 
             VStack(spacing: 10) {
                 NavigationLink(destination: RegisterView().environmentObject(authService)) {
                     HStack {
                         Text("login.noAccount")
-                            .font(.system(size: 15, weight: .regular))
+                            .font(.subheadline.weight(.regular))
                             .foregroundColor(primaryText.opacity(0.54))
 
                         Text("login.register")
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.subheadline.bold())
                             .foregroundColor(primaryText)
                     }
                 }
             }
             .padding(.top, 6)
         }
-        .authScreenContentWidth()
+    }
+
+    private var passkeyLoginButton: some View {
+        Button(action: loginWithPasskey) {
+            HStack(spacing: 8) {
+                if isPasskeyLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: primaryText))
+                        .scaleEffect(0.75)
+                } else {
+                    Image(systemName: "faceid")
+                        .font(.body.weight(.medium))
+                }
+                Text("login.passkey")
+                    .font(.system(size: buttonFontSize).weight(.semibold))
+            }
+            .foregroundColor(primaryText)
+            .frame(maxWidth: .infinity)
+            .frame(height: buttonHeight)
+        }
+        .background {
+            Color.clear
+                .momentsChromeGlass(
+                    in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous),
+                    interactive: !isAuthInProgress,
+                    tint: authActionTint
+                )
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
+                .stroke(primaryText.opacity(colorScheme == .dark ? 0.14 : 0.12), lineWidth: 0.5)
+                .allowsHitTesting(false)
+        }
+        .disabled(isAuthInProgress)
+    }
+
+    private func loginWithPasskey() {
+        isPasskeyLoading = true
+        PasskeyService.shared.loginWithPasskey { result in
+            DispatchQueue.main.async {
+                isPasskeyLoading = false
+                switch result {
+                case .success(let customToken):
+                    authService.signInWithPasskeyToken(customToken) { loginResult in
+                        switch loginResult {
+                        case .success:
+                            if let userId = Auth.auth().currentUser?.uid {
+                                RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "passkey")
+                            }
+                            errorMessage = nil
+                        case .failure(let error):
+                            errorMessage = mapPasskeyError(error)
+                            showAlert = true
+                        }
+                    }
+                case .failure(let error):
+                    if (error as NSError).code == ASAuthorizationError.canceled.rawValue {
+                        return
+                    }
+                    errorMessage = mapPasskeyError(error)
+                    showAlert = true
+                }
+            }
+        }
+    }
+
+    private func mapPasskeyError(_ error: Error) -> String {
+        let nsError = error as NSError
+        if nsError.code == ASAuthorizationError.canceled.rawValue {
+            return ""
+        }
+        return NSLocalizedString("login.passkey.error.generic", comment: "Generic passkey login error")
     }
 
     private func mapAppleError(_ error: Error) -> String {
@@ -400,7 +439,7 @@ struct LoginDisclaimerView: View {
     var body: some View {
         VStack(spacing: 8) {
             Text("login.disclaimer.line1")
-                .font(.system(size: 12, weight: .medium))
+                .font(.caption.weight(.medium))
                 .foregroundColor(primaryText.opacity(0.42))
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
@@ -417,7 +456,7 @@ struct LoginDisclaimerView: View {
                 + Text(NSLocalizedString("login.disclaimer.line2.suffix", comment: "Login disclaimer suffix"))
                     .foregroundColor(primaryText.opacity(0.42))
             )
-            .font(.system(size: 12, weight: .medium))
+            .font(.caption.weight(.medium))
             .multilineTextAlignment(.center)
             .lineSpacing(2)
         }
@@ -440,6 +479,16 @@ struct EnhancedLoginButton: View {
         AuthColors.primary(colorScheme)
     }
 
+    private var authActionTint: Color {
+        if isEnabled {
+            return Color.blue.opacity(colorScheme == .dark ? 0.24 : 0.16)
+        }
+        return MomentsChromeGlass.canvasTint(for: colorScheme, opacity: 0.54)
+    }
+
+    private let buttonHeight = AuthFormMetrics.buttonHeight
+    @ScaledMetric(relativeTo: .body) private var buttonFontSize = AuthFormMetrics.buttonFontSize
+
     var body: some View {
         Button(action: {
             // Track login attempt
@@ -453,23 +502,24 @@ struct EnhancedLoginButton: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: primaryText))
                         .scaleEffect(0.75)
                     Text("login.signingIn")
-                        .font(.system(size: AuthFormMetrics.buttonFontSize, weight: .semibold))
+                        .font(.system(size: buttonFontSize).weight(.semibold))
                         .foregroundColor(primaryText)
                         .transition(.opacity)
                 } else {
                     Text("login.signIn")
-                        .font(.system(size: AuthFormMetrics.buttonFontSize, weight: .semibold))
+                        .font(.system(size: buttonFontSize).weight(.semibold))
                         .foregroundColor(primaryText)
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: AuthFormMetrics.buttonHeight)
+            .frame(height: buttonHeight)
         }
         .background {
             Color.clear
-                .liquidGlass(
+                .momentsChromeGlass(
                     in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous),
-                    interactive: isEnabled
+                    interactive: isEnabled,
+                    tint: authActionTint
                 )
         }
         .overlay {
@@ -515,7 +565,7 @@ struct EnhancedDividerView: View {
                 .layoutPriority(0)
 
             Text("login.orContinue")
-                .font(.system(size: 13, weight: .medium))
+                .font(.footnote.weight(.medium))
                 .foregroundColor(textColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)

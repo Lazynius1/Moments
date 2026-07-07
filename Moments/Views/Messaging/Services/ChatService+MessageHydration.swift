@@ -129,6 +129,7 @@ extension ChatService {
         if message.isVanishModeMessage == true {
             data["isVanishModeMessage"] = true
         }
+        appendOverlayPayload(from: message, to: &data)
 
         return data
     }
@@ -245,6 +246,10 @@ extension ChatService {
             sharedMomentData: data["sharedMomentData"] as? [String: String],
             sharedStoryData: data["sharedStoryData"] as? [String: String],
             mediaBatchId: data["mediaBatchId"] as? String,
+            textOverlayLive: data["textOverlayLive"] as? Bool,
+            textOverlays: Self.decodeCodableArray(StoryTextOverlayMetadata.self, from: data["textOverlays"]),
+            stickers: Self.decodeCodableArray(StickerData.self, from: data["stickers"]),
+            drawingData: data["drawingData"] as? Data,
             viewedBy: data["viewedBy"] as? [String],
             readBy: data["readBy"] as? [String],
             starredBy: data["starredBy"] as? [String],
@@ -260,6 +265,44 @@ extension ChatService {
             viewerId: Auth.auth().currentUser?.uid
         )
         return parsedMessage
+    }
+
+    private func appendOverlayPayload(from message: EnhancedMessage, to data: inout [String: Any]) {
+        if let textOverlayLive = message.textOverlayLive {
+            data["textOverlayLive"] = textOverlayLive
+        }
+        if let textOverlays = message.textOverlays,
+           let encoded = Self.encodeCodableArray(textOverlays),
+           !encoded.isEmpty {
+            data["textOverlays"] = encoded
+        }
+        if let stickers = message.stickers,
+           let encoded = Self.encodeCodableArray(stickers),
+           !encoded.isEmpty {
+            data["stickers"] = encoded
+        }
+        if let drawingData = message.drawingData {
+            data["drawingData"] = drawingData
+        }
+    }
+
+    static func encodeCodableArray<T: Encodable>(_ values: [T]) -> [[String: Any]]? {
+        do {
+            let data = try JSONEncoder().encode(values)
+            return try JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+        } catch {
+            return nil
+        }
+    }
+
+    static func decodeCodableArray<T: Decodable>(_ type: T.Type, from value: Any?) -> [T]? {
+        guard let value else { return nil }
+        do {
+            let data = try JSONSerialization.data(withJSONObject: value)
+            return try JSONDecoder().decode([T].self, from: data)
+        } catch {
+            return nil
+        }
     }
 
     func resolveEncryptedMediaForMessage(_ message: EnhancedMessage, forceDownload: Bool = false) async -> (mediaUrl: String?, thumbnailUrl: String?)? {

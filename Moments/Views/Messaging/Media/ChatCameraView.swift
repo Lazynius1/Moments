@@ -9,7 +9,7 @@ import PhotosUI
 struct ChatCameraView: View {
     let otherUserId: String
     let otherUsername: String
-    let onSend: (Data, EnhancedCameraPickerView.MediaType, ChatMediaSendMode) -> Void
+    let onSend: (Data, EnhancedCameraPickerView.MediaType, ChatMediaSendMode, ChatMediaOverlayPayload?) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -125,8 +125,8 @@ struct ChatCameraView: View {
                         initialChainTitle: nil,
                         initialChainPosition: nil,
                         chatRecipientUserId: otherUserId,
-                        onChatSend: { data, mediaType, mode in
-                            onSend(data, mediaType, mode)
+                        onChatSend: { data, mediaType, mode, overlayPayload in
+                            onSend(data, mediaType, mode, overlayPayload)
                         }
                     )
                     .transition(.opacity)

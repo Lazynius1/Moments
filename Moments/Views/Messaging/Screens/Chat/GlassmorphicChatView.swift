@@ -104,6 +104,7 @@ struct GlassmorphicChatView: View {
     @State var buzzToastDismissTask: Task<Void, Never>?
     @State var lastBuzzSentAt: Date?
     @State var showVanishTimerSheet = false
+    @State var didRunConsumedViewOnceCleanup = false
 
     @Environment(\.colorScheme) var colorScheme
     @State var screenshotObserver: NSObjectProtocol?
@@ -251,8 +252,8 @@ struct GlassmorphicChatView: View {
             ChatCameraView(
                 otherUserId: viewModel.conversation.otherParticipantId,
                 otherUsername: otherParticipantDisplayName
-            ) { data, mediaType, mode in
-                handleCameraCapture(data: data, mediaType: mediaType, mode: mode)
+            ) { data, mediaType, mode, overlayPayload in
+                handleCameraCapture(data: data, mediaType: mediaType, mode: mode, overlayPayload: overlayPayload)
             }
         }
         .fullScreenCover(item: $viewOnceViewerPresentation) { presentation in

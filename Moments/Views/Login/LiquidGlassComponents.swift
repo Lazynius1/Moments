@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum AuthFormMetrics {
-    static let maxFormContentWidth: CGFloat = 400
+    static let maxFormContentWidth: CGFloat = 340
 
     /// Márgenes laterales: mismo aire en Pro y Pro Max; el Pro no debe quedar más estrecho.
     static func screenHorizontalInset(for containerWidth: CGFloat) -> CGFloat {
@@ -18,6 +18,34 @@ enum AuthFormMetrics {
         screenHorizontalInset(for: UIScreen.main.bounds.width)
     }
 
+    static func responsiveFieldHeight(for screenHeight: CGFloat) -> CGFloat {
+        if screenHeight < 670 { // iPhone SE (667)
+            return 38
+        } else if screenHeight < 850 { // Standard iPhone (e.g. 15 Pro, 852)
+            return 42
+        } else { // Pro Max / Plus (896+)
+            return 44
+        }
+    }
+
+    static func responsiveButtonHeight(for screenHeight: CGFloat) -> CGFloat {
+        if screenHeight < 670 {
+            return 40
+        } else if screenHeight < 850 {
+            return 44
+        } else {
+            return 46
+        }
+    }
+
+    static var fieldHeight: CGFloat {
+        responsiveFieldHeight(for: UIScreen.main.bounds.height)
+    }
+
+    static var buttonHeight: CGFloat {
+        responsiveButtonHeight(for: UIScreen.main.bounds.height)
+    }
+
     static let registerLogoHeight: CGFloat = 112
     static let onboardingLogoHeight: CGFloat = 72
     static let onboardingFieldSpacing: CGFloat = 24
@@ -26,15 +54,14 @@ enum AuthFormMetrics {
     static let onboardingTitleToFieldsSpacing: CGFloat = 36
     static let profilePhotoSize: CGFloat = 96
     static let onboardingPreviewPhotoSize: CGFloat = 88
-    static let fieldHeight: CGFloat = 50
-    static let buttonHeight: CGFloat = 50
+
+    static let iconFontSize: CGFloat = 15
+    static let fieldFontSize: CGFloat = 15
+    static let buttonFontSize: CGFloat = 15
+    static let fieldHorizontalPadding: CGFloat = 16
+    static let iconSlotWidth: CGFloat = 20
     static let fieldCornerRadius: CGFloat = 14
     static let buttonCornerRadius: CGFloat = 14
-    static let fieldHorizontalPadding: CGFloat = 14
-    static let fieldFontSize: CGFloat = 15
-    static let buttonFontSize: CGFloat = 16
-    static let iconFontSize: CGFloat = 15
-    static let iconSlotWidth: CGFloat = 20
 }
 
 enum AuthColors {
@@ -100,6 +127,12 @@ struct LiquidGlassTextField: View {
     var autocapitalization: UITextAutocapitalizationType = .none
     @State private var isFocused = false
 
+    private let fieldHeight = AuthFormMetrics.fieldHeight
+    private let fieldHorizontalPadding = AuthFormMetrics.fieldHorizontalPadding
+    private let iconSlotWidth = AuthFormMetrics.iconSlotWidth
+    @ScaledMetric(relativeTo: .body) private var iconFontSize = AuthFormMetrics.iconFontSize
+    @ScaledMetric(relativeTo: .body) private var fieldFontSize = AuthFormMetrics.fieldFontSize
+
     private var primaryText: Color {
         AuthColors.primary(colorScheme)
     }
@@ -126,27 +159,27 @@ struct LiquidGlassTextField: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: AuthFormMetrics.iconFontSize, weight: .medium))
+                .font(.system(size: iconFontSize).weight(.medium))
                 .foregroundColor(focusedIcon)
-                .frame(width: AuthFormMetrics.iconSlotWidth)
+                .frame(width: iconSlotWidth)
 
             ZStack(alignment: .leading) {
                 if text.isEmpty {
                     Text(placeholder)
-                        .font(.system(size: AuthFormMetrics.fieldFontSize))
+                        .font(.system(size: fieldFontSize))
                         .foregroundColor(secondaryText)
                 }
 
                 TextField("", text: $text)
                     .foregroundColor(primaryText)
-                    .font(.system(size: AuthFormMetrics.fieldFontSize))
+                    .font(.system(size: fieldFontSize))
                     .autocapitalization(autocapitalization)
                     .keyboardType(keyboardType)
                     .onTapGesture { isFocused = true }
             }
         }
-        .padding(.horizontal, AuthFormMetrics.fieldHorizontalPadding)
-        .frame(height: AuthFormMetrics.fieldHeight)
+        .padding(.horizontal, fieldHorizontalPadding)
+        .frame(height: fieldHeight)
         .background {
             Color.clear
                 .liquidGlass(in: fieldShape, interactive: true)
@@ -170,6 +203,12 @@ struct LiquidGlassSecureField: View {
     @Binding var isVisible: Bool
     @State private var isFocused = false
 
+    private let fieldHeight = AuthFormMetrics.fieldHeight
+    private let fieldHorizontalPadding = AuthFormMetrics.fieldHorizontalPadding
+    private let iconSlotWidth = AuthFormMetrics.iconSlotWidth
+    @ScaledMetric(relativeTo: .body) private var iconFontSize = AuthFormMetrics.iconFontSize
+    @ScaledMetric(relativeTo: .body) private var fieldFontSize = AuthFormMetrics.fieldFontSize
+
     private var primaryText: Color {
         AuthColors.primary(colorScheme)
     }
@@ -189,37 +228,45 @@ struct LiquidGlassSecureField: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: AuthFormMetrics.iconFontSize, weight: .medium))
+                .font(.system(size: iconFontSize).weight(.medium))
                 .foregroundColor(focusedIcon)
-                .frame(width: AuthFormMetrics.iconSlotWidth)
+                .frame(width: iconSlotWidth)
 
-            ZStack(alignment: .leading) {
-                if text.isEmpty {
-                    Text(placeholder)
-                        .font(.system(size: AuthFormMetrics.fieldFontSize))
-                        .foregroundColor(secondaryText)
+            ZStack(alignment: .trailing) {
+                ZStack(alignment: .leading) {
+                    if text.isEmpty {
+                        Text(placeholder)
+                            .font(.system(size: fieldFontSize))
+                            .foregroundColor(secondaryText)
+                    }
+
+                    if isVisible {
+                        TextField("", text: $text)
+                            .foregroundColor(primaryText)
+                            .font(.system(size: fieldFontSize))
+                            .autocapitalization(.none)
+                            .onTapGesture { isFocused = true }
+                    } else {
+                        SecureField("", text: $text)
+                            .foregroundColor(primaryText)
+                            .font(.system(size: fieldFontSize))
+                            .autocapitalization(.none)
+                            .onTapGesture { isFocused = true }
+                    }
                 }
 
-                if isVisible {
-                    TextField("", text: $text)
-                        .foregroundColor(primaryText)
-                        .font(.system(size: AuthFormMetrics.fieldFontSize))
-                } else {
-                    SecureField("", text: $text)
-                        .foregroundColor(primaryText)
-                        .font(.system(size: AuthFormMetrics.fieldFontSize))
+                Button(action: {
+                    isVisible.toggle()
+                }) {
+                    Image(systemName: isVisible ? "eye.slash" : "eye")
+                        .font(.system(size: 15))
+                        .foregroundColor(primaryText.opacity(0.48))
+                        .padding(.trailing, 4)
                 }
             }
-
-            Button(action: { isVisible.toggle() }) {
-                Image(systemName: isVisible ? "eye.slash.fill" : "eye.fill")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(focusedIcon)
-            }
-            .accessibilityLabel(Text(isVisible ? "login.password.hide" : "login.password.show"))
         }
-        .padding(.horizontal, AuthFormMetrics.fieldHorizontalPadding)
-        .frame(height: AuthFormMetrics.fieldHeight)
+        .padding(.horizontal, fieldHorizontalPadding)
+        .frame(height: fieldHeight)
         .background {
             Color.clear
                 .liquidGlass(in: fieldShape, interactive: true)
@@ -230,7 +277,6 @@ struct LiquidGlassSecureField: View {
                 .allowsHitTesting(false)
         }
         .animation(.easeInOut(duration: 0.2), value: isFocused)
-        .onTapGesture { isFocused = true }
         .accessibilityLabel(Text(placeholder))
     }
 }
@@ -345,23 +391,42 @@ struct LiquidGlassButton: View {
 private struct AuthScreenContentWidthModifier: ViewModifier {
     func body(content: Content) -> some View {
         let screenWidth = UIScreen.main.bounds.width
-        let inset = AuthFormMetrics.screenHorizontalInset(for: screenWidth)
-
-        content
-            .frame(maxWidth: AuthFormMetrics.maxFormContentWidth)
-            .padding(.horizontal, inset)
+        let margin: CGFloat
+        if screenWidth < 380 {
+            margin = 20
+        } else if screenWidth < 390 {
+            margin = 28
+        } else if screenWidth < 500 {
+            margin = 36
+        } else {
+            margin = 40
+        }
+        return content
+            .frame(maxWidth: screenWidth >= 500 ? 400 : .infinity)
+            .padding(.horizontal, margin)
             .frame(maxWidth: .infinity)
     }
 }
 
 extension View {
-    /// Ancho fluido con márgenes 24pt en Pro / Pro Max; tope 400pt en pantallas anchas.
+    /// Ancho fluido con márgenes adaptativos; tope 400pt en pantallas anchas (iPad).
     func authScreenContentWidth() -> some View {
         modifier(AuthScreenContentWidthModifier())
     }
 
     func authScreenHorizontalPadding() -> some View {
-        padding(.horizontal, AuthFormMetrics.defaultScreenHorizontalInset)
+        let screenWidth = UIScreen.main.bounds.width
+        let margin: CGFloat
+        if screenWidth < 380 {
+            margin = 20
+        } else if screenWidth < 390 {
+            margin = 28
+        } else if screenWidth < 500 {
+            margin = 36
+        } else {
+            margin = 40
+        }
+        return padding(.horizontal, margin)
     }
 }
 
@@ -372,6 +437,9 @@ struct AuthRegistrationPrimaryButton: View {
     let isEnabled: Bool
     let action: () -> Void
 
+    private let buttonHeight = AuthFormMetrics.buttonHeight
+    @ScaledMetric(relativeTo: .body) private var buttonFontSize = AuthFormMetrics.buttonFontSize
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
@@ -381,16 +449,16 @@ struct AuthRegistrationPrimaryButton: View {
                         .scaleEffect(0.75)
                 } else {
                     Text(title)
-                        .font(.system(size: AuthFormMetrics.buttonFontSize, weight: .semibold))
+                        .font(.system(size: buttonFontSize).weight(.semibold))
                         .foregroundColor(AuthColors.primary(colorScheme))
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: AuthFormMetrics.buttonHeight)
+            .frame(height: buttonHeight)
         }
         .background {
             Color.clear
-                .liquidGlass(
+                .momentsChromeGlass(
                     in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous),
                     interactive: isEnabled
                 )

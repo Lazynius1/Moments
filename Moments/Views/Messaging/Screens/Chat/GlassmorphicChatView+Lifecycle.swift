@@ -20,7 +20,12 @@ extension GlassmorphicChatView {
         }
     }
 
-    func handleCameraCapture(data: Data, mediaType: EnhancedCameraPickerView.MediaType, mode: ChatMediaSendMode) {
+    func handleCameraCapture(
+        data: Data,
+        mediaType: EnhancedCameraPickerView.MediaType,
+        mode: ChatMediaSendMode,
+        overlayPayload: ChatMediaOverlayPayload? = nil
+    ) {
         guard !isOtherParticipantUnavailable else {
             showEnhancedCamera = false
             return
@@ -35,9 +40,9 @@ extension GlassmorphicChatView {
 
         switch mode {
         case .viewOnce:
-            viewModel.sendViewOnceMessage(data: data, mediaType: mediaType, allowReplay: false, replyTo: replyTo)
+            viewModel.sendViewOnceMessage(data: data, mediaType: mediaType, allowReplay: false, replyTo: replyTo, overlayPayload: overlayPayload)
         case .allowReplay:
-            viewModel.sendViewOnceMessage(data: data, mediaType: mediaType, allowReplay: true, replyTo: replyTo)
+            viewModel.sendViewOnceMessage(data: data, mediaType: mediaType, allowReplay: true, replyTo: replyTo, overlayPayload: overlayPayload)
         case .keepInChat:
             if mediaType == .image {
                 viewModel.sendImageMessage(data, replyTo: replyTo)

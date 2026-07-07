@@ -36,6 +36,10 @@ final class CachedMessage {
     var storyReplyDataEncoded: Data? // [String: String] encoded
     var sharedMomentDataEncoded: Data? // [String: String] encoded
     var sharedStoryDataEncoded: Data? // [String: String] encoded
+    var textOverlayLive: Bool?
+    var textOverlaysData: Data?
+    var stickersData: Data?
+    var drawingData: Data?
     var viewedBy: [String]?
     var lastSyncedAt: Date
     var isVanishModeMessage: Bool
@@ -74,6 +78,10 @@ final class CachedMessage {
          storyReplyDataEncoded: Data?,
          sharedMomentDataEncoded: Data?,
          sharedStoryDataEncoded: Data? = nil,
+         textOverlayLive: Bool? = nil,
+         textOverlaysData: Data? = nil,
+         stickersData: Data? = nil,
+         drawingData: Data? = nil,
          viewedBy: [String]?,
          lastSyncedAt: Date = Date(),
          isVanishModeMessage: Bool = false,
@@ -111,6 +119,10 @@ final class CachedMessage {
         self.storyReplyDataEncoded = storyReplyDataEncoded
         self.sharedMomentDataEncoded = sharedMomentDataEncoded
         self.sharedStoryDataEncoded = sharedStoryDataEncoded
+        self.textOverlayLive = textOverlayLive
+        self.textOverlaysData = textOverlaysData
+        self.stickersData = stickersData
+        self.drawingData = drawingData
         self.viewedBy = viewedBy
         self.lastSyncedAt = lastSyncedAt
         self.isVanishModeMessage = isVanishModeMessage
@@ -140,6 +152,8 @@ extension CachedMessage {
         let storyReplyDataEncoded = try? encoder.encode(message.storyReplyData)
         let sharedMomentDataEncoded = try? encoder.encode(message.sharedMomentData)
         let sharedStoryDataEncoded = try? encoder.encode(message.sharedStoryData)
+        let textOverlaysData = try? encoder.encode(message.textOverlays)
+        let stickersData = try? encoder.encode(message.stickers)
         let mediaEncryptionData = try? encoder.encode(message.mediaEncryption)
         let thumbnailEncryptionData = try? encoder.encode(message.thumbnailEncryption)
         
@@ -176,6 +190,10 @@ extension CachedMessage {
             storyReplyDataEncoded: storyReplyDataEncoded,
             sharedMomentDataEncoded: sharedMomentDataEncoded,
             sharedStoryDataEncoded: sharedStoryDataEncoded,
+            textOverlayLive: message.textOverlayLive,
+            textOverlaysData: textOverlaysData,
+            stickersData: stickersData,
+            drawingData: message.drawingData,
             viewedBy: message.viewedBy,
             lastSyncedAt: Date(),
             isVanishModeMessage: message.isVanishModeMessage == true,
@@ -208,6 +226,16 @@ extension CachedMessage {
         let sharedStoryData: [String: String]? = {
             guard let data = sharedStoryDataEncoded else { return nil }
             return try? decoder.decode([String: String].self, from: data)
+        }()
+
+        let textOverlays: [StoryTextOverlayMetadata]? = {
+            guard let data = textOverlaysData else { return nil }
+            return try? decoder.decode([StoryTextOverlayMetadata].self, from: data)
+        }()
+
+        let stickers: [StickerData]? = {
+            guard let data = stickersData else { return nil }
+            return try? decoder.decode([StickerData].self, from: data)
         }()
 
         let mediaEncryption: EncryptedChatMediaMetadata? = {
@@ -253,6 +281,10 @@ extension CachedMessage {
             sharedMomentData: sharedMomentData,
             sharedStoryData: sharedStoryData,
             mediaBatchId: mediaBatchId,
+            textOverlayLive: textOverlayLive,
+            textOverlays: textOverlays,
+            stickers: stickers,
+            drawingData: drawingData,
             viewedBy: viewedBy,
             isVanishModeMessage: isVanishModeMessage ? true : nil,
             vanishedFor: vanishedFor.isEmpty ? nil : vanishedFor,

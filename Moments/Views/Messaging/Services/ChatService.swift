@@ -1192,7 +1192,11 @@ class ChatService: ObservableObject {
                         "mediaObjectPath": FieldValue.delete(),
                         "thumbnailObjectPath": FieldValue.delete(),
                         "mediaEncryption": FieldValue.delete(),
-                        "thumbnailEncryption": FieldValue.delete()
+                        "thumbnailEncryption": FieldValue.delete(),
+                        "textOverlayLive": FieldValue.delete(),
+                        "textOverlays": FieldValue.delete(),
+                        "stickers": FieldValue.delete(),
+                        "drawingData": FieldValue.delete()
                     ]) { updateError in
                         
                         if let updateError = updateError {

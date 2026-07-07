@@ -19,10 +19,10 @@ struct StoryEditingView: View {
     let initialChainTitle: String?
     let initialChainPosition: Int?
 
-    // Modo chat (cámara del chat estilo IG): en vez de publicar historia, aplana
-    // el resultado y lo devuelve para enviarlo como mensaje con el modo elegido.
+    // Modo chat (cámara del chat estilo IG): en vez de publicar historia, devuelve
+    // el media y la metadata visual para enviarlos como mensaje con el modo elegido.
     var chatRecipientUserId: String? = nil
-    var onChatSend: ((Data, EnhancedCameraPickerView.MediaType, ChatMediaSendMode) -> Void)? = nil
+    var onChatSend: ((Data, EnhancedCameraPickerView.MediaType, ChatMediaSendMode, ChatMediaOverlayPayload?) -> Void)? = nil
     @State private var chatSendMode: ChatMediaSendMode = .viewOnce
 
     private var isChatSendMode: Bool { onChatSend != nil }
@@ -723,6 +723,7 @@ struct StoryEditingView: View {
                         .padding(.vertical, 9)
                         .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
+                    .offset(y: chatPaletteTopOffset)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -794,6 +795,7 @@ struct StoryEditingView: View {
                         .padding(.vertical, 9)
                         .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
+                    .offset(y: chatPaletteTopOffset)
                 } else if showsBackgroundPaletteButton {
                     Button(action: cycleBackgroundPreset) {
                         HStack(spacing: 8) {
@@ -813,11 +815,19 @@ struct StoryEditingView: View {
                         .padding(.vertical, 9)
                         .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
+                    .offset(y: chatPaletteTopOffset)
                 }
             }
             .padding(.horizontal)
             .padding(.top, topBarTopPadding(topInset: topInset))
         }
+    }
+
+    private var chatPaletteTopOffset: CGFloat {
+        guard isChatSendMode else { return 0 }
+        let chatToolButtonHeight: CGFloat = 44
+        let verticalGap: CGFloat = 12
+        return chatToolButtonHeight + verticalGap
     }
 
     private var discardChangesOverlay: some View {
@@ -1391,6 +1401,7 @@ struct StoryEditingView: View {
 
         let contentRect = currentMediaCanvasRect()
         commitActiveTextOverlayIfNeeded(canvasSize: contentRect.size)
+        let overlayPayload = chatOverlayPayload(contentRect: contentRect)
 
         if let media = selectedMediaItems.first, media.type == .video, let videoURL = media.videoURL {
             let targetSize = storyRenderTargetSize()
@@ -1403,6 +1414,7 @@ struct StoryEditingView: View {
             let capturedOffset = imageOffset
             let capturedRotation = imageRotation
             let mode = chatSendMode
+            let capturedOverlayPayload = overlayPayload
 
             Task.detached(priority: .userInitiated) {
                 do {
@@ -1423,7 +1435,7 @@ struct StoryEditingView: View {
                     await MainActor.run {
                         isPublishing = false
                         HapticManager.shared.mediumImpact()
-                        onChatSend(data, .video, mode)
+                        onChatSend(data, .video, mode, capturedOverlayPayload)
                     }
                 } catch {
                     await MainActor.run {
@@ -1443,7 +1455,42 @@ struct StoryEditingView: View {
         }
         isPublishing = false
         HapticManager.shared.mediumImpact()
-        onChatSend(data, .image, chatSendMode)
+        onChatSend(data, .image, chatSendMode, overlayPayload)
+    }
+
+    private func chatOverlayPayload(contentRect: CGRect) -> ChatMediaOverlayPayload? {
+        let preparedTextOverlays = textOverlays
+            .sorted { $0.layerOrder < $1.layerOrder }
+            .compactMap { $0.metadata(in: contentRect) }
+        let normalizedStickers = normalizedChatStickerData(contentRect: contentRect)
+        let payload = ChatMediaOverlayPayload(
+            textOverlayLive: preparedTextOverlays.isEmpty ? nil : true,
+            textOverlays: preparedTextOverlays.isEmpty ? nil : preparedTextOverlays,
+            stickers: normalizedStickers.isEmpty ? nil : normalizedStickers,
+            drawingData: nil
+        )
+        return payload.isEmpty ? nil : payload
+    }
+
+    private func normalizedChatStickerData(contentRect: CGRect) -> [StickerData] {
+        let safeWidth = max(contentRect.width, 1)
+        let safeHeight = max(contentRect.height, 1)
+        let referenceContentWidth: CGFloat = 375.0
+
+        return selectedStickers.enumerated().compactMap { index, stickerItem in
+            var normalizedItem = stickerItem
+            let normalizedX = stickerItem.position.x / safeWidth
+            let normalizedY = stickerItem.position.y / safeHeight
+            let normalizedScale = stickerItem.scale * (referenceContentWidth / safeWidth)
+
+            normalizedItem.position = CGPoint(
+                x: normalizedX.isFinite ? normalizedX : 0.5,
+                y: normalizedY.isFinite ? normalizedY : 0.5
+            )
+            normalizedItem.scale = normalizedScale.isFinite ? normalizedScale : stickerItem.scale
+            normalizedItem.zIndex = index
+            return StickerData.from(normalizedItem)
+        }
     }
 
     @ViewBuilder

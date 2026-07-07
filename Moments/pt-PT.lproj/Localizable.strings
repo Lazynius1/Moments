@@ -4529,6 +4529,7 @@
 "settings.security.passkey.success" = "Passkey criada com sucesso! Agora podes entrar rapidamente e com segurança usando o Face ID.";
 "settings.security.passkey.create" = "Criar passkey";
 "login.passkey" = "Chave de acesso (Passkey)";
+"login.passkey.error.generic" = "Não há chave de acesso neste dispositivo. Se é a tua primeira vez, regista-te abaixo.";
 "settings.security.passkey.description" = "Entre com rapidez e segurança usando Face ID.";
 "settings.security.passkey.generated" = "Passkey gerada";
 

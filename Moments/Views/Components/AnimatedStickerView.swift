@@ -47,6 +47,7 @@ struct AnimatedStickerView: UIViewRepresentable {
         if sticker.isAnimated, let gifURL = sticker.gifURL {
             if let cachedImage = GIFCache.shared.getGIF(for: gifURL) {
                 imageView.image = cachedImage
+                imageView.startAnimating()
             } else {
                 // Solo cargar si no está en cache
                 URLSession.shared.dataTask(with: gifURL) { data, response, error in
@@ -54,6 +55,7 @@ struct AnimatedStickerView: UIViewRepresentable {
                         GIFCache.shared.setGIF(animatedImage, for: gifURL)
                         DispatchQueue.main.async {
                             imageView.image = animatedImage
+                            imageView.startAnimating()
                         }
                     } else {
                         // Si falla el GIF, NO usar la imagen estática
@@ -74,6 +76,9 @@ struct AnimatedStickerView: UIViewRepresentable {
         uiView.frame = CGRect(origin: .zero, size: size)
         uiView.bounds = CGRect(origin: .zero, size: size)
         uiView.contentMode = .scaleAspectFit
+        if uiView.image?.images?.isEmpty == false, !uiView.isAnimating {
+            uiView.startAnimating()
+        }
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UIImageView, context: Context) -> CGSize? {

@@ -235,11 +235,78 @@ extension ChatService {
         messageId: String,
         completion: @escaping (Error?) -> Void
     ) {
-        deleteMessageWithCleanup(
+        ViewOnceConsumptionService.shared.consume(
             conversationId: conversationId,
             messageId: messageId,
+            reason: .viewOnce,
             completion: completion
         )
+    }
+
+    func cleanupConsumedViewOnceMessages(conversationId: String) {
+        guard !conversationId.isEmpty else { return }
+
+        db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .whereField("isViewOnce", isEqualTo: true)
+            .whereField("isDeleted", isEqualTo: false)
+            .limit(to: 50)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self else { return }
+                guard error == nil, let documents = snapshot?.documents else { return }
+
+                for document in documents {
+                    let data = document.data()
+                    guard let reason = self.consumptionReasonForConsumedViewOnce(data) else { continue }
+
+                    let messageId = data["id"] as? String ?? document.documentID
+                    ViewOnceConsumptionService.shared.consume(
+                        conversationId: conversationId,
+                        messageId: messageId,
+                        reason: reason
+                    ) { error in
+                        if let error {
+                            LogConfig.log("Consumed view-once cleanup failed: \(error.localizedDescription)", category: "Chat")
+                        }
+                    }
+                }
+            }
+    }
+
+    private func consumptionReasonForConsumedViewOnce(_ data: [String: Any]) -> ViewOnceConsumptionReason? {
+        guard data["isViewOnce"] as? Bool == true else { return nil }
+        guard data["isDeleted"] as? Bool != true else { return nil }
+
+        let hasMedia = [
+            data["mediaObjectPath"] as? String,
+            data["thumbnailObjectPath"] as? String,
+            data["mediaUrl"] as? String,
+            data["thumbnailUrl"] as? String
+        ].contains { value in
+            guard let value else { return false }
+            return !value.isEmpty
+        }
+        guard hasMedia else { return nil }
+
+        let allowReplay = data["allowReplay"] as? Bool == true
+        if allowReplay {
+            if (data["replayedBy"] as? [String])?.isEmpty == false {
+                return .replay
+            }
+
+            if (data["viewedBy"] as? [String])?.isEmpty == false || data["isViewed"] as? Bool == true {
+                return .abandonReplay
+            }
+
+            return nil
+        }
+
+        if (data["viewedBy"] as? [String])?.isEmpty == false || data["isViewed"] as? Bool == true {
+            return .viewOnce
+        }
+
+        return nil
     }
 
     func sendViewOnceMessage(
@@ -251,6 +318,7 @@ extension ChatService {
         isVanishModeMessage: Bool = false,
         allowReplay: Bool = false,
         replyTo: String? = nil,
+        overlayPayload: ChatMediaOverlayPayload? = nil,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         let messageType: MessageType = mediaType == .image ? .viewOnceImage : .viewOnceVideo
@@ -288,6 +356,12 @@ extension ChatService {
                     isViewed: false,
                     storyReplyData: nil,
                     sharedMomentData: nil,
+                    sharedStoryData: nil,
+                    mediaBatchId: nil,
+                    textOverlayLive: overlayPayload?.textOverlayLive,
+                    textOverlays: overlayPayload?.textOverlays,
+                    stickers: overlayPayload?.stickers,
+                    drawingData: overlayPayload?.drawingData,
                     viewedBy: [],
                     isVanishModeMessage: isVanishModeMessage ? true : nil
                 )

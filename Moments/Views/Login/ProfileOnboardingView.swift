@@ -39,6 +39,9 @@ struct ProfileOnboardingView: View {
     @State private var isCancelling = false
     @State private var didRestoreDraft = false
 
+    @ScaledMetric(relativeTo: .body) private var onboardingSectionSpacing = AuthFormMetrics.onboardingSectionSpacing
+    @ScaledMetric(relativeTo: .body) private var onboardingTopPadding = AuthFormMetrics.onboardingTopPadding
+
     private var draftContext: OnboardingDraftContext {
         context == .email ? .email : .apple
     }
@@ -70,10 +73,11 @@ struct ProfileOnboardingView: View {
                 topBar
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: AuthFormMetrics.onboardingSectionSpacing) {
+                    VStack(spacing: onboardingSectionSpacing) {
                         OnboardingStepHeader(
                             title: stepTitle,
-                            subtitle: stepSubtitle
+                            subtitle: stepSubtitle,
+                            showsLogo: currentStep == 1
                         )
                         .opacity(isVisible ? 1 : 0)
                         .offset(y: isVisible ? 0 : 12)
@@ -88,11 +92,9 @@ struct ProfileOnboardingView: View {
                             .offset(y: isVisible ? 0 : 20)
                     }
                     .authScreenContentWidth()
-                    .padding(.top, AuthFormMetrics.onboardingTopPadding)
-                    .padding(.bottom, 24)
+                    .padding(.top, onboardingTopPadding)
+                    .padding(.bottom, 104)
                 }
-
-                bottomBar
             }
 
             if isCreatingProfile {
@@ -145,43 +147,53 @@ struct ProfileOnboardingView: View {
                 NavigationSwipeBackDisabler()
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomBar
+        }
     }
 
-    @ViewBuilder
     private var topBar: some View {
         HStack {
-            if context == .email {
-                Button(action: cancelEmailOnboarding) {
+            Button(action: primaryNavigationAction) {
+                Image(systemName: currentStep > 1 ? "chevron.left" : "xmark")
+                    .font(.system(size: currentStep > 1 ? 17 : 16, weight: .semibold))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .frame(width: 36, height: 36)
+                    .background {
+                        Color.clear
+                            .momentsChromeGlass(in: Circle(), interactive: true)
+                    }
+            }
+            .accessibilityLabel(Text(currentStep > 1 ? "register.back" : "register.close"))
+            .disabled(isCancelling)
+
+            Spacer()
+
+            OnboardingProgressDots(currentStep: currentStep, totalSteps: 3)
+
+            Spacer()
+
+            if currentStep > 1 {
+                Button(action: context == .apple ? cancelAppleOnboarding : cancelEmailOnboarding) {
                     Image(systemName: "xmark")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(AuthColors.primary(colorScheme))
                         .frame(width: 36, height: 36)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
-                        }
-                }
-                .accessibilityLabel(Text("register.close"))
-                .disabled(isCancelling)
-            } else {
-                Button(action: cancelAppleOnboarding) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
-                        .frame(width: 36, height: 36)
-                        .background {
-                            Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
                 .accessibilityLabel(Text("onboarding.cancelRegistration"))
                 .disabled(isCancelling)
+            } else {
+                Color.clear
+                    .frame(width: 36, height: 36)
             }
-
-            Spacer()
         }
         .authScreenHorizontalPadding()
         .padding(.top, 10)
+        .padding(.bottom, 6)
     }
 
     @ViewBuilder
@@ -239,38 +251,17 @@ struct ProfileOnboardingView: View {
     }
 
     private var bottomBar: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 0) {
             AuthRegistrationPrimaryButton(
                 title: primaryButtonTitle,
                 isLoading: isLoading,
                 isEnabled: canProceed(),
                 action: handleNext
             )
-
-            if currentStep > 1 {
-                Button(action: { withAnimation { currentStep -= 1 } }) {
-                    Text("register.back")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 16)
-                        .background {
-                            Color.clear
-                                .liquidGlass(in: Capsule(), interactive: true)
-                        }
-                }
-            }
-
-            Button(action: context == .apple ? cancelAppleOnboarding : cancelEmailOnboarding) {
-                Text("onboarding.cancelRegistration")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
-            }
-            .disabled(isCancelling)
-            .padding(.top, 2)
         }
         .authScreenContentWidth()
-        .padding(.bottom, 22)
+        .padding(.top, 14)
+        .padding(.bottom, 12)
     }
 
     private var stepTitle: LocalizedStringKey {
@@ -317,6 +308,16 @@ struct ProfileOnboardingView: View {
             }
         } else {
             completeRegistration()
+        }
+    }
+
+    private func primaryNavigationAction() {
+        if currentStep > 1 {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.86)) {
+                currentStep -= 1
+            }
+        } else {
+            context == .apple ? cancelAppleOnboarding() : cancelEmailOnboarding()
         }
     }
 
@@ -485,30 +486,68 @@ private struct OnboardingStepHeader: View {
     @Environment(\.colorScheme) private var colorScheme
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
+    let showsLogo: Bool
+
+    @ScaledMetric(relativeTo: .body) private var logoHeight: CGFloat = 54
+    @ScaledMetric(relativeTo: .body) private var spacingBeforeFields: CGFloat = 4
+    @ScaledMetric(relativeTo: .title3) private var titleFontSize: CGFloat = 20.9
 
     var body: some View {
-        VStack(spacing: 20) {
-            Image(colorScheme == .dark ? "RegisterLogo2" : "whatsnew2")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(height: AuthFormMetrics.onboardingLogoHeight)
-                .shadow(color: .white.opacity(0.18), radius: 6, x: 0, y: 0)
+        VStack(spacing: showsLogo ? 18 : 0) {
+            if showsLogo {
+                Image(colorScheme == .dark ? "RegisterLogo2" : "whatsnew2")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: logoHeight)
+                    .shadow(color: .white.opacity(0.18), radius: 6, x: 0, y: 0)
+            }
 
             VStack(spacing: 8) {
                 Text(title)
-                    .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
+                    .font(.system(size: titleFontSize).weight(.semibold))
                     .foregroundColor(AuthColors.primary(colorScheme))
                     .multilineTextAlignment(.center)
 
                 Text(subtitle)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 8)
         }
-        .padding(.bottom, AuthFormMetrics.onboardingTitleToFieldsSpacing - AuthFormMetrics.onboardingSectionSpacing)
+        .padding(.bottom, spacingBeforeFields)
+    }
+}
+
+private struct OnboardingProgressDots: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let currentStep: Int
+    let totalSteps: Int
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(1...totalSteps, id: \.self) { step in
+                Capsule()
+                    .fill(dotColor(for: step))
+                    .frame(width: step == currentStep ? 18 : 6, height: 6)
+                    .animation(.spring(response: 0.34, dampingFraction: 0.82), value: currentStep)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background {
+            Color.clear
+                .momentsChromeGlass(in: Capsule(), interactive: false)
+        }
+        .accessibilityLabel(Text("\(currentStep)/\(totalSteps)"))
+    }
+
+    private func dotColor(for step: Int) -> Color {
+        if step <= currentStep {
+            return AuthColors.primary(colorScheme).opacity(0.82)
+        }
+        return AuthColors.primary(colorScheme).opacity(0.22)
     }
 }
 
@@ -524,8 +563,10 @@ private struct OnboardingCredentialsStep: View {
     @Binding var usernameSuggestions: [String]
     let authService: AuthService
 
+    @ScaledMetric(relativeTo: .body) private var fieldSpacing = AuthFormMetrics.onboardingFieldSpacing
+
     var body: some View {
-        VStack(spacing: AuthFormMetrics.onboardingFieldSpacing) {
+        VStack(spacing: fieldSpacing) {
             LiquidGlassTextField(
                 icon: "at",
                 placeholder: NSLocalizedString("register.username.placeholder", comment: ""),
@@ -581,7 +622,7 @@ private struct OnboardingCredentialsStep: View {
                                 usernameSuggestions = []
                             } label: {
                                 Text(suggestion)
-                                    .font(.system(size: 14))
+                                    .font(.subheadline)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
                                     .background {
@@ -609,7 +650,7 @@ private struct OnboardingCredentialsStep: View {
             }
 
             Text(passwordStrengthMessage())
-                .font(.system(size: 12, weight: .medium))
+                .font(.caption.weight(.medium))
                 .foregroundColor(passwordStrengthTextColor())
         }
         .padding(.horizontal, 4)
@@ -696,8 +737,10 @@ private struct OnboardingIdentityStep: View {
     @Binding var usernameSuggestions: [String]
     let authService: AuthService
 
+    @ScaledMetric(relativeTo: .body) private var fieldSpacing = AuthFormMetrics.onboardingFieldSpacing
+
     var body: some View {
-        VStack(spacing: AuthFormMetrics.onboardingFieldSpacing) {
+        VStack(spacing: fieldSpacing) {
             EnhancedProfilePhotoPicker(
                 selectedPhotoItem: $selectedPhotoItem,
                 profileImage: $profileImage,
@@ -718,7 +761,7 @@ private struct OnboardingIdentityStep: View {
 
                 if let error = usernameError {
                     Text(error)
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundColor(.red.opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -754,8 +797,10 @@ private struct OnboardingProfileInterestsStep: View {
     @Binding var selectedInterests: [String]
     let showsPhoto: Bool
 
+    @ScaledMetric(relativeTo: .body) private var fieldSpacing = AuthFormMetrics.onboardingFieldSpacing
+
     var body: some View {
-        VStack(spacing: AuthFormMetrics.onboardingFieldSpacing) {
+        VStack(spacing: fieldSpacing) {
             if showsPhoto {
                 EnhancedProfilePhotoPicker(
                     selectedPhotoItem: $selectedPhotoItem,
@@ -784,22 +829,26 @@ private struct OnboardingProfilePreviewStep: View {
     @Binding var showPrivacyPolicy: Bool
     let isAppleAccount: Bool
 
+    @ScaledMetric(relativeTo: .body) private var fieldSpacing = AuthFormMetrics.onboardingFieldSpacing
+    @ScaledMetric(relativeTo: .body) private var previewPhotoSize = AuthFormMetrics.onboardingPreviewPhotoSize
+    @ScaledMetric(relativeTo: .title3) private var usernameFontSize: CGFloat = 19.0
+    @ScaledMetric(relativeTo: .largeTitle) private var placeholderIconSize: CGFloat = 32
+
     var body: some View {
-        VStack(spacing: AuthFormMetrics.onboardingFieldSpacing) {
+        VStack(spacing: fieldSpacing) {
             VStack(spacing: 18) {
                 profilePreview
-
                 VStack(spacing: 6) {
                     Text("@\(username)")
-                        .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
+                        .font(.system(size: usernameFontSize).weight(.semibold))
                         .foregroundColor(AuthColors.primary(colorScheme))
 
                     HStack(spacing: 6) {
                         Image(systemName: isAppleAccount ? "applelogo" : "envelope.fill")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.caption.weight(.medium))
                             .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
                         Text(accountLabel)
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.78))
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
@@ -809,14 +858,14 @@ private struct OnboardingProfilePreviewStep: View {
                 if !interests.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("register.summary.interests")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.footnote.weight(.semibold))
                             .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         EnhancedFlowLayout(spacing: 8) {
                             ForEach(interests, id: \.self) { interest in
                                 Text(InterestOption.localize(interest))
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.subheadline.weight(.medium))
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
                                     .background {
@@ -840,12 +889,12 @@ private struct OnboardingProfilePreviewStep: View {
                 Toggle(isOn: $privacyPolicyAccepted) {
                     HStack(spacing: 4) {
                         Text("register.terms.accept")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.9))
 
                         Button(action: { showPrivacyPolicy = true }) {
                             Text("register.terms.privacyPolicy")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundColor(AuthColors.primary(colorScheme))
                                 .underline()
                         }
@@ -855,7 +904,7 @@ private struct OnboardingProfilePreviewStep: View {
 
                 if !isAppleAccount {
                     Text("register.verification.notice")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
                         .multilineTextAlignment(.center)
                 }
@@ -869,7 +918,7 @@ private struct OnboardingProfilePreviewStep: View {
             Image(uiImage: profileImage)
                 .resizable()
                 .scaledToFill()
-                .frame(width: AuthFormMetrics.onboardingPreviewPhotoSize, height: AuthFormMetrics.onboardingPreviewPhotoSize)
+                .frame(width: previewPhotoSize, height: previewPhotoSize)
                 .clipShape(Circle())
                 .overlay(
                     Circle()
@@ -885,10 +934,10 @@ private struct OnboardingProfilePreviewStep: View {
         } else {
             Circle()
                 .fill(AuthColors.subtle(colorScheme, opacity: 0.1))
-                .frame(width: AuthFormMetrics.onboardingPreviewPhotoSize, height: AuthFormMetrics.onboardingPreviewPhotoSize)
+                .frame(width: previewPhotoSize, height: previewPhotoSize)
                 .overlay {
                     Image(systemName: "person.fill")
-                        .font(.system(size: 32, weight: .medium))
+                        .font(.system(size: placeholderIconSize).weight(.medium))
                         .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.42))
                 }
         }

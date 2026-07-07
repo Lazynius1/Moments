@@ -1,6 +1,6 @@
 const { onDocumentCreated, onDocumentDeleted, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { onRequest } = require('firebase-functions/v2/https');
+const { HttpsError, onCall, onRequest } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { defineSecret } = require('firebase-functions/params');
 const { RekognitionClient, DetectModerationLabelsCommand } = require('@aws-sdk/client-rekognition');
@@ -61,6 +61,8 @@ module.exports = {
   onDocumentDeleted,
   onDocumentWritten,
   onSchedule,
+  HttpsError,
+  onCall,
   onRequest,
   setGlobalOptions,
   defineSecret,

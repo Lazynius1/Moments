@@ -164,10 +164,18 @@ extension ChatService {
         if let vanishExpiresAt = (data["vanishExpiresAt"] as? Timestamp)?.dateValue() {
             message.vanishExpiresAt = vanishExpiresAt
         }
+        message.textOverlayLive = data["textOverlayLive"] as? Bool
+        message.textOverlays = ChatService.decodeCodableArray(StoryTextOverlayMetadata.self, from: data["textOverlays"])
+        message.stickers = ChatService.decodeCodableArray(StickerData.self, from: data["stickers"])
+        message.drawingData = data["drawingData"] as? Data
 
         if message.isDeleted {
             message.mediaUrl = nil
             message.thumbnailUrl = nil
+            message.textOverlayLive = nil
+            message.textOverlays = nil
+            message.stickers = nil
+            message.drawingData = nil
         }
     }
 }

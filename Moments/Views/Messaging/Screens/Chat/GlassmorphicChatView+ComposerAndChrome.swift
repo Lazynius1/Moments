@@ -588,6 +588,7 @@ extension GlassmorphicChatView {
 
         if !conversationId.isEmpty {
             ChatSessionEngine.shared.activate(conversationId: conversationId)
+            cleanupConsumedViewOnceMessagesIfNeeded()
         }
 
         configureListInitialScrollPolicy()
@@ -598,6 +599,13 @@ extension GlassmorphicChatView {
         refreshOtherParticipantAvailability()
         checkUserStories()
         installScreenshotObserverIfNeeded()
+    }
+
+    func cleanupConsumedViewOnceMessagesIfNeeded() {
+        guard !didRunConsumedViewOnceCleanup else { return }
+        didRunConsumedViewOnceCleanup = true
+
+        ChatService.shared.cleanupConsumedViewOnceMessages(conversationId: conversationId)
     }
 
     // ✅ REFACTORIZADO: Acciones al desaparecer
@@ -627,12 +635,13 @@ extension GlassmorphicChatView {
         if !conversationId.isEmpty {
             let pendingReplays = ViewOnceReplaySessionStore.shared.drainAvailable(conversationId: conversationId)
             pendingReplays.forEach { pending in
-                ChatService.shared.deleteViewOnceAfterViewing(
+                ViewOnceConsumptionService.shared.consume(
                     conversationId: pending.conversationId,
-                    messageId: pending.messageId
+                    messageId: pending.messageId,
+                    reason: .abandonReplay
                 ) { error in
                     if let error {
-                        LogConfig.log("Pending replay delete failed: \(error.localizedDescription)", category: "Chat")
+                        LogConfig.log("Pending replay consume failed: \(error.localizedDescription)", category: "Chat")
                     }
                 }
             }

@@ -118,7 +118,13 @@ extension MomentsChatViewModel {
     }
 
     // ✅ NUEVA función para enviar mensajes view-once
-    func sendViewOnceMessage(data: Data, mediaType: EnhancedCameraPickerView.MediaType, allowReplay: Bool = false, replyTo: String? = nil) {
+    func sendViewOnceMessage(
+        data: Data,
+        mediaType: EnhancedCameraPickerView.MediaType,
+        allowReplay: Bool = false,
+        replyTo: String? = nil,
+        overlayPayload: ChatMediaOverlayPayload? = nil
+    ) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = NSLocalizedString("chat.error.invalidConversation.viewOnce", comment: "Invalid conversation ID when sending view-once message")
             return
@@ -136,6 +142,11 @@ extension MomentsChatViewModel {
             status: .sending,
             replyTo: replyTo,
             isViewed: false,
+            mediaBatchId: nil,
+            textOverlayLive: overlayPayload?.textOverlayLive,
+            textOverlays: overlayPayload?.textOverlays,
+            stickers: overlayPayload?.stickers,
+            drawingData: overlayPayload?.drawingData,
             isVanishModeMessage: outgoingVanishMessageFlag
         )
         tempMessage.allowReplay = allowReplay ? true : nil
@@ -150,7 +161,8 @@ extension MomentsChatViewModel {
             messageId: messageId,
             isVanishModeMessage: marksOutgoingAsVanish,
             allowReplay: allowReplay,
-            replyTo: replyTo
+            replyTo: replyTo,
+            overlayPayload: overlayPayload
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {

@@ -3738,6 +3738,7 @@
 "settings.security.passkey.success" = "Clau d'accés creada correctament! Ara pots iniciar sessió de forma ràpida i segura amb Face ID.";
 "settings.security.passkey.create" = "Crear clau d'accés (Passkey)";
 "login.passkey" = "Clau d'accés (Passkey)";
+"login.passkey.error.generic" = "No hi ha clau d'accés en aquest dispositiu. Si és el teu primer cop, registra't a sota.";
 "settings.security.passkey.description" = "Inicia sessió ràpidament amb Face ID sense contrasenyes.";
 "settings.security.passkey.generated" = "Clau d'accés generada";
 

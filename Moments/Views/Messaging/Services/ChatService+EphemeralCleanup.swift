@@ -107,6 +107,10 @@ extension ChatService {
                 "thumbnailObjectPath": FieldValue.delete(),
                 "mediaEncryption": FieldValue.delete(),
                 "thumbnailEncryption": FieldValue.delete(),
+                "textOverlayLive": FieldValue.delete(),
+                "textOverlays": FieldValue.delete(),
+                "stickers": FieldValue.delete(),
+                "drawingData": FieldValue.delete(),
                 "content": encryptedExpiredText,
                 "isDeleted": true,
                 "deletedAt": FieldValue.serverTimestamp()

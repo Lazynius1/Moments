@@ -1283,6 +1283,7 @@ service cloud.firestore {
                'isLiveLocation', 'liveLocationExpiresAt', 'liveLocationDuration', 'liveLocationStoppedAt',
                'liveLocationSessionId', 'locationUpdatedAt', 'replyTo', 'expirationDate',
                'storyReplyData', 'sharedMomentData', 'sharedStoryData', 'mediaBatchId',
+               'textOverlayLive', 'textOverlays', 'stickers', 'drawingData',
                'isForwarded', 'starredBy', 'timestamp', 'isVanishModeMessage', 'vanishExpiresAt'
              ]) &&
              message.id is string &&
@@ -1301,6 +1302,10 @@ service cloud.firestore {
              (!('allowReplay' in message) || message.allowReplay is bool) &&
              (!('replayedBy' in message) || message.replayedBy is list) &&
              (!('statusUpdatedAt' in message) || message.statusUpdatedAt is timestamp) &&
+             (!('textOverlayLive' in message) || message.textOverlayLive is bool) &&
+             (!('textOverlays' in message) || message.textOverlays is list) &&
+             (!('stickers' in message) || message.stickers is list) &&
+             (!('drawingData' in message) || message.drawingData is bytes) &&
              // ✅ NUEVO: campos opcionales de ubicación (fija + en vivo)
              (!('latitude' in message) || message.latitude is number) &&
              (!('longitude' in message) || message.longitude is number) &&

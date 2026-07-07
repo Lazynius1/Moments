@@ -684,6 +684,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     let sharedMomentData: [String: String]?
     let sharedStoryData: [String: String]?
     let mediaBatchId: String?
+    var textOverlayLive: Bool?
+    var textOverlays: [StoryTextOverlayMetadata]?
+    var stickers: [StickerData]?
+    var drawingData: Data?
 
     // ✅ NUEVOS: Campos para view-once
     var viewedBy: [String]? // IDs de usuarios que han visto el mensaje view-once
@@ -710,6 +714,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case status, isRead, isDeleted, deletedAt, editedAt, reactions
         case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData
         case mediaBatchId
+        case textOverlayLive, textOverlays, stickers, drawingData
         case viewedBy
         case allowReplay
         case replayedBy
@@ -819,6 +824,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.sharedMomentData = try container.decodeIfPresent([String: String].self, forKey: .sharedMomentData)
         self.sharedStoryData = try container.decodeIfPresent([String: String].self, forKey: .sharedStoryData)
         self.mediaBatchId = try container.decodeIfPresent(String.self, forKey: .mediaBatchId)
+        self.textOverlayLive = try container.decodeIfPresent(Bool.self, forKey: .textOverlayLive)
+        self.textOverlays = try container.decodeIfPresent([StoryTextOverlayMetadata].self, forKey: .textOverlays)
+        self.stickers = try container.decodeIfPresent([StickerData].self, forKey: .stickers)
+        self.drawingData = try container.decodeIfPresent(Data.self, forKey: .drawingData)
 
         // ✅ NUEVO: Decodificar viewedBy
         self.viewedBy = try container.decodeIfPresent([String].self, forKey: .viewedBy)
@@ -897,6 +906,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encodeIfPresent(sharedMomentData, forKey: .sharedMomentData)
         try container.encodeIfPresent(sharedStoryData, forKey: .sharedStoryData)
         try container.encodeIfPresent(mediaBatchId, forKey: .mediaBatchId)
+        try container.encodeIfPresent(textOverlayLive, forKey: .textOverlayLive)
+        try container.encodeIfPresent(textOverlays, forKey: .textOverlays)
+        try container.encodeIfPresent(stickers, forKey: .stickers)
+        try container.encodeIfPresent(drawingData, forKey: .drawingData)
 
         // ✅ NUEVO: Codificar viewedBy
         try container.encodeIfPresent(viewedBy, forKey: .viewedBy)
@@ -956,6 +969,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          sharedMomentData: [String: String]? = nil,
          sharedStoryData: [String: String]? = nil,
          mediaBatchId: String? = nil,
+         textOverlayLive: Bool? = nil,
+         textOverlays: [StoryTextOverlayMetadata]? = nil,
+         stickers: [StickerData]? = nil,
+         drawingData: Data? = nil,
          viewedBy: [String]? = nil,
          readBy: [String]? = nil,
          starredBy: [String]? = nil,
@@ -1004,6 +1021,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.sharedMomentData = sharedMomentData
         self.sharedStoryData = sharedStoryData
         self.mediaBatchId = mediaBatchId
+        self.textOverlayLive = textOverlayLive
+        self.textOverlays = textOverlays
+        self.stickers = stickers
+        self.drawingData = drawingData
         self.viewedBy = viewedBy
         self.readBy = readBy
         self.starredBy = starredBy
@@ -1059,6 +1080,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             sharedMomentData: sharedMomentData,
             sharedStoryData: sharedStoryData,
             mediaBatchId: mediaBatchId,
+            textOverlayLive: textOverlayLive,
+            textOverlays: textOverlays,
+            stickers: stickers,
+            drawingData: drawingData,
             viewedBy: viewedBy,
             readBy: readBy,
             starredBy: starredBy,

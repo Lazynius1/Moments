@@ -30,6 +30,9 @@ struct ViewOnceImmersiveViewer: View {
     @State private var showSentConfirmation = false
     @State private var keyboardHeight: CGFloat = 0
     @State private var isKeyboardVisible = false
+    @State private var overlayTextOverlays: [StoryTextOverlayMetadata] = []
+    @State private var overlayStickerItems: [StickerItem] = []
+    @State private var overlayDrawingData: Data?
     @StateObject private var emojiUsageTracker = EmojiUsageTracker()
     @FocusState private var isReplyFieldFocused: Bool
 
@@ -58,6 +61,23 @@ struct ViewOnceImmersiveViewer: View {
     private var progressFraction: Double {
         guard duration > 0 else { return 0 }
         return min(1.0, max(0.0, progress / duration))
+    }
+
+    private var protectedMediaUpdateToken: AnyHashable {
+        let overlayToken = [
+            overlayTextOverlays.map(\.id).joined(separator: ","),
+            overlayStickerItems.map { "\($0.id):\($0.gifURL?.absoluteString ?? ""):\($0.videoURL?.absoluteString ?? "")" }.joined(separator: ","),
+            "\(overlayDrawingData?.count ?? 0)"
+        ].joined(separator: "|")
+
+        return [
+            message.id,
+            String(describing: message.type),
+            mediaURL?.absoluteString ?? "",
+            String(format: "%.4f", currentMediaAspectRatio),
+            message.type == .viewOnceVideo ? "\(isPaused)" : "image",
+            overlayToken
+        ].joined(separator: "#")
     }
 
     var body: some View {
@@ -134,6 +154,7 @@ struct ViewOnceImmersiveViewer: View {
             }
         }
         .onAppear {
+            hydrateOverlayState()
             markAsStarted()
             refreshVideoAspectRatio()
         }
@@ -159,7 +180,8 @@ struct ViewOnceImmersiveViewer: View {
         ScreenshotProtectedView(
             isProtected: true,
             fillsContainer: true,
-            cornerRadius: storyViewerCanvasCornerRadius
+            cornerRadius: storyViewerCanvasCornerRadius,
+            updateToken: protectedMediaUpdateToken
         ) {
             ZStack {
                 if presentationMode == .fitWithBlur {
@@ -173,6 +195,19 @@ struct ViewOnceImmersiveViewer: View {
                     viewOnceVideo(videoGravity: presentationMode.videoGravity)
                         .frame(width: size.width, height: size.height)
                 }
+
+                StoryMediaOverlayRendererView(
+                    containerSize: size,
+                    textOverlays: overlayTextOverlays,
+                    stickerItems: overlayStickerItems,
+                    drawingData: overlayDrawingData,
+                    storyId: message.id,
+                    userId: message.senderId,
+                    replayToken: 0,
+                    reportsDeckInteractionExclusion: false,
+                    allowsStickerHitTesting: false
+                )
+                .allowsHitTesting(false)
             }
             .frame(width: size.width, height: size.height)
             .background(Color.black)
@@ -515,6 +550,12 @@ struct ViewOnceImmersiveViewer: View {
         }
     }
 
+    private func hydrateOverlayState() {
+        overlayTextOverlays = message.resolvedTextOverlays
+        overlayStickerItems = message.resolvedStickerItems
+        overlayDrawingData = message.drawingData
+    }
+
     private static func detectVideoAspectRatio(from url: URL) async -> CGFloat? {
         let asset = AVURLAsset(url: url)
         guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first,
@@ -551,23 +592,19 @@ struct ViewOnceImmersiveViewer: View {
 
         if isReplaySession, let viewerId = Auth.auth().currentUser?.uid {
             ViewOnceReplaySessionStore.shared.markConsumed(message: message, viewerId: viewerId)
-            ChatService().markViewOnceReplayed(
-                conversationId: message.conversationId,
-                messageId: message.id,
-                viewerId: viewerId
-            ) { _ in }
             if message.replayedBy?.contains(viewerId) != true {
                 message.replayedBy = (message.replayedBy ?? []) + [viewerId]
             }
             onReplayConsumed?()
         }
 
-        ChatService().deleteViewOnceAfterViewing(
+        ViewOnceConsumptionService.shared.consume(
             conversationId: message.conversationId,
-            messageId: message.id
+            messageId: message.id,
+            reason: isReplaySession ? .replay : .viewOnce
         ) { error in
             if let error = error {
-                LogConfig.log("View-once delete failed: \(error.localizedDescription)", category: "Chat")
+                LogConfig.log("View-once consume failed: \(error.localizedDescription)", category: "Chat")
             }
         }
     }

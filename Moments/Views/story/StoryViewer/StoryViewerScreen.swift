@@ -337,43 +337,22 @@ struct StoryViewerScreen: View {
                 .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                 .position(x: captureRect.midX, y: captureRect.midY)
 
-            // MARK: - 1.5 LIVE TEXT OVERLAY (metadata — animación en reproducción)
-            if story.usesLiveTextOverlay {
-                ForEach(story.resolvedTextOverlays, id: \.id) { overlay in
-                    StoryLiveTextOverlayView(
-                        metadata: overlay,
-                        containerSize: captureRect.size,
-                        replayToken: textMotionReplayToken
-                    )
-                    .frame(width: captureRect.width, height: captureRect.height)
-                    .position(x: captureRect.midX, y: captureRect.midY)
-                    .allowsHitTesting(false)
-                    .zIndex(Double(overlay.layerOrder))
-                }
-            }
-
-            // MARK: - 2. STICKERS (Fijos en sus posiciones)
-            if !storyStickers.isEmpty {
-                ForEach(storyStickers, id: \.id) { sticker in
-                StoryStickerView(
-                    sticker: stickerForDisplay(sticker, containerSize: captureRect.size),
-                    screenSize: captureRect.size,
-                    storyId: story.id ?? "",
-                    userId: story.authorId,
-                    reportsDeckInteractionExclusion: isDeckPageActive,
-                    onPauseStory: pauseStory,
-                    onResumeStory: resumeStory
-                )
-                .id((story.id ?? "") + sticker.id) // ✅ Forzar nueva instancia al cambiar de historia
-                .position(
-                    CGPoint(
-                        x: captureRect.minX + stickerDisplayPosition(sticker, containerSize: captureRect.size).x,
-                        y: captureRect.minY + stickerDisplayPosition(sticker, containerSize: captureRect.size).y
-                    )
-                )
-                .zIndex(Double(sticker.zIndex))
-                }
-            }
+            StoryMediaOverlayRendererView(
+                containerSize: captureRect.size,
+                textOverlays: story.resolvedTextOverlays,
+                stickerItems: storyStickers,
+                drawingData: nil,
+                storyId: story.id ?? "",
+                userId: story.authorId,
+                replayToken: textMotionReplayToken,
+                reportsDeckInteractionExclusion: isDeckPageActive,
+                allowsStickerHitTesting: true,
+                onPauseStory: pauseStory,
+                onResumeStory: resumeStory
+            )
+            .id((story.id ?? "") + "-overlays")
+            .frame(width: captureRect.width, height: captureRect.height)
+            .position(x: captureRect.midX, y: captureRect.midY)
 
             // MARK: - 3. FLOATING HEARTS (Under UI, Over Content)
             StoryFloatingReactionLayer(
