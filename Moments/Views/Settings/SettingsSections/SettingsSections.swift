@@ -39,13 +39,18 @@ struct SettingsFormView: View {
                         isShowingPersonalInfo: $isShowingPersonalInfo,
                         isShowingQRCode: $isShowingQRCode
                     )
-
-                    SecuritySection(route: $route)
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
 
-                SettingsGroup(title: NSLocalizedString("settings.group.privacy", comment: "Privacy & Security")) {
+                SettingsGroup(title: NSLocalizedString("settings.group.security", comment: "Security")) {
+                    SecuritySection(route: $route)
+                }
+                .opacity(animateSections ? 1 : 0)
+                .offset(y: animateSections ? 0 : 20)
+                .animation(.easeOut(duration: 0.6).delay(0.1), value: animateSections)
+
+                SettingsGroup(title: NSLocalizedString("settings.group.privacy", comment: "Privacy")) {
                     PrivacySection(
                         isPrivate: $isPrivate,
                         showFollowing: $showFollowing,
@@ -55,12 +60,10 @@ struct SettingsFormView: View {
                         showReadReceipts: $showReadReceipts,
                         blockedAccountsCount: blockedAccountsCount
                     )
-
-                    OnlineStatusSection()
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.1), value: animateSections)
+                .animation(.easeOut(duration: 0.6).delay(0.15), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.content", comment: "Your Content & Activity")) {
                     ActivitySection(
@@ -74,7 +77,7 @@ struct SettingsFormView: View {
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.2), value: animateSections)
 
-                SettingsGroup(title: NSLocalizedString("settings.group.notifications", comment: "Notifications")) {
+                SettingsGroup(title: NSLocalizedString("settings.group.notifications", comment: "Notifications & presence")) {
                     NotificationsSection(
                         viewModel: viewModel,
                         isScheduleEnabled: $isScheduleEnabled,
@@ -82,17 +85,26 @@ struct SettingsFormView: View {
                         endTime: $endTime,
                         route: $route
                     )
+
+                    OnlineStatusSection()
+                }
+                .opacity(animateSections ? 1 : 0)
+                .offset(y: animateSections ? 0 : 20)
+                .animation(.easeOut(duration: 0.6).delay(0.25), value: animateSections)
+
+                SettingsGroup(title: NSLocalizedString("settings.group.data", comment: "Data")) {
+                    DataSection(route: $route)
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.3), value: animateSections)
 
-                SettingsGroup(title: NSLocalizedString("settings.group.support", comment: "Data & Support")) {
+                SettingsGroup(title: NSLocalizedString("settings.group.support", comment: "Support & Legal")) {
                     HelpSection(route: $route)
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.4), value: animateSections)
+                .animation(.easeOut(duration: 0.6).delay(0.35), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.advanced", comment: "Advanced Settings")) {
                     AdvancedAccountSection(
@@ -103,7 +115,7 @@ struct SettingsFormView: View {
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.5), value: animateSections)
+                .animation(.easeOut(duration: 0.6).delay(0.4), value: animateSections)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -767,14 +779,6 @@ struct PrivacySection: View {
                 subtitle: getConnectionPrivacyStatus(),
                 action: { route = .connections })
 
-            SettingsRow(
-                icon: "star.fill",
-                audienceIcon: .bestFriends,
-                title: NSLocalizedString("settings.sections.bestFriends", comment: "Best Friends"),
-                subtitle: NSLocalizedString("settings.sections.bestFriends.subtitle", comment: "Manage best friends list"),
-                action: { route = .bestFriends }
-            )
-
             SettingsRow(icon: "hand.raised",
                 title: NSLocalizedString("settings.sections.blockedAccounts", comment: "Blocked Accounts"),
                 subtitle: blockedAccountsSubtitle(),
@@ -1394,11 +1398,28 @@ struct ActivitySection: View {
                 subtitle: NSLocalizedString("settings.sections.yourActivity.subtitle", comment: "Time in app, interactions"),
                 action: { route = .userActivity })
 
+            SettingsRow(
+                icon: "star.fill",
+                audienceIcon: .bestFriends,
+                title: NSLocalizedString("settings.sections.bestFriends", comment: "Best Friends"),
+                subtitle: NSLocalizedString("settings.sections.bestFriends.subtitle", comment: "Manage best friends list"),
+                action: { route = .bestFriends }
+            )
+
             SettingsRow(icon: "brain.head.profile",
                 title: NSLocalizedString("nova.memory.title", comment: "Nova's Memory"),
                 subtitle: NSLocalizedString("nova.memory.description", comment: "Manage what Nova knows about you"),
                 action: { isShowingNovaMemory = true })
+        }
+    }
+}
 
+/// Gestión de datos: exportación y almacenamiento local.
+struct DataSection: View {
+    @Binding var route: SettingsRoute?
+
+    var body: some View {
+        VStack(spacing: 0) {
             SettingsRow(icon: "arrow.down.circle",
                 title: NSLocalizedString("settings.sections.downloadData", comment: "Download Your Data"),
                 subtitle: NSLocalizedString("settings.sections.downloadData.subtitle", comment: "Request a copy of your data"),

@@ -2881,7 +2881,7 @@
 
 /* Settings Groups */
 "settings.group.identity" = "Identität & Vernetzung";
-"settings.group.security" = "Sicherheit & Privatsphäre";
+"settings.group.security" = "SICHERHEIT";
 "settings.group.activity" = "Inhalte & Aktivität";
 "settings.group.system" = "System & Hilfe";
 
@@ -3159,10 +3159,10 @@
 
 // Settings Groups
 "settings.group.account" = "YOUR ACCOUNT";
-"settings.group.privacy" = "PRIVACY & SECURITY";
+"settings.group.privacy" = "PRIVATSPHÄRE";
 "settings.group.content" = "YOUR CONTENT & ACTIVITY";
-"settings.group.notifications" = "NOTIFICATIONS";
-"settings.group.support" = "DATEN & SUPPORT";
+"settings.group.notifications" = "MITTEILUNGEN & PRÄSENZ";
+"settings.group.support" = "SUPPORT & RECHTLICHES";
 "settings.group.advanced" = "ERWEITERTE EINSTELLUNGEN";
 "savedMoments.restricted.title" = "Nicht mehr verfügbar";
 "savedMoments.restricted.subtitle" = "Du hast keinen Zugriff mehr";
@@ -4219,3 +4219,4 @@
 "onboarding.email.subtitle.email" = "Zum Anmelden und Wiederherstellen deines Kontos.";
 "onboarding.email.title.password" = "Erstelle ein Passwort";
 "onboarding.email.subtitle.password" = "Mindestens 8 Zeichen.";
+"settings.group.data" = "DATEN";

@@ -2890,7 +2890,7 @@
 
 /* Settings Groups */
 "settings.group.identity" = "Identity & Connectivity";
-"settings.group.security" = "Security & Privacy";
+"settings.group.security" = "SECURITY";
 "settings.group.activity" = "Content & Activity";
 "settings.group.system" = "System & Support";
 
@@ -3168,10 +3168,10 @@
 
 // Settings Groups
 "settings.group.account" = "YOUR ACCOUNT";
-"settings.group.privacy" = "PRIVACY & SECURITY";
+"settings.group.privacy" = "PRIVACY";
 "settings.group.content" = "YOUR CONTENT & ACTIVITY";
-"settings.group.notifications" = "NOTIFICATIONS";
-"settings.group.support" = "DATA & SUPPORT";
+"settings.group.notifications" = "NOTIFICATIONS & PRESENCE";
+"settings.group.support" = "SUPPORT & LEGAL";
 "settings.group.advanced" = "ADVANCED SETTINGS";
 "savedMoments.restricted.title" = "No longer available";
 "savedMoments.restricted.subtitle" = "You no longer have access";
@@ -4249,3 +4249,4 @@
 "onboarding.email.subtitle.email" = "To sign in and recover your account.";
 "onboarding.email.title.password" = "Create a password";
 "onboarding.email.subtitle.password" = "At least 8 characters.";
+"settings.group.data" = "DATA";

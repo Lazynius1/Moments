@@ -2901,7 +2901,7 @@
 
 /* Settings Groups */
 "settings.group.identity" = "Identitat i Connexió";
-"settings.group.security" = "Seguretat i Privadesa";
+"settings.group.security" = "SEGURETAT";
 "settings.group.activity" = "Contingut i Activitat";
 "settings.group.system" = "Sistema i Suport";
 
@@ -3181,10 +3181,10 @@
 
 // Settings Groups
 "settings.group.account" = "EL TEU COMPTE";
-"settings.group.privacy" = "PRIVACITAT I SEGURETAT";
+"settings.group.privacy" = "PRIVACITAT";
 "settings.group.content" = "EL TEU CONTINGUT I ACTIVITAT";
-"settings.group.notifications" = "NOTIFICACIONS";
-"settings.group.support" = "DADES I SUPORT";
+"settings.group.notifications" = "NOTIFICACIONS I PRESÈNCIA";
+"settings.group.support" = "AJUDA I LEGAL";
 "settings.group.advanced" = "CONFIGURACIÓ AVANÇADA";
 "savedMoments.restricted.title" = "Ja no disponible";
 "savedMoments.restricted.subtitle" = "Ja no hi tens accés";
@@ -4239,3 +4239,4 @@
 "onboarding.email.subtitle.email" = "Per entrar i recuperar el teu compte.";
 "onboarding.email.title.password" = "Crea una contrasenya";
 "onboarding.email.subtitle.password" = "Mínim 8 caràcters.";
+"settings.group.data" = "DADES";
