@@ -100,6 +100,9 @@ final class MessageIngestService {
             recentlyIngestedKeys.insert(dedupKey(conversationId: conversationId, messageId: message.id))
         }
 
+        // Precarga proactiva de media según la política de auto-descarga.
+        ChatMediaPrefetcher.shared.prefetchIfNeeded(sorted)
+
         NotificationCenter.default.post(
             name: .messagesIngested,
             object: nil,
@@ -158,6 +161,7 @@ final class MessageIngestService {
 
         LocalPersistenceService.shared.saveMessages([message], conversationId: conversationId, sync: false)
         LocalPersistenceService.shared.upsertConversationPreview(from: message)
+        ChatMediaPrefetcher.shared.prefetchIfNeeded([message])
         let incoming = MessageSyncCursor(timestamp: message.timestamp, messageId: message.id)
         let stored = MessageSyncCursorStore.cursor(for: conversationId)
         let next: MessageSyncCursor

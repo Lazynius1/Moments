@@ -4271,3 +4271,11 @@
 "onboarding.email.title.password" = "Crea una contraseña";
 "onboarding.email.subtitle.password" = "Mínimo 8 caracteres.";
 "settings.group.data" = "DATOS";
+"conversationSettings.storage" = "Almacenamiento";
+"conversationSettings.storage.mediaUsage" = "Media en este chat";
+"conversationSettings.storage.mediaUsage.desc" = "Fotos y vídeos en caché en este dispositivo";
+"conversationSettings.storage.clearMedia" = "Vaciar media en caché";
+"conversationSettings.storage.clearMedia.title" = "¿Vaciar media en caché?";
+"conversationSettings.storage.clearMedia.message" = "Las fotos y vídeos se volverán a descargar cuando los necesites.";
+"settings.chatStorage.manage.title" = "Gestionar almacenamiento";
+"settings.chatStorage.manage.subtitle" = "Conversaciones que más espacio ocupan en este dispositivo.";

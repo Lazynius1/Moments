@@ -4240,3 +4240,11 @@
 "onboarding.email.title.password" = "Crea una contrasenya";
 "onboarding.email.subtitle.password" = "Mínim 8 caràcters.";
 "settings.group.data" = "DADES";
+"conversationSettings.storage" = "Emmagatzematge";
+"conversationSettings.storage.mediaUsage" = "Media en aquest xat";
+"conversationSettings.storage.mediaUsage.desc" = "Fotos i vídeos en memòria cau en aquest dispositiu";
+"conversationSettings.storage.clearMedia" = "Buida la memòria cau";
+"conversationSettings.storage.clearMedia.title" = "Vols buidar la memòria cau?";
+"conversationSettings.storage.clearMedia.message" = "Les fotos i els vídeos es tornaran a baixar quan els necessitis.";
+"settings.chatStorage.manage.title" = "Gestiona l'emmagatzematge";
+"settings.chatStorage.manage.subtitle" = "Converses que ocupen més espai en aquest dispositiu.";

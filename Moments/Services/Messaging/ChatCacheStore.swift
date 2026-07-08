@@ -127,6 +127,26 @@ enum ChatCacheStore {
             }
     }
 
+    /// Bytes de media descifrada agrupados por conversación, en un solo escaneo de disco.
+    /// Solo devuelve conversaciones con media cacheada (> 0 bytes).
+    static func bytesByConversation(for conversationIds: [String]) -> [String: Int64] {
+        guard !conversationIds.isEmpty else { return [:] }
+        let scanned = files(in: decryptedDirectory()).map { ($0.lastPathComponent, fileSize(at: $0)) }
+        guard !scanned.isEmpty else { return [:] }
+
+        var result: [String: Int64] = [:]
+        for conversationId in conversationIds {
+            let prefix = safeComponent(conversationId) + "_"
+            let total = scanned.reduce(Int64(0)) { partial, entry in
+                entry.0.hasPrefix(prefix) ? partial + entry.1 : partial
+            }
+            if total > 0 {
+                result[conversationId] = total
+            }
+        }
+        return result
+    }
+
     @MainActor
     static func storageBreakdown() -> ChatStorageBreakdown {
         let messageCount = LocalPersistenceService.shared.cachedMessageCount()

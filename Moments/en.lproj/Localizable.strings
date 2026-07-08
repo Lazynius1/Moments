@@ -4250,3 +4250,11 @@
 "onboarding.email.title.password" = "Create a password";
 "onboarding.email.subtitle.password" = "At least 8 characters.";
 "settings.group.data" = "DATA";
+"conversationSettings.storage" = "Storage";
+"conversationSettings.storage.mediaUsage" = "Media in this chat";
+"conversationSettings.storage.mediaUsage.desc" = "Cached photos and videos on this device";
+"conversationSettings.storage.clearMedia" = "Clear cached media";
+"conversationSettings.storage.clearMedia.title" = "Clear cached media?";
+"conversationSettings.storage.clearMedia.message" = "Photos and videos will re-download when you need them.";
+"settings.chatStorage.manage.title" = "Manage storage";
+"settings.chatStorage.manage.subtitle" = "Conversations using the most space on this device.";

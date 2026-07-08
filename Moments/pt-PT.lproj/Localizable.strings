@@ -5030,3 +5030,11 @@
 "onboarding.email.title.password" = "Cria uma palavra-passe";
 "onboarding.email.subtitle.password" = "Pelo menos 8 caracteres.";
 "settings.group.data" = "DADOS";
+"conversationSettings.storage" = "Armazenamento";
+"conversationSettings.storage.mediaUsage" = "Multimédia neste chat";
+"conversationSettings.storage.mediaUsage.desc" = "Fotos e vídeos em cache neste dispositivo";
+"conversationSettings.storage.clearMedia" = "Limpar multimédia em cache";
+"conversationSettings.storage.clearMedia.title" = "Limpar multimédia em cache?";
+"conversationSettings.storage.clearMedia.message" = "As fotos e vídeos serão transferidos novamente quando precisares.";
+"settings.chatStorage.manage.title" = "Gerir armazenamento";
+"settings.chatStorage.manage.subtitle" = "Conversas que ocupam mais espaço neste dispositivo.";

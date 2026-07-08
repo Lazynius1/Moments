@@ -17,6 +17,8 @@ struct ConversationSettingsView: View {
     @State private var statusListener: ListenerRegistration?
     @State private var liveOtherParticipantUsername: String = ""
     @State private var pendingJumpMessageId: String? = nil
+    @State private var conversationMediaBytes: Int64 = 0
+    @State private var showClearMediaConfirmation = false
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -38,6 +40,7 @@ struct ConversationSettingsView: View {
                     starredMessagesSection
                     conversationInfoSection
                     chatPreferencesSection
+                    storageSection
                     actionsSection
                 }
                 .padding(.horizontal, 16)
@@ -459,6 +462,82 @@ struct ConversationSettingsView: View {
     }
 
     // MARK: - Actions Section
+    // MARK: - Storage Section
+    private var storageSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader("conversationSettings.storage")
+
+            VStack(spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("conversationSettings.storage.mediaUsage", comment: "Media in this chat"))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                            .foregroundColor(adaptiveColors.primary)
+                        Text(NSLocalizedString("conversationSettings.storage.mediaUsage.desc", comment: "Cached photos and videos on this device"))
+                            .font(.system(size: legacyPoppinsSize(12)))
+                            .foregroundColor(adaptiveColors.tertiary)
+                    }
+
+                    Spacer()
+
+                    Text(formatBytes(conversationMediaBytes))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                        .foregroundColor(adaptiveColors.secondary)
+                        .monospacedDigit()
+                }
+
+                if conversationMediaBytes > 0 {
+                    dividerLine
+
+                    Button {
+                        showClearMediaConfirmation = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash")
+                                .font(.system(size: 15, weight: .medium))
+                            Text(NSLocalizedString("conversationSettings.storage.clearMedia", comment: "Clear cached media"))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                            Spacer()
+                        }
+                        .foregroundColor(.red)
+                    }
+                }
+            }
+        }
+        .onAppear(perform: refreshMediaUsage)
+        .confirmationDialog(
+            NSLocalizedString("conversationSettings.storage.clearMedia.title", comment: "Clear media confirmation"),
+            isPresented: $showClearMediaConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("conversationSettings.storage.clearMedia", comment: "Clear cached media"), role: .destructive) {
+                clearConversationMedia()
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
+        } message: {
+            Text(NSLocalizedString("conversationSettings.storage.clearMedia.message", comment: "Media will re-download when needed"))
+        }
+    }
+
+    private func refreshMediaUsage() {
+        guard let conversationId = conversation.id else { return }
+        conversationMediaBytes = ChatCacheStore.bytes(for: conversationId)
+    }
+
+    private func clearConversationMedia() {
+        guard let conversationId = conversation.id else { return }
+        HapticManager.shared.mediumImpact()
+        ChatCacheStore.deleteConversation(conversationId, messageIds: [])
+        refreshMediaUsage()
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
+    }
+
     private var actionsSection: some View {
         VStack(spacing: 12) {
             Button(action: {

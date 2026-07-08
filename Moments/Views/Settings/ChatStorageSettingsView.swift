@@ -10,6 +10,13 @@ struct ChatStorageSettingsView: View {
     @State private var showClearMediaConfirm = false
     @State private var showClearAllConfirm = false
     @State private var statusMessage: String?
+    @State private var conversationUsage: [ConversationStorageUsage] = []
+
+    private struct ConversationStorageUsage: Identifiable {
+        let id: String
+        let name: String
+        let bytes: Int64
+    }
 
     private var screenBackground: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
@@ -33,6 +40,9 @@ struct ChatStorageSettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 usageSection
+                if !conversationUsage.isEmpty {
+                    manageStorageSection
+                }
                 preferencesSection
                 actionsSection
 
@@ -108,6 +118,52 @@ struct ChatStorageSettingsView: View {
                     title: NSLocalizedString("settings.chatStorage.usage.media", comment: ""),
                     value: formatBytes(breakdown.totalMediaBytes)
                 )
+            }
+        }
+    }
+
+    private var manageStorageSection: some View {
+        settingsCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(NSLocalizedString("settings.chatStorage.manage.title", comment: ""))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(primaryText)
+
+                Text(NSLocalizedString("settings.chatStorage.manage.subtitle", comment: ""))
+                    .font(.system(size: 13))
+                    .foregroundStyle(secondaryText)
+
+                ForEach(Array(conversationUsage.enumerated()), id: \.element.id) { index, usage in
+                    if index > 0 {
+                        Divider()
+                            .opacity(colorScheme == .dark ? 0.22 : 0.16)
+                            .padding(.leading, 4)
+                    }
+
+                    HStack(spacing: 12) {
+                        Text(usage.name)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(primaryText)
+                            .lineLimit(1)
+
+                        Spacer()
+
+                        Text(formatBytes(usage.bytes))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(secondaryText)
+                            .monospacedDigit()
+
+                        Button {
+                            clearConversation(usage.id)
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.vertical, 6)
+                }
             }
         }
     }
@@ -230,6 +286,27 @@ struct ChatStorageSettingsView: View {
 
     private func refreshUsage() {
         breakdown = ChatCacheStore.storageBreakdown()
+
+        let conversations = LocalPersistenceService.shared.loadConversations()
+        let byId = Dictionary(conversations.compactMap { convo -> (String, Conversation)? in
+            guard let id = convo.id else { return nil }
+            return (id, convo)
+        }, uniquingKeysWith: { first, _ in first })
+
+        let bytesById = ChatCacheStore.bytesByConversation(for: Array(byId.keys))
+        conversationUsage = bytesById
+            .sorted { $0.value > $1.value }
+            .map { id, bytes in
+                let name = byId[id]?.otherParticipantUsername
+                    ?? NSLocalizedString("common.user", value: "Usuario", comment: "Generic user fallback")
+                return ConversationStorageUsage(id: id, name: name, bytes: bytes)
+            }
+    }
+
+    private func clearConversation(_ conversationId: String) {
+        ChatCacheStore.deleteConversation(conversationId, messageIds: [])
+        refreshUsage()
+        statusMessage = NSLocalizedString("settings.chatStorage.clearMedia.done", comment: "")
     }
 
     private func formatBytes(_ bytes: Int64) -> String {

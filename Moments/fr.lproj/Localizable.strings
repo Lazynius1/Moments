@@ -4220,3 +4220,11 @@
 "onboarding.email.title.password" = "Créez un mot de passe";
 "onboarding.email.subtitle.password" = "Au moins 8 caractères.";
 "settings.group.data" = "DONNÉES";
+"conversationSettings.storage" = "Stockage";
+"conversationSettings.storage.mediaUsage" = "Médias dans cette conversation";
+"conversationSettings.storage.mediaUsage.desc" = "Photos et vidéos en cache sur cet appareil";
+"conversationSettings.storage.clearMedia" = "Vider le cache des médias";
+"conversationSettings.storage.clearMedia.title" = "Vider le cache des médias ?";
+"conversationSettings.storage.clearMedia.message" = "Les photos et vidéos seront retéléchargées au besoin.";
+"settings.chatStorage.manage.title" = "Gérer le stockage";
+"settings.chatStorage.manage.subtitle" = "Conversations utilisant le plus d'espace sur cet appareil.";
