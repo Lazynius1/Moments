@@ -944,6 +944,17 @@ class FeedViewModel {
     }
 
     // MARK: - Listeners
+
+    /// Red de seguridad: si una vista no llega a llamar `shutdown()` en `onDisappear`
+    /// (p. ej. una transición interrumpida), los listeners se remueven al desalojar.
+    deinit {
+        listenerSyncWorkItem?.cancel()
+        pendingUpdates.values.forEach { $0.cancel() }
+        momentListeners.values.forEach { $0.remove() }
+        commentListeners.values.forEach { $0.remove() }
+        userListener?.remove()
+    }
+
     /// Limpia listeners y trabajo pendiente. Llamar desde `onDisappear` en vistas que crean un `FeedViewModel` efímero.
     func shutdown() {
         listenerSyncWorkItem?.cancel()
@@ -1205,8 +1216,8 @@ class FeedViewModel {
     func fetchUserData(userId: String) {
         userListener?.remove()
         userListener = firestoreService.db.collection("users").document(userId)
-            .addSnapshotListener { document, error in
-                guard let data = document?.data(), error == nil else { return }
+            .addSnapshotListener { [weak self] document, error in
+                guard let self, let data = document?.data(), error == nil else { return }
 
                 DispatchQueue.main.async {
                     self.userProfileImage = data["profileImagePath"] as? String
