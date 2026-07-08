@@ -11,21 +11,17 @@ struct ChatStorageSettingsView: View {
     @State private var showClearAllConfirm = false
     @State private var statusMessage: String?
     @State private var conversationUsage: [ConversationStorageUsage] = []
+    @State private var visibleCount = 10
 
     private struct ConversationStorageUsage: Identifiable {
         let id: String
+        let userId: String
         let name: String
         let bytes: Int64
     }
 
     private var screenBackground: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
-    }
-
-    private var cardFill: Color {
-        colorScheme == .dark
-            ? Color.white.opacity(0.08)
-            : Color(hex: "FAF9F6").opacity(0.8)
     }
 
     private var primaryText: Color {
@@ -37,12 +33,14 @@ struct ChatStorageSettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                usageSection
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 32) {
+                summaryHeader
+
                 if !conversationUsage.isEmpty {
                     manageStorageSection
                 }
+
                 preferencesSection
                 actionsSection
 
@@ -51,11 +49,12 @@ struct ChatStorageSettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(secondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 4)
+                        .padding(.leading, 4)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, 12)
+            .padding(.top, 16)
+            .padding(.bottom, 24)
         }
         .background {
             screenBackground.ignoresSafeArea()
@@ -100,166 +99,183 @@ struct ChatStorageSettingsView: View {
         }
     }
 
-    private var usageSection: some View {
-        settingsCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(NSLocalizedString("settings.chatStorage.usage.title", comment: ""))
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(primaryText)
+    // MARK: - Summary header (hero)
+    private var summaryHeader: some View {
+        let quota = ChatMediaDownloadPolicy.maxMediaBytes
+        let used = breakdown.totalMediaBytes
+        let fraction = quota > 0 ? min(1.0, Double(used) / Double(quota)) : 0
 
-                usageRow(
-                    title: NSLocalizedString("settings.chatStorage.usage.messages", comment: ""),
-                    value: String(
-                        format: NSLocalizedString("settings.chatStorage.usage.messagesCount", comment: ""),
-                        breakdown.messageCount
-                    )
-                )
-                usageRow(
-                    title: NSLocalizedString("settings.chatStorage.usage.media", comment: ""),
-                    value: formatBytes(breakdown.totalMediaBytes)
-                )
+        return VStack(alignment: .leading, spacing: 12) {
+            Text(formatBytes(used))
+                .font(.system(size: legacyPoppinsSize(34), weight: .bold))
+                .foregroundStyle(primaryText)
+                .monospacedDigit()
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(primaryText.opacity(0.1))
+                    Capsule()
+                        .fill(Color.blue)
+                        .frame(width: max(fraction > 0 ? 8 : 0, geo.size.width * fraction))
+                }
             }
+            .frame(height: 8)
+
+            Text(String(
+                format: NSLocalizedString("settings.chatStorage.summary.limit", comment: ""),
+                formatBytes(quota)
+            ))
+            .font(.system(size: legacyPoppinsSize(13)))
+            .foregroundStyle(secondaryText)
         }
+        .padding(.horizontal, 4)
     }
 
+    // MARK: - Manage storage (per conversation)
     private var manageStorageSection: some View {
-        settingsCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(NSLocalizedString("settings.chatStorage.manage.title", comment: ""))
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(primaryText)
+        let visible = Array(conversationUsage.prefix(visibleCount))
+
+        return VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(NSLocalizedString("settings.chatStorage.manage.title", comment: "").uppercased())
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                    .foregroundStyle(secondaryText.opacity(0.9))
 
                 Text(NSLocalizedString("settings.chatStorage.manage.subtitle", comment: ""))
-                    .font(.system(size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundStyle(secondaryText)
+            }
+            .padding(.leading, 4)
 
-                ForEach(Array(conversationUsage.enumerated()), id: \.element.id) { index, usage in
-                    if index > 0 {
+            VStack(spacing: 0) {
+                ForEach(Array(visible.enumerated()), id: \.element.id) { index, usage in
+                    conversationRow(usage)
+
+                    if index < visible.count - 1 {
                         Divider()
-                            .opacity(colorScheme == .dark ? 0.22 : 0.16)
-                            .padding(.leading, 4)
+                            .padding(.leading, 56)
                     }
-
-                    HStack(spacing: 12) {
-                        Text(usage.name)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(primaryText)
-                            .lineLimit(1)
-
-                        Spacer()
-
-                        Text(formatBytes(usage.bytes))
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(secondaryText)
-                            .monospacedDigit()
-
-                        Button {
-                            clearConversation(usage.id)
-                        } label: {
-                            Image(systemName: "trash")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.vertical, 6)
                 }
+            }
+
+            if conversationUsage.count > visibleCount {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        visibleCount += 10
+                    }
+                } label: {
+                    Text(NSLocalizedString("settings.chatStorage.manage.showMore", comment: ""))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                        .foregroundStyle(Color.blue)
+                        .padding(.leading, 4)
+                        .padding(.top, 4)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
 
+    private func conversationRow(_ usage: ConversationStorageUsage) -> some View {
+        HStack(spacing: 12) {
+            StoryRingAvatarView(userId: usage.userId, size: 40, lineWidth: 2)
+
+            Text(usage.name)
+                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                .foregroundStyle(primaryText)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            Text(formatBytes(usage.bytes))
+                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+                .foregroundStyle(secondaryText)
+                .monospacedDigit()
+
+            Button {
+                clearConversation(usage.id)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.red)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+    }
+
+    // MARK: - Preferences
     private var preferencesSection: some View {
-        settingsCard {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(NSLocalizedString("settings.chatStorage.preferences.title", comment: ""))
-                    .font(.system(size: 15, weight: .semibold))
+        VStack(alignment: .leading, spacing: 18) {
+            Text(NSLocalizedString("settings.chatStorage.preferences.title", comment: "").uppercased())
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                .foregroundStyle(secondaryText.opacity(0.9))
+                .padding(.leading, 4)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(NSLocalizedString("settings.chatStorage.autoDownload.title", comment: ""))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                    .foregroundStyle(primaryText)
+                Picker("", selection: $autoDownload) {
+                    ForEach(ChatMediaAutoDownload.allCases) { option in
+                        Text(NSLocalizedString(option.titleKey, comment: "")).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: autoDownload) { _, newValue in
+                    ChatMediaDownloadPolicy.autoDownload = newValue
+                }
+            }
+            .padding(.horizontal, 4)
+
+            HStack {
+                Text(NSLocalizedString("settings.chatStorage.retention.title", comment: ""))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                     .foregroundStyle(primaryText)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(NSLocalizedString("settings.chatStorage.autoDownload.title", comment: ""))
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(primaryText)
-                    Picker("", selection: $autoDownload) {
-                        ForEach(ChatMediaAutoDownload.allCases) { option in
-                            Text(NSLocalizedString(option.titleKey, comment: "")).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: autoDownload) { _, newValue in
-                        ChatMediaDownloadPolicy.autoDownload = newValue
+                Spacer()
+
+                Picker("", selection: $retention) {
+                    ForEach(ChatMediaRetention.allCases) { option in
+                        Text(NSLocalizedString(option.titleKey, comment: "")).tag(option)
                     }
                 }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(NSLocalizedString("settings.chatStorage.retention.title", comment: ""))
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(primaryText)
-                    Picker("", selection: $retention) {
-                        ForEach(ChatMediaRetention.allCases) { option in
-                            Text(NSLocalizedString(option.titleKey, comment: "")).tag(option)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .onChange(of: retention) { _, newValue in
-                        ChatMediaDownloadPolicy.retention = newValue
-                        ChatCacheStore.enforceRetention()
-                        refreshUsage()
-                    }
+                .pickerStyle(.menu)
+                .tint(secondaryText)
+                .onChange(of: retention) { _, newValue in
+                    ChatMediaDownloadPolicy.retention = newValue
+                    ChatCacheStore.enforceRetention()
+                    refreshUsage()
                 }
             }
+            .padding(.horizontal, 4)
         }
     }
 
+    // MARK: - Clear actions
     private var actionsSection: some View {
-        settingsCard {
-            VStack(spacing: 0) {
-                actionButton(
-                    title: NSLocalizedString("settings.chatStorage.clearMedia.action", comment: ""),
-                    subtitle: NSLocalizedString("settings.chatStorage.clearMedia.subtitle", comment: ""),
-                    destructive: false
-                ) {
-                    showClearMediaConfirm = true
-                }
+        VStack(spacing: 0) {
+            actionButton(
+                title: NSLocalizedString("settings.chatStorage.clearMedia.action", comment: ""),
+                subtitle: NSLocalizedString("settings.chatStorage.clearMedia.subtitle", comment: ""),
+                destructive: false
+            ) {
+                showClearMediaConfirm = true
+            }
 
-                Divider()
-                    .opacity(colorScheme == .dark ? 0.22 : 0.16)
-                    .padding(.leading, 4)
+            Divider().padding(.leading, 4)
 
-                actionButton(
-                    title: NSLocalizedString("settings.chatStorage.clearAll.action", comment: ""),
-                    subtitle: NSLocalizedString("settings.chatStorage.clearAll.subtitle", comment: ""),
-                    destructive: true
-                ) {
-                    showClearAllConfirm = true
-                }
+            actionButton(
+                title: NSLocalizedString("settings.chatStorage.clearAll.action", comment: ""),
+                subtitle: NSLocalizedString("settings.chatStorage.clearAll.subtitle", comment: ""),
+                destructive: true
+            ) {
+                showClearAllConfirm = true
             }
         }
-    }
-
-    @ViewBuilder
-    private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(cardFill)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay {
-                if colorScheme == .dark {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                }
-            }
-    }
-
-    private func usageRow(title: String, value: String) -> some View {
-        HStack {
-            Text(title)
-                .foregroundStyle(secondaryText)
-            Spacer()
-            Text(value)
-                .foregroundStyle(primaryText)
-        }
-        .font(.system(size: 14))
     }
 
     private func actionButton(
@@ -271,15 +287,17 @@ struct ChatStorageSettingsView: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundStyle(destructive ? .red : primaryText)
                 Text(subtitle)
-                    .font(.system(size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundStyle(secondaryText)
                     .multilineTextAlignment(.leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -297,9 +315,15 @@ struct ChatStorageSettingsView: View {
         conversationUsage = bytesById
             .sorted { $0.value > $1.value }
             .map { id, bytes in
-                let name = byId[id]?.otherParticipantUsername
+                let convo = byId[id]
+                let name = convo?.otherParticipantUsername
                     ?? NSLocalizedString("common.user", value: "Usuario", comment: "Generic user fallback")
-                return ConversationStorageUsage(id: id, name: name, bytes: bytes)
+                return ConversationStorageUsage(
+                    id: id,
+                    userId: convo?.otherParticipantId ?? "",
+                    name: name,
+                    bytes: bytes
+                )
             }
     }
 

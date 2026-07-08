@@ -5038,3 +5038,10 @@
 "conversationSettings.storage.clearMedia.message" = "As fotos e vídeos serão transferidos novamente quando precisares.";
 "settings.chatStorage.manage.title" = "Gerir armazenamento";
 "settings.chatStorage.manage.subtitle" = "Conversas que ocupam mais espaço neste dispositivo.";
+"settings.chatStorage.summary.limit" = "de %@ · a multimédia é limpa automaticamente quando cheia";
+"settings.chatStorage.manage.showMore" = "Ver mais";
+"conversationSettings.sharedContent.empty.media" = "Ainda não há fotos ou vídeos partilhados";
+"conversationSettings.sharedContent.empty.links" = "Ainda não há ligações partilhadas";
+"conversationSettings.preferences.desc" = "Notificações, pré-visualizações e privacidade";
+"conversationSettings.preferences.group.notifications" = "NOTIFICAÇÕES";
+"conversationSettings.preferences.group.privacy" = "PRIVACIDADE";

@@ -4248,3 +4248,10 @@
 "conversationSettings.storage.clearMedia.message" = "Les fotos i els vídeos es tornaran a baixar quan els necessitis.";
 "settings.chatStorage.manage.title" = "Gestiona l'emmagatzematge";
 "settings.chatStorage.manage.subtitle" = "Converses que ocupen més espai en aquest dispositiu.";
+"settings.chatStorage.summary.limit" = "de %@ · la media es neteja sola quan s'omple";
+"settings.chatStorage.manage.showMore" = "Mostra'n més";
+"conversationSettings.sharedContent.empty.media" = "Encara no hi ha fotos ni vídeos compartits";
+"conversationSettings.sharedContent.empty.links" = "Encara no hi ha enllaços compartits";
+"conversationSettings.preferences.desc" = "Notificacions, vistes prèvies i privacitat";
+"conversationSettings.preferences.group.notifications" = "NOTIFICACIONS";
+"conversationSettings.preferences.group.privacy" = "PRIVACITAT";
