@@ -4210,3 +4210,12 @@
 "onboarding.apple.email.placeholder" = "E-mail";
 "onboarding.apple.email.help" = "Precisamos de um e-mail para concluir a criação da sua conta.";
 "onboarding.apple.email.missing" = "Adicione um e-mail para concluir a criação da sua conta.";
+"welcome.createAccount" = "Criar conta";
+"welcome.haveAccount" = "Já tem uma conta?";
+"welcome.logIn" = "Entrar";
+"onboarding.email.title.username" = "Escolha seu nome de usuário";
+"onboarding.email.subtitle.username" = "É assim que seus amigos vão te encontrar.";
+"onboarding.email.title.email" = "Qual é o seu e-mail?";
+"onboarding.email.subtitle.email" = "Para entrar e recuperar sua conta.";
+"onboarding.email.title.password" = "Crie uma senha";
+"onboarding.email.subtitle.password" = "Pelo menos 8 caracteres.";

@@ -5020,3 +5020,12 @@
 "onboarding.apple.email.placeholder" = "Email";
 "onboarding.apple.email.help" = "Precisamos de um email para concluir a criação da tua conta.";
 "onboarding.apple.email.missing" = "Adiciona um email para concluir a criação da tua conta.";
+"welcome.createAccount" = "Criar conta";
+"welcome.haveAccount" = "Já tens conta?";
+"welcome.logIn" = "Iniciar sessão";
+"onboarding.email.title.username" = "Escolhe o teu nome de utilizador";
+"onboarding.email.subtitle.username" = "É assim que os teus amigos te vão encontrar.";
+"onboarding.email.title.email" = "Qual é o teu email?";
+"onboarding.email.subtitle.email" = "Para entrares e recuperares a tua conta.";
+"onboarding.email.title.password" = "Cria uma palavra-passe";
+"onboarding.email.subtitle.password" = "Pelo menos 8 caracteres.";

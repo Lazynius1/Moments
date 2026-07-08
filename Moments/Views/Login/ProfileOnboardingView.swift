@@ -38,6 +38,7 @@ struct ProfileOnboardingView: View {
     @State private var isVisible = false
     @State private var isCancelling = false
     @State private var didRestoreDraft = false
+    @State private var stepDirection: Int = 1
 
     @ScaledMetric(relativeTo: .body) private var onboardingSectionSpacing = AuthFormMetrics.onboardingSectionSpacing
     @ScaledMetric(relativeTo: .body) private var onboardingTopPadding = AuthFormMetrics.onboardingTopPadding
@@ -66,11 +67,23 @@ struct ProfileOnboardingView: View {
             && (authService.pendingAppleRegistrationEmail ?? "").isEmpty
     }
 
+    private var totalSteps: Int {
+        context == .email ? 5 : 3
+    }
+
     private var primaryButtonTitle: LocalizedStringKey {
-        if currentStep < 3 {
+        if currentStep < totalSteps {
             return "register.actions.continue"
         }
         return context == .email ? "register.actions.createAccount" : "register.completeProfile.finish"
+    }
+
+    /// Transición direccional entre pasos (adelante: entra por la derecha).
+    private var stepTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: stepDirection >= 0 ? .trailing : .leading).combined(with: .opacity),
+            removal: .move(edge: stepDirection >= 0 ? .leading : .trailing).combined(with: .opacity)
+        )
     }
 
     var body: some View {
@@ -97,6 +110,8 @@ struct ProfileOnboardingView: View {
                         }
 
                         stepContent
+                            .id("onboarding-step-\(currentStep)")
+                            .transition(stepTransition)
                             .opacity(isVisible ? 1 : 0)
                             .offset(y: isVisible ? 0 : 20)
                     }
@@ -179,7 +194,7 @@ struct ProfileOnboardingView: View {
 
             Spacer()
 
-            OnboardingProgressDots(currentStep: currentStep, totalSteps: 3)
+            OnboardingProgressDots(currentStep: currentStep, totalSteps: totalSteps)
 
             Spacer()
 
@@ -210,16 +225,25 @@ struct ProfileOnboardingView: View {
     private var stepContent: some View {
         switch (context, currentStep) {
         case (.email, 1):
-            OnboardingCredentialsStep(
+            OnboardingUsernameQuestion(
                 username: $username,
-                email: $email,
-                password: $password,
-                showPassword: $showPassword,
                 usernameError: $usernameError,
                 usernameSuggestions: $usernameSuggestions,
-                authService: authService
+                authService: authService,
+                onSubmit: submitIfPossible
             )
         case (.email, 2):
+            OnboardingEmailQuestion(
+                email: $email,
+                onSubmit: submitIfPossible
+            )
+        case (.email, 3):
+            OnboardingPasswordQuestion(
+                password: $password,
+                showPassword: $showPassword,
+                onSubmit: submitIfPossible
+            )
+        case (.email, 4):
             OnboardingProfileInterestsStep(
                 selectedPhotoItem: $selectedPhotoItem,
                 profileImage: $profileImage,
@@ -295,9 +319,11 @@ struct ProfileOnboardingView: View {
 
     private var stepTitle: LocalizedStringKey {
         switch (context, currentStep) {
-        case (.email, 1): return "onboarding.email.title.step1"
-        case (.email, 2): return "onboarding.title.step2"
-        case (.email, 3): return "onboarding.title.step3"
+        case (.email, 1): return "onboarding.email.title.username"
+        case (.email, 2): return "onboarding.email.title.email"
+        case (.email, 3): return "onboarding.email.title.password"
+        case (.email, 4): return "onboarding.title.step2"
+        case (.email, 5): return "onboarding.title.step3"
         case (.apple, 1): return "onboarding.apple.title.step1"
         case (.apple, 2): return "onboarding.title.step2"
         case (.apple, 3): return "onboarding.title.step3"
@@ -307,9 +333,11 @@ struct ProfileOnboardingView: View {
 
     private var stepSubtitle: LocalizedStringKey {
         switch (context, currentStep) {
-        case (.email, 1): return "onboarding.email.subtitle.step1"
-        case (.email, 2): return "onboarding.subtitle.step2"
-        case (.email, 3): return "onboarding.subtitle.step3"
+        case (.email, 1): return "onboarding.email.subtitle.username"
+        case (.email, 2): return "onboarding.email.subtitle.email"
+        case (.email, 3): return "onboarding.email.subtitle.password"
+        case (.email, 4): return "onboarding.subtitle.step2"
+        case (.email, 5): return "onboarding.subtitle.step3"
         case (.apple, 1): return "onboarding.apple.subtitle.step1"
         case (.apple, 2): return "register.completeProfile.step2"
         case (.apple, 3): return "onboarding.subtitle.step3"
@@ -320,8 +348,12 @@ struct ProfileOnboardingView: View {
     private func canProceed() -> Bool {
         switch (context, currentStep) {
         case (.email, 1):
-            return !username.isEmpty && !email.isEmpty && password.count >= 8 && usernameError == nil
-        case (.email, 2), (.apple, 2):
+            return username.count >= 3 && usernameError == nil
+        case (.email, 2):
+            return AuthService.isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines))
+        case (.email, 3):
+            return password.count >= 8
+        case (.email, 4), (.apple, 2):
             return selectedInterests.count >= RegisterInterestsPolicy.minimum
         case (.apple, 1):
             return !username.isEmpty && usernameError == nil
@@ -332,8 +364,9 @@ struct ProfileOnboardingView: View {
     }
 
     private func handleNext() {
-        if currentStep < 3 {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.86)) {
+        if currentStep < totalSteps {
+            stepDirection = 1
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
                 currentStep += 1
             }
         } else {
@@ -341,9 +374,15 @@ struct ProfileOnboardingView: View {
         }
     }
 
+    private func submitIfPossible() {
+        guard canProceed() else { return }
+        handleNext()
+    }
+
     private func primaryNavigationAction() {
         if currentStep > 1 {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.86)) {
+            stepDirection = -1
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
                 currentStep -= 1
             }
         } else {
@@ -462,7 +501,7 @@ struct ProfileOnboardingView: View {
             // Sin sesión Auth guardada, la contraseña no se persiste: volver al paso 1.
             currentStep = 1
         } else {
-            currentStep = min(max(draft.step, 1), 3)
+            currentStep = min(max(draft.step, 1), totalSteps)
         }
         username = draft.username
         email = draft.email
@@ -582,92 +621,312 @@ private struct OnboardingProgressDots: View {
     }
 }
 
-// MARK: - Step 1 (email): credentials
+// MARK: - Campos de pregunta (una por pantalla)
 
-private struct OnboardingCredentialsStep: View {
+enum OnboardingFieldValidation {
+    case idle
+    case checking
+    case valid
+    case invalid
+}
+
+private struct OnboardingQuestionField: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Binding var username: String
-    @Binding var email: String
-    @Binding var password: String
-    @Binding var showPassword: Bool
-    @Binding var usernameError: String?
-    @Binding var usernameSuggestions: [String]
-    let authService: AuthService
+    var prefix: String? = nil
+    let placeholder: String
+    @Binding var text: String
+    var keyboardType: UIKeyboardType = .default
+    var textContentType: UITextContentType? = nil
+    var validation: OnboardingFieldValidation = .idle
+    var onSubmit: () -> Void = {}
 
-    @ScaledMetric(relativeTo: .body) private var fieldSpacing = AuthFormMetrics.onboardingFieldSpacing
+    @FocusState private var isFocused: Bool
+    @ScaledMetric(relativeTo: .title2) private var fontSize: CGFloat = 22
 
     var body: some View {
-        VStack(spacing: fieldSpacing) {
-            LiquidGlassTextField(
-                icon: "at",
-                placeholder: NSLocalizedString("register.username.placeholder", comment: ""),
-                text: $username,
-                isError: usernameError != nil,
-                autocapitalization: .none
-            )
-            .onChange(of: username) { _, newValue in
-                validateUsername(newValue)
+        HStack(spacing: 8) {
+            if let prefix {
+                Text(prefix)
+                    .font(.system(size: fontSize, weight: .semibold))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.5))
             }
 
-            if let error = usernameError {
-                usernameFeedback(error: error)
-            }
+            TextField(placeholder, text: $text)
+                .font(.system(size: fontSize, weight: .semibold))
+                .foregroundColor(AuthColors.primary(colorScheme))
+                .keyboardType(keyboardType)
+                .textContentType(textContentType)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .focused($isFocused)
+                .submitLabel(.continue)
+                .onSubmit(onSubmit)
 
-            LiquidGlassTextField(
-                icon: "envelope.fill",
-                placeholder: NSLocalizedString("register.email.placeholder", comment: ""),
-                text: $email,
-                keyboardType: .emailAddress,
-                autocapitalization: .none
-            )
-
-            VStack(alignment: .leading, spacing: 8) {
-                LiquidGlassSecureField(
-                    icon: "lock.fill",
-                    placeholder: NSLocalizedString("register.password.requirement", comment: ""),
-                    text: $password,
-                    isVisible: $showPassword
-                )
-
-                if !password.isEmpty {
-                    passwordStrengthIndicator
-                }
+            validationIndicator
+        }
+        .padding(.horizontal, 20)
+        .frame(minHeight: 64)
+        .background {
+            Color.clear
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(borderColor, lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+        .animation(.easeInOut(duration: 0.2), value: validation)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isFocused = true
             }
         }
     }
 
     @ViewBuilder
-    private func usernameFeedback(error: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(error)
-                .font(.system(size: 12))
+    private var validationIndicator: some View {
+        switch validation {
+        case .idle:
+            EmptyView()
+        case .checking:
+            ProgressView()
+                .scaleEffect(0.8)
+        case .valid:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(.green.opacity(0.85))
+                .transition(.scale.combined(with: .opacity))
+        case .invalid:
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(.red.opacity(0.8))
+                .transition(.scale.combined(with: .opacity))
+        }
+    }
 
-            if !usernameSuggestions.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(usernameSuggestions, id: \.self) { suggestion in
-                            Button {
-                                username = suggestion
-                                usernameError = nil
-                                usernameSuggestions = []
-                            } label: {
-                                Text(suggestion)
-                                    .font(.subheadline)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background {
-                                        Color.clear
-                                            .liquidGlass(in: Capsule(), interactive: true)
+    private var borderColor: Color {
+        switch validation {
+        case .invalid: return .red.opacity(0.5)
+        case .valid: return .green.opacity(0.35)
+        default: return AuthColors.primary(colorScheme).opacity(isFocused ? 0.22 : 0.1)
+        }
+    }
+}
+
+private struct OnboardingSecureQuestionField: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let placeholder: String
+    @Binding var text: String
+    @Binding var isVisible: Bool
+    var onSubmit: () -> Void = {}
+
+    @FocusState private var isFocused: Bool
+    @ScaledMetric(relativeTo: .title2) private var fontSize: CGFloat = 22
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Group {
+                if isVisible {
+                    TextField(placeholder, text: $text)
+                } else {
+                    SecureField(placeholder, text: $text)
+                }
+            }
+            .font(.system(size: fontSize, weight: .semibold))
+            .foregroundColor(AuthColors.primary(colorScheme))
+            .textContentType(.newPassword)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .focused($isFocused)
+            .submitLabel(.continue)
+            .onSubmit(onSubmit)
+
+            Button {
+                isVisible.toggle()
+            } label: {
+                Image(systemName: isVisible ? "eye.slash" : "eye")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.6))
+            }
+        }
+        .padding(.horizontal, 20)
+        .frame(minHeight: 64)
+        .background {
+            Color.clear
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(AuthColors.primary(colorScheme).opacity(isFocused ? 0.22 : 0.1), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isFocused = true
+            }
+        }
+    }
+}
+
+// MARK: - Step 1 (email): username
+
+private struct OnboardingUsernameQuestion: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Binding var username: String
+    @Binding var usernameError: String?
+    @Binding var usernameSuggestions: [String]
+    let authService: AuthService
+    var onSubmit: () -> Void = {}
+
+    @State private var isChecking = false
+    @State private var debounceTask: Task<Void, Never>?
+
+    private var validation: OnboardingFieldValidation {
+        if username.isEmpty { return .idle }
+        if isChecking { return .checking }
+        if usernameError != nil { return .invalid }
+        if username.count >= 3 { return .valid }
+        return .idle
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            OnboardingQuestionField(
+                prefix: "@",
+                placeholder: NSLocalizedString("register.username.placeholder", comment: ""),
+                text: $username,
+                textContentType: .username,
+                validation: validation,
+                onSubmit: onSubmit
+            )
+            .onChange(of: username) { _, newValue in
+                scheduleValidation(newValue)
+            }
+
+            if let error = usernameError {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(error)
+                        .font(.footnote.weight(.medium))
+                        .foregroundColor(.red.opacity(0.85))
+
+                    if !usernameSuggestions.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(usernameSuggestions, id: \.self) { suggestion in
+                                    Button {
+                                        username = suggestion
+                                        usernameError = nil
+                                        usernameSuggestions = []
+                                    } label: {
+                                        Text("@\(suggestion)")
+                                            .font(.subheadline.weight(.medium))
+                                            .padding(.horizontal, 14)
+                                            .padding(.vertical, 8)
+                                            .background {
+                                                Color.clear
+                                                    .liquidGlass(in: Capsule(), interactive: true)
+                                            }
+                                            .foregroundColor(AuthColors.primary(colorScheme))
                                     }
-                                    .foregroundColor(AuthColors.primary(colorScheme))
+                                }
                             }
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: usernameError)
+    }
+
+    private func scheduleValidation(_ value: String) {
+        debounceTask?.cancel()
+
+        if value.isEmpty {
+            usernameError = nil
+            usernameSuggestions = []
+            isChecking = false
+            return
+        }
+
+        let usernameRegex = "^[a-zA-Z0-9_.]{3,20}$"
+        guard NSPredicate(format: "SELF MATCHES %@", usernameRegex).evaluate(with: value) else {
+            usernameError = NSLocalizedString("register.error.usernameFormat", comment: "Username format error")
+            usernameSuggestions = []
+            isChecking = false
+            return
+        }
+
+        usernameError = nil
+        isChecking = true
+        debounceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
+            authService.checkUsernameAvailability(username: value, interests: []) { available, suggestions in
+                DispatchQueue.main.async {
+                    guard username == value else { return }
+                    isChecking = false
+                    if available {
+                        usernameError = nil
+                        usernameSuggestions = []
+                    } else {
+                        usernameError = NSLocalizedString("register.error.usernameUnavailable", comment: "Username unavailable")
+                        usernameSuggestions = suggestions ?? []
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Step 2 (email): email
+
+private struct OnboardingEmailQuestion: View {
+    @Binding var email: String
+    var onSubmit: () -> Void = {}
+
+    private var validation: OnboardingFieldValidation {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return .idle }
+        return AuthService.isValidEmail(trimmed) ? .valid : .invalid
+    }
+
+    var body: some View {
+        OnboardingQuestionField(
+            placeholder: NSLocalizedString("register.email.placeholder", comment: ""),
+            text: $email,
+            keyboardType: .emailAddress,
+            textContentType: .emailAddress,
+            validation: validation,
+            onSubmit: onSubmit
+        )
+    }
+}
+
+// MARK: - Step 3 (email): password
+
+private struct OnboardingPasswordQuestion: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Binding var password: String
+    @Binding var showPassword: Bool
+    var onSubmit: () -> Void = {}
+
+    var body: some View {
+        VStack(spacing: 16) {
+            OnboardingSecureQuestionField(
+                placeholder: NSLocalizedString("register.password.requirement", comment: ""),
+                text: $password,
+                isVisible: $showPassword,
+                onSubmit: onSubmit
+            )
+
+            if !password.isEmpty {
+                passwordStrengthIndicator
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: password.isEmpty)
     }
 
     private var passwordStrengthIndicator: some View {
@@ -677,6 +936,7 @@ private struct OnboardingCredentialsStep: View {
                     Capsule()
                         .fill(passwordStrengthColor(for: index))
                         .frame(height: 4)
+                        .animation(.easeInOut(duration: 0.25), value: passwordStrength())
                 }
             }
 
@@ -685,32 +945,6 @@ private struct OnboardingCredentialsStep: View {
                 .foregroundColor(passwordStrengthTextColor())
         }
         .padding(.horizontal, 4)
-    }
-
-    private func validateUsername(_ value: String) {
-        let usernameRegex = "^[a-zA-Z0-9_.]{3,20}$"
-        let predicate = NSPredicate(format: "SELF MATCHES %@", usernameRegex)
-
-        if value.isEmpty {
-            usernameError = nil
-            return
-        }
-
-        if !predicate.evaluate(with: value) {
-            usernameError = NSLocalizedString("register.error.usernameFormat", comment: "Username format error")
-            usernameSuggestions = []
-            return
-        }
-
-        authService.checkUsernameAvailability(username: value, interests: []) { available, suggestions in
-            if available {
-                usernameError = nil
-                usernameSuggestions = []
-            } else {
-                usernameError = NSLocalizedString("register.error.usernameUnavailable", comment: "Username unavailable")
-                usernameSuggestions = suggestions ?? []
-            }
-        }
     }
 
     private func passwordStrength() -> Int {

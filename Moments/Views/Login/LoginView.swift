@@ -7,15 +7,7 @@ import CryptoKit
 
 struct LoginView: View {
     @EnvironmentObject var authService: AuthService
-    @State private var identifier: String = ""
-    @State private var password: String = ""
-    @State private var errorMessage: String? = nil
-    @State private var showAlert: Bool = false
-    @State private var isLoading: Bool = false
-    @State private var showResetPassword: Bool = false
-    @State private var resetEmail: String = ""
-    @State private var showPassword: Bool = false
-    @State private var isVisible = false
+    @State private var showLoginForm = false
 
     var body: some View {
         NavigationStack {
@@ -33,67 +25,13 @@ struct LoginView: View {
                     // Mostrar pantalla de cuenta desactivada solo cuando no se está verificando
                     DeactivatedAccountView()
                 } else {
-                    // Formulario de login normal
-                    GeometryReader { geometry in
-                        ScrollView(showsIndicators: false) {
-                            VStack(spacing: 0) {
-                                Spacer(minLength: 24)
-
-                                VStack(spacing: 0) {
-                                    EnhancedHeaderView()
-                                        .authScreenContentWidth()
-                                        .scaleEffect(isVisible ? 1.0 : 0.8)
-                                        .opacity(isVisible ? 1.0 : 0.0)
-                                        .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
-
-                                    Spacer()
-                                        .frame(height: 12)
-
-                                    EnhancedFormView(
-                                        identifier: $identifier,
-                                        password: $password,
-                                        showPassword: $showPassword,
-                                        isLoading: $isLoading,
-                                        showResetPassword: $showResetPassword,
-                                        errorMessage: $errorMessage,
-                                        showAlert: $showAlert,
-                                        loginAction: login
-                                    )
-                                    .authScreenContentWidth()
-                                    .offset(y: isVisible ? 0 : 30)
-                                    .opacity(isVisible ? 1.0 : 0.0)
-                                    .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
-                                }
-
-                                Spacer(minLength: 24)
-                            }
-                            .frame(minHeight: geometry.size.height)
-                        }
-                    }
+                    WelcomeContent(showLoginForm: $showLoginForm)
                 }
             }
             .navigationBarHidden(true)
             .dynamicTypeSize(...DynamicTypeSize.xxLarge)
-            .onAppear {
-                withAnimation {
-                    isVisible = true
-                }
-
-                // Track screen view
-
-                // Solicitud de ubicación pospuesta hasta que el usuario use funciones que la requieran
-            }
-            .alert(isPresented: $showAlert) {
-                Alert(
-                    title: Text("login.error.title"),
-                    message: Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown login error")),
-                    dismissButton: .default(Text("login.ok"))
-                )
-            }
-            .sheet(isPresented: $showResetPassword) {
-                EnhancedResetPasswordView(email: $resetEmail, isPresented: $showResetPassword)
-                    .presentationDetents([.medium])
-                    .presentationDragIndicator(.visible)
+            .navigationDestination(isPresented: $showLoginForm) {
+                LoginFormScreen()
             }
             .navigationDestination(isPresented: $authService.isRegistering) {
                 ProfileOnboardingView(
@@ -104,6 +42,305 @@ struct LoginView: View {
         // ✅ NUEVO: Observar cambios en el estado de autenticación
         .onChange(of: authService.authState) { _, newState in
         }
+    }
+}
+
+// MARK: - Welcome (primera pantalla: registro como camino principal)
+
+/// Paleta del glow de bienvenida (colores de marca del logo).
+private enum WelcomeGlow {
+    static let colors: [Color] = [
+        Color(hex: "007AFF"),
+        Color(hex: "AF52DE"),
+        Color(hex: "FF375F"),
+        Color(hex: "02C39A")
+    ]
+
+    /// Versión apagada para estados en reposo (mismas familias, casi sin luz).
+    static let dimColors: [Color] = [
+        Color(hex: "123A5E"),
+        Color(hex: "3A2158"),
+        Color(hex: "58203A"),
+        Color(hex: "12463C")
+    ]
+}
+
+/// Mesh de colores en movimiento perpetuo (capa base reutilizable).
+private struct AuroraMeshLayer: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var colors: [Color] = WelcomeGlow.colors
+    var speed: Double = 1.0
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: reduceMotion)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate * speed
+            SwiftUI.MeshGradient(
+                width: 3,
+                height: 3,
+                points: [
+                    [0, 0], [0.5 + 0.2 * Float(sin(t * 0.35)), 0], [1, 0],
+                    [0, 0.5 + 0.2 * Float(cos(t * 0.3))],
+                    [0.5 + 0.3 * Float(sin(t * 0.55)), 0.5 + 0.3 * Float(cos(t * 0.42))],
+                    [1, 0.5 + 0.2 * Float(sin(t * 0.47))],
+                    [0, 1], [0.5 + 0.2 * Float(cos(t * 0.38)), 1], [1, 1]
+                ],
+                colors: [
+                    colors[0], colors[1], colors[2],
+                    colors[3], colors[1], colors[0],
+                    colors[2], colors[0], colors[3]
+                ]
+            )
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// Halo mesh animado tras el logo, estilo aurora viva.
+private struct WelcomeAuroraHalo: View {
+    var body: some View {
+        AuroraMeshLayer(speed: 0.8)
+            .clipShape(Circle())
+            .blur(radius: 38)
+            .opacity(0.5)
+    }
+}
+
+/// CTA burbuja glass con los colores fluyendo por dentro: mesh animado
+/// bajo el material Liquid Glass, que lo refracta (sandwich mesh → glass → label).
+private struct AuroraGlassButton: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let title: LocalizedStringKey
+    let action: () -> Void
+
+    @State private var isPressed = false
+    private let buttonHeight = AuthFormMetrics.buttonHeight
+    @ScaledMetric(relativeTo: .body) private var buttonFontSize = AuthFormMetrics.buttonFontSize
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: buttonFontSize).weight(.semibold))
+                .foregroundColor(.white)
+                .shadow(color: .black.opacity(0.25), radius: 3, x: 0, y: 1)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: buttonHeight)
+        }
+        .background {
+            ZStack {
+                AuroraMeshLayer()
+                    .blur(radius: 10)
+                    .opacity(0.92)
+
+                if #available(iOS 26.0, *) {
+                    Color.clear
+                        .glassEffect(.clear.interactive(), in: shape)
+                } else {
+                    shape.fill(.ultraThinMaterial)
+                }
+            }
+            .clipShape(shape)
+        }
+        .overlay {
+            shape
+                .stroke(.white.opacity(colorScheme == .dark ? 0.22 : 0.34), lineWidth: 0.75)
+                .allowsHitTesting(false)
+        }
+        .scaleEffect(isPressed ? 0.98 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            isPressed = pressing
+        }, perform: {})
+        .accessibilityLabel(Text(title))
+    }
+}
+
+struct WelcomeContent: View {
+    @EnvironmentObject var authService: AuthService
+    @Environment(\.colorScheme) private var colorScheme
+    @Binding var showLoginForm: Bool
+    @State private var goToRegister = false
+    @State private var isVisible = false
+
+    private var primaryText: Color {
+        AuthColors.primary(colorScheme)
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 36)
+
+                    EnhancedHeaderView()
+                        .background {
+                            WelcomeAuroraHalo()
+                                .frame(width: 260, height: 260)
+                                .offset(y: -34)
+                        }
+                        .authScreenContentWidth()
+                        .scaleEffect(isVisible ? 1.0 : 0.85)
+                        .opacity(isVisible ? 1.0 : 0.0)
+                        .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+
+                    Spacer(minLength: 28)
+
+                    VStack(spacing: 12) {
+                        AuroraGlassButton(
+                            title: "welcome.createAccount",
+                            action: { goToRegister = true }
+                        )
+
+                        AppleContinueButton()
+
+                        Button {
+                            showLoginForm = true
+                        } label: {
+                            HStack(spacing: 5) {
+                                Text("welcome.haveAccount")
+                                    .font(.subheadline.weight(.regular))
+                                    .foregroundColor(primaryText.opacity(0.54))
+
+                                Text("welcome.logIn")
+                                    .font(.subheadline.bold())
+                                    .foregroundColor(primaryText)
+                            }
+                            .frame(minHeight: 44)
+                        }
+                        .padding(.top, 2)
+                    }
+                    .authScreenContentWidth()
+                    .offset(y: isVisible ? 0 : 30)
+                    .opacity(isVisible ? 1.0 : 0.0)
+                    .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
+
+                    Spacer(minLength: 24)
+
+                    LoginDisclaimerView()
+                        .authScreenContentWidth()
+                        .opacity(isVisible ? 1.0 : 0.0)
+                        .animation(.easeIn(duration: 0.6).delay(0.5), value: isVisible)
+                        .padding(.bottom, 18)
+                }
+                .frame(minHeight: geometry.size.height)
+            }
+        }
+        .onAppear {
+            withAnimation {
+                isVisible = true
+            }
+        }
+        .navigationDestination(isPresented: $goToRegister) {
+            RegisterView().environmentObject(authService)
+        }
+    }
+}
+
+// MARK: - Login (pantalla propia para usuarios que vuelven)
+struct LoginFormScreen: View {
+    @EnvironmentObject var authService: AuthService
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
+    @State private var identifier: String = ""
+    @State private var password: String = ""
+    @State private var errorMessage: String? = nil
+    @State private var showAlert: Bool = false
+    @State private var isLoading: Bool = false
+    @State private var showResetPassword: Bool = false
+    @State private var resetEmail: String = ""
+    @State private var showPassword: Bool = false
+    @State private var isVisible = false
+
+    var body: some View {
+        ZStack {
+            LiquidAuroraBackground()
+
+            VStack(spacing: 0) {
+                topBar
+
+                GeometryReader { geometry in
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 12)
+
+                            VStack(spacing: 0) {
+                                EnhancedHeaderView()
+                                    .authScreenContentWidth()
+                                    .scaleEffect(isVisible ? 1.0 : 0.85)
+                                    .opacity(isVisible ? 1.0 : 0.0)
+                                    .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+
+                                Spacer()
+                                    .frame(height: 12)
+
+                                EnhancedFormView(
+                                    identifier: $identifier,
+                                    password: $password,
+                                    showPassword: $showPassword,
+                                    isLoading: $isLoading,
+                                    showResetPassword: $showResetPassword,
+                                    errorMessage: $errorMessage,
+                                    showAlert: $showAlert,
+                                    loginAction: login
+                                )
+                                .authScreenContentWidth()
+                                .offset(y: isVisible ? 0 : 30)
+                                .opacity(isVisible ? 1.0 : 0.0)
+                                .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.15), value: isVisible)
+                            }
+
+                            Spacer(minLength: 24)
+                        }
+                        .frame(minHeight: geometry.size.height)
+                    }
+                }
+            }
+        }
+        .navigationBarHidden(true)
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .onAppear {
+            withAnimation {
+                isVisible = true
+            }
+        }
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text("login.error.title"),
+                message: Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown login error")),
+                dismissButton: .default(Text("login.ok"))
+            )
+        }
+        .sheet(isPresented: $showResetPassword) {
+            EnhancedResetPasswordView(email: $resetEmail, isPresented: $showResetPassword)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var topBar: some View {
+        HStack {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .frame(width: 36, height: 36)
+                    .background {
+                        Color.clear
+                            .momentsChromeGlass(in: Circle(), interactive: true)
+                    }
+            }
+            .accessibilityLabel(Text("register.back"))
+
+            Spacer()
+        }
+        .authScreenHorizontalPadding()
+        .padding(.top, 10)
+        .padding(.bottom, 2)
     }
 
     private func login() {
@@ -152,6 +389,82 @@ struct LoginView: View {
             return NSLocalizedString("login.error.reason.emailInUse", comment: "Email already in use")
         default:
             return NSLocalizedString("login.error.reason.other", comment: "Other reason")
+        }
+    }
+}
+
+// MARK: - Botón "Continuar con Apple" autocontenido (bienvenida)
+struct AppleContinueButton: View {
+    @EnvironmentObject var authService: AuthService
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showAlert = false
+
+    private let buttonHeight = AuthFormMetrics.buttonHeight
+
+    var body: some View {
+        SignInWithAppleButton(
+            .continue,
+            onRequest: { request in
+                let nonce = authService.startAppleSignIn()
+                request.requestedScopes = [.fullName, .email]
+                request.nonce = nonce
+            },
+            onCompletion: handleCompletion
+        )
+        .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+        .frame(height: buttonHeight)
+        .clipShape(RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous))
+        .disabled(isLoading)
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text("login.error.title"),
+                message: Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown login error")),
+                dismissButton: .default(Text("login.ok"))
+            )
+        }
+    }
+
+    private func handleCompletion(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success(let authorization):
+            guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
+            guard let nonce = authService.currentNonce else {
+                errorMessage = NSLocalizedString("login.apple.error.nonce", comment: "Apple sign in nonce error")
+                showAlert = true
+                return
+            }
+            guard let appleIDToken = appleIDCredential.identityToken,
+                  let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+                errorMessage = NSLocalizedString("login.apple.error.noToken", comment: "Apple sign in token missing")
+                showAlert = true
+                return
+            }
+
+            isLoading = true
+            authService.signInWithApple(
+                idToken: idTokenString,
+                nonce: nonce,
+                fullName: appleIDCredential.fullName?.formatted(),
+                email: appleIDCredential.email
+            ) { result in
+                isLoading = false
+                switch result {
+                case .success(let isComplete):
+                    if isComplete, let userId = Auth.auth().currentUser?.uid {
+                        RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "apple")
+                    }
+                case .failure:
+                    errorMessage = NSLocalizedString("login.apple.error.generic", comment: "Generic Apple sign in error")
+                    showAlert = true
+                }
+            }
+        case .failure(let error):
+            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
+                errorMessage = NSLocalizedString("login.apple.error.generic", comment: "Generic Apple sign in error")
+                showAlert = true
+            }
         }
     }
 }
@@ -488,19 +801,12 @@ struct EnhancedLoginButton: View {
     let action: () -> Void
     @State private var isPressed = false
 
-    private var primaryText: Color {
-        AuthColors.primary(colorScheme)
-    }
-
-    private var authActionTint: Color {
-        if isEnabled {
-            return Color.blue.opacity(colorScheme == .dark ? 0.24 : 0.16)
-        }
-        return MomentsChromeGlass.canvasTint(for: colorScheme, opacity: 0.54)
-    }
-
     private let buttonHeight = AuthFormMetrics.buttonHeight
     @ScaledMetric(relativeTo: .body) private var buttonFontSize = AuthFormMetrics.buttonFontSize
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
+    }
 
     var body: some View {
         Button(action: {
@@ -512,36 +818,48 @@ struct EnhancedLoginButton: View {
             HStack(spacing: 8) {
                 if isLoading {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: primaryText))
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.75)
                     Text("login.signingIn")
                         .font(.system(size: buttonFontSize).weight(.semibold))
-                        .foregroundColor(primaryText)
                         .transition(.opacity)
                 } else {
                     Text("login.signIn")
                         .font(.system(size: buttonFontSize).weight(.semibold))
-                        .foregroundColor(primaryText)
                 }
             }
+            .foregroundColor(.white.opacity(isEnabled ? 1 : 0.6))
+            .shadow(color: .black.opacity(isEnabled ? 0.25 : 0.1), radius: 3, x: 0, y: 1)
             .frame(maxWidth: .infinity)
             .frame(minHeight: buttonHeight)
         }
         .background {
-            Color.clear
-                .momentsChromeGlass(
-                    in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous),
-                    interactive: isEnabled,
-                    tint: authActionTint
-                )
+            // En reposo: colores apagados latiendo lento. Encendido: paleta plena (crossfade).
+            ZStack {
+                AuroraMeshLayer(colors: WelcomeGlow.dimColors, speed: 0.35)
+                    .blur(radius: 10)
+                    .opacity(colorScheme == .dark ? 0.7 : 0.5)
+
+                AuroraMeshLayer()
+                    .blur(radius: 10)
+                    .opacity(isEnabled ? 0.92 : 0.0)
+
+                if #available(iOS 26.0, *) {
+                    Color.clear
+                        .glassEffect(.clear.interactive(), in: shape)
+                } else {
+                    shape.fill(.ultraThinMaterial)
+                }
+            }
+            .clipShape(shape)
+            .animation(.easeInOut(duration: 0.45), value: isEnabled)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
-                .fill(primaryText.opacity(isEnabled ? 0.1 : 0.02))
+            shape
+                .stroke(.white.opacity(isEnabled ? (colorScheme == .dark ? 0.22 : 0.34) : 0.1), lineWidth: 0.75)
                 .allowsHitTesting(false)
         }
         .disabled(isLoading || !isEnabled)
-        .opacity(isEnabled ? 1 : 0.52)
         .scaleEffect(isLoading ? 0.95 : (isPressed ? 0.98 : 1.0))
         .animation(.easeInOut(duration: 0.2), value: isLoading)
         .animation(.easeInOut(duration: 0.2), value: isEnabled)

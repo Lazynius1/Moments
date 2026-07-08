@@ -4240,3 +4240,12 @@
 "onboarding.apple.email.placeholder" = "Email";
 "onboarding.apple.email.help" = "We need an email to finish creating your account.";
 "onboarding.apple.email.missing" = "Add an email to finish creating your account.";
+"welcome.createAccount" = "Create account";
+"welcome.haveAccount" = "Already have an account?";
+"welcome.logIn" = "Log in";
+"onboarding.email.title.username" = "Pick your username";
+"onboarding.email.subtitle.username" = "This is how your friends will find you.";
+"onboarding.email.title.email" = "What's your email?";
+"onboarding.email.subtitle.email" = "To sign in and recover your account.";
+"onboarding.email.title.password" = "Create a password";
+"onboarding.email.subtitle.password" = "At least 8 characters.";

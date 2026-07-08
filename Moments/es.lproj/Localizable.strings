@@ -4261,3 +4261,12 @@
 "onboarding.apple.email.placeholder" = "Email";
 "onboarding.apple.email.help" = "Necesitamos un email para terminar de crear tu cuenta.";
 "onboarding.apple.email.missing" = "Añade un email para terminar de crear tu cuenta.";
+"welcome.createAccount" = "Crear cuenta";
+"welcome.haveAccount" = "¿Ya tienes cuenta?";
+"welcome.logIn" = "Inicia sesión";
+"onboarding.email.title.username" = "Elige tu usuario";
+"onboarding.email.subtitle.username" = "Así te encontrarán tus amigos.";
+"onboarding.email.title.email" = "¿Cuál es tu email?";
+"onboarding.email.subtitle.email" = "Para entrar y recuperar tu cuenta.";
+"onboarding.email.title.password" = "Crea una contraseña";
+"onboarding.email.subtitle.password" = "Mínimo 8 caracteres.";

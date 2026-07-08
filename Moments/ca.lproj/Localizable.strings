@@ -4230,3 +4230,12 @@
 "onboarding.apple.email.placeholder" = "Correu electrònic";
 "onboarding.apple.email.help" = "Necessitem un correu per acabar de crear el teu compte.";
 "onboarding.apple.email.missing" = "Afegeix un correu per acabar de crear el teu compte.";
+"welcome.createAccount" = "Crea un compte";
+"welcome.haveAccount" = "Ja tens un compte?";
+"welcome.logIn" = "Inicia sessió";
+"onboarding.email.title.username" = "Tria el teu usuari";
+"onboarding.email.subtitle.username" = "Així et trobaran els teus amics.";
+"onboarding.email.title.email" = "Quin és el teu correu?";
+"onboarding.email.subtitle.email" = "Per entrar i recuperar el teu compte.";
+"onboarding.email.title.password" = "Crea una contrasenya";
+"onboarding.email.subtitle.password" = "Mínim 8 caràcters.";
