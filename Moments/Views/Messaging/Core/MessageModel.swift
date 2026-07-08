@@ -15,6 +15,7 @@ struct PendingChatContext: Identifiable, Hashable {
     }
 
     enum Status: String, Hashable {
+        case normalConversation
         case outgoingRequestDraft
         case outgoingRequestSent
         case outgoingRequestBlocked
@@ -179,6 +180,48 @@ struct AcceptMessageRequestResult: Hashable {
 }
 
 enum PendingChatContextFactory {
+    private static let conversationIntroCache = ConversationIntroContextCache()
+
+    static func conversationIntro(for conversation: Conversation, currentUserId: String) async -> PendingChatContext? {
+        let otherUserId = conversation.otherParticipantId
+        guard !currentUserId.isEmpty, !otherUserId.isEmpty else { return nil }
+
+        if let cached = await conversationIntroCache.value(currentUserId: currentUserId, otherUserId: otherUserId) {
+            return cached
+        }
+
+        async let otherUser = fetchCachedOrRemoteUser(userId: otherUserId)
+        async let viewerFollowedAt = followTimestamp(from: currentUserId, to: otherUserId)
+        async let otherFollowedViewerAt = followerTimestamp(viewerId: currentUserId, otherId: otherUserId)
+        async let profileStats = fetchProfileStats(userId: otherUserId)
+        async let followersAggregate = aggregateFollowersCount(userId: otherUserId)
+        async let visibleMoments = visibleMomentsCount(userId: otherUserId)
+
+        let user = await otherUser
+        let relationship = await (viewerFollowedAt, otherFollowedViewerAt)
+        let stats = await profileStats
+        let counts = await (followersAggregate, visibleMoments)
+
+        let context = PendingChatContext(
+            otherUserId: otherUserId,
+            otherUsername: user?.username ?? conversation.otherParticipantUsername ?? NSLocalizedString("common.user", value: "Usuario", comment: "Generic user fallback"),
+            otherProfileImagePath: user?.profileImagePath ?? conversation.otherParticipantProfileImagePath,
+            otherFollowersCount: resolvedCount(user?.followersCount, stats?.followersCount, counts.0),
+            otherMomentsCount: counts.1 ?? resolvedCount(user?.momentsCount, stats?.momentsCount),
+            otherIsVerified: user?.isVerified ?? false,
+            viewerFollowsOther: relationship.0 != nil,
+            otherFollowsViewer: relationship.1 != nil,
+            viewerFollowedAt: relationship.0,
+            otherFollowedViewerAt: relationship.1,
+            request: nil,
+            direction: .outgoing,
+            status: .normalConversation
+        )
+
+        await conversationIntroCache.insert(context, currentUserId: currentUserId, otherUserId: otherUserId)
+        return context
+    }
+
     static func outgoing(
         to user: AppUser,
         from currentUserId: String,
@@ -246,6 +289,13 @@ enum PendingChatContextFactory {
     private static func fetchUser(userId: String) async -> AppUser? {
         guard !userId.isEmpty else { return nil }
         return try? await FirestoreService().fetchUsersAsync(userIds: [userId]).first
+    }
+
+    private static func fetchCachedOrRemoteUser(userId: String) async -> AppUser? {
+        if let cached = UserCacheService.shared.getCachedUser(userId: userId) {
+            return cached
+        }
+        return await fetchUser(userId: userId)
     }
 
     static func pendingOutgoingRequest(from senderId: String, to receiverId: String) async -> MessageRequest? {
@@ -374,6 +424,35 @@ enum PendingChatContextFactory {
             }
         }
         return nil
+    }
+}
+
+actor ConversationIntroContextCache {
+    private struct Entry {
+        let context: PendingChatContext
+        let storedAt: Date
+    }
+
+    private let ttl: TimeInterval = 300
+    private var storage: [String: Entry] = [:]
+
+    func value(currentUserId: String, otherUserId: String) -> PendingChatContext? {
+        let key = cacheKey(currentUserId: currentUserId, otherUserId: otherUserId)
+        guard let entry = storage[key] else { return nil }
+        guard Date().timeIntervalSince(entry.storedAt) < ttl else {
+            storage.removeValue(forKey: key)
+            return nil
+        }
+        return entry.context
+    }
+
+    func insert(_ context: PendingChatContext, currentUserId: String, otherUserId: String) {
+        let key = cacheKey(currentUserId: currentUserId, otherUserId: otherUserId)
+        storage[key] = Entry(context: context, storedAt: Date())
+    }
+
+    private func cacheKey(currentUserId: String, otherUserId: String) -> String {
+        "\(currentUserId)::\(otherUserId)"
     }
 }
 

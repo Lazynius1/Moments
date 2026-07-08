@@ -47,6 +47,7 @@ struct GlassmorphicChatView: View {
     @StateObject var pendingMessageRequestService = MessageRequestService()
     @State var messageText: String = ""
     @State var pendingChatContext: PendingChatContext?
+    @State var conversationIntroContext: PendingChatContext?
     @State var showEnhancedCamera = false
     @State var pendingCameraReplyToMessageId: String?
     @State var viewOnceViewerPresentation: ViewOnceViewerPresentation?
@@ -307,6 +308,7 @@ struct GlassmorphicChatView: View {
         }
         .task {
             await enrichPendingChatContextIfNeeded()
+            await loadConversationIntroContextIfNeeded()
         }
     }
 
@@ -323,6 +325,21 @@ struct GlassmorphicChatView: View {
         guard pendingChatContext?.request?.id == request.id,
               pendingChatContext?.status == .incomingRequestPending else { return }
         pendingChatContext = enriched
+    }
+
+    /// Replica el bloque social del intro de requests en conversaciones normales,
+    /// pero con caché TTL para no rehacer lecturas cada vez que se abre el chat.
+    func loadConversationIntroContextIfNeeded() async {
+        guard pendingChatContext == nil,
+              conversationIntroContext == nil,
+              let currentUserId = Auth.auth().currentUser?.uid else { return }
+
+        let context = await PendingChatContextFactory.conversationIntro(
+            for: viewModel.conversation,
+            currentUserId: currentUserId
+        )
+        guard pendingChatContext == nil else { return }
+        conversationIntroContext = context
     }
 
     var chatViewWithSettingsAndStories: some View {

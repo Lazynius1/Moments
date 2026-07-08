@@ -243,6 +243,8 @@ struct ChatConversationIntroRow: View {
     private var subtitleKey: LocalizedStringKey {
         if let context {
             switch context.status {
+            case .normalConversation:
+                return "chat.intro.normal"
             case .incomingRequestPending:
                 return "chat.intro.request.incoming"
             case .outgoingRequestDraft:

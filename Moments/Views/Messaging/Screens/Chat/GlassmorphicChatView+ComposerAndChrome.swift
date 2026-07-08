@@ -36,6 +36,8 @@ extension GlassmorphicChatView {
             return "chat.request.disclaimer.sent"
         case .outgoingRequestDraft, .outgoingRequestBlocked:
             return "chat.request.disclaimer.outgoing"
+        case .normalConversation:
+            return "chat.intro.disclaimer.normal"
         case nil:
             return "chat.intro.disclaimer.normal"
         }

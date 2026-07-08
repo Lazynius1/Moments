@@ -73,15 +73,18 @@ extension GlassmorphicChatView {
 
     var listRows: [ChatRenderRow] {
         var rows = viewModel.chatRenderRows
+        let introContext = pendingChatContext ?? conversationIntroContext
         let shouldShowConversationIntro = isPendingChat || (!viewModel.canLoadMore && (hasCompletedInitialScroll || rows.isEmpty))
         if shouldShowConversationIntro {
             if !isPendingChat {
                 rows.insert(.historyStart, at: 0)
             }
-            if pendingChatContext?.status != .outgoingRequestDraft, pendingChatContext?.status != .outgoingRequestBlocked {
+            if pendingChatContext != nil,
+               pendingChatContext?.status != .outgoingRequestDraft,
+               pendingChatContext?.status != .outgoingRequestBlocked {
                 rows.insert(.requestDisclaimer(pendingChatContext), at: 0)
             }
-            rows.insert(.conversationIntro(pendingChatContext), at: 0)
+            rows.insert(.conversationIntro(introContext), at: 0)
             if let pendingMessage = pendingChatTimelineMessage {
                 rows.insert(.pendingRequestMessage(pendingMessage), at: min(3, rows.count))
             }
