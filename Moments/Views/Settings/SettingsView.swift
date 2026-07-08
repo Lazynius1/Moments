@@ -72,6 +72,26 @@ extension View {
     }
 }
 
+/// Destinos push de Ajustes, consolidados en un único `navigationDestination(item:)`
+/// para no acumular modificadores que la transición zoom evalúa fuera del NavigationStack.
+enum SettingsRoute: Hashable, Identifiable {
+    case contentVisibility
+    case connections
+    case bestFriends
+    case blockedAccounts
+    case mute
+    case passwordChange
+    case savedMoments
+    case userActivity
+    case dataExport
+    case chatStorage
+    case moderationReviews
+    case archivedStories
+    case notificationSettings
+
+    var id: Self { self }
+}
+
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
@@ -91,22 +111,9 @@ struct SettingsView: View {
     @State private var errorMessage: String?
     @State private var isLoading: Bool = false
     @State private var isShowingQRCode: Bool = false
-    @State private var isShowingContentVisibility: Bool = false
-    @State private var isShowingConnections: Bool = false
-    @State private var isShowingBestFriends: Bool = false
-    @State private var isShowingBlockedAccounts: Bool = false
-    @State private var isShowingMute: Bool = false
-    @State private var isShowingPasswordChange: Bool = false
-    @State private var isShowingSavedMoments: Bool = false
-    @State private var isShowingUserActivity: Bool = false
-    @State private var isShowingDataExport: Bool = false
-    @State private var isShowingModerationReviews: Bool = false
-    @State private var isShowingArchivedStories: Bool = false
-    @State private var isShowingSupportMoments: Bool = false
-    @State private var isShowingNotificationSettings: Bool = false
+    @State private var route: SettingsRoute?
     @State private var isShowingAdvancedAccountManagement: Bool = false
     @State private var isShowingNovaMemory: Bool = false
-    @State private var isShowingChatStorage: Bool = false
     @State private var isShowingPersonalInfo: Bool = false
     @State private var blockedAccountsCount: Int = 0
 
@@ -131,22 +138,9 @@ struct SettingsView: View {
                     phoneNumber: $phoneNumber,
                     isShowingPersonalInfo: $isShowingPersonalInfo,
                     isShowingQRCode: $isShowingQRCode,
-                    isShowingContentVisibility: $isShowingContentVisibility,
-                    isShowingConnections: $isShowingConnections,
-                    isShowingBestFriends: $isShowingBestFriends,
-                    isShowingBlockedAccounts: $isShowingBlockedAccounts,
-                    isShowingMute: $isShowingMute,
-                    isShowingPasswordChange: $isShowingPasswordChange,
-                    isShowingSavedMoments: $isShowingSavedMoments,
-                    isShowingUserActivity: $isShowingUserActivity,
-                    isShowingDataExport: $isShowingDataExport,
-                    isShowingModerationReviews: $isShowingModerationReviews,
-                    isShowingArchivedStories: $isShowingArchivedStories,
-                    isShowingSupportMoments: $isShowingSupportMoments,
-                    isShowingNotificationSettings: $isShowingNotificationSettings,
+                    route: $route,
                     isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement,
                     isShowingNovaMemory: $isShowingNovaMemory,
-                    isShowingChatStorage: $isShowingChatStorage,
                     showReadReceipts: $showReadReceipts,
                     blockedAccountsCount: blockedAccountsCount
                 )
@@ -169,64 +163,8 @@ struct SettingsView: View {
                 .presentationContentInteraction(.scrolls)
                 .presentationDragIndicator(.visible)
         }
-        .navigationDestination(isPresented: $isShowingContentVisibility) {
-            ContentVisibilityView()
-        }
-        .navigationDestination(isPresented: $isShowingConnections) {
-            ConnectionVisibilityView(
-                showFollowing: $showFollowing,
-                showFollowers: $showFollowers,
-                viewModel: viewModel
-            )
-        }
-        .navigationDestination(isPresented: $isShowingBestFriends) {
-            BestFriendsView()
-        }
-        .navigationDestination(isPresented: $isShowingBlockedAccounts) {
-            BlockedUsersView()
-        }
-        .navigationDestination(isPresented: $isShowingMute) {
-            MuteSettingsView()
-        }
-        .navigationDestination(isPresented: $isShowingPasswordChange) {
-            Group {
-                if authService.isPasswordLinked {
-                    PasswordChangeView()
-                        .environmentObject(authService)
-                } else {
-                    SetPasswordView()
-                        .environmentObject(authService)
-                }
-            }
-            .onAppear {
-                authService.refreshLinkedProviders()
-            }
-        }
-        .navigationDestination(isPresented: $isShowingSavedMoments) {
-            SavedMomentsView()
-        }
-        .navigationDestination(isPresented: $isShowingUserActivity) {
-            UserActivityView()
-        }
-        .navigationDestination(isPresented: $isShowingDataExport) {
-            DataExportView()
-        }
-        .navigationDestination(isPresented: $isShowingChatStorage) {
-            ChatStorageSettingsView()
-        }
-        .navigationDestination(isPresented: $isShowingModerationReviews) {
-            ModerationReviewStatusView()
-        }
-        .navigationDestination(isPresented: $isShowingArchivedStories) {
-            ArchiveView()
-        }
-        .navigationDestination(isPresented: $isShowingNotificationSettings) {
-            NotificationSettingsView(
-                viewModel: viewModel,
-                isScheduleEnabled: $isScheduleEnabled,
-                startTime: $startTime,
-                endTime: $endTime
-            )
+        .navigationDestination(item: $route) { route in
+            destinationView(for: route)
         }
         .sheet(isPresented: $isShowingAdvancedAccountManagement) {
             AdvancedAccountManagementView()
@@ -286,6 +224,58 @@ struct SettingsView: View {
                 title: Text("settings.error.title"),
                 message: Text(errorMessage ?? NSLocalizedString("settings.error.unknown", comment: "Unknown settings error")),
                 dismissButton: .default(Text("settings.ok"))
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func destinationView(for route: SettingsRoute) -> some View {
+        switch route {
+        case .contentVisibility:
+            ContentVisibilityView()
+        case .connections:
+            ConnectionVisibilityView(
+                showFollowing: $showFollowing,
+                showFollowers: $showFollowers,
+                viewModel: viewModel
+            )
+        case .bestFriends:
+            BestFriendsView()
+        case .blockedAccounts:
+            BlockedUsersView()
+        case .mute:
+            MuteSettingsView()
+        case .passwordChange:
+            Group {
+                if authService.isPasswordLinked {
+                    PasswordChangeView()
+                        .environmentObject(authService)
+                } else {
+                    SetPasswordView()
+                        .environmentObject(authService)
+                }
+            }
+            .onAppear {
+                authService.refreshLinkedProviders()
+            }
+        case .savedMoments:
+            SavedMomentsView()
+        case .userActivity:
+            UserActivityView()
+        case .dataExport:
+            DataExportView()
+        case .chatStorage:
+            ChatStorageSettingsView()
+        case .moderationReviews:
+            ModerationReviewStatusView()
+        case .archivedStories:
+            ArchiveView()
+        case .notificationSettings:
+            NotificationSettingsView(
+                viewModel: viewModel,
+                isScheduleEnabled: $isScheduleEnabled,
+                startTime: $startTime,
+                endTime: $endTime
             )
         }
     }

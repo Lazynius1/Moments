@@ -18,22 +18,9 @@ struct SettingsFormView: View {
     @Binding var phoneNumber: String
     @Binding var isShowingPersonalInfo: Bool
     @Binding var isShowingQRCode: Bool
-    @Binding var isShowingContentVisibility: Bool
-    @Binding var isShowingConnections: Bool
-    @Binding var isShowingBestFriends: Bool
-    @Binding var isShowingBlockedAccounts: Bool
-    @Binding var isShowingMute: Bool
-    @Binding var isShowingPasswordChange: Bool
-    @Binding var isShowingSavedMoments: Bool
-    @Binding var isShowingUserActivity: Bool
-    @Binding var isShowingDataExport: Bool
-    @Binding var isShowingModerationReviews: Bool
-    @Binding var isShowingArchivedStories: Bool
-    @Binding var isShowingSupportMoments: Bool
-    @Binding var isShowingNotificationSettings: Bool
+    @Binding var route: SettingsRoute?
     @Binding var isShowingAdvancedAccountManagement: Bool
     @Binding var isShowingNovaMemory: Bool
-    @Binding var isShowingChatStorage: Bool
     @Binding var showReadReceipts: Bool
     let blockedAccountsCount: Int
 
@@ -53,9 +40,7 @@ struct SettingsFormView: View {
                         isShowingQRCode: $isShowingQRCode
                     )
 
-                    SecuritySection(
-                        isShowingPasswordChange: $isShowingPasswordChange
-                    )
+                    SecuritySection(route: $route)
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
@@ -66,11 +51,7 @@ struct SettingsFormView: View {
                         showFollowing: $showFollowing,
                         showFollowers: $showFollowers,
                         viewModel: viewModel,
-                        isShowingContentVisibility: $isShowingContentVisibility,
-                        isShowingConnections: $isShowingConnections,
-                        isShowingBestFriends: $isShowingBestFriends,
-                        isShowingBlockedAccounts: $isShowingBlockedAccounts,
-                        isShowingMute: $isShowingMute,
+                        route: $route,
                         showReadReceipts: $showReadReceipts,
                         blockedAccountsCount: blockedAccountsCount
                     )
@@ -83,16 +64,11 @@ struct SettingsFormView: View {
 
                 SettingsGroup(title: NSLocalizedString("settings.group.content", comment: "Your Content & Activity")) {
                     ActivitySection(
-                        isShowingSavedMoments: $isShowingSavedMoments,
-                        isShowingUserActivity: $isShowingUserActivity,
-                        isShowingDataExport: $isShowingDataExport,
-                        isShowingNovaMemory: $isShowingNovaMemory,
-                        isShowingChatStorage: $isShowingChatStorage
+                        route: $route,
+                        isShowingNovaMemory: $isShowingNovaMemory
                     )
 
-                    ArchiveSection(
-                        isShowingArchivedStories: $isShowingArchivedStories
-                    )
+                    ArchiveSection(route: $route)
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
@@ -104,7 +80,7 @@ struct SettingsFormView: View {
                         isScheduleEnabled: $isScheduleEnabled,
                         startTime: $startTime,
                         endTime: $endTime,
-                        isShowingNotificationSettings: $isShowingNotificationSettings
+                        route: $route
                     )
                 }
                 .opacity(animateSections ? 1 : 0)
@@ -112,7 +88,7 @@ struct SettingsFormView: View {
                 .animation(.easeOut(duration: 0.6).delay(0.3), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.support", comment: "Data & Support")) {
-                    HelpSection(isShowingModerationReviews: $isShowingModerationReviews)
+                    HelpSection(route: $route)
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
@@ -725,14 +701,14 @@ struct AccountSection: View {
 }
 
 struct ArchiveSection: View {
-    @Binding var isShowingArchivedStories: Bool
+    @Binding var route: SettingsRoute?
 
     var body: some View {
         SettingsRow(
             icon: "archivebox",
             title: NSLocalizedString("settings.sections.archivedStories", comment: "Archived Stories"),
             subtitle: NSLocalizedString("settings.sections.archivedStories.subtitle", comment: "View all your past stories"),
-            action: { isShowingArchivedStories = true }
+            action: { route = .archivedStories }
         )
     }
 }
@@ -743,11 +719,7 @@ struct PrivacySection: View {
     @Binding var showFollowing: Bool
     @Binding var showFollowers: Bool
     @ObservedObject var viewModel: SettingsViewModel
-    @Binding var isShowingContentVisibility: Bool
-    @Binding var isShowingConnections: Bool
-    @Binding var isShowingBestFriends: Bool
-    @Binding var isShowingBlockedAccounts: Bool
-    @Binding var isShowingMute: Bool
+    @Binding var route: SettingsRoute?
     @Binding var showReadReceipts: Bool
     let blockedAccountsCount: Int
 
@@ -788,30 +760,30 @@ struct PrivacySection: View {
             SettingsRow(icon: "eye.slash",
                 title: NSLocalizedString("settings.sections.contentVisibility", comment: "Content Visibility"),
                 subtitle: NSLocalizedString("settings.sections.contentVisibility.subtitle", comment: "Manage who can see your content"),
-                action: { isShowingContentVisibility = true })
+                action: { route = .contentVisibility })
 
             SettingsRow(icon: "person.2.circle",
                 title: NSLocalizedString("settings.sections.connections", comment: "Connections"),
                 subtitle: getConnectionPrivacyStatus(),
-                action: { isShowingConnections = true })
+                action: { route = .connections })
 
             SettingsRow(
                 icon: "star.fill",
                 audienceIcon: .bestFriends,
                 title: NSLocalizedString("settings.sections.bestFriends", comment: "Best Friends"),
                 subtitle: NSLocalizedString("settings.sections.bestFriends.subtitle", comment: "Manage best friends list"),
-                action: { isShowingBestFriends = true }
+                action: { route = .bestFriends }
             )
 
             SettingsRow(icon: "hand.raised",
                 title: NSLocalizedString("settings.sections.blockedAccounts", comment: "Blocked Accounts"),
                 subtitle: blockedAccountsSubtitle(),
-                action: { isShowingBlockedAccounts = true })
+                action: { route = .blockedAccounts })
 
             SettingsRow(icon: "bell.slash",
                 title: NSLocalizedString("settings.sections.mute", comment: "Mute"),
                 subtitle: NSLocalizedString("settings.sections.mute.subtitle", comment: "Accounts, words and phrases"),
-                action: { isShowingMute = true })
+                action: { route = .mute })
 
             MessageRequestPolicyRow(viewModel: viewModel)
 
@@ -1180,7 +1152,7 @@ struct SecurityStatusRow<OverlayView: View>: View {
 struct SecuritySection: View {
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject var authService: AuthService
-    @Binding var isShowingPasswordChange: Bool
+    @Binding var route: SettingsRoute?
 
     // Para el linking
     @State private var isLoading = false
@@ -1215,7 +1187,7 @@ struct SecuritySection: View {
                     ? NSLocalizedString("settings.sections.password.subtitle", comment: "Change password")
                     : NSLocalizedString("settings.security.password.addDescription", comment: "Add backup password"),
                 action: {
-                    isShowingPasswordChange = true
+                    route = .passwordChange
                 }
             )
 
@@ -1330,7 +1302,7 @@ struct SecuritySection: View {
         .alert("settings.security.appleId.cannotUnlink.title", isPresented: $showAppleOnlyAccessInfo) {
             Button("common.ok", role: .cancel) {}
             Button("settings.security.password.add") {
-                isShowingPasswordChange = true
+                route = .passwordChange
             }
         } message: {
             Text("settings.security.appleId.cannotUnlink.message")
@@ -1407,23 +1379,20 @@ struct SecuritySection: View {
 }
 
 struct ActivitySection: View {
-    @Binding var isShowingSavedMoments: Bool
-    @Binding var isShowingUserActivity: Bool
-    @Binding var isShowingDataExport: Bool
+    @Binding var route: SettingsRoute?
     @Binding var isShowingNovaMemory: Bool
-    @Binding var isShowingChatStorage: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             SettingsRow(icon: AttachmentIcon.bookmark.rawValue,
                 title: NSLocalizedString("settings.sections.saved", comment: "Saved"),
                 subtitle: NSLocalizedString("settings.sections.saved.subtitle", comment: "Moments you've saved"),
-                action: { isShowingSavedMoments = true })
+                action: { route = .savedMoments })
 
             SettingsRow(icon: "clock",
                 title: NSLocalizedString("settings.sections.yourActivity", comment: "Your Activity"),
                 subtitle: NSLocalizedString("settings.sections.yourActivity.subtitle", comment: "Time in app, interactions"),
-                action: { isShowingUserActivity = true })
+                action: { route = .userActivity })
 
             SettingsRow(icon: "brain.head.profile",
                 title: NSLocalizedString("nova.memory.title", comment: "Nova's Memory"),
@@ -1433,12 +1402,12 @@ struct ActivitySection: View {
             SettingsRow(icon: "arrow.down.circle",
                 title: NSLocalizedString("settings.sections.downloadData", comment: "Download Your Data"),
                 subtitle: NSLocalizedString("settings.sections.downloadData.subtitle", comment: "Request a copy of your data"),
-                action: { isShowingDataExport = true })
+                action: { route = .dataExport })
 
             SettingsRow(icon: "bubble.left.and.bubble.right",
                 title: NSLocalizedString("settings.sections.chatStorage", comment: "Chat Storage"),
                 subtitle: NSLocalizedString("settings.sections.chatStorage.subtitle", comment: "Media cache and download preferences"),
-                action: { isShowingChatStorage = true })
+                action: { route = .chatStorage })
         }
     }
 }
@@ -1448,14 +1417,14 @@ struct NotificationsSection: View {
     @Binding var isScheduleEnabled: Bool
     @Binding var startTime: Date
     @Binding var endTime: Date
-    @Binding var isShowingNotificationSettings: Bool
+    @Binding var route: SettingsRoute?
 
     var body: some View {
         VStack(spacing: 0) {
             SettingsRow(icon: "bell",
                 title: NSLocalizedString("settings.sections.pushNotifications", comment: "Push Notifications"),
                 subtitle: NSLocalizedString("settings.sections.pushNotifications.subtitle", comment: "Posts, stories, comments"),
-                action: { isShowingNotificationSettings = true })
+                action: { route = .notificationSettings })
 
             SettingsRow(icon: "envelope",
                 title: NSLocalizedString("settings.sections.emailNotifications", comment: "Email Notifications"),
@@ -1466,7 +1435,7 @@ struct NotificationsSection: View {
 }
 
 struct HelpSection: View {
-    @Binding var isShowingModerationReviews: Bool
+    @Binding var route: SettingsRoute?
     @State private var requiresPrivacyOptions = false
 
     var body: some View {
@@ -1474,7 +1443,7 @@ struct HelpSection: View {
             SettingsRow(icon: "checklist",
                 title: NSLocalizedString("settings.sections.contentReviews", comment: "Content reviews"),
                 subtitle: NSLocalizedString("settings.sections.contentReviews.subtitle", comment: "Check the status of your content review requests"),
-                action: { isShowingModerationReviews = true })
+                action: { route = .moderationReviews })
 
             SettingsRow(icon: "questionmark.circle",
                 title: NSLocalizedString("settings.sections.helpCenter", comment: "Help Center"),
