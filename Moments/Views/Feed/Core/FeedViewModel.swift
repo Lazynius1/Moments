@@ -944,17 +944,6 @@ class FeedViewModel {
     }
 
     // MARK: - Listeners
-
-    /// Red de seguridad: si una vista no llega a llamar `shutdown()` en `onDisappear`
-    /// (p. ej. una transición interrumpida), los listeners se remueven al desalojar.
-    deinit {
-        listenerSyncWorkItem?.cancel()
-        pendingUpdates.values.forEach { $0.cancel() }
-        momentListeners.values.forEach { $0.remove() }
-        commentListeners.values.forEach { $0.remove() }
-        userListener?.remove()
-    }
-
     /// Limpia listeners y trabajo pendiente. Llamar desde `onDisappear` en vistas que crean un `FeedViewModel` efímero.
     func shutdown() {
         listenerSyncWorkItem?.cancel()
