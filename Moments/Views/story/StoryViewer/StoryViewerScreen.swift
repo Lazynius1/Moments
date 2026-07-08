@@ -90,6 +90,8 @@ struct StoryViewerScreen: View {
     @State private var showChainActions: Bool = false
     @State private var successMessageText: String = ""
     @FocusState private var isTextFieldFocused: Bool
+    /// Vanish activo en el chat con el autor: el modo se extiende a las respuestas de historia.
+    @State private var isVanishActiveWithAuthor = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.storyDeckGestureGate) private var deckGestureGate
@@ -148,6 +150,10 @@ struct StoryViewerScreen: View {
 
     private var storyViewerChromeColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var vanishReplyStrokeColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.55) : Color.black.opacity(0.28)
     }
 
     private var currentStoryViewers: [StoryViewer] {
@@ -1117,7 +1123,28 @@ struct StoryViewerScreen: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
                             .background(Color.white.opacity(0.001))
-                            .momentsChromeGlass(in: Capsule(), interactive: true)
+                            .momentsChromeGlass(in: Capsule(), interactive: !isVanishActiveWithAuthor)
+                            .overlay {
+                                if isVanishActiveWithAuthor {
+                                    Capsule()
+                                        .stroke(
+                                            vanishReplyStrokeColor,
+                                            style: StrokeStyle(lineWidth: 1.2, dash: [5, 4])
+                                        )
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                            .onAppear {
+                                storyViewModel.fetchVanishState(withAuthor: story.authorId) { active in
+                                    isVanishActiveWithAuthor = active
+                                }
+                            }
+                            .onChange(of: story.authorId) { _, newAuthorId in
+                                isVanishActiveWithAuthor = false
+                                storyViewModel.fetchVanishState(withAuthor: newAuthorId) { active in
+                                    isVanishActiveWithAuthor = active
+                                }
+                            }
                         } else if isEveryoneStoryAudience {
                             Spacer(minLength: 0)
                         }
@@ -1438,6 +1465,9 @@ struct StoryViewerScreen: View {
     // MARK: - Gestures
 
     private var storyMessagePlaceholder: String {
+        if isVanishActiveWithAuthor {
+            return NSLocalizedString("chat.input.vanish.placeholder", comment: "Vanish mode input placeholder")
+        }
         let format = NSLocalizedString("stories.sendMessagePlaceholder", comment: "Send story message placeholder")
         return String(format: format, story.username)
     }

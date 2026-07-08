@@ -431,13 +431,13 @@ class ChatService: ObservableObject {
     }
     
     // MARK: - Send Messages with Encryption
-    func sendStoryReplyMessage(conversationId: String, senderId: String, content: String, storyReplyData: [String: String], completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendStoryReplyMessage(conversationId: String, senderId: String, content: String, storyReplyData: [String: String], isVanishModeMessage: Bool = false, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let messageId = UUID().uuidString
-        
+
         // 🔐 Encrypt content before sending (Async)
         Task {
             let encryptedContent = await encryptMessageContent(content, for: conversationId)
-            
+
             let message = EnhancedMessage(
                 id: messageId,
                 conversationId: conversationId,
@@ -461,7 +461,8 @@ class ChatService: ObservableObject {
                 replyTo: nil,
                 expirationDate: nil,
                 isViewed: false,
-                storyReplyData: storyReplyData
+                storyReplyData: storyReplyData,
+                isVanishModeMessage: isVanishModeMessage ? true : nil
             )
             
             sendMessage(message, useServerTimestamp: true, completion: completion)

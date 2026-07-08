@@ -446,22 +446,63 @@ class StoryViewModel: ObservableObject {
                     return
                 }
 
-                // Send the message as regular text message with story reply data
-                self.chatService.sendStoryReplyMessage(
-                    conversationId: conversationId,
-                    senderId: currentUserId,
-                    content: "💬 \(message)",  // Keep the message content
-                    storyReplyData: storyReply.payload
-                ) { result in
-                    switch result {
-                    case .success(_):
-                        completion(true)
-                    case .failure:
-                        completion(false)
+                // El vanish del chat se extiende a las respuestas de historia:
+                // leer el estado real de la conversación justo antes de enviar.
+                self.firestoreService.db.collection("conversations").document(conversationId).getDocument { snapshot, _ in
+                    let vanishActive = snapshot?.data()?["vanishModeActive"] as? Bool ?? false
+
+                    // Send the message as regular text message with story reply data
+                    self.chatService.sendStoryReplyMessage(
+                        conversationId: conversationId,
+                        senderId: currentUserId,
+                        content: "💬 \(message)",  // Keep the message content
+                        storyReplyData: storyReply.payload,
+                        isVanishModeMessage: vanishActive
+                    ) { result in
+                        switch result {
+                        case .success(_):
+                            completion(true)
+                        case .failure:
+                            completion(false)
+                        }
                     }
                 }
             }
         }
+    }
+
+    // MARK: - Vanish mode en respuestas de historia
+
+    /// Caché por autor durante la sesión del viewer.
+    private var vanishActiveWithAuthor: [String: Bool] = [:]
+
+    /// Consulta de solo lectura: nunca crea conversación por mirar una historia.
+    func fetchVanishState(withAuthor authorId: String, completion: @escaping (Bool) -> Void) {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              !authorId.isEmpty,
+              authorId != currentUserId else {
+            completion(false)
+            return
+        }
+
+        if let cached = vanishActiveWithAuthor[authorId] {
+            completion(cached)
+            return
+        }
+
+        firestoreService.db.collection("conversations")
+            .whereField("participants", arrayContains: currentUserId)
+            .getDocuments { [weak self] snapshot, _ in
+                let conversation = snapshot?.documents.first { doc in
+                    let participants = doc.data()["participants"] as? [String] ?? []
+                    return participants.contains(authorId)
+                }
+                let vanishActive = conversation?.data()["vanishModeActive"] as? Bool ?? false
+                DispatchQueue.main.async {
+                    self?.vanishActiveWithAuthor[authorId] = vanishActive
+                    completion(vanishActive)
+                }
+            }
     }
 
 
