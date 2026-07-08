@@ -379,6 +379,15 @@ struct ConversationSettingsView: View {
                 ForEach(viewModel.sharedLinkMessages, id: \.id) { message in
                     if let url = ChatLinkOpener.firstURL(in: message.content ?? "") {
                         LinkPreviewCard(url: url, embedded: true)
+                            .background {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(adaptiveColors.tertiary.opacity(colorScheme == .dark ? 0.14 : 0.10), lineWidth: 1)
+                            }
                     }
                 }
             }
@@ -442,23 +451,34 @@ struct ConversationSettingsView: View {
             sectionHeader("conversationSettings.storage")
 
             VStack(spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(NSLocalizedString("conversationSettings.storage.mediaUsage", comment: "Media in this chat"))
-                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                            .foregroundColor(adaptiveColors.primary)
-                        Text(NSLocalizedString("conversationSettings.storage.mediaUsage.desc", comment: "Cached photos and videos on this device"))
-                            .font(.system(size: legacyPoppinsSize(12)))
+                Button {
+                    HapticManager.shared.lightImpact()
+                    viewModel.openSharedGallery(tab: .media)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(NSLocalizedString("conversationSettings.storage.mediaUsage", comment: "Media in this chat"))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                                .foregroundColor(adaptiveColors.primary)
+                            Text(NSLocalizedString("conversationSettings.storage.mediaUsage.desc", comment: "Cached photos and videos on this device"))
+                                .font(.system(size: legacyPoppinsSize(12)))
+                                .foregroundColor(adaptiveColors.tertiary)
+                        }
+
+                        Spacer()
+
+                        Text(formatBytes(conversationMediaBytes))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                            .foregroundColor(adaptiveColors.secondary)
+                            .monospacedDigit()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(adaptiveColors.tertiary)
                     }
-
-                    Spacer()
-
-                    Text(formatBytes(conversationMediaBytes))
-                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                        .foregroundColor(adaptiveColors.secondary)
-                        .monospacedDigit()
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
 
                 if conversationMediaBytes > 0 {
                     dividerLine
