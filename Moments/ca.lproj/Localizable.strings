@@ -4255,3 +4255,8 @@
 "conversationSettings.preferences.desc" = "Notificacions, vistes prèvies i privacitat";
 "conversationSettings.preferences.group.notifications" = "NOTIFICACIONS";
 "conversationSettings.preferences.group.privacy" = "PRIVACITAT";
+"conversationSettings.quickAction.profile" = "Perfil";
+"conversationSettings.quickAction.search" = "Cerca";
+"conversationSettings.quickAction.mute" = "Silencia";
+"conversationSettings.quickAction.unmute" = "Activa";
+"conversationSettings.quickAction.options" = "Opcions";

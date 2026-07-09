@@ -4265,3 +4265,8 @@
 "conversationSettings.preferences.desc" = "Notifications, previews and privacy";
 "conversationSettings.preferences.group.notifications" = "NOTIFICATIONS";
 "conversationSettings.preferences.group.privacy" = "PRIVACY";
+"conversationSettings.quickAction.profile" = "Profile";
+"conversationSettings.quickAction.search" = "Search";
+"conversationSettings.quickAction.mute" = "Mute";
+"conversationSettings.quickAction.unmute" = "Unmute";
+"conversationSettings.quickAction.options" = "Options";

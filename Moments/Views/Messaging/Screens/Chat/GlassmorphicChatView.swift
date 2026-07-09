@@ -411,6 +411,10 @@ struct GlassmorphicChatView: View {
                     conversation: viewModel.conversation,
                     onJumpToMessage: { messageId in
                         deferredJumpToMessageId = messageId
+                    },
+                    onSearchRequested: {
+                        showingConversationSettings = false
+                        toggleChatSearch()
                     }
                 )
                 .toolbar(.hidden, for: .tabBar)

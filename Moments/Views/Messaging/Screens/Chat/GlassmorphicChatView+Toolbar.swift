@@ -29,14 +29,9 @@ extension GlassmorphicChatView {
             chatToolbarTitleStack
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    showingUserProfile = true
+                    showingConversationSettings = true
                 }
         }
-
-        ToolbarItem(placement: .topBarTrailing) {
-            chatToolbarTrailingCluster
-        }
-        .chatHideSharedBackgroundIfAvailable()
     }
 
     /// Header de búsqueda a ancho completo (sin fondo opaco; solo pill + X glass).
@@ -176,6 +171,10 @@ extension GlassmorphicChatView {
                 if !isOtherParticipantUnavailable {
                     VerifiedBadgeView(userId: viewModel.conversation.otherParticipantId, size: 14)
                 }
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(adaptiveColors.secondary.opacity(0.6))
             }
 
             chatToolbarSubtitle
@@ -225,49 +224,6 @@ extension GlassmorphicChatView {
         }
     }
 
-    var chatToolbarTrailingCluster: some View {
-        ProfileChromeControlsCluster {
-
-
-            ProfileChromeIconButton(
-                systemName: "magnifyingglass",
-                foregroundColor: adaptiveColors.primary,
-                preset: .toolbarAction,
-                standaloneGlass: false,
-                action: toggleChatSearch
-            )
-
-            chatToolbarMenu
-        }
-    }
-
-    var chatToolbarMenu: some View {
-        Menu {
-            Button(action: { showingConversationSettings = true }) {
-                Label(
-                    NSLocalizedString("chat.menu.details", comment: "Conversation details"),
-                    systemImage: "gearshape"
-                )
-            }
-
-            Button(role: .destructive, action: { showingReportSheet = true }) {
-                Label(
-                    NSLocalizedString("report.action.user", comment: "Report user"),
-                    systemImage: "flag"
-                )
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: MomentsGlassControlMetrics.toolbarIconSize, weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
-                .frame(
-                    width: MomentsGlassControlMetrics.toolbarControlSize,
-                    height: MomentsGlassControlMetrics.toolbarControlSize
-                )
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-    }
 
     func openProfileOrStoryFromHeader() {
         if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {

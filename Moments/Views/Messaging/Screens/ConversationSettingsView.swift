@@ -8,6 +8,7 @@ import Photos
 struct ConversationSettingsView: View {
     let conversation: Conversation
     var onJumpToMessage: ((String) -> Void)? = nil
+    var onSearchRequested: (() -> Void)? = nil
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = ConversationSettingsViewModel()
@@ -21,6 +22,9 @@ struct ConversationSettingsView: View {
     @State private var showClearMediaConfirmation = false
     @State private var sharedTab: SharedContentTab = .media
     @State private var showChatPreferences = false
+    @State private var showingUserProfile = false
+    @State private var showBlockConfirmationFromHeader = false
+    @State private var showReportSheetFromHeader = false
 
     private enum SharedContentTab {
         case media
@@ -42,16 +46,14 @@ struct ConversationSettingsView: View {
             VStack(spacing: 24) {
                 conversationHeader
 
-                VStack(spacing: 16) {
-                    glassCard {
-                        VStack(alignment: .leading, spacing: 0) {
-                            starredMessagesSection
-                            dividerLine.padding(.vertical, 4)
-                            chatPreferencesNavRow
-                        }
+                VStack(alignment: .leading, spacing: 30) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        starredMessagesSection
+                        dividerLine.padding(.vertical, 4)
+                        chatPreferencesNavRow
                     }
-                    glassCard { storageSection }
-                    glassCard { conversationInfoSection }
+                    storageSection
+                    conversationInfoSection
                 }
                 .padding(.horizontal, 16)
 
@@ -81,6 +83,27 @@ struct ConversationSettingsView: View {
         .navigationDestination(isPresented: $showChatPreferences) {
             ConversationChatPreferencesView(viewModel: viewModel)
                 .toolbar(.hidden, for: .tabBar)
+        }
+        .navigationDestination(isPresented: $showingUserProfile) {
+            UserProfileView(userId: conversation.otherParticipantId)
+        }
+        .sheet(isPresented: $showReportSheetFromHeader) {
+            ReportBottomSheet(
+                userId: conversation.otherParticipantId,
+                username: otherParticipantDisplayName
+            )
+        }
+        .confirmationDialog(
+            NSLocalizedString("conversationSettings.blockUser", comment: ""),
+            isPresented: $showBlockConfirmationFromHeader,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("conversationSettings.blockUser", comment: ""), role: .destructive) {
+                HapticManager.shared.mediumImpact()
+                viewModel.blockUser()
+                dismiss()
+            }
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
         }
         .onAppear {
             viewModel.loadConversationData(conversation: conversation)
@@ -227,9 +250,72 @@ struct ConversationSettingsView: View {
                 .padding(.vertical, 6)
                 .background(Color.clear.momentsChromeGlass(in: Capsule()))
             }
+
+            quickActionsRow
+                .padding(.top, 6)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
+    }
+
+    // MARK: - Quick Actions Row (estilo IG: Perfil / Buscar / Silenciar / Opciones)
+    private var quickActionsRow: some View {
+        HStack(spacing: 0) {
+            quickActionButton(icon: "person", labelKey: "conversationSettings.quickAction.profile") {
+                HapticManager.shared.lightImpact()
+                showingUserProfile = true
+            }
+
+            quickActionButton(icon: "magnifyingglass", labelKey: "conversationSettings.quickAction.search") {
+                HapticManager.shared.lightImpact()
+                onSearchRequested?()
+            }
+
+            quickActionButton(
+                icon: viewModel.notificationsEnabled ? "bell" : "bell.slash",
+                labelKey: viewModel.notificationsEnabled ? "conversationSettings.quickAction.mute" : "conversationSettings.quickAction.unmute"
+            ) {
+                HapticManager.shared.lightImpact()
+                viewModel.notificationsEnabled.toggle()
+                viewModel.toggleNotifications()
+            }
+
+            Menu {
+                Button(role: .destructive) {
+                    showBlockConfirmationFromHeader = true
+                } label: {
+                    Label(NSLocalizedString("conversationSettings.blockUser", comment: ""), systemImage: "slash.circle")
+                }
+
+                Button(role: .destructive) {
+                    showReportSheetFromHeader = true
+                } label: {
+                    Label(NSLocalizedString("report.action.user", comment: "Report user"), systemImage: "flag")
+                }
+            } label: {
+                quickActionContent(icon: "ellipsis", labelKey: "conversationSettings.quickAction.options")
+            }
+        }
+    }
+
+    private func quickActionButton(icon: String, labelKey: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            quickActionContent(icon: icon, labelKey: labelKey)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func quickActionContent(icon: String, labelKey: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .regular))
+                .foregroundColor(adaptiveColors.primary)
+
+            Text(NSLocalizedString(labelKey, comment: ""))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                .foregroundColor(adaptiveColors.primary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func refreshOtherParticipantUsername() {
@@ -537,21 +623,6 @@ struct ConversationSettingsView: View {
             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
             .foregroundColor(adaptiveColors.primary)
     }
-
-    /// Contenedor de tarjeta glass consistente para todas las secciones.
-    @ViewBuilder
-    private func glassCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background {
-                Color.clear.momentsChromeGlass(
-                    in: RoundedRectangle(cornerRadius: 20, style: .continuous),
-                    interactive: false
-                )
-            }
-    }
-
 
     private var dividerLine: some View {
         Rectangle()
@@ -2331,7 +2402,6 @@ struct ConversationChatPreferencesView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var showClearConfirm = false
-    @State private var showBlockConfirm = false
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -2339,78 +2409,63 @@ struct ConversationChatPreferencesView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                glassCard {
-                    VStack(alignment: .leading, spacing: 16) {
-                        sectionHeader("conversationSettings.preferences.group.notifications")
+            VStack(alignment: .leading, spacing: 30) {
+                VStack(alignment: .leading, spacing: 16) {
+                    sectionHeader("conversationSettings.preferences.group.notifications")
 
-                        toggleRow(
-                            title: "conversationSettings.notifications",
-                            desc: "conversationSettings.notifications.desc",
-                            isOn: $viewModel.notificationsEnabled
-                        ) { viewModel.toggleNotifications() }
+                    toggleRow(
+                        title: "conversationSettings.notifications",
+                        desc: "conversationSettings.notifications.desc",
+                        isOn: $viewModel.notificationsEnabled
+                    ) { viewModel.toggleNotifications() }
 
-                        dividerLine
+                    dividerLine
 
-                        toggleRow(
-                            title: "conversationSettings.privacy.buzz.title",
-                            desc: "conversationSettings.privacy.buzz.description",
-                            isOn: $viewModel.buzzEnabled
-                        ) { viewModel.toggleBuzzNotifications() }
+                    toggleRow(
+                        title: "conversationSettings.privacy.buzz.title",
+                        desc: "conversationSettings.privacy.buzz.description",
+                        isOn: $viewModel.buzzEnabled
+                    ) { viewModel.toggleBuzzNotifications() }
 
-                        dividerLine
+                    dividerLine
 
-                        toggleRow(
-                            title: "conversationSettings.privacy.messagePreview.title",
-                            desc: "conversationSettings.privacy.messagePreview.description",
-                            isOn: $viewModel.messagePreviewEnabled
-                        ) { viewModel.toggleMessagePreview() }
-                    }
+                    toggleRow(
+                        title: "conversationSettings.privacy.messagePreview.title",
+                        desc: "conversationSettings.privacy.messagePreview.description",
+                        isOn: $viewModel.messagePreviewEnabled
+                    ) { viewModel.toggleMessagePreview() }
                 }
 
-                glassCard {
-                    VStack(alignment: .leading, spacing: 16) {
-                        sectionHeader("conversationSettings.preferences.group.privacy")
+                VStack(alignment: .leading, spacing: 16) {
+                    sectionHeader("conversationSettings.preferences.group.privacy")
 
-                        toggleRow(
-                            title: "conversationSettings.privacy.readReceipts.title",
-                            desc: "conversationSettings.privacy.readReceipts.description",
-                            isOn: $viewModel.readReceiptsEnabled
-                        ) { viewModel.toggleReadReceipts() }
+                    toggleRow(
+                        title: "conversationSettings.privacy.readReceipts.title",
+                        desc: "conversationSettings.privacy.readReceipts.description",
+                        isOn: $viewModel.readReceiptsEnabled
+                    ) { viewModel.toggleReadReceipts() }
 
-                        dividerLine
+                    dividerLine
 
-                        toggleRow(
-                            title: "conversationSettings.typingIndicator",
-                            desc: "conversationSettings.typingIndicator.desc",
-                            isOn: $viewModel.typingIndicatorEnabled
-                        ) { viewModel.toggleTypingIndicator() }
+                    toggleRow(
+                        title: "conversationSettings.typingIndicator",
+                        desc: "conversationSettings.typingIndicator.desc",
+                        isOn: $viewModel.typingIndicatorEnabled
+                    ) { viewModel.toggleTypingIndicator() }
 
-                        dividerLine
+                    dividerLine
 
-                        toggleRow(
-                            title: "conversationSettings.privacy.forwarding.title",
-                            desc: "conversationSettings.privacy.forwarding.description",
-                            isOn: $viewModel.forwardingEnabled
-                        ) { viewModel.toggleForwarding() }
-                    }
+                    toggleRow(
+                        title: "conversationSettings.privacy.forwarding.title",
+                        desc: "conversationSettings.privacy.forwarding.description",
+                        isOn: $viewModel.forwardingEnabled
+                    ) { viewModel.toggleForwarding() }
                 }
 
-                glassCard {
-                    VStack(alignment: .leading, spacing: 4) {
-                        destructiveRow(
-                            icon: "trash",
-                            title: "conversationSettings.clearConversation"
-                        ) { showClearConfirm = true }
-
-                        dividerLine
-
-                        destructiveRow(
-                            icon: "slash.circle",
-                            title: "conversationSettings.blockUser"
-                        ) { showBlockConfirm = true }
-                    }
-                }
+                destructiveRow(
+                    icon: "trash",
+                    title: "conversationSettings.clearConversation"
+                ) { showClearConfirm = true }
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
@@ -2440,18 +2495,6 @@ struct ConversationChatPreferencesView: View {
             Button(NSLocalizedString("conversationSettings.clearConversation", comment: ""), role: .destructive) {
                 HapticManager.shared.mediumImpact()
                 viewModel.clearConversation()
-                dismiss()
-            }
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
-        }
-        .confirmationDialog(
-            NSLocalizedString("conversationSettings.blockUser", comment: ""),
-            isPresented: $showBlockConfirm,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("conversationSettings.blockUser", comment: ""), role: .destructive) {
-                HapticManager.shared.mediumImpact()
-                viewModel.blockUser()
                 dismiss()
             }
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
@@ -2513,16 +2556,4 @@ struct ConversationChatPreferencesView: View {
         }
     }
 
-    @ViewBuilder
-    private func glassCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background {
-                Color.clear.momentsChromeGlass(
-                    in: RoundedRectangle(cornerRadius: 20, style: .continuous),
-                    interactive: false
-                )
-            }
-    }
 }
