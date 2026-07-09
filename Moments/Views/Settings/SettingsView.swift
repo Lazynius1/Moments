@@ -312,7 +312,7 @@ struct SettingsView: View {
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
         }
-        .transition(.opacity.combined(with: .scale))
+        .transition(MotionPolicy.Transition.enterPop)
     }
 }
 

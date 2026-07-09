@@ -161,7 +161,7 @@ struct SavedMomentsView: View {
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(isSelectionMode ? NSLocalizedString("savedMoments.cancel", comment: "Cancel") : NSLocalizedString("savedMoments.select", comment: "Select")) {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                         isSelectionMode.toggle()
                         if !isSelectionMode {
                             selectedMomentIds.removeAll()
@@ -975,7 +975,7 @@ struct ModernSavedMomentsDetailView: View {
                                             peekOverlayProgress = 1
                                         }
                                     } else {
-                                        withAnimation(.easeIn(duration: 0.16)) {
+                                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                                             peekOverlayProgress = 0
                                         }
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
@@ -1234,7 +1234,7 @@ struct ModernSavedDetailMomentCard: View {
                         .padding(.top, 14)
                         .padding(.leading, 14)
                         .opacity(isImmersive ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
 
                     if mediaItems.count > 1 {
                         MomentCarouselPageIndicators(
@@ -1275,7 +1275,7 @@ struct ModernSavedDetailMomentCard: View {
                 .environmentObject(firestoreService)
                 .padding(.bottom, 6)
                 .opacity(isImmersive ? 0 : 1)
-                .animation(.easeInOut(duration: 0.3), value: isImmersive)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
             }
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.10), radius: 18, x: 0, y: 12)
 
@@ -1347,7 +1347,7 @@ struct ModernSavedDetailMomentCard: View {
 
                 DispatchQueue.main.async {
                     let newCount = snapshot?.documents.count ?? 0
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                         self.commentCount = newCount
                     }
                 }

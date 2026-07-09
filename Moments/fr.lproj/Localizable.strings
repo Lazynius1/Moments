@@ -1546,6 +1546,11 @@
 "conversationSettings.mediaSave.title" = "Enregistrer le média";
 "conversationSettings.mediaSave.success" = "Ce média a été enregistré dans votre bibliothèque.";
 "conversationSettings.mediaSave.error" = "Ce média n’a pas pu être enregistré.";
+"conversationSettings.messages.sent" = "envoyés";
+"conversationSettings.messages.received" = "reçus";
+"conversationSettings.vanish.title" = "Messages éphémères";
+"conversationSettings.vanish.no" = "Non";
+"conversationSettings.vanish.description" = "Choisissez combien de temps vos messages et réactions restent visibles dans le chat. Vous pouvez faire en sorte qu'ils disparaissent juste après avoir été vus et la fermeture de la conversation, ou les conserver jusqu'à 7 jours. Pour votre confidentialité, une notification sera envoyée si quelqu'un effectue une capture ou enregistre l'écran.";
 
 /* Video Editor */
 "videoEditor.error.title" = "Erreur";

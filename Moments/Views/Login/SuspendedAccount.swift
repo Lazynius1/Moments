@@ -60,7 +60,7 @@ struct SuspendedAccountView: View {
                 .presentationDragIndicator(.visible)
         }
         .onAppear {
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
                 isVisible = true
             }
             withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
@@ -103,7 +103,7 @@ struct EnhancedSuspendedHeader: View {
         .padding(.horizontal, 28)
         .scaleEffect(isVisible ? 1.0 : 0.92)
         .opacity(isVisible ? 1.0 : 0.0)
-        .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding, value: isVisible), value: isVisible)
     }
 }
 
@@ -132,9 +132,9 @@ struct EnhancedSuspensionInfo: View {
                 )
                 
                 EnhancedCountdownTimer(expiresAt: expiresAt)
-                    .offset(y: isVisible ? 0 : 30)
+                    .offset(y: isVisible ? 0 : 12)
                     .opacity(isVisible ? 1.0 : 0.0)
-                    .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.6), value: isVisible)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.6), value: isVisible), value: isVisible)
             } else {
                 SuspendedInfoRow(
                     icon: "infinity",
@@ -300,9 +300,9 @@ struct EnhancedSuspendedActionButtons: View {
             )
         }
         .padding(.horizontal, 20)
-        .offset(y: isVisible ? 0 : 30)
+        .offset(y: isVisible ? 0 : 12)
         .opacity(isVisible ? 1.0 : 0.0)
-        .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.8), value: isVisible)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.8), value: isVisible), value: isVisible)
     }
 }
 
@@ -328,18 +328,18 @@ struct EnhancedContactSupportView: View {
                         EnhancedContactSupportHeader()
                             .scaleEffect(isVisible ? 1.0 : 0.8)
                             .opacity(isVisible ? 1.0 : 0.0)
-                            .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+                            .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding, value: isVisible), value: isVisible)
                         
                         VStack(spacing: 24) {
                             EnhancedEmailInputField(email: $email)
-                                .offset(y: isVisible ? 0 : 30)
+                                .offset(y: isVisible ? 0 : 12)
                                 .opacity(isVisible ? 1.0 : 0.0)
-                                .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
+                                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.2), value: isVisible), value: isVisible)
                             
                             EnhancedMessageInputField(message: $message)
-                                .offset(y: isVisible ? 0 : 30)
+                                .offset(y: isVisible ? 0 : 12)
                                 .opacity(isVisible ? 1.0 : 0.0)
-                                .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.4), value: isVisible)
+                                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.4), value: isVisible), value: isVisible)
                             
                             EnhancedSendSupportButton(
                                 isLoading: $isLoading,
@@ -347,9 +347,9 @@ struct EnhancedContactSupportView: View {
                                 messageIsEmpty: message.isEmpty,
                                 action: sendMessage
                             )
-                            .offset(y: isVisible ? 0 : 30)
+                            .offset(y: isVisible ? 0 : 12)
                             .opacity(isVisible ? 1.0 : 0.0)
-                            .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.6), value: isVisible)
+                            .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.6), value: isVisible), value: isVisible)
                         }
                         .padding(30)
                         .background(

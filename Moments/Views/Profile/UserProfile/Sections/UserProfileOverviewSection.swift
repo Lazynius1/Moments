@@ -178,7 +178,7 @@ struct UserModernStatsSection: View {
             }
         }
         .padding(.horizontal, embeddedStyle ? 2 : 0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: socialConnectionsRoute)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: socialConnectionsRoute), value: socialConnectionsRoute)
     }
 }
 
@@ -209,11 +209,11 @@ struct UserExpandableBioView: View {
                         })
                         .hidden()
                 )
-                .animation(.easeInOut(duration: 0.3), value: isExpanded)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isExpanded), value: isExpanded)
 
             if needsExpansion {
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                         isExpanded.toggle()
                     }
                 }) {

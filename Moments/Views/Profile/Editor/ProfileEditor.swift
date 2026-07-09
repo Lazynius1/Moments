@@ -1725,7 +1725,7 @@ private struct InterestPickerRow: View {
                     )
             )
             .scaleEffect(isSelected ? 1.02 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isSelected), value: isSelected)
         }
         .disabled(isDisabled)
         .opacity(isDisabled ? 0.5 : 1.0)

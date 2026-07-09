@@ -200,13 +200,13 @@ struct EnhancedCameraPickerView: View {
                         HStack(alignment: .center, spacing: 40) {
                             galleryButton
                                 .rotationEffect(.degrees(rotationAngle))
-                                .animation(.spring(), value: rotationAngle)
+                                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: rotationAngle), value: rotationAngle)
 
                             modeSelector
 
                             topCircleButton(icon: cameraPosition.icon, action: switchCamera)
                                 .rotationEffect(.degrees(rotationAngle))
-                                .animation(.spring(), value: rotationAngle)
+                                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: rotationAngle), value: rotationAngle)
                         }
                     }
                     .padding(.horizontal, 24)
@@ -459,7 +459,7 @@ struct EnhancedCameraPickerView: View {
     }
 
     private func switchCamera() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             cameraPosition = cameraPosition == .back ? .front : .back
         }
     }
@@ -697,8 +697,8 @@ struct EnhancedCaptureButton: View {
             }
         }
         .buttonStyle(CameraButtonStyle())
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isRecording)
-        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isPhotoCaptureFeedback)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isRecording), value: isRecording)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isPhotoCaptureFeedback), value: isPhotoCaptureFeedback)
         .onChange(of: isRecording) { _, recording in
             if recording {
                 startRecordingTimer()
@@ -1832,6 +1832,6 @@ struct CameraButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
             .opacity(configuration.isPressed ? 0.9 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: configuration.isPressed), value: configuration.isPressed)
     }
 }

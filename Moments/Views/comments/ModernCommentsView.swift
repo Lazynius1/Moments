@@ -37,8 +37,7 @@ struct ModernCommentsView: View {
     @State private var commentToDelete: Comment? = nil
     @State private var expandedComments: Set<String> = []
     @State private var sortOption: CommentSortOption = .newest
-    @State private var showSpecificUserStories = false
-    @State private var selectedStoryUserId: String = ""
+    @State private var storyRoute: StoryUserPresentationRoute?
     @State private var isLoading = true
     @State private var commentsListener: ListenerRegistration?
     @State private var muteSettingsListener: ListenerRegistration?
@@ -195,15 +194,10 @@ struct ModernCommentsView: View {
         } message: {
                             Text("modernComments.delete.message")
         }
-        .fullScreenCover(isPresented: $showSpecificUserStories) {
-            StoriesView(
-                startWithUserId: Binding(
-                    get: { selectedStoryUserId },
-                    set: { selectedStoryUserId = $0 }
-                )
-            )
-            .environmentObject(firestoreService)
-            .ignoresSafeArea(.keyboard)
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.userId))
+                .environmentObject(firestoreService)
+                .ignoresSafeArea(.keyboard)
         }
     }
     
@@ -335,8 +329,7 @@ struct ModernCommentsView: View {
                                     return
                                 }
                                 if hasStory {
-                                    selectedStoryUserId = userId
-                                    showSpecificUserStories = true
+                                    storyRoute = StoryUserPresentationRoute(userId: userId)
                                 } else {
                                     LegacyNavigationBridge.profile(userId: userId)
                                 }
@@ -528,8 +521,7 @@ struct ModernCommentsView: View {
                                 baseStrokeWidth: 1,
                                 onTap: { hasStory in
                                     if hasStory {
-                                        selectedStoryUserId = currentUserId
-                                        showSpecificUserStories = true
+                                        storyRoute = StoryUserPresentationRoute(userId: currentUserId)
                                     } else {
                                         LegacyNavigationBridge.profile(userId: currentUserId)
                                     }
@@ -597,7 +589,7 @@ struct ModernCommentsView: View {
                         }
                         .disabled(newComment.isEmpty || isLoading)
                         .scaleEffect(newComment.isEmpty || isLoading ? 0.95 : 1.0)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: newComment.isEmpty)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: newComment.isEmpty), value: newComment.isEmpty)
                     }
                 }
             }
@@ -1499,7 +1491,7 @@ struct EnhancedModernCommentRow: View {
             }
         }
         // Animación de entrada "Pop"
-        .transition(.scale.combined(with: .opacity))
+        .transition(MotionPolicy.Transition.enterPop)
     }
     
     private var canEdit: Bool {
@@ -1884,7 +1876,7 @@ struct CommentActionButton: View {
             .clipShape(Capsule())
         }
         .scaleEffect(isActive ? 1.05 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isActive), value: isActive)
     }
 }
 

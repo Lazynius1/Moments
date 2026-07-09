@@ -105,8 +105,7 @@ struct StoryViewerScreen: View {
     @State private var storyStickerCache: [String: [StickerItem]] = [:]
     @State private var interactionCaptureRect: CGRect = .zero
     @State private var lastPreparedStoryId: String? = nil
-    @State private var showUserProfile = false
-    @State private var selectedUserId: String = ""
+    @State private var profileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
     @State private var floatingHearts: [FloatingHeart] = [] // ✅ FLOATING HEARTS ANIMATION
     @State private var smileyButtonCenter: CGPoint? = nil // ✅ Smiley button position for burst origin
@@ -455,7 +454,7 @@ struct StoryViewerScreen: View {
             // MARK: - 7. Success message overlay
             if showSuccessMessage {
                 GlassmorphicSuccessMessage(text: successMessageText)
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(MotionPolicy.Transition.enterPop)
                     .zIndex(10)
             }
 
@@ -704,20 +703,17 @@ struct StoryViewerScreen: View {
             overlayBoundView
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUserProfileFromStory"))) { notification in
                     if let userId = notification.object as? String, !userId.isEmpty {
-                        selectedUserId = userId
-                        showUserProfile = true
+                        profileRoute = FeedProfileSheetRoute(userId: userId)
                         pauseStory()
                     }
                 }
-                .fullScreenCover(isPresented: $showUserProfile, onDismiss: {
+                .fullScreenCover(item: $profileRoute, onDismiss: {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         resumeStory()
                     }
-                }) {
-                    if !selectedUserId.isEmpty {
-                        UserProfileView(userId: selectedUserId)
-                            .userProfileZoomDestination(userId: selectedUserId, namespace: profileZoomNamespace)
-                    }
+                }) { route in
+                    UserProfileView(userId: route.userId)
+                        .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
                 }
                 .sheet(isPresented: $showChainView, onDismiss: {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -738,8 +734,8 @@ struct StoryViewerScreen: View {
                         pauseStory()
                     }
                 }
-                .onChange(of: showUserProfile) { oldValue, newValue in
-                    if !newValue && oldValue {
+                .onChange(of: profileRoute) { oldValue, newValue in
+                    if newValue == nil && oldValue != nil {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             resumeStory()
                         }
@@ -820,7 +816,7 @@ struct StoryViewerScreen: View {
             HStack(alignment: .top, spacing: 8) {
                 if story.chainId != nil, story.chainTitle != nil, story.chainPosition != nil {
                     Button(action: {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.row) {
                             showChainActions.toggle()
                         }
                     }) {
@@ -1156,7 +1152,7 @@ struct StoryViewerScreen: View {
                                     systemImage: showReactions ? "face.smiling.fill" : "face.smiling",
                                     accessibilityLabel: NSLocalizedString("stories.reactions", comment: "")
                                 ) {
-                                    withAnimation(.spring()) {
+                                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                         showReactions.toggle()
                                     }
                                 }
@@ -1209,17 +1205,17 @@ struct StoryViewerScreen: View {
                                 ) {
                                     sendMessage()
                                 }
-                                .transition(.scale.combined(with: .opacity))
+                                .transition(MotionPolicy.Transition.enterPop)
                             }
 
                             if isEveryoneStoryAudience && messageText.isEmpty {
                                 storyViewerShareActionButton
-                                    .transition(.scale.combined(with: .opacity))
+                                    .transition(MotionPolicy.Transition.enterPop)
                             }
                         }
                         .animation(.easeInOut(duration: 0.2), value: messageText.isEmpty)
                     }
-                    .animation(.easeInOut(duration: 0.3), value: keyboardHeight)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: keyboardHeight), value: keyboardHeight)
                 } else {
                     StoryNoInteractionsNotice()
                 }
@@ -1430,7 +1426,7 @@ struct StoryViewerScreen: View {
             queue: .main
         ) { notification in
             if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                     keyboardHeight = keyboardFrame.height
                     isKeyboardVisible = true
                 }
@@ -1442,7 +1438,7 @@ struct StoryViewerScreen: View {
             object: nil,
             queue: .main
         ) { _ in
-            withAnimation(.easeInOut(duration: 0.3)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 keyboardHeight = 0
                 isKeyboardVisible = false
             }
@@ -1504,7 +1500,7 @@ struct StoryViewerScreen: View {
             || showViewers
             || showingReportSheet
             || showingBlockConfirmation
-            || showUserProfile
+            || profileRoute != nil
             || showChainView
             || showReactions
             || showEphemeralPicker
@@ -1802,7 +1798,7 @@ struct StoryViewerScreen: View {
             reaction: reaction
         )
 
-        withAnimation(.spring()) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             showReactions = false
         }
 
@@ -1933,12 +1929,12 @@ struct StoryViewerScreen: View {
 
     private func showSuccessAnimation(_ message: String) {
         successMessageText = message
-        withAnimation(.spring()) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             showSuccessMessage = true
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation(.spring()) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                 showSuccessMessage = false
             }
         }
@@ -1954,7 +1950,7 @@ struct StoryViewerScreen: View {
                 || self.showViewers
                 || self.showingReportSheet
                 || self.showingBlockConfirmation
-                || self.showUserProfile
+                || self.profileRoute != nil
                 || self.showChainView
                 || self.showReactions
                 || self.showEphemeralPicker
@@ -2139,7 +2135,7 @@ struct StoryViewerScreen: View {
 
     private func resumeStory() {
         // ✅ REFUERZO SEGURO: No reanudar si cualquier overlay está visible o si hay teclado/drag
-        let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showDeleteConfirmation || showUnfollowConfirmation || showMuteConfirmation
+        let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || profileRoute != nil || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showDeleteConfirmation || showUnfollowConfirmation || showMuteConfirmation
 
         let canResume = !isKeyboardVisible && !isDragging && !isMenuInteractionActive && !isAnyOverlayVisible && isDeckPageActive
         playbackCoordinator.resumeStory(story, canResume: canResume, onImageComplete: onNext)

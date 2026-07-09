@@ -173,8 +173,7 @@ struct ModernContextMenuOverlay: View {
     @State private var selectedLayerDiscoveriesCursor: DocumentSnapshot?
     @State private var isLoadingSelectedLayerDiscoveries = false
     @State private var canLoadMoreSelectedLayerDiscoveries = false
-    @State private var showSpecificUserStories = false
-    @State private var selectedStoryUserId: String = ""
+    @State private var storyRoute: StoryUserPresentationRoute?
 
     let onEdit: () -> Void
     let onDelete: () -> Void
@@ -345,7 +344,7 @@ struct ModernContextMenuOverlay: View {
                         
                     case .preparingStory:
                         PreparingStoryOverlay(errorMessage: errorMessage, onCancel: {
-                            withAnimation(.spring()) {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                 viewState = .sharing
                             }
                         })
@@ -403,15 +402,10 @@ struct ModernContextMenuOverlay: View {
                 .id(sticker.id)
             }
         }
-        .fullScreenCover(isPresented: $showSpecificUserStories) {
-            StoriesView(
-                startWithUserId: Binding(
-                    get: { selectedStoryUserId },
-                    set: { selectedStoryUserId = $0 }
-                )
-            )
-            .environmentObject(FirestoreService.shared)
-            .ignoresSafeArea(.keyboard)
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.userId))
+                .environmentObject(FirestoreService.shared)
+                .ignoresSafeArea(.keyboard)
         }
     }
     
@@ -428,7 +422,7 @@ struct ModernContextMenuOverlay: View {
         case .messaging:
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { viewState = .sharing }
         case .preparingStory:
-            withAnimation(.spring()) { viewState = .sharing }
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) { viewState = .sharing }
         case .reporting:
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { viewState = .main }
         }
@@ -503,8 +497,7 @@ struct ModernContextMenuOverlay: View {
     private func openDiscoveryAvatarTarget(userId: String, hasStory: Bool) {
         guard !userId.isEmpty else { return }
         if hasStory {
-            selectedStoryUserId = userId
-            showSpecificUserStories = true
+            storyRoute = StoryUserPresentationRoute(userId: userId)
         } else {
             openDiscoveryProfile(userId: userId)
         }

@@ -512,7 +512,7 @@ struct ChatTintedGlassCircleButton: View {
                 .modifier(ChatTintedGlassCircleModifier(tint: tint))
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressIcon)
     }
 }
 
@@ -791,14 +791,14 @@ struct ChatScrollDownButton: View {
             }
         }
         .buttonStyle(.plain)
-        .scaleEffect(didAppear ? 1 : 0.2)
+        .scaleEffect(didAppear ? 1 : 0.9)
         .opacity(didAppear ? 1 : 0)
         .onAppear {
             guard !reduceMotion else {
                 didAppear = true
                 return
             }
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
                 didAppear = true
             }
         }

@@ -481,7 +481,7 @@ struct CurrentRequestSection: View {
                             .fill(.blue)
                             .frame(width: geometry.size.width * request.progress, height: 6)
                             .cornerRadius(3)
-                            .animation(.easeInOut(duration: 0.3), value: request.progress)
+                            .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: request.progress), value: request.progress)
                     }
                 }
                 .frame(height: 6)

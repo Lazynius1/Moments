@@ -322,7 +322,7 @@ struct ChatCameraView: View {
     }
 
     private func switchCamera() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             cameraPosition = cameraPosition == .back ? .front : .back
             zoomLevel = 1.0
             lastZoomLevel = 1.0

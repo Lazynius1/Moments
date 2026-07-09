@@ -373,7 +373,7 @@ struct ModernPostCardView: View {
             // Header del post con círculo de historia
             postHeaderView
                 .opacity(isImmersive ? 0 : 1)
-                .animation(.easeInOut(duration: 0.3), value: isImmersive)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
 
             // Contenido principal
             ZStack(alignment: .bottom) {
@@ -433,7 +433,7 @@ struct ModernPostCardView: View {
                             Spacer()
                         }
                         .opacity(isImmersive ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
                     }
 
                     let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
@@ -444,7 +444,7 @@ struct ModernPostCardView: View {
                             Spacer()
                             HStack {
                                 Button(action: {
-                                    withAnimation(.spring()) {
+                                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                         showTags.toggle()
                                     }
                                 }) {
@@ -468,7 +468,7 @@ struct ModernPostCardView: View {
                         }
                         .zIndex(110)
                         .opacity(isImmersive ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
                     }
 
                     // ✅ NUEVO: Indicador de aspect ratio (solo para debug si está habilitado)
@@ -513,7 +513,7 @@ struct ModernPostCardView: View {
                 onHashtagTap: onHashtagTap
             )
             .opacity(isImmersive ? 0 : 1)
-            .animation(.easeInOut(duration: 0.3), value: isImmersive)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
         }
         .feedMomentVisibility(momentId: GlobalVideoManager.profileVideoConsumerId(for: moment))
         .onAppear {
@@ -894,7 +894,7 @@ struct ModernPostCardView: View {
 
                         DispatchQueue.main.async {
                             let newCount = snapshot?.documents.count ?? 0
-                            withAnimation(.easeInOut(duration: 0.3)) {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                                 self.commentCount = newCount
                             }
                         }
@@ -936,7 +936,7 @@ struct ModernPostCardView: View {
             }
         }()
 
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             self.followButtonState = optimisticState
         }
         FollowStateStore.shared.setState(optimisticState, for: moment.authorId)
@@ -949,7 +949,7 @@ struct ModernPostCardView: View {
                     self.isFollowLoading = false
                     if error != nil {
                         // Revert on error
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             self.followButtonState = previousState
                         }
                         FollowStateStore.shared.setState(previousState, for: self.moment.authorId)
@@ -961,7 +961,7 @@ struct ModernPostCardView: View {
                 DispatchQueue.main.async {
                     self.isFollowLoading = false
                     if error != nil {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             self.followButtonState = previousState
                         }
                         FollowStateStore.shared.setState(previousState, for: self.moment.authorId)
@@ -974,7 +974,7 @@ struct ModernPostCardView: View {
                     self.isFollowLoading = false
                     if error != nil {
                         // Revert on error
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             self.followButtonState = previousState
                         }
                         FollowStateStore.shared.setState(previousState, for: self.moment.authorId)
@@ -989,7 +989,7 @@ struct ModernPostCardView: View {
               let momentId = moment.id else { return }
 
         // ✅ OPTIMISTIC UPDATE
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             self.isSaved.toggle()
         }
 
@@ -1000,7 +1000,7 @@ struct ModernPostCardView: View {
                 self.isSaveLoading = false
                 if error != nil {
                     // Revert on error
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                         self.isSaved.toggle()
                     }
                 }
@@ -1177,7 +1177,7 @@ struct MediaItemView: View {
                     .simultaneousGesture( // ✅ USAR simultaneousGesture para mayor fiabilidad en TabView
                         TapGesture().onEnded {
                             if let tags = item.tags, !tags.isEmpty {
-                                withAnimation(.spring()) {
+                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                     showTags.toggle()
                                 }
                             }
@@ -1193,7 +1193,7 @@ struct MediaItemView: View {
                         allowsVideoPlayback: allowsVideoPlayback,
                         onTap: {
                             if let tags = item.tags, !tags.isEmpty {
-                                withAnimation(.spring()) {
+                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                     showTags.toggle()
                                 }
                             } else {
@@ -1230,7 +1230,7 @@ struct MediaItemView: View {
             }
         }
         .fullScreenCover(isPresented: $showReelsViewer, onDismiss: {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 isImmersive = false
             }
             GlobalVideoManager.shared.completeReelsFeedHandoff(for: currentMoment)
@@ -1265,7 +1265,7 @@ struct MediaItemView: View {
         // (audio/decoders duplicados) mientras Reels está en primer plano.
         GlobalVideoManager.shared.markReelsFeedHandoff(for: currentMoment)
         GlobalVideoManager.shared.pauseAllVideos()
-        withAnimation(.easeInOut(duration: 0.3)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             isImmersive = true
         }
         showReelsViewer = true
@@ -1485,7 +1485,7 @@ struct CroppedVideoPlayer: View {
                     Spacer()
                 }
                 .opacity(isImmersive ? 0 : 1)
-                .animation(.easeInOut(duration: 0.3), value: isImmersive)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
             } else if isReelsFormat {
                 // ✅ REELS en feed: player + poster hasta readyToPlay
                 ZStack {
@@ -1567,7 +1567,7 @@ struct CroppedVideoPlayer: View {
                     }
                     .zIndex(100)
                     .opacity(isImmersive ? 0 : 1)
-                    .animation(.easeInOut(duration: 0.3), value: isImmersive)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
                 }
             } else {
                 // ✅ VIDEOS HORIZONTALES: Mantener diseño actual
@@ -1611,7 +1611,7 @@ struct CroppedVideoPlayer: View {
                         }
                     }
                     .opacity(isImmersive ? 0 : 1)
-                    .animation(.easeInOut(duration: 0.3), value: isImmersive)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
                 }
             }
         }
@@ -1684,7 +1684,7 @@ struct StoryProgressCircle: View {
                     style: StrokeStyle(lineWidth: 3, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
-                .animation(.easeInOut(duration: 0.3), value: progress)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: progress), value: progress)
         }
     }
 }
@@ -1723,7 +1723,7 @@ struct ExpandableContentView: View {
 
             if needsExpansion {
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                         isExpanded.toggle()
                     }
                 }) {
@@ -1745,7 +1745,7 @@ struct ExpandableContentView: View {
                     .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
                 }
                 .scaleEffect(isExpanded ? 1.0 : 0.95)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isExpanded)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isExpanded), value: isExpanded)
             }
         }
         .padding(.horizontal, 4)
@@ -1830,7 +1830,7 @@ private struct CarouselImmersivePeekModifier: ViewModifier {
 
     private func endImmersive() {
         guard isImmersive else { return }
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
             isImmersive = false
             onPeek?("", 1.0, false)
         }

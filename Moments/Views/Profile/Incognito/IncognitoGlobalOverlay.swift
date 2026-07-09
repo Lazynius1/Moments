@@ -46,7 +46,7 @@ struct IncognitoGlobalOverlay: View {
                 }
             }
         }
-        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: isExpanded)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isExpanded), value: isExpanded)
     }
 
     private func edgeAura(in proxy: GeometryProxy) -> some View {
@@ -93,7 +93,7 @@ struct IncognitoGlobalOverlay: View {
     private var compactPill: some View {
         Button {
             HapticManager.shared.selection()
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                 isExpanded.toggle()
             }
         } label: {

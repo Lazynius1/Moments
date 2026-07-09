@@ -221,7 +221,7 @@ struct ModernExploreDetailHeader: View {
             }
         }()
 
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             followButtonState = optimisticState
         }
         FollowStateStore.shared.setState(optimisticState, for: moment.authorId)

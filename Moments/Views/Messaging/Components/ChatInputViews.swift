@@ -30,7 +30,7 @@ struct GlassmorphicInputBar: View {
     }
 
     private func toggleAttachmentMenu() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             activeAttachmentSheet = isMenuOpen ? nil : .menu
         }
     }
@@ -111,12 +111,12 @@ struct GlassmorphicInputBar: View {
                         .background(adaptiveColors.userAccentColor)
                         .clipShape(Circle())
                 }
-                .transition(.scale.combined(with: .opacity))
+                .transition(MotionPolicy.Transition.enterPop)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isVanishModeActive)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isVanishModeActive), value: isVanishModeActive)
     }
 }
 

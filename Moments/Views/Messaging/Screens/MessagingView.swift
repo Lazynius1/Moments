@@ -163,7 +163,7 @@ struct MessagingView: View {
 
     private func applyMessagingChrome<V: View>(to content: V) -> some View {
         content
-            .animation(.spring(response: 0.32, dampingFraction: 0.84), value: actionToastMessage)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: actionToastMessage), value: actionToastMessage)
             .coordinateSpace(name: "messagingRoot")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { messagingToolbarContent }
@@ -638,7 +638,7 @@ struct MessagingView: View {
                     .foregroundColor(adaptiveColors.primary)
                     .focused($isSearchFocused)
                     .onChange(of: searchText) { _, newValue in
-                        withAnimation(.easeInOut(duration: 0.3)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                             isSearching = !newValue.isEmpty
                         }
                         if !newValue.isEmpty {
@@ -677,7 +677,7 @@ struct MessagingView: View {
         }
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: isSearchFocused)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isSearchFocused), value: isSearchFocused)
     }
 
     @ViewBuilder
@@ -920,7 +920,7 @@ struct MessagingView: View {
 
     private func showActionToast(_ message: String) {
         actionToastDismissTask?.cancel()
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
             actionToastMessage = message
         }
         actionToastDismissTask = Task { @MainActor in
@@ -1103,7 +1103,7 @@ struct OutgoingSentRequestRow: View {
             .opacity(0.78)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
         .disabled(receiver == nil)
         .onAppear(perform: loadReceiverIfNeeded)
     }
@@ -1147,7 +1147,7 @@ struct ConversationPressableRow: View {
                     onLongPress()
                 },
                 onPressingChanged: { pressing in
-                    withAnimation(.spring(response: 0.22, dampingFraction: 0.7)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
                         isPressing = pressing
                     }
                 }
@@ -1168,8 +1168,8 @@ struct ConversationPressableRow: View {
             isSelected: isMenuSelected,
             colorScheme: colorScheme
         ))
-        .scaleEffect((isPressing || isMenuSelected) ? 0.92 : 1.0)
-        .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isPressing || isMenuSelected)
+        .scaleEffect((isPressing || isMenuSelected) ? 0.96 : 1.0)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isPressing || isMenuSelected), value: isPressing || isMenuSelected)
     }
 }
 

@@ -809,7 +809,7 @@ struct StickerEmojiSliderCardView: View {
                 .font(.system(size: 28 + (clampedValue * 14)))
                 .frame(width: thumbSize, height: thumbSize)
                 .scaleEffect(1.0 + clampedValue * 0.15)
-                .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.6), value: clampedValue)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: clampedValue), value: clampedValue)
                 .allowsHitTesting(false)
                 .position(x: thumbCenter.x, y: thumbCenter.y)
         }

@@ -81,11 +81,11 @@ struct ExpandableBioView: View {
                         })
                         .hidden()
                 )
-                .animation(.easeInOut(duration: 0.3), value: isExpanded)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isExpanded), value: isExpanded)
 
             if needsExpansion {
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                         isExpanded.toggle()
                     }
                 }) {

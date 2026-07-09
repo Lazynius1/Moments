@@ -67,7 +67,7 @@ struct InteractiveQuizSticker: View {
 
         let correct = index == correctIndex
 
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             selectedIndex = index
         }
 

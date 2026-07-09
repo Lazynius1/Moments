@@ -38,8 +38,8 @@ extension GlassmorphicChatView {
             chatListController.scrollToRow(id: rowId, at: .centeredVertically, animated: !reduceMotion)
         }
 
-        let insertAnimation: Animation? = reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.7)
-        let removeAnimation: Animation? = reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.82)
+        let insertAnimation: Animation? = reduceMotion ? nil : MotionPolicy.Spring.press
+        let removeAnimation: Animation? = reduceMotion ? nil : MotionPolicy.Spring.row
         withAnimation(insertAnimation) {
             flashingMessageIds.formUnion(messageIds)
         }

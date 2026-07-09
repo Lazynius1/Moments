@@ -150,7 +150,7 @@ private struct AuroraGlassButton: View {
                 .allowsHitTesting(false)
         }
         .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isPressed), value: isPressed)
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
             isPressed = pressing
         }, perform: {})
@@ -184,7 +184,7 @@ struct WelcomeContent: View {
                         .authScreenContentWidth()
                         .scaleEffect(isVisible ? 1.0 : 0.85)
                         .opacity(isVisible ? 1.0 : 0.0)
-                        .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding, value: isVisible), value: isVisible)
 
                     Spacer(minLength: 28)
 
@@ -213,23 +213,23 @@ struct WelcomeContent: View {
                         .padding(.top, 2)
                     }
                     .authScreenContentWidth()
-                    .offset(y: isVisible ? 0 : 30)
+                    .offset(y: isVisible ? 0 : 12)
                     .opacity(isVisible ? 1.0 : 0.0)
-                    .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.2), value: isVisible), value: isVisible)
 
                     Spacer(minLength: 24)
 
                     LoginDisclaimerView()
                         .authScreenContentWidth()
                         .opacity(isVisible ? 1.0 : 0.0)
-                        .animation(.easeIn(duration: 0.6).delay(0.5), value: isVisible)
+                        .animation(.easeOut(duration: 0.35).delay(0.5), value: isVisible)
                         .padding(.bottom, 18)
                 }
                 .frame(minHeight: geometry.size.height)
             }
         }
         .onAppear {
-            withAnimation {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
                 isVisible = true
             }
         }
@@ -271,7 +271,7 @@ struct LoginFormScreen: View {
                                     .authScreenContentWidth()
                                     .scaleEffect(isVisible ? 1.0 : 0.85)
                                     .opacity(isVisible ? 1.0 : 0.0)
-                                    .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+                                    .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding, value: isVisible), value: isVisible)
 
                                 Spacer()
                                     .frame(height: 12)
@@ -287,9 +287,9 @@ struct LoginFormScreen: View {
                                     loginAction: login
                                 )
                                 .authScreenContentWidth()
-                                .offset(y: isVisible ? 0 : 30)
+                                .offset(y: isVisible ? 0 : 12)
                                 .opacity(isVisible ? 1.0 : 0.0)
-                                .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.15), value: isVisible)
+                                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.15), value: isVisible), value: isVisible)
                             }
 
                             Spacer(minLength: 24)
@@ -302,7 +302,7 @@ struct LoginFormScreen: View {
         .navigationBarHidden(true)
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .onAppear {
-            withAnimation {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
                 isVisible = true
             }
         }
@@ -987,16 +987,16 @@ struct EnhancedAccountVerificationView: View {
                             .lineSpacing(4)
                     }
                 }
-                .offset(y: isVisible ? 0 : 30)
+                .offset(y: isVisible ? 0 : 12)
                 .opacity(isVisible ? 1.0 : 0.0)
-                .animation(.spring(response: 0.9, dampingFraction: 0.72), value: isVisible)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding, value: isVisible), value: isVisible)
 
                 Spacer()
             }
             .padding(.horizontal, 32)
         }
         .onAppear {
-            withAnimation {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
                 isVisible = true
             }
         }
@@ -1064,9 +1064,9 @@ struct EnhancedResetPasswordView: View {
                         }
                     }
                     .disabled(isLoading)
-                    .offset(y: isVisible ? 0 : 30)
+                    .offset(y: isVisible ? 0 : 12)
                     .opacity(isVisible ? 1 : 0)
-                    .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.2), value: isVisible), value: isVisible)
                 }
             }
             .padding(.horizontal, 24)
@@ -1076,7 +1076,7 @@ struct EnhancedResetPasswordView: View {
         }
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .onAppear {
-            withAnimation {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
                 isVisible = true
             }
         }

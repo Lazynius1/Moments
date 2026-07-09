@@ -464,7 +464,7 @@ struct AudienceSelectionView: View {
         
         // Auto-dismiss después de 2 segundos
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 showingSaveFeedback = false
             }
         }
@@ -711,7 +711,7 @@ struct CreateCustomListView: View {
                                                     .padding(2)
                                             )
                                             .scaleEffect(selectedColor == color ? 1.15 : 1.0)
-                                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedColor)
+                                            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: selectedColor), value: selectedColor)
                                             .onTapGesture {
                                                 selectedColor = color
                                                 hapticFeedback()
@@ -742,7 +742,7 @@ struct CreateCustomListView: View {
                                                 .stroke(selectedIcon == icon ? Color(hex: selectedColor).opacity(0.3) : Color.clear, lineWidth: 2)
                                         )
                                         .scaleEffect(selectedIcon == icon ? 1.1 : 1.0)
-                                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedIcon)
+                                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: selectedIcon), value: selectedIcon)
                                         .onTapGesture {
                                             selectedIcon = icon
                                             hapticFeedback()
@@ -1294,7 +1294,7 @@ struct EditCustomListView: View {
                                         .padding(2)
                                 )
                                 .scaleEffect(selectedColor == color ? 1.15 : 1.0)
-                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedColor)
+                                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: selectedColor), value: selectedColor)
                                 .onTapGesture {
                                     selectedColor = color
                                     hapticFeedback()
@@ -1328,7 +1328,7 @@ struct EditCustomListView: View {
                                     .stroke(selectedIcon == icon ? Color(hex: selectedColor).opacity(0.3) : Color.clear, lineWidth: 2)
                             )
                             .scaleEffect(selectedIcon == icon ? 1.1 : 1.0)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedIcon)
+                            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: selectedIcon), value: selectedIcon)
                             .onTapGesture {
                                 selectedIcon = icon
                                 hapticFeedback()

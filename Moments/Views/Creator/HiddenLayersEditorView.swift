@@ -954,7 +954,7 @@ struct HiddenLayersEditorView: View {
                         }
                     }
                     .scaleEffect(audioRecorder.isRecording ? 1.06 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.72), value: audioRecorder.isRecording)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.row, value: audioRecorder.isRecording), value: audioRecorder.isRecording)
 
                     VStack(spacing: 4) {
                         Text((audioRecorder.isRecording ? audioRecorder.elapsedTime : 0).formattedDetailedDuration)
@@ -2038,7 +2038,7 @@ struct HiddenLayerRemotePolaroidPreview: View {
         .background(frameColor)
         .clipShape(RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous))
         .onAppear {
-            withAnimation(.easeIn(duration: 1.2).delay(0.2)) {
+            MotionPolicy.withOptionalAnimation(.easeOut(duration: 0.8).delay(0.2)) {
                 developingProgress = 1.0
             }
         }

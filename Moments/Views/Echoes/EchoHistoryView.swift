@@ -158,7 +158,7 @@ struct EchoHistoryView: View {
         }
         
         listener = echoService.fetchEchoHistory(userId: userId) { fetchedEchoes in
-            withAnimation(.easeInOut(duration: 0.3)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 self.echoes = fetchedEchoes
                 self.isLoading = false
             }

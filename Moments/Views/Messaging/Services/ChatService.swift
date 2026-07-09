@@ -1725,7 +1725,14 @@ class ChatService: ObservableObject {
     func listenToConversationForwardingPreferences(
         conversationId: String,
         replaceExisting: Bool = true,
-        onChange: @escaping (_ forwarding: [String: Bool], _ buzz: [String: Bool], _ vanishModeActive: Bool, _ vanishMessageTimer: VanishMessageTimer) -> Void
+        onChange: @escaping (
+            _ forwarding: [String: Bool],
+            _ buzz: [String: Bool],
+            _ vanishModeActive: Bool,
+            _ vanishMessageTimer: VanishMessageTimer,
+            _ vanishSettingsNoticeMessageId: String?,
+            _ vanishDisabledNoticeMessageId: String?
+        ) -> Void
     ) {
         let listenerKey = "conversation_prefs_\(conversationId)"
         if !replaceExisting, activeListeners[listenerKey] != nil {
@@ -1744,7 +1751,16 @@ class ChatService: ObservableObject {
                 let vanishMessageTimer = VanishMessageTimer(
                     storedValue: data["vanishMessageTimer"] as? String
                 )
-                onChange(forwarding, buzz, vanishModeActive, vanishMessageTimer)
+                let vanishSettingsNoticeMessageId = data["vanishSettingsNoticeMessageId"] as? String
+                let vanishDisabledNoticeMessageId = data["vanishDisabledNoticeMessageId"] as? String
+                onChange(
+                    forwarding,
+                    buzz,
+                    vanishModeActive,
+                    vanishMessageTimer,
+                    vanishSettingsNoticeMessageId,
+                    vanishDisabledNoticeMessageId
+                )
             }
 
         activeListeners[listenerKey] = listener

@@ -39,8 +39,7 @@ struct LocationMomentDetailView: View {
     @State private var showReportSheet = false
     @State private var editedContent = ""
     @State private var isDeleting = false
-    @State private var showSpecificUserStories = false
-    @State private var selectedStoryUserId: String = ""
+    @State private var storyRoute: StoryUserPresentationRoute?
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag = false
     @State private var feedViewModel = FeedViewModel()
@@ -50,8 +49,7 @@ struct LocationMomentDetailView: View {
     @State private var isPeeking = false
     @State private var peekIsProtected = false
     @Namespace private var profileZoomNamespace
-    @State private var showUserProfile = false
-    @State private var selectedUserId = ""
+    @State private var profileRoute: FeedProfileSheetRoute?
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -193,28 +191,17 @@ struct LocationMomentDetailView: View {
                 )
             }
         }
-        .fullScreenCover(isPresented: $showSpecificUserStories, onDismiss: {
-            selectedStoryUserId = ""
-        }) {
-            StoriesView(
-                startWithUserId: Binding(
-                    get: { selectedStoryUserId },
-                    set: { selectedStoryUserId = $0 }
-                )
-            )
-            .environmentObject(firestoreService)
-            .ignoresSafeArea(.keyboard)
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.userId))
+                .environmentObject(firestoreService)
+                .ignoresSafeArea(.keyboard)
         }
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
-        .fullScreenCover(isPresented: $showUserProfile, onDismiss: {
-            selectedUserId = ""
-        }) {
-            if !selectedUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                UserProfileView(userId: selectedUserId)
-                    .userProfileZoomDestination(userId: selectedUserId, namespace: profileZoomNamespace)
-            }
+        .fullScreenCover(item: $profileRoute) { route in
+            UserProfileView(userId: route.userId)
+                .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
         }
         .alert(NSLocalizedString("locationMomentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
             Button(NSLocalizedString("locationMomentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
@@ -311,8 +298,7 @@ struct LocationMomentDetailView: View {
         guard !normalizedUserId.isEmpty else { return }
 
         if hasStory {
-            selectedStoryUserId = normalizedUserId
-            showSpecificUserStories = true
+            storyRoute = StoryUserPresentationRoute(userId: normalizedUserId)
         } else {
             openUserProfile(userId: normalizedUserId)
         }
@@ -321,8 +307,7 @@ struct LocationMomentDetailView: View {
     private func openUserProfile(userId: String) {
         let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedUserId.isEmpty else { return }
-        selectedUserId = normalizedUserId
-        showUserProfile = true
+        profileRoute = FeedProfileSheetRoute(userId: normalizedUserId)
     }
 
     private func handlePeek(imageURL: String, ratio: CGFloat, isPressing: Bool, moment: Moment) {
@@ -897,7 +882,7 @@ struct LocationMomentCard: View {
                 VStack {
                     HStack {
                         Button(action: {
-                            withAnimation(.spring()) {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                 showTags.toggle()
                             }
                         }) {
@@ -923,7 +908,7 @@ struct LocationMomentCard: View {
                     Spacer()
                     HStack {
                         Button(action: {
-                            withAnimation(.spring()) {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                 showTags.toggle()
                             }
                         }) {
@@ -1256,7 +1241,7 @@ struct LocationActionButtons: View {
                 )
             }
             .scaleEffect(commentCount > 0 ? 1.05 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: commentCount)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: commentCount), value: commentCount)
 
             Button(action: onSave) {
                 HStack(spacing: 4) {
@@ -1300,7 +1285,7 @@ struct LocationActionButtons: View {
                 )
             }
             .scaleEffect(isSaved ? 1.05 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSaved)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isSaved), value: isSaved)
             .disabled(isSaveLoading)
 
             Spacer()
@@ -1442,7 +1427,7 @@ struct FollowButtonForLocation: View {
         .disabled(isLoading || !followButtonState.isActionable)
         .opacity(isPassiveState ? 0.78 : 1)
         .scaleEffect(isLoading ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isLoading)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isLoading), value: isLoading)
         .onAppear {
             checkFollowStatus()
         }
@@ -1504,7 +1489,7 @@ struct FollowButtonForLocation: View {
                 DispatchQueue.main.async {
                     self.isLoading = false
                     if error == nil {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             self.followButtonState = .canFollow
                         }
                         FollowStateStore.shared.setState(.canFollow, for: self.targetUserId)
@@ -1516,7 +1501,7 @@ struct FollowButtonForLocation: View {
                 DispatchQueue.main.async {
                     self.isLoading = false
                     if error == nil {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             self.followButtonState = .canRequestFollow
                         }
                         FollowStateStore.shared.setState(.canRequestFollow, for: self.targetUserId)
@@ -1529,7 +1514,7 @@ struct FollowButtonForLocation: View {
                     self.isLoading = false
                     if error == nil {
                         let newState: FollowButtonState = self.followButtonState == .canRequestFollow ? .requestPendingCancellable : .following
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             self.followButtonState = newState
                         }
                         FollowStateStore.shared.setState(newState, for: self.targetUserId)

@@ -957,7 +957,7 @@ struct StoryEditingView: View {
 
                 if !isContinuingChain && !isChatSendMode {
                     Button(action: {
-                        withAnimation(.spring()) { isCreatingChain.toggle() }
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) { isCreatingChain.toggle() }
                     }) {
                         Image(systemName: "link")
                             .font(.system(size: 20))
@@ -1214,11 +1214,11 @@ struct StoryEditingView: View {
                         )
                             .onChange(of: selectedFilter) { _, _ in
                                 if selectedFilter != .normal {
-                                    withAnimation(.spring()) {
+                                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                         showingIntensitySlider = true
                                     }
                                 } else {
-                                    withAnimation(.spring()) {
+                                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                         showingIntensitySlider = false
                                     }
                                 }
@@ -1926,7 +1926,7 @@ struct StoryEditingView: View {
         var data = selectedStickers[index].interactionData ?? StickerItem.StickerInteractionData()
         data.styleVariant = nextVariant
         
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
             selectedStickers[index].interactionData = data
         }
         
@@ -1994,7 +1994,7 @@ struct StoryEditingView: View {
             .padding(.trailing, 8)
         }
         .padding(.bottom, bottomPad)
-        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: keyboardHeight)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: keyboardHeight), value: keyboardHeight)
         .ignoresSafeArea(.keyboard)
     }
 
@@ -3216,6 +3216,6 @@ struct MomentEmojiScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
-            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: configuration.isPressed), value: configuration.isPressed)
     }
 }

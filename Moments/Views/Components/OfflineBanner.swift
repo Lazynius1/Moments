@@ -68,7 +68,7 @@ struct OfflineBanner: View {
                     .onAppear {
                         // ✅ Auto-ocultar después de 4 segundos
                         DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                            withAnimation(.spring()) {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                 isVisible = false
                             }
                         }
@@ -79,7 +79,7 @@ struct OfflineBanner: View {
                 } else {
                     // Botón discreto para recuperar el banner si sigue offline
                     Button(action: {
-                        withAnimation(.spring()) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             isVisible = true
                         }
                     }) {
@@ -90,7 +90,7 @@ struct OfflineBanner: View {
                             .background(Color.black.opacity(0.4))
                             .clipShape(Circle())
                     }
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(MotionPolicy.Transition.enterPop)
                     .padding(.top, 4)
                 }
             }
@@ -98,7 +98,7 @@ struct OfflineBanner: View {
         .onChange(of: networkMonitor.isConnected) { _, connected in
             if !connected {
                 // Si se pierde la conexión, mostrar banner siempre
-                withAnimation(.spring()) {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                     isVisible = true
                 }
             }

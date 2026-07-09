@@ -288,7 +288,7 @@ struct VisualWaveformView: View {
                     .fill(isActive ? activeColor : color)
                     .frame(width: barWidth, height: max(6, CGFloat(level) * height))
                     .animation(.easeInOut(duration: 0.1), value: isActive)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: level)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: level), value: level)
             }
         }
     }

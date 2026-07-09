@@ -852,8 +852,8 @@ struct GlassmorphicReactionsOverlay: View {
         )
         .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
         .transition(.asymmetric(
-            insertion: .scale.combined(with: .opacity).animation(.spring(response: 0.3, dampingFraction: 0.7)),
-            removal: .scale.combined(with: .opacity).animation(.easeOut(duration: 0.2))
+            insertion: MotionPolicy.Transition.enterPop.animation(MotionPolicy.Spring.toggle),
+            removal: MotionPolicy.Transition.enterPop.animation(MotionPolicy.Spring.toast)
         ))
     }
 }

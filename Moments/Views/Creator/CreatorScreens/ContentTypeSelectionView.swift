@@ -220,7 +220,7 @@ struct ContentTypeSelectionView: View {
         .scaleEffect(shutterScale)
         .buttonStyle(PlainButtonStyle())
         .onLongPressGesture(minimumDuration: 0.1, pressing: { pressing in
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                 shutterScale = pressing ? 0.9 : 1.0
             }
         }, perform: {})

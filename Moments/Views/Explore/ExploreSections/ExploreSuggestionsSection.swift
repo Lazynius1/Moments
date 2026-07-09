@@ -49,7 +49,7 @@ struct SearchBarView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundColor(isSearchFocused ? Color(hex: "667eea") : .secondary)
-                        .animation(.easeInOut(duration: 0.3), value: isSearchFocused)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isSearchFocused), value: isSearchFocused)
 
                     TextField("explore.search.placeholder", text: $searchText)
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
@@ -72,7 +72,7 @@ struct SearchBarView: View {
                                 .font(.system(size: 15))
                                 .foregroundColor(.secondary)
                         }
-                        .transition(.scale.combined(with: .opacity))
+                        .transition(MotionPolicy.Transition.enterPop)
                     }
                 }
                 .padding(.horizontal, 12)

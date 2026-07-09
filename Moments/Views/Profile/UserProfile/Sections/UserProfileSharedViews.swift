@@ -211,7 +211,7 @@ struct UserExpandableContentView: View {
 
             if needsExpansion {
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                         isExpanded.toggle()
                     }
                 }) {
@@ -224,7 +224,7 @@ struct UserExpandableContentView: View {
                         .clipShape(Capsule())
                 }
                 .scaleEffect(isExpanded ? 1.0 : 0.95)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isExpanded)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isExpanded), value: isExpanded)
             }
         }
         .padding(.horizontal, 16)
@@ -304,7 +304,7 @@ struct ProfileImageViewer: View {
                                         if value.translation.height > 100 {
                                             dismiss()
                                         } else {
-                                            withAnimation(.spring()) {
+                                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                                 dragOffset = .zero
                                             }
                                         }

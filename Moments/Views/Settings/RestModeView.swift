@@ -40,7 +40,7 @@ struct RestModeView: View {
                     } else {
                         // Toggle Card
                         VStack(spacing: 0) {
-                            Toggle(isOn: $isRestModeEnabled.animation(.spring(response: 0.3, dampingFraction: 0.7))) {
+                            Toggle(isOn: $isRestModeEnabled.animation(MotionPolicy.Spring.toggle)) {
                                 Text(NSLocalizedString("settings.notifications.schedule.enable", comment: "Enable rest mode"))
                                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)

@@ -280,7 +280,7 @@ struct StoryOverlaysView: View {
                                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
 
                             Button {
-                                withAnimation(.spring()) {
+                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                     stickers.removeAll(where: { $0.type == .reveal })
                                 }
                             } label: {
@@ -321,7 +321,7 @@ struct StoryOverlaysView: View {
                         .frame(width: 48, height: 48)
                         .shadow(color: Color.black.opacity(0.35), radius: 6, x: 0, y: 3)
                         .scaleEffect(isOverTrash ? 1.28 : 1.0)
-                        .animation(.spring(response: 0.22, dampingFraction: 0.68), value: isOverTrash)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isOverTrash), value: isOverTrash)
                         .padding(.bottom, 20)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -365,7 +365,7 @@ struct StoryOverlaysView: View {
                 .ignoresSafeArea(.keyboard)
                 .zIndex(2500)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: keyboardHeight)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: keyboardHeight), value: keyboardHeight)
                 .onChange(of: polaroidCaptionBuffer) { _, newValue in
                     // ✅ ACTUALIZACIÓN EN TIEMPO REAL
                     if let editingId = editingPolaroidId,

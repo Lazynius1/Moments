@@ -200,7 +200,7 @@ struct PhotoCropEditorView: View {
                 .offset(CGSize(width: offset.width + gestureTranslation.width, height: offset.height + gestureTranslation.height))
                 .clipped()
                 .scaleEffect(isDragging || isZooming ? 1.02 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isDragging), value: isDragging)
                 .gesture(
                     SimultaneousGesture(
                         DragGesture()

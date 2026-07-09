@@ -54,8 +54,7 @@ struct FeedView: View {
     @State private var hasLoadedInitialData = false
     // ✅ NUEVO: Mapa global
     @State private var hasUnreadMessages: Bool = false
-    @State private var showSpecificUserStories = false
-    @State private var selectedStoryUserId: String = ""
+    @State private var selectedStoryRoute: StoryUserPresentationRoute?
     @State private var storyRingNavigationUserIds: [String] = []
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag = false
@@ -213,8 +212,7 @@ struct FeedView: View {
             onOpenStory: { _, authorId in
                 syncStoryRingNavigationOrder()
                 if let authorId, !authorId.isEmpty {
-                    selectedStoryUserId = authorId
-                    showSpecificUserStories = true
+                    selectedStoryRoute = StoryUserPresentationRoute(userId: authorId)
                 } else {
                     showStories = true
                 }
@@ -258,8 +256,7 @@ struct FeedView: View {
         .feedPresentations(
             showNotifications: $showNotifications,
             showMessages: $showMessages,
-            showSpecificUserStories: $showSpecificUserStories,
-            selectedStoryUserId: $selectedStoryUserId,
+            selectedStoryRoute: $selectedStoryRoute,
             storyRingNavigationUserIds: $storyRingNavigationUserIds,
             showStories: $showStories,
             selectedMoment: $selectedMoment,
@@ -302,8 +299,7 @@ struct FeedView: View {
     private func openStoryViewer(for userId: String) {
         guard !userId.isEmpty else { return }
         syncStoryRingNavigationOrder()
-        selectedStoryUserId = userId
-        showSpecificUserStories = true
+        selectedStoryRoute = StoryUserPresentationRoute(userId: userId)
     }
     
     // ✅ Nuevo: Solicitud de permisos de notificaciones desde el Feed en primera carga
@@ -332,7 +328,7 @@ struct FeedView: View {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
         pendingEchoesListener = EchoService.shared.fetchPendingEchoes(userId: userId) { echoes in
-            withAnimation(.easeInOut(duration: 0.3)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 self.pendingEchoes = echoes
             }
         }

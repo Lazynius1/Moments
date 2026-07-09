@@ -413,7 +413,7 @@ struct StoryUploadCircleOverlay: View {
 
         arrowOffset = 0
         arrowOpacity = 1
-        withAnimation(.easeIn(duration: 0.28)) {
+        MotionPolicy.withOptionalAnimation(.easeOut(duration: 0.28)) {
             arrowOffset = -26
             arrowOpacity = 0
         }

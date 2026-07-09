@@ -200,7 +200,7 @@ struct StoryUserDeckPager<Content: View>: View {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     let exitOffset: CGFloat = goToPrevious ? width : -width
 
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
                         dragOffset = exitOffset
                     }
 

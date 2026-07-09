@@ -152,7 +152,7 @@ struct AsyncProfileImageView: View {
                     .cancelOnDisappear(true)
                     .loadTransition(.opacity, animation: .easeOut(duration: 0.3))
                     .onSuccess { _ in
-                        withAnimation(.easeInOut(duration: 0.3)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                             isLoading = false
                         }
                     }

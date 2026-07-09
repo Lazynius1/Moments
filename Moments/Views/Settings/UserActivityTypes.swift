@@ -267,7 +267,7 @@ struct AnimatedReactionIcon: View {
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         currentIndex = (currentIndex + 1) % reactions.count
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             scale = 1.0
                             opacity = 1.0
                         }

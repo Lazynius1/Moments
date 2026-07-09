@@ -226,12 +226,12 @@ struct VideoControlsOverlay: View {
         }
         .padding()
         .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 showControls.toggle()
             }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                     showControls = false
                 }
             }

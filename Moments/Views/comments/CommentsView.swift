@@ -5,8 +5,7 @@ import FirebaseFirestore
 struct CommentsView: View {
     let moment: Moment
     @StateObject private var viewModel = CommentsViewModel()
-    @State private var showSpecificUserStories = false
-    @State private var selectedStoryUserId: String = ""
+    @State private var storyRoute: StoryUserPresentationRoute?
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -26,15 +25,10 @@ struct CommentsView: View {
         .alert(isPresented: $viewModel.showError) {
             Alert(title: Text(NSLocalizedString("comments.error.title", comment: "Error title")), message: Text(viewModel.errorMessage ?? NSLocalizedString("comments.error.unknown", comment: "Unknown error")), dismissButton: .default(Text(NSLocalizedString("comments.error.ok", comment: "OK button"))))
         }
-        .fullScreenCover(isPresented: $showSpecificUserStories) {
-            StoriesView(
-                startWithUserId: Binding(
-                    get: { selectedStoryUserId },
-                    set: { selectedStoryUserId = $0 }
-                )
-            )
-            .environmentObject(firestoreService)
-            .ignoresSafeArea(.keyboard)
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.userId))
+                .environmentObject(firestoreService)
+                .ignoresSafeArea(.keyboard)
         }
     }
 
@@ -113,8 +107,7 @@ struct CommentsView: View {
                 onAvatarTap: { userId, hasStory in
                     guard !userId.isEmpty else { return }
                     if hasStory {
-                        selectedStoryUserId = userId
-                        showSpecificUserStories = true
+                        storyRoute = StoryUserPresentationRoute(userId: userId)
                     } else {
                         LegacyNavigationBridge.profile(userId: userId)
                     }

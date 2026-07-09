@@ -115,14 +115,14 @@ struct ChatMessageBubbleChrome<Content: View>: View {
                     .fill(highlightTintColor)
                     .opacity(isFlashing ? 1 : 0)
                     .allowsHitTesting(false)
-                    .animation(.easeInOut(duration: 0.3), value: isFlashing)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isFlashing), value: isFlashing)
             }
             .scaleEffect(
                 selectionScale,
                 anchor: isOutgoing ? .bottomTrailing : .bottomLeading
             )
-            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isMenuSelected)
-            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isFlashing)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isMenuSelected), value: isMenuSelected)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isFlashing), value: isFlashing)
             .animation(.easeOut(duration: 0.12), value: isPressing)
             .zIndex(isMenuSelected || isFlashing ? 1 : 0)
             .background {

@@ -136,12 +136,12 @@ struct NovaHeader: View {
 
         // ✅ ANIMACIÓN VALIDADA
         let targetScale: CGFloat = logoTapCount >= 7 ? 1.0 : 1.2
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             logoScale = targetScale
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                 logoScale = 1.0
             }
         }

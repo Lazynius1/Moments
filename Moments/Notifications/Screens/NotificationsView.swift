@@ -117,8 +117,8 @@ struct NotificationsView: View {
                 .zIndex(5000)
             }
         }
-        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: viewModel.pendingDeletion?.id)
-        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: groupedFollowersOverlayGroup?.id)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: viewModel.pendingDeletion?.id), value: viewModel.pendingDeletion?.id)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: groupedFollowersOverlayGroup?.id), value: groupedFollowersOverlayGroup?.id)
         .onAppear {
             applyPendingNotificationsFilterIfNeeded()
             Task {

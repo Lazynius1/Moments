@@ -768,7 +768,7 @@ struct StickerOverlayView: View {
                 }
         )
         .position(clampedCurrentPosition) // ✅ Posicionar en el lienzo global al final
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showInteractionFeedback)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: showInteractionFeedback), value: showInteractionFeedback)
         .animation(.easeInOut(duration: 0.1), value: isDragging)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: scale)
         .animation(.spring(response: 0.4, dampingFraction: 0.9), value: rotation)

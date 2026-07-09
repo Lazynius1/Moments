@@ -126,7 +126,7 @@ struct PasswordChangeView: View {
                                                 .fill(viewModel.passwordStrength.color)
                                                 .frame(width: geometry.size.width * viewModel.passwordStrength.percentage, height: 4)
                                                 .cornerRadius(2)
-                                                .animation(.easeInOut(duration: 0.3), value: viewModel.passwordStrength.percentage)
+                                                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: viewModel.passwordStrength.percentage), value: viewModel.passwordStrength.percentage)
                                         }
                                     }
                                     .frame(height: 4)

@@ -405,7 +405,7 @@ struct ModernVideoPlayer: View {
                         .momentsChromeGlass(in: Circle())
                         .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                 }
-                .transition(.scale.combined(with: .opacity))
+                .transition(MotionPolicy.Transition.enterPop)
             }
             
             if isBuffering {
@@ -427,7 +427,7 @@ struct ModernVideoPlayer: View {
                     .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: showControls)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: showControls), value: showControls)
         .animation(.easeInOut(duration: 0.2), value: isBuffering)
     }
     
@@ -444,7 +444,7 @@ struct ModernVideoPlayer: View {
                 .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
         }
         .opacity(showMuteButton ? 1.0 : 0.0)
-        .animation(.easeInOut(duration: 0.3), value: showMuteButton)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: showMuteButton), value: showMuteButton)
     }
     
     // MARK: - Functions
@@ -596,13 +596,13 @@ struct ModernVideoPlayer: View {
             return
         }
 
-        withAnimation(.easeInOut(duration: 0.3)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             showControls.toggle()
         }
 
         if showControls {
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                     showControls = false
                 }
             }
@@ -610,7 +610,7 @@ struct ModernVideoPlayer: View {
 
         showMuteButton = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 showMuteButton = false
             }
         }

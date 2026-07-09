@@ -2055,7 +2055,7 @@ struct ActivityInteractionDetailView: View {
     }
 
     private func showRecentlyDeletedSuccessBanner(_ textKey: String) {
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
             recentlyDeletedSuccessBannerKey = textKey
         }
 
@@ -2071,7 +2071,7 @@ struct ActivityInteractionDetailView: View {
     }
 
     private func showActivitySelectionSuccessBanner(_ textKey: String) {
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
             activitySelectionSuccessBannerKey = textKey
         }
 

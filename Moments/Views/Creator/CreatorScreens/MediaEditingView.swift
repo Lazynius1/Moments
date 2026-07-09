@@ -200,7 +200,7 @@ struct MediaEditingView: View {
                                 HStack(spacing: 12) {
                                     ForEach(selectedMediaItems.indices, id: \.self) { index in
                                         Button(action: {
-                                            withAnimation(.spring()) {
+                                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                                 currentMediaIndex = index
                                             }
                                         }) {
@@ -336,7 +336,7 @@ struct MediaEditingView: View {
             tempFilterIntensity = 1.0
         }
 
-        withAnimation(.spring()) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             showingFilterToolbar = true
         }
         updatePreviewTask()
@@ -344,7 +344,7 @@ struct MediaEditingView: View {
 
     private func cancelFilter() {
         filterTask?.cancel()
-        withAnimation(.spring()) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             showingFilterToolbar = false
             previewImage = nil
         }
@@ -364,7 +364,7 @@ struct MediaEditingView: View {
             selectedMediaItems[currentMediaIndex].hasEdits = true
         }
 
-        withAnimation(.spring()) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             showingFilterToolbar = false
             previewImage = nil
         }

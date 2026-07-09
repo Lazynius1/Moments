@@ -35,7 +35,7 @@ struct InAppBannerView: View {
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .allowsHitTesting(isBannerInteractive)
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: service.showBanner)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: service.showBanner), value: service.showBanner)
         .animation(.spring(response: 0.35, dampingFraction: 0.82), value: isQuickReplyExpanded)
         .onChange(of: service.showBanner) { _, isVisible in
             if !isVisible {

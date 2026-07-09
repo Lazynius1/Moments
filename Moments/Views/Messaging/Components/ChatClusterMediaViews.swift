@@ -845,7 +845,7 @@ struct ClusterGalleryView<Detail: View>: View {
                 HStack(spacing: 0) {
                     ForEach(ClusterGalleryTab.allCases) { tab in
                         Button {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.row) {
                                 selectedTab = tab
                             }
                         } label: {
@@ -1049,7 +1049,7 @@ struct ClusterGalleryView<Detail: View>: View {
     }
 
     private func toggleSelectionMode() {
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
             if isSelectionMode {
                 exitSelectionMode()
             } else {
@@ -1119,7 +1119,7 @@ struct ClusterGalleryView<Detail: View>: View {
     }
 
     private func enterSelectionMode(selecting messageId: String) {
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
             isSelectionMode = true
             selectedIds = [messageId]
         }
@@ -1129,7 +1129,7 @@ struct ClusterGalleryView<Detail: View>: View {
         if selectedIds.contains(messageId) {
             selectedIds.remove(messageId)
             if selectedIds.isEmpty {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                     isSelectionMode = false
                 }
             }

@@ -378,7 +378,7 @@ struct MomentDetailView: View {
                     Spacer()
                     HStack {
                         Button(action: {
-                            withAnimation(.spring()) {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                 showTags.toggle()
                             }
                         }) {
@@ -806,7 +806,7 @@ struct ExploreModernFollowButton: View {
         }
         .disabled(isFollowing)
         .scaleEffect(isFollowing ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isFollowing)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isFollowing), value: isFollowing)
     }
 }
 
@@ -1000,7 +1000,7 @@ struct VerticalReactionButton: View {
                     }
                 }
                 .scaleEffect(hasReacted ? 1.05 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: hasReacted)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: hasReacted), value: hasReacted)
                 
                 // Contador de reacciones
                 // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
@@ -1048,7 +1048,7 @@ struct VerticalReactionButton: View {
               let momentId = moment.id else { return }
         
         // Actualización optimista
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             hasReacted = true
             currentReaction = reactionType
             totalReactionCount += 1
@@ -1079,7 +1079,7 @@ struct VerticalReactionButton: View {
               let reactionType = currentReaction else { return }
         
         // Actualización optimista
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             hasReacted = false
             currentReaction = nil
             totalReactionCount -= 1

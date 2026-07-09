@@ -49,11 +49,9 @@ struct ModernMomentDetailView: View {
     @State private var showExploreWithHashtag: Bool = false
     
     // ✅ NUEVOS: Navegación de perfil desde tags
-    @State private var showUserProfile = false
-    @State private var selectedUserId: String = ""
+    @State private var profileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
-    @State private var showSpecificUserStories = false
-    @State private var selectedStoryUserId: String = ""
+    @State private var storyRoute: StoryUserPresentationRoute?
     @State private var selectedLocationMoment: Moment? // ✅ Usar Item Binding para evitar race conditions en SwiftUI
     @State private var hasAppliedInitialScroll = false
     @Environment(\.profileDetailVideoPlaybackEnabled) private var profileDetailVideoPlaybackEnabled
@@ -213,25 +211,14 @@ struct ModernMomentDetailView: View {
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
-        .fullScreenCover(isPresented: $showUserProfile, onDismiss: {
-            selectedUserId = ""
-        }) {
-            if !selectedUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                UserProfileView(userId: selectedUserId)
-                    .userProfileZoomDestination(userId: selectedUserId, namespace: profileZoomNamespace)
-            }
+        .fullScreenCover(item: $profileRoute) { route in
+            UserProfileView(userId: route.userId)
+                .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
         }
-        .fullScreenCover(isPresented: $showSpecificUserStories, onDismiss: {
-            selectedStoryUserId = ""
-        }) {
-            StoriesView(
-                startWithUserId: Binding(
-                    get: { selectedStoryUserId },
-                    set: { selectedStoryUserId = $0 }
-                )
-            )
-            .environmentObject(firestoreService)
-            .ignoresSafeArea(.keyboard)
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.userId))
+                .environmentObject(firestoreService)
+                .ignoresSafeArea(.keyboard)
         }
         .fullScreenCover(item: $selectedLocationMoment) { moment in
             LocationMapView(
@@ -400,8 +387,7 @@ struct ModernMomentDetailView: View {
     private func openUserProfile(userId: String) {
         let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedUserId.isEmpty else { return }
-        selectedUserId = normalizedUserId
-        showUserProfile = true
+        profileRoute = FeedProfileSheetRoute(userId: normalizedUserId)
     }
 
     private func handleAuthorAvatarTap(userId: String, hasStory: Bool) {
@@ -409,8 +395,7 @@ struct ModernMomentDetailView: View {
         guard !normalizedUserId.isEmpty else { return }
 
         if hasStory {
-            selectedStoryUserId = normalizedUserId
-            showSpecificUserStories = true
+            storyRoute = StoryUserPresentationRoute(userId: normalizedUserId)
         } else {
             openUserProfile(userId: normalizedUserId)
         }

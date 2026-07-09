@@ -58,7 +58,7 @@ struct NovaAttachmentPlusButton: View {
         .buttonStyle(.plain)
         .frame(width: 44, height: 44)
         .accessibilityLabel(Text("nova.input.attach.accessibility"))
-        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: isMenuOpen)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: isMenuOpen), value: isMenuOpen)
         .background {
             GeometryReader { proxy in
                 Color.clear.preference(
@@ -85,7 +85,7 @@ struct EnhancedInputBar: View {
     }
 
     private func toggleAttachmentMenu() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             activeAttachmentSheet = isMenuOpen ? nil : .menu
         }
     }

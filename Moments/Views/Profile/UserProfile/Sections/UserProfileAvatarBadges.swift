@@ -104,8 +104,8 @@ struct UserProfileBadgesView: View {
                     UserSupportBadgeInline(badge: primaryBadge)
                 }
             }
-            .animation(.easeInOut(duration: 0.3), value: userProfile.isPlusSubscriber)
-            .animation(.easeInOut(duration: 0.3), value: userProfile.primaryBadge?.id)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: userProfile.isPlusSubscriber), value: userProfile.isPlusSubscriber)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: userProfile.primaryBadge?.id), value: userProfile.primaryBadge?.id)
         }
     }
 }

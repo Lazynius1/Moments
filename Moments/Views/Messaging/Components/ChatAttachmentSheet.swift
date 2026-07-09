@@ -282,7 +282,7 @@ struct ChatAttachmentPlusButton: View {
         .buttonStyle(.plain)
         .frame(width: 44, height: 44)
         .accessibilityLabel(Text("chat.input.attach.accessibility"))
-        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: isMenuOpen)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: isMenuOpen), value: isMenuOpen)
         .background {
             GeometryReader { proxy in
                 Color.clear.preference(
@@ -404,7 +404,7 @@ struct ChatAttachmentMenuPopover: View {
     }
 
     private func dismissMenu() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             isPresented = nil
         }
     }
@@ -474,7 +474,7 @@ private struct ChatAttachmentMenuPopoverCard: View {
     }
 
     private func present(_ kind: ChatAttachmentSheetKind) {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             isPresented = kind
         }
     }
@@ -565,7 +565,7 @@ struct ChatAttachmentMediaSheetOverlay: View {
                     .offset(y: dragOffset)
                     .gesture(dismissDragGesture(sheetHeight: sheetHeight))
                 }
-                .animation(.spring(response: 0.38, dampingFraction: 0.86), value: activeSheet)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeSheet), value: activeSheet)
             }
             .ignoresSafeArea(edges: .bottom)
             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -585,7 +585,7 @@ struct ChatAttachmentMediaSheetOverlay: View {
                 if shouldDismiss {
                     dismiss()
                 } else {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                         dragOffset = 0
                     }
                 }
@@ -593,7 +593,7 @@ struct ChatAttachmentMediaSheetOverlay: View {
     }
 
     private func dismiss() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             dragOffset = 0
             activeSheet = nil
         }
@@ -823,7 +823,7 @@ struct ChatAttachmentMediaGridSheet: View {
     }
 
     private func dismissSheet() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             selectedAssetIDs = []
             onBack()
         }

@@ -2356,6 +2356,11 @@
 "conversationSettings.mediaSave.title" = "Guardar multimédia";
 "conversationSettings.mediaSave.success" = "Este conteúdo foi guardado na tua biblioteca.";
 "conversationSettings.mediaSave.error" = "Não foi possível guardar este conteúdo.";
+"conversationSettings.messages.sent" = "enviadas";
+"conversationSettings.messages.received" = "recebidas";
+"conversationSettings.vanish.title" = "Mensagens temporárias";
+"conversationSettings.vanish.no" = "Não";
+"conversationSettings.vanish.description" = "Escolhe por quanto tempo as tuas mensagens e reações permanecem visíveis no chat. Podes fazer com que elas desapareçam logo após serem lidas e fechares a conversa, ou mantê-las por até 7 dias. Para a tua privacidade, um alerta será enviado no chat se alguém tirar uma captura de ecrã ou gravar o ecrã.";
 
 /* Video Editor */
 "videoEditor.error.title" = "Erro";

@@ -105,8 +105,7 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
     @State private var isLoadingFollowerTimestamps = false
     @State private var selectedProfileTarget: SocialProfileNavigationTarget?
     @State private var selectedSharedActivityTarget: SharedActivityNavigationTarget?
-    @State private var showSpecificUserStories = false
-    @State private var selectedStoryUserId = ""
+    @State private var storyRoute: StoryUserPresentationRoute?
     @StateObject private var visitsViewModel = VisitsViewModel()
     @Namespace private var fallbackZoomNamespace
     @EnvironmentObject private var authService: AuthService
@@ -210,10 +209,8 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                 profileZoomNamespace: zoomNamespace
             )
         }
-        .fullScreenCover(isPresented: $showSpecificUserStories, onDismiss: {
-            selectedStoryUserId = ""
-        }) {
-            StoriesView(startAtUserId: selectedStoryUserId)
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startAtUserId: route.userId)
                 .environmentObject(FirestoreService.shared)
                 .environmentObject(authService)
                 .ignoresSafeArea(.keyboard)
@@ -466,8 +463,7 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
             hasStory: hasStory,
             openProfile: { selectedProfileTarget = SocialProfileNavigationTarget(id: $0) },
             openStories: { userId in
-                selectedStoryUserId = userId
-                showSpecificUserStories = true
+                storyRoute = StoryUserPresentationRoute(userId: userId)
             }
         )
     }

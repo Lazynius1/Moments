@@ -167,7 +167,7 @@ struct NovaAttachmentMenuPopover: View {
     }
 
     private func dismissMenu() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             isPresented = nil
         }
     }
@@ -195,7 +195,7 @@ private struct NovaAttachmentMenuPopoverCard: View {
                 assetImage: AttachmentIcon.camera.rawValue,
                 titleKey: "nova.attach.camera",
                 action: {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
                         isPresented = .camera
                     }
                 }
@@ -204,7 +204,7 @@ private struct NovaAttachmentMenuPopoverCard: View {
                 assetImage: AttachmentIcon.photos.rawValue,
                 titleKey: "nova.attach.photos",
                 action: {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
                         isPresented = .photos
                     }
                 }
@@ -308,7 +308,7 @@ struct NovaAttachmentSheetOverlay: View {
                     .offset(y: dragOffset)
                     .gesture(dismissDragGesture(sheetHeight: sheetHeight))
                 }
-                .animation(.spring(response: 0.38, dampingFraction: 0.86), value: kind)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: kind), value: kind)
             }
             .ignoresSafeArea(edges: .bottom)
             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -328,7 +328,7 @@ struct NovaAttachmentSheetOverlay: View {
                 if shouldDismiss {
                     dismiss()
                 } else {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                         dragOffset = 0
                     }
                 }
@@ -336,14 +336,14 @@ struct NovaAttachmentSheetOverlay: View {
     }
 
     private func dismiss() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             dragOffset = 0
             activeSheet = nil
         }
     }
 
     private func backToAttachmentMenu() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             dragOffset = 0
             activeSheet = .menu
         }
@@ -626,7 +626,7 @@ struct NovaAttachmentCameraSheet: View {
     }
 
     private func dismissSheet() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             showsCameraTools = false
             onBack()
         }
@@ -757,7 +757,7 @@ struct NovaAttachmentPhotoGridSheet: View {
     }
 
     private func dismissSheet() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             selectedAssetID = nil
             onBack()
         }

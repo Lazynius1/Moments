@@ -640,8 +640,8 @@ struct SharedActivityDetailView: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, isSelectionMode ? 84 : 20)
-        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: selectionSuccessBannerKey)
-        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: isProcessingSelectionAction)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: selectionSuccessBannerKey), value: selectionSuccessBannerKey)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isProcessingSelectionAction), value: isProcessingSelectionAction)
     }
 
     private var filtersBar: some View {
@@ -1149,7 +1149,7 @@ struct SharedActivityDetailView: View {
     }
 
     private func showSelectionSuccessBanner(_ textKey: String) {
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
             selectionSuccessBannerKey = textKey
         }
 

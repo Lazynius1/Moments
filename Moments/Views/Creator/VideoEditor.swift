@@ -319,7 +319,7 @@ struct SocialVideoEditorView: View {
                         .stroke(Color.white, lineWidth: 4)
                         .frame(width: 80, height: 80)
                         .rotationEffect(.degrees(-90))
-                        .animation(.easeInOut(duration: 0.3), value: processingProgress)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: processingProgress), value: processingProgress)
 
                     Text("\(Int(processingProgress * 100))%")
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))

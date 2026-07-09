@@ -463,7 +463,7 @@ struct UserProfileView: View {
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.userId))
         }
-        .animation(MotionPolicy.animation(.easeInOut(duration: 0.3), value: socialConnectionsRoute), value: socialConnectionsRoute)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: socialConnectionsRoute), value: socialConnectionsRoute)
         .confirmationDialog(
             NSLocalizedString("userProfile.unfollow.confirm.title", comment: "Unfollow confirmation title"),
             isPresented: $showingUnfollowConfirmation,

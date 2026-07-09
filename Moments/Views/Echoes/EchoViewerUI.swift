@@ -457,7 +457,7 @@ struct EchoViewerUI: View {
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
                 .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: configuration.isPressed), value: configuration.isPressed)
         }
     }
     
@@ -533,7 +533,7 @@ struct EchoViewerUI: View {
                 // Si es un error de lockout (403), mostramos alerta personalizada
                 if (error as NSError).code == 403 {
                     DispatchQueue.main.async {
-                        withAnimation(.spring()) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             showLockoutAlert = true
                         }
                     }
@@ -588,7 +588,7 @@ struct EchoViewerUI: View {
                     }
             )
             .padding(.horizontal, 40)
-            .transition(.scale.combined(with: .opacity))
+            .transition(MotionPolicy.Transition.enterPop)
         }
     }
     

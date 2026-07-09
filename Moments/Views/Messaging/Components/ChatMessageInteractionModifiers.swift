@@ -176,7 +176,7 @@ extension View {
                     dragOffset.wrappedValue = 0
                     hasTriggeredHaptic.wrappedValue = false
                 } else {
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                         dragOffset.wrappedValue = 0
                         hasTriggeredHaptic.wrappedValue = false
                     }
@@ -216,7 +216,7 @@ extension View {
                     if UIAccessibility.isReduceMotionEnabled {
                         timestampRevealOffset.wrappedValue = 0
                     } else {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
                             timestampRevealOffset.wrappedValue = 0
                         }
                     }

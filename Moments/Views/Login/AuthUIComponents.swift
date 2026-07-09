@@ -15,7 +15,7 @@ struct EnhancedProfilePhotoPicker: View {
                 EnhancedProfilePhotoContent(profileImage: profileImage)
             }
             .scaleEffect(isPressed ? 0.95 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isPressed), value: isPressed)
             .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
                 isPressed = pressing
             }, perform: {})
@@ -235,7 +235,7 @@ struct EnhancedInterestChip: View {
                         .allowsHitTesting(false)
                 }
                 .scaleEffect(isSelected ? 1.03 : (isPressed ? 0.97 : 1.0))
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isSelected), value: isSelected)
                 .animation(.spring(response: 0.2, dampingFraction: 0.8), value: isPressed)
         }
         .accessibilityLabel(Text(InterestOption.localize(interest)))
@@ -287,7 +287,7 @@ struct EnhancedCustomToggleStyle: ToggleStyle {
                     .frame(width: 24, height: 24)
                     .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                     .offset(x: configuration.isOn ? 11 : -11)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isOn)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: configuration.isOn), value: configuration.isOn)
             }
             .onTapGesture {
                 configuration.isOn.toggle()

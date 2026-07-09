@@ -438,7 +438,7 @@ struct LocationMapView: View {
                     HStack(spacing: 12) {
                         if let weather = currentWeather {
                             Button(action: {
-                                withAnimation(.easeInOut(duration: 0.3)) {
+                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                                     weatherEffectsEnabled.toggle()
                                 }
                             }) {
@@ -536,7 +536,7 @@ struct LocationMapView: View {
                 .shadow(color: adaptiveColors.shadowColor.opacity(0.1), radius: 10, x: 0, y: 5)
                 .padding(.trailing, 16)
                 .onTapGesture {
-                    withAnimation(.spring()) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                         showingBottomSheet.toggle()
                     }
                 }

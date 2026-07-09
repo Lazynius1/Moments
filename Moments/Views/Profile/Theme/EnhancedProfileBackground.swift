@@ -909,7 +909,7 @@ struct EnhancedProfilePreviewCard: View {
             }
         }
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.3)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 isHovered = hovering
             }
         }

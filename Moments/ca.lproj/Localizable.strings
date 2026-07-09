@@ -1530,6 +1530,11 @@
 "conversationSettings.mediaSave.title" = "Desar contingut";
 "conversationSettings.mediaSave.success" = "Aquest contingut s'ha desat correctament a la teva biblioteca.";
 "conversationSettings.mediaSave.error" = "No s'ha pogut desar aquest contingut.";
+"conversationSettings.messages.sent" = "enviats";
+"conversationSettings.messages.received" = "rebuts";
+"conversationSettings.vanish.title" = "Missatges temporals";
+"conversationSettings.vanish.no" = "No";
+"conversationSettings.vanish.description" = "Tria quant de temps romanen visibles els teus missatges i reaccions al xat. Pots fer que desapareguin just després de llegir-se i tancar la conversa, o conservar-los fins a 7 dies. Per la teva privacitat, s'enviarà una notificació al xat si algú fa una captura o grava la pantalla.";
 
 /* Video Editor */
 "videoEditor.error.title" = "Error";

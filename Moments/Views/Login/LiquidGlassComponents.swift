@@ -339,7 +339,7 @@ struct LiquidGlassButton: View {
         .background(backgroundView)
         .disabled(isLoading)
         .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isPressed), value: isPressed)
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
             isPressed = pressing
         }, perform: {})

@@ -182,7 +182,7 @@ struct HiddenLayersOverlayView: View {
     }
 
     private func revealTransition(for type: MomentHiddenLayer.LayerType) -> AnyTransition {
-        let spring = Animation.spring(response: 0.48, dampingFraction: 0.62, blendDuration: 0)
+        let spring = MotionPolicy.Spring.header
         
         switch type {
         case .text:
@@ -926,7 +926,7 @@ private struct HiddenLayerAudioTagView: View {
                 }
         )
         .onAppear {
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.6).delay(0.3)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.delight.delay(0.3)) {
                 didAppear = true
             }
             if shouldAutoplay {

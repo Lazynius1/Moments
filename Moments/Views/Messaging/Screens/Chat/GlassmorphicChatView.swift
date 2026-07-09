@@ -560,7 +560,7 @@ struct GlassmorphicChatView: View {
             .fullScreenCover(item: $selectedChatMedia) { media in
                 selectedChatMediaCover(media: media)
             }
-            .animation(.spring(response: 0.38, dampingFraction: 0.86), value: activeAttachmentSheet)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
             .overlay {
                 chatAttachmentOverlayContent
             }

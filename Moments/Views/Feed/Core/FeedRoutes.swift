@@ -13,3 +13,9 @@ struct FeedEchoInvitationRoute: Identifiable {
 
     var id: String { echoId }
 }
+
+struct StoryUserPresentationRoute: Identifiable, Equatable {
+    let userId: String
+
+    var id: String { userId }
+}

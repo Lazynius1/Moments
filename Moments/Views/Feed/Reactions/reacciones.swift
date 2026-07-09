@@ -157,7 +157,7 @@ struct ModernReactionButton: View {
                     removeReaction()
                 } else {
                     // Mostrar picker de reacciones
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                         showReactionPicker = true
                     }
                 }
@@ -200,7 +200,7 @@ struct ModernReactionButton: View {
                 }
             }
             .scaleEffect(hasReacted ? 1.1 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: hasReacted)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: hasReacted), value: hasReacted)
             
             // Contador de reacciones
             if reactionCount > 0 {
@@ -214,12 +214,12 @@ struct ModernReactionButton: View {
                 ReactionPickerView(
                     onReactionSelected: { reaction in
                         addReaction(reaction)
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             showReactionPicker = false
                         }
                     },
                     onClose: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             showReactionPicker = false
                         }
                     }
@@ -260,7 +260,7 @@ struct ModernReactionButton: View {
               let momentId = moment.id else { return }
         
         // Actualización optimista
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             hasReacted = true
             currentReaction = reactionType
             reactionCount += 1
@@ -291,7 +291,7 @@ struct ModernReactionButton: View {
               let reactionType = currentReaction else { return }
         
         // Actualización optimista
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             hasReacted = false
             currentReaction = nil
             reactionCount -= 1
@@ -386,7 +386,7 @@ struct ReactionPickerView: View {
                         }
                         .buttonStyle(PlainButtonStyle())
                         .scaleEffect(1.0)
-                        .animation(.spring(response: 0.2, dampingFraction: 0.6), value: true)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: true), value: true)
                     }
                 }
                 .padding(.horizontal, 20)

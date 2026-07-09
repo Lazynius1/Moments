@@ -62,9 +62,25 @@ enum MotionPolicy {
         static var sheet: Animation { .smooth(duration: 0.18, extraBounce: 0.01) }
         static var header: Animation { .spring(response: 0.32, dampingFraction: 0.86) }
         static var row: Animation { .spring(response: 0.3, dampingFraction: 0.8) }
+        /// Pantallas poco frecuentes (login, onboarding, appeals).
+        static var onboarding: Animation { .spring(response: 0.55, dampingFraction: 0.82) }
+        /// Feedback expresivo (double-tap, celebraciones).
+        static var delight: Animation { .spring(response: 0.45, dampingFraction: 0.8) }
+        static var toast: Animation { .easeOut(duration: 0.2) }
 
         static func repeatingPulse(duration: TimeInterval = 1.2) -> Animation? {
             reduceMotion ? nil : .easeInOut(duration: duration).repeatForever(autoreverses: true)
+        }
+    }
+
+    /// Transiciones que evitan `scale(0)` (nada aparece de la nada).
+    enum Transition {
+        static var enterPop: AnyTransition {
+            .scale(scale: 0.95).combined(with: .opacity)
+        }
+
+        static var badgePop: AnyTransition {
+            .scale(scale: 0.9).combined(with: .opacity)
         }
     }
 }

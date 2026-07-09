@@ -226,7 +226,7 @@ struct UserModernProfileHeader: View {
                 }
                 .disabled(!viewModel.followButtonState.isActionable)
                 .scaleEffect(viewModel.followButtonState.isActionable ? 1.0 : 0.95)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.followButtonState)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: viewModel.followButtonState), value: viewModel.followButtonState)
 
                 Button(action: openMessageFlow) {
                     HStack(spacing: 6) {

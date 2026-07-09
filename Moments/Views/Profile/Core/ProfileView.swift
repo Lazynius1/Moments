@@ -531,7 +531,7 @@ struct ProfileView: View {
                         )
                     }
                 }
-                .animation(MotionPolicy.animation(.easeInOut(duration: 0.3), value: socialConnectionsRoute), value: socialConnectionsRoute)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: socialConnectionsRoute), value: socialConnectionsRoute)
                 .onChange(of: selectedTab) { _, newTab in
                     if newTab == 4 {
                         isShowingSettings = false

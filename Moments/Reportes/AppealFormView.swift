@@ -48,7 +48,7 @@ struct AppealFormView: View {
         }
         .onAppear {
             setupInitialData()
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
                 isVisible = true
             }
         }
@@ -72,17 +72,17 @@ struct AppealFormView: View {
                 )
                 .scaleEffect(isVisible ? 1.0 : 0.8)
                 .opacity(isVisible ? 1.0 : 0.0)
-                .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding, value: isVisible), value: isVisible)
 
                 AppealFormHeader()
                     .scaleEffect(isVisible ? 1.0 : 0.8)
                     .opacity(isVisible ? 1.0 : 0.0)
-                    .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding, value: isVisible), value: isVisible)
 
                 formFields
-                    .offset(y: isVisible ? 0 : 30)
+                    .offset(y: isVisible ? 0 : 12)
                     .opacity(isVisible ? 1.0 : 0.0)
-                    .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.2), value: isVisible), value: isVisible)
             }
             .padding(.horizontal, 24)
             .padding(.top, 18)
@@ -187,7 +187,7 @@ struct AppealFormView: View {
                     isLoading = false
                     if response.success {
                         appealResult = AppealResult(from: response)
-                        withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
                             showSuccessView = true
                         }
                     } else {
@@ -690,9 +690,9 @@ struct AppealSuccessView: View {
                     )
                 }
             }
-            .offset(y: isVisible ? 0 : 30)
+            .offset(y: isVisible ? 0 : 12)
             .opacity(isVisible ? 1.0 : 0.0)
-            .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.3), value: isVisible)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.3), value: isVisible), value: isVisible)
             
             Spacer()
             
@@ -702,13 +702,13 @@ struct AppealSuccessView: View {
                 action: onDismiss
             )
             .padding(.horizontal, 20)
-            .offset(y: isVisible ? 0 : 30)
+            .offset(y: isVisible ? 0 : 12)
             .opacity(isVisible ? 1.0 : 0.0)
-            .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.6), value: isVisible)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.6), value: isVisible), value: isVisible)
         }
         .padding(.horizontal, 20)
         .onAppear {
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
                 isVisible = true
             }
         }

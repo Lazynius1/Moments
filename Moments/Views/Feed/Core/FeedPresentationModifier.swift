@@ -4,8 +4,7 @@ import MapKit
 struct FeedPresentationModifier: ViewModifier {
     @Binding var showNotifications: Bool
     @Binding var showMessages: Bool
-    @Binding var showSpecificUserStories: Bool
-    @Binding var selectedStoryUserId: String
+    @Binding var selectedStoryRoute: StoryUserPresentationRoute?
     @Binding var storyRingNavigationUserIds: [String]
     @Binding var showStories: Bool
     @Binding var selectedMoment: Moment?
@@ -52,14 +51,14 @@ struct FeedPresentationModifier: ViewModifier {
                 .environmentObject(messagingViewModel)
                 .environmentObject(firestoreService)
             }
-            .fullScreenCover(isPresented: $showSpecificUserStories) {
+            .fullScreenCover(item: $selectedStoryRoute) { route in
                 StoriesView(
-                    startAtUserId: selectedStoryUserId,
+                    startAtUserId: route.userId,
                     ringNavigationUserIds: storyRingNavigationUserIds
                 )
                     .environmentObject(firestoreService)
                     .ignoresSafeArea(.keyboard)
-                    .navigationTransition(.zoom(sourceID: "story-ring-\(selectedStoryUserId)", in: storyZoomNamespace))
+                    .navigationTransition(.zoom(sourceID: "story-ring-\(route.userId)", in: storyZoomNamespace))
             }
             .fullScreenCover(isPresented: $showStories) {
                 StoriesView(ringNavigationUserIds: storyRingNavigationUserIds)
@@ -150,8 +149,7 @@ extension View {
     func feedPresentations(
         showNotifications: Binding<Bool>,
         showMessages: Binding<Bool>,
-        showSpecificUserStories: Binding<Bool>,
-        selectedStoryUserId: Binding<String>,
+        selectedStoryRoute: Binding<StoryUserPresentationRoute?>,
         storyRingNavigationUserIds: Binding<[String]>,
         showStories: Binding<Bool>,
         selectedMoment: Binding<Moment?>,
@@ -182,8 +180,7 @@ extension View {
             FeedPresentationModifier(
                 showNotifications: showNotifications,
                 showMessages: showMessages,
-                showSpecificUserStories: showSpecificUserStories,
-                selectedStoryUserId: selectedStoryUserId,
+                selectedStoryRoute: selectedStoryRoute,
                 storyRingNavigationUserIds: storyRingNavigationUserIds,
                 showStories: showStories,
                 selectedMoment: selectedMoment,

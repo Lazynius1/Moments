@@ -38,7 +38,7 @@ struct DailyLimitView: View {
                     
                     // Toggle Card
                     VStack(spacing: 0) {
-                        Toggle(isOn: $isLimitEnabled.animation(.spring(response: 0.3, dampingFraction: 0.7))) {
+                        Toggle(isOn: $isLimitEnabled.animation(MotionPolicy.Spring.toggle)) {
                             Text(NSLocalizedString("userActivity.timeSpent.dailyLimit.toggle", value: "Aviso de límite diario", comment: "Daily limit toggle"))
                                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)

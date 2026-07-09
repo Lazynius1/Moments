@@ -243,8 +243,7 @@ struct VisitsTabContent<VM: UserListViewModel>: View {
 struct VisitsView: View {
     @StateObject private var viewModel = VisitsViewModel()
     @Environment(\.colorScheme) var colorScheme
-    @State private var showSpecificUserStories = false
-    @State private var selectedStoryUserId = ""
+    @State private var storyRoute: StoryUserPresentationRoute?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -263,10 +262,8 @@ struct VisitsView: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .fullScreenCover(isPresented: $showSpecificUserStories, onDismiss: {
-            selectedStoryUserId = ""
-        }) {
-            StoriesView(startAtUserId: selectedStoryUserId)
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startAtUserId: route.userId)
                 .environmentObject(FirestoreService.shared)
                 .ignoresSafeArea(.keyboard)
         }
@@ -299,8 +296,7 @@ struct VisitsView: View {
             hasStory: hasStory,
             openProfile: { LegacyNavigationBridge.profile(userId: $0) },
             openStories: { userId in
-                selectedStoryUserId = userId
-                showSpecificUserStories = true
+                storyRoute = StoryUserPresentationRoute(userId: userId)
             }
         )
     }

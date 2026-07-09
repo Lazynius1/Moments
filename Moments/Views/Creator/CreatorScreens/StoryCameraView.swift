@@ -138,7 +138,7 @@ struct StoryCameraView: View {
                     showCreatorView = false
                 })
                 .rotationEffect(.degrees(rotationAngle))
-                .animation(.spring(), value: rotationAngle)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: rotationAngle), value: rotationAngle)
 
                 Spacer()
 
@@ -146,7 +146,7 @@ struct StoryCameraView: View {
                     toggleFlash()
                 })
                 .rotationEffect(.degrees(rotationAngle))
-                .animation(.spring(), value: rotationAngle)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: rotationAngle), value: rotationAngle)
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
@@ -182,13 +182,13 @@ struct StoryCameraView: View {
         HStack {
             galleryButton
                 .rotationEffect(.degrees(rotationAngle))
-                .animation(.spring(), value: rotationAngle)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: rotationAngle), value: rotationAngle)
 
             Spacer()
 
             switchCameraButton
                 .rotationEffect(.degrees(rotationAngle))
-                .animation(.spring(), value: rotationAngle)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: rotationAngle), value: rotationAngle)
         }
         .padding(.horizontal, 18)
     }
@@ -303,7 +303,7 @@ struct StoryCameraView: View {
     }
 
     private func switchCamera() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             cameraPosition = cameraPosition == .back ? .front : .back
             // Reset zoom when switching cameras
             zoomLevel = 1.0

@@ -1560,6 +1560,11 @@
 "conversationSettings.mediaSave.title" = "Save media";
 "conversationSettings.mediaSave.success" = "This media was saved to your library.";
 "conversationSettings.mediaSave.error" = "This media couldn't be saved.";
+"conversationSettings.messages.sent" = "sent";
+"conversationSettings.messages.received" = "received";
+"conversationSettings.vanish.title" = "Disappearing messages";
+"conversationSettings.vanish.no" = "No";
+"conversationSettings.vanish.description" = "Decide how long your messages and reactions stay visible in the chat. You can set them to disappear right after being read and closing the chat, or keep them for up to 7 days. For your privacy, a notification will be posted if someone takes a screenshot or records the screen.";
 
 /* Video Editor */
 "videoEditor.error.title" = "Error";

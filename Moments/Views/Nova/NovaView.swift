@@ -44,7 +44,7 @@ private struct NovaSecureContent: View {
         .onDisappear {
             Task { await viewModel.finalizeOnExit() }
         }
-        .animation(.easeInOut(duration: 0.3), value: showConversationHistory)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: showConversationHistory), value: showConversationHistory)
     }
 
     @ViewBuilder
@@ -63,7 +63,7 @@ private struct NovaSecureContent: View {
 
             novaFloatingOverlays()
         }
-        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: activeAttachmentSheet)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: viewModel.pendingAction?.id)
         .onTapGesture {
             if viewModel.pendingAction == nil {
@@ -113,7 +113,7 @@ private struct NovaSecureContent: View {
                     viewModel: viewModel,
                     showSuggestedOptions: $viewModel.showSuggestedOptions
                 )
-                .transition(.opacity.combined(with: .scale))
+                .transition(MotionPolicy.Transition.enterPop)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 novaConversationScrollView(

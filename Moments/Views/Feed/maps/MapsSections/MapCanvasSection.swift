@@ -374,12 +374,12 @@ struct ModernLocationPhotoCard: View {
         }
         .onAppear {
             guard !imageLoaded else { return }
-            withAnimation(.easeInOut(duration: 0.3)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 imageLoaded = true
             }
         }
         .scaleEffect(imageLoaded ? 1.0 : 0.95)
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: imageLoaded)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: imageLoaded), value: imageLoaded)
     }
 }
 

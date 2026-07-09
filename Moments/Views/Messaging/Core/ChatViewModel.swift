@@ -1762,17 +1762,32 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
-        chatService.listenToConversationForwardingPreferences(conversationId: conversationId, replaceExisting: false) { [weak self] forwarding, buzz, vanishActive, timer in
+        chatService.listenToConversationForwardingPreferences(conversationId: conversationId, replaceExisting: false) { [weak self] forwarding, buzz, vanishActive, timer, enabledNoticeId, disabledNoticeId in
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.forwardingPreferences = forwarding
                 self.buzzPreferences = buzz
                 let wasVanishActive = self.vanishModeActive
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.delight) {
                     self.vanishModeActive = vanishActive
                 }
+                
+                // If a notice ID was cleared/changed remotely, delete the old message locally!
+                if let oldEnabledId = self.conversation.vanishSettingsNoticeMessageId, oldEnabledId != enabledNoticeId {
+                    self.removeMessageFromLocalStores(oldEnabledId)
+                    LocalPersistenceService.shared.removeCachedMessage(conversationId: conversationId, messageId: oldEnabledId)
+                }
+                if let oldDisabledId = self.conversation.vanishDisabledNoticeMessageId, oldDisabledId != disabledNoticeId {
+                    self.removeMessageFromLocalStores(oldDisabledId)
+                    LocalPersistenceService.shared.removeCachedMessage(conversationId: conversationId, messageId: oldDisabledId)
+                }
+                
+                self.conversation.vanishSettingsNoticeMessageId = enabledNoticeId
+                self.conversation.vanishDisabledNoticeMessageId = disabledNoticeId
+                
                 self.conversation.vanishModeActive = vanishActive
                 self.vanishMessageTimer = timer
+                self.conversation.vanishMessageTimer = timer.rawValue
                 // Desactivación remota (el peer apagó vanish): purgar local para que ambos extremos
                 // borren de verdad, sin depender solo del trigger de Cloud Functions.
                 if wasVanishActive && !vanishActive {
@@ -2695,7 +2710,7 @@ class EnhancedChatViewModel: ObservableObject {
                     return
                 }
 
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.delight) {
                     self.vanishModeActive = targetActive
                 }
                 self.conversation.vanishModeActive = targetActive
@@ -2848,6 +2863,29 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
+    private func removeVanishEnabledNoticeIfNeeded(
+        conversationId: String,
+        completion: @escaping () -> Void
+    ) {
+        guard let noticeId = resolveVanishEnabledNoticeMessageId() else {
+            completion()
+            return
+        }
+
+        removeMessageFromLocalStores(noticeId)
+        LocalPersistenceService.shared.removeCachedMessage(
+            conversationId: conversationId,
+            messageId: noticeId
+        )
+        conversation.vanishSettingsNoticeMessageId = nil
+        chatService.clearVanishSettingsNoticeMessageId(conversationId: conversationId)
+        chatService.deleteMessage(conversationId: conversationId, messageId: noticeId) { _ in
+            DispatchQueue.main.async {
+                completion()
+            }
+        }
+    }
+
     /// Desactivar vanish: añade notice "turned off" (coexiste con el enabled). Anti-spam si ya hay uno activo.
     private func publishVanishDisabledNotice(completion: ((Error?) -> Void)? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
@@ -2855,37 +2893,40 @@ class EnhancedChatViewModel: ObservableObject {
             return
         }
 
-        let noticeKey = VanishMessageTimer.disabledNoticeToken
+        removeVanishEnabledNoticeIfNeeded(conversationId: conversationId) { [weak self] in
+            guard let self else { return }
+            let noticeKey = VanishMessageTimer.disabledNoticeToken
 
-        if let noticeId = resolveVanishDisabledNoticeMessageId() {
-            updateLocalNoticeContent(messageId: noticeId, noticeKey: noticeKey)
-            chatService.updateChatNotice(
+            if let noticeId = self.resolveVanishDisabledNoticeMessageId() {
+                self.updateLocalNoticeContent(messageId: noticeId, noticeKey: noticeKey)
+                self.chatService.updateChatNotice(
+                    conversationId: conversationId,
+                    messageId: noticeId,
+                    noticeKey: noticeKey
+                ) { error in
+                    DispatchQueue.main.async {
+                        completion?(error)
+                    }
+                }
+                return
+            }
+
+            self.chatService.sendChatNotice(
                 conversationId: conversationId,
-                messageId: noticeId,
+                senderId: self.currentUserId,
                 noticeKey: noticeKey
-            ) { error in
+            ) { [weak self] messageId, error in
                 DispatchQueue.main.async {
+                    guard let self else { return }
+                    if let messageId {
+                        self.conversation.vanishDisabledNoticeMessageId = messageId
+                        self.chatService.setVanishDisabledNoticeMessageId(
+                            conversationId: conversationId,
+                            messageId: messageId
+                        )
+                    }
                     completion?(error)
                 }
-            }
-            return
-        }
-
-        chatService.sendChatNotice(
-            conversationId: conversationId,
-            senderId: currentUserId,
-            noticeKey: noticeKey
-        ) { [weak self] messageId, error in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                if let messageId {
-                    self.conversation.vanishDisabledNoticeMessageId = messageId
-                    self.chatService.setVanishDisabledNoticeMessageId(
-                        conversationId: conversationId,
-                        messageId: messageId
-                    )
-                }
-                completion?(error)
             }
         }
     }

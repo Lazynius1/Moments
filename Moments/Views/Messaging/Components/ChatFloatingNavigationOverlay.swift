@@ -64,7 +64,7 @@ struct ChatFloatingNavigationOverlay: View {
             }
         }
         .animation(
-            reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.72),
+            reduceMotion ? nil : MotionPolicy.Spring.press,
             value: state
         )
     }
@@ -81,7 +81,7 @@ struct ChatFloatingNavigationOverlay: View {
                 searchControlsAppeared = true
                 return
             }
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
                 searchControlsAppeared = true
             }
         }

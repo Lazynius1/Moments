@@ -112,7 +112,7 @@ struct PhotoTagSelectionView: View {
             if showingUserSearch {
                 Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08).ignoresSafeArea()
                     .onTapGesture {
-                        withAnimation(.spring()) { showingUserSearch = false }
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) { showingUserSearch = false }
                         pendingTagLocation = nil
                     }
                 
@@ -135,12 +135,12 @@ struct PhotoTagSelectionView: View {
                             generator.notificationOccurred(.success)
                         }
                         
-                        withAnimation(.spring()) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             showingUserSearch = false
                             pendingTagLocation = nil
                         }
                     }, onCancel: {
-                        withAnimation(.spring()) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             showingUserSearch = false
                             pendingTagLocation = nil
                         }
@@ -200,7 +200,7 @@ struct PendingTagMarker: View {
         .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 2)
         .position(x: xPos, y: yPos)
         .allowsHitTesting(false)
-        .transition(.scale.combined(with: .opacity))
+        .transition(MotionPolicy.Transition.enterPop)
     }
 }
 
@@ -251,11 +251,11 @@ struct TagView: View {
         }
         .position(x: xPos, y: yPos - 35)
         .onTapGesture {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                 onTap()
             }
         }
-        .transition(.scale.combined(with: .opacity))
+        .transition(MotionPolicy.Transition.enterPop)
     }
 }
 

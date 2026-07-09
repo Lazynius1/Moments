@@ -66,7 +66,7 @@ extension GlassmorphicChatView {
                 }
             }
             .animation(
-                reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.86),
+                reduceMotion ? nil : MotionPolicy.Spring.header,
                 value: viewModel.historyLoadNotice
             )
     }

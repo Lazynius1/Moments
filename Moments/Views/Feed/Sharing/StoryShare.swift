@@ -285,7 +285,7 @@ struct StoryShareRecipientsPanel: View {
                         color: Color(hex: "00A896"),
                         isSelected: activeFilter == .favorites
                     ) {
-                        withAnimation(.spring()) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             activeFilter = activeFilter == .favorites ? .none : .favorites
                         }
                     }
@@ -296,7 +296,7 @@ struct StoryShareRecipientsPanel: View {
                         color: .blue,
                         isSelected: activeFilter == .recents
                     ) {
-                        withAnimation(.spring()) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             activeFilter = activeFilter == .recents ? .none : .recents
                         }
                     }

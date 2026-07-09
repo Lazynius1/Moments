@@ -552,7 +552,7 @@ struct RotationControl: View {
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(.white)
                 .rotationEffect(isRotating ? .degrees(180) : .degrees(0))
-                .animation(.easeInOut(duration: 0.3), value: isRotating)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isRotating), value: isRotating)
         }
         .offset(x: 10, y: -10)
         .gesture(

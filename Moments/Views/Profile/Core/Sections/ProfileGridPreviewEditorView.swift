@@ -375,7 +375,7 @@ struct ProfileGridPreviewEditorView: View {
 
     private func resetTransform(for imageSize: CGSize) {
         HapticManager.shared.mediumImpact()
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             scale = 1
             lastScale = 1
             offset = .zero

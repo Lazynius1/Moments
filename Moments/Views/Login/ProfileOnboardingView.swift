@@ -695,12 +695,12 @@ private struct OnboardingQuestionField: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(.green.opacity(0.85))
-                .transition(.scale.combined(with: .opacity))
+                .transition(MotionPolicy.Transition.enterPop)
         case .invalid:
             Image(systemName: "xmark.circle.fill")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(.red.opacity(0.8))
-                .transition(.scale.combined(with: .opacity))
+                .transition(MotionPolicy.Transition.enterPop)
         }
     }
 

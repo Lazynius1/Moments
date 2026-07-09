@@ -220,7 +220,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
         guard !isRefreshing && !isLoading else { return }
 
-        withAnimation(.easeInOut(duration: 0.3)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             isRefreshing = true
         }
 

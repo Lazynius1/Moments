@@ -172,7 +172,7 @@ struct FeedHeaderBar: View {
                     .background(Color.orange)
                     .clipShape(Circle())
                     .offset(x: 5, y: -5)
-                    .transition(.scale)
+                    .transition(MotionPolicy.Transition.badgePop)
             }
         }
     }

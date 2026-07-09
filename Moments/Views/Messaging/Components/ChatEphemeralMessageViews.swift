@@ -119,7 +119,7 @@ struct ChatEphemeralMessageContent: View {
                     previewImageURL: previewImageURL,
                     expirationDate: message.expirationDate
                 ) {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                         showContent = true
                     }
                     onHydrateMedia?(message)

@@ -155,7 +155,7 @@ struct FloatingMomentUploadOverlay: View {
         .onTapGesture {
             guard moment.status != .completed && moment.status != .moderated else { return }
             HapticManager.shared.lightImpact()
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                 isExpanded.toggle()
             }
         }
@@ -208,7 +208,7 @@ struct FloatingMomentUploadOverlay: View {
         .onTapGesture {
             guard moment.status != .completed && moment.status != .moderated else { return }
             HapticManager.shared.selection()
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                 isExpanded.toggle()
             }
         }
@@ -332,7 +332,7 @@ struct FloatingMomentUploadOverlay: View {
             Image(systemName: "exclamationmark")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(iconColor)
-                .transition(.scale.combined(with: .opacity))
+                .transition(MotionPolicy.Transition.enterPop)
         case .processing, .uploading:
             ZStack {
                 // Ascending aura arrow
@@ -371,7 +371,7 @@ struct FloatingMomentUploadOverlay: View {
             // 1. Rocket launch arrow up
             arrowOffset = 0
             arrowOpacity = 1.0
-            withAnimation(.easeIn(duration: 0.35)) {
+            MotionPolicy.withOptionalAnimation(.easeOut(duration: 0.35)) {
                 arrowOffset = -35
                 arrowOpacity = 0.0
             }
@@ -408,7 +408,7 @@ struct FloatingMomentUploadOverlay: View {
             }
         case .failed:
             HapticManager.shared.notification(.error)
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                 isExpanded = true
             }
             resetAnimationStates()

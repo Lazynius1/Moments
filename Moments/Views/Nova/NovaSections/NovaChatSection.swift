@@ -154,7 +154,7 @@ struct EnhancedChatBubble: View {
                                         AttachmentIconView(icon: .share, preset: .novaShareInline, tintColor: NovaColors.textSecondary)
                                     }
                                 }
-                                .transition(.opacity.combined(with: .scale))
+                                .transition(MotionPolicy.Transition.enterPop)
                             }
                         }
                         .padding(.leading, 8)

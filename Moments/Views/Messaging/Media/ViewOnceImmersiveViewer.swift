@@ -352,7 +352,7 @@ struct ViewOnceImmersiveViewer: View {
 
             if replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 replyBarActionButton(systemImage: showReactions ? "face.smiling.fill" : "face.smiling") {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                         showReactions.toggle()
                     }
                     isPaused = showReactions
@@ -364,7 +364,7 @@ struct ViewOnceImmersiveViewer: View {
                 }
             } else {
                 replyBarActionButton(systemImage: "paperplane.fill", action: sendReplyText)
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(MotionPolicy.Transition.enterPop)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: replyText.isEmpty)

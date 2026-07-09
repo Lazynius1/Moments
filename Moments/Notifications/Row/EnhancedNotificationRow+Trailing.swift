@@ -159,7 +159,7 @@ extension EnhancedNotificationRow {
             case .followRequest:
                 HStack(spacing: 8) {
                     Button(NSLocalizedString("notifications.accept", comment: "Accept button")) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                             viewModel.acceptFollowRequest(group: group)
                         }
                     }
@@ -169,7 +169,7 @@ extension EnhancedNotificationRow {
                     ))
                     
                     Button(NSLocalizedString("notifications.reject", comment: "Reject button")) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                             viewModel.rejectFollowRequest(group: group)
                         }
                     }

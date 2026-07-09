@@ -17,7 +17,7 @@ struct FilterSelectorView: View {
                             isSelected: selectedFilter == filterType,
                             baseImage: baseImage
                         ) {
-                            withAnimation(.spring()) {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                 selectedFilter = filterType
                             }
                         }

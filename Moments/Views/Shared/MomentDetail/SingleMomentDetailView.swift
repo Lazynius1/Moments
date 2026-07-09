@@ -26,8 +26,7 @@ struct SingleMomentDetailView: View {
     @State private var showEditSheet = false
     @State private var showDeleteAlert = false
     @State private var editedContent = ""
-    @State private var showSpecificUserStories = false
-    @State private var selectedStoryUserId = ""
+    @State private var storyRoute: StoryUserPresentationRoute?
     @State private var selectedHashtag = ""
     @State private var showExploreWithHashtag = false
     @State private var showingLocationMap = false
@@ -39,8 +38,7 @@ struct SingleMomentDetailView: View {
     @State private var isPeeking = false
     @State private var peekIsProtected = false
     @Namespace private var profileZoomNamespace
-    @State private var showUserProfile = false
-    @State private var selectedUserId = ""
+    @State private var profileRoute: FeedProfileSheetRoute?
 
     init(moment: Moment, chromeTitle: String? = nil) {
         self._moment = State(initialValue: moment)
@@ -161,17 +159,10 @@ struct SingleMomentDetailView: View {
                 }
             )
         }
-        .fullScreenCover(isPresented: $showSpecificUserStories, onDismiss: {
-            selectedStoryUserId = ""
-        }) {
-            StoriesView(
-                startWithUserId: Binding(
-                    get: { selectedStoryUserId },
-                    set: { selectedStoryUserId = $0 }
-                )
-            )
-            .environmentObject(firestoreService)
-            .ignoresSafeArea(.keyboard)
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.userId))
+                .environmentObject(firestoreService)
+                .ignoresSafeArea(.keyboard)
         }
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
@@ -183,13 +174,9 @@ struct SingleMomentDetailView: View {
                 isPresented: $showingLocationMap
             )
         }
-        .fullScreenCover(isPresented: $showUserProfile, onDismiss: {
-            selectedUserId = ""
-        }) {
-            if !selectedUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                UserProfileView(userId: selectedUserId)
-                    .userProfileZoomDestination(userId: selectedUserId, namespace: profileZoomNamespace)
-            }
+        .fullScreenCover(item: $profileRoute) { route in
+            UserProfileView(userId: route.userId)
+                .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
         }
         .alert(NSLocalizedString("modernMomentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
             Button(NSLocalizedString("modernMomentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
@@ -352,8 +339,7 @@ struct SingleMomentDetailView: View {
         guard !normalizedUserId.isEmpty else { return }
 
         if hasStory {
-            selectedStoryUserId = normalizedUserId
-            showSpecificUserStories = true
+            storyRoute = StoryUserPresentationRoute(userId: normalizedUserId)
         } else {
             openUserProfile(userId: normalizedUserId)
         }
@@ -362,8 +348,7 @@ struct SingleMomentDetailView: View {
     private func openUserProfile(userId: String) {
         let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedUserId.isEmpty else { return }
-        selectedUserId = normalizedUserId
-        showUserProfile = true
+        profileRoute = FeedProfileSheetRoute(userId: normalizedUserId)
     }
 
     private func handlePeek(imageURL: String, ratio: CGFloat, isPressing: Bool) {

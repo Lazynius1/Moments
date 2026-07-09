@@ -13,8 +13,7 @@ extension View {
     }
 
     func pressAnimation() -> some View {
-        self.scaleEffect(1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: UUID())
+        buttonStyle(.momentsPress)
     }
 }
 

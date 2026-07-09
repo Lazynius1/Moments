@@ -470,7 +470,7 @@ struct ShareRecipientsPickerSheet: View {
                         color: Color(hex: "00A896"),
                         isSelected: activeFilter == .favorites
                     ) {
-                        withAnimation(.spring()) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             activeFilter = activeFilter == .favorites ? .none : .favorites
                         }
                     }
@@ -481,7 +481,7 @@ struct ShareRecipientsPickerSheet: View {
                         color: .blue,
                         isSelected: activeFilter == .recents
                     ) {
-                        withAnimation(.spring()) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                             activeFilter = activeFilter == .recents ? .none : .recents
                         }
                     }
@@ -834,7 +834,7 @@ struct PersonCell: View {
                             .shadow(color: Color(hex: "00A896").opacity(0.4), radius: 4, x: 0, y: 2)
                             .offset(x: 24, y: -24)
                             .scaleEffect(isSelected ? 1.0 : 0.1)
-                            .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isSelected)
+                            .animation(MotionPolicy.animation(MotionPolicy.Spring.delight, value: isSelected), value: isSelected)
                     }
                 }
             }

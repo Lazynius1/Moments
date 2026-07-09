@@ -266,14 +266,14 @@ extension GlassmorphicChatView {
 
     func showBuzzToast(_ text: String) {
         buzzToastDismissTask?.cancel()
-        withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.86)) {
+        withAnimation(reduceMotion ? nil : MotionPolicy.Spring.header) {
             buzzToastText = text
         }
 
         buzzToastDismissTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_900_000_000)
             guard !Task.isCancelled else { return }
-            withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.9)) {
+            withAnimation(reduceMotion ? nil : MotionPolicy.Spring.row) {
                 buzzToastText = nil
             }
         }
@@ -793,8 +793,8 @@ extension GlassmorphicChatView {
     }
 
     func pulseBubbleHighlight(_ messageId: String, duration: TimeInterval = ChatBubbleAnchorMetrics.highlightDuration) {
-        let insertAnimation: Animation? = reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.7)
-        let removeAnimation: Animation? = reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.82)
+        let insertAnimation: Animation? = reduceMotion ? nil : MotionPolicy.Spring.press
+        let removeAnimation: Animation? = reduceMotion ? nil : MotionPolicy.Spring.row
         withAnimation(insertAnimation) {
             flashingMessageIds.insert(messageId)
         }
@@ -820,7 +820,7 @@ extension GlassmorphicChatView {
         anchorCornerRadius: CGFloat
     ) {
         guard anchorFrame.width > 0, anchorFrame.height > 0 else { return }
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             messageMenuSelection = ChatMessageMenuSelection(
                 rowId: rowId,
                 message: message,

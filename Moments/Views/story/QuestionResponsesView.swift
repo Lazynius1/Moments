@@ -224,7 +224,7 @@ struct QuestionResponsesView: View {
                                 QuestionResponseRow(
                                     response: response,
                                     onShare: {
-                                        withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+                                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                                             selectedResponse = response
                                         }
                                     }

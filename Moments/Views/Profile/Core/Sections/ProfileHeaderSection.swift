@@ -178,8 +178,8 @@ struct ModernProfileHeader: View {
                                     SupportBadgeInline(badge: primaryBadge)
                                 }
                             }
-                            .animation(.easeInOut(duration: 0.3), value: currentUser.isPlusSubscriber)
-                            .animation(.easeInOut(duration: 0.3), value: currentUser.primaryBadge?.id)
+                            .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: currentUser.isPlusSubscriber), value: currentUser.isPlusSubscriber)
+                            .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: currentUser.primaryBadge?.id), value: currentUser.primaryBadge?.id)
                         }
                     }
                     .opacity(1 - usernameCollapseProgress)
@@ -536,7 +536,7 @@ struct ModernStatsSection: View {
             }
         }
         .padding(.horizontal, embeddedStyle ? 2 : 0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: socialConnectionsRoute)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: socialConnectionsRoute), value: socialConnectionsRoute)
     }
 }
 

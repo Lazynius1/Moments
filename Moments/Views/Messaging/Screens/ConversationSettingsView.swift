@@ -22,11 +22,12 @@ struct ConversationSettingsView: View {
     @State private var showClearMediaConfirmation = false
     @State private var sharedTab: SharedContentTab = .media
     @State private var showChatPreferences = false
+    @State private var showVanishPreferences = false
     @State private var showingUserProfile = false
     @State private var showBlockConfirmationFromHeader = false
     @State private var showReportSheetFromHeader = false
 
-    private enum SharedContentTab {
+    private enum SharedContentTab: Hashable {
         case media
         case links
     }
@@ -46,16 +47,11 @@ struct ConversationSettingsView: View {
             VStack(spacing: 24) {
                 conversationHeader
 
-                VStack(alignment: .leading, spacing: 30) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        starredMessagesSection
-                        dividerLine.padding(.vertical, 4)
-                        chatPreferencesNavRow
-                    }
-                    storageSection
-                    conversationInfoSection
-                }
-                .padding(.horizontal, 16)
+                settingsListSection
+                    .padding(.horizontal, 16)
+
+                settingsFooter
+                    .padding(.horizontal, 16)
 
                 sharedContentTabsSection
                     .padding(.top, 8)
@@ -74,14 +70,41 @@ struct ConversationSettingsView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
             }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button(role: .destructive) {
+                        showBlockConfirmationFromHeader = true
+                    } label: {
+                        Label(NSLocalizedString("conversationSettings.blockUser", comment: ""), systemImage: "slash.circle")
+                    }
+
+                    Button(role: .destructive) {
+                        showReportSheetFromHeader = true
+                    } label: {
+                        Label(NSLocalizedString("report.action.user", comment: "Report user"), systemImage: "flag")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(adaptiveColors.primary)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                }
+            }
         }
         .toolbar(.hidden, for: .tabBar)
+        .chatInteractivePopEnabled()
         .navigationDestination(isPresented: $viewModel.showSharedGallery) {
             sharedMediaGalleryDestination
                 .toolbar(.hidden, for: .tabBar)
         }
         .navigationDestination(isPresented: $showChatPreferences) {
             ConversationChatPreferencesView(viewModel: viewModel)
+                .toolbar(.hidden, for: .tabBar)
+                .chatInteractivePopEnabled()
+        }
+        .navigationDestination(isPresented: $showVanishPreferences) {
+            ConversationVanishModeView(viewModel: viewModel)
                 .toolbar(.hidden, for: .tabBar)
         }
         .navigationDestination(isPresented: $showingUserProfile) {
@@ -109,6 +132,7 @@ struct ConversationSettingsView: View {
             viewModel.loadConversationData(conversation: conversation)
             setupOnlineStatusObserver()
             refreshOtherParticipantUsername()
+            refreshMediaUsage()
         }
         .onDisappear {
             statusListener?.remove()
@@ -246,21 +270,18 @@ struct ConversationSettingsView: View {
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.clear.momentsChromeGlass(in: Capsule()))
             }
 
             quickActionsRow
-                .padding(.top, 6)
+                .padding(.top, 10)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
     }
 
-    // MARK: - Quick Actions Row (estilo IG: Perfil / Buscar / Silenciar / Opciones)
+    // MARK: - Quick Actions Row (estilo Apple: Perfil / Buscar / Silenciar)
     private var quickActionsRow: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 40) {
             quickActionButton(icon: "person", labelKey: "conversationSettings.quickAction.profile") {
                 HapticManager.shared.lightImpact()
                 showingUserProfile = true
@@ -279,43 +300,22 @@ struct ConversationSettingsView: View {
                 viewModel.notificationsEnabled.toggle()
                 viewModel.toggleNotifications()
             }
-
-            Menu {
-                Button(role: .destructive) {
-                    showBlockConfirmationFromHeader = true
-                } label: {
-                    Label(NSLocalizedString("conversationSettings.blockUser", comment: ""), systemImage: "slash.circle")
-                }
-
-                Button(role: .destructive) {
-                    showReportSheetFromHeader = true
-                } label: {
-                    Label(NSLocalizedString("report.action.user", comment: "Report user"), systemImage: "flag")
-                }
-            } label: {
-                quickActionContent(icon: "ellipsis", labelKey: "conversationSettings.quickAction.options")
-            }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func quickActionButton(icon: String, labelKey: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            quickActionContent(icon: icon, labelKey: labelKey)
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .semibold))
+                Text(NSLocalizedString(labelKey, comment: ""))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+            }
+            .foregroundColor(adaptiveColors.primary)
+            .frame(width: 70)
         }
         .buttonStyle(.plain)
-    }
-
-    private func quickActionContent(icon: String, labelKey: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .regular))
-                .foregroundColor(adaptiveColors.primary)
-
-            Text(NSLocalizedString(labelKey, comment: ""))
-                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(adaptiveColors.primary)
-        }
-        .frame(maxWidth: .infinity)
     }
 
     private func refreshOtherParticipantUsername() {
@@ -334,61 +334,7 @@ struct ConversationSettingsView: View {
         }
     }
 
-    // MARK: - Conversation Info Section
-    private var conversationInfoSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader("conversationSettings.conversationInfo")
-
-            VStack(spacing: 12) {
-                ChatInfoRow(
-                    icon: "calendar",
-                    title: NSLocalizedString("conversationSettings.created", comment: "Created"),
-                    value: viewModel.conversationCreatedDate
-                )
-
-                dividerLine
-
-                ChatInfoRow(
-                    icon: "message.fill",
-                    title: NSLocalizedString("conversationSettings.messages", comment: "Messages"),
-                    value: "\(viewModel.totalMessages)"
-                )
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    // MARK: - Starred Messages Row
-    private var starredMessagesSection: some View {
-        Button {
-            HapticManager.shared.lightImpact()
-            viewModel.showStarredMessages = true
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "star.fill")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(Color(hex: "FFD60A"))
-                    .frame(width: 28)
-
-                Text(NSLocalizedString("conversationSettings.starredMessages", comment: ""))
-                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(adaptiveColors.primary)
-
-                Spacer()
-
-                Text(starredMessagesCountLabel)
-                    .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(adaptiveColors.tertiary)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(adaptiveColors.tertiary)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
+    // MARK: - Starred Messages Count Helper
     private var starredMessagesCountLabel: String {
         let count = viewModel.starredMessages.count
         if count == 0 {
@@ -397,17 +343,223 @@ struct ConversationSettingsView: View {
         return "\(count)"
     }
 
-    // MARK: - Shared Content Tabs (Media / Links) — estilo perfil
-    private var sharedContentTabsSection: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                sharedTabButton(.media, icon: "square.grid.3x3.fill")
-                sharedTabButton(.links, icon: "link")
-            }
+    private var vanishModeDetailLabel: String {
+        if !viewModel.vanishModeActive {
+            return NSLocalizedString("conversationSettings.vanish.no", value: "No", comment: "")
+        }
+        return NSLocalizedString(viewModel.vanishMessageTimer.localizationKey, comment: "")
+    }
 
-            Rectangle()
-                .fill(adaptiveColors.tertiary.opacity(0.15))
-                .frame(height: 0.5)
+    // MARK: - Settings List
+    private var settingsListSection: some View {
+        VStack(spacing: 0) {
+            // Starred messages row
+            Button {
+                HapticManager.shared.lightImpact()
+                viewModel.showStarredMessages = true
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "star")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundColor(adaptiveColors.secondary)
+                        .frame(width: 24)
+
+                    Text(NSLocalizedString("conversationSettings.starredMessages", comment: ""))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                        .foregroundColor(adaptiveColors.primary)
+
+                    Spacer()
+
+                    Text(starredMessagesCountLabel)
+                        .font(.system(size: legacyPoppinsSize(14)))
+                        .foregroundColor(adaptiveColors.tertiary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(adaptiveColors.tertiary)
+                }
+                .padding(.vertical, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            dividerLine.padding(.leading, 38)
+
+            // Mensajes temporales row
+            Button {
+                HapticManager.shared.lightImpact()
+                showVanishPreferences = true
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundColor(adaptiveColors.secondary)
+                        .frame(width: 24)
+
+                    Text(NSLocalizedString("conversationSettings.vanish.title", value: "Mensajes temporales", comment: ""))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                        .foregroundColor(adaptiveColors.primary)
+
+                    Spacer()
+
+                    Text(vanishModeDetailLabel)
+                        .font(.system(size: legacyPoppinsSize(14)))
+                        .foregroundColor(adaptiveColors.tertiary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(adaptiveColors.tertiary)
+                }
+                .padding(.vertical, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            dividerLine.padding(.leading, 38)
+
+            // Chat preferences row
+            Button {
+                HapticManager.shared.lightImpact()
+                showChatPreferences = true
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundColor(adaptiveColors.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("conversationSettings.preferences", comment: "Chat preferences"))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                            .foregroundColor(adaptiveColors.primary)
+                        Text(NSLocalizedString("conversationSettings.preferences.desc", comment: "Notifications, previews, privacy"))
+                            .font(.system(size: legacyPoppinsSize(12)))
+                            .foregroundColor(adaptiveColors.tertiary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(adaptiveColors.tertiary)
+                }
+                .padding(.vertical, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            dividerLine.padding(.leading, 38)
+
+            // Media storage usage row
+            Button {
+                HapticManager.shared.lightImpact()
+                viewModel.openSharedGallery(tab: .media)
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "folder")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundColor(adaptiveColors.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("conversationSettings.storage.mediaUsage", comment: "Media in this chat"))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                            .foregroundColor(adaptiveColors.primary)
+                        Text(NSLocalizedString("conversationSettings.storage.mediaUsage.desc", comment: "Cached photos and videos on this device"))
+                            .font(.system(size: legacyPoppinsSize(12)))
+                            .foregroundColor(adaptiveColors.tertiary)
+                    }
+
+                    Spacer()
+
+                    Text(formatBytes(conversationMediaBytes))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                        .foregroundColor(adaptiveColors.secondary)
+                        .monospacedDigit()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(adaptiveColors.tertiary)
+                }
+                .padding(.vertical, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if conversationMediaBytes > 0 {
+                dividerLine.padding(.leading, 38)
+
+                // Clear storage cache row
+                Button {
+                    showClearMediaConfirmation = true
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(.red)
+                            .frame(width: 24)
+
+                        Text(NSLocalizedString("conversationSettings.storage.clearMedia", comment: "Clear cached media"))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                            .foregroundColor(.red)
+
+                        Spacer()
+                    }
+                    .padding(.vertical, 14)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .confirmationDialog(
+            NSLocalizedString("conversationSettings.storage.clearMedia.title", comment: "Clear media confirmation"),
+            isPresented: $showClearMediaConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("conversationSettings.storage.clearMedia", comment: "Clear cached media"), role: .destructive) {
+                clearConversationMedia()
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
+        } message: {
+            Text(NSLocalizedString("conversationSettings.storage.clearMedia.message", comment: "Media will re-download when needed"))
+        }
+    }
+
+    // MARK: - Footer
+    private var settingsFooter: some View {
+        VStack(spacing: 4) {
+            let sentCount = viewModel.sentMessagesCount
+            let receivedCount = viewModel.receivedMessagesCount
+            let sentText = NSLocalizedString("conversationSettings.messages.sent", value: "enviados", comment: "")
+            let receivedText = NSLocalizedString("conversationSettings.messages.received", value: "recibidos", comment: "")
+            
+            Text("\(NSLocalizedString("conversationSettings.created", comment: "")): \(viewModel.conversationCreatedDate)  •  \(NSLocalizedString("conversationSettings.messages", comment: "")): \(viewModel.totalMessages) (\(sentCount) \(sentText), \(receivedCount) \(receivedText))")
+                .font(.system(size: legacyPoppinsSize(12)))
+                .foregroundColor(adaptiveColors.tertiary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Shared Content Tabs (Media / Links) — segmented control nativo
+    private var sharedContentTabsSection: some View {
+        VStack(spacing: 16) {
+            Picker("", selection: $sharedTab) {
+                Text(NSLocalizedString("chat.gallery.tab.media", comment: "Media"))
+                    .tag(SharedContentTab.media)
+                Text(NSLocalizedString("chat.gallery.tab.links", comment: "Links"))
+                    .tag(SharedContentTab.links)
+            }
+            .pickerStyle(.segmented)
+            .tint(ProfilePillTabPalette.selectedThumbTint(for: colorScheme))
+            .frame(width: 200, height: 32)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, 16)
+            .contentShape(Rectangle())
+            .onChange(of: sharedTab) { _, _ in
+                HapticManager.shared.selection()
+            }
 
             Group {
                 switch sharedTab {
@@ -416,27 +568,6 @@ struct ConversationSettingsView: View {
                 }
             }
         }
-    }
-
-    private func sharedTabButton(_ tab: SharedContentTab, icon: String) -> some View {
-        let isSelected = sharedTab == tab
-        return Button {
-            withAnimation(.easeInOut(duration: 0.2)) { sharedTab = tab }
-        } label: {
-            VStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(isSelected ? adaptiveColors.primary : adaptiveColors.tertiary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-
-                Rectangle()
-                    .fill(isSelected ? adaptiveColors.primary : Color.clear)
-                    .frame(height: 2)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -478,7 +609,6 @@ struct ConversationSettingsView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
         }
     }
 
@@ -494,109 +624,6 @@ struct ConversationSettingsView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 16)
         .padding(.vertical, 36)
-    }
-
-
-
-    // MARK: - Chat Preferences (nav row → dedicated screen)
-    private var chatPreferencesNavRow: some View {
-        Button {
-            HapticManager.shared.lightImpact()
-            showChatPreferences = true
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 28)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(NSLocalizedString("conversationSettings.preferences", comment: "Chat preferences"))
-                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(adaptiveColors.primary)
-                    Text(NSLocalizedString("conversationSettings.preferences.desc", comment: "Notifications, previews, privacy"))
-                        .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(adaptiveColors.tertiary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(adaptiveColors.tertiary)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Actions Section
-    // MARK: - Storage Section
-    private var storageSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader("conversationSettings.storage")
-
-            VStack(spacing: 12) {
-                Button {
-                    HapticManager.shared.lightImpact()
-                    viewModel.openSharedGallery(tab: .media)
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(NSLocalizedString("conversationSettings.storage.mediaUsage", comment: "Media in this chat"))
-                                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                .foregroundColor(adaptiveColors.primary)
-                            Text(NSLocalizedString("conversationSettings.storage.mediaUsage.desc", comment: "Cached photos and videos on this device"))
-                                .font(.system(size: legacyPoppinsSize(12)))
-                                .foregroundColor(adaptiveColors.tertiary)
-                        }
-
-                        Spacer()
-
-                        Text(formatBytes(conversationMediaBytes))
-                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                            .foregroundColor(adaptiveColors.secondary)
-                            .monospacedDigit()
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(adaptiveColors.tertiary)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-
-                if conversationMediaBytes > 0 {
-                    dividerLine
-
-                    Button {
-                        showClearMediaConfirmation = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "trash")
-                                .font(.system(size: 15, weight: .medium))
-                            Text(NSLocalizedString("conversationSettings.storage.clearMedia", comment: "Clear cached media"))
-                                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                            Spacer()
-                        }
-                        .foregroundColor(.red)
-                    }
-                }
-            }
-        }
-        .onAppear(perform: refreshMediaUsage)
-        .confirmationDialog(
-            NSLocalizedString("conversationSettings.storage.clearMedia.title", comment: "Clear media confirmation"),
-            isPresented: $showClearMediaConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("conversationSettings.storage.clearMedia", comment: "Clear cached media"), role: .destructive) {
-                clearConversationMedia()
-            }
-            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
-        } message: {
-            Text(NSLocalizedString("conversationSettings.storage.clearMedia.message", comment: "Media will re-download when needed"))
-        }
     }
 
     private func refreshMediaUsage() {
@@ -816,6 +843,10 @@ class ConversationSettingsViewModel: ObservableObject {
     @Published var currentUserId = Auth.auth().currentUser?.uid ?? ""
     @Published var conversationCreatedDate = "Desconocida"
     @Published var totalMessages = 0
+    @Published var sentMessagesCount = 0
+    @Published var receivedMessagesCount = 0
+    @Published var vanishModeActive = false
+    @Published var vanishMessageTimer: VanishMessageTimer = .hours24
     @Published var sharedMedia: [SharedMedia] = []
     @Published var sharedGalleryMessages: [EnhancedMessage] = []
     @Published var sharedLinksCount = 0
@@ -897,13 +928,28 @@ class ConversationSettingsViewModel: ObservableObject {
         showSharedGallery = true
     }
 
+    private var isLoaded = false
+
     func loadConversationData(conversation: Conversation) {
+        guard !isLoaded else { return }
+        isLoaded = true
         currentConversation = conversation
         forwardingEnabled = conversation.forwardingPreferences?[currentUserId] ?? true
+        vanishModeActive = conversation.vanishModeActive ?? false
+        vanishMessageTimer = VanishMessageTimer(storedValue: conversation.vanishMessageTimer)
         loadPrivacySettings()
         guard let conversationId = conversation.id else { return }
 
-        // Cargar mensajes para obtener estadísticas (one-shot para no competir con el listener del chat principal)
+        // Local-first: pintar al instante con lo que ya hay sincronizado en disco,
+        // igual que el chat principal. Sin esto, la pantalla siempre esperaba un
+        // round-trip a Firestore aunque los mensajes ya estuvieran cacheados.
+        let cachedMessages = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
+        if !cachedMessages.isEmpty {
+            processMessages(cachedMessages)
+        }
+
+        // Refresco en segundo plano por si hay mensajes que aún no llegaron al caché local
+        // (one-shot para no competir con el listener del chat principal).
         chatService.fetchRecentMessages(conversationId: conversationId) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -921,6 +967,10 @@ class ConversationSettingsViewModel: ObservableObject {
 
     private func processMessages(_ messages: [EnhancedMessage]) {
         totalMessages = messages.count
+
+        let activeMessages = messages.filter { !$0.isDeleted }
+        sentMessagesCount = activeMessages.filter { $0.senderId == currentUserId }.count
+        receivedMessagesCount = activeMessages.filter { $0.senderId != currentUserId }.count
 
         let galleryMessages = messages
             .filter(isSharedGalleryEligible)
@@ -955,13 +1005,16 @@ class ConversationSettingsViewModel: ObservableObject {
     }
 
     func makeSharedMedia(from message: EnhancedMessage) -> SharedMedia? {
-        let mediaUrl = message.mediaUrl ?? message.thumbnailUrl
+        // Si el archivo descifrado ya vive en disco (prefetch o visto antes en el chat),
+        // usar esa ruta local en vez de esperar a que el mensaje traiga una URL remota.
+        let cached = ChatCacheStore.localURLsIfPresent(for: message)
+        let mediaUrl = cached.mediaUrl ?? message.mediaUrl ?? cached.thumbnailUrl ?? message.thumbnailUrl
         guard let mediaUrl else { return nil }
 
         return SharedMedia(
             id: message.id,
             type: message.type == .image ? .image : .video,
-            thumbnailUrl: message.thumbnailUrl ?? mediaUrl,
+            thumbnailUrl: cached.thumbnailUrl ?? message.thumbnailUrl ?? mediaUrl,
             originalUrl: mediaUrl,
             senderId: message.senderId,
             timestamp: message.timestamp,
@@ -1316,6 +1369,86 @@ class ConversationSettingsViewModel: ObservableObject {
             chatService.unmuteConversation(conversationId, for: currentUserId, completion: completion)
         } else {
             chatService.muteConversation(conversationId, for: currentUserId, completion: completion)
+        }
+    }
+
+    func updateVanishSettings(active: Bool, timer: VanishMessageTimer) {
+        guard let conversationId = currentConversation?.id else { return }
+        
+        chatService.setVanishMode(
+            conversationId: conversationId,
+            active: active,
+            userId: currentUserId,
+            timer: active ? timer : nil
+        ) { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if error == nil {
+                    self.vanishModeActive = active
+                    self.vanishMessageTimer = timer
+                    self.currentConversation?.vanishModeActive = active
+                    self.currentConversation?.vanishMessageTimer = timer.rawValue
+                    
+                    NotificationCenter.default.post(
+                        name: .conversationVanishModeDidChange,
+                        object: nil,
+                        userInfo: [
+                            "conversationId": conversationId,
+                            "vanishModeActive": active
+                        ]
+                    )
+                    
+                    if active {
+                        if let disabledNoticeId = self.currentConversation?.vanishDisabledNoticeMessageId {
+                            self.currentConversation?.vanishDisabledNoticeMessageId = nil
+                            self.chatService.clearVanishDisabledNoticeMessageId(conversationId: conversationId)
+                            self.chatService.deleteMessage(conversationId: conversationId, messageId: disabledNoticeId) { _ in }
+                        }
+                        
+                        if let enabledNoticeId = self.currentConversation?.vanishSettingsNoticeMessageId {
+                            self.chatService.updateChatNotice(
+                                conversationId: conversationId,
+                                messageId: enabledNoticeId,
+                                noticeKey: timer.enabledNoticeToken
+                            )
+                        } else {
+                            self.chatService.sendChatNotice(
+                                conversationId: conversationId,
+                                senderId: self.currentUserId,
+                                noticeKey: timer.enabledNoticeToken
+                            ) { messageId, _ in
+                                if let messageId {
+                                    self.currentConversation?.vanishSettingsNoticeMessageId = messageId
+                                    self.chatService.setVanishSettingsNoticeMessageId(
+                                        conversationId: conversationId,
+                                        messageId: messageId
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        if let enabledNoticeId = self.currentConversation?.vanishSettingsNoticeMessageId {
+                            self.currentConversation?.vanishSettingsNoticeMessageId = nil
+                            self.chatService.clearVanishSettingsNoticeMessageId(conversationId: conversationId)
+                            self.chatService.deleteMessage(conversationId: conversationId, messageId: enabledNoticeId) { _ in }
+                        }
+                        
+                        self.chatService.sendChatNotice(
+                            conversationId: conversationId,
+                            senderId: self.currentUserId,
+                            noticeKey: VanishMessageTimer.disabledNoticeToken
+                        ) { messageId, _ in
+                            if let messageId {
+                                self.currentConversation?.vanishDisabledNoticeMessageId = messageId
+                                self.chatService.setVanishDisabledNoticeMessageId(
+                                    conversationId: conversationId,
+                                    messageId: messageId
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -2414,14 +2547,6 @@ struct ConversationChatPreferencesView: View {
                     sectionHeader("conversationSettings.preferences.group.notifications")
 
                     toggleRow(
-                        title: "conversationSettings.notifications",
-                        desc: "conversationSettings.notifications.desc",
-                        isOn: $viewModel.notificationsEnabled
-                    ) { viewModel.toggleNotifications() }
-
-                    dividerLine
-
-                    toggleRow(
                         title: "conversationSettings.privacy.buzz.title",
                         desc: "conversationSettings.privacy.buzz.description",
                         isOn: $viewModel.buzzEnabled
@@ -2556,4 +2681,114 @@ struct ConversationChatPreferencesView: View {
         }
     }
 
+}
+
+// MARK: - Conversation Vanish Mode View
+struct ConversationVanishModeView: View {
+    @ObservedObject var viewModel: ConversationSettingsViewModel
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(spacing: 0) {
+                    timerOptionRow(
+                        title: NSLocalizedString("conversationSettings.vanish.no", value: "No", comment: ""),
+                        isSelected: !viewModel.vanishModeActive
+                    ) {
+                        viewModel.updateVanishSettings(active: false, timer: viewModel.vanishMessageTimer)
+                    }
+
+                    dividerLine
+
+                    timerOptionRow(
+                        title: NSLocalizedString("chat.vanish.timer.onceSeen", comment: ""),
+                        isSelected: viewModel.vanishModeActive && viewModel.vanishMessageTimer == .onceSeen
+                    ) {
+                        viewModel.updateVanishSettings(active: true, timer: .onceSeen)
+                    }
+
+                    dividerLine
+
+                    timerOptionRow(
+                        title: NSLocalizedString("chat.vanish.timer.24h", comment: ""),
+                        isSelected: viewModel.vanishModeActive && viewModel.vanishMessageTimer == .hours24
+                    ) {
+                        viewModel.updateVanishSettings(active: true, timer: .hours24)
+                    }
+
+                    dividerLine
+
+                    timerOptionRow(
+                        title: NSLocalizedString("chat.vanish.timer.7d", comment: ""),
+                        isSelected: viewModel.vanishModeActive && viewModel.vanishMessageTimer == .days7
+                    ) {
+                        viewModel.updateVanishSettings(active: true, timer: .days7)
+                    }
+                }
+
+                let descriptionText = NSLocalizedString("conversationSettings.vanish.description", value: "Elige cuánto tiempo permanecen visibles tus mensajes y reacciones en el chat. Puedes hacer que desaparezcan justo después de leerse y cerrar la conversación, o conservarlos hasta 7 días. Por tu privacidad, se enviará una notificación al chat si alguien hace una captura o graba la pantalla.", comment: "")
+                
+                Text(descriptionText)
+                    .font(.system(size: legacyPoppinsSize(13)))
+                    .foregroundColor(adaptiveColors.tertiary)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 16)
+            }
+            .padding(.top, 16)
+        }
+        .background {
+            Color(hex: colorScheme == .dark ? "0B1215" : "FAF9F6").ignoresSafeArea()
+        }
+        .navigationTitle(NSLocalizedString("conversationSettings.vanish.title", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                SettingsToolbarBackButton(action: { dismiss() })
+            }
+        }
+        .chatInteractivePopEnabled()
+    }
+
+    private func timerOptionRow(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: {
+            HapticManager.shared.selection()
+            action()
+        }) {
+            HStack {
+                Text(title)
+                    .font(.system(size: legacyPoppinsSize(16), weight: isSelected ? .semibold : .medium))
+                    .foregroundColor(isSelected ? adaptiveColors.primary : adaptiveColors.secondary)
+                
+                Spacer()
+                
+                Circle()
+                    .strokeBorder(isSelected ? adaptiveColors.primary : adaptiveColors.tertiary.opacity(0.5), lineWidth: 2)
+                    .background(
+                        Circle()
+                            .fill(isSelected ? adaptiveColors.primary : Color.clear)
+                            .padding(4)
+                    )
+                    .frame(width: 22, height: 22)
+            }
+            .padding(.vertical, 16)
+            .padding(.horizontal, 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var dividerLine: some View {
+        Rectangle()
+            .fill(adaptiveColors.tertiary.opacity(colorScheme == .dark ? 0.16 : 0.12))
+            .frame(height: 0.5)
+            .padding(.leading, 16)
+    }
 }

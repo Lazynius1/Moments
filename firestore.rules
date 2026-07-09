@@ -1646,7 +1646,8 @@ service cloud.firestore {
           'encryptionKey', 'encryptionKeyCreatedAt', 'encryptionVersion', 'conversationKeyVersion',
           'wrappedKeys', 'forwardingPreferences', 'buzzPreferences',
           'vanishModeActive', 'vanishModeEnabledBy', 'vanishModeEnabledAt', 'vanishMessageTimer',
-          'vanishSettingsNoticeMessageId', 'vanishDisabledNoticeMessageId'
+          'vanishSettingsNoticeMessageId', 'vanishDisabledNoticeMessageId',
+          'mutedByUserIds', 'mutedByTimestamps'
         ]) &&
         (
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deletedFor']) || onlyConversationDeletedForMeUpdated())
@@ -1712,6 +1713,33 @@ service cloud.firestore {
            || onlyVanishMessageTimerUpdated()
            || onlyVanishSettingsNoticeIdUpdated()
            || onlyVanishDisabledNoticeIdUpdated())
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['mutedByUserIds'])
+           || (request.resource.data.mutedByUserIds is list
+               && (
+                 (!(request.auth.uid in resource.data.get('mutedByUserIds', []))
+                  && request.auth.uid in request.resource.data.mutedByUserIds
+                  && request.resource.data.mutedByUserIds.size() == resource.data.get('mutedByUserIds', []).size() + 1
+                  && request.resource.data.mutedByUserIds.hasAll(resource.data.get('mutedByUserIds', [])))
+                 ||
+                 ((request.auth.uid in resource.data.get('mutedByUserIds', []))
+                  && !(request.auth.uid in request.resource.data.mutedByUserIds)
+                  && request.resource.data.mutedByUserIds.size() + 1 == resource.data.get('mutedByUserIds', []).size()
+                  && resource.data.get('mutedByUserIds', []).hasAll(request.resource.data.mutedByUserIds))
+               )
+           ))
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['mutedByTimestamps'])
+           || (request.resource.data.mutedByTimestamps is map
+               && (
+                 (!('mutedByTimestamps' in resource.data)
+                  && request.resource.data.mutedByTimestamps.keys().hasOnly([request.auth.uid]))
+                 ||
+                 (('mutedByTimestamps' in resource.data)
+                  && request.resource.data.mutedByTimestamps.diff(resource.data.mutedByTimestamps).affectedKeys().hasOnly([request.auth.uid]))
+               )
+               && (!(request.auth.uid in request.resource.data.mutedByTimestamps)
+                   || request.resource.data.mutedByTimestamps[request.auth.uid] is timestamp)))
         );
 
       // Conversations are shared records; clients may hide them per user via

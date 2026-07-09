@@ -458,7 +458,7 @@ struct InteractivePollOption: View {
         }
         .disabled(hasVoted)
         .scaleEffect(isSelected ? 1.05 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isSelected), value: isSelected)
     }
 }
 

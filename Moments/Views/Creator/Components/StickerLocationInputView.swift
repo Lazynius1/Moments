@@ -151,7 +151,7 @@ struct SmartLocationInputView: View {
                                 .font(.system(size: 16))
                                 .foregroundColor(palette.clearIcon)
                         }
-                        .transition(.scale.combined(with: .opacity))
+                        .transition(MotionPolicy.Transition.enterPop)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -221,9 +221,9 @@ struct SmartLocationInputView: View {
                         }
                     }
                 }
-                .animation(.easeInOut(duration: 0.3), value: searchText)
-                .animation(.easeInOut(duration: 0.3), value: searchResults)
-                .animation(.easeInOut(duration: 0.3), value: nearbyPlaces)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: searchText), value: searchText)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: searchResults), value: searchResults)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: nearbyPlaces), value: nearbyPlaces)
                 .padding(.horizontal, 4)
             }
         }

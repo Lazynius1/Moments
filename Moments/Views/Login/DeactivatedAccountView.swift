@@ -45,7 +45,7 @@ struct DeactivatedAccountView: View {
             }
         }
         .onAppear {
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
                 isVisible = true
             }
         }
@@ -154,7 +154,7 @@ struct DeactivationContent: View {
                 .frame(minHeight: geometry.size.height)
             }
         }
-        .offset(y: isVisible ? 0 : 30)
+        .offset(y: isVisible ? 0 : 12)
         .opacity(isVisible ? 1.0 : 0.0)
     }
 

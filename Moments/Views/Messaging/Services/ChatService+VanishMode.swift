@@ -75,6 +75,17 @@ extension ChatService {
             }
     }
 
+    func clearVanishSettingsNoticeMessageId(
+        conversationId: String,
+        completion: ((Error?) -> Void)? = nil
+    ) {
+        db.collection("conversations")
+            .document(conversationId)
+            .updateData(["vanishSettingsNoticeMessageId": FieldValue.delete()]) { error in
+                completion?(error)
+            }
+    }
+
     func sendChatNotice(
         conversationId: String,
         senderId: String,

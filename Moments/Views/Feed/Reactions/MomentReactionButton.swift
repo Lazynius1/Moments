@@ -139,7 +139,7 @@ struct EpicReactionButton: View {
                             )
                     }
                     .offset(x: 4, y: -4)
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(MotionPolicy.Transition.enterPop)
                 }
             }
             .overlay(alignment: .bottom) {
@@ -237,7 +237,7 @@ struct EpicReactionButton: View {
         }
         
         // Actualizar UI con animación
-        withAnimation(.easeInOut(duration: 0.3)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             self.hasReacted = userReaction != nil
             self.currentReaction = userReaction
             self.reactionCount = totalCount
@@ -261,7 +261,7 @@ struct EpicReactionButton: View {
     }
     
     private func hidePickerWithAnimation() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             showReactionPicker = false
         }
     }
@@ -276,7 +276,7 @@ struct EpicReactionButton: View {
         // ✅ OPTIMISTIC UPDATE: Update local state immediately (No delay)
         self.triggerExplosionAnimation()
         
-        withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
             self.hasReacted = true
             self.currentReaction = reactionType
             self.reactionCount += 1
@@ -294,7 +294,7 @@ struct EpicReactionButton: View {
         HapticManager.shared.lightImpact()
         
         // ✅ OPTIMISTIC REMOVAL: Update local state immediately (No delay)
-        withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
             self.hasReacted = false
             self.reactionCount = max(0, self.reactionCount - 1)
         }

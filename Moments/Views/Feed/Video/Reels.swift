@@ -326,7 +326,7 @@ struct ReelVideoView: View {
                         .foregroundColor(.pink) // Color de la reacción "feel"
                         .scaleEffect(isDoubleTapAnimating ? 1.5 : 0.1)
                         .opacity(isDoubleTapAnimating ? 0 : 1)
-                        .animation(.spring(response: 0.6, dampingFraction: 0.6), value: isDoubleTapAnimating)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.delight, value: isDoubleTapAnimating), value: isDoubleTapAnimating)
                 }
                 
                 // Sin controles visuales - solo play/pause silencioso
@@ -597,7 +597,7 @@ struct ReelVideoView: View {
                                         .frame(width: thumbSize, height: thumbSize)
                                         .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
                                         .offset(x: (geometry.size.width * playerManager.progress) - (thumbSize / 2))
-                                        .transition(.scale.combined(with: .opacity))
+                                        .transition(MotionPolicy.Transition.enterPop)
                                 }
 
                                 // Interactive touch area (larger height for comfortable scrubbing)
@@ -759,7 +759,7 @@ struct ReelVideoView: View {
         guard let momentId = video.moment.id else { return }
         
         // Cerrar context menu
-        withAnimation(.easeInOut(duration: 0.3)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             showContextMenu = false
         }
         
@@ -785,7 +785,7 @@ struct ReelVideoView: View {
         let haptic = UIImpactFeedbackGenerator(style: .heavy)
         haptic.impactOccurred()
         
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.delight) {
             isDoubleTapAnimating = true
         }
         
@@ -908,7 +908,7 @@ struct EnhancedReelReactionButton: View {
                 if hasReacted {
                     removeReaction()
                 } else {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                         showReactionPicker = true
                     }
                 }
@@ -944,7 +944,7 @@ struct EnhancedReelReactionButton: View {
                         .font(.system(size: 24, weight: .medium))
                         .foregroundColor(hasReacted ? (currentReaction?.color ?? .red) : .white)
                         .scaleEffect(hasReacted ? 1.2 : 1.0)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: hasReacted)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: hasReacted), value: hasReacted)
                 }
             }
             
@@ -994,7 +994,7 @@ struct EnhancedReelReactionButton: View {
                     }
                 }
                 .padding(.vertical, 12)
-                .transition(.scale.combined(with: .opacity))
+                .transition(MotionPolicy.Transition.enterPop)
             }
         }
         .onChange(of: hasReacted) { _, reacted in
@@ -1011,7 +1011,7 @@ struct EnhancedReelReactionButton: View {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let momentId = moment.id else { return }
         
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             hasReacted = true
             currentReaction = reactionType
             reactionCount += 1
@@ -1040,7 +1040,7 @@ struct EnhancedReelReactionButton: View {
               let momentId = moment.id,
               let reactionType = currentReaction else { return }
         
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             hasReacted = false
             currentReaction = nil
             reactionCount -= 1
@@ -1103,13 +1103,13 @@ struct EnhancedReelActionButton: View {
                     if let customIcon = AttachmentIcon(rawValue: icon) {
                         AttachmentIconView(icon: customIcon, preset: .reelsSidebar, tintColor: isActive ? activeColor : .white)
                             .scaleEffect(isActive ? 1.1 : 1.0)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
+                            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isActive), value: isActive)
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 24, weight: .medium))
                             .foregroundColor(isActive ? activeColor : .white)
                             .scaleEffect(isActive ? 1.1 : 1.0)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
+                            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isActive), value: isActive)
                     }
 
                     if isActive {

@@ -18,12 +18,12 @@ struct CreatingProfileView: View {
                 LogoView()
                     .scaleEffect(isVisible ? 1.0 : 0.8)
                     .opacity(isVisible ? 1.0 : 0.0)
-                    .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding, value: isVisible), value: isVisible)
                 
                 CreatingProfileStatusView(viewModel: viewModel)
                     .offset(y: isVisible ? 0 : 24)
                     .opacity(isVisible ? 1.0 : 0.0)
-                    .animation(.spring(response: 1.0, dampingFraction: 0.7).delay(0.2), value: isVisible)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.2), value: isVisible), value: isVisible)
 
                 Spacer()
             }
