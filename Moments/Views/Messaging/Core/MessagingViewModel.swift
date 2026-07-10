@@ -268,92 +268,27 @@ class MessagingViewModel: ObservableObject {
     func refreshUserData(userId: String) {
         UserCacheService.shared.refreshUser(userId: userId) { [weak self] user in
             DispatchQueue.main.async {
-                guard let self = self else { return }
-
-                for i in 0..<self.conversations.count {
-                    if self.conversations[i].otherParticipantId == userId {
-                        let existing = self.conversations[i]
-                        self.conversations[i] = self.updatingConversation(
-                            Conversation(
-                                id: existing.id,
-                                participants: existing.participants,
-                                lastMessage: existing.lastMessage,
-                                timestamp: existing.timestamp,
-                                readStatus: existing.readStatus,
-                                otherParticipantId: userId,
-                                otherParticipantUsername: user?.username ?? NSLocalizedString("messaging.user.default", comment: "Default user name"),
-                                otherParticipantProfileImagePath: user?.profileImagePath ?? "",
-                                isPinned: existing.isPinned,
-                                pinnedByUserIds: existing.pinnedByUserIds,
-                                pinnedBy: existing.pinnedBy,
-                                isMuted: existing.isMuted,
-                                mutedByUserIds: existing.mutedByUserIds,
-                                mutedBy: existing.mutedBy,
-                                archivedByUserIds: existing.archivedByUserIds,
-                                encryptionVersion: existing.encryptionVersion,
-                                conversationKeyVersion: existing.conversationKeyVersion,
-                                wrappedKeys: existing.wrappedKeys
-                            ),
-                            isPinned: existing.isPinned,
-                            isMuted: existing.isMuted
-                        )
-                        self.conversations[i].readReceiptPreferences = existing.readReceiptPreferences
-                        self.conversations[i].forwardingPreferences = existing.forwardingPreferences
-                        self.conversations[i].buzzPreferences = existing.buzzPreferences
-                        self.conversations[i].lastDeletedAt = existing.lastDeletedAt
-                        self.conversations[i].lastReadAt = existing.lastReadAt
-                        self.conversations[i].lastMessageSenderId = existing.lastMessageSenderId
-                        self.conversations[i].lastMessageSeenAt = existing.lastMessageSeenAt
-                        self.conversations[i].lastMessageReaction = existing.lastMessageReaction
-                        self.conversations[i].vanishModeActive = existing.vanishModeActive
-                        self.conversations[i].vanishModeEnabledBy = existing.vanishModeEnabledBy
-                        self.conversations[i].vanishModeEnabledAt = existing.vanishModeEnabledAt
-                        self.conversations[i].vanishMessageTimer = existing.vanishMessageTimer
-                    }
-                }
-
-                for i in 0..<self.filteredConversations.count {
-                    if self.filteredConversations[i].otherParticipantId == userId {
-                        let existing = self.filteredConversations[i]
-                        self.filteredConversations[i] = self.updatingConversation(
-                            Conversation(
-                                id: existing.id,
-                                participants: existing.participants,
-                                lastMessage: existing.lastMessage,
-                                timestamp: existing.timestamp,
-                                readStatus: existing.readStatus,
-                                otherParticipantId: userId,
-                                otherParticipantUsername: user?.username ?? NSLocalizedString("messaging.user.default", comment: "Default user name"),
-                                otherParticipantProfileImagePath: user?.profileImagePath ?? "",
-                                isPinned: existing.isPinned,
-                                pinnedByUserIds: existing.pinnedByUserIds,
-                                pinnedBy: existing.pinnedBy,
-                                isMuted: existing.isMuted,
-                                mutedByUserIds: existing.mutedByUserIds,
-                                mutedBy: existing.mutedBy,
-                                archivedByUserIds: existing.archivedByUserIds,
-                                encryptionVersion: existing.encryptionVersion,
-                                conversationKeyVersion: existing.conversationKeyVersion,
-                                wrappedKeys: existing.wrappedKeys
-                            ),
-                            isPinned: existing.isPinned,
-                            isMuted: existing.isMuted
-                        )
-                        self.filteredConversations[i].readReceiptPreferences = existing.readReceiptPreferences
-                        self.filteredConversations[i].forwardingPreferences = existing.forwardingPreferences
-                        self.filteredConversations[i].buzzPreferences = existing.buzzPreferences
-                        self.filteredConversations[i].lastDeletedAt = existing.lastDeletedAt
-                        self.filteredConversations[i].lastReadAt = existing.lastReadAt
-                        self.filteredConversations[i].lastMessageSenderId = existing.lastMessageSenderId
-                        self.filteredConversations[i].lastMessageSeenAt = existing.lastMessageSeenAt
-                        self.filteredConversations[i].lastMessageReaction = existing.lastMessageReaction
-                        self.filteredConversations[i].vanishModeActive = existing.vanishModeActive
-                        self.filteredConversations[i].vanishModeEnabledBy = existing.vanishModeEnabledBy
-                        self.filteredConversations[i].vanishModeEnabledAt = existing.vanishModeEnabledAt
-                        self.filteredConversations[i].vanishMessageTimer = existing.vanishMessageTimer
-                    }
-                }
+                guard let self else { return }
+                let username = user?.username ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
+                let imagePath = user?.profileImagePath ?? ""
+                self.applyRefreshedParticipant(userId: userId, username: username, imagePath: imagePath, to: &self.conversations)
+                self.applyRefreshedParticipant(userId: userId, username: username, imagePath: imagePath, to: &self.archivedConversations)
+                self.applyRefreshedParticipant(userId: userId, username: username, imagePath: imagePath, to: &self.filteredConversations)
             }
+        }
+    }
+
+    /// Muta solo los datos de perfil del participante: el resto de la conversación
+    /// no se reconstruye, así ningún campo del modelo puede perderse por el camino.
+    private func applyRefreshedParticipant(
+        userId: String,
+        username: String,
+        imagePath: String,
+        to list: inout [Conversation]
+    ) {
+        for index in list.indices where list[index].otherParticipantId == userId {
+            list[index].otherParticipantUsername = username
+            list[index].otherParticipantProfileImagePath = imagePath
         }
     }
 

@@ -322,6 +322,7 @@ extension GlassmorphicChatView {
                         recordingInteractionId: voiceRecordingInteractionId,
                         voiceRecordingDraft: voiceRecordingDraft,
                         isPreparingVoiceRecordingPreview: isPreparingVoiceRecordingPreview,
+                        voiceGestureState: voiceRecordingGestureState,
                         onSend: {
                             let messageToSend = messageText
 

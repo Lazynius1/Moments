@@ -267,17 +267,13 @@ struct ChatAttachmentPlusButton: View {
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                Color.clear
-                    .momentsChromeGlass(in: Circle(), interactive: true)
-
-                Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
-                    .rotationEffect(.degrees(isMenuOpen ? 45 : 0))
-            }
-            .frame(width: 44, height: 44)
-            .contentShape(Circle())
+            Image(systemName: "plus")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(adaptiveColors.primary)
+                .rotationEffect(.degrees(isMenuOpen ? 45 : 0))
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+                .momentsChromeGlass(in: Circle(), interactive: true)
         }
         .buttonStyle(.plain)
         .frame(width: 44, height: 44)

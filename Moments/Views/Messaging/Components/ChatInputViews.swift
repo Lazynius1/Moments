@@ -13,12 +13,12 @@ struct GlassmorphicInputBar: View {
     let recordingInteractionId: UUID?
     let voiceRecordingDraft: VoiceRecordingDraft?
     let isPreparingVoiceRecordingPreview: Bool
+    @ObservedObject var voiceGestureState: VoiceRecordingGestureState
     let onSend: () -> Void
     let onStartVoiceRecording: (UUID, Bool) -> Void
     let onFinishVoiceRecording: (UUID, VoiceRecordingFinishAction) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
-
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
@@ -40,7 +40,15 @@ struct GlassmorphicInputBar: View {
     }
 
     var body: some View {
-        inputRow
+        // Un solo contenedor coordina las superficies de glass de la barra.
+        // Cada control conserva su contenido dentro de su propio efecto.
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: 10) {
+                inputRow
+            }
+        } else {
+            inputRow
+        }
     }
 
     private var inputRow: some View {
@@ -52,6 +60,7 @@ struct GlassmorphicInputBar: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isVanishModeActive), value: isVanishModeActive)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isRecordingVoice), value: isRecordingVoice)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isVoiceRecordingLocked), value: isVoiceRecordingLocked)
     }
 
@@ -61,18 +70,19 @@ struct GlassmorphicInputBar: View {
                 VoiceRecordingHeldStatus(
                     isLocked: isVoiceRecordingLocked,
                     recordingTime: recordingTime,
+                    cancelDragOffset: voiceGestureState.cancelDragOffset,
                     adaptiveColors: adaptiveColors,
                     onCancel: cancelVoiceRecording
                 )
-            } else if let voiceRecordingDraft {
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else if voiceRecordingDraft != nil || isPreparingVoiceRecordingPreview {
                 VoiceRecordingDraftPreview(
                     draft: voiceRecordingDraft,
+                    fallbackDuration: recordingTime,
                     isPreparing: isPreparingVoiceRecordingPreview,
                     adaptiveColors: adaptiveColors
                 )
-            } else if isPreparingVoiceRecordingPreview {
-                ProgressView()
-                    .controlSize(.small)
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
                 TextField(inputPlaceholder, text: $text, axis: .vertical)
                     .lineLimit(1...6)
@@ -83,6 +93,7 @@ struct GlassmorphicInputBar: View {
                     .onChange(of: text) { _, newValue in
                         isTyping = !newValue.isEmpty
                     }
+                    .transition(.opacity)
             }
         }
         .padding(.leading, 14)
@@ -107,6 +118,9 @@ struct GlassmorphicInputBar: View {
                         : StrokeStyle(lineWidth: 0.8)
                 )
         }
+        .animation(.easeInOut(duration: 0.2), value: isRecordingVoice)
+        .animation(.easeInOut(duration: 0.2), value: isPreparingVoiceRecordingPreview)
+        .animation(.easeInOut(duration: 0.2), value: voiceRecordingDraft != nil)
     }
 
     @ViewBuilder
@@ -114,8 +128,10 @@ struct GlassmorphicInputBar: View {
         if voiceRecordingDraft != nil || isPreparingVoiceRecordingPreview {
             circularGlassButton(systemName: "trash.fill", tint: .red, action: cancelVoiceRecording)
                 .accessibilityLabel(Text("common.cancel"))
-        } else if !isRecordingVoice && allowsAttachments {
+                .transition(.opacity.combined(with: .scale(scale: 0.78)))
+        } else if !isRecordingVoice, allowsAttachments {
             ChatAttachmentPlusButton(isMenuOpen: isMenuOpen, action: toggleAttachmentMenu)
+                .transition(.opacity.combined(with: .scale(scale: 0.78)))
         }
     }
 
@@ -130,19 +146,16 @@ struct GlassmorphicInputBar: View {
         } else if !text.isEmpty {
             circularSendButton
         } else if allowsAttachments {
-            ZStack {
-                Color.clear
-                    .momentsChromeGlass(in: Circle(), interactive: !isVanishModeActive)
-
-                VoiceRecordingGestureButton(
-                    tint: adaptiveColors.mediaIconColor,
-                    isRecording: isRecordingVoice,
-                    activeInteractionId: recordingInteractionId,
-                    isLocked: $isVoiceRecordingLocked,
-                    onStart: onStartVoiceRecording,
-                    onFinish: onFinishVoiceRecording
-                )
-            }
+            VoiceRecordingGestureButton(
+                tint: adaptiveColors.mediaIconColor,
+                isRecording: isRecordingVoice,
+                activeInteractionId: recordingInteractionId,
+                isLocked: $isVoiceRecordingLocked,
+                gestureState: voiceGestureState,
+                glassInteractive: !isVanishModeActive,
+                onStart: onStartVoiceRecording,
+                onFinish: onFinishVoiceRecording
+            )
             .frame(width: 44, height: 44)
         }
     }
@@ -165,13 +178,11 @@ struct GlassmorphicInputBar: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            ZStack {
-                Color.clear.momentsChromeGlass(in: Circle(), interactive: true)
-                Image(systemName: systemName)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(tint)
-            }
-            .frame(width: 44, height: 44)
+            Image(systemName: systemName)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 44, height: 44)
+                .momentsChromeGlass(in: Circle(), interactive: true)
         }
         .buttonStyle(.plain)
     }
@@ -196,64 +207,171 @@ struct GlassmorphicInputBar: View {
     }
 }
 
-struct VoiceRecordingFloatingPauseButton: View {
-    let tint: Color
-    let action: () -> Void
+enum VoiceRecordingFloatingControlMode: Equatable {
+    case locking(progress: CGFloat)
+    case pause
+    case preparing
+    case resume
+}
+
+struct VoiceRecordingFloatingControlHost: View {
+    let isRecording: Bool
+    let isLocked: Bool
+    let isPreparing: Bool
+    let hasDraft: Bool
+    let hasActiveInteraction: Bool
+    @ObservedObject var gestureState: VoiceRecordingGestureState
+    let primaryTint: Color
+    let accentTint: Color
+    let onPause: () -> Void
+    let onResume: () -> Void
+
+    private var mode: VoiceRecordingFloatingControlMode? {
+        if isLocked {
+            return .pause
+        }
+        if isRecording {
+            return .locking(progress: gestureState.lockProgress)
+        }
+        if isPreparing, hasActiveInteraction {
+            return .preparing
+        }
+        if hasDraft, hasActiveInteraction {
+            return .resume
+        }
+        return nil
+    }
 
     var body: some View {
-        Button(action: action) {
-            ZStack {
-                Color.clear
-                    .momentsChromeGlass(in: Circle(), interactive: true)
-
-                Image(systemName: "pause.fill")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(tint)
+        ZStack(alignment: .bottom) {
+            if let mode {
+                VoiceRecordingFloatingControl(
+                    mode: mode,
+                    primaryTint: primaryTint,
+                    accentTint: accentTint,
+                    onPause: onPause,
+                    onResume: onResume
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.72, anchor: .bottom)))
             }
-            .frame(width: 44, height: 44)
         }
-        .buttonStyle(.plain)
-        .contentShape(Circle())
-        .accessibilityLabel(Text("chat.voice.record.pause"))
+        .frame(width: 44, height: 72, alignment: .bottom)
+        .allowsHitTesting(mode != nil)
+        .animation(.easeInOut(duration: 0.2), value: mode != nil)
     }
 }
 
-struct VoiceRecordingFloatingResumeButton: View {
-    let tint: Color
-    let action: () -> Void
+/// Un único control conserva posición, superficie glass y región táctil durante
+/// toda la secuencia de grabación: candado → pausa → micrófono → pausa.
+struct VoiceRecordingFloatingControl: View {
+    let mode: VoiceRecordingFloatingControlMode
+    let primaryTint: Color
+    let accentTint: Color
+    let onPause: () -> Void
+    let onResume: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var lockProgress: CGFloat {
+        if case let .locking(progress) = mode {
+            return min(1, max(0, progress))
+        }
+        return 1
+    }
+
+    private var controlHeight: CGFloat {
+        if case .locking = mode {
+            return 72 - lockProgress * 28
+        }
+        return 44
+    }
+
+    private var isInteractive: Bool {
+        mode == .pause || mode == .resume
+    }
 
     var body: some View {
-        Button(action: action) {
+        Button(action: performAction) {
             ZStack {
-                Color.clear
-                    .momentsChromeGlass(in: Circle(), interactive: true)
-
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(tint)
+                switch mode {
+                case .locking:
+                    VStack(spacing: 4) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 17, weight: .semibold))
+                        Image(systemName: "chevron.up")
+                            .font(.system(size: 12, weight: .bold))
+                            .opacity(max(0, 0.9 - lockProgress))
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.72)))
+                case .pause:
+                    Image(systemName: "pause.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .transition(.opacity.combined(with: .scale(scale: 0.72)))
+                case .preparing:
+                    ProgressView()
+                        .controlSize(.small)
+                        .transition(.opacity.combined(with: .scale(scale: 0.72)))
+                case .resume:
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .transition(.opacity.combined(with: .scale(scale: 0.72)))
+                }
             }
-            .frame(width: 44, height: 44)
+            .foregroundStyle(mode == .resume ? accentTint : primaryTint)
+            .frame(width: 44, height: controlHeight)
+            .contentShape(Capsule())
+            .momentsChromeGlass(in: Capsule(), interactive: isInteractive)
         }
         .buttonStyle(.plain)
-        .contentShape(Circle())
-        .accessibilityLabel(Text("chat.voice.record.resume"))
+        .disabled(!isInteractive)
+        .accessibilityLabel(accessibilityLabel)
+        .animation(
+            reduceMotion ? nil : .interactiveSpring(response: 0.28, dampingFraction: 0.86),
+            value: mode
+        )
+    }
+
+    private var accessibilityLabel: Text {
+        switch mode {
+        case .locking:
+            return Text("chat.voice.record.locked")
+        case .pause:
+            return Text("chat.voice.record.pause")
+        case .preparing:
+            return Text("common.loading")
+        case .resume:
+            return Text("chat.voice.record.resume")
+        }
+    }
+
+    private func performAction() {
+        switch mode {
+        case .pause:
+            onPause()
+        case .resume:
+            onResume()
+        case .locking, .preparing:
+            break
+        }
     }
 }
 
-struct VoiceRecordingAuroraCircleSurface: View {
+struct VoiceRecordingAuroraCircleSurface<Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
 
     var body: some View {
-        ZStack {
-            AuroraMeshLayer()
-                .blur(radius: 10)
-                .opacity(0.92)
-
+        Group {
             if #available(iOS 26.0, *) {
-                Color.clear
+                surfaceContent
                     .glassEffect(.clear.interactive(), in: Circle())
             } else {
-                Circle().fill(.ultraThinMaterial)
+                surfaceContent
+                    .background(.ultraThinMaterial, in: Circle())
             }
         }
         .clipShape(Circle())
@@ -262,6 +380,24 @@ struct VoiceRecordingAuroraCircleSurface: View {
                 .stroke(.white.opacity(colorScheme == .dark ? 0.22 : 0.34), lineWidth: 0.75)
                 .allowsHitTesting(false)
         }
+    }
+
+    private var surfaceContent: some View {
+        ZStack {
+            AuroraMeshLayer()
+                .blur(radius: 10)
+                .opacity(innerAuroraOpacity)
+
+            content
+        }
+        .frame(width: VoiceRecordingBlobMetrics.surface, height: VoiceRecordingBlobMetrics.surface)
+    }
+
+    private var innerAuroraOpacity: Double {
+        if #available(iOS 26.0, *) {
+            return colorScheme == .dark ? 0.5 : 0.42
+        }
+        return 0.92
     }
 }
 
@@ -274,29 +410,35 @@ private struct VoiceRecordingLockedSendButton: View {
     @State private var smoothedLevel: CGFloat = 0
 
     private var auraScale: CGFloat {
-        let minimum = 110.0 / 160.0
+        let minimum = VoiceRecordingBlobMetrics.auraScaleMinimum
         let activity = reduceMotion ? smoothedLevel * 0.18 : smoothedLevel
         return minimum + activity * (1 - minimum)
+    }
+
+    private var auroraOpacity: Double {
+        if #available(iOS 26.0, *) {
+            return colorScheme == .dark ? 0.62 : 0.52
+        }
+        return colorScheme == .dark ? 0.88 : 0.78
     }
 
     var body: some View {
         Button(action: action) {
             ZStack {
                 AuroraMeshLayer(speed: 0.65)
-                    .frame(width: 160, height: 160)
+                    .frame(width: VoiceRecordingBlobMetrics.aura, height: VoiceRecordingBlobMetrics.aura)
                     .clipShape(Circle())
                     .blur(radius: 10)
-                    .opacity(colorScheme == .dark ? 0.88 : 0.78)
+                    .opacity(auroraOpacity)
                     .scaleEffect(auraScale)
 
-                VoiceRecordingAuroraCircleSurface()
-                    .frame(width: 110, height: 110)
-
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 38, weight: .medium))
-                    .foregroundStyle(.white)
+                VoiceRecordingAuroraCircleSurface {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: VoiceRecordingBlobMetrics.icon + 1, weight: .medium))
+                        .foregroundStyle(.white)
+                }
             }
-            .frame(width: 160, height: 160)
+            .frame(width: VoiceRecordingBlobMetrics.aura, height: VoiceRecordingBlobMetrics.aura)
         }
         .buttonStyle(.plain)
         .frame(width: 44, height: 44)
@@ -317,6 +459,7 @@ private struct VoiceRecordingLockedSendButton: View {
 private struct VoiceRecordingHeldStatus: View {
     let isLocked: Bool
     let recordingTime: TimeInterval
+    var cancelDragOffset: CGFloat = 0
     let adaptiveColors: AdaptiveColors
     let onCancel: () -> Void
 
@@ -352,6 +495,9 @@ private struct VoiceRecordingHeldStatus: View {
                         .lineLimit(1)
                 }
                 .foregroundStyle(adaptiveColors.timestampColor)
+                // El texto acompaña el arrastre del blob hacia cancelar y se desvanece.
+                .offset(x: cancelDragOffset * 0.55)
+                .opacity(max(0, 1 + Double(cancelDragOffset) / 130))
             }
         }
         .padding(.trailing, 46)
@@ -359,35 +505,32 @@ private struct VoiceRecordingHeldStatus: View {
 }
 
 private struct VoiceRecordingDraftPreview: View {
-    let draft: VoiceRecordingDraft
+    let draft: VoiceRecordingDraft?
+    let fallbackDuration: TimeInterval
     let isPreparing: Bool
     let adaptiveColors: AdaptiveColors
 
     @StateObject private var player = VoiceRecordingDraftPlayer()
 
-    private var waveform: [Float] {
-        ChatVoiceWaveformSamples.resampled(draft.waveform, count: 28)
+    private var sourceWaveform: [Float] {
+        let samples = draft?.waveform ?? []
+        return samples.isEmpty ? Array(repeating: 0.22, count: 16) : samples
+    }
+
+    private var duration: TimeInterval {
+        draft?.duration ?? fallbackDuration
     }
 
     var body: some View {
-        HStack(spacing: 9) {
-            if isPreparing || draft.recording == nil {
-                ProgressView().controlSize(.small)
-            } else {
-                Button(action: player.togglePlayback) {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(adaptiveColors.primary)
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-            }
+        HStack(spacing: 8) {
+            playbackControl
 
             GeometryReader { proxy in
+                let sampleCount = max(18, min(64, Int(proxy.size.width / 4.5)))
                 VisualWaveformView(
-                    levels: waveform,
+                    levels: ChatVoiceWaveformSamples.resampled(sourceWaveform, count: sampleCount),
                     color: adaptiveColors.timestampColor.opacity(0.45),
-                    activeColor: adaptiveColors.accent,
+                    activeColor: adaptiveColors.primary.opacity(0.82),
                     progress: player.progress,
                     height: 23,
                     barWidth: 2.5,
@@ -403,16 +546,45 @@ private struct VoiceRecordingDraftPreview: View {
                 )
             }
             .frame(height: 26)
-
-            Text(player.displayTime(fallback: draft.duration))
-                .font(.system(size: legacyPoppinsSize(11), weight: .medium, design: .monospaced))
-                .foregroundStyle(adaptiveColors.timestampColor)
         }
-        .onAppear { player.load(draft.recording?.data) }
-        .onChange(of: draft.recording?.data.count) { _, _ in
-            player.load(draft.recording?.data)
+        .frame(maxWidth: .infinity, minHeight: 28)
+        .onAppear { player.load(draft?.recording?.data) }
+        .onChange(of: draft?.recording?.data.count) { _, _ in
+            player.load(draft?.recording?.data)
         }
         .onDisappear { player.stop() }
+    }
+
+    private var playbackControl: some View {
+        Button(action: player.togglePlayback) {
+            HStack(spacing: 4) {
+                ZStack {
+                    if isPreparing || draft?.recording == nil {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .transition(.opacity.combined(with: .scale(scale: 0.7)))
+                    } else {
+                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .transition(.opacity.combined(with: .scale(scale: 0.7)))
+                    }
+                }
+                .frame(width: 16, height: 18)
+
+                Text(player.displayTime(fallback: duration))
+                    .font(.system(size: legacyPoppinsSize(10), weight: .semibold, design: .monospaced))
+                    .monospacedDigit()
+            }
+            .foregroundStyle(adaptiveColors.primary.opacity(0.82))
+            .padding(.horizontal, 6)
+            .frame(height: 24)
+            .background(adaptiveColors.timestampColor.opacity(0.10), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(isPreparing || draft?.recording == nil)
+        .accessibilityLabel(player.isPlaying ? Text("chat.voice.pause") : Text("chat.voice.play"))
+        .animation(.easeInOut(duration: 0.18), value: isPreparing)
+        .animation(.easeInOut(duration: 0.18), value: player.isPlaying)
     }
 }
 

@@ -78,3 +78,7 @@ npm_cache/
 
 # dataconnect generated files
 .dataconnect
+
+# Internal design notes and research docs (local only)
+docs/superpowers/plans/*.md
+docs/superpowers/specs/*.md

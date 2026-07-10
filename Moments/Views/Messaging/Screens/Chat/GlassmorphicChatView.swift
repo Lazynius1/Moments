@@ -67,6 +67,7 @@ struct GlassmorphicChatView: View {
     @State var isPreparingVoiceRecordingPreview = false
     @State var voiceRecordingInteractionId: UUID?
     @State var voiceRecordingDraft: VoiceRecordingDraft?
+    @StateObject var voiceRecordingGestureState = VoiceRecordingGestureState()
     @State var recordingTime: TimeInterval = 0
     @State var recordingTimer: Timer?
     @State var showingConversationSettings = false

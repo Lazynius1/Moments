@@ -212,28 +212,21 @@ extension GlassmorphicChatView {
                         .padding(.bottom, floatingNavigationBottomInset)
                     }
 
-                    if isVoiceRecordingLocked {
-                        VoiceRecordingFloatingPauseButton(
-                            tint: adaptiveColors.primary,
-                            action: pauseVoiceRecording
-                        )
-                        .padding(.trailing, 16)
-                        .padding(.bottom, max(lastComposerHeight, 0) + 40)
-                        .zIndex(100)
-                    }
-
-                    if voiceRecordingDraft != nil,
-                       !isRecordingVoice,
-                       !isVoiceRecordingLocked,
-                       !isPreparingVoiceRecordingPreview {
-                        VoiceRecordingFloatingResumeButton(
-                            tint: adaptiveColors.accent,
-                            action: resumeVoiceRecording
-                        )
-                        .padding(.trailing, 16)
-                        .padding(.bottom, max(lastComposerHeight, 0) + 40)
-                        .zIndex(100)
-                    }
+                    VoiceRecordingFloatingControlHost(
+                        isRecording: isRecordingVoice,
+                        isLocked: isVoiceRecordingLocked,
+                        isPreparing: isPreparingVoiceRecordingPreview,
+                        hasDraft: voiceRecordingDraft != nil,
+                        hasActiveInteraction: voiceRecordingInteractionId != nil,
+                        gestureState: voiceRecordingGestureState,
+                        primaryTint: adaptiveColors.primary,
+                        accentTint: adaptiveColors.accent,
+                        onPause: pauseVoiceRecording,
+                        onResume: resumeVoiceRecording
+                    )
+                    .padding(.trailing, 16)
+                    .padding(.bottom, max(lastComposerHeight, 0) + 40)
+                    .zIndex(100)
                 }
             }
             .chatBottomBarInset {

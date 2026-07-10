@@ -168,17 +168,18 @@ struct ChatTextBubbleView: View {
         ChatLinkOpener.firstURL(in: text) != nil
     }
 
-    /// Con reply o link preview el contenido se alinea a la izquierda; si no, según remitente.
+    /// La burbuja se coloca según el remitente, pero su contenido siempre se lee
+    /// desde el inicio de línea, igual que en Mensajes y el resto de mensajería.
     private var stackAlignment: HorizontalAlignment {
-        (hasReply || hasLink) ? .leading : (isOutgoing ? .trailing : .leading)
+        .leading
     }
 
     private var textAlignment: TextAlignment {
-        (hasReply || hasLink) ? .leading : (isOutgoing ? .trailing : .leading)
+        .leading
     }
 
     private var contentFrameAlignment: Alignment {
-        (hasReply || hasLink) ? .leading : (isOutgoing ? .trailing : .leading)
+        .leading
     }
 
     private func parseSegments(_ input: String) -> [TextSegment] {

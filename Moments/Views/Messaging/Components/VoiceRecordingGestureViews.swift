@@ -7,6 +7,24 @@ enum VoiceRecordingFinishAction: Equatable {
     case cancel
 }
 
+/// Estado del gesto de grabación compartido entre el botón (que lo escribe) y la
+/// barra (que mueve texto de cancelar y píldora del candado a juego).
+final class VoiceRecordingGestureState: ObservableObject {
+    @Published var cancelDragOffset: CGFloat = 0
+    @Published var lockProgress: CGFloat = 0
+    @Published var followOffset: CGSize = .zero
+}
+
+/// Medidas compartidas del blob de grabación (botón mantenido y send en locked).
+enum VoiceRecordingBlobMetrics {
+    static let surface: CGFloat = 110
+    static let aura: CGFloat = 160
+    static let icon: CGFloat = 30
+    static let lockOffset: CGFloat = -122
+
+    static var auraScaleMinimum: CGFloat { surface / aura }
+}
+
 private enum VoiceRecordingGesturePhase: Equatable {
     case idle
     case pressing
@@ -14,16 +32,14 @@ private enum VoiceRecordingGesturePhase: Equatable {
     case recordingLocked
 }
 
-private enum VoiceRecordingDragAxis {
-    case vertical
-    case horizontal
-}
-
 struct VoiceRecordingGestureButton: View {
     let tint: Color
     let isRecording: Bool
     let activeInteractionId: UUID?
     @Binding var isLocked: Bool
+    /// Estado compartido con la barra (texto de cancelar, píldora del candado).
+    @ObservedObject var gestureState: VoiceRecordingGestureState
+    let glassInteractive: Bool
     let onStart: (UUID, Bool) -> Void
     let onFinish: (UUID, VoiceRecordingFinishAction) -> Void
 
@@ -35,17 +51,22 @@ struct VoiceRecordingGestureButton: View {
     @State private var phase: VoiceRecordingGesturePhase = .idle
     @State private var interactionId: UUID?
     @State private var holdTask: Task<Void, Never>?
-    @State private var dragAxis: VoiceRecordingDragAxis?
     @State private var lockProgress: CGFloat = 0
     @State private var cancelProgress: CGFloat = 0
     @State private var smoothedLevel: CGFloat = 0
     @State private var lastLockTick = 0
     @State private var latestTranslation: CGSize = .zero
+    // El blob sigue al dedo con retardo (spring interactivo): es lo que da el
+    // tacto "líquido" al gesto, en vez de un blob clavado en su sitio.
+    @State private var blobFollowOffset: CGSize = .zero
 
     private let holdNanoseconds: UInt64 = 190_000_000
     private let directionThreshold: CGFloat = 8
-    private let lockDistance: CGFloat = 72
-    private let cancelDistance: CGFloat = 70
+    // Recorrido largo: el blob viaja con el dedo hasta el candado (~105pt de arrastre
+    // real); con distancias cortas el gesto se siente rígido en vez de líquido.
+    private let lockDistance: CGFloat = 105
+    private let cancelDistance: CGFloat = 150
+    private let followOvershoot: CGFloat = 46
 
     private var showsRecordingOverlay: Bool {
         phase == .recordingHeld || phase == .recordingLocked
@@ -53,13 +74,17 @@ struct VoiceRecordingGestureButton: View {
 
     var body: some View {
         Button(action: accessibilityActivate) {
-            AttachmentIconView(
-                icon: .voice,
-                preset: .chatVoiceInput,
-                tintColor: tint
-            )
+            ZStack {
+                AttachmentIconView(
+                    icon: .voice,
+                    preset: .chatVoiceInput,
+                    tintColor: tint
+                )
+                .opacity(showsRecordingOverlay ? 0 : 1)
+            }
             .frame(width: 44, height: 44)
             .contentShape(Circle())
+            .momentsChromeGlass(in: Circle(), interactive: glassInteractive)
             .overlay {
                 if showsRecordingOverlay {
                     recordingOverlay
@@ -71,6 +96,7 @@ struct VoiceRecordingGestureButton: View {
                         .allowsHitTesting(false)
                 }
             }
+            .animation(.easeOut(duration: 0.1), value: showsRecordingOverlay)
         }
         .buttonStyle(.plain)
         .simultaneousGesture(recordingGesture)
@@ -109,51 +135,40 @@ struct VoiceRecordingGestureButton: View {
 
     private var recordingOverlay: some View {
         ZStack {
-            lockAffordance
+            Group {
+                AuroraMeshLayer(speed: 0.65)
+                    .frame(width: VoiceRecordingBlobMetrics.aura, height: VoiceRecordingBlobMetrics.aura)
+                    .clipShape(Circle())
+                    .blur(radius: 10)
+                    .opacity(auroraOpacity)
+                    .scaleEffect(auraScale)
 
-            AuroraMeshLayer(speed: 0.65)
-                .frame(width: 160, height: 160)
-                .clipShape(Circle())
-                .blur(radius: 10)
-                .opacity(colorScheme == .dark ? 0.88 : 0.78)
-                .scaleEffect(auraScale)
-
-            VoiceRecordingAuroraCircleSurface()
-                .frame(width: 110, height: 110)
-
-            Image(systemName: "mic.fill")
-                .font(.system(size: 37, weight: .semibold))
-                .foregroundStyle(.white)
-                .symbolEffect(.pulse, options: .repeating, isActive: isRecording && !reduceMotion)
+                VoiceRecordingAuroraCircleSurface {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: VoiceRecordingBlobMetrics.icon, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .symbolEffect(.pulse, options: .repeating, isActive: isRecording && !reduceMotion)
+                }
+            }
+            // El blob viaja con el dedo en ambos ejes; el botón base permanece anclado.
+            .offset(x: blobFollowOffset.width, y: blobFollowOffset.height)
         }
-        .frame(width: 260, height: 250)
+        .frame(width: 44, height: 44)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isLocked), value: isLocked)
     }
 
-    private var auraScale: CGFloat {
-        let minimum = 110.0 / 160.0
-        let activity = reduceMotion ? smoothedLevel * 0.18 : smoothedLevel
-        return minimum + activity * (1 - minimum)
+    private var auroraOpacity: Double {
+        // Con glass nativo la aurora baja de opacidad para que el fondo refracte a través.
+        if #available(iOS 26.0, *) {
+            return colorScheme == .dark ? 0.52 : 0.44
+        }
+        return colorScheme == .dark ? 0.88 : 0.78
     }
 
-    private var lockAffordance: some View {
-        VStack(spacing: 4) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 17, weight: .semibold))
-
-            Image(systemName: "chevron.up")
-                .font(.system(size: 12, weight: .bold))
-                .opacity(0.5 + lockProgress * 0.5)
-        }
-        .foregroundStyle(tint)
-        .frame(width: 40, height: 72)
-        .background {
-            Color.clear
-                .momentsChromeGlass(in: Capsule(), interactive: false)
-        }
-        .offset(y: -130 - (reduceMotion ? 0 : lockProgress * 12))
-        .scaleEffect(isLocked ? 1.06 : 0.94 + lockProgress * 0.06)
-        .opacity(phase == .recordingHeld || phase == .recordingLocked ? 1 : 0)
+    private var auraScale: CGFloat {
+        let minimum = VoiceRecordingBlobMetrics.auraScaleMinimum
+        let activity = reduceMotion ? smoothedLevel * 0.18 : smoothedLevel
+        return minimum + activity * (1 - minimum)
     }
 
     private var recordingGesture: some Gesture {
@@ -176,7 +191,6 @@ struct VoiceRecordingGestureButton: View {
         let id = UUID()
         interactionId = id
         phase = .pressing
-        dragAxis = nil
         lockProgress = 0
         cancelProgress = 0
         lastLockTick = 0
@@ -198,30 +212,60 @@ struct VoiceRecordingGestureButton: View {
         }
     }
 
+    /// Sin jaula de ejes: lock y cancelar se evalúan a la vez y el blob sigue al
+    /// dedo en cualquier dirección (con goma hacia abajo/derecha).
     private func updateDrag(translation: CGSize) {
-        if dragAxis == nil {
-            let horizontal = abs(translation.width)
-            let vertical = abs(translation.height)
-            guard max(horizontal, vertical) >= directionThreshold else { return }
-            dragAxis = vertical > horizontal ? .vertical : .horizontal
-        }
+        let horizontal = abs(translation.width)
+        let vertical = abs(translation.height)
+        guard max(horizontal, vertical) >= directionThreshold || blobFollowOffset != .zero else { return }
 
-        switch dragAxis {
-        case .vertical:
-            cancelProgress = 0
-            lockProgress = min(1, max(0, -translation.height / lockDistance))
-            emitLockTickIfNeeded()
-            if lockProgress >= 1 {
-                commitLock()
-            }
-        case .horizontal:
-            lockProgress = 0
-            cancelProgress = min(1, max(0, -translation.width / cancelDistance))
-            if cancelProgress >= 1 {
-                commitCancellation()
-            }
-        case nil:
-            break
+        lockProgress = min(1, max(0, -translation.height / lockDistance))
+        cancelProgress = min(1, max(0, -translation.width / cancelDistance))
+        gestureState.lockProgress = lockProgress
+        if lockProgress == 0 {
+            lastLockTick = 0
+        }
+        updateBlobFollow(x: translation.width, y: translation.height)
+        emitLockTickIfNeeded()
+
+        if lockProgress >= 1, lockProgress >= cancelProgress {
+            commitLock()
+        } else if cancelProgress >= 1 {
+            commitCancellation()
+        }
+    }
+
+    /// Seguimiento amortiguado del dedo: 1:1 hacia lock/cancelar (con margen suave
+    /// pasado el objetivo) y con resistencia de goma en las direcciones "sin destino".
+    private func updateBlobFollow(x: CGFloat, y: CGFloat) {
+        guard !reduceMotion else { return }
+
+        let followY = y <= 0
+            ? max(-(lockDistance + followOvershoot), y)
+            : min(26, y * 0.3)
+        let followX = x <= 0
+            ? max(-(cancelDistance + followOvershoot), x)
+            : min(26, x * 0.3)
+
+        withAnimation(.interactiveSpring(response: 0.26, dampingFraction: 0.82)) {
+            blobFollowOffset = CGSize(width: followX, height: followY)
+            gestureState.followOffset = blobFollowOffset
+            gestureState.cancelDragOffset = min(0, x)
+        }
+    }
+
+    private func settleBlobFollow() {
+        guard blobFollowOffset != .zero || gestureState.cancelDragOffset != 0 else { return }
+        if reduceMotion {
+            blobFollowOffset = .zero
+            gestureState.followOffset = .zero
+            gestureState.cancelDragOffset = 0
+            return
+        }
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+            blobFollowOffset = .zero
+            gestureState.followOffset = .zero
+            gestureState.cancelDragOffset = 0
         }
     }
 
@@ -238,8 +282,8 @@ struct VoiceRecordingGestureButton: View {
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
             isLocked = true
         }
-        dragAxis = nil
         lockProgress = 1
+        settleBlobFollow()
         HapticManager.shared.success()
         UIAccessibility.post(
             notification: .announcement,
@@ -297,11 +341,14 @@ struct VoiceRecordingGestureButton: View {
         holdTask = nil
         phase = .idle
         interactionId = nil
-        dragAxis = nil
         lockProgress = 0
         cancelProgress = 0
         lastLockTick = 0
         latestTranslation = .zero
         smoothedLevel = 0
+        blobFollowOffset = .zero
+        gestureState.followOffset = .zero
+        gestureState.cancelDragOffset = 0
+        gestureState.lockProgress = 0
     }
 }

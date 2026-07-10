@@ -494,8 +494,8 @@ struct Conversation: Identifiable, Codable, Hashable {
     let timestamp: Date
     var readStatus: [String: Bool]
     let otherParticipantId: String
-    let otherParticipantUsername: String?
-    let otherParticipantProfileImagePath: String?
+    var otherParticipantUsername: String?
+    var otherParticipantProfileImagePath: String?
     let isPinned: Bool?
     let pinnedByUserIds: [String]?
     let pinnedBy: String?
