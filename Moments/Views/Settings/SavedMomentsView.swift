@@ -6,6 +6,20 @@ import AVKit
 import AVFoundation
 import UIKit
 
+private struct IdentifiedSavedMoment: Identifiable {
+    let index: Int
+    let moment: Moment
+
+    var id: String {
+        moment.id ?? [
+            moment.authorId,
+            String(moment.timestamp.timeIntervalSince1970),
+            moment.imagePath ?? "",
+            moment.videoUrl ?? ""
+        ].joined(separator: "|")
+    }
+}
+
 // MARK: - SavedMomentsViewModel CORREGIDO
 struct SavedMomentsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -68,6 +82,10 @@ struct SavedMomentsView: View {
         case .author:
             return byCollection.sorted { $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending }
         }
+    }
+
+    private var identifiedFilteredMoments: [IdentifiedSavedMoment] {
+        filteredMoments.enumerated().map { IdentifiedSavedMoment(index: $0.offset, moment: $0.element) }
     }
 
     var body: some View {
@@ -337,9 +355,10 @@ struct SavedMomentsView: View {
                     columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3),
                     spacing: 4
                 ) {
-                    ForEach(filteredMoments.indices, id: \.self) { index in
-                        let moment = filteredMoments[index]
-                        let momentId = moment.id ?? UUID().uuidString
+                    ForEach(identifiedFilteredMoments) { identified in
+                        let index = identified.index
+                        let moment = identified.moment
+                        let momentId = identified.id
                         let isRestricted = !(viewModel.visibilityByMomentId[momentId] ?? true)
                         let isMutedRestriction = isRestricted && viewModel.isMomentFromMutedUser(moment)
 
@@ -662,6 +681,8 @@ private struct SavedMomentGridCard: View {
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(Text(moment.content.isEmpty ? NSLocalizedString("savedMoments.empty.title", comment: "Saved moments") : moment.content))
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
             .simultaneousGesture(LongPressGesture(minimumDuration: 0.28).onEnded { _ in onLongPress() })
             .overlay(
                 RoundedRectangle(cornerRadius: 8)

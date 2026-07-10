@@ -29,6 +29,11 @@ extension ChatService {
 
                 let payload: MediaUploadPayload
                 var tempFilesToCleanup: [URL] = []
+                defer {
+                    for url in tempFilesToCleanup {
+                        try? FileManager.default.removeItem(at: url)
+                    }
+                }
 
                 if type == .video || type == .viewOnceVideo {
                     let preparedURL = try await videoCompression.prepareVideoDataForUpload(
@@ -52,6 +57,21 @@ extension ChatService {
                     type == .viewOnceVideo
 
                 if shouldEncryptMedia {
+                    if (type == .video || type == .viewOnceVideo),
+                       case .file(let preparedURL) = payload {
+                        let result = try await uploadChunkedEncryptedVideo(
+                            preparedURL: preparedURL,
+                            senderId: senderId,
+                            conversationId: conversationId,
+                            messageId: resolvedMessageId,
+                            mediaFileId: mediaFileId,
+                            fileExtension: ext,
+                            contentType: getContentType(for: type)
+                        )
+                        completion(.success(result))
+                        return
+                    }
+
                     let plaintextData: Data
                     let originalContentType: String
 
@@ -60,7 +80,7 @@ extension ChatService {
                         plaintextData = rawData
                         originalContentType = getContentType(for: type)
                     case .file(let url):
-                        plaintextData = try Data(contentsOf: url)
+                        plaintextData = try Data(contentsOf: url, options: .mappedIfSafe)
                         originalContentType = getContentType(for: type)
                     }
 
@@ -115,9 +135,7 @@ extension ChatService {
                     var localThumbnailURL: String?
 
                     var generatedThumbnailData: Data?
-                    if type == .video || type == .viewOnceVideo {
-                        generatedThumbnailData = try await generateVideoThumbnailData(from: plaintextData)
-                    } else if type == .image || type == .viewOnceImage || type == .ephemeral {
+                    if type == .image || type == .viewOnceImage || type == .ephemeral {
                         generatedThumbnailData = generateImageThumbnailData(from: plaintextData)
                     }
 
@@ -165,10 +183,6 @@ extension ChatService {
                         } catch {
                             // Thumbnail opcional; el vídeo principal ya está subido.
                         }
-                    }
-
-                    for url in tempFilesToCleanup {
-                        try? FileManager.default.removeItem(at: url)
                     }
 
                     let resolvedPreview = CachedResolvedMedia(
@@ -317,21 +331,8 @@ extension ChatService {
         return try await MediaUploadService.shared.upload(target: thumbTarget, payload: .data(thumbnailData))
     }
 
-    private func generateVideoThumbnailData(from videoData: Data) async throws -> Data? {
-        let tempVideoURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chat_video_thumb_\(UUID().uuidString).mp4")
-
-        do {
-            try videoData.write(to: tempVideoURL, options: .atomic)
-        } catch {
-            return nil
-        }
-
-        defer {
-            try? FileManager.default.removeItem(at: tempVideoURL)
-        }
-
-        let asset = AVURLAsset(url: tempVideoURL)
+    func generateVideoThumbnailData(from videoURL: URL) async throws -> Data? {
+        let asset = AVURLAsset(url: videoURL)
         let imageGenerator = AVAssetImageGenerator(asset: asset)
         imageGenerator.appliesPreferredTrackTransform = true
         imageGenerator.maximumSize = CGSize(width: 720, height: 1280)
@@ -409,7 +410,7 @@ extension ChatService {
         }
     }
 
-    private func getFileExtension(for type: MessageType) -> String {
+    func getFileExtension(for type: MessageType) -> String {
         switch type {
         case .image, .viewOnceImage, .ephemeral: return "jpg"
         case .gif: return "gif"
@@ -449,7 +450,7 @@ extension ChatService {
         }
     }
 
-    private func chatEncryptedStorageTarget(
+    func chatEncryptedStorageTarget(
         userId: String,
         conversationId: String,
         messageId: String,

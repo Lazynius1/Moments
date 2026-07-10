@@ -17,7 +17,13 @@ extension ChatService {
         }
 
         Task {
-            let encryptedContent = await encryptMessageContent(trimmed, for: destinationConversationId)
+            let encryptedContent: String
+            do {
+                encryptedContent = try await encryptMessageContent(trimmed, for: destinationConversationId)
+            } catch {
+                completion(.failure(error))
+                return
+            }
             let messageId = UUID().uuidString
             let message = EnhancedMessage(
                 id: messageId,

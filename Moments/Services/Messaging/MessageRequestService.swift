@@ -77,7 +77,8 @@ class MessageRequestService: ObservableObject {
     
     // MARK: - Listen to Pending Requests
     func listenToPendingRequests(for userId: String) {
-        
+        listeners["pendingRequests"]?.remove()
+
         let listener = db.collection("messageRequests")
             .whereField("receiverId", isEqualTo: userId)
             .whereField("status", isEqualTo: MessageRequest.RequestStatus.pending.rawValue)
@@ -151,6 +152,8 @@ class MessageRequestService: ObservableObject {
 
     // MARK: - Listen to Outgoing Pending Requests
     func listenToOutgoingPendingRequests(for userId: String) {
+        listeners["outgoingPendingRequests"]?.remove()
+
         let listener = db.collection("messageRequests")
             .whereField("senderId", isEqualTo: userId)
             .whereField("status", isEqualTo: MessageRequest.RequestStatus.pending.rawValue)

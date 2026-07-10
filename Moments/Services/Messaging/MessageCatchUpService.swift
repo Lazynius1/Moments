@@ -61,7 +61,7 @@ final class MessageCatchUpService {
         for _ in 0..<maxPages {
             guard ingestedCount < maxCatchUpMessagesPerSync else { break }
 
-            let cursor = resolveCatchUpCursor(for: conversationId)
+            let cursor = await resolveCatchUpCursor(for: conversationId)
 
             let pageLimit = min(catchUpPageSize, maxCatchUpMessagesPerSync - ingestedCount)
             let messages = await fetchCatchUpPage(
@@ -71,19 +71,23 @@ final class MessageCatchUpService {
             )
             guard !messages.isEmpty else { break }
 
-            _ = MessageIngestService.shared.ingestBatch(messages, conversationId: conversationId, source: .catchUp)
+            _ = await MessageIngestService.shared.ingestBatch(
+                messages,
+                conversationId: conversationId,
+                source: .catchUp
+            )
             ingestedCount += messages.count
 
             if messages.count < pageLimit { break }
         }
     }
 
-    private func resolveCatchUpCursor(for conversationId: String) -> MessageSyncCursor? {
+    private func resolveCatchUpCursor(for conversationId: String) async -> MessageSyncCursor? {
         if let stored = MessageSyncCursorStore.cursor(for: conversationId),
            !stored.messageId.isEmpty {
             return stored
         }
-        if let local = LocalPersistenceService.shared.lastMessageSyncCursor(for: conversationId) {
+        if let local = await LocalPersistenceService.shared.lastMessageSyncCursorInBackground(for: conversationId) {
             return local
         }
         return MessageSyncCursorStore.cursor(for: conversationId)

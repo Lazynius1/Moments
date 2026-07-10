@@ -95,7 +95,13 @@ extension ChatService {
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         Task {
-            let encryptedContent = await encryptMessageContent(shareText, for: conversationId)
+            let encryptedContent: String
+            do {
+                encryptedContent = try await encryptMessageContent(shareText, for: conversationId)
+            } catch {
+                completion(.failure(error))
+                return
+            }
             let freshMomentAuthor = UserCacheService.shared.getCachedUser(userId: moment.authorId)?.username ?? moment.username
 
             let sharedMomentData: [String: String] = [
@@ -169,7 +175,13 @@ extension ChatService {
         }
 
         Task {
-            let encryptedContent = await encryptMessageContent(shareText, for: conversationId)
+            let encryptedContent: String
+            do {
+                encryptedContent = try await encryptMessageContent(shareText, for: conversationId)
+            } catch {
+                completion(.failure(error))
+                return
+            }
             let freshAuthor = UserCacheService.shared.getCachedUser(userId: story.authorId)?.username ?? story.username
 
             let sharedStoryData: [String: String] = [

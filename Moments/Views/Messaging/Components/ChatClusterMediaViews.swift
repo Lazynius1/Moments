@@ -102,10 +102,10 @@ struct GlassmorphicClusterRow: View {
     let showSeenLabel: Bool
     var isMenuSelected: Bool = false
     var isBubbleFlashing: Bool = false
-    @Binding var timestampRevealOffset: CGFloat
+    @ObservedObject var timestampRevealState: ChatTimestampRevealState
 
     @State private var dragOffset: CGFloat = 0
-    @State private var hasTriggeredHaptic = false
+    @State private var replyHapticStep = 0
     @Environment(\.colorScheme) var colorScheme
 
     private var adaptiveColors: AdaptiveColors {
@@ -117,7 +117,10 @@ struct GlassmorphicClusterRow: View {
                 HStack(alignment: .bottom, spacing: 0) {
                     if isCurrentUser {
                         Color.clear
-                            .chatTimestampRevealGutter(timestampRevealOffset: $timestampRevealOffset)
+                            .chatTimestampRevealGutter(
+                                state: timestampRevealState,
+                                isEnabled: true
+                            )
                     }
 
                     if !isCurrentUser {
@@ -151,14 +154,17 @@ struct GlassmorphicClusterRow: View {
                             isMenuSelected: isMenuSelected,
                             isBubbleFlashing: isBubbleFlashing,
                             dragOffset: $dragOffset,
-                            hasTriggeredHaptic: $hasTriggeredHaptic,
+                            hapticStep: $replyHapticStep,
                             onReply: { onReply(messages) }
                         )
                     }
 
                     if !isCurrentUser {
                         Color.clear
-                            .chatTimestampRevealGutter(timestampRevealOffset: $timestampRevealOffset)
+                            .chatTimestampRevealGutter(
+                                state: timestampRevealState,
+                                isEnabled: false
+                            )
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
@@ -172,13 +178,17 @@ struct GlassmorphicClusterRow: View {
                     )
                     .frame(width: 55)
                     .padding(.leading, 12)
-                    .opacity(Double(min(-timestampRevealOffset / 40, 1.0)))
+                    .opacity(Double(min(-timestampRevealState.offset / 40, 1.0)))
                 }
             }
             .padding(.trailing, -67) // 55 width + 12 leading padding = 67 off-screen
-            .offset(x: timestampRevealOffset)
+            .offset(x: timestampRevealState.offset)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
+        .chatTimestampRevealGesture(
+            enabled: !isCurrentUser,
+            state: timestampRevealState
+        )
     }
 }
 
@@ -260,7 +270,7 @@ struct MediaGridBubble: View {
     var isMenuSelected: Bool = false
     var isBubbleFlashing: Bool = false
     @Binding var dragOffset: CGFloat
-    @Binding var hasTriggeredHaptic: Bool
+    @Binding var hapticStep: Int
     let onReply: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -291,7 +301,7 @@ struct MediaGridBubble: View {
 
             ChatBubbleReplySwipeContainer(
                 dragOffset: $dragOffset,
-                hasTriggeredHaptic: $hasTriggeredHaptic,
+                hapticStep: $hapticStep,
                 isOutgoing: isCurrentUser,
                 cornerRadius: ChatBubbleAnchorMetrics.clusterCornerRadius,
                 onReply: onReply
@@ -325,6 +335,16 @@ struct MediaGridBubble: View {
                     .onTapGesture {
                         onOpenCluster(activeMessages)
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(String(
+                        format: NSLocalizedString(
+                            isCurrentUser ? "chat.cluster.sentPhotos" : "chat.cluster.receivedPhotos",
+                            comment: "Photo cluster"
+                        ),
+                        activeMessages.count
+                    ))
+                    .accessibilityHint(Text(NSLocalizedString("chat.a11y.openMedia", comment: "Open media")))
+                    .accessibilityAddTraits(.isButton)
 
                     if isVanishProtected {
                         ScreenshotProtectedView(

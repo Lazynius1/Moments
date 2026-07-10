@@ -194,29 +194,6 @@ struct CreatorMedia: Identifiable {
         return type == .video && videoURL != nil && FileManager.default.fileExists(atPath: videoURL!.path)
     }
 
-    var videoInfo: (duration: Double, fileSize: Int64)? {
-        guard let videoURL = videoURL, type == .video else { return nil }
-
-        do {
-            let asset = AVURLAsset(url: videoURL)
-            var durationSeconds: Double = 0
-            let semaphore = DispatchSemaphore(value: 0)
-            Task.detached {
-                if let dur = try? await asset.load(.duration) {
-                    durationSeconds = dur.seconds
-                }
-                semaphore.signal()
-            }
-            _ = semaphore.wait(timeout: .now() + 2.0)
-
-            let fileAttributes = try FileManager.default.attributesOfItem(atPath: videoURL.path)
-            let fileSize = fileAttributes[FileAttributeKey.size] as? Int64 ?? 0
-
-            return (duration: durationSeconds, fileSize: fileSize)
-        } catch {
-            return nil
-        }
-    }
 }
 
 // MARK: - Shared UI Components

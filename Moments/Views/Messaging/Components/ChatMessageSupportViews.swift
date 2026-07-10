@@ -326,6 +326,11 @@ struct EmbeddedReplyView: View {
         .background(tint, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .onTapGesture { onTap?() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(repliedToSelf ? NSLocalizedString("chat.reply.you", comment: "You") : otherParticipantName), \(repliedMessage.preview)"
+        )
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -726,6 +731,24 @@ extension View {
 
 /// Alias legacy — usar `MessageReactionChip`.
 typealias GlassmorphicReactionsView = MessageReactionChip
+
+/// Acción de reintento inyectada por entorno: el badge de fallo vive dentro de la
+/// burbuja (MessageTimestamp) y así no hay que propagar callbacks por cada tipo.
+struct ChatFailedMessageRetryAction {
+    let canRetry: (EnhancedMessage) -> Bool
+    let retry: (EnhancedMessage) -> Void
+}
+
+private struct ChatFailedMessageRetryActionKey: EnvironmentKey {
+    static let defaultValue: ChatFailedMessageRetryAction? = nil
+}
+
+extension EnvironmentValues {
+    var chatFailedMessageRetryAction: ChatFailedMessageRetryAction? {
+        get { self[ChatFailedMessageRetryActionKey.self] }
+        set { self[ChatFailedMessageRetryActionKey.self] = newValue }
+    }
+}
 
 struct MessageTimestamp: View {
     @ObservedObject var message: EnhancedMessage

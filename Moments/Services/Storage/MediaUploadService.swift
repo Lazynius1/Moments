@@ -87,6 +87,33 @@ final class MediaUploadService {
         }
     }
 
+    /// Variante para ciphertext grande: Firebase lee el fichero progresivamente y
+    /// no obliga a mantener el blob cifrado completo en memoria.
+    func uploadEncryptedFile(
+        target: StorageUploadTarget,
+        fileURL: URL,
+        progress: ((Double) -> Void)? = nil
+    ) async throws -> String {
+        var customMetadata = target.customMetadata
+        customMetadata["returnObjectPath"] = "true"
+        let patchedTarget = StorageUploadTarget(
+            objectPath: target.objectPath,
+            contentType: target.contentType,
+            customMetadata: customMetadata
+        )
+
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+            self.startUpload(
+                path: patchedTarget.objectPath,
+                target: patchedTarget,
+                payload: .file(fileURL),
+                progress: progress
+            ) { result in
+                continuation.resume(with: result)
+            }
+        }
+    }
+
     func upload(
         target: StorageUploadTarget,
         payload: MediaUploadPayload,

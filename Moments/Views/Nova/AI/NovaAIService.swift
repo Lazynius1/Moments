@@ -15,7 +15,7 @@ final class NovaAIService {
             modelName: NovaGenerationConfig.modelName,
             generationConfig: NovaGenerationConfig.chat,
             safetySettings: NovaGenerationConfig.safetySettings,
-            tools: [NovaToolRegistry.toolSet],
+            tools: [NovaToolRegistry.toolSet, .googleSearch()],
             systemInstruction: ModelContent(role: "system", parts: [TextPart(systemInstruction)])
         )
     }

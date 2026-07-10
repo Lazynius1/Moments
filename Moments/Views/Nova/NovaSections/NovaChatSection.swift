@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import WebKit
 
 // MARK: - EnhancedChatBubble CORREGIDO (SIN animación para históricos)
 struct EnhancedChatBubble: View {
@@ -169,6 +170,14 @@ struct EnhancedChatBubble: View {
                                 RoundedRectangle(cornerRadius: 20)
                                     .stroke(NovaColors.borderColor, lineWidth: 1)
                             )
+
+                        if !message.groundingSources.isEmpty || message.searchSuggestionsHTML != nil {
+                            NovaGroundingFooter(
+                                sources: message.groundingSources,
+                                searchSuggestionsHTML: message.searchSuggestionsHTML
+                            )
+                            .padding(.horizontal, 8)
+                        }
                     }
 
                     Spacer(minLength: 50)
@@ -305,6 +314,123 @@ struct EnhancedChatBubble: View {
         }
 
         return chunks.filter { !$0.isEmpty }
+    }
+}
+
+private struct NovaGroundingFooter: View {
+    let sources: [NovaGroundingSource]
+    let searchSuggestionsHTML: String?
+    @State private var searchSuggestionsHeight: CGFloat = 36
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !sources.isEmpty {
+                Text("nova.search.sources")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(NovaColors.textSecondary)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(sources) { source in
+                            if let url = URL(string: source.url) {
+                                Link(destination: url) {
+                                    Label(source.title, systemImage: "globe")
+                                        .font(.caption)
+                                        .lineLimit(1)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 7)
+                                        .background(NovaColors.secondaryBackground)
+                                        .clipShape(Capsule())
+                                }
+                                .foregroundStyle(NovaColors.textPrimary)
+                                .accessibilityHint(Text("nova.search.sourceHint"))
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let searchSuggestionsHTML, !searchSuggestionsHTML.isEmpty {
+                GoogleSearchSuggestionsView(
+                    html: searchSuggestionsHTML,
+                    contentHeight: $searchSuggestionsHeight
+                )
+                .frame(height: min(max(searchSuggestionsHeight, 30), 52))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityLabel(Text("nova.search.suggestions"))
+            }
+        }
+        .padding(.top, 2)
+    }
+}
+
+private struct GoogleSearchSuggestionsView: UIViewRepresentable {
+    let html: String
+    @Binding var contentHeight: CGFloat
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(contentHeight: $contentHeight)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = false
+        webView.navigationDelegate = context.coordinator
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.loadedHTML != html else { return }
+        context.coordinator.loadedHTML = html
+        let document = """
+        <!doctype html>
+        <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+          <style>
+            html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+          </style>
+        </head>
+        <body>\(html)</body>
+        </html>
+        """
+        webView.loadHTMLString(document, baseURL: nil)
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        var loadedHTML: String?
+        private var contentHeight: Binding<CGFloat>
+
+        init(contentHeight: Binding<CGFloat>) {
+            self.contentHeight = contentHeight
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {
+            webView.evaluateJavaScript("Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)") { [weak self] result, _ in
+                guard let self, let height = result as? Double else { return }
+                DispatchQueue.main.async {
+                    self.contentHeight.wrappedValue = min(max(CGFloat(height), 30), 52)
+                }
+            }
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        ) {
+            guard navigationAction.navigationType == .linkActivated,
+                  let url = navigationAction.request.url else {
+                decisionHandler(.allow)
+                return
+            }
+            UIApplication.shared.open(url)
+            decisionHandler(.cancel)
+        }
     }
 }
 

@@ -42,6 +42,18 @@ class HapticManager {
         impactLight.prepare()
     }
 
+    /// Muesca suave al avanzar o retroceder por el recorrido de reply.
+    func replySwipeStep() {
+        selectionFeedback.selectionChanged()
+        selectionFeedback.prepare()
+    }
+
+    /// Cierre más definido al alcanzar la distancia que activa reply.
+    func replySwipeThresholdReached() {
+        impactLight.impactOccurred(intensity: 0.68)
+        impactLight.prepare()
+    }
+
     /// Triggered when the user changes a selection (e.g., Tab Bar)
     func selection() {
         selectionFeedback.selectionChanged()

@@ -62,6 +62,40 @@ enum ChatCacheStore {
         return url
     }
 
+    /// Copia media ya preparada al caché sin materializar el fichero en `Data`.
+    @discardableResult
+    static func copyDecryptedMedia(
+        from sourceURL: URL,
+        conversationId: String,
+        messageId: String,
+        purpose: ChatMediaPurpose,
+        fileExtension: String
+    ) throws -> URL {
+        try ensureDirectories()
+        let destinationURL = decryptedMediaURL(
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: purpose,
+            fileExtension: fileExtension
+        )
+        let temporaryURL = destinationURL
+            .deletingLastPathComponent()
+            .appendingPathComponent(".\(UUID().uuidString).tmp")
+
+        try FileManager.default.copyItem(at: sourceURL, to: temporaryURL)
+        do {
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                _ = try FileManager.default.replaceItemAt(destinationURL, withItemAt: temporaryURL)
+            } else {
+                try FileManager.default.moveItem(at: temporaryURL, to: destinationURL)
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: temporaryURL)
+            throw error
+        }
+        return destinationURL
+    }
+
     /// Re-enlaza rutas `file://` si el fichero sigue en App Group (p. ej. tras reiniciar la app).
     /// Firestore no persiste URLs locales; la ruta local se deriva del disco.
     static func localURLsIfPresent(for message: EnhancedMessage) -> (mediaUrl: String?, thumbnailUrl: String?) {
@@ -190,13 +224,24 @@ enum ChatCacheStore {
         removeContents(of: postersDirectory())
     }
 
+    /// Días en los que la media de mensajes recientes queda protegida frente a la cuota.
+    private static let quotaProtectionDays = 7
+
     @MainActor
     static func enforceQuota() {
         let maxBytes = ChatMediaDownloadPolicy.maxMediaBytes
         var total = totalMediaBytes()
         guard total > maxBytes else { return }
 
-        let protectedKeys = LocalPersistenceService.shared.cachedMessageKeysWithMedia()
+        // Solo se protege la media de mensajes recientes: proteger todo lo cacheado
+        // dejaba la cuota sin efecto (nunca había nada evictable y el disco crecía
+        // sin tope). Lo evictado se re-descarga bajo demanda desde Storage.
+        let protectionCutoff = Calendar.current.date(
+            byAdding: .day,
+            value: -quotaProtectionDays,
+            to: Date()
+        ) ?? Date()
+        let protectedKeys = LocalPersistenceService.shared.cachedMessageKeys(since: protectionCutoff)
 
         var candidates = trackedFiles()
             .sorted { $0.modificationDate < $1.modificationDate }

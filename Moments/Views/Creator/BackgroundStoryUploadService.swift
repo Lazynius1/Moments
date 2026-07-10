@@ -326,12 +326,21 @@ class BackgroundStoryUploadService: ObservableObject {
         
         Task {
             if shouldPersistAction {
-                await self.persistAction(uploadingStory)
-            }
-            
-            if backgroundTaskID != .invalid {
-                UIApplication.shared.endBackgroundTask(backgroundTaskID)
-                backgroundTaskID = .invalid
+                do {
+                    try await self.persistAction(uploadingStory)
+                } catch {
+                    uploadingStory.status = .failed
+                    uploadingStory.errorMessage = NSLocalizedString(
+                        "creator.upload.persistenceFailed",
+                        comment: "Upload recovery data could not be saved"
+                    )
+                    self.deleteActionFiles(id: uploadingStory.tempId)
+                    if backgroundTaskID != .invalid {
+                        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                        backgroundTaskID = .invalid
+                    }
+                    return
+                }
             }
             
             await self.processStoryUpload(uploadingStory)
@@ -339,6 +348,11 @@ class BackgroundStoryUploadService: ObservableObject {
             if uploadingStory.status == .completed || uploadingStory.status == .moderated {
                 LocalPersistenceService.shared.deleteAction(id: uploadingStory.tempId)
                 self.deleteActionFiles(id: uploadingStory.tempId)
+            }
+
+            if backgroundTaskID != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                backgroundTaskID = .invalid
             }
         }
     }
@@ -466,12 +480,21 @@ class BackgroundStoryUploadService: ObservableObject {
 
         Task {
             if shouldPersistAction {
-                await self.persistAction(uploadingStory)
-            }
-
-            if backgroundTaskID != .invalid {
-                UIApplication.shared.endBackgroundTask(backgroundTaskID)
-                backgroundTaskID = .invalid
+                do {
+                    try await self.persistAction(uploadingStory)
+                } catch {
+                    uploadingStory.status = .failed
+                    uploadingStory.errorMessage = NSLocalizedString(
+                        "creator.upload.persistenceFailed",
+                        comment: "Upload recovery data could not be saved"
+                    )
+                    self.deleteActionFiles(id: uploadingStory.tempId)
+                    if backgroundTaskID != .invalid {
+                        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                        backgroundTaskID = .invalid
+                    }
+                    return
+                }
             }
 
             await self.processStoryUpload(uploadingStory)
@@ -479,6 +502,11 @@ class BackgroundStoryUploadService: ObservableObject {
             if uploadingStory.status == .completed || uploadingStory.status == .moderated {
                 LocalPersistenceService.shared.deleteAction(id: uploadingStory.tempId)
                 self.deleteActionFiles(id: uploadingStory.tempId)
+            }
+
+            if backgroundTaskID != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                backgroundTaskID = .invalid
             }
         }
         
@@ -1536,7 +1564,9 @@ class BackgroundStoryUploadService: ObservableObject {
 
             do {
                 try await quizResponsesRef.document(sticker.id).setData(quizMetadata)
-            } catch { }
+            } catch {
+                AppLog.error("Failed to persist story quiz metadata: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -1669,21 +1699,26 @@ class BackgroundStoryUploadService: ObservableObject {
     // MARK: - 💾 PERSISTENCIA: Cola de Outbox
 
     /// Prepara una acción persistente antes de iniciar el upload
-    func persistAction(_ uploadingStory: UploadingStory) async {
-        do {
+    func persistAction(_ uploadingStory: UploadingStory) async throws {
             // 1. Asegurar que existe el directorio
             if !FileManager.default.fileExists(atPath: self.pendingUploadsDir.path) {
                 try FileManager.default.createDirectory(at: self.pendingUploadsDir, withIntermediateDirectories: true)
             }
 
             // 2. Guardar archivo principal en disco
-            let cachedMedia = try await self.saveMediaToDisk(uploadingStory.mediaItem)
+            let cachedMedia = try await self.saveMediaToDisk(
+                uploadingStory.mediaItem,
+                actionId: uploadingStory.tempId
+            )
 
             // 3. Guardar stickers en disco
             var cachedStickers: [CachedSticker] = []
             if let stickers = uploadingStory.stickerData {
                 for sticker in stickers {
-                    let cached = try await self.saveStickerToDisk(sticker)
+                    let cached = try await self.saveStickerToDisk(
+                        sticker,
+                        actionId: uploadingStory.tempId
+                    )
                     cachedStickers.append(cached)
                 }
             }
@@ -1735,14 +1770,12 @@ class BackgroundStoryUploadService: ObservableObject {
                 payloadData: encodedPayload
             )
 
-            LocalPersistenceService.shared.saveAction(action)
-
-        } catch { }
+            try LocalPersistenceService.shared.saveActionOrThrow(action)
     }
 
-    private func saveMediaToDisk(_ media: ProcessedMedia) async throws -> CachedMediaItem {
+    private func saveMediaToDisk(_ media: ProcessedMedia, actionId: String) async throws -> CachedMediaItem {
         let id = UUID().uuidString
-        let fileName = "\(id)_\(media.type == .image ? "img.jpg" : "vid.mp4")"
+        let fileName = "\(actionId)_\(id)_\(media.type == .image ? "img.jpg" : "vid.mp4")"
         let fileURL = pendingUploadsDir.appendingPathComponent(fileName)
 
         if media.type == .image {
@@ -1757,14 +1790,14 @@ class BackgroundStoryUploadService: ObservableObject {
         // Guardar thumbnail si existe
         var thumbName: String? = nil
         if let thumbURL = media.thumbnailURL {
-            thumbName = "\(id)_thumb.jpg"
+            thumbName = "\(actionId)_\(id)_thumb.jpg"
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? FileManager.default.copyItem(at: thumbURL, to: thumbDest)
         } else if media.type == .video,
                   media.image.size.width > 0,
                   media.image.size.height > 0,
                   let thumbnailData = media.image.jpegData(compressionQuality: 0.75) {
-            thumbName = "\(id)_thumb.jpg"
+            thumbName = "\(actionId)_\(id)_thumb.jpg"
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? thumbnailData.write(to: thumbDest)
         }
@@ -1781,12 +1814,12 @@ class BackgroundStoryUploadService: ObservableObject {
         )
     }
 
-    private func saveStickerToDisk(_ sticker: StickerItem) async throws -> CachedSticker {
+    private func saveStickerToDisk(_ sticker: StickerItem, actionId: String) async throws -> CachedSticker {
         var localImageName: String? = nil
 
         // Solo guardamos la imagen si no es un sticker animado (GIF)
         if !sticker.isAnimated {
-            let fileName = "sticker_\(UUID().uuidString).png"
+            let fileName = "\(actionId)_sticker_\(UUID().uuidString).png"
             let fileURL = pendingUploadsDir.appendingPathComponent(fileName)
             if let data = sticker.image.pngData() {
                 try data.write(to: fileURL)

@@ -31,9 +31,10 @@ struct GlassmorphicMessageRow: View {
     var downloadProgress: Double? = nil
     var isDownloadingMedia: Bool = false
     var showSeenLabel: Bool = false
-    @Binding var timestampRevealOffset: CGFloat
+    @ObservedObject var timestampRevealState: ChatTimestampRevealState
 
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.chatFailedMessageRetryAction) private var retryAction
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
@@ -62,7 +63,7 @@ struct GlassmorphicMessageRow: View {
     }
 
     @State private var dragOffset: CGFloat = 0
-    @State private var hasTriggeredHaptic = false
+    @State private var replyHapticStep = 0
 
     private var isGroupTail: Bool {
         groupPosition == .last || groupPosition == .single
@@ -82,7 +83,10 @@ struct GlassmorphicMessageRow: View {
                     HStack(alignment: .bottom, spacing: 0) {
                         if isCurrentUser {
                             Color.clear
-                                .chatTimestampRevealGutter(timestampRevealOffset: $timestampRevealOffset)
+                                .chatTimestampRevealGutter(
+                                    state: timestampRevealState,
+                                    isEnabled: true
+                                )
                         }
 
                         if !isCurrentUser {
@@ -92,6 +96,27 @@ struct GlassmorphicMessageRow: View {
                                 isUnavailable: isOtherParticipantUnavailable,
                                 onTap: onAvatarTap
                             )
+                        }
+
+                        // Estilo clásico de mensajería: círculo rojo tocable junto a la
+                        // burbuja fallida para reenviar (los estados viven en el swipe,
+                        // así que esto tiene que ser visible sin gesto).
+                        if isCurrentUser,
+                           message.status == .failed,
+                           let retryAction,
+                           retryAction.canRetry(message) {
+                            Button {
+                                HapticManager.shared.lightImpact()
+                                retryAction.retry(message)
+                            } label: {
+                                Image(systemName: "exclamationmark.arrow.circlepath")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(.red)
+                                    .padding(6)
+                                    .contentShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.trailing, 2)
                         }
 
                         VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: reactionTimestampSpacing) {
@@ -114,7 +139,10 @@ struct GlassmorphicMessageRow: View {
 
                         if !isCurrentUser {
                             Color.clear
-                                .chatTimestampRevealGutter(timestampRevealOffset: $timestampRevealOffset)
+                                .chatTimestampRevealGutter(
+                                    state: timestampRevealState,
+                                    isEnabled: false
+                                )
                         }
                     }
                 }
@@ -128,13 +156,17 @@ struct GlassmorphicMessageRow: View {
                 )
                 .frame(width: 55)
                 .padding(.leading, 12)
-                .opacity(Double(min(-timestampRevealOffset / 40, 1.0)))
+                .opacity(Double(min(-timestampRevealState.offset / 40, 1.0)))
             }
             .padding(.trailing, -67) // 55 width + 12 leading padding = 67 off-screen
-            .offset(x: timestampRevealOffset)
+            .offset(x: timestampRevealState.offset)
         .padding(.horizontal, 8)
         .padding(.top, isGroupHead ? 5 : 1)
         .padding(.bottom, bottomRowPadding)
+        .chatTimestampRevealGesture(
+            enabled: !isCurrentUser,
+            state: timestampRevealState
+        )
     }
 
     @ViewBuilder
@@ -170,7 +202,7 @@ struct GlassmorphicMessageRow: View {
 
         ChatBubbleReplySwipeContainer(
             dragOffset: $dragOffset,
-            hasTriggeredHaptic: $hasTriggeredHaptic,
+            hapticStep: $replyHapticStep,
             isOutgoing: isCurrentUser,
             cornerRadius: cornerRadius,
             onReply: onReply
@@ -433,6 +465,7 @@ struct GlassmorphicMessageBubble: View {
                                 messageId: message.id,
                                 audioUrl: message.mediaUrl,
                                 duration: message.duration ?? 0,
+                                waveformSamples: message.audioWaveform,
                                 isCurrentUser: isCurrentUser,
                                 isSending: message.status == .sending,
                                 progress: progress,

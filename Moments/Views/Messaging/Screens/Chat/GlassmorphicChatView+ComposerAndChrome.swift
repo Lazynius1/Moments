@@ -314,10 +314,14 @@ extension GlassmorphicChatView {
                         text: $messageText,
                         isTyping: $session.isTyping,
                         isRecordingVoice: $isRecordingVoice,
+                        isVoiceRecordingLocked: $isVoiceRecordingLocked,
                         activeAttachmentSheet: $activeAttachmentSheet,
                         isVanishModeActive: viewModel.vanishModeActive,
                         allowsAttachments: !isPendingChat,
                         recordingTime: recordingTime,
+                        recordingInteractionId: voiceRecordingInteractionId,
+                        voiceRecordingDraft: voiceRecordingDraft,
+                        isPreparingVoiceRecordingPreview: isPreparingVoiceRecordingPreview,
                         onSend: {
                             let messageToSend = messageText
 
@@ -343,13 +347,19 @@ extension GlassmorphicChatView {
                                 messageText = ""
                             }
                         },
-                        onStartVoiceRecording: {
+                        onStartVoiceRecording: { interactionId, startsLocked in
                             guard !isPendingChat else { return }
-                            startVoiceRecording()
+                            startVoiceRecording(
+                                interactionId: interactionId,
+                                startsLocked: startsLocked
+                            )
                         },
-                        onStopVoiceRecording: { shouldSend in
+                        onFinishVoiceRecording: { interactionId, action in
                             guard !isPendingChat else { return }
-                            stopVoiceRecording(shouldSend: shouldSend)
+                            finishVoiceRecording(
+                                interactionId: interactionId,
+                                action: action
+                            )
                         }
                     )
                     .focused($isTextFieldFocused)
@@ -636,7 +646,7 @@ extension GlassmorphicChatView {
                     downloadProgress: viewModel.downloadProgress[liveMessage.id],
                     isDownloadingMedia: viewModel.isDownloadingMedia(liveMessage.id),
                     showSeenLabel: shouldShowSeenLabel(for: liveMessage.id, status: liveMessage.status),
-                    timestampRevealOffset: $timestampRevealOffset
+                    timestampRevealState: chatListController.timestampRevealState
                 )
                 .simultaneousGesture(
                     TapGesture(count: 2).onEnded {
@@ -710,7 +720,7 @@ extension GlassmorphicChatView {
                     }(),
                     isMenuSelected: isMenuSelected,
                     isBubbleFlashing: liveCluster.contains { isBubbleFlashing($0.id) },
-                    timestampRevealOffset: $timestampRevealOffset
+                    timestampRevealState: chatListController.timestampRevealState
                 )
                 .simultaneousGesture(
                     TapGesture(count: 2).onEnded {

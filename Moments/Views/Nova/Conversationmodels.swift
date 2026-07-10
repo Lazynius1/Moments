@@ -107,12 +107,22 @@ struct SavedChatMessage: Identifiable, Codable {
     // Legacy: inline base64 image.
     // Current: encrypted Storage object path for private Nova media.
     let imageData: String?
+    // Encrypted JSON containing web sources and the required Google Search entry point.
+    let groundingData: String?
 
-    init(id: String = UUID().uuidString, text: String, isUser: Bool, imageData: String? = nil, timestamp: Date = Date()) {
+    init(
+        id: String = UUID().uuidString,
+        text: String,
+        isUser: Bool,
+        imageData: String? = nil,
+        groundingData: String? = nil,
+        timestamp: Date = Date()
+    ) {
         self.id = id
         self.text = text
         self.isUser = isUser
         self.imageData = imageData
+        self.groundingData = groundingData
     }
 
     // Convertir desde ChatMessage
@@ -121,6 +131,7 @@ struct SavedChatMessage: Identifiable, Codable {
         self.text = chatMessage.text
         self.isUser = chatMessage.isUser
         self.imageData = chatMessage.imageStoragePath
+        self.groundingData = nil
     }
 
     // Para Firestore
@@ -133,6 +144,9 @@ struct SavedChatMessage: Identifiable, Codable {
 
         if let imageData {
             dict["imageData"] = imageData
+        }
+        if let groundingData {
+            dict["groundingData"] = groundingData
         }
 
         return dict
@@ -151,10 +165,15 @@ struct SavedChatMessage: Identifiable, Codable {
         self.text = text
         self.isUser = isUser
         self.imageData = dictionary["imageData"] as? String
+        self.groundingData = dictionary["groundingData"] as? String
     }
 
     // Convertir a ChatMessage
-    func toChatMessage(image: UIImage? = nil, imageStoragePath: String? = nil) -> ChatMessage {
+    func toChatMessage(
+        image: UIImage? = nil,
+        imageStoragePath: String? = nil,
+        grounding: NovaGroundingPayload? = nil
+    ) -> ChatMessage {
         let resolvedImage = image ?? Self.decodeLegacyInlineImage(imageData)
         return ChatMessage(
             id: UUID(uuidString: id) ?? UUID(),
@@ -162,7 +181,9 @@ struct SavedChatMessage: Identifiable, Codable {
             isUser: isUser,
             image: resolvedImage,
             imageStoragePath: imageStoragePath,
-            isHistorical: true
+            isHistorical: true,
+            groundingSources: grounding?.sources ?? [],
+            searchSuggestionsHTML: grounding?.searchSuggestionsHTML
         )
     }
 

@@ -1006,6 +1006,15 @@
 "chat.error" = "Error";
 "chat.message.deleted" = "This message was deleted";
 "chat.recording" = "Recording...";
+"chat.voice.record.accessibility" = "Record voice message";
+"chat.voice.record.holdHint" = "Hold to record. Slide up to lock or left to cancel.";
+"chat.voice.record.slideToCancel" = "Slide to cancel";
+"chat.voice.record.started" = "Recording started";
+"chat.voice.record.locked" = "Recording locked";
+"chat.voice.record.cancelled" = "Recording cancelled";
+"chat.voice.record.tooShort" = "The recording is too short";
+"chat.voice.record.pause" = "Pause recording";
+"chat.voice.record.resume" = "Continue recording";
 
 // Premium Chat Enhancements
 "chat.gallery.tab.media" = "Media";
@@ -2758,7 +2767,7 @@
 "auth.error.weakPassword" = "The password is too weak. Use at least 8 characters with letters and numbers.";
 "auth.error.network" = "Connection error. Check your internet and try again.";
 "auth.error.tooManyRequests" = "Too many attempts. Please wait a moment.";
-"auth.error.invalidCredentials" = "Incorrect username or password. Please verify your credentials.";
+"auth.error.invalidCredentials" = "That username or password doesn’t look right. Check them and try again.";
 "auth.error.userDisabled" = "This account has been deactivated. Contact support if you need help.";
 "auth.error.generic" = "Could not sign in. Please verify your credentials and try again.";
 "auth.error.emptyFields" = "Identifier and password are required.";
@@ -3169,7 +3178,7 @@
 "feed.reels.video.optimizing" = "Optimizing quality...";
 
 /* Messaging Search */
-"messaging.search.placeholder" = "Search conversations...";
+"messaging.search.placeholder" = "Search in conversations...";
 
 // Settings Groups
 "settings.group.account" = "YOUR ACCOUNT";
@@ -4275,3 +4284,14 @@
 "conversationSettings.quickAction.mute" = "Mute";
 "conversationSettings.quickAction.unmute" = "Unmute";
 "conversationSettings.quickAction.options" = "Options";
+
+"chat.error.encryptionFailed" = "The message could not be encrypted. It was not sent, please try again.";
+"chat.error.peerKeyUnavailable" = "This contact doesn't have encryption set up yet. Ask them to open the app and try again.";
+
+"chat.error.retryUnavailable" = "This message can no longer be resent.";
+"creator.upload.persistenceFailed" = "The upload could not be secured for recovery. Please try again.";
+"nova.search.sources" = "Sources";
+"nova.search.suggestions" = "Google Search suggestions";
+"nova.search.sourceHint" = "Opens the source";
+
+"messaging.messages" = "Messages";

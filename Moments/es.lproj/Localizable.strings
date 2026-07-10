@@ -1016,6 +1016,15 @@
 "chat.error" = "Error";
 "chat.message.deleted" = "Este mensaje fue eliminado";
 "chat.recording" = "Grabando...";
+"chat.voice.record.accessibility" = "Grabar nota de voz";
+"chat.voice.record.holdHint" = "Mantén pulsado para grabar. Desliza arriba para bloquear o a la izquierda para cancelar.";
+"chat.voice.record.slideToCancel" = "Desliza para cancelar";
+"chat.voice.record.started" = "Grabación iniciada";
+"chat.voice.record.locked" = "Grabación bloqueada";
+"chat.voice.record.cancelled" = "Grabación cancelada";
+"chat.voice.record.tooShort" = "La grabación es demasiado corta";
+"chat.voice.record.pause" = "Pausar grabación";
+"chat.voice.record.resume" = "Continuar grabando";
 
 // Premium Chat Enhancements
 "chat.gallery.tab.media" = "Media";
@@ -2785,7 +2794,7 @@
 "auth.error.weakPassword" = "La contraseña es muy débil. Usa al menos 8 caracteres con letras y números.";
 "auth.error.network" = "Error de conexión. Verifica tu internet e intenta de nuevo.";
 "auth.error.tooManyRequests" = "Demasiados intentos. Por favor, espera un momento.";
-"auth.error.invalidCredentials" = "Usuario o contraseña incorrectos. Por favor, verifica tus credenciales.";
+"auth.error.invalidCredentials" = "El usuario o la contraseña no son correctos. Revísalos e inténtalo de nuevo.";
 "auth.error.userDisabled" = "Esta cuenta ha sido desactivada. Contacta con soporte si necesitas ayuda.";
 "auth.error.generic" = "No se pudo iniciar sesión. Por favor, verifica tus credenciales e intenta de nuevo.";
 "auth.error.emptyFields" = "El identificador y la contraseña son obligatorios.";
@@ -3194,7 +3203,7 @@
 "feed.reels.video.optimizing" = "Optimizando calidad...";
 
 /* Messaging Search */
-"messaging.search.placeholder" = "Buscar conversaciones...";
+"messaging.search.placeholder" = "Buscar en conversaciones...";
 
 // Settings Groups
 "settings.group.account" = "TU CUENTA";
@@ -4296,3 +4305,14 @@
 "conversationSettings.quickAction.mute" = "Silenciar";
 "conversationSettings.quickAction.unmute" = "Activar";
 "conversationSettings.quickAction.options" = "Opciones";
+
+"chat.error.encryptionFailed" = "No se pudo cifrar el mensaje. No se ha enviado, inténtalo de nuevo.";
+"chat.error.peerKeyUnavailable" = "Este contacto aún no tiene el cifrado activo. Pídele que abra la app y vuelve a intentarlo.";
+
+"chat.error.retryUnavailable" = "Este mensaje ya no se puede reenviar.";
+"creator.upload.persistenceFailed" = "No se pudo asegurar la recuperación de la subida. Inténtalo de nuevo.";
+"nova.search.sources" = "Fuentes";
+"nova.search.suggestions" = "Sugerencias de Google";
+"nova.search.sourceHint" = "Abre la fuente";
+
+"messaging.messages" = "Mensajes";

@@ -324,9 +324,9 @@ struct AudioStickerRecordingView: View {
         timer?.invalidate()
         timer = nil
 
-        recorder.stopRecording { data in
-            self.recordedData = data
-            if data != nil {
+        recorder.stopRecording { recording in
+            self.recordedData = recording?.data
+            if recording != nil {
                 self.startPlayback()
             }
         }

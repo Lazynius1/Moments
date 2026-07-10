@@ -15,6 +15,7 @@ struct ConversationHistoryOverlay: View {
                 .onTapGesture {
                     showConversationHistory = false
                 }
+                .accessibilityHidden(true)
 
             VStack(spacing: 0) {
                 Spacer()
@@ -40,6 +41,7 @@ struct ConversationHistoryOverlay: View {
                                         .momentsChromeGlass(in: Circle(), interactive: true)
                                 }
                         }
+                        .accessibilityLabel(Text(NSLocalizedString("common.close", comment: "Close")))
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)

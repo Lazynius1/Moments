@@ -12,7 +12,6 @@ import UIKit
 class EnhancedChatViewModel: ObservableObject {
     enum HistoryLoadNotice: Equatable {
         case hidden
-        case loadingRemote
         case offline
         case error
     }
@@ -234,7 +233,6 @@ class EnhancedChatViewModel: ObservableObject {
     // el eco del listener no debe revivirlos como no leídos (resucitaría el divisor).
     private var locallyReadMessageIds = Set<String>()
     private var seenBuzzEventIds = Set<String>()
-    private var historyLoadNoticeTask: Task<Void, Never>?
 
     @Published var conversation: Conversation
     let currentUserId: String
@@ -354,12 +352,19 @@ class EnhancedChatViewModel: ObservableObject {
     func mergeMessagesFromLocalCache() {
         guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
 
-        let cutoff = effectiveDeletedAtCutoff()
-        let recent = LocalPersistenceService.shared.loadRecentMessagesFast(
-            conversationId: conversationId,
-            limit: 50,
-            cutoffDate: cutoff
-        )
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let cutoff = self.effectiveDeletedAtCutoff()
+            let recent = await LocalPersistenceService.shared.loadRecentMessagesInBackground(
+                conversationId: conversationId,
+                limit: 50,
+                cutoffDate: cutoff
+            )
+            self.mergeRecentMessagesFromLocalCache(recent)
+        }
+    }
+
+    private func mergeRecentMessagesFromLocalCache(_ recent: [EnhancedMessage]) {
         guard !recent.isEmpty else { return }
 
         let knownIds = Set((realTimeMessages + historicalMessages).map(\.id))
@@ -368,11 +373,11 @@ class EnhancedChatViewModel: ObservableObject {
             ?? Date.distantPast
         let incoming = recent
             .filter { !knownIds.contains($0.id) && $0.timestamp >= oldestVisible }
-            .sorted { $0.timestamp < $1.timestamp }
+            .sorted(by: messageTimelinePrecedes)
         guard !incoming.isEmpty else { return }
 
         historicalMessages.append(contentsOf: incoming)
-        historicalMessages.sort { $0.timestamp < $1.timestamp }
+        historicalMessages.sort(by: messageTimelinePrecedes)
         rebuildMessagesList()
         prefetchUnresolvedMediaIfNeeded()
         if let momentsViewModel = self as? MomentsChatViewModel {
@@ -581,7 +586,7 @@ class EnhancedChatViewModel: ObservableObject {
             )
         }
 
-        return mergedMessages.sorted { $0.timestamp < $1.timestamp }
+        return mergedMessages.sorted(by: messageTimelinePrecedes)
     }
 
     // ✅ NUEVA: Función para actualizar el array de manera que SwiftUI lo detecte
@@ -1098,7 +1103,7 @@ class EnhancedChatViewModel: ObservableObject {
         let uniqueMessages = allMessages.filter { seenIds.insert($0.id).inserted }
 
         // 3. Ordenar
-        let sortedMessages = uniqueMessages.sorted { $0.timestamp < $1.timestamp }
+        let sortedMessages = uniqueMessages.sorted(by: messageTimelinePrecedes)
 
         // 4. Preservar temporales y estados locales
         var finalMessages = preserveTemporaryMessages(sortedMessages)
@@ -1114,6 +1119,13 @@ class EnhancedChatViewModel: ObservableObject {
                 outgoingTempMessages.removeValue(forKey: id)
             }
         }
+    }
+
+    /// Orden total compartido con los cursores de Firestore/SwiftData.
+    /// El document ID desempata timestamps iguales para que un prepend siga siendo un prepend.
+    private func messageTimelinePrecedes(_ lhs: EnhancedMessage, _ rhs: EnhancedMessage) -> Bool {
+        MessageSyncCursor(timestamp: lhs.timestamp, messageId: lhs.id)
+            < MessageSyncCursor(timestamp: rhs.timestamp, messageId: rhs.id)
     }
 
     /// Punto de corte tras borrar conversación: modelo local o mapa en memoria de ChatService.
@@ -1261,7 +1273,6 @@ class EnhancedChatViewModel: ObservableObject {
 
         isLoadingMore = true
         isLoadingOlderHistory = true
-        historyLoadNoticeTask?.cancel()
         historyLoadNotice = .hidden
 
         let cutoff = effectiveDeletedAtCutoff()
@@ -1272,18 +1283,29 @@ class EnhancedChatViewModel: ObservableObject {
             guard let self else { return }
             await Task.yield()
 
-            let localPage = LocalPersistenceService.shared.loadMessagesBefore(
+            let localPage = await LocalPersistenceService.shared.loadMessagesBeforeInBackground(
                 conversationId: conversationId,
                 cursor: cursor,
                 cutoffDate: cutoff,
                 limit: pageSize
             )
 
+            var remoteCursor = cursor
             if !localPage.isEmpty {
+                let didPrependVisibleMessages = self.prependHistoryPage(localPage)
+                if didPrependVisibleMessages {
+                    self.finishHistoryLoad(canLoadMore: true)
+                    return
+                }
 
-                self.prependHistoryPage(localPage)
-                self.finishHistoryLoad(canLoadMore: true)
-                return
+                // La página podía contener sólo vanish expirados/ocultos/duplicados.
+                // Avanzar por los registros examinados para no pedirlos eternamente.
+                if let oldestExamined = localPage.first {
+                    remoteCursor = MessageSyncCursor(
+                        timestamp: oldestExamined.timestamp,
+                        messageId: oldestExamined.id
+                    )
+                }
             }
 
             guard NetworkMonitor.shared.isConnected else {
@@ -1293,35 +1315,39 @@ class EnhancedChatViewModel: ObservableObject {
                 return
             }
 
-            self.historyLoadNoticeTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 450_000_000)
-                guard let self, self.isLoadingOlderHistory else { return }
-                self.historyLoadNotice = .loadingRemote
-            }
-
             do {
-                let olderMessages = try await self.fetchOlderMessagesFromFirestore(
-                    conversationId: conversationId,
-                    before: oldest.timestamp,
-                    cutoffDate: cutoff,
-                    limit: pageSize
-                )
+                while true {
+                    let page = try await self.fetchOlderMessagesFromFirestore(
+                        conversationId: conversationId,
+                        before: remoteCursor,
+                        cutoffDate: cutoff,
+                        limit: pageSize
+                    )
 
-                let existingIds = Set((self.historicalMessages + self.realTimeMessages).map(\.id))
-                let novel = olderMessages
-                    .filter { !existingIds.contains($0.id) }
-                    .sorted { $0.timestamp < $1.timestamp }
+                    let existingIds = Set((self.historicalMessages + self.realTimeMessages).map(\.id))
+                    let novel = page.messages
+                        .filter { !existingIds.contains($0.id) }
+                        .sorted(by: self.messageTimelinePrecedes)
 
-                if !novel.isEmpty {
+                    if !novel.isEmpty {
+                        await LocalPersistenceService.shared.appendMessagesInBackground(
+                            novel,
+                            conversationId: conversationId
+                        )
+                        if self.prependHistoryPage(novel) {
+                            self.finishHistoryLoad(canLoadMore: page.hasMore)
+                            return
+                        }
+                    }
 
-                    self.prependHistoryPage(novel)
-                    LocalPersistenceService.shared.appendMessages(novel, conversationId: conversationId)
-                }
-
-                let hasMore = olderMessages.count >= pageSize
-                self.finishHistoryLoad(canLoadMore: hasMore)
-                if novel.isEmpty {
-                    self.endHistoryScrollRestoration()
+                    guard page.hasMore,
+                          let nextCursor = page.nextCursor,
+                          nextCursor < remoteCursor else {
+                        self.finishHistoryLoad(canLoadMore: false)
+                        self.endHistoryScrollRestoration()
+                        return
+                    }
+                    remoteCursor = nextCursor
                 }
             } catch {
                 self.historyLoadNotice = .error
@@ -1331,19 +1357,28 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
-    private func prependHistoryPage(_ page: [EnhancedMessage]) {
-        guard !page.isEmpty else { return }
+    @discardableResult
+    private func prependHistoryPage(_ page: [EnhancedMessage]) -> Bool {
+        guard !page.isEmpty else { return false }
         let existingIds = Set((historicalMessages + realTimeMessages).map(\.id))
         let novel = page.filter { !existingIds.contains($0.id) }
         guard !novel.isEmpty else {
-            return
+            return false
         }
+        let previousVisibleIds = Set(messages.map(\.id))
         historicalMessages.insert(contentsOf: novel, at: 0)
+        historicalMessages.sort(by: messageTimelinePrecedes)
+        forcedNextTimelineMutation = ChatTimelineMutation(
+            kind: .prependHistory,
+            reason: .history,
+            anchorMessageId: messages.first?.id
+        )
         rebuildMessagesList()
         Task { @MainActor [weak self] in
             await Task.yield()
             self?.prefetchUnresolvedMediaIfNeeded()
         }
+        return messages.contains { !previousVisibleIds.contains($0.id) }
     }
 
     private func finishHistoryLoad(canLoadMore: Bool) {
@@ -1353,28 +1388,23 @@ class EnhancedChatViewModel: ObservableObject {
 
     /// La vista llama esto cuando el scroll quedó re-anclado tras prepend.
     func endHistoryScrollRestoration() {
-        historyLoadNoticeTask?.cancel()
         isLoadingOlderHistory = false
-        if historyLoadNotice == .loadingRemote {
-            historyLoadNotice = .hidden
-        }
     }
 
     func clearHistoryLoadNotice() {
-        historyLoadNoticeTask?.cancel()
         historyLoadNotice = .hidden
     }
 
     private func fetchOlderMessagesFromFirestore(
         conversationId: String,
-        before timestamp: Date,
+        before cursor: MessageSyncCursor,
         cutoffDate: Date?,
         limit: Int
-    ) async throws -> [EnhancedMessage] {
+    ) async throws -> ChatService.MessageHistoryPage {
         try await withCheckedThrowingContinuation { continuation in
             chatService.fetchOlderMessages(
                 conversationId: conversationId,
-                before: timestamp,
+                before: cursor,
                 cutoffDate: cutoffDate,
                 limit: limit
             ) { result in
@@ -1442,7 +1472,8 @@ class EnhancedChatViewModel: ObservableObject {
         let anchor: EnhancedMessage
         if let cached = (historicalMessages + realTimeMessages).first(where: { $0.id == messageId }) {
             anchor = cached
-        } else if let local = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
+        } else if let local = await LocalPersistenceService.shared
+            .loadMessagesInBackground(conversationId: conversationId)
             .first(where: { $0.id == messageId }) {
             anchor = local
         } else {
@@ -1454,27 +1485,32 @@ class EnhancedChatViewModel: ObservableObject {
                     return false
                 }
                 anchor = fetched
-                LocalPersistenceService.shared.appendMessages([fetched], conversationId: conversationId)
+                await LocalPersistenceService.shared.appendMessagesInBackground(
+                    [fetched],
+                    conversationId: conversationId
+                )
             } catch {
                 return false
             }
         }
 
         let cursor = MessageSyncCursor(timestamp: anchor.timestamp, messageId: anchor.id)
+        let cachedBefore = await LocalPersistenceService.shared.loadMessagesBeforeInBackground(
+            conversationId: conversationId,
+            cursor: cursor,
+            cutoffDate: cutoff,
+            limit: radius
+        )
+        let cachedAfter = await LocalPersistenceService.shared.loadMessagesAfterInBackground(
+            conversationId: conversationId,
+            cursor: cursor,
+            cutoffDate: cutoff,
+            limit: radius + 1
+        )
         var window = mergeNavigationWindow(
-            before: LocalPersistenceService.shared.loadMessagesBefore(
-                conversationId: conversationId,
-                cursor: cursor,
-                cutoffDate: cutoff,
-                limit: radius
-            ),
+            before: cachedBefore,
             anchor: anchor,
-            after: LocalPersistenceService.shared.loadMessagesAfter(
-                conversationId: conversationId,
-                cursor: cursor,
-                cutoffDate: cutoff,
-                limit: radius + 1
-            )
+            after: cachedAfter
         )
 
         let expectedWindowCount = (radius * 2) + 1
@@ -1485,9 +1521,9 @@ class EnhancedChatViewModel: ObservableObject {
 
         if needsRemoteWindow, NetworkMonitor.shared.isConnected {
             do {
-                async let older = fetchOlderMessagesFromFirestore(
+                async let olderPage = fetchOlderMessagesFromFirestore(
                     conversationId: conversationId,
-                    before: anchor.timestamp,
+                    before: cursor,
                     cutoffDate: cutoff,
                     limit: radius
                 )
@@ -1497,16 +1533,20 @@ class EnhancedChatViewModel: ObservableObject {
                     cutoffDate: cutoff,
                     limit: radius
                 )
-                let remoteBefore = try await older
+                let fetchedOlderPage = try await olderPage
+                let remoteBefore = fetchedOlderPage.messages
                 let remoteAfter = try await newer
-                reachedStartOfHistory = remoteBefore.count < radius
+                reachedStartOfHistory = !fetchedOlderPage.hasMore
                 window = mergeNavigationWindow(
                     before: remoteBefore,
                     anchor: anchor,
                     after: remoteAfter
                 )
                 if !window.isEmpty {
-                    LocalPersistenceService.shared.appendMessages(window, conversationId: conversationId)
+                    await LocalPersistenceService.shared.appendMessagesInBackground(
+                        window,
+                        conversationId: conversationId
+                    )
                 }
             } catch {
             }
@@ -1533,10 +1573,7 @@ class EnhancedChatViewModel: ObservableObject {
         for message in (before + [anchor] + after) where seen.insert(message.id).inserted {
             merged.append(message)
         }
-        return merged.sorted { lhs, rhs in
-            if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
-            return lhs.id < rhs.id
-        }
+        return merged.sorted(by: messageTimelinePrecedes)
     }
 
     private func applyMessageNavigationWindow(
@@ -1544,10 +1581,7 @@ class EnhancedChatViewModel: ObservableObject {
         anchorMessageId: String,
         reachedStartOfHistory: Bool?
     ) {
-        let sorted = window.sorted { lhs, rhs in
-            if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
-            return lhs.id < rhs.id
-        }
+        let sorted = window.sorted(by: messageTimelinePrecedes)
         guard let lastInWindow = sorted.last else { return }
 
         let windowIds = Set(sorted.map(\.id))
@@ -1575,10 +1609,16 @@ class EnhancedChatViewModel: ObservableObject {
         guard !didLoadCacheFromSwiftData else { return }
         didLoadCacheFromSwiftData = true
 
+        Task { @MainActor [weak self] in
+            await self?.loadCachedMessages(conversationId: conversationId)
+        }
+    }
+
+    private func loadCachedMessages(conversationId: String) async {
         let cutoff = effectiveDeletedAtCutoff()
         let windowSize = initialWindowSize()
         let scanLimit = max(windowSize, 50)
-        var recentMessages = LocalPersistenceService.shared.loadRecentMessagesFast(
+        var recentMessages = await LocalPersistenceService.shared.loadRecentMessagesInBackground(
             conversationId: conversationId,
             limit: scanLimit,
             cutoffDate: cutoff
@@ -1605,6 +1645,20 @@ class EnhancedChatViewModel: ObservableObject {
         for message in recentMessages where message.senderId == currentUserId {
             switch message.status {
             case .sending, .pending, .failed:
+                // Un .sending viejo es de un proceso anterior que murió con el envío en
+                // vuelo: degradarlo a .pending si sigue encolado, o a .failed (reintento
+                // manual). El margen de 60s evita pisar envíos en curso desde otra pantalla.
+                if message.status == .sending,
+                   Date().timeIntervalSince(message.timestamp) > 60,
+                   let conversationId = conversation.id {
+                    let queued = LocalPersistenceService.shared.hasPendingAction(id: message.id)
+                    message.status = queued ? .pending : .failed
+                    LocalPersistenceService.shared.updateCachedMessageStatus(
+                        conversationId: conversationId,
+                        messageId: message.id,
+                        status: message.status
+                    )
+                }
                 outgoingTempMessages[message.id] = message
             default:
                 break
@@ -1675,7 +1729,13 @@ class EnhancedChatViewModel: ObservableObject {
 
         rebuildMessagesList()
         prefetchUnresolvedMediaIfNeeded()
-        LocalPersistenceService.shared.reconcileMessages(realTimeMessages, conversationId: conversationId)
+        let messagesToPersist = realTimeMessages
+        Task { @MainActor in
+            await LocalPersistenceService.shared.reconcileMessagesInBackground(
+                messagesToPersist,
+                conversationId: conversationId
+            )
+        }
         stampVanishExpiryIfNeeded()
         isFirstFetch = false
     }
@@ -2175,7 +2235,7 @@ class EnhancedChatViewModel: ObservableObject {
                 }
 
                 do {
-                    let data = try Data(contentsOf: urlAsset.url)
+                    let data = try Data(contentsOf: urlAsset.url, options: .mappedIfSafe)
                     continuation.resume(returning: data)
                 } catch {
                     continuation.resume(returning: nil)
@@ -2298,7 +2358,11 @@ class EnhancedChatViewModel: ObservableObject {
 
     // MARK: - Audio Messages
 
-    func sendAudioMessage(audioData: Data, duration: Double) {
+    func sendAudioMessage(
+        audioData: Data,
+        duration: Double,
+        waveform: [Float]? = nil
+    ) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = "No se puede enviar el audio: ID de conversación no válido"
             return
@@ -2320,6 +2384,7 @@ class EnhancedChatViewModel: ObservableObject {
             type: .audio,
             mediaUrl: localPreview,
             duration: duration,
+            audioWaveform: waveform,
             status: .sending,
             isVanishModeMessage: outgoingVanishMessageFlag
         )
@@ -2332,6 +2397,7 @@ class EnhancedChatViewModel: ObservableObject {
             senderId: currentUserId,
             audioData: audioData,
             duration: duration,
+            waveform: waveform,
             messageId: messageId,
             isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in
@@ -2382,6 +2448,8 @@ class EnhancedChatViewModel: ObservableObject {
         removeMessageFromLocalStores(message.id)
         realTimeMessages.append(message)
 
+        // Cancelar cualquier reenvío pendiente en la cola offline
+        LocalPersistenceService.shared.deleteAction(id: message.id)
         ChatCacheStore.deleteMessageFiles(
             conversationId: message.conversationId,
             messageId: message.id
@@ -2397,6 +2465,8 @@ class EnhancedChatViewModel: ObservableObject {
     func applyDeletedForMeLocally(_ message: EnhancedMessage) {
         hiddenForMeMessageIds.insert(message.id)
         removeMessageFromLocalStores(message.id)
+        // Cancelar cualquier reenvío pendiente en la cola offline
+        LocalPersistenceService.shared.deleteAction(id: message.id)
         LocalPersistenceService.shared.removeCachedMessage(
             conversationId: message.conversationId,
             messageId: message.id
@@ -2443,6 +2513,169 @@ class EnhancedChatViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    // MARK: - Reintento de mensajes fallidos
+
+    /// Solo tipos cuyo envío se puede reconstruir localmente (texto, ubicación fija,
+    /// GIF/sticker por referencia, y media cuyos bytes originales siguen en disco).
+    func canRetryMessage(_ message: EnhancedMessage) -> Bool {
+        guard message.senderId == currentUserId,
+              message.status == .failed,
+              !message.isDeleted,
+              let conversationId = conversation.id, !conversationId.isEmpty else {
+            return false
+        }
+
+        switch message.type {
+        case .text:
+            return !(message.content ?? "").isEmpty
+        case .location:
+            return message.isLiveLocation != true
+                && message.latitude != nil
+                && message.longitude != nil
+        case .gif, .sticker:
+            return giphyReferenceId(from: message) != nil && message.mediaUrl != nil
+        case .image, .video, .audio:
+            return retryMediaFileURL(for: message) != nil
+        default:
+            return false
+        }
+    }
+
+    func retryFailedMessage(_ message: EnhancedMessage) {
+        guard canRetryMessage(message), let conversationId = conversation.id else {
+            error = NSLocalizedString("chat.error.retryUnavailable", comment: "Message can no longer be resent")
+            return
+        }
+
+        let messageId = message.id
+        let isVanish = message.isVanishModeMessage == true
+        updateMessageInArray(messageId: messageId, newStatus: .sending)
+
+        let handleStatusResult: (Result<EnhancedMessage, Error>) -> Void = { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let sentMessage):
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                case .failure(let error):
+                    self?.error = error.localizedDescription
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
+                }
+            }
+        }
+
+        switch message.type {
+        case .text:
+            chatService.sendTextMessage(
+                conversationId: conversationId,
+                senderId: currentUserId,
+                content: message.content ?? "",
+                replyTo: message.replyTo,
+                messageId: messageId,
+                isVanishModeMessage: isVanish,
+                vanishExpiresAt: message.vanishExpiresAt,
+                completion: handleStatusResult
+            )
+
+        case .location:
+            chatService.sendStaticLocationMessage(
+                conversationId: conversationId,
+                senderId: currentUserId,
+                latitude: message.latitude ?? 0,
+                longitude: message.longitude ?? 0,
+                name: message.locationName,
+                address: message.locationAddress,
+                messageId: messageId,
+                isVanishModeMessage: isVanish,
+                completion: handleStatusResult
+            )
+
+        case .gif, .sticker:
+            chatService.sendGiphyReferenceMessage(
+                conversationId: conversationId,
+                senderId: currentUserId,
+                type: message.type,
+                giphyId: giphyReferenceId(from: message) ?? "",
+                mediaUrl: message.mediaUrl ?? "",
+                width: message.mediaWidth ?? 0,
+                height: message.mediaHeight ?? 0,
+                messageId: messageId,
+                isVanishModeMessage: isVanish,
+                completion: handleStatusResult
+            )
+
+        case .image, .video, .audio:
+            guard let fileURL = retryMediaFileURL(for: message),
+                  let mediaData = try? Data(contentsOf: fileURL, options: .mappedIfSafe) else {
+                error = NSLocalizedString("chat.error.retryUnavailable", comment: "Message can no longer be resent")
+                updateMessageInArray(messageId: messageId, newStatus: .failed)
+                return
+            }
+
+            let handleMediaResult: (Result<EnhancedMessage, Error>) -> Void = { [weak self] result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let sentMessage):
+                        self?.finalizeOutgoingMediaMessage(
+                            messageId: messageId,
+                            sentMessage: sentMessage,
+                            fallbackMediaUrl: fileURL.absoluteString
+                        )
+                    case .failure(let error):
+                        self?.error = error.localizedDescription
+                        self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
+                    }
+                }
+            }
+
+            if message.type == .audio {
+                chatService.sendAudioMessage(
+                    conversationId: conversationId,
+                    senderId: currentUserId,
+                    audioData: mediaData,
+                    duration: message.duration ?? 0,
+                    waveform: message.audioWaveform,
+                    messageId: messageId,
+                    isVanishModeMessage: isVanish,
+                    completion: handleMediaResult
+                )
+            } else {
+                chatService.sendMediaMessage(
+                    conversationId: conversationId,
+                    senderId: currentUserId,
+                    type: message.type,
+                    mediaData: mediaData,
+                    fileName: message.fileName,
+                    messageId: messageId,
+                    mediaBatchId: message.mediaBatchId,
+                    isVanishModeMessage: isVanish,
+                    vanishExpiresAt: message.vanishExpiresAt,
+                    replyTo: message.replyTo,
+                    completion: handleMediaResult
+                )
+            }
+
+        default:
+            break
+        }
+    }
+
+    private func retryMediaFileURL(for message: EnhancedMessage) -> URL? {
+        guard let conversationId = conversation.id else { return nil }
+        let url = ChatCacheStore.decryptedMediaURL(
+            conversationId: conversationId,
+            messageId: message.id,
+            purpose: .primary,
+            fileExtension: chatService.getFileExtension(for: message.type)
+        )
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    private func giphyReferenceId(from message: EnhancedMessage) -> String? {
+        guard let fileName = message.fileName, fileName.hasPrefix("giphy_") else { return nil }
+        let id = String(fileName.dropFirst("giphy_".count))
+        return id.isEmpty ? nil : id
     }
 
     func editMessage(_ message: EnhancedMessage, newContent: String) {

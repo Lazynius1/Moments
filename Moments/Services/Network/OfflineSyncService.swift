@@ -10,6 +10,12 @@ class OfflineSyncService: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var isSyncing = false
     private var isAutomaticSyncEnabled = false
+
+    /// Backoff exponencial: 30s, 1m, 2m, 4m... hasta 1h; tras agotar intentos la acción
+    /// se marca fallida (y el mensaje asociado pasa a .failed para reintento manual).
+    private let maxAttemptsPerAction = 8
+    private let baseRetryDelay: TimeInterval = 30
+    private let maxRetryDelay: TimeInterval = 3600
     
     private init() {
         setupConnectivityListener()
@@ -42,23 +48,23 @@ class OfflineSyncService: ObservableObject {
     
     /// Reintento explícito desde el banner offline (no exige que el sync automático esté activo).
     func retryFromUserAction() async {
-        await syncPendingActions(requireAutomaticSync: false)
+        await syncPendingActions(requireAutomaticSync: false, ignoreBackoff: true)
     }
 
     /// Empieza a procesar la cola de acciones persistente
-    func syncPendingActions(requireAutomaticSync: Bool = true) async {
+    func syncPendingActions(requireAutomaticSync: Bool = true, ignoreBackoff: Bool = false) async {
         if requireAutomaticSync {
             guard isAutomaticSyncEnabled && !isSyncing && NetworkMonitor.shared.isConnected else { return }
         } else {
             guard !isSyncing && NetworkMonitor.shared.isConnected else { return }
         }
-        
+
         isSyncing = true
         defer { isSyncing = false }
-        
+
         var pendingActions = LocalPersistenceService.shared.loadPendingActions()
         guard !pendingActions.isEmpty else { return }
-        
+
         // ✅ OPTIMIZACIÓN: Eliminar acciones que se cancelan entre sí (ej: like -> unlike)
         pendingActions = await optimizePendingActions(pendingActions)
         guard !pendingActions.isEmpty else {
@@ -69,9 +75,60 @@ class OfflineSyncService: ObservableObject {
         for action in pendingActions {
             // Si la conexión se cae durante el proceso, paramos
             guard NetworkMonitor.shared.isConnected else { break }
-            
+
+            if action.retryCount >= maxAttemptsPerAction {
+                handleExhaustedAction(action)
+                continue
+            }
+            guard ignoreBackoff || isReadyForAttempt(action) else { continue }
+
+            LocalPersistenceService.shared.markActionAttempt(id: action.id)
             await executeAction(action)
         }
+    }
+
+    private func isReadyForAttempt(_ action: CachedAction) -> Bool {
+        guard action.retryCount > 0, let lastAttemptAt = action.lastAttemptAt else { return true }
+        let delay = min(baseRetryDelay * pow(2, Double(action.retryCount - 1)), maxRetryDelay)
+        return Date().timeIntervalSince(lastAttemptAt) >= delay
+    }
+
+    /// Agotados los reintentos: el mensaje asociado pasa a .failed (reintento manual
+    /// desde la burbuja) y la acción se retira de la cola.
+    private func handleExhaustedAction(_ action: CachedAction) {
+        switch action.type {
+        case CachedAction.ActionType.message.rawValue:
+            if let payload = try? JSONDecoder().decode(MessagePayload.self, from: action.payloadData) {
+                markQueuedMessageFailed(
+                    conversationId: payload.message.conversationId,
+                    messageId: payload.message.id
+                )
+            }
+        case CachedAction.ActionType.mediaMessage.rawValue:
+            if let payload = try? JSONDecoder().decode(MediaMessagePayload.self, from: action.payloadData) {
+                markQueuedMessageFailed(
+                    conversationId: payload.conversationId,
+                    messageId: payload.messageId
+                )
+            }
+        default:
+            break
+        }
+        LocalPersistenceService.shared.deleteAction(id: action.id)
+        AppLog.debug("⚠️ OfflineSync: acción \(action.id) agotó reintentos (\(action.type))")
+    }
+
+    private func markQueuedMessageFailed(conversationId: String, messageId: String) {
+        LocalPersistenceService.shared.updateCachedMessageStatus(
+            conversationId: conversationId,
+            messageId: messageId,
+            status: .failed
+        )
+        ChatService.shared.updateLocalMessageStatus(
+            conversationId: conversationId,
+            messageId: messageId,
+            status: .failed
+        )
     }
     
     /// Ejecuta una acción específica según su tipo
@@ -134,10 +191,71 @@ class OfflineSyncService: ObservableObject {
                 if let payload = try? JSONDecoder().decode(MessagePayload.self, from: action.payloadData) {
                     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                         ChatService.shared.sendMessage(payload.message, useServerTimestamp: payload.useServerTimestamp) { result in
-                            if case .success = result {
+                            // .pending = volvió a encolarse (sin red o timeout); conservar la acción.
+                            if case .success(let sent) = result, sent.status != .pending {
                                 LocalPersistenceService.shared.deleteAction(id: action.id)
                             }
                             continuation.resume()
+                        }
+                    }
+                } else {
+                    LocalPersistenceService.shared.deleteAction(id: action.id)
+                }
+                break
+
+            case CachedAction.ActionType.mediaMessage.rawValue:
+                // Retomar envío de media: los bytes originales siguen en el cache local
+                if let payload = try? JSONDecoder().decode(MediaMessagePayload.self, from: action.payloadData),
+                   let type = MessageType(rawValue: payload.typeRaw) {
+                    let fileURL = ChatCacheStore.decryptedMediaURL(
+                        conversationId: payload.conversationId,
+                        messageId: payload.messageId,
+                        purpose: .primary,
+                        fileExtension: payload.fileExtension
+                    )
+                    guard let mediaData = try? Data(contentsOf: fileURL, options: .mappedIfSafe) else {
+                        // Sin bytes no hay reenvío posible: marcar fallido y retirar.
+                        markQueuedMessageFailed(
+                            conversationId: payload.conversationId,
+                            messageId: payload.messageId
+                        )
+                        LocalPersistenceService.shared.deleteAction(id: action.id)
+                        break
+                    }
+
+                    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                        let handleResult: (Result<EnhancedMessage, Error>) -> Void = { result in
+                            if case .success(let sent) = result, sent.status != .pending {
+                                LocalPersistenceService.shared.deleteAction(id: action.id)
+                            }
+                            continuation.resume()
+                        }
+
+                        if type == .audio {
+                            ChatService.shared.sendAudioMessage(
+                                conversationId: payload.conversationId,
+                                senderId: payload.senderId,
+                                audioData: mediaData,
+                                duration: payload.duration ?? 0,
+                                waveform: payload.audioWaveform,
+                                messageId: payload.messageId,
+                                isVanishModeMessage: payload.isVanishModeMessage,
+                                completion: handleResult
+                            )
+                        } else {
+                            ChatService.shared.sendMediaMessage(
+                                conversationId: payload.conversationId,
+                                senderId: payload.senderId,
+                                type: type,
+                                mediaData: mediaData,
+                                fileName: payload.fileName,
+                                messageId: payload.messageId,
+                                mediaBatchId: payload.mediaBatchId,
+                                isVanishModeMessage: payload.isVanishModeMessage,
+                                vanishExpiresAt: payload.vanishExpiresAt,
+                                replyTo: payload.replyTo,
+                                completion: handleResult
+                            )
                         }
                     }
                 } else {

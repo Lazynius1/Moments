@@ -1728,37 +1728,3 @@ extension FirestoreService {
 
     // ✅ NUEVA FUNCIÓN: addCommentReaction (similar a addReaction pero para comentarios)
 }
-
-extension FirestoreService {
-
-    // MARK: - Obtener intereses del usuario actual
-    func getCurrentUserInterests() throws -> [String] {
-        guard let currentUserId = Auth.auth().currentUser?.uid else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no autenticado"])
-        }
-
-        // Usar semáforo para hacer la llamada síncrona
-        let semaphore = DispatchSemaphore(value: 0)
-        var interests: [String] = []
-        var fetchError: Error?
-
-        db.collection("users").document(currentUserId).getDocument { document, error in
-            if let error = error {
-                fetchError = error
-            } else if let data = document?.data(),
-                      let userInterests = data["interests"] as? [String] {
-                interests = userInterests
-            }
-            semaphore.signal()
-        }
-
-        semaphore.wait()
-
-        if let error = fetchError {
-            throw error
-        }
-
-        return interests
-    }
-
-}

@@ -15,6 +15,7 @@ class MessagingViewModel: ObservableObject {
 
     @Published var filteredConversations: [Conversation] = []
     @Published var searchedUsers: [AppUser] = []
+    @Published var searchedMessages: [GlobalMessageSearchResult] = []
     @Published var isSearchingContent: Bool = false
 
     private let chatService = ChatService.shared
@@ -384,6 +385,8 @@ class MessagingViewModel: ObservableObject {
             return username.contains(searchQuery) || lastMessage.contains(searchQuery) || draft.contains(searchQuery)
         }
 
+        searchedMessages = globalMessageResults(for: trimmedQuery)
+
         let existingUserIds = Set((conversations + archivedConversations).compactMap { $0.otherParticipantId })
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
@@ -417,7 +420,26 @@ class MessagingViewModel: ObservableObject {
         activeSearchQuery = ""
         filteredConversations = []
         searchedUsers = []
+        searchedMessages = []
         isSearchingContent = false
+    }
+
+    /// Búsqueda global sobre el cache local (100% local, como el estándar de mensajería:
+    /// con E2E el escaneo remoto significaría descargar y descifrar todo el historial).
+    private func globalMessageResults(for query: String) -> [GlobalMessageSearchResult] {
+        let matches = LocalPersistenceService.shared.searchMessagesGlobally(query: query)
+        guard !matches.isEmpty else { return [] }
+
+        let conversationsById = Dictionary(
+            uniqueKeysWithValues: (conversations + archivedConversations).compactMap { conversation in
+                conversation.id.map { ($0, conversation) }
+            }
+        )
+
+        return matches.compactMap { message in
+            guard let conversation = conversationsById[message.conversationId] else { return nil }
+            return GlobalMessageSearchResult(message: message, conversation: conversation)
+        }
     }
 
     func createOrFindConversation(with user: AppUser, from userId: String, completion: @escaping (Conversation?) -> Void) {
@@ -831,4 +853,12 @@ class MessagingViewModel: ObservableObject {
             }
         }
     }
+}
+
+// MARK: - Resultado de búsqueda global de mensajes
+struct GlobalMessageSearchResult: Identifiable {
+    let message: EnhancedMessage
+    let conversation: Conversation
+
+    var id: String { message.id }
 }

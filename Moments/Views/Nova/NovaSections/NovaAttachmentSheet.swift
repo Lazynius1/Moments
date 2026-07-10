@@ -119,6 +119,7 @@ struct NovaAttachmentMenuPopover: View {
                     .onTapGesture {
                         dismissMenu()
                     }
+                    .accessibilityHidden(true)
 
                 if anchorFrame != .zero {
                     NovaAttachmentMenuPopoverCard(isPresented: $isPresented)
@@ -286,6 +287,7 @@ struct NovaAttachmentSheetOverlay: View {
                         .onTapGesture {
                             dismiss()
                         }
+                        .accessibilityHidden(true)
 
                     NovaAttachmentSheetSurface(kind: kind, height: sheetHeight) {
                         switch kind {

@@ -17,6 +17,7 @@ final class CachedMessage {
     var thumbnailEncryptionData: Data?
     var mediaBatchId: String?
     var duration: Double?
+    var audioWaveformData: Data?
     var fileName: String?
     var fileSize: Int64?
     var mediaWidth: Int?
@@ -59,6 +60,7 @@ final class CachedMessage {
          thumbnailEncryptionData: Data? = nil,
          mediaBatchId: String? = nil,
          duration: Double?,
+         audioWaveformData: Data? = nil,
          fileName: String?,
          fileSize: Int64?,
          mediaWidth: Int? = nil,
@@ -100,6 +102,7 @@ final class CachedMessage {
         self.thumbnailEncryptionData = thumbnailEncryptionData
         self.mediaBatchId = mediaBatchId
         self.duration = duration
+        self.audioWaveformData = audioWaveformData
         self.fileName = fileName
         self.fileSize = fileSize
         self.mediaWidth = mediaWidth
@@ -156,6 +159,7 @@ extension CachedMessage {
         let stickersData = try? encoder.encode(message.stickers)
         let mediaEncryptionData = try? encoder.encode(message.mediaEncryption)
         let thumbnailEncryptionData = try? encoder.encode(message.thumbnailEncryption)
+        let audioWaveformData = try? encoder.encode(message.audioWaveform)
         
         return CachedMessage(
             id: message.id,
@@ -171,6 +175,7 @@ extension CachedMessage {
             thumbnailEncryptionData: thumbnailEncryptionData,
             mediaBatchId: message.mediaBatchId,
             duration: message.duration,
+            audioWaveformData: audioWaveformData,
             fileName: message.fileName,
             fileSize: message.fileSize,
             mediaWidth: message.mediaWidth,
@@ -247,6 +252,11 @@ extension CachedMessage {
             guard let data = thumbnailEncryptionData else { return nil }
             return try? decoder.decode(EncryptedChatMediaMetadata.self, from: data)
         }()
+
+        let audioWaveform: [Float]? = {
+            guard let data = audioWaveformData else { return nil }
+            return try? decoder.decode([Float].self, from: data)
+        }()
         
         return EnhancedMessage(
             id: id,
@@ -261,6 +271,7 @@ extension CachedMessage {
             mediaEncryption: mediaEncryption,
             thumbnailEncryption: thumbnailEncryption,
             duration: duration,
+            audioWaveform: audioWaveform,
             fileName: fileName,
             fileSize: fileSize,
             mediaWidth: mediaWidth,

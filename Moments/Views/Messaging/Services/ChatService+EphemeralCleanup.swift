@@ -98,7 +98,14 @@ extension ChatService {
 
         Task {
             let expiredText = "📸 Momento efímero expirado"
-            let encryptedExpiredText = await encryptMessageContent(expiredText, for: conversationId)
+            let encryptedExpiredText: String
+            do {
+                encryptedExpiredText = try await encryptMessageContent(expiredText, for: conversationId)
+            } catch {
+                // Sin clave utilizable se pospone la limpieza; el scheduler la reintenta.
+                completion(false)
+                return
+            }
 
             batch.updateData([
                 "mediaUrl": FieldValue.delete(),

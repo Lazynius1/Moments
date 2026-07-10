@@ -62,7 +62,11 @@ extension MomentsChatViewModel {
         }
     }
 
-    func sendAudioMessage(_ audioData: Data, duration: TimeInterval) {
+    func sendAudioMessage(
+        _ audioData: Data,
+        duration: TimeInterval,
+        waveform: [Float]? = nil
+    ) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = NSLocalizedString("chat.error.invalidConversation.audio", comment: "Invalid conversation ID when sending audio")
             return
@@ -87,6 +91,7 @@ extension MomentsChatViewModel {
             mediaUrl: localPreview,
             thumbnailUrl: nil,
             duration: duration,
+            audioWaveform: waveform,
             status: .sending,
             isVanishModeMessage: outgoingVanishMessageFlag
         )
@@ -98,6 +103,7 @@ extension MomentsChatViewModel {
             senderId: currentUserId,
             audioData: audioData,
             duration: duration,
+            waveform: waveform,
             messageId: messageId,
             isVanishModeMessage: marksOutgoingAsVanish
         ) { [weak self] result in

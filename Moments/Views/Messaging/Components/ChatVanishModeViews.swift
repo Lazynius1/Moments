@@ -439,21 +439,23 @@ struct ChatDisappearingNoticeRow: View {
                 )
             )
 
-        (
-            prefix
-            + Text(LocalizedStringKey(timer.noticeDurationKey))
-            + Text(LocalizedStringKey("chat.vanish.notice.enabled.suffix"))
-            + Text(" ")
-            + Text(LocalizedStringKey("chat.vanish.notice.change"))
-                .font(actionFont)
-                .foregroundColor(actionColor)
-        )
-        .font(noticeFont)
-        .foregroundStyle(bodyColor)
-        .multilineTextAlignment(.center)
-        .onTapGesture {
+        Button {
             onChangeTimer?()
+        } label: {
+            (
+                prefix
+                + Text(LocalizedStringKey(timer.noticeDurationKey))
+                + Text(LocalizedStringKey("chat.vanish.notice.enabled.suffix"))
+                + Text(" ")
+                + Text(LocalizedStringKey("chat.vanish.notice.change"))
+                    .font(actionFont)
+                    .foregroundColor(actionColor)
+            )
+            .font(noticeFont)
+            .foregroundStyle(bodyColor)
+            .multilineTextAlignment(.center)
         }
+        .buttonStyle(.plain)
     }
 
     private var disabledNotice: some View {
@@ -469,19 +471,21 @@ struct ChatDisappearingNoticeRow: View {
                 )
             )
 
-        return (
-            bodyText
-            + Text(" ")
-            + Text(LocalizedStringKey("chat.vanish.notice.turnOn"))
-                .font(actionFont)
-                .foregroundColor(actionColor)
-        )
-        .font(noticeFont)
-        .foregroundStyle(bodyColor)
-        .multilineTextAlignment(.center)
-        .onTapGesture {
+        return Button {
             onTurnOn?()
+        } label: {
+            (
+                bodyText
+                + Text(" ")
+                + Text(LocalizedStringKey("chat.vanish.notice.turnOn"))
+                    .font(actionFont)
+                    .foregroundColor(actionColor)
+            )
+            .font(noticeFont)
+            .foregroundStyle(bodyColor)
+            .multilineTextAlignment(.center)
         }
+        .buttonStyle(.plain)
     }
 
     private func plainNotice(_ key: String) -> some View {

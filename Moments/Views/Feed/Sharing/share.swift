@@ -514,8 +514,7 @@ struct ShareRecipientsPickerSheet: View {
             } else {
                 if !filteredConversations.isEmpty {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
-                        ForEach(filteredConversations.indices, id: \.self) { index in
-                            let conversation = filteredConversations[index]
+                        ForEach(Array(filteredConversations.enumerated()), id: \.element.otherParticipantId) { index, conversation in
                             PersonCell(
                                 conversation: conversation,
                                 isSelected: selectedUsers.contains(conversation.otherParticipantId),
@@ -839,6 +838,8 @@ struct PersonCell: View {
                 }
             }
             .scaleEffect(isPressed ? 0.95 : 1.0)
+            .accessibilityLabel(Text(conversation.otherParticipantUsername ?? NSLocalizedString("nova.user", comment: "Default user name")))
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
             .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
                 withAnimation(.easeInOut(duration: 0.1)) {
                     isPressed = pressing
@@ -1773,6 +1774,8 @@ struct GlobalUserCell: View {
                 }
                 .overlay(Circle().stroke(isSelected ? Color(hex: "00A896") : Color.white.opacity(0.1), lineWidth: 2))
             }
+            .accessibilityLabel(Text(user.username))
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
             
             Text(user.username)
                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))

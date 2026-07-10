@@ -17,6 +17,7 @@ final class LocalPersistenceService: ObservableObject {
     
     private var modelContainer: ModelContainer?
     private var modelContext: ModelContext?
+    private var messagePersistenceStore: MessagePersistenceStore?
     
     // MARK: - Configuración
     private let maxFeedMoments = 100      // Máximo moments del feed en caché
@@ -24,7 +25,10 @@ final class LocalPersistenceService: ObservableObject {
     private let maxCachedUsers = 200      // Máximo usuarios en caché
     private let maxDataAgeDays = 7        // Datos más viejos se limpian
     private let maxConversations = 50     // Máximo conversaciones en caché
-    private let maxMessagesPerChat = 200  // Máximo mensajes por chat en caché (disco)
+    // Los mensajes pesan poco (texto + metadatos); un tope alto abarata el scrollback,
+    // hace representativos los contadores de ajustes y habilita la búsqueda local.
+    // La media pesada tiene su propia cuota LRU en ChatCacheStore.
+    private let maxMessagesPerChat = 2000 // Máximo mensajes por chat en caché (disco)
     
     // MARK: - Init
     init() {
@@ -58,6 +62,9 @@ final class LocalPersistenceService: ObservableObject {
         do {
             modelContainer = try ModelContainer(for: schema, configurations: [config])
             modelContext = modelContainer?.mainContext
+            if let modelContainer {
+                messagePersistenceStore = MessagePersistenceStore(modelContainer: modelContainer)
+            }
             AppLog.debug("✅ LocalPersistence: SwiftData inicializado correctamente")
         } catch {
             AppLog.debug("⚠️ LocalPersistence: Error de migración, reintentando con reset: \(error)")
@@ -108,12 +115,13 @@ final class LocalPersistenceService: ObservableObject {
                     withIntermediateDirectories: true
                 )
                 try FileManager.default.copyItem(at: source, to: destination)
-                for suffix in ["shm", "wal"] {
-                    let sidecar = source.appendingPathExtension(suffix)
+                // SQLite nombra los sidecars con guion: <fichero>-shm / <fichero>-wal
+                for suffix in ["-shm", "-wal"] {
+                    let sidecar = URL(fileURLWithPath: source.path + suffix)
                     if FileManager.default.fileExists(atPath: sidecar.path) {
                         try? FileManager.default.copyItem(
                             at: sidecar,
-                            to: destination.appendingPathExtension(suffix)
+                            to: URL(fileURLWithPath: destination.path + suffix)
                         )
                     }
                 }
@@ -133,9 +141,11 @@ final class LocalPersistenceService: ObservableObject {
             // 1. Borrar archivo SQLite
             if let storeURL = config.url.absoluteString.hasPrefix("file") ? config.url : nil {
                 try FileManager.default.removeItem(at: storeURL)
-                // También borrar archivos -shm y -wal
-                let shmURL = storeURL.appendingPathExtension("shm")
-                let walURL = storeURL.appendingPathExtension("wal")
+                // SQLite nombra los sidecars con guion: <fichero>-shm / <fichero>-wal.
+                // Dejarlos huérfanos haría que SQLite intentara recuperar el WAL viejo
+                // sobre la base recién creada.
+                let shmURL = URL(fileURLWithPath: storeURL.path + "-shm")
+                let walURL = URL(fileURLWithPath: storeURL.path + "-wal")
                 try? FileManager.default.removeItem(at: shmURL)
                 try? FileManager.default.removeItem(at: walURL)
                 AppLog.debug("🧹 LocalPersistence: Archivos de cache borrados para recuperación")
@@ -144,6 +154,9 @@ final class LocalPersistenceService: ObservableObject {
             // 2. Reintentar inicializar
             modelContainer = try ModelContainer(for: schema, configurations: [config])
             modelContext = modelContainer?.mainContext
+            if let modelContainer {
+                messagePersistenceStore = MessagePersistenceStore(modelContainer: modelContainer)
+            }
             AppLog.debug("✅ LocalPersistence: SwiftData recuperado tras reset")
         } catch {
             AppLog.debug("❌ LocalPersistence: Error fatal recreando SwiftData: \(error)")
@@ -535,6 +548,7 @@ final class LocalPersistenceService: ObservableObject {
         existing.thumbnailObjectPath = nil
         existing.mediaEncryptionData = nil
         existing.thumbnailEncryptionData = nil
+        existing.audioWaveformData = nil
         existing.lastSyncedAt = Date()
 
         saveContext()
@@ -542,6 +556,10 @@ final class LocalPersistenceService: ObservableObject {
     }
 
     func removeCachedMessage(conversationId: String, messageId: String) {
+        // La media descifrada se borra siempre, aunque el registro ya no exista
+        // (p. ej. mensajes podados del cache cuyo fichero sigue en disco).
+        ChatCacheStore.deleteMessageFiles(conversationId: conversationId, messageId: messageId)
+
         guard let context = modelContext else { return }
 
         let predicate = #Predicate<CachedMessage> {
@@ -592,6 +610,40 @@ final class LocalPersistenceService: ObservableObject {
         saveMessages(messages, conversationId: conversationId, sync: false)
     }
 
+    /// Variante asíncrona para rutas calientes de chat. El `ModelContext` que escribe
+    /// vive en `MessagePersistenceStore`, no en el actor principal.
+    func saveMessagesInBackground(
+        _ messages: [EnhancedMessage],
+        conversationId: String,
+        sync: Bool = false
+    ) async {
+        guard !messages.isEmpty || sync else { return }
+        guard let messagePersistenceStore else {
+            saveMessages(messages, conversationId: conversationId, sync: sync)
+            return
+        }
+
+        do {
+            let warmed = warmDiskMediaURLs(in: messages)
+            let encoded = try JSONEncoder().encode(warmed)
+            try await messagePersistenceStore.save(
+                encodedMessages: encoded,
+                conversationId: conversationId,
+                sync: sync
+            )
+        } catch {
+            AppLog.error("LocalPersistence background message save failed: \(error.localizedDescription)")
+        }
+    }
+
+    func appendMessagesInBackground(
+        _ messages: [EnhancedMessage],
+        conversationId: String
+    ) async {
+        guard !messages.isEmpty else { return }
+        await saveMessagesInBackground(messages, conversationId: conversationId, sync: false)
+    }
+
     /// Reconciles a known remote window while preserving older cached history outside that window.
     func reconcileMessages(_ messages: [EnhancedMessage], conversationId: String) {
         guard let context = modelContext else { return }
@@ -611,6 +663,28 @@ final class LocalPersistenceService: ObservableObject {
 
         saveContext()
         trimMessages(for: conversationId)
+    }
+
+    func reconcileMessagesInBackground(
+        _ messages: [EnhancedMessage],
+        conversationId: String
+    ) async {
+        guard !messages.isEmpty else { return }
+        guard let messagePersistenceStore else {
+            reconcileMessages(messages, conversationId: conversationId)
+            return
+        }
+
+        do {
+            let warmed = warmDiskMediaURLs(in: messages)
+            let encoded = try JSONEncoder().encode(warmed)
+            try await messagePersistenceStore.reconcile(
+                encodedMessages: encoded,
+                conversationId: conversationId
+            )
+        } catch {
+            AppLog.error("LocalPersistence background reconcile failed: \(error.localizedDescription)")
+        }
     }
     
     func messageExists(conversationId: String, messageId: String) -> Bool {
@@ -719,6 +793,20 @@ final class LocalPersistenceService: ObservableObject {
         }
     }
 
+    func loadMessagesInBackground(conversationId: String) async -> [EnhancedMessage] {
+        guard let messagePersistenceStore else {
+            return loadMessagesFast(conversationId: conversationId)
+        }
+        do {
+            let encoded = try await messagePersistenceStore.allMessages(conversationId: conversationId)
+            guard !encoded.isEmpty else { return [] }
+            return try JSONDecoder().decode([EnhancedMessage].self, from: encoded)
+        } catch {
+            AppLog.error("LocalPersistence background message fetch failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
     /// Últimos N mensajes desde SwiftData (sin cargar todo el historial en RAM).
     func loadRecentMessagesFast(
         conversationId: String,
@@ -742,6 +830,33 @@ final class LocalPersistenceService: ObservableObject {
             cached = cached.filter { $0.timestamp > cutoffDate }
         }
         return cached.reversed().map { $0.toEnhancedMessage() }
+    }
+
+    func loadRecentMessagesInBackground(
+        conversationId: String,
+        limit: Int,
+        cutoffDate: Date? = nil
+    ) async -> [EnhancedMessage] {
+        guard let messagePersistenceStore else {
+            return loadRecentMessagesFast(
+                conversationId: conversationId,
+                limit: limit,
+                cutoffDate: cutoffDate
+            )
+        }
+
+        do {
+            let encoded = try await messagePersistenceStore.recentMessages(
+                conversationId: conversationId,
+                limit: limit,
+                cutoffDate: cutoffDate
+            )
+            guard !encoded.isEmpty else { return [] }
+            return try JSONDecoder().decode([EnhancedMessage].self, from: encoded)
+        } catch {
+            AppLog.error("LocalPersistence background recent fetch failed: \(error.localizedDescription)")
+            return []
+        }
     }
 
     /// Página de mensajes estrictamente anteriores al cursor (paginación lazy desde disco).
@@ -775,6 +890,36 @@ final class LocalPersistenceService: ObservableObject {
         return cached.reversed().map { $0.toEnhancedMessage() }
     }
 
+    func loadMessagesBeforeInBackground(
+        conversationId: String,
+        cursor: MessageSyncCursor,
+        cutoffDate: Date? = nil,
+        limit: Int
+    ) async -> [EnhancedMessage] {
+        guard let messagePersistenceStore else {
+            return loadMessagesBefore(
+                conversationId: conversationId,
+                cursor: cursor,
+                cutoffDate: cutoffDate,
+                limit: limit
+            )
+        }
+
+        do {
+            let encoded = try await messagePersistenceStore.messagesBefore(
+                conversationId: conversationId,
+                cursor: cursor,
+                cutoffDate: cutoffDate,
+                limit: limit
+            )
+            guard !encoded.isEmpty else { return [] }
+            return try JSONDecoder().decode([EnhancedMessage].self, from: encoded)
+        } catch {
+            AppLog.error("LocalPersistence background older fetch failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
     /// Página de mensajes estrictamente posteriores al cursor (incluye el ancla si coincide).
     func loadMessagesAfter(
         conversationId: String,
@@ -804,6 +949,63 @@ final class LocalPersistenceService: ObservableObject {
 
         guard let cached = try? context.fetch(descriptor) else { return [] }
         return cached.map { $0.toEnhancedMessage() }
+    }
+
+    func loadMessagesAfterInBackground(
+        conversationId: String,
+        cursor: MessageSyncCursor,
+        cutoffDate: Date? = nil,
+        limit: Int
+    ) async -> [EnhancedMessage] {
+        guard let messagePersistenceStore else {
+            return loadMessagesAfter(
+                conversationId: conversationId,
+                cursor: cursor,
+                cutoffDate: cutoffDate,
+                limit: limit
+            )
+        }
+
+        do {
+            let encoded = try await messagePersistenceStore.messagesAfter(
+                conversationId: conversationId,
+                cursor: cursor,
+                cutoffDate: cutoffDate,
+                limit: limit
+            )
+            guard !encoded.isEmpty else { return [] }
+            return try JSONDecoder().decode([EnhancedMessage].self, from: encoded)
+        } catch {
+            AppLog.error("LocalPersistence background newer fetch failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    func messageExistsInBackground(conversationId: String, messageId: String) async -> Bool {
+        guard let messagePersistenceStore else {
+            return messageExists(conversationId: conversationId, messageId: messageId)
+        }
+        do {
+            return try await messagePersistenceStore.containsMessage(
+                conversationId: conversationId,
+                messageId: messageId
+            )
+        } catch {
+            AppLog.error("LocalPersistence background existence check failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    func lastMessageSyncCursorInBackground(for conversationId: String) async -> MessageSyncCursor? {
+        guard let messagePersistenceStore else {
+            return lastMessageSyncCursor(for: conversationId)
+        }
+        do {
+            return try await messagePersistenceStore.lastCursor(conversationId: conversationId)
+        } catch {
+            AppLog.error("LocalPersistence background cursor fetch failed: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     /// Búsqueda local en caché SwiftData (texto descifrado ya persistido).
@@ -836,6 +1038,33 @@ final class LocalPersistenceService: ObservableObject {
         }
 
         return matches
+    }
+
+    /// Búsqueda global de texto en todas las conversaciones cacheadas (estilo inbox).
+    /// Filtra en SQLite vía predicado (insensible a mayúsculas y tildes) y excluye
+    /// borrados y mensajes en modo efímero.
+    func searchMessagesGlobally(query: String, limit: Int = 50) -> [EnhancedMessage] {
+        guard limit > 0, let context = modelContext else { return [] }
+
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else { return [] }
+
+        let textRaw = MessageType.text.rawValue
+        let predicate = #Predicate<CachedMessage> { message in
+            message.typeString == textRaw
+                && !message.isDeleted
+                && !message.isVanishModeMessage
+                && message.content?.localizedStandardContains(trimmedQuery) == true
+        }
+
+        var descriptor = FetchDescriptor<CachedMessage>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+
+        guard let cached = try? context.fetch(descriptor) else { return [] }
+        return cached.map { $0.toEnhancedMessage() }
     }
 
     func markVanishMessagesDismissed(conversationId: String, messageIds: [String], userId: String) {
@@ -992,15 +1221,15 @@ final class LocalPersistenceService: ObservableObject {
 
     func markMessagesAsRead(conversationId: String, messageIds: [String]) {
         guard let context = modelContext, !messageIds.isEmpty else { return }
+        let ids = messageIds
         let predicate = #Predicate<CachedMessage> { message in
-            message.conversationId == conversationId
+            message.conversationId == conversationId && ids.contains(message.id)
         }
         let descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
         if let cached = try? context.fetch(descriptor) {
-            let idSet = Set(messageIds)
             var didUpdate = false
             for message in cached {
-                if idSet.contains(message.id) && !message.isRead {
+                if !message.isRead {
                     message.isRead = true
                     didUpdate = true
                 }
@@ -1078,21 +1307,6 @@ final class LocalPersistenceService: ObservableObject {
 
         guard let messages = try? context.fetch(descriptor) else { return [] }
         return Set(messages.map { "\($0.conversationId):\($0.id)" })
-    }
-
-    /// Claves de mensajes con media cifrada — protegidas de eviction por cuota.
-    func cachedMessageKeysWithMedia() -> Set<String> {
-        guard let context = modelContext else { return [] }
-
-        let descriptor = FetchDescriptor<CachedMessage>()
-        guard let messages = try? context.fetch(descriptor) else { return [] }
-
-        return Set(
-            messages.compactMap { message -> String? in
-                guard message.mediaEncryptionData != nil else { return nil }
-                return "\(message.conversationId):\(message.id)"
-            }
-        )
     }
 
     /// Borra metadatos de chat en SwiftData y toda la media descifrada en disco.
@@ -1186,7 +1400,9 @@ final class LocalPersistenceService: ObservableObject {
                 }
                 saveContext()
             }
-        } catch { }
+        } catch {
+            AppLog.error("LocalPersistence failed to trim notifications: \(error.localizedDescription)")
+        }
     }
     
     // MARK: - 🤝 CONNECTIONS: Save & Load
@@ -1341,62 +1557,96 @@ final class LocalPersistenceService: ObservableObject {
                     context.delete(item)
                 }
             }
-        } catch { }
+        } catch {
+            AppLog.error("LocalPersistence failed to trim search history: \(error.localizedDescription)")
+        }
     }
 
 
     
     private func trimConversations() {
         guard let context = modelContext else { return }
-        
-        let descriptor = FetchDescriptor<CachedConversation>(
+
+        var descriptor = FetchDescriptor<CachedConversation>(
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
-        
+        descriptor.fetchOffset = maxConversations
+
         do {
-            let all = try context.fetch(descriptor)
-            if all.count > maxConversations {
-                let toDelete = all.suffix(from: maxConversations)
-                for conversation in toDelete {
-                    context.delete(conversation)
-                }
+            let overflow = try context.fetch(descriptor)
+            for conversation in overflow {
+                context.delete(conversation)
+            }
+            if !overflow.isEmpty {
                 saveContext()
             }
-        } catch { }
+        } catch {
+            AppLog.error("LocalPersistence failed to trim conversations: \(error.localizedDescription)")
+        }
     }
     
     private func trimMessages(for conversationId: String) {
         guard let context = modelContext else { return }
         
         let predicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
-        let descriptor = FetchDescriptor<CachedMessage>(
+        var descriptor = FetchDescriptor<CachedMessage>(
             predicate: predicate,
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
-        
+        descriptor.fetchOffset = maxMessagesPerChat
+
         do {
-            let all = try context.fetch(descriptor)
-            if all.count > maxMessagesPerChat {
-                let toDelete = all.suffix(from: maxMessagesPerChat)
-                for message in toDelete {
-                    ChatCacheStore.deleteMessageFiles(
-                        conversationId: conversationId,
-                        messageId: message.id
-                    )
-                    context.delete(message)
-                }
-                saveContext()
+            let overflow = try context.fetch(descriptor)
+            let evictedMessageIds = overflow.map(\.id)
+            for message in overflow {
+                context.delete(message)
             }
-        } catch { }
+            if !overflow.isEmpty {
+                saveContext()
+                Task.detached(priority: .utility) {
+                    for messageId in evictedMessageIds {
+                        ChatCacheStore.deleteMessageFiles(
+                            conversationId: conversationId,
+                            messageId: messageId
+                        )
+                    }
+                }
+            }
+        } catch {
+            AppLog.error("LocalPersistence failed to trim messages: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - 🚀 ACTIONS: Queue management
+
+    enum ActionPersistenceError: LocalizedError {
+        case storeUnavailable
+
+        var errorDescription: String? {
+            switch self {
+            case .storeUnavailable:
+                return "Local persistence store is unavailable."
+            }
+        }
+    }
+
+    /// Persiste una acción y propaga el error. Las colas críticas de upload deben usar esta API.
+    func saveActionOrThrow(_ action: CachedAction) throws {
+        guard let context = modelContext else {
+            throw ActionPersistenceError.storeUnavailable
+        }
+        context.insert(action)
+        try context.save()
+    }
     
     /// Guarda una nueva acción en la cola persistente
     func saveAction(_ action: CachedAction) {
-        guard let context = modelContext else { return }
-        context.insert(action)
-        saveContext()
+        do {
+            try saveActionOrThrow(action)
+        } catch {
+            AppLog.error("LocalPersistence failed to save queued action: \(error.localizedDescription)")
+            return
+        }
         // ✅ TRIGGER: Si hay conexión, intentar procesar la cola inmediatamente.
         // Las subidas ya tienen su propio proceso en vivo; sincronizarlas al guardarlas
         // puede detectar un falso duplicado y perder la acción de recuperación.
@@ -1435,6 +1685,40 @@ final class LocalPersistenceService: ObservableObject {
         saveContext()
     }
     
+    /// ¿Hay una acción encolada esperando reenvío para este id?
+    func hasPendingAction(id: String) -> Bool {
+        guard let context = modelContext else { return false }
+        let predicate = #Predicate<CachedAction> { $0.id == id }
+        var descriptor = FetchDescriptor<CachedAction>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        return ((try? context.fetchCount(descriptor)) ?? 0) > 0
+    }
+
+    /// Registra un intento de ejecución para el backoff exponencial
+    func markActionAttempt(id: String) {
+        guard let context = modelContext else { return }
+        let predicate = #Predicate<CachedAction> { $0.id == id }
+        var descriptor = FetchDescriptor<CachedAction>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        guard let action = (try? context.fetch(descriptor))?.first else { return }
+        action.retryCount += 1
+        action.lastAttemptAt = Date()
+        saveContext()
+    }
+
+    /// Actualiza el estado de un mensaje cacheado (p. ej. pending → failed al agotar reintentos)
+    func updateCachedMessageStatus(conversationId: String, messageId: String, status: MessageStatus) {
+        guard let context = modelContext else { return }
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && $0.id == messageId
+        }
+        var descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        guard let message = (try? context.fetch(descriptor))?.first else { return }
+        message.statusString = status.rawValue
+        saveContext()
+    }
+
     /// Actualiza el estado de una acción
     func updateActionStatus(id: String, status: CachedAction.ActionStatus, error: String? = nil) {
         guard let context = modelContext else { return }
@@ -1631,7 +1915,9 @@ final class LocalPersistenceService: ObservableObject {
                 }
                 saveContext()
             }
-        } catch { }
+        } catch {
+            AppLog.error("LocalPersistence failed to trim feed moments: \(error.localizedDescription)")
+        }
     }
     
     private func trimExploreMoments() {
@@ -1653,7 +1939,9 @@ final class LocalPersistenceService: ObservableObject {
                 }
                 saveContext()
             }
-        } catch { }
+        } catch {
+            AppLog.error("LocalPersistence failed to trim explore moments: \(error.localizedDescription)")
+        }
     }
     
     private func updateCachedMoment(_ existing: CachedMoment, from new: CachedMoment) {
@@ -1759,6 +2047,7 @@ final class LocalPersistenceService: ObservableObject {
             existing.thumbnailObjectPath = nil
             existing.mediaEncryptionData = nil
             existing.thumbnailEncryptionData = nil
+            existing.audioWaveformData = nil
         } else {
             existing.content = new.content
             if shouldPreserveLocalMediaURL(existing: existing.mediaUrl, incoming: new.mediaUrl, isDeleted: new.isDeleted) {
@@ -1775,6 +2064,7 @@ final class LocalPersistenceService: ObservableObject {
             existing.thumbnailObjectPath = new.thumbnailObjectPath
             existing.mediaEncryptionData = new.mediaEncryptionData
             existing.thumbnailEncryptionData = new.thumbnailEncryptionData
+            existing.audioWaveformData = new.audioWaveformData
         }
 
         existing.mediaBatchId = new.mediaBatchId

@@ -226,6 +226,7 @@ struct ChatMessageContextMenuOverlay: View {
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture { dismissMenu() }
+                    .accessibilityHidden(true)
 
                 reactionsBar(for: selection.message)
                     .fixedSize()

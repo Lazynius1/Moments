@@ -261,6 +261,9 @@ final class NovaAgent: ObservableObject {
         do {
             let stream = try chatSession.sendMessageStream(pending)
             for try await chunk in stream {
+                if let grounding = chunk.candidates.first?.groundingMetadata {
+                    mergeGrounding(grounding, into: botMessageIndex)
+                }
                 if !chunk.functionCalls.isEmpty {
                     sawToolCalls = true
                 }
@@ -305,6 +308,8 @@ final class NovaAgent: ObservableObject {
         freshExecutor.resetTurn()
         freshExecutor.attachedImageForTurn = mediaImage
         conversationHistory[botMessageIndex].text = ""
+        conversationHistory[botMessageIndex].groundingSources = []
+        conversationHistory[botMessageIndex].searchSuggestionsHTML = nil
         agentStatus = .thinking
 
         let response = try await freshChat.sendMessage(pending)
@@ -336,6 +341,38 @@ final class NovaAgent: ObservableObject {
         }
 
         conversationHistory[botMessageIndex].text = response.text ?? ""
+        if let grounding = response.candidates.first?.groundingMetadata {
+            mergeGrounding(grounding, into: botMessageIndex)
+        }
+    }
+
+    private func mergeGrounding(_ metadata: GroundingMetadata, into messageIndex: Int) {
+        guard conversationHistory.indices.contains(messageIndex) else { return }
+
+        var sources = conversationHistory[messageIndex].groundingSources
+        var seenURLs = Set(sources.map(\.url))
+        sources.append(contentsOf: metadata.groundingChunks.compactMap { chunk -> NovaGroundingSource? in
+            guard let web = chunk.web,
+                  let rawURL = web.uri?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !rawURL.isEmpty,
+                  URL(string: rawURL) != nil,
+                  seenURLs.insert(rawURL).inserted else {
+                return nil
+            }
+
+            let candidateTitle = web.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolvedTitle = candidateTitle.flatMap { $0.isEmpty ? nil : $0 } ?? rawURL
+            return NovaGroundingSource(
+                title: resolvedTitle,
+                url: rawURL
+            )
+        })
+
+        conversationHistory[messageIndex].groundingSources = sources
+        if let renderedContent = metadata.searchEntryPoint?.renderedContent,
+           !renderedContent.isEmpty {
+            conversationHistory[messageIndex].searchSuggestionsHTML = renderedContent
+        }
     }
 
     private func relevantFactsContext(for query: String) async -> String? {
@@ -385,6 +422,9 @@ final class NovaAgent: ObservableObject {
         if let momentSuccess = NovaToolExecutor.momentSuccessMessage(from: responses) {
             if let modelResponse = try? await chat.sendMessage([ModelContent(role: "function", parts: responses)]),
                let text = modelResponse.text, !text.isEmpty {
+                if let grounding = modelResponse.candidates.first?.groundingMetadata {
+                    mergeGrounding(grounding, into: botIndex)
+                }
                 activeToolDisplayName = nil
                 agentStatus = .streaming
                 return text
@@ -395,6 +435,9 @@ final class NovaAgent: ObservableObject {
         }
 
         let modelResponse = try await chat.sendMessage([ModelContent(role: "function", parts: responses)])
+        if let grounding = modelResponse.candidates.first?.groundingMetadata {
+            mergeGrounding(grounding, into: botIndex)
+        }
 
         activeToolDisplayName = nil
 

@@ -7,7 +7,9 @@ enum MessageItem: Identifiable {
     var id: String {
         switch self {
         case .single(let m): return m.id
-        case .mediaCluster(let ms): return "cluster-" + ms.map(\.id).joined(separator: "-")
+        // El último mensaje no cambia cuando una página anterior amplía el álbum por delante.
+        // Así el prepend conserva la identidad de la fila visible.
+        case .mediaCluster(let ms): return "cluster-" + (ms.last?.id ?? "empty")
         }
     }
 }

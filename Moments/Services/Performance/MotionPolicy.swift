@@ -58,6 +58,7 @@ enum MotionPolicy {
     /// Presets de spring alineados con micro-interacciones de la app.
     enum Spring {
         static var press: Animation { .spring(response: 0.28, dampingFraction: 0.72) }
+        static var timestampReturn: Animation { .spring(response: 0.2, dampingFraction: 0.94) }
         static var toggle: Animation { .spring(response: 0.32, dampingFraction: 0.78) }
         static var sheet: Animation { .smooth(duration: 0.18, extraBounce: 0.01) }
         static var header: Animation { .spring(response: 0.32, dampingFraction: 0.86) }

@@ -781,6 +781,13 @@ struct SharedMediaThumbnail: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { onTap() }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(NSLocalizedString(
+                media.type == .video ? "chat.a11y.video" : "chat.a11y.photo",
+                comment: "Media type"
+            )))
+            .accessibilityHint(Text(NSLocalizedString("chat.a11y.openMedia", comment: "Open media")))
+            .accessibilityAddTraits(.isButton)
     }
 
     private var roundedThumbnail: some View {
@@ -807,6 +814,13 @@ struct SharedMediaThumbnail: View {
             .onTapGesture {
                 onTap()
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(NSLocalizedString(
+                media.type == .video ? "chat.a11y.video" : "chat.a11y.photo",
+                comment: "Media type"
+            )))
+            .accessibilityHint(Text(NSLocalizedString("chat.a11y.openMedia", comment: "Open media")))
+            .accessibilityAddTraits(.isButton)
     }
 
     private func resolveVideoThumbnailIfNeeded() async {
@@ -948,16 +962,15 @@ class ConversationSettingsViewModel: ObservableObject {
             processMessages(cachedMessages)
         }
 
-        // Refresco en segundo plano por si hay mensajes que aún no llegaron al caché local
-        // (one-shot para no competir con el listener del chat principal).
-        chatService.fetchRecentMessages(conversationId: conversationId) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let messages):
-                    self?.processMessages(messages)
-                case .failure(_):
-                    break
-                }
+        // Refresco en segundo plano: delta por cursor en vez de re-pedir 300 mensajes
+        // (con su hidratación y descifrado) cada vez que se abre la pantalla. El
+        // catch-up trae solo lo que falte al cache y aquí se recuenta desde disco.
+        Task { [weak self] in
+            await MessageCatchUpService.shared.sync(conversationId: conversationId)
+            guard let self else { return }
+            let refreshed = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
+            if !refreshed.isEmpty {
+                self.processMessages(refreshed)
             }
         }
 

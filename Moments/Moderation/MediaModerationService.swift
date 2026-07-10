@@ -1175,18 +1175,6 @@ class MediaModerationService {
         }
     }
 
-    private func determineActionFromScores(adult: Double, violence: Double, racy: Double) -> MediaModerationAction {
-        var result: MediaModerationAction = .approved
-        let group = DispatchGroup()
-        group.enter()
-        determineActionFromScoresWithConfig(adult: adult, violence: violence, racy: racy) { action in
-            result = action
-            group.leave()
-        }
-        group.wait()
-        return result
-    }
-
     private func determineFinalAction(visual: MediaModerationAction, audio: MediaModerationAction?) -> MediaModerationAction {
         let actions = [visual, audio].compactMap { $0 }
         if actions.contains(where: { if case .deleted = $0 { return true } else { return false } }) {
@@ -1919,74 +1907,6 @@ class MediaModerationService {
             return "low"
         } else {
             return "very_low"
-        }
-    }
-
-    private func loadModerationSettings(completion: @escaping ([String: Any]?) -> Void) {
-        let db = Firestore.firestore()
-        db.collection("moderationSettings").document("media").getDocument { document, error in
-            if error != nil {
-                completion(nil)
-                return
-            }
-            if let document = document, document.exists, let data = document.data() {
-                completion(data)
-            } else {
-                completion(nil)
-            }
-        }
-    }
-
-    private func determineActionFromScoresWithConfig(adult: Double, violence: Double, racy: Double, completion: @escaping (MediaModerationAction) -> Void) {
-        loadModerationSettings { config in
-            // ✅ UMBRALES EQUILIBRADOS Y MÁS TOLERANTES
-            // Modificado para permitir fotos "racy" (sin camiseta, playa, fitness) y evitar falsos positivos con pájaros (spoofed)
-            let deleteThresholds = config?["deleteThresholds"] as? [String: Double] ?? [
-                "adult": 0.95,     // Muy estricto: Solo desnudez explícita
-                "violence": 0.85,  // Solo violencia gráfica extrema
-                "racy": 0.99,      // Prácticamente deshabilitado para borrar
-                "medical": 0.95,   // Solo contenido médico explícito
-                "spoofed": 0.99    // Evitar que detecte animales/pájaros como falsos
-            ]
-
-            let warningThresholds = config?["warningThresholds"] as? [String: Double] ?? [
-                "adult": 0.90,     // Advertencia solo si es casi seguro (VERY_LIKELY)
-                "violence": 0.80,  
-                "racy": 0.98,      // Deshabilitado en la práctica
-                "medical": 0.90,   
-                "spoofed": 0.95    
-            ]
-
-            // 1. ADULT CONTENT
-            if adult >= deleteThresholds["adult"]! {
-                completion(.deleted(reason: "Contenido adulto explícito detectado", category: ModerationCategory.adult.rawValue))
-                return
-            }
-            if adult >= warningThresholds["adult"]! {
-                completion(.warning(reason: "Contenido potencialmente adulto", category: ModerationCategory.adult.rawValue))
-                return
-            }
-
-            // 2. VIOLENCE
-            if violence >= deleteThresholds["violence"]! {
-                completion(.deleted(reason: "Contenido violento extremo detectado", category: ModerationCategory.violence.rawValue))
-                return
-            }
-            if violence >= warningThresholds["violence"]! {
-                completion(.warning(reason: "Contenido potencialmente violento", category: ModerationCategory.violence.rawValue))
-                return
-            }
-
-            // 3. SPOOFED (El problema de los pájaros/animales)
-            // Solo actuar si es una falsificación extremadamente evidente
-            if racy >= deleteThresholds["spoofed"]! {
-                completion(.deleted(reason: "Contenido falsificado detectado", category: ModerationCategory.spoofed.rawValue))
-                return
-            }
-
-            // ✅ RACY está deshabilitado intencionadamente para permitir fotos de perfil fitness/playa
-            
-            completion(.approved)
         }
     }
 

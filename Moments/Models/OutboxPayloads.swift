@@ -40,6 +40,24 @@ struct MessagePayload: Codable {
     let useServerTimestamp: Bool
 }
 
+/// Payload para reenviar media de chat pendiente. Los bytes originales viven en
+/// el cache de media descifrada; la ruta se re-deriva con ChatCacheStore para
+/// sobrevivir a cambios de contenedor entre actualizaciones de la app.
+struct MediaMessagePayload: Codable {
+    let conversationId: String
+    let senderId: String
+    let messageId: String
+    let typeRaw: String
+    let fileExtension: String
+    let fileName: String?
+    let duration: Double?
+    let audioWaveform: [Float]?
+    let mediaBatchId: String?
+    let isVanishModeMessage: Bool
+    let vanishExpiresAt: Date?
+    let replyTo: String?
+}
+
 /// Payload for persisting follow/unfollow actions
 struct FollowActionPayload: Codable {
     let followerId: String

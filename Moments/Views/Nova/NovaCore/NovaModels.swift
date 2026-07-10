@@ -1,6 +1,18 @@
 import SwiftUI
 import UIKit
 
+struct NovaGroundingSource: Identifiable, Codable, Equatable, Hashable {
+    let title: String
+    let url: String
+
+    var id: String { url }
+}
+
+struct NovaGroundingPayload: Codable, Equatable {
+    let sources: [NovaGroundingSource]
+    let searchSuggestionsHTML: String?
+}
+
 // MARK: - Mantener el modelo ChatMessage igual
 struct ChatMessage: Identifiable, Equatable {
     let id: UUID
@@ -11,6 +23,8 @@ struct ChatMessage: Identifiable, Equatable {
     let timestamp: Date
     let isHistorical: Bool // ✅ NUEVO: Flag para mensajes históricos
     let isSystem: Bool // Flag para mensajes del sistema
+    var groundingSources: [NovaGroundingSource]
+    var searchSuggestionsHTML: String?
 
     init(
         id: UUID = UUID(),
@@ -19,7 +33,9 @@ struct ChatMessage: Identifiable, Equatable {
         image: UIImage? = nil,
         imageStoragePath: String? = nil,
         isHistorical: Bool = false,
-        isSystem: Bool = false
+        isSystem: Bool = false,
+        groundingSources: [NovaGroundingSource] = [],
+        searchSuggestionsHTML: String? = nil
     ) {
         self.id = id
         self.text = text
@@ -29,6 +45,8 @@ struct ChatMessage: Identifiable, Equatable {
         self.timestamp = Date()
         self.isHistorical = isHistorical // ✅ Por defecto es nuevo mensaje
         self.isSystem = isSystem
+        self.groundingSources = groundingSources
+        self.searchSuggestionsHTML = searchSuggestionsHTML
     }
 
     static func ==(lhs: ChatMessage, rhs: ChatMessage) -> Bool {
@@ -38,6 +56,8 @@ struct ChatMessage: Identifiable, Equatable {
                lhs.imageStoragePath == rhs.imageStoragePath &&
                lhs.isUser == rhs.isUser &&
                lhs.isHistorical == rhs.isHistorical &&
-               lhs.isSystem == rhs.isSystem
+               lhs.isSystem == rhs.isSystem &&
+               lhs.groundingSources == rhs.groundingSources &&
+               lhs.searchSuggestionsHTML == rhs.searchSuggestionsHTML
     }
 }

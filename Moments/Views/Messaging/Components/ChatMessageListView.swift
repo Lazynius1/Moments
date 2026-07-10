@@ -71,6 +71,7 @@ enum ChatListScrollIntent: Equatable {
 
 final class ChatMessageListController: ObservableObject {
     fileprivate weak var viewController: ChatMessageListViewController?
+    let timestampRevealState = ChatTimestampRevealState()
 
     var initialScrollPolicy: ChatListInitialScrollPolicy = .automaticBottom
     /// Alturas medidas por fila: persiste entre recreaciones del view controller (pushes, sheets).
@@ -102,10 +103,6 @@ final class ChatMessageListController: ObservableObject {
 
     func perform(_ command: ChatListScrollCommand) {
         viewController?.perform(command)
-    }
-
-    func prepareHistoryPrepend() {
-        viewController?.prepareHistoryPrepend()
     }
 
     func clearNavigationTarget() {
@@ -188,7 +185,7 @@ struct ChatMessageListView: UIViewControllerRepresentable {
     var isVanishModeActive: Bool = false
     var onVanishPullReleased: (VanishPullResult) -> Void = { _ in }
     var onVanishDraggingChanged: (Bool) -> Void = { _ in }
-    var onContentOffsetChanged: (CGFloat) -> Void = { _ in }
+    var onContentExtentChanged: (Bool) -> Void = { _ in }
     var onPrependFinished: () -> Void = {}
     var onPrefetchRows: ([ChatRenderRow]) -> Void = { _ in }
     var rowContent: (ChatRenderRow) -> AnyView
@@ -212,9 +209,10 @@ struct ChatMessageListView: UIViewControllerRepresentable {
         viewController.composerBottomInset = composerBottomInset
         viewController.isVanishGestureEnabled = isVanishGestureEnabled
         viewController.isVanishModeActive = isVanishModeActive
+        viewController.externalIsAtBottom = isAtBottom
         viewController.onVanishPullReleased = onVanishPullReleased
         viewController.onVanishDraggingChanged = onVanishDraggingChanged
-        viewController.onContentOffsetChanged = onContentOffsetChanged
+        viewController.onContentExtentChanged = onContentExtentChanged
         viewController.onPrependFinished = onPrependFinished
         viewController.onPrefetchRows = onPrefetchRows
         viewController.onIsAtBottomChanged = { value in
@@ -288,6 +286,12 @@ final class ChatRowHeightCache {
         measuredHeights[rowId] = height
     }
 
+    func invalidate(_ rowIds: [String]) {
+        for rowId in rowIds {
+            measuredHeights.removeValue(forKey: rowId)
+        }
+    }
+
     func seedEstimates(for rows: [ChatRenderRow], containerWidth: CGFloat) {
         guard containerWidth > 0 else { return }
         var updated: [String: CGFloat] = [:]
@@ -305,7 +309,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     var onIsAtBottomChanged: ((Bool) -> Void)?
     var onVanishPullReleased: ((VanishPullResult) -> Void)?
     var onVanishDraggingChanged: ((Bool) -> Void)?
-    var onContentOffsetChanged: ((CGFloat) -> Void)?
+    var onContentExtentChanged: ((Bool) -> Void)?
     var onPrependFinished: (() -> Void)?
     var onPrefetchRows: (([ChatRenderRow]) -> Void)?
     var initialScrollPolicy: ChatListInitialScrollPolicy = .automaticBottom
@@ -329,6 +333,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         }
     }
     var isVanishModeActive = false
+    var externalIsAtBottom = true
     var scrollNavigationTargetRowId: String? {
         didSet {
             updatePreferredOffsetAdjustmentSuppression()
@@ -337,6 +342,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     private(set) var currentIsAtBottom = true
     private(set) var isStrictlyAtBottom = true
+    private var lastReportedContentExceedsViewport: Bool?
 
     private var navigationAwareLayout: ChatNavigationAwareCompositionalLayout?
     var rowHeightCache: ChatRowHeightCache?
@@ -353,9 +359,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     private var pendingReconfigureRowIds: Set<String> = []
     private var reconfigureAllVisiblePending = false
     private var needsDeferredInitialScroll = false
-    private var preparedPrependAnchor: ChatViewportAnchor?
     private var lastAppliedRows: [ChatRenderRow] = []
-    private var pendingPrependAnchorRestore: ChatViewportAnchor?
     private var isRestoringPrependAnchor = false
     private var suppressHistoryLoadUntilNextUserScroll = false
     private var historyLoadWorkItem: DispatchWorkItem?
@@ -366,8 +370,8 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     private let strictAtBottomThreshold: CGFloat = 8
     private let loadOlderItemThreshold = 10
-    private let historyPrefetchItemThreshold = 14
-    private let historyLoadDebounceNs: UInt64 = 180_000_000
+    private let historyPrefetchItemThreshold = 40
+    private let historyLoadDebounceNs: UInt64 = 50_000_000
     /// Dedos mínimos antes de armar vanish por pan (evita activación accidental al hacer scroll).
     private let vanishEngageThreshold: CGFloat = 44
     private let vanishToggleCooldown: TimeInterval = 2.0
@@ -384,8 +388,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     private var isClampingBottomScroll = false
     private var isEnforcingNavTarget = false
     private var currentVanishLift: CGFloat = 0
-    private var pendingContentOffsetReport: CGFloat?
-    private var contentOffsetReportScheduled = false
 
     var contentExceedsViewport: Bool {
         guard collectionView != nil else { return false }
@@ -482,13 +484,12 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             isStrictlyAtBottom = strict
         }
         currentIsAtBottom = strict
-        // Notificar SIEMPRE, no solo cuando cambia este flag interno: SwiftUI puede haber puesto
-        // isPinnedToBottom=false por su cuenta (p.ej. al abrir en el primer no leído) sin pasar por
-        // aquí. Si el flag interno ya estaba en el mismo valor, nunca habría una transición que
-        // reenviara el aviso y SwiftUI quedaría desincronizado para siempre aunque geométricamente
-        // sí se esté en el fondo. El binding en SwiftUI ya deduplica (`if isAtBottom != value`),
-        // así que notificar de más es barato y seguro; no notificar es lo que causaba el bug.
-        onIsAtBottomChanged?(strict)
+        // Comparar contra el valor externo real permite resincronizar SwiftUI sin publicar
+        // un bloque al main queue en cada frame de scroll.
+        if externalIsAtBottom != strict {
+            externalIsAtBottom = strict
+            onIsAtBottomChanged?(strict)
+        }
     }
 
     override func viewDidLoad() {
@@ -525,7 +526,9 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         // arma este pan gesture y cancela el toque que SwiftUI rastreaba para el menú contextual,
         // matando el long-press antes de completarse. Ambos gestos deben poder coexistir.
         vanishPanGesture.cancelsTouchesInView = false
-        collectionView.addGestureRecognizer(vanishPanGesture)
+        // `UICollectionView` ya entrega el overscroll inferior mediante su pan nativo.
+        // Un segundo pan simultáneo duplicaba la misma interacción y ensuciaba el scroll.
+        // Se conserva el handler como fallback documental, pero no se instala otro recognizer.
     }
 
     // keyboardDismissMode = .interactive solo funciona arrastrando contenido con
@@ -549,10 +552,8 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             rowHeightCache?.seedEstimates(for: lastAppliedRows, containerWidth: collectionView.bounds.width)
         }
         updateBottomAnchorInset()
+        reportContentExtentIfChanged()
         enforceNavigationTargetIfNeeded(context: "layout")
-        if let pendingPrependAnchorRestore {
-            restoreViewportAnchor(pendingPrependAnchorRestore)
-        }
         guard needsDeferredInitialScroll,
               collectionView.bounds.height > 0,
               !orderedItemIds.isEmpty else { return }
@@ -620,6 +621,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         collectionView = UICollectionView(frame: view.bounds, collectionViewLayout: layout)
         collectionView.backgroundColor = .clear
         collectionView.keyboardDismissMode = .interactive
+        collectionView.isDirectionalLockEnabled = true
         collectionView.alwaysBounceVertical = true
         collectionView.bounces = true
         collectionView.delegate = self
@@ -658,6 +660,11 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         let newIds = rows.map(\.id)
         let isInitial = !hasLoadedInitial
         let wasAtBottom = currentIsAtBottom
+        // Capturar el viewport en el instante en que llega la página, no cuando se pidió.
+        // El usuario puede haber avanzado muchos puntos durante la consulta.
+        let livePrependAnchor = transaction.kind == .prependHistory
+            ? captureTopVisibleAnchor()
+            : nil
         let detectedChangedRowIds = changedRowIds(
             oldRowsById: oldRowsById,
             newRowsById: newRowsById,
@@ -671,6 +678,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
         guard newIds != oldIds || !hasLoadedInitial || !changedRowIds.isEmpty else { return }
         orderedItemIds = newIds
+        rowHeightCache?.invalidate(changedRowIds)
         rowHeightCache?.seedEstimates(for: rows, containerWidth: collectionView.bounds.width)
         lastAppliedRows = rows
 
@@ -683,15 +691,12 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         )
         ChatScrollDebug.log("apply kind=\(normalizedKind) requested=\(transaction.kind) old=\(oldIds.count) new=\(newIds.count) changed=\(changedRowIds.count) wasBottom=\(wasAtBottom)")
         let prependAnchor = normalizedKind == .prependHistory
-            ? (preparedPrependAnchor ?? captureTopVisibleAnchor())
+            ? (livePrependAnchor ?? captureTopVisibleAnchor())
             : nil
-        preparedPrependAnchor = nil
         if normalizedKind == .prependHistory {
-            pendingPrependAnchorRestore = prependAnchor
             isRestoringPrependAnchor = true
             suppressHistoryLoadUntilNextUserScroll = true
         } else {
-            pendingPrependAnchorRestore = nil
             isRestoringPrependAnchor = false
         }
         updatePreferredOffsetAdjustmentSuppression()
@@ -724,24 +729,23 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         for id in newIds {
             snapshot.appendItems([id], toSection: id)
         }
+        let reconfigurableRowIds = changedRowIds.filter { newRowsById[$0] != nil }
+        if !reconfigurableRowIds.isEmpty {
+            snapshot.reconfigureItems(reconfigurableRowIds)
+        }
 
         if normalizedKind == .prependHistory {
-            dataSource.applySnapshotUsingReloadData(snapshot)
-            self.collectionView.layoutIfNeeded()
-            self.updateBottomAnchorInset()
-            ChatScrollDebug.log("prependHistory apply anchor=\(String(describing: prependAnchor?.rowId)) pendingRestore=\(String(describing: self.pendingPrependAnchorRestore?.rowId))")
-            if let prependAnchor {
-                self.restoreViewportAnchor(prependAnchor)
-            }
-            self.recomputeBottomPinnedState()
-            DispatchQueue.main.async {
-                if let pendingAnchor = self.pendingPrependAnchorRestore {
-                    self.collectionView.layoutIfNeeded()
-                    self.restoreViewportAnchor(pendingAnchor)
+            dataSource.apply(snapshot, animatingDifferences: false) { [weak self] in
+                guard let self else { return }
+                self.collectionView.layoutIfNeeded()
+                self.updateBottomAnchorInset()
+                ChatScrollDebug.log("prependHistory apply anchor=\(String(describing: prependAnchor?.rowId))")
+                if let prependAnchor {
+                    self.restoreViewportAnchor(prependAnchor)
                 }
-                self.pendingPrependAnchorRestore = nil
                 self.isRestoringPrependAnchor = false
                 self.updatePreferredOffsetAdjustmentSuppression()
+                self.recomputeBottomPinnedState()
                 self.onPrependFinished?()
             }
             self.applyScrollCommandIfNeeded(transaction.scrollCommand)
@@ -778,10 +782,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             self.applyScrollCommandIfNeeded(transaction.scrollCommand)
             self.resolvePendingScrollIfPossible()
         }
-    }
-
-    func prepareHistoryPrepend() {
-        preparedPrependAnchor = captureTopVisibleAnchor()
     }
 
     private func applyInitialScrollPolicy(animated: Bool) {
@@ -875,6 +875,13 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             return .initial
         }
 
+        // El ViewModel sólo emite este tipo para páginas históricas ya validadas.
+        // Confiar en la intención evita degradar a replaceAll si la primera cabecera
+        // o un álbum cambia de composición justo en el borde de página.
+        if requestedKind == .prependHistory, newIds.count >= oldIds.count {
+            return .prependHistory
+        }
+
         if requestedKind == .prependHistory,
            let anchorRowId,
            let oldAnchorIndex = oldIds.firstIndex(of: anchorRowId),
@@ -898,7 +905,24 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     private func captureTopVisibleAnchor() -> ChatViewportAnchor? {
-        guard let index = firstVisibleRowIndex,
+        let visibleIndices = collectionView.indexPathsForVisibleItems
+            .map(\.section)
+            .sorted { lhs, rhs in
+                let leftY = collectionView.layoutAttributesForItem(
+                    at: IndexPath(item: 0, section: lhs)
+                )?.frame.minY ?? .greatestFiniteMagnitude
+                let rightY = collectionView.layoutAttributesForItem(
+                    at: IndexPath(item: 0, section: rhs)
+                )?.frame.minY ?? .greatestFiniteMagnitude
+                return leftY < rightY
+            }
+        let messageIndex = visibleIndices.first { index in
+            guard index >= 0, index < orderedItemIds.count,
+                  let row = rowsById[orderedItemIds[index]] else { return false }
+            if case .message = row { return true }
+            return false
+        }
+        guard let index = messageIndex ?? visibleIndices.first,
               index >= 0,
               index < orderedItemIds.count,
               let attributes = collectionView.layoutAttributesForItem(at: IndexPath(item: 0, section: index))
@@ -935,8 +959,11 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     private func updatePreferredOffsetAdjustmentSuppression() {
+        let isInteracting = collectionView?.isDragging == true
+            || collectionView?.isTracking == true
+            || collectionView?.isDecelerating == true
         navigationAwareLayout?.suppressesPreferredOffsetAdjustment =
-            scrollNavigationTargetRowId != nil || isRestoringPrependAnchor
+            scrollNavigationTargetRowId != nil || isRestoringPrependAnchor || isInteracting
     }
 
     private func applyScrollCommandIfNeeded(_ command: ChatListScrollCommand?) {
@@ -1240,7 +1267,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         let contentHeight = collectionView.collectionViewLayout.collectionViewContentSize.height
         let extraTop = max(0, available - contentHeight)
         guard abs(collectionView.contentInset.top - extraTop) > 0.5 else { return }
-        let shouldPreservePrependViewport = isRestoringPrependAnchor || pendingPrependAnchorRestore != nil
+        let shouldPreservePrependViewport = isRestoringPrependAnchor
         let wasPinned = (isStrictlyAtBottom || currentIsAtBottom)
             && scrollNavigationTargetRowId == nil
             && !shouldPreservePrependViewport
@@ -1252,17 +1279,11 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         }
     }
 
-    private func reportContentOffset(_ offset: CGFloat) {
-        pendingContentOffsetReport = offset
-        guard !contentOffsetReportScheduled else { return }
-        contentOffsetReportScheduled = true
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.contentOffsetReportScheduled = false
-            guard let offset = self.pendingContentOffsetReport else { return }
-            self.pendingContentOffsetReport = nil
-            self.onContentOffsetChanged?(offset)
-        }
+    private func reportContentExtentIfChanged() {
+        let exceedsViewport = contentExceedsViewport
+        guard lastReportedContentExceedsViewport != exceedsViewport else { return }
+        lastReportedContentExceedsViewport = exceedsViewport
+        onContentExtentChanged?(exceedsViewport)
     }
 
     private func bottomOverscroll(in scrollView: UIScrollView) -> CGFloat {
@@ -1270,6 +1291,17 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     private func applyVanishFromOverscroll(_ rawOverscroll: CGFloat, isDragging: Bool) {
+        // Los scrolls iniciales, restauraciones de ancla y reajustes de alturas pueden
+        // producir un overscroll inferior transitorio. Vanish solo debe reaccionar a
+        // un gesto real del dedo, nunca a movimiento programático de UICollectionView.
+        guard isDragging else {
+            if !isVanishOverscrollActive && !isVanishPanActive {
+                currentVanishLift = 0
+                vanishPullOverlay.hide()
+            }
+            return
+        }
+
         guard isVanishGestureEnabled, isStrictlyAtBottom else {
             if rawOverscroll <= 0 {
                 clearVanishOverscrollPresentation()
@@ -1464,6 +1496,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        navigationAwareLayout?.suppressesPreferredOffsetAdjustment = true
         suppressHistoryLoadUntilNextUserScroll = false
         // El usuario toma el control: soltar el nav target para no pelear contra su gesto.
         if scrollNavigationTargetRowId != nil {
@@ -1483,7 +1516,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         }
 
         recomputeBottomPinnedState()
-        reportContentOffset(scrollView.contentOffset.y)
         scheduleHistoryLoadIfNeeded()
 
         if !isStrictlyAtBottom, isVanishPanActive || isVanishOverscrollActive {
@@ -1492,6 +1524,9 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate {
+            updatePreferredOffsetAdjustmentSuppression()
+        }
         guard !isVanishPanActive else { return }
         guard isVanishOverscrollActive || currentVanishLift > 0 else { return }
 
@@ -1501,6 +1536,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        updatePreferredOffsetAdjustmentSuppression()
         clearNavigationTargetIfSettled()
         completeScrollIntentAfterAnimation()
     }

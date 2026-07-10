@@ -3,6 +3,118 @@ import AVFoundation
 import UIKit
 import SwiftUI
 
+struct RecordedVoiceNote {
+    let data: Data
+    let waveform: [Float]
+}
+
+struct VoiceRecordingSegment {
+    let recording: RecordedVoiceNote
+    let duration: TimeInterval
+}
+
+struct VoiceRecordingDraft {
+    var segments: [VoiceRecordingSegment]
+    var recording: RecordedVoiceNote?
+
+    var duration: TimeInterval {
+        segments.reduce(0) { $0 + $1.duration }
+    }
+
+    var waveform: [Float] {
+        recording?.waveform ?? ChatVoiceWaveformSamples.resampled(
+            segments.flatMap(\.recording.waveform),
+            count: ChatVoiceWaveformSamples.storedSampleCount
+        )
+    }
+}
+
+enum VoiceRecordingComposer {
+    static func compose(_ segments: [VoiceRecordingSegment]) async -> RecordedVoiceNote? {
+        guard !segments.isEmpty else { return nil }
+        if segments.count == 1 {
+            return segments[0].recording
+        }
+
+        let fileManager = FileManager.default
+        let composition = AVMutableComposition()
+        guard let compositionTrack = composition.addMutableTrack(
+            withMediaType: .audio,
+            preferredTrackID: kCMPersistentTrackID_Invalid
+        ) else { return nil }
+
+        var temporaryURLs: [URL] = []
+        defer {
+            for url in temporaryURLs {
+                try? fileManager.removeItem(at: url)
+            }
+        }
+
+        var insertionTime = CMTime.zero
+        do {
+            for segment in segments {
+                let segmentURL = fileManager.temporaryDirectory
+                    .appendingPathComponent("voice_segment_\(UUID().uuidString).m4a")
+                try segment.recording.data.write(to: segmentURL, options: .atomic)
+                temporaryURLs.append(segmentURL)
+
+                let asset = AVURLAsset(url: segmentURL)
+                guard let sourceTrack = try await asset.loadTracks(withMediaType: .audio).first else {
+                    return nil
+                }
+                let duration = try await asset.load(.duration)
+                try compositionTrack.insertTimeRange(
+                    CMTimeRange(start: .zero, duration: duration),
+                    of: sourceTrack,
+                    at: insertionTime
+                )
+                insertionTime = CMTimeAdd(insertionTime, duration)
+            }
+
+            let outputURL = fileManager.temporaryDirectory
+                .appendingPathComponent("voice_composed_\(UUID().uuidString).m4a")
+            temporaryURLs.append(outputURL)
+            guard let exporter = AVAssetExportSession(
+                asset: composition,
+                presetName: AVAssetExportPresetAppleM4A
+            ) else { return nil }
+
+            exporter.outputURL = outputURL
+            exporter.outputFileType = .m4a
+            exporter.shouldOptimizeForNetworkUse = true
+            try await exporter.export(to: outputURL, as: .m4a)
+            let data = try Data(contentsOf: outputURL)
+            guard !data.isEmpty else { return nil }
+
+            return RecordedVoiceNote(
+                data: data,
+                waveform: ChatVoiceWaveformSamples.resampled(
+                    segments.flatMap(\.recording.waveform),
+                    count: ChatVoiceWaveformSamples.storedSampleCount
+                )
+            )
+        } catch {
+            return nil
+        }
+    }
+}
+
+enum ChatVoiceWaveformSamples {
+    static let storedSampleCount = 48
+
+    static func resampled(_ source: [Float], count: Int) -> [Float] {
+        guard count > 0, !source.isEmpty else { return [] }
+        return (0..<count).map { index in
+            let lower = index * source.count / count
+            let upper = max(lower + 1, (index + 1) * source.count / count)
+            let slice = source[lower..<min(upper, source.count)]
+            let average = slice.reduce(Float.zero, +) / Float(max(slice.count, 1))
+            let peak = slice.max() ?? average
+            return min(1, max(0.12, average * 0.7 + peak * 0.3))
+        }
+    }
+}
+
 // MARK: - Audio Recording Manager
 final class AudioRecordingManager: NSObject, ObservableObject {
     static let shared = AudioRecordingManager()
@@ -12,7 +124,8 @@ final class AudioRecordingManager: NSObject, ObservableObject {
     private var powerTimer: Timer?
     private var audioRecorder: AVAudioRecorder?
     private var recordingURL: URL?
-    private var stopCompletion: ((Data?) -> Void)?
+    private var recordedPowerLevels: [Float] = []
+    private var stopCompletion: ((RecordedVoiceNote?) -> Void)?
 
     private override init() {
         super.init()
@@ -31,7 +144,7 @@ final class AudioRecordingManager: NSObject, ObservableObject {
         }
     }
 
-    func stopRecording(completion: @escaping (Data?) -> Void) {
+    func stopRecording(completion: @escaping (RecordedVoiceNote?) -> Void) {
         powerTimer?.invalidate()
         powerTimer = nil
         audioPower = 0.0
@@ -90,6 +203,7 @@ final class AudioRecordingManager: NSObject, ObservableObject {
             }
             audioRecorder = recorder
             recordingURL = fileURL
+            recordedPowerLevels.removeAll(keepingCapacity: true)
             startPowerMonitoring()
             return true
         } catch {
@@ -104,6 +218,7 @@ final class AudioRecordingManager: NSObject, ObservableObject {
             let decibels = recorder.averagePower(forChannel: 0)
             let level = self.normalizedPowerLevel(fromDecibels: decibels)
             DispatchQueue.main.async {
+                self.recordedPowerLevels.append(level)
                 self.audioPower = Float(level)
             }
         }
@@ -122,6 +237,7 @@ final class AudioRecordingManager: NSObject, ObservableObject {
 
         guard success, let url = recordingURL else {
             recordingURL = nil
+            recordedPowerLevels.removeAll(keepingCapacity: false)
             completion?(nil)
             return
         }
@@ -129,10 +245,15 @@ final class AudioRecordingManager: NSObject, ObservableObject {
         defer { recordingURL = nil }
         let data = try? Data(contentsOf: url)
         if let data, data.count > 512 {
-            completion?(data)
+            let waveform = ChatVoiceWaveformSamples.resampled(
+                recordedPowerLevels,
+                count: ChatVoiceWaveformSamples.storedSampleCount
+            )
+            completion?(RecordedVoiceNote(data: data, waveform: waveform))
         } else {
             completion?(nil)
         }
+        recordedPowerLevels.removeAll(keepingCapacity: false)
         try? FileManager.default.removeItem(at: url)
     }
 }
@@ -321,6 +442,7 @@ struct GlassmorphicAudioMessage: View {
     let messageId: String
     let audioUrl: String?
     let duration: Double
+    let waveformSamples: [Float]?
     let isCurrentUser: Bool
     let isSending: Bool
     let progress: Double?
@@ -388,6 +510,10 @@ struct GlassmorphicAudioMessage: View {
         )
     }
 
+    private var showsSpeedControl: Bool {
+        !isSending && duration >= 8
+    }
+
     @ViewBuilder
     private var bubbleBackground: some View {
         if isCurrentUser {
@@ -418,7 +544,7 @@ struct GlassmorphicAudioMessage: View {
             } else if isAudioAvailable {
                 scrubbableWaveform
                     .frame(
-                        width: VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: !isSending),
+                        width: VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: showsSpeedControl),
                         height: VoiceMessageLayout.waveformHeight
                     )
                     .padding(.leading, VoiceMessageLayout.waveformLeadingInset)
@@ -426,7 +552,7 @@ struct GlassmorphicAudioMessage: View {
                 timeLabel
                     .padding(.leading, VoiceMessageLayout.trailingGapMinLength)
 
-                if !isSending {
+                if showsSpeedControl {
                     speedButton
                 }
             } else {
@@ -493,7 +619,7 @@ struct GlassmorphicAudioMessage: View {
     }
 
     private var loadingWaveformPlaceholder: some View {
-        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: true)
+        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: showsSpeedControl)
         let barCount = VoiceMessageLayout.waveformBarCount(for: trackWidth)
 
         return HStack(spacing: VoiceMessageLayout.barSpacing) {
@@ -508,7 +634,7 @@ struct GlassmorphicAudioMessage: View {
     }
 
     private var scrubbableWaveform: some View {
-        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: !isSending)
+        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: showsSpeedControl)
 
         return VisualWaveformView(
             levels: waveformLevels,
@@ -519,8 +645,9 @@ struct GlassmorphicAudioMessage: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .gesture(
-            DragGesture(minimumDistance: 4, coordinateSpace: .local)
-                .onChanged { value in
+            ChatHorizontalPanGesture(
+                direction: .both,
+                onChanged: { value in
                     if !isScrubbing {
                         isScrubbing = true
                         wasPlayingBeforeScrub = isPlaying
@@ -536,14 +663,15 @@ struct GlassmorphicAudioMessage: View {
                     let fraction = max(0, min(1, value.location.x / width))
                     scrubFraction = fraction
                     seekToFraction(fraction)
-                }
-                .onEnded { _ in
+                },
+                onEnded: { _, _ in
                     isScrubbing = false
                     scrubFraction = nil
                     if wasPlayingBeforeScrub {
                         resumeAfterScrub()
                     }
                 }
+            )
         )
         .accessibilityLabel(Text("chat.audio.scrub.accessibility"))
     }
@@ -604,12 +732,13 @@ struct GlassmorphicAudioMessage: View {
 
     private func refreshWaveformLevels() {
         let seed = audioUrl ?? messageId
-        let includesSpeed = isAudioAvailable && !isCheckingAvailability && !isSending
-        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: includesSpeed)
-        waveformLevels = ChatVoiceWaveformGenerator.levels(
-            seed: seed,
-            count: VoiceMessageLayout.waveformBarCount(for: trackWidth)
-        )
+        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: showsSpeedControl)
+        let barCount = VoiceMessageLayout.waveformBarCount(for: trackWidth)
+        if let waveformSamples, !waveformSamples.isEmpty {
+            waveformLevels = ChatVoiceWaveformSamples.resampled(waveformSamples, count: barCount)
+        } else {
+            waveformLevels = ChatVoiceWaveformGenerator.levels(seed: seed, count: barCount)
+        }
     }
     
     private func configurePlaybackSession(speaker: Bool) {

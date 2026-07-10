@@ -1798,7 +1798,7 @@ extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
         // Ya no recortamos el video a 9:16 si se grabó en horizontal.
         // Pasamos el archivo directamente, ya que AVCaptureConnection ya orientó el video correctamente.
         do {
-            let videoData = try Data(contentsOf: outputFileURL)
+            let videoData = try Data(contentsOf: outputFileURL, options: .mappedIfSafe)
             delegate?.didCaptureVideo(videoData)
         } catch {
         }

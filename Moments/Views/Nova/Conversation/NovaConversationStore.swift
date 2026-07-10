@@ -171,6 +171,7 @@ final class NovaConversationStore: ObservableObject {
             for savedMessage in savedConversation.messages {
                 let decryptedText = await encryptionService.decryptNovaData(savedMessage.text, for: userId) ?? savedMessage.text
                 let decryptedImagePayload = await decryptImageData(savedMessage.imageData, for: userId)
+                let grounding = await decryptGroundingData(savedMessage.groundingData, for: userId)
                 let resolvedImage = await resolveHistoricalImage(
                     from: decryptedImagePayload,
                     messageId: savedMessage.id,
@@ -182,7 +183,8 @@ final class NovaConversationStore: ObservableObject {
                     id: savedMessage.id,
                     text: decryptedText,
                     isUser: savedMessage.isUser,
-                    imageData: decryptedImagePayload
+                    imageData: decryptedImagePayload,
+                    groundingData: nil
                 )
                 if let storagePath = resolvedImage.storagePath {
                     imageReferenceCache[cacheKey(conversationId: savedConversation.id, messageId: savedMessage.id)] = storagePath
@@ -190,7 +192,8 @@ final class NovaConversationStore: ObservableObject {
                 messages.append(
                     restored.toChatMessage(
                         image: resolvedImage.image,
-                        imageStoragePath: resolvedImage.storagePath
+                        imageStoragePath: resolvedImage.storagePath,
+                        grounding: grounding
                     )
                 )
             }
@@ -275,12 +278,14 @@ final class NovaConversationStore: ObservableObject {
             let encryptedText = await encryptedText(for: message, userId: userId)
             let imageReference = try await resolveImageReference(for: message, userId: userId, conversationId: conversationId)
             let encryptedImage = await encryptImageData(imageReference, for: userId)
+            let encryptedGrounding = await encryptGroundingData(for: message, userId: userId)
             saved.append(
                 SavedChatMessage(
                     id: message.id.uuidString,
                     text: encryptedText,
                     isUser: message.isUser,
-                    imageData: encryptedImage
+                    imageData: encryptedImage,
+                    groundingData: encryptedGrounding
                 )
             )
         }
@@ -309,6 +314,24 @@ final class NovaConversationStore: ObservableObject {
     private func decryptImageData(_ imageData: String?, for userId: String) async -> String? {
         guard let imageData else { return nil }
         return await encryptionService.decryptNovaData(imageData, for: userId) ?? imageData
+    }
+
+    private func encryptGroundingData(for message: ChatMessage, userId: String) async -> String? {
+        guard !message.groundingSources.isEmpty || message.searchSuggestionsHTML != nil else { return nil }
+        let payload = NovaGroundingPayload(
+            sources: message.groundingSources,
+            searchSuggestionsHTML: message.searchSuggestionsHTML
+        )
+        guard let data = try? JSONEncoder().encode(payload),
+              let json = String(data: data, encoding: .utf8) else { return nil }
+        return await encryptionService.encryptNovaData(json, for: userId) ?? json
+    }
+
+    private func decryptGroundingData(_ groundingData: String?, for userId: String) async -> NovaGroundingPayload? {
+        guard let groundingData else { return nil }
+        let decrypted = await encryptionService.decryptNovaData(groundingData, for: userId) ?? groundingData
+        guard let data = decrypted.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(NovaGroundingPayload.self, from: data)
     }
 
     private func resolveImageReference(

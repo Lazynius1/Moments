@@ -995,6 +995,15 @@
 "chat.error" = "Error";
 "chat.message.deleted" = "Aquest missatge va ser eliminat";
 "chat.recording" = "Enregistrant...";
+"chat.voice.record.accessibility" = "Gravar nota de veu";
+"chat.voice.record.holdHint" = "Mantén premut per gravar. Llisca amunt per bloquejar o a l'esquerra per cancel·lar.";
+"chat.voice.record.slideToCancel" = "Llisca per cancel·lar";
+"chat.voice.record.started" = "Enregistrament iniciat";
+"chat.voice.record.locked" = "Enregistrament bloquejat";
+"chat.voice.record.cancelled" = "Enregistrament cancel·lat";
+"chat.voice.record.tooShort" = "L'enregistrament és massa curt";
+"chat.voice.record.pause" = "Pausa l'enregistrament";
+"chat.voice.record.resume" = "Continua enregistrant";
 
 // Premium Chat Enhancements
 "chat.gallery.tab.media" = "Mèdia";
@@ -2781,7 +2790,7 @@
 "auth.error.weakPassword" = "La contrasenya és massa feble. Utilitza almenys 8 caràcters amb lletres i números.";
 "auth.error.network" = "Error de connexió. Verifica la teva internet i torna-ho a provar.";
 "auth.error.tooManyRequests" = "Massa intents. Si us plau, espera un moment.";
-"auth.error.invalidCredentials" = "Usuari o contrasenya incorrectes. Si us plau, verifica les teves credencials.";
+"auth.error.invalidCredentials" = "L’usuari o la contrasenya no són correctes. Revisa’ls i torna-ho a provar.";
 "auth.error.userDisabled" = "Aquest compte ha estat desactivat. Contacta amb suport si necessites ajuda.";
 "auth.error.generic" = "No s'ha pogut iniciar sessió. Si us plau, verifica les teves credencials i torna-ho a provar.";
 "auth.error.emptyFields" = "L'identificador i la contrasenya són obligatoris.";
@@ -3182,7 +3191,7 @@
 "feed.reels.video.optimizing" = "Optimitzant la qualitat...";
 
 /* Messaging Search */
-"messaging.search.placeholder" = "Cercar converses...";
+"messaging.search.placeholder" = "Cerca a les converses...";
 
 // Settings Groups
 "settings.group.account" = "EL TEU COMPTE";
@@ -4265,3 +4274,14 @@
 "conversationSettings.quickAction.mute" = "Silencia";
 "conversationSettings.quickAction.unmute" = "Activa";
 "conversationSettings.quickAction.options" = "Opcions";
+
+"chat.error.encryptionFailed" = "No s'ha pogut xifrar el missatge. No s'ha enviat, torna-ho a provar.";
+"chat.error.peerKeyUnavailable" = "Aquest contacte encara no té el xifratge actiu. Demana-li que obri l'app i torna-ho a provar.";
+
+"chat.error.retryUnavailable" = "Aquest missatge ja no es pot tornar a enviar.";
+"creator.upload.persistenceFailed" = "No s'ha pogut assegurar la recuperació de la pujada. Torna-ho a provar.";
+"nova.search.sources" = "Fonts";
+"nova.search.suggestions" = "Suggeriments de Cerca de Google";
+"nova.search.sourceHint" = "Obre la font";
+
+"messaging.messages" = "Missatges";

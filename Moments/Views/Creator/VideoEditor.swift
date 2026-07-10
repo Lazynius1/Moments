@@ -1665,36 +1665,6 @@ struct SocialVideoEditorView: View {
         }
     }
 
-    func convertToMediaItems() -> [MediaItem] {
-        return selectedMediaItems.compactMap { processedMedia in
-            switch processedMedia.type {
-            case .video:
-                guard let videoURL = processedMedia.videoURL else { return nil }
-                let videoInfo = processedMedia.videoInfo
-                let resolution = "\(Int(selectedFormat.targetSize.width))x\(Int(selectedFormat.targetSize.height))"
-
-                return MediaItem(
-                    type: .video,
-                    url: videoURL.absoluteString,
-                    thumbnailUrl: nil,
-                    videoDuration: videoInfo?.duration,
-                    videoFileSize: videoInfo?.fileSize,
-                    videoResolution: resolution
-                )
-
-            case .image:
-                return MediaItem(
-                    type: .image,
-                    url: "",
-                    thumbnailUrl: nil,
-                    videoDuration: nil,
-                    videoFileSize: nil,
-                    videoResolution: nil
-                )
-            }
-        }
-    }
-
     func getThumbnailImage(for videoIndex: Int) -> UIImage? {
         let videoItems = selectedMediaItems.filter { $0.type == .video }
         if videoItems.indices.contains(videoIndex) {

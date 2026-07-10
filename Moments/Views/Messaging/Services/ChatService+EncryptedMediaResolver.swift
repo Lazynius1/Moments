@@ -223,26 +223,48 @@ extension ChatService {
             do {
                 let maxSize = max(metadata.plaintextSize + Int64(256 * 1024), Int64(8 * 1024 * 1024))
                 let reportsProgress = metadata.purpose == .primary
-                let encryptedData = try await Self.downloadEncryptedBlob(
-                    objectPath: objectPath,
-                    maxSize: maxSize,
-                    messageId: messageId,
-                    reportsProgress: reportsProgress
-                )
-                if reportsProgress {
-                    Self.postDownloadProgress(messageId: messageId, progress: 0.88)
+                try ChatCacheStore.ensureDirectories()
+
+                if metadata.version == ChatMediaChunkedCipher.metadataVersion,
+                   metadata.algorithm == ChatMediaChunkedCipher.algorithm {
+                    let encryptedURL = try await Self.downloadEncryptedBlobToFile(
+                        objectPath: objectPath,
+                        maxSize: maxSize,
+                        messageId: messageId,
+                        reportsProgress: reportsProgress
+                    )
+                    defer { try? FileManager.default.removeItem(at: encryptedURL) }
+                    if reportsProgress {
+                        Self.postDownloadProgress(messageId: messageId, progress: 0.88)
+                    }
+                    try await encryptionService.decryptChatMediaFile(
+                        at: encryptedURL,
+                        to: cacheURL,
+                        metadata: metadata,
+                        for: conversationId,
+                        messageId: messageId
+                    )
+                } else {
+                    let encryptedData = try await Self.downloadEncryptedBlob(
+                        objectPath: objectPath,
+                        maxSize: maxSize,
+                        messageId: messageId,
+                        reportsProgress: reportsProgress
+                    )
+                    if reportsProgress {
+                        Self.postDownloadProgress(messageId: messageId, progress: 0.88)
+                    }
+                    let decryptedData = try await encryptionService.decryptChatMedia(
+                        encryptedData,
+                        metadata: metadata,
+                        for: conversationId,
+                        messageId: messageId
+                    )
+                    try decryptedData.write(to: cacheURL, options: Data.WritingOptions.atomic)
                 }
-                let decryptedData = try await encryptionService.decryptChatMedia(
-                    encryptedData,
-                    metadata: metadata,
-                    for: conversationId,
-                    messageId: messageId
-                )
                 if reportsProgress {
                     Self.postDownloadProgress(messageId: messageId, progress: 0.96)
                 }
-                try ChatCacheStore.ensureDirectories()
-                try decryptedData.write(to: cacheURL, options: Data.WritingOptions.atomic)
                 ChatCacheStore.enforceQuota()
                 if reportsProgress {
                     Self.postDownloadProgress(messageId: messageId, progress: 1.0)
@@ -278,9 +300,24 @@ extension ChatService {
             messageId: String,
             reportsProgress: Bool
         ) async throws -> Data {
+            let tempURL = try await downloadEncryptedBlobToFile(
+                objectPath: objectPath,
+                maxSize: maxSize,
+                messageId: messageId,
+                reportsProgress: reportsProgress
+            )
+            defer { try? FileManager.default.removeItem(at: tempURL) }
+            return try Data(contentsOf: tempURL, options: .mappedIfSafe)
+        }
+
+        private static func downloadEncryptedBlobToFile(
+            objectPath: String,
+            maxSize: Int64,
+            messageId: String,
+            reportsProgress: Bool
+        ) async throws -> URL {
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent("chat-enc-\(UUID().uuidString).bin")
-            defer { try? FileManager.default.removeItem(at: tempURL) }
 
             let reference = Storage.storage().reference().child(objectPath)
 
@@ -322,15 +359,16 @@ extension ChatService {
                                 userInfo: [NSLocalizedDescriptionKey: "El archivo cifrado supera el tamaño máximo permitido"]
                             )
                         }
-                        let data = try Data(contentsOf: tempURL)
-                        continuation.resume(returning: data)
+                        continuation.resume(returning: tempURL)
                     } catch {
+                        try? FileManager.default.removeItem(at: tempURL)
                         continuation.resume(throwing: error)
                     }
                 }
 
                 failureHandle = task.observe(.failure) { snapshot in
                     removeObservers()
+                    try? FileManager.default.removeItem(at: tempURL)
                     continuation.resume(throwing: snapshot.error ?? NSError(
                         domain: "ChatService",
                         code: -1,

@@ -13,7 +13,8 @@ final class CachedAction {
     var createdAt: Date
     var retryCount: Int
     var lastError: String?
-    
+    var lastAttemptAt: Date?
+
     init(
         id: String = UUID().uuidString,
         type: String,
@@ -21,7 +22,8 @@ final class CachedAction {
         payloadData: Data,
         createdAt: Date = Date(),
         retryCount: Int = 0,
-        lastError: String? = nil
+        lastError: String? = nil,
+        lastAttemptAt: Date? = nil
     ) {
         self.id = id
         self.type = type
@@ -30,6 +32,7 @@ final class CachedAction {
         self.createdAt = createdAt
         self.retryCount = retryCount
         self.lastError = lastError
+        self.lastAttemptAt = lastAttemptAt
     }
 }
 
@@ -39,6 +42,7 @@ extension CachedAction {
         case momentUpload = "moment_upload"
         case storyUpload = "story_upload"
         case message = "message"
+        case mediaMessage = "media_message"
         case reaction = "reaction"
         case comment = "comment"
         case deleteComment = "delete_comment"

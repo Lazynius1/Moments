@@ -57,6 +57,7 @@ struct ConversationContextMenuOverlay: View {
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture { dismissMenu() }
+                    .accessibilityHidden(true)
                     .transition(.opacity)
 
                 actionsMenu(for: selection.conversation)

@@ -9,11 +9,36 @@ import MapKit
 
 extension GlassmorphicChatView {
     // MARK: - Voice Recording Functions
-    func startVoiceRecording() {
+    func startVoiceRecording(interactionId: UUID, startsLocked: Bool) {
+        if let currentId = voiceRecordingInteractionId, currentId != interactionId {
+            finishVoiceRecording(interactionId: currentId, action: .cancel)
+        }
+
+        voiceRecordingDraft = nil
         recordingTime = 0
+        beginVoiceRecordingSegment(interactionId: interactionId, startsLocked: startsLocked)
+    }
+
+    func resumeVoiceRecording() {
+        guard let interactionId = voiceRecordingInteractionId, voiceRecordingDraft != nil else { return }
+        beginVoiceRecordingSegment(interactionId: interactionId, startsLocked: true)
+    }
+
+    private func beginVoiceRecordingSegment(interactionId: UUID, startsLocked: Bool) {
+        voiceRecordingInteractionId = interactionId
+        isVoiceRecordingLocked = startsLocked
+        isPreparingVoiceRecordingPreview = false
 
         AudioRecordingManager.shared.startRecording { started in
+            guard voiceRecordingInteractionId == interactionId else {
+                if started {
+                    AudioRecordingManager.shared.stopRecording { _ in }
+                }
+                return
+            }
+
             guard started else {
+                clearVoiceRecordingState()
                 viewModel.error = NSLocalizedString(
                     "chat.error.microphonePermission",
                     comment: "Microphone permission required for voice messages"
@@ -25,26 +50,137 @@ extension GlassmorphicChatView {
             recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
                 recordingTime += 0.1
                 if recordingTime >= 60.0 {
-                    stopVoiceRecording(shouldSend: true)
+                    finishVoiceRecording(interactionId: interactionId, action: .send)
                 }
             }
         }
     }
 
-    func stopVoiceRecording(shouldSend: Bool) {
-        isRecordingVoice = false
+    func pauseVoiceRecording() {
+        guard
+            let interactionId = voiceRecordingInteractionId,
+            isRecordingVoice,
+            isVoiceRecordingLocked
+        else { return }
+
         recordingTimer?.invalidate()
         recordingTimer = nil
+        isRecordingVoice = false
+        isVoiceRecordingLocked = false
+        isPreparingVoiceRecordingPreview = true
 
-        let capturedDuration = max(recordingTime, 0.1)
+        let previousDuration = voiceRecordingDraft?.duration ?? 0
+        let segmentDuration = max(0.1, recordingTime - previousDuration)
+        AudioRecordingManager.shared.stopRecording { recording in
+            guard voiceRecordingInteractionId == interactionId else { return }
+            guard let recording else {
+                clearVoiceRecordingState()
+                return
+            }
+
+            var draft = voiceRecordingDraft ?? VoiceRecordingDraft(segments: [], recording: nil)
+            draft.segments.append(VoiceRecordingSegment(recording: recording, duration: segmentDuration))
+            voiceRecordingDraft = draft
+
+            Task { @MainActor in
+                let composed = await VoiceRecordingComposer.compose(draft.segments)
+                guard voiceRecordingInteractionId == interactionId else { return }
+                voiceRecordingDraft?.recording = composed
+                isPreparingVoiceRecordingPreview = false
+                HapticManager.shared.selection()
+            }
+        }
+    }
+
+    func finishVoiceRecording(
+        interactionId: UUID,
+        action: VoiceRecordingFinishAction
+    ) {
+        guard voiceRecordingInteractionId == interactionId else { return }
+
+        if action == .cancel {
+            clearVoiceRecordingState()
+            AudioRecordingManager.shared.stopRecording { _ in }
+            return
+        }
+
+        if isRecordingVoice {
+            recordingTimer?.invalidate()
+            recordingTimer = nil
+            isRecordingVoice = false
+            isVoiceRecordingLocked = false
+            isPreparingVoiceRecordingPreview = true
+
+            let previousDuration = voiceRecordingDraft?.duration ?? 0
+            let segmentDuration = max(0.1, recordingTime - previousDuration)
+            AudioRecordingManager.shared.stopRecording { recording in
+                guard voiceRecordingInteractionId == interactionId else { return }
+                guard let recording else {
+                    clearVoiceRecordingState()
+                    return
+                }
+
+                var segments = voiceRecordingDraft?.segments ?? []
+                segments.append(VoiceRecordingSegment(recording: recording, duration: segmentDuration))
+                sendVoiceRecordingSegments(segments, interactionId: interactionId)
+            }
+        } else if let draft = voiceRecordingDraft {
+            if let recording = draft.recording {
+                sendComposedVoiceRecording(recording, duration: draft.duration)
+                clearVoiceRecordingState()
+            } else {
+                sendVoiceRecordingSegments(draft.segments, interactionId: interactionId)
+            }
+        }
+    }
+
+    private func sendVoiceRecordingSegments(
+        _ segments: [VoiceRecordingSegment],
+        interactionId: UUID
+    ) {
+        Task { @MainActor in
+            let recording = await VoiceRecordingComposer.compose(segments)
+            guard voiceRecordingInteractionId == interactionId else { return }
+            let duration = segments.reduce(0) { $0 + $1.duration }
+            if let recording {
+                sendComposedVoiceRecording(recording, duration: duration)
+            }
+            clearVoiceRecordingState()
+        }
+    }
+
+    private func sendComposedVoiceRecording(_ recording: RecordedVoiceNote, duration: TimeInterval) {
+        guard duration >= 0.5 else {
+            HapticManager.shared.error()
+            viewModel.error = NSLocalizedString(
+                "chat.voice.record.tooShort",
+                comment: "Voice recording was too short"
+            )
+            return
+        }
+        viewModel.sendAudioMessage(
+            recording.data,
+            duration: duration,
+            waveform: recording.waveform
+        )
+    }
+
+    private func clearVoiceRecordingState() {
+        voiceRecordingInteractionId = nil
+        voiceRecordingDraft = nil
+        isRecordingVoice = false
+        isVoiceRecordingLocked = false
+        isPreparingVoiceRecordingPreview = false
+        recordingTimer?.invalidate()
+        recordingTimer = nil
         recordingTime = 0
+    }
 
-        AudioRecordingManager.shared.stopRecording { [weak viewModel] audioData in
-            guard shouldSend,
-                  let audioData,
-                  !audioData.isEmpty,
-                  let viewModel else { return }
-            viewModel.sendAudioMessage(audioData, duration: capturedDuration)
+    func resetVoiceRecordingInteraction() {
+        if let interactionId = voiceRecordingInteractionId {
+            finishVoiceRecording(interactionId: interactionId, action: .cancel)
+        } else {
+            clearVoiceRecordingState()
         }
     }
 }

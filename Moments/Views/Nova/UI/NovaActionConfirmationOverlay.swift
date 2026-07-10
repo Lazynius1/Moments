@@ -25,6 +25,7 @@ struct NovaActionConfirmationOverlay: View {
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onCancel)
+                .accessibilityHidden(true)
 
             VStack(spacing: 16) {
                 VStack(spacing: 8) {

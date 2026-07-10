@@ -18,6 +18,15 @@ class ChatService: ObservableObject {
     private var typingTimer: Timer?
     private let typingTimeout: TimeInterval = 3.0
 
+    /// Plazo máximo esperando el ack de Firestore antes de degradar el envío a la cola offline.
+    static let sendAckTimeoutNanos: UInt64 = 15_000_000_000
+
+    /// Estado compartido entre el timeout y el callback de setData; ambos corren en main.
+    final class SendAckState: @unchecked Sendable {
+        var completed = false
+        var timedOut = false
+    }
+
     struct ChatMediaUploadResult {
         let mediaUrl: String?
         let thumbnailUrl: String?
@@ -25,6 +34,14 @@ class ChatService: ObservableObject {
         let thumbnailObjectPath: String?
         let mediaEncryption: EncryptedChatMediaMetadata?
         let thumbnailEncryption: EncryptedChatMediaMetadata?
+    }
+
+    struct MessageHistoryPage {
+        let messages: [EnhancedMessage]
+        /// Cursor del último documento examinado, aunque el mensaje se filtre de la UI.
+        let nextCursor: MessageSyncCursor?
+        /// Se calcula con documentos Firestore, no con mensajes visibles tras filtrar.
+        let hasMore: Bool
     }
 
     struct CachedResolvedMedia {
@@ -241,33 +258,61 @@ class ChatService: ObservableObject {
     }
     
     // ✅ NUEVO: Cargar mensajes anteriores (Paginación)
-    func fetchOlderMessages(conversationId: String, before timestamp: Date, cutoffDate: Date? = nil, limit: Int = 25, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
+    /// Cursor compuesto (timestamp + documentID), simétrico a `fetchMessagesAfter`:
+    /// con timestamps empatados en el borde de página, el filtro solo-timestamp
+    /// se saltaba mensajes para siempre.
+    func fetchOlderMessages(conversationId: String, before cursor: MessageSyncCursor, cutoffDate: Date? = nil, limit: Int = 25, completion: @escaping (Result<MessageHistoryPage, Error>) -> Void) {
         Task { [weak self] in
             guard let self else { return }
             await preloadConversationKey(for: conversationId)
             do {
-                let snapshot = try await db.collection("conversations")
+                let collection = db.collection("conversations")
                     .document(conversationId)
                     .collection("messages")
-                    .whereField("timestamp", isLessThan: Timestamp(date: timestamp))
-                    .order(by: "timestamp", descending: true)
-                    .limit(to: limit)
-                    .getDocuments()
+
+                let snapshot: QuerySnapshot
+                if cursor.messageId.isEmpty {
+                    snapshot = try await collection
+                        .whereField("timestamp", isLessThan: Timestamp(date: cursor.timestamp))
+                        .order(by: "timestamp", descending: true)
+                        .limit(to: limit)
+                        .getDocuments()
+                } else {
+                    snapshot = try await collection
+                        .order(by: "timestamp", descending: true)
+                        .order(by: FieldPath.documentID(), descending: true)
+                        .start(after: [Timestamp(date: cursor.timestamp), cursor.messageId])
+                        .limit(to: limit)
+                        .getDocuments()
+                }
+
+                let nextCursor = snapshot.documents.last.flatMap { document -> MessageSyncCursor? in
+                    guard let timestamp = document.data()["timestamp"] as? Timestamp else { return nil }
+                    return MessageSyncCursor(
+                        timestamp: timestamp.dateValue(),
+                        messageId: document.documentID
+                    )
+                }
+                let hasMore = snapshot.documents.count >= limit
+
                 await handleMessagesSnapshot(
                     snapshot: snapshot,
                     error: nil,
                     conversationId: conversationId,
                     cutoffDate: cutoffDate,
-                    completion: completion
+                    hydrateReactions: false,
+                    completion: { result in
+                        completion(result.map { messages in
+                            MessageHistoryPage(
+                                messages: messages,
+                                nextCursor: nextCursor,
+                                hasMore: hasMore
+                            )
+                        })
+                    }
                 )
             } catch {
-                await handleMessagesSnapshot(
-                    snapshot: nil,
-                    error: error,
-                    conversationId: conversationId,
-                    cutoffDate: cutoffDate,
-                    completion: completion
-                )
+                await MainActor.run { completion(.failure(error)) }
             }
         }
     }
@@ -340,6 +385,7 @@ class ChatService: ObservableObject {
         error: Error?,
         conversationId: String,
         cutoffDate: Date? = nil,
+        hydrateReactions: Bool = true,
         completion: @escaping (Result<[EnhancedMessage], Error>) -> Void
     ) async {
         if let error = error {
@@ -405,17 +451,19 @@ class ChatService: ObservableObject {
             }
         }
 
-        let fetchedReactions = await fetchReactionMap(
-            conversationId: conversationId,
-            messageIds: messages.map(\.id)
-        )
-        messages = messages.map { message in
-            var updated = message
-            updated.reactions = mergeLegacyAndLiveReactions(
-                legacy: message.reactions,
-                live: fetchedReactions[message.id]
+        if hydrateReactions {
+            let fetchedReactions = await fetchReactionMap(
+                conversationId: conversationId,
+                messageIds: messages.map(\.id)
             )
-            return updated
+            messages = messages.map { message in
+                var updated = message
+                updated.reactions = mergeLegacyAndLiveReactions(
+                    legacy: message.reactions,
+                    live: fetchedReactions[message.id]
+                )
+                return updated
+            }
         }
         
         
@@ -436,7 +484,13 @@ class ChatService: ObservableObject {
 
         // 🔐 Encrypt content before sending (Async)
         Task {
-            let encryptedContent = await encryptMessageContent(content, for: conversationId)
+            let encryptedContent: String
+            do {
+                encryptedContent = try await encryptMessageContent(content, for: conversationId)
+            } catch {
+                completion(.failure(error))
+                return
+            }
 
             let message = EnhancedMessage(
                 id: messageId,
@@ -464,7 +518,7 @@ class ChatService: ObservableObject {
                 storyReplyData: storyReplyData,
                 isVanishModeMessage: isVanishModeMessage ? true : nil
             )
-            
+
             sendMessage(message, useServerTimestamp: true, completion: completion)
         }
     }
@@ -474,8 +528,14 @@ class ChatService: ObservableObject {
         
         // 🔐 Encrypt content before sending (Async)
         Task {
-            let encryptedContent = await encryptMessageContent(content, for: conversationId)
-            
+            let encryptedContent: String
+            do {
+                encryptedContent = try await encryptMessageContent(content, for: conversationId)
+            } catch {
+                completion(.failure(error))
+                return
+            }
+
             let message = EnhancedMessage(
                 id: finalMessageId,
                 conversationId: conversationId,
@@ -571,10 +631,17 @@ class ChatService: ObservableObject {
         
         // 🔐 Encrypt content if it's text (Async)
         Task {
-            let encryptedContent: String? = await {
-                guard let content = content else { return nil }
-                return await encryptMessageContent(content, for: conversationId)
-            }()
+            let encryptedContent: String?
+            do {
+                if let content {
+                    encryptedContent = try await encryptMessageContent(content, for: conversationId)
+                } else {
+                    encryptedContent = nil
+                }
+            } catch {
+                completion(.failure(error))
+                return
+            }
             
             let message = EnhancedMessage(
                 id: messageId,
@@ -612,6 +679,25 @@ class ChatService: ObservableObject {
     
     func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, mediaBatchId: String? = nil, isVanishModeMessage: Bool = false, vanishExpiresAt: Date? = nil, replyTo: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let finalMessageId = messageId ?? UUID().uuidString
+
+        if !NetworkMonitor.shared.isConnected {
+            let pending = queueOfflineMediaMessage(
+                conversationId: conversationId,
+                senderId: senderId,
+                type: type,
+                mediaData: mediaData,
+                messageId: finalMessageId,
+                fileName: fileName,
+                duration: nil,
+                mediaBatchId: mediaBatchId,
+                isVanishModeMessage: isVanishModeMessage,
+                vanishExpiresAt: vanishExpiresAt,
+                replyTo: replyTo
+            )
+            completion(.success(pending))
+            return
+        }
+
         uploadMedia(data: mediaData, type: type, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
             case .success(let uploadResult):
@@ -695,7 +781,13 @@ class ChatService: ObservableObject {
         // 🔐 Cifrar las coordenadas + lugar igual que el texto
         Task {
             let payload = ChatLocationPayload(lat: latitude, lng: longitude, name: name, address: address)
-            let encryptedContent = await encryptMessageContent(payload.encodedJSON() ?? "", for: conversationId)
+            let encryptedContent: String
+            do {
+                encryptedContent = try await encryptMessageContent(payload.encodedJSON() ?? "", for: conversationId)
+            } catch {
+                completion(.failure(error))
+                return
+            }
 
             let message = EnhancedMessage(
                 id: finalMessageId,
@@ -735,7 +827,13 @@ class ChatService: ObservableObject {
 
         Task {
             let payload = ChatLocationPayload(lat: latitude, lng: longitude, name: name, address: address)
-            let encryptedContent = await encryptMessageContent(payload.encodedJSON() ?? "", for: conversationId)
+            let encryptedContent: String
+            do {
+                encryptedContent = try await encryptMessageContent(payload.encodedJSON() ?? "", for: conversationId)
+            } catch {
+                completion(.failure(error))
+                return
+            }
 
             let message = EnhancedMessage(
                 id: finalMessageId,
@@ -774,7 +872,13 @@ class ChatService: ObservableObject {
             .document(messageId)
         Task {
             let payload = ChatLocationPayload(lat: latitude, lng: longitude)
-            let encryptedContent = await encryptMessageContent(payload.encodedJSON() ?? "", for: conversationId)
+            let encryptedContent: String
+            do {
+                encryptedContent = try await encryptMessageContent(payload.encodedJSON() ?? "", for: conversationId)
+            } catch {
+                completion?(error)
+                return
+            }
             ref.updateData([
                 "content": encryptedContent,
                 "locationUpdatedAt": FieldValue.serverTimestamp()
@@ -843,11 +947,32 @@ class ChatService: ObservableObject {
         senderId: String,
         audioData: Data,
         duration: Double,
+        waveform: [Float]? = nil,
         messageId: String? = nil,
         isVanishModeMessage: Bool = false,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         let finalMessageId = messageId ?? UUID().uuidString
+
+        if !NetworkMonitor.shared.isConnected {
+            let pending = queueOfflineMediaMessage(
+                conversationId: conversationId,
+                senderId: senderId,
+                type: .audio,
+                mediaData: audioData,
+                messageId: finalMessageId,
+                fileName: "audio_\(finalMessageId).m4a",
+                duration: duration,
+                audioWaveform: waveform,
+                mediaBatchId: nil,
+                isVanishModeMessage: isVanishModeMessage,
+                vanishExpiresAt: nil,
+                replyTo: nil
+            )
+            completion(.success(pending))
+            return
+        }
+
         uploadMedia(data: audioData, type: .audio, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
             case .success(let uploadResult):
@@ -865,6 +990,7 @@ class ChatService: ObservableObject {
                     mediaEncryption: uploadResult.mediaEncryption,
                     thumbnailEncryption: uploadResult.thumbnailEncryption,
                     duration: duration,
+                    audioWaveform: waveform,
                     fileName: "audio_\(finalMessageId).m4a",
                     fileSize: Int64(audioData.count),
                     latitude: nil,
@@ -888,6 +1014,76 @@ class ChatService: ObservableObject {
                 completion(.failure(error))
             }
         }
+    }
+
+    /// Persiste los bytes en el cache local y encola la acción para reenvío al reconectar.
+    /// Devuelve el mensaje en `.pending` con el preview local para que la burbuja no se quede vacía.
+    private func queueOfflineMediaMessage(
+        conversationId: String,
+        senderId: String,
+        type: MessageType,
+        mediaData: Data,
+        messageId: String,
+        fileName: String?,
+        duration: Double?,
+        audioWaveform: [Float]? = nil,
+        mediaBatchId: String?,
+        isVanishModeMessage: Bool,
+        vanishExpiresAt: Date?,
+        replyTo: String?
+    ) -> EnhancedMessage {
+        let fileExtension = getFileExtension(for: type)
+        let localURL = try? ChatCacheStore.writeDecryptedMedia(
+            mediaData,
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: .primary,
+            fileExtension: fileExtension
+        )
+
+        let payload = MediaMessagePayload(
+            conversationId: conversationId,
+            senderId: senderId,
+            messageId: messageId,
+            typeRaw: type.rawValue,
+            fileExtension: fileExtension,
+            fileName: fileName,
+            duration: duration,
+            audioWaveform: audioWaveform,
+            mediaBatchId: mediaBatchId,
+            isVanishModeMessage: isVanishModeMessage,
+            vanishExpiresAt: vanishExpiresAt,
+            replyTo: replyTo
+        )
+        if let data = try? JSONEncoder().encode(payload) {
+            let action = CachedAction(
+                id: messageId,
+                type: CachedAction.ActionType.mediaMessage.rawValue,
+                payloadData: data
+            )
+            LocalPersistenceService.shared.saveAction(action)
+        }
+
+        return EnhancedMessage(
+            id: messageId,
+            conversationId: conversationId,
+            senderId: senderId,
+            type: type,
+            mediaUrl: localURL?.absoluteString,
+            duration: duration,
+            audioWaveform: audioWaveform,
+            fileName: fileName,
+            fileSize: Int64(mediaData.count),
+            timestamp: Date(),
+            status: .pending,
+            isRead: false,
+            isDeleted: false,
+            replyTo: replyTo,
+            isViewed: false,
+            mediaBatchId: mediaBatchId,
+            isVanishModeMessage: isVanishModeMessage ? true : nil,
+            vanishExpiresAt: vanishExpiresAt
+        )
     }
 
     // MARK: - Core Send Message Method
@@ -964,6 +1160,9 @@ class ChatService: ObservableObject {
         }
         if let duration = message.duration {
             messageData["duration"] = duration
+        }
+        if let waveform = message.audioWaveform, !waveform.isEmpty {
+            messageData["audioWaveform"] = waveform.prefix(64).map(Double.init)
         }
         if let fileName = message.fileName {
             messageData["fileName"] = fileName
@@ -1048,8 +1247,56 @@ class ChatService: ObservableObject {
         let messageId = message.id
         let senderId = message.senderId
         let messageType = message.type
-        
+
+        // Anti-atasco: con red degradada, el ack de Firestore puede tardar minutos.
+        // Pasado el plazo, el mensaje pasa a la cola offline (mismo doc id, reenvío
+        // idempotente) y la UI muestra .pending en vez de un "enviando" eterno.
+        let ackState = SendAckState()
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: Self.sendAckTimeoutNanos)
+            guard !ackState.completed else { return }
+            ackState.completed = true
+            ackState.timedOut = true
+
+            let pendingMessage: EnhancedMessage = {
+                let m = message
+                m.status = .pending
+                return m
+            }()
+            if let data = try? JSONEncoder().encode(
+                MessagePayload(message: pendingMessage, useServerTimestamp: useServerTimestamp)
+            ) {
+                LocalPersistenceService.shared.saveAction(
+                    CachedAction(
+                        id: messageId,
+                        type: CachedAction.ActionType.message.rawValue,
+                        payloadData: data
+                    )
+                )
+            }
+            LocalPersistenceService.shared.saveMessages([pendingMessage], conversationId: conversationId, sync: false)
+            self?.updateLocalMessageStatus(conversationId: conversationId, messageId: messageId, status: .pending)
+            completion(.success(pendingMessage))
+        }
+
         messageRef.setData(messageData) { [weak self] error in
+            if ackState.timedOut {
+                // El ack llegó tarde: la cola offline ya es dueña del reintento.
+                // Si al final entró, retirar la acción para no re-escribir el doc.
+                if error == nil {
+                    Task { @MainActor in
+                        LocalPersistenceService.shared.deleteAction(id: messageId)
+                        self?.updateLocalMessageStatus(
+                            conversationId: conversationId,
+                            messageId: messageId,
+                            status: .sent
+                        )
+                    }
+                }
+                return
+            }
+            ackState.completed = true
+
             if let error = error {
                 // Update status to failed if there's an error
                 Task { @MainActor in
@@ -1067,7 +1314,12 @@ class ChatService: ObservableObject {
                 completion(.failure(error))
                 return
             }
-            
+
+            // Si el mensaje venía de la cola offline, ya no hay nada que reintentar.
+            Task { @MainActor in
+                LocalPersistenceService.shared.deleteAction(id: messageId)
+            }
+
             // ✅ Update conversation with last message (decrypt for preview)
             Task { @MainActor in
                 self?.updateConversation(
@@ -1081,7 +1333,7 @@ class ChatService: ObservableObject {
                     }
                 }
             }
-            
+
             // ✅ Marcar como enviado inmediatamente
             Task { @MainActor in
                 self?.updateMessageStatus(
@@ -1090,7 +1342,7 @@ class ChatService: ObservableObject {
                     status: .sent
                 ) { _ in }
             }
-            
+
             let updatedMessage: EnhancedMessage = {
                 let m = message
                 m.status = .sent
@@ -1105,8 +1357,8 @@ class ChatService: ObservableObject {
         
         // 🔐 Encrypt new content before updating (Async)
         Task {
-            let encryptedContent = await encryptMessageContent(newContent, for: conversationId)
             do {
+                let encryptedContent = try await encryptMessageContent(newContent, for: conversationId)
                 try await db.collection("conversations")
                     .document(conversationId)
                     .collection("messages")
@@ -2033,8 +2285,6 @@ class ChatService: ObservableObject {
             Task {
                 do {
                     let sharedEncryptionKey = SymmetricKey(size: .bits256)
-                    let keyData = sharedEncryptionKey.withUnsafeBytes { Data($0) }
-                    let keyDataString = keyData.base64EncodedString()
                     let encryptionService = self.encryptionService
                     _ = try await encryptionService.ensureChatIdentity()
 
@@ -2068,16 +2318,15 @@ class ChatService: ObservableObject {
                         wrappedBy: user1Id
                     )
 
-                    if wrappedKeys.count == participants.count {
-                        conversationData["wrappedKeys"] = wrappedKeys
-                        conversationData["conversationKeyVersion"] = 1
-                        conversationData["encryptionVersion"] = "3.0"
-                    } else {
-                        // Fallback temporal para usuarios que aun no han publicado chatKey.
-                        conversationData["encryptionKey"] = keyDataString
-                        conversationData["encryptionKeyCreatedAt"] = FieldValue.serverTimestamp()
-                        conversationData["encryptionVersion"] = "1.0"
+                    // Sin fallback en claro: si el peer aún no publicó su chatKey,
+                    // la conversación no se crea y el usuario ve el aviso.
+                    guard wrappedKeys.count == participants.count else {
+                        completion(.failure(EncryptionError.peerKeyUnavailable))
+                        return
                     }
+                    conversationData["wrappedKeys"] = wrappedKeys
+                    conversationData["conversationKeyVersion"] = 1
+                    conversationData["encryptionVersion"] = "3.0"
 
                     do {
                         try await conversationRef.setData(conversationData)
@@ -2108,8 +2357,14 @@ class ChatService: ObservableObject {
         // 🔐 Encrypt initial message content
         Task {
             let initialMessage = message ?? "👋"
-            let encryptedContent = await encryptMessageContent(initialMessage, for: conversationId)
-            
+            let encryptedContent: String
+            do {
+                encryptedContent = try await encryptMessageContent(initialMessage, for: conversationId)
+            } catch {
+                completion(.failure(error))
+                return
+            }
+
             let messageId = UUID().uuidString
             let timestamp = Date()
             
@@ -2571,8 +2826,9 @@ class ChatService: ObservableObject {
         return await encryptionService.decryptChatMessage(content, for: conversationId) ?? content
     }
     
-    func encryptMessageContent(_ content: String, for conversationId: String) async -> String {
-        return await encryptionService.encryptChatMessage(content, for: conversationId) ?? content
+    // Fail-closed: si el cifrado falla, el envío se aborta en lugar de escribir texto en claro.
+    func encryptMessageContent(_ content: String, for conversationId: String) async throws -> String {
+        try await encryptionService.encryptChatMessage(content, for: conversationId)
     }
     
 }

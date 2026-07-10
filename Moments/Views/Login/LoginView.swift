@@ -48,7 +48,7 @@ struct LoginView: View {
 // MARK: - Welcome (primera pantalla: registro como camino principal)
 
 /// Paleta del glow de bienvenida (colores de marca del logo).
-private enum WelcomeGlow {
+enum WelcomeGlow {
     static let colors: [Color] = [
         Color(hex: "007AFF"),
         Color(hex: "AF52DE"),
@@ -66,7 +66,7 @@ private enum WelcomeGlow {
 }
 
 /// Mesh de colores en movimiento perpetuo (capa base reutilizable).
-private struct AuroraMeshLayer: View {
+struct AuroraMeshLayer: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var colors: [Color] = WelcomeGlow.colors
     var speed: Double = 1.0
@@ -370,25 +370,27 @@ struct LoginFormScreen: View {
 
     // Helper method to categorize login failures
     private func getFailureReason(from error: Error) -> String {
-        let errorCode = (error as NSError).code
+        let nsError = error as NSError
 
-        switch errorCode {
-        case 17011: // FIRAuthErrorCodeUserNotFound
-            return NSLocalizedString("login.error.reason.userNotFound", comment: "User not found")
-        case 17009: // FIRAuthErrorCodeWrongPassword
-            return NSLocalizedString("login.error.reason.wrongPassword", comment: "Wrong password")
-        case 17010: // FIRAuthErrorCodeUserDisabled
-            return NSLocalizedString("login.error.reason.userDisabled", comment: "User disabled")
-        case 17007: // FIRAuthErrorCodeInvalidEmail
-            return NSLocalizedString("login.error.reason.invalidEmail", comment: "Invalid email")
-        case 17020: // FIRAuthErrorCodeNetworkError
-            return NSLocalizedString("login.error.reason.network", comment: "Network error")
-        case 17026: // FIRAuthErrorCodeWeakPassword
-            return NSLocalizedString("login.error.reason.weakPassword", comment: "Weak password")
-        case 17012: // FIRAuthErrorCodeEmailAlreadyInUse
-            return NSLocalizedString("login.error.reason.emailInUse", comment: "Email already in use")
+        switch AuthErrorCode(rawValue: nsError.code) {
+        case .invalidCredential, .wrongPassword, .userNotFound:
+            return NSLocalizedString("auth.error.invalidCredentials", comment: "Invalid username or password")
+        case .userDisabled:
+            return NSLocalizedString("auth.error.userDisabled", comment: "User disabled")
+        case .invalidEmail:
+            return NSLocalizedString("auth.error.invalidEmail", comment: "Invalid email")
+        case .networkError:
+            return NSLocalizedString("auth.error.network", comment: "Network error")
+        case .tooManyRequests:
+            return NSLocalizedString("auth.error.tooManyRequests", comment: "Too many requests")
         default:
-            return NSLocalizedString("login.error.reason.other", comment: "Other reason")
+            // AuthService already localizes validation errors such as empty fields
+            // and username lookup failures before they reach the view.
+            let localized = nsError.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+            if nsError.code == -1, !localized.isEmpty {
+                return localized
+            }
+            return NSLocalizedString("auth.error.generic", comment: "Generic login error")
         }
     }
 }

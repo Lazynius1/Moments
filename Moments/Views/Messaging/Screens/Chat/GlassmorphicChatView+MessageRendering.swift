@@ -186,25 +186,54 @@ extension GlassmorphicChatView {
 
     var mainChatStack: some View {
         messagesListSection
+            .environment(\.chatFailedMessageRetryAction, ChatFailedMessageRetryAction(
+                canRetry: { viewModel.canRetryMessage($0) },
+                retry: { viewModel.retryFailedMessage($0) }
+            ))
             .overlay(alignment: .bottomTrailing) {
-                if floatingNavigationState.isVisible {
-                    ChatFloatingNavigationOverlay(
-                        state: floatingNavigationState,
-                        counterText: searchCounterText,
-                        isSearching: viewModel.isSearchingHistory,
-                        canSearchGoUp: canSearchGoUp,
-                        canSearchGoDown: canSearchGoDown,
-                        pendingIncomingCount: pendingIncomingMessages,
-                        accentColor: scrollToBottomAccentColor,
-                        badgeTextColor: scrollToBottomBadgeTextColor,
-                        colorScheme: colorScheme,
-                        reduceMotion: reduceMotion,
-                        onSearchPrevious: { moveSearchSelection(by: -1) },
-                        onSearchNext: advanceSearchSelection,
-                        onScrollToBottom: { scrollToBottomFromUserAction(animated: true) }
-                    )
-                    .padding(.trailing, 14)
-                    .padding(.bottom, floatingNavigationBottomInset)
+                ZStack(alignment: .bottomTrailing) {
+                    if floatingNavigationState.isVisible {
+                        ChatFloatingNavigationOverlay(
+                            state: floatingNavigationState,
+                            counterText: searchCounterText,
+                            isSearching: viewModel.isSearchingHistory,
+                            canSearchGoUp: canSearchGoUp,
+                            canSearchGoDown: canSearchGoDown,
+                            pendingIncomingCount: pendingIncomingMessages,
+                            accentColor: scrollToBottomAccentColor,
+                            badgeTextColor: scrollToBottomBadgeTextColor,
+                            colorScheme: colorScheme,
+                            reduceMotion: reduceMotion,
+                            onSearchPrevious: { moveSearchSelection(by: -1) },
+                            onSearchNext: advanceSearchSelection,
+                            onScrollToBottom: { scrollToBottomFromUserAction(animated: true) }
+                        )
+                        .padding(.trailing, 14)
+                        .padding(.bottom, floatingNavigationBottomInset)
+                    }
+
+                    if isVoiceRecordingLocked {
+                        VoiceRecordingFloatingPauseButton(
+                            tint: adaptiveColors.primary,
+                            action: pauseVoiceRecording
+                        )
+                        .padding(.trailing, 16)
+                        .padding(.bottom, max(lastComposerHeight, 0) + 40)
+                        .zIndex(100)
+                    }
+
+                    if voiceRecordingDraft != nil,
+                       !isRecordingVoice,
+                       !isVoiceRecordingLocked,
+                       !isPreparingVoiceRecordingPreview {
+                        VoiceRecordingFloatingResumeButton(
+                            tint: adaptiveColors.accent,
+                            action: resumeVoiceRecording
+                        )
+                        .padding(.trailing, 16)
+                        .padding(.bottom, max(lastComposerHeight, 0) + 40)
+                        .zIndex(100)
+                    }
                 }
             }
             .chatBottomBarInset {

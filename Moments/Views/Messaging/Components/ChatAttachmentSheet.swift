@@ -335,6 +335,7 @@ struct ChatAttachmentMenuPopover: View {
                     .onTapGesture {
                         dismissMenu()
                     }
+                    .accessibilityHidden(true)
 
                 if anchorFrame != .zero {
                     ChatAttachmentMenuPopoverCard(
@@ -547,6 +548,7 @@ struct ChatAttachmentMediaSheetOverlay: View {
                         .onTapGesture {
                             dismiss()
                         }
+                        .accessibilityHidden(true)
 
                     ChatAttachmentSheetSurface(height: sheetHeight) {
                         ChatAttachmentMediaGridSheet(

@@ -1431,7 +1431,7 @@ struct StoryEditingView: View {
                         imageRotation: capturedRotation
                     )
                     let finalURL = prepared.mediaItem.videoURL ?? videoURL
-                    let data = try Data(contentsOf: finalURL)
+                    let data = try Data(contentsOf: finalURL, options: .mappedIfSafe)
                     await MainActor.run {
                         isPublishing = false
                         HapticManager.shared.mediumImpact()

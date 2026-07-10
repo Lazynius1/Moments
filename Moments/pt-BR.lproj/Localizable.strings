@@ -994,6 +994,15 @@
 "chat.error" = "Erro";
 "chat.message.deleted" = "Esta mensagem foi excluída";
 "chat.recording" = "Gravando...";
+"chat.voice.record.accessibility" = "Gravar mensagem de voz";
+"chat.voice.record.holdHint" = "Mantenha pressionado para gravar. Deslize para cima para bloquear ou para a esquerda para cancelar.";
+"chat.voice.record.slideToCancel" = "Deslize para cancelar";
+"chat.voice.record.started" = "Gravação iniciada";
+"chat.voice.record.locked" = "Gravação bloqueada";
+"chat.voice.record.cancelled" = "Gravação cancelada";
+"chat.voice.record.tooShort" = "A gravação é muito curta";
+"chat.voice.record.pause" = "Pausar gravação";
+"chat.voice.record.resume" = "Continuar gravando";
 
 // Premium Chat Enhancements
 "chat.gallery.tab.media" = "Mídia";
@@ -2749,7 +2758,7 @@
 "auth.error.weakPassword" = "A senha é muito fraca. Use pelo menos 8 caracteres com letras e números.";
 "auth.error.network" = "Erro de conexão. Verifique sua internet e tente novamente.";
 "auth.error.tooManyRequests" = "Muitas tentativas. Aguarde um momento.";
-"auth.error.invalidCredentials" = "Nome de usuário ou senha incorretos. Verifique suas credenciais.";
+"auth.error.invalidCredentials" = "O nome de usuário ou a senha não estão corretos. Confira e tente novamente.";
 "auth.error.userDisabled" = "Esta conta foi desativada. Entre em contato com o suporte se precisar de ajuda.";
 "auth.error.generic" = "Não foi possível entrar. Verifique suas credenciais e tente novamente.";
 "auth.error.emptyFields" = "Identificador e senha são obrigatórios.";
@@ -3160,7 +3169,7 @@
 "feed.reels.video.optimizing" = "Otimizando qualidade...";
 
 /* Messaging Search */
-"messaging.search.placeholder" = "Buscar conversas...";
+"messaging.search.placeholder" = "Buscar nas conversas...";
 
 // Settings Groups
 "settings.group.account" = "SUA CONTA";
@@ -4245,3 +4254,14 @@
 "conversationSettings.quickAction.mute" = "Silenciar";
 "conversationSettings.quickAction.unmute" = "Ativar";
 "conversationSettings.quickAction.options" = "Opções";
+
+"chat.error.encryptionFailed" = "Não foi possível criptografar a mensagem. Ela não foi enviada, tente novamente.";
+"chat.error.peerKeyUnavailable" = "Este contato ainda não ativou a criptografia. Peça para ele abrir o app e tente novamente.";
+
+"chat.error.retryUnavailable" = "Esta mensagem não pode mais ser reenviada.";
+"creator.upload.persistenceFailed" = "Não foi possível garantir a recuperação do envio. Tente novamente.";
+"nova.search.sources" = "Fontes";
+"nova.search.suggestions" = "Sugestões da Pesquisa Google";
+"nova.search.sourceHint" = "Abre a fonte";
+
+"messaging.messages" = "Mensagens";

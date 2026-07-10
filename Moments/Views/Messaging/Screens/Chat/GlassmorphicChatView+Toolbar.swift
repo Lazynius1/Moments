@@ -26,11 +26,13 @@ extension GlassmorphicChatView {
         .chatHideSharedBackgroundIfAvailable()
 
         ToolbarItem(placement: .principal) {
-            chatToolbarTitleStack
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    showingConversationSettings = true
-                }
+            Button {
+                showingConversationSettings = true
+            } label: {
+                chatToolbarTitleStack
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
     }
 

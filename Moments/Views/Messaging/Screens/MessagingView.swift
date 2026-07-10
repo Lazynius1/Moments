@@ -814,7 +814,22 @@ struct MessagingView: View {
             }
         }
 
-        if viewModel.filteredConversations.isEmpty && viewModel.searchedUsers.isEmpty && !searchText.isEmpty {
+        if !viewModel.searchedMessages.isEmpty {
+            Section {
+                ForEach(viewModel.searchedMessages) { result in
+                    SearchMessageResultRow(result: result) {
+                        openMessageSearchResult(result)
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                }
+            } header: {
+                messagingSearchSectionHeader("messaging.messages")
+            }
+        }
+
+        if viewModel.filteredConversations.isEmpty && viewModel.searchedUsers.isEmpty && viewModel.searchedMessages.isEmpty && !searchText.isEmpty {
             Section {
                 messagingSearchEmptyState
                     .listRowInsets(EdgeInsets())
@@ -824,12 +839,34 @@ struct MessagingView: View {
         }
     }
 
+    /// Abre el chat saltando directo al mensaje encontrado (mismo mecanismo
+    /// que el highlight desde una notificación).
+    private func openMessageSearchResult(_ result: GlobalMessageSearchResult) {
+        if let conversationId = result.conversation.id {
+            ChatNavigationIntentStore.enqueueHighlight(
+                conversationId: conversationId,
+                messageId: result.message.id
+            )
+        }
+        selectedConversation = result.conversation
+        searchText = ""
+        isSearching = false
+        isSearchFocused = false
+        viewModel.clearSearch()
+    }
+
     private func searchResultConversationRow(_ conversation: Conversation) -> some View {
         GlassmorphicConversationRow(
             conversation: conversation,
             profileZoomNamespace: profileZoomNamespace,
             onOpenProfile: { openConversationProfile(userId: conversation.otherParticipantId) },
-            onTap: { selectedConversation = conversation }
+            onTap: {
+                selectedConversation = conversation
+                searchText = ""
+                isSearching = false
+                isSearchFocused = false
+                viewModel.clearSearch()
+            }
         )
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
@@ -1174,6 +1211,47 @@ struct ConversationPressableRow: View {
 }
 
 // ✅ COMPONENTE para usuarios encontrados en búsqueda
+struct SearchMessageResultRow: View {
+    let result: GlobalMessageSearchResult
+    let onTap: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 14) {
+                AsyncProfileImageView(userId: result.conversation.otherParticipantId)
+                    .frame(width: 56, height: 56)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(result.conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name"))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .lineLimit(1)
+
+                        Spacer(minLength: 4)
+
+                        Text(MomentsFormat.relativeTime(from: result.message.timestamp, style: .compactBare))
+                            .font(.system(size: legacyPoppinsSize(13)))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
+                    }
+
+                    Text(result.message.content ?? "")
+                        .font(.system(size: legacyPoppinsSize(14)))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct SearchUserRow: View {
     let user: AppUser
     let onTap: (Conversation?) -> Void

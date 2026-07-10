@@ -215,6 +215,10 @@ struct ChatEphemeralTapCard: View {
         )
         .contentShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
         .onTapGesture(perform: onTap)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(LocalizedStringKey("chat.viewOnce.media")))
+        .accessibilityHint(Text(LocalizedStringKey("chat.viewOnce.tapToView")))
+        .accessibilityAddTraits(.isButton)
     }
 
     @Environment(\.colorScheme) private var colorScheme
@@ -272,6 +276,10 @@ struct ChatEphemeralImageCard: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
             .onTapGesture(perform: onTap)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(LocalizedStringKey("chat.viewOnce.photo")))
+            .accessibilityHint(Text(LocalizedStringKey("chat.viewOnce.tapToView")))
+            .accessibilityAddTraits(.isButton)
     }
 }
 

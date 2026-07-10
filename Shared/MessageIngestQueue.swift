@@ -80,15 +80,19 @@ enum MessageIngestQueue {
     }
 }
 
-struct MessageSyncCursor: Codable, Equatable {
+struct MessageSyncCursor: Codable, Equatable, Comparable, Sendable {
     let timestamp: Date
     let messageId: String
 
-    func isAfter(_ other: MessageSyncCursor) -> Bool {
-        if timestamp != other.timestamp {
-            return timestamp > other.timestamp
+    static func < (lhs: MessageSyncCursor, rhs: MessageSyncCursor) -> Bool {
+        if lhs.timestamp != rhs.timestamp {
+            return lhs.timestamp < rhs.timestamp
         }
-        return messageId > other.messageId
+        return lhs.messageId < rhs.messageId
+    }
+
+    func isAfter(_ other: MessageSyncCursor) -> Bool {
+        self > other
     }
 }
 

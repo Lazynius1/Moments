@@ -994,6 +994,15 @@
 "chat.error" = "Errore";
 "chat.message.deleted" = "Questo messaggio è stato eliminato";
 "chat.recording" = "Registrazione...";
+"chat.voice.record.accessibility" = "Registra messaggio vocale";
+"chat.voice.record.holdHint" = "Tieni premuto per registrare. Scorri in alto per bloccare o a sinistra per annullare.";
+"chat.voice.record.slideToCancel" = "Scorri per annullare";
+"chat.voice.record.started" = "Registrazione avviata";
+"chat.voice.record.locked" = "Registrazione bloccata";
+"chat.voice.record.cancelled" = "Registrazione annullata";
+"chat.voice.record.tooShort" = "La registrazione è troppo breve";
+"chat.voice.record.pause" = "Metti in pausa la registrazione";
+"chat.voice.record.resume" = "Continua a registrare";
 
 // Premium Chat Enhancements
 "chat.gallery.tab.media" = "Media";
@@ -2749,7 +2758,7 @@
 "auth.error.weakPassword" = "La password è troppo debole. Usa almeno 8 caratteri con lettere e numeri.";
 "auth.error.network" = "Errore di connessione. Controlla internet e riprova.";
 "auth.error.tooManyRequests" = "Troppi tentativi. Attendi un momento.";
-"auth.error.invalidCredentials" = "Username o password non corretti. Verifica le tue credenziali.";
+"auth.error.invalidCredentials" = "Il nome utente o la password non sono corretti. Controllali e riprova.";
 "auth.error.userDisabled" = "Questo account è stato disattivato. Contatta il supporto se hai bisogno di aiuto.";
 "auth.error.generic" = "Impossibile accedere. Verifica le tue credenziali e riprova.";
 "auth.error.emptyFields" = "Identificativo e password sono obbligatori.";
@@ -3160,7 +3169,7 @@
 "feed.reels.video.optimizing" = "Ottimizzazione qualità...";
 
 /* Messaging Search */
-"messaging.search.placeholder" = "Cerca conversazioni...";
+"messaging.search.placeholder" = "Cerca nelle conversazioni...";
 
 // Settings Groups
 "settings.group.account" = "IL TUO ACCOUNT";
@@ -4245,3 +4254,14 @@
 "conversationSettings.quickAction.mute" = "Silenzia";
 "conversationSettings.quickAction.unmute" = "Attiva";
 "conversationSettings.quickAction.options" = "Opzioni";
+
+"chat.error.encryptionFailed" = "Impossibile cifrare il messaggio. Non è stato inviato, riprova.";
+"chat.error.peerKeyUnavailable" = "Questo contatto non ha ancora attivato la cifratura. Chiedigli di aprire l'app e riprova.";
+
+"chat.error.retryUnavailable" = "Questo messaggio non può più essere reinviato.";
+"creator.upload.persistenceFailed" = "Non è stato possibile garantire il recupero del caricamento. Riprova.";
+"nova.search.sources" = "Fonti";
+"nova.search.suggestions" = "Suggerimenti di ricerca Google";
+"nova.search.sourceHint" = "Apre la fonte";
+
+"messaging.messages" = "Messaggi";

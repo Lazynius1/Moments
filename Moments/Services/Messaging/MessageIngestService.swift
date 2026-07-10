@@ -70,7 +70,11 @@ final class MessageIngestService {
     }
 
     @discardableResult
-    func ingestBatch(_ messages: [EnhancedMessage], conversationId: String, source: MessageIngestSource) -> Int {
+    func ingestBatch(
+        _ messages: [EnhancedMessage],
+        conversationId: String,
+        source: MessageIngestSource
+    ) async -> Int {
         guard LocalFirstMessagingSettings.isEnabled else { return 0 }
         guard !messages.isEmpty else { return 0 }
 
@@ -80,7 +84,11 @@ final class MessageIngestService {
             }
             return $0.id < $1.id
         }
-        LocalPersistenceService.shared.saveMessages(sorted, conversationId: conversationId, sync: false)
+        await LocalPersistenceService.shared.saveMessagesInBackground(
+            sorted,
+            conversationId: conversationId,
+            sync: false
+        )
 
         if let latestCursor = latestSyncCursor(in: sorted) {
             let stored = MessageSyncCursorStore.cursor(for: conversationId)
@@ -97,7 +105,17 @@ final class MessageIngestService {
         }
 
         for message in sorted {
-            recentlyIngestedKeys.insert(dedupKey(conversationId: conversationId, messageId: message.id))
+            rememberIngestedKey(dedupKey(conversationId: conversationId, messageId: message.id))
+        }
+
+        // Doble check fiable: delivered se marca al ingerir por cualquier canal,
+        // no solo cuando iOS entrega el push.
+        if let currentUserId = Auth.auth().currentUser?.uid {
+            ChatService.shared.markMessagesAsDelivered(
+                messages: sorted,
+                conversationId: conversationId,
+                currentUserId: currentUserId
+            )
         }
 
         // Precarga proactiva de media según la política de auto-descarga.
@@ -136,8 +154,11 @@ final class MessageIngestService {
         if inFlightKeys.contains(key) {
             return false
         }
-        if LocalPersistenceService.shared.messageExists(conversationId: conversationId, messageId: messageId) {
-            recentlyIngestedKeys.insert(key)
+        if await LocalPersistenceService.shared.messageExistsInBackground(
+            conversationId: conversationId,
+            messageId: messageId
+        ) {
+            rememberIngestedKey(key)
             return true
         }
 
@@ -159,20 +180,30 @@ final class MessageIngestService {
             return false
         }
 
-        LocalPersistenceService.shared.saveMessages([message], conversationId: conversationId, sync: false)
+        await LocalPersistenceService.shared.saveMessagesInBackground(
+            [message],
+            conversationId: conversationId,
+            sync: false
+        )
         LocalPersistenceService.shared.upsertConversationPreview(from: message)
         ChatMediaPrefetcher.shared.prefetchIfNeeded([message])
-        let incoming = MessageSyncCursor(timestamp: message.timestamp, messageId: message.id)
-        let stored = MessageSyncCursorStore.cursor(for: conversationId)
-        let next: MessageSyncCursor
-        if let stored {
-            next = incoming.isAfter(stored) ? incoming : stored
-        } else {
-            next = incoming
-        }
-        MessageSyncCursorStore.updateCursor(for: conversationId, cursor: next)
 
-        recentlyIngestedKeys.insert(key)
+        if let currentUserId = Auth.auth().currentUser?.uid {
+            ChatService.shared.markMessagesAsDelivered(
+                messages: [message],
+                conversationId: conversationId,
+                currentUserId: currentUserId
+            )
+        }
+
+        // El cursor NO avanza aquí: APNs colapsa/descarta pushes, y saltar hasta este
+        // mensaje dejaría fuera para siempre a los intermedios que nunca llegaron.
+        // El catch-up pagina contiguo desde el cursor almacenado y lo avanza él.
+        Task {
+            await MessageCatchUpService.shared.sync(conversationId: conversationId)
+        }
+
+        rememberIngestedKey(key)
 
         ChatCommunicationNotificationService.donateFromPush(
             userInfo: [
@@ -199,6 +230,15 @@ final class MessageIngestService {
 
     private func dedupKey(conversationId: String, messageId: String) -> String {
         "\(conversationId):\(messageId)"
+    }
+
+    /// El set de dedup no puede crecer sin límite en sesiones largas; al superar el
+    /// tope se vacía y el dedup cae al check de existencia en SwiftData (barato).
+    private func rememberIngestedKey(_ key: String) {
+        if recentlyIngestedKeys.count > 4000 {
+            recentlyIngestedKeys.removeAll(keepingCapacity: true)
+        }
+        recentlyIngestedKeys.insert(key)
     }
 
     private func latestSyncCursor(in messages: [EnhancedMessage]) -> MessageSyncCursor? {

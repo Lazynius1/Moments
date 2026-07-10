@@ -114,6 +114,12 @@ extension ChatService {
         if let thumbnailEncryption = message.thumbnailEncryption {
             data["thumbnailEncryption"] = thumbnailEncryption.firestoreData
         }
+        if let duration = message.duration {
+            data["duration"] = duration
+        }
+        if let waveform = message.audioWaveform, !waveform.isEmpty {
+            data["audioWaveform"] = waveform.prefix(64).map(Double.init)
+        }
         if let fileSize = message.fileSize {
             data["fileSize"] = fileSize
         }
@@ -218,6 +224,7 @@ extension ChatService {
             mediaEncryption: mediaEncryption,
             thumbnailEncryption: thumbnailEncryption,
             duration: data["duration"] as? Double,
+            audioWaveform: Self.decodeAudioWaveform(from: data["audioWaveform"]),
             fileName: data["fileName"] as? String,
             fileSize: data["fileSize"] as? Int64,
             mediaWidth: data["mediaWidth"] as? Int,
@@ -303,6 +310,15 @@ extension ChatService {
         } catch {
             return nil
         }
+    }
+
+    private static func decodeAudioWaveform(from value: Any?) -> [Float]? {
+        guard let values = value as? [Any] else { return nil }
+        let samples = values.prefix(64).compactMap { value -> Float? in
+            guard let number = value as? NSNumber else { return nil }
+            return min(1, max(0, number.floatValue))
+        }
+        return samples.isEmpty ? nil : samples
     }
 
     func resolveEncryptedMediaForMessage(_ message: EnhancedMessage, forceDownload: Bool = false) async -> (mediaUrl: String?, thumbnailUrl: String?)? {

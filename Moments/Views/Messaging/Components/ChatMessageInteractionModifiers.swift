@@ -1,5 +1,137 @@
 import SwiftUI
 import UIKit
+import UIKit.UIGestureRecognizerSubclass
+
+final class ChatTimestampRevealState: ObservableObject {
+    @Published var offset: CGFloat = 0
+}
+
+enum ChatHorizontalPanDirection {
+    case left
+    case right
+    case both
+
+    func accepts(_ translationX: CGFloat) -> Bool {
+        switch self {
+        case .left:
+            return translationX < 0
+        case .right:
+            return translationX > 0
+        case .both:
+            return true
+        }
+    }
+}
+
+/// Reconocedor horizontal inspirado en Telegram: permanece pendiente durante los
+/// primeros puntos y falla en cuanto la intención es vertical. De este modo el pan
+/// del UICollectionView recibe el scroll sin esperar a que un DragGesture de SwiftUI
+/// termine de decidir que no iba a hacer nada.
+final class ChatHorizontalPanGestureRecognizer: UIPanGestureRecognizer {
+    var allowedDirection: ChatHorizontalPanDirection = .both
+    private var firstLocation: CGPoint = .zero
+    private var hasValidatedHorizontalIntent = false
+
+    override init(target: Any?, action: Selector?) {
+        super.init(target: target, action: action)
+        maximumNumberOfTouches = 1
+        cancelsTouchesInView = false
+        delaysTouchesBegan = false
+        delaysTouchesEnded = false
+    }
+
+    override func reset() {
+        super.reset()
+        firstLocation = .zero
+        hasValidatedHorizontalIntent = false
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesBegan(touches, with: event)
+        if let touch = touches.first {
+            firstLocation = touch.location(in: view)
+        }
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        guard let touch = touches.first else {
+            state = .failed
+            return
+        }
+
+        let location = touch.location(in: view)
+        let translation = CGPoint(
+            x: location.x - firstLocation.x,
+            y: location.y - firstLocation.y
+        )
+        let horizontal = abs(translation.x)
+        let vertical = abs(translation.y)
+
+        if !hasValidatedHorizontalIntent {
+            if vertical > 2, vertical > horizontal {
+                state = .failed
+                return
+            }
+            if horizontal > 2, !allowedDirection.accepts(translation.x) {
+                state = .failed
+                return
+            }
+            if horizontal > 2, horizontal > vertical * 1.2 {
+                hasValidatedHorizontalIntent = true
+            }
+        }
+
+        if hasValidatedHorizontalIntent {
+            super.touchesMoved(touches, with: event)
+        }
+    }
+}
+
+struct ChatHorizontalPanValue {
+    let translation: CGPoint
+    let location: CGPoint
+}
+
+struct ChatHorizontalPanGesture: UIGestureRecognizerRepresentable {
+    typealias UIGestureRecognizerType = ChatHorizontalPanGestureRecognizer
+
+    let direction: ChatHorizontalPanDirection
+    let onChanged: (ChatHorizontalPanValue) -> Void
+    let onEnded: (ChatHorizontalPanValue, Bool) -> Void
+
+    func makeUIGestureRecognizer(context: Context) -> ChatHorizontalPanGestureRecognizer {
+        let recognizer = ChatHorizontalPanGestureRecognizer(target: nil, action: nil)
+        recognizer.allowedDirection = direction
+        return recognizer
+    }
+
+    func updateUIGestureRecognizer(
+        _ recognizer: ChatHorizontalPanGestureRecognizer,
+        context: Context
+    ) {
+        recognizer.allowedDirection = direction
+    }
+
+    func handleUIGestureRecognizerAction(
+        _ recognizer: ChatHorizontalPanGestureRecognizer,
+        context: Context
+    ) {
+        let value = ChatHorizontalPanValue(
+            translation: context.converter.localTranslation ?? .zero,
+            location: context.converter.localLocation
+        )
+        switch recognizer.state {
+        case .began, .changed:
+            onChanged(value)
+        case .ended:
+            onEnded(value, true)
+        case .cancelled:
+            onEnded(value, false)
+        default:
+            break
+        }
+    }
+}
 
 // MARK: - Reply swipe metrics
 
@@ -7,9 +139,8 @@ enum ChatReplySwipeMetrics {
     static let activationDistance: CGFloat = 84
     static let maxDrag: CGFloat = 108
     static let indicatorSize: CGFloat = 32
-    /// Cada cuántos puntos de arrastre dispara un tick háptico (mismo patrón que el pull de vanish).
-    static let hapticStepPoints: CGFloat = 12
-
+    static let hapticStepPoints: CGFloat = 18
+    static let hapticStepCount = 4
     static func rubberBandMagnitude(_ raw: CGFloat) -> CGFloat {
         guard raw > 0 else { return 0 }
         if raw <= maxDrag { return raw }
@@ -78,7 +209,7 @@ struct ChatReplySwipeIndicator: View {
 /// Contenedor: burbuja se desliza; el indicador queda fijo en el hueco.
 struct ChatBubbleReplySwipeContainer<Content: View>: View {
     @Binding var dragOffset: CGFloat
-    @Binding var hasTriggeredHaptic: Bool
+    @Binding var hapticStep: Int
     let isOutgoing: Bool
     let cornerRadius: CGFloat
     let onReply: () -> Void
@@ -105,7 +236,7 @@ struct ChatBubbleReplySwipeContainer<Content: View>: View {
         .chatReplySwipeGesture(
             isOutgoing: isOutgoing,
             dragOffset: $dragOffset,
-            hasTriggeredHaptic: $hasTriggeredHaptic,
+            hapticStep: $hapticStep,
             onReply: onReply
         )
         .accessibilityAction(named: Text("chat.action.reply")) {
@@ -122,25 +253,13 @@ extension View {
     func chatReplySwipeGesture(
         isOutgoing: Bool,
         dragOffset: Binding<CGFloat>,
-        hasTriggeredHaptic: Binding<Bool>,
+        hapticStep: Binding<Int>,
         onReply: @escaping () -> Void
     ) -> some View {
-        let gesture = DragGesture(minimumDistance: 10, coordinateSpace: .local)
-            .onChanged { value in
-                let horizontal = value.translation.width
-                let vertical = abs(value.translation.height)
-
-                let isValidDirection = isOutgoing ? horizontal < 0 : horizontal > 0
-                guard isValidDirection else {
-                    if dragOffset.wrappedValue != 0 {
-                        dragOffset.wrappedValue = 0
-                    }
-                    return
-                }
-                guard abs(horizontal) > vertical * 2.1, abs(horizontal) > 8 else { return }
-
-                let previousMagnitude = abs(dragOffset.wrappedValue)
-
+        let gesture = ChatHorizontalPanGesture(
+            direction: isOutgoing ? .left : .right,
+            onChanged: { value in
+                let horizontal = value.translation.x
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
@@ -150,77 +269,98 @@ extension View {
                     )
                 }
 
+                let magnitude = abs(dragOffset.wrappedValue)
                 let progress = ChatReplySwipeMetrics.progress(for: dragOffset.wrappedValue)
-                if progress >= 1, !hasTriggeredHaptic.wrappedValue {
-                    HapticManager.shared.heavyImpact()
-                    hasTriggeredHaptic.wrappedValue = true
-                } else if progress < 0.9, hasTriggeredHaptic.wrappedValue {
-                    hasTriggeredHaptic.wrappedValue = false
-                } else if progress < 1 {
-                    // Tick por cada paso de arrastre, mismo patrón que el pull de vanish.
-                    let newMagnitude = abs(dragOffset.wrappedValue)
-                    let previousStep = Int(previousMagnitude / ChatReplySwipeMetrics.hapticStepPoints)
-                    let newStep = Int(newMagnitude / ChatReplySwipeMetrics.hapticStepPoints)
-                    if newStep != previousStep {
-                        HapticManager.shared.selection()
-                    }
+                let nextStep: Int
+                if progress >= 1 {
+                    nextStep = ChatReplySwipeMetrics.hapticStepCount + 1
+                } else {
+                    nextStep = min(
+                        Int(magnitude / ChatReplySwipeMetrics.hapticStepPoints),
+                        ChatReplySwipeMetrics.hapticStepCount
+                    )
                 }
-            }
-            .onEnded { _ in
-                let didComplete = ChatReplySwipeMetrics.progress(for: dragOffset.wrappedValue) >= 1
+                if nextStep != hapticStep.wrappedValue {
+                    if nextStep == ChatReplySwipeMetrics.hapticStepCount + 1 {
+                        HapticManager.shared.replySwipeThresholdReached()
+                    } else if nextStep > 0 || hapticStep.wrappedValue > 0 {
+                        HapticManager.shared.replySwipeStep()
+                    }
+                    hapticStep.wrappedValue = nextStep
+                }
+            },
+            onEnded: { _, completed in
+                let didComplete = completed
+                    && ChatReplySwipeMetrics.progress(for: dragOffset.wrappedValue) >= 1
                 if didComplete {
-                    HapticManager.shared.success()
                     onReply()
                 }
                 if UIAccessibility.isReduceMotionEnabled {
                     dragOffset.wrappedValue = 0
-                    hasTriggeredHaptic.wrappedValue = false
+                    hapticStep.wrappedValue = 0
                 } else {
                     MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                         dragOffset.wrappedValue = 0
-                        hasTriggeredHaptic.wrappedValue = false
+                        hapticStep.wrappedValue = 0
                     }
                 }
             }
+        )
 
-        return simultaneousGesture(gesture)
+        return self.gesture(gesture)
     }
 
-    /// Zona vacía de la fila donde el swipe izquierdo revela el timestamp (no la burbuja).
+    /// El reveal global sólo nace en el fondo de la fila. Sobre la burbuja manda reply,
+    /// cuya dirección depende de si el mensaje es enviado o recibido.
+    @ViewBuilder
     func chatTimestampRevealGutter(
         minLength: CGFloat = 50,
-        timestampRevealOffset: Binding<CGFloat>
+        state: ChatTimestampRevealState,
+        isEnabled: Bool = true
     ) -> some View {
-        Color.clear
-            .frame(minWidth: minLength, maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .chatTimestampRevealGesture(timestampRevealOffset: timestampRevealOffset)
+        if isEnabled {
+            Color.clear
+                .frame(minWidth: minLength, maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .chatTimestampRevealGesture(state: state)
+        } else {
+            Color.clear
+                .frame(minWidth: minLength, maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+        }
     }
 
-    /// Deslizar a la izquierda en huecos en blanco para revelar timestamps.
-    func chatTimestampRevealGesture(timestampRevealOffset: Binding<CGFloat>) -> some View {
-        simultaneousGesture(
-            DragGesture(minimumDistance: 20, coordinateSpace: .local)
-                .onChanged { value in
-                    let horizontal = value.translation.width
-                    let vertical = abs(value.translation.height)
-
-                    guard abs(horizontal) > vertical * 1.4, abs(horizontal) > 16 else { return }
-                    guard horizontal < 0 else { return }
+    /// Deslizar a la izquierda en cualquier punto de la fila para revelar timestamps.
+    func chatTimestampRevealGesture(
+        enabled: Bool = true,
+        state: ChatTimestampRevealState
+    ) -> some View {
+        gesture(
+            ChatHorizontalPanGesture(
+                direction: .left,
+                onChanged: { value in
+                    guard enabled else { return }
+                    let horizontal = value.translation.x
 
                     let baseOffset = horizontal
                     let offset = baseOffset < -70 ? -70 + (baseOffset + 70) * 0.25 : baseOffset
-                    timestampRevealOffset.wrappedValue = max(offset, -90)
-                }
-                .onEnded { _ in
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        state.offset = max(offset, -90)
+                    }
+                },
+                onEnded: { _, _ in
+                    guard enabled else { return }
                     if UIAccessibility.isReduceMotionEnabled {
-                        timestampRevealOffset.wrappedValue = 0
+                        state.offset = 0
                     } else {
-                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
-                            timestampRevealOffset.wrappedValue = 0
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.timestampReturn) {
+                            state.offset = 0
                         }
                     }
                 }
+            )
         )
     }
 

@@ -20,7 +20,10 @@ class MomentsChatViewModel: EnhancedChatViewModel {
 
     func syncMessagePresentation() {
         let calendar = Calendar.current
-        let sortedMessages = messages.sorted { $0.timestamp < $1.timestamp }
+        let sortedMessages = messages.sorted {
+            MessageSyncCursor(timestamp: $0.timestamp, messageId: $0.id)
+                < MessageSyncCursor(timestamp: $1.timestamp, messageId: $1.id)
+        }
 
         var grouped: [(Date, [EnhancedMessage])] = []
         var rows: [ChatRenderRow] = []

@@ -275,8 +275,21 @@ class BackgroundMomentUploadService: ObservableObject {
         let uploadTask = Task {
             // 1. Persistir acción en disco por si la app muere
             if shouldPersistAction {
-                await MainActor.run {
-                    self.persistAction(uploadingMoment)
+                do {
+                    try await self.persistAction(uploadingMoment)
+                } catch {
+                    uploadingMoment.status = .failed
+                    uploadingMoment.errorMessage = NSLocalizedString(
+                        "creator.upload.persistenceFailed",
+                        comment: "Upload recovery data could not be saved"
+                    )
+                    self.deleteActionFiles(id: uploadingMoment.tempId)
+                    self.runningUploadTasks.removeValue(forKey: uploadingMoment.tempId)
+                    if backgroundTaskID != .invalid {
+                        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                        backgroundTaskID = .invalid
+                    }
+                    return
                 }
             }
 
@@ -1116,9 +1129,7 @@ class BackgroundMomentUploadService: ObservableObject {
     }
 
     /// Prepara una acción persistente antes de iniciar el upload
-    func persistAction(_ uploadingMoment: UploadingMoment) {
-        Task {
-            do {
+    func persistAction(_ uploadingMoment: UploadingMoment) async throws {
                 // 1. Asegurar que existe el directorio
                 if !FileManager.default.fileExists(atPath: self.pendingUploadsDir.path) {
                     try FileManager.default.createDirectory(at: self.pendingUploadsDir, withIntermediateDirectories: true)
@@ -1166,10 +1177,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     payloadData: encodedPayload
                 )
 
-                LocalPersistenceService.shared.saveAction(action)
-
-            } catch { }
-        }
+                try LocalPersistenceService.shared.saveActionOrThrow(action)
     }
 
     private func saveMediaToDisk(_ media: ProcessedMedia, actionId: String) async throws -> CachedMediaItem {
@@ -1455,6 +1463,8 @@ class BackgroundMomentUploadService: ObservableObject {
                     }
                 }
             }
-        } catch { }
+        } catch {
+            AppLog.error("Failed to clean pending Moment upload files: \(error.localizedDescription)")
+        }
     }
 }

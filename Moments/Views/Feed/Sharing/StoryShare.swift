@@ -312,8 +312,7 @@ struct StoryShareRecipientsPanel: View {
                     } else {
                         if !filteredConversations.isEmpty {
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
-                                ForEach(filteredConversations.indices, id: \.self) { index in
-                                    let conversation = filteredConversations[index]
+                                ForEach(Array(filteredConversations.enumerated()), id: \.element.otherParticipantId) { index, conversation in
                                     PersonCell(
                                         conversation: conversation,
                                         isSelected: selectedUsers.contains(conversation.otherParticipantId),

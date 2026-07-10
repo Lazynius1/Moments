@@ -994,6 +994,15 @@
 "chat.error" = "Erreur";
 "chat.message.deleted" = "Ce message a été supprimé";
 "chat.recording" = "Enregistrement...";
+"chat.voice.record.accessibility" = "Enregistrer un message vocal";
+"chat.voice.record.holdHint" = "Maintenez pour enregistrer. Glissez vers le haut pour verrouiller ou vers la gauche pour annuler.";
+"chat.voice.record.slideToCancel" = "Glissez pour annuler";
+"chat.voice.record.started" = "Enregistrement démarré";
+"chat.voice.record.locked" = "Enregistrement verrouillé";
+"chat.voice.record.cancelled" = "Enregistrement annulé";
+"chat.voice.record.tooShort" = "L'enregistrement est trop court";
+"chat.voice.record.pause" = "Mettre l'enregistrement en pause";
+"chat.voice.record.resume" = "Reprendre l'enregistrement";
 
 // Premium Chat Enhancements
 "chat.gallery.tab.media" = "Médias";
@@ -2749,7 +2758,7 @@
 "auth.error.weakPassword" = "Le mot de passe est trop faible. Utilisez au moins 8 caractères avec des lettres et des chiffres.";
 "auth.error.network" = "Erreur de connexion. Vérifiez votre connexion internet et réessayez.";
 "auth.error.tooManyRequests" = "Trop de tentatives. Veuillez patienter un instant.";
-"auth.error.invalidCredentials" = "Nom d’utilisateur ou mot de passe incorrect. Vérifiez vos identifiants.";
+"auth.error.invalidCredentials" = "Le nom d’utilisateur ou le mot de passe est incorrect. Vérifiez-les et réessayez.";
 "auth.error.userDisabled" = "Ce compte a été désactivé. Contactez l’assistance si vous avez besoin d’aide.";
 "auth.error.generic" = "Impossible de se connecter. Vérifiez vos identifiants et réessayez.";
 "auth.error.emptyFields" = "Identifiant et mot de passe requis.";
@@ -3160,7 +3169,7 @@
 "feed.reels.video.optimizing" = "Optimizing quality...";
 
 /* Messaging Search */
-"messaging.search.placeholder" = "Search conversations...";
+"messaging.search.placeholder" = "Rechercher dans les conversations...";
 
 // Settings Groups
 "settings.group.account" = "YOUR ACCOUNT";
@@ -4245,3 +4254,14 @@
 "conversationSettings.quickAction.mute" = "Muet";
 "conversationSettings.quickAction.unmute" = "Activer";
 "conversationSettings.quickAction.options" = "Options";
+
+"chat.error.encryptionFailed" = "Le message n'a pas pu être chiffré. Il n'a pas été envoyé, veuillez réessayer.";
+"chat.error.peerKeyUnavailable" = "Ce contact n'a pas encore activé le chiffrement. Demandez-lui d'ouvrir l'app et réessayez.";
+
+"chat.error.retryUnavailable" = "Ce message ne peut plus être renvoyé.";
+"creator.upload.persistenceFailed" = "La récupération de l'envoi n'a pas pu être sécurisée. Réessayez.";
+"nova.search.sources" = "Sources";
+"nova.search.suggestions" = "Suggestions de recherche Google";
+"nova.search.sourceHint" = "Ouvre la source";
+
+"messaging.messages" = "Messages";

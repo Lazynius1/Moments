@@ -1133,6 +1133,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     let mediaEncryption: EncryptedChatMediaMetadata?
     let thumbnailEncryption: EncryptedChatMediaMetadata?
     let duration: Double?
+    let audioWaveform: [Float]?
     let fileName: String?
     let fileSize: Int64?
     let latitude: Double?
@@ -1188,7 +1189,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     enum CodingKeys: String, CodingKey {
         case id, conversationId, senderId, type, content, mediaUrl, thumbnailUrl
         case mediaObjectPath, thumbnailObjectPath, mediaEncryption, thumbnailEncryption
-        case duration, fileName, fileSize, mediaWidth, mediaHeight, latitude, longitude, timestamp
+        case duration, audioWaveform, fileName, fileSize, mediaWidth, mediaHeight, latitude, longitude, timestamp
         case status, isRead, isDeleted, deletedAt, editedAt, reactions
         case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData
         case mediaBatchId
@@ -1229,6 +1230,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.mediaEncryption = try container.decodeIfPresent(EncryptedChatMediaMetadata.self, forKey: .mediaEncryption)
         self.thumbnailEncryption = try container.decodeIfPresent(EncryptedChatMediaMetadata.self, forKey: .thumbnailEncryption)
         self.duration = try container.decodeIfPresent(Double.self, forKey: .duration)
+        self.audioWaveform = try container.decodeIfPresent([Float].self, forKey: .audioWaveform)
         self.fileName = try container.decodeIfPresent(String.self, forKey: .fileName)
         self.fileSize = try container.decodeIfPresent(Int64.self, forKey: .fileSize)
         self.mediaWidth = try container.decodeIfPresent(Int.self, forKey: .mediaWidth)
@@ -1338,6 +1340,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encodeIfPresent(mediaEncryption, forKey: .mediaEncryption)
         try container.encodeIfPresent(thumbnailEncryption, forKey: .thumbnailEncryption)
         try container.encodeIfPresent(duration, forKey: .duration)
+        try container.encodeIfPresent(audioWaveform, forKey: .audioWaveform)
         try container.encodeIfPresent(fileName, forKey: .fileName)
         try container.encodeIfPresent(fileSize, forKey: .fileSize)
         try container.encodeIfPresent(mediaWidth, forKey: .mediaWidth)
@@ -1419,6 +1422,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          mediaEncryption: EncryptedChatMediaMetadata? = nil,
          thumbnailEncryption: EncryptedChatMediaMetadata? = nil,
          duration: Double? = nil,
+         audioWaveform: [Float]? = nil,
          fileName: String? = nil,
          fileSize: Int64? = nil,
          mediaWidth: Int? = nil,
@@ -1471,6 +1475,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.mediaEncryption = mediaEncryption
         self.thumbnailEncryption = thumbnailEncryption
         self.duration = duration
+        self.audioWaveform = audioWaveform
         self.fileName = fileName
         self.fileSize = fileSize
         self.mediaWidth = mediaWidth
@@ -1530,6 +1535,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             mediaEncryption: mediaEncryption,
             thumbnailEncryption: thumbnailEncryption,
             duration: duration,
+            audioWaveform: audioWaveform,
             fileName: fileName,
             fileSize: fileSize,
             mediaWidth: mediaWidth,

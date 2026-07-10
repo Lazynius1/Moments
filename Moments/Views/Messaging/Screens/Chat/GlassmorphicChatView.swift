@@ -63,6 +63,10 @@ struct GlassmorphicChatView: View {
     @State var forwardingMessage: EnhancedMessage?
     @State var showCameraSheet = false
     @State var isRecordingVoice = false
+    @State var isVoiceRecordingLocked = false
+    @State var isPreparingVoiceRecordingPreview = false
+    @State var voiceRecordingInteractionId: UUID?
+    @State var voiceRecordingDraft: VoiceRecordingDraft?
     @State var recordingTime: TimeInterval = 0
     @State var recordingTimer: Timer?
     @State var showingConversationSettings = false
@@ -99,7 +103,6 @@ struct GlassmorphicChatView: View {
     @State var pendingSearchHighlightId: String? = nil
     @State var deferredJumpToMessageId: String? = nil
     @State var searchHighlightScrollTask: Task<Void, Never>? = nil
-    @State var timestampRevealOffset: CGFloat = 0
     @State var pendingScrollMessageId: String? = nil
     @State var buzzShakeProgress: CGFloat = 1
     @State var buzzShakeAmplitude: CGFloat = 18
@@ -523,6 +526,7 @@ struct GlassmorphicChatView: View {
                 initializeUnreadDividerIfNeeded()
             }
             .onDisappear {
+                resetVoiceRecordingInteraction()
                 onDisappearActions()
             }
             .onChange(of: isSearchVisible) { wasVisible, isVisible in

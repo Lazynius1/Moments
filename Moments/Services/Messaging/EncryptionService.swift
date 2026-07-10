@@ -164,6 +164,7 @@ enum EncryptionError: LocalizedError, Equatable {
     case invalidInput
     case encryptionFailed
     case decryptionFailed
+    case peerKeyUnavailable
     case invalidPIN
     case recoveryLocked(TimeInterval)
     case keychainError(String)
@@ -180,9 +181,11 @@ enum EncryptionError: LocalizedError, Equatable {
         case .invalidInput:
             return "Datos de entrada inválidos para encriptación"
         case .encryptionFailed:
-            return "Error en el proceso de encriptación"
+            return NSLocalizedString("chat.error.encryptionFailed", comment: "Message could not be encrypted, send aborted")
         case .decryptionFailed:
             return "Error en el proceso de desencriptación"
+        case .peerKeyUnavailable:
+            return NSLocalizedString("chat.error.peerKeyUnavailable", comment: "Recipient has no active encryption keys yet, send blocked")
         case .invalidPIN:
             return NSLocalizedString("chatRecovery.error.invalidPin", comment: "Incorrect recovery PIN")
         case .recoveryLocked(let remainingSeconds):
@@ -266,7 +269,7 @@ extension EncryptionService {
             
             for (index, message) in messages.enumerated() {
                 group.addTask {
-                    let encrypted = await self.encryptChatMessage(message.text, for: message.conversationId)
+                    let encrypted = try? await self.encryptChatMessage(message.text, for: message.conversationId)
                     return (index, encrypted)
                 }
             }
@@ -665,23 +668,6 @@ class EncryptionService: ObservableObject {
         }
     }
     
-    // MARK: - Key Metadata
-    private struct KeyMetadata: Codable {
-        let keyId: String
-        let createdAt: Date
-        let version: String
-        let deviceId: String
-        let lastRotation: Date?
-        
-        init(keyId: String, version: String = "2.0", deviceId: String) {
-            self.keyId = keyId
-            self.version = version
-            self.createdAt = Date()
-            self.deviceId = deviceId
-            self.lastRotation = nil
-        }
-    }
-
     private struct LocalChatIdentity {
         let record: ChatIdentityRecord
         let privateKey: Curve25519.KeyAgreement.PrivateKey
@@ -1671,36 +1657,52 @@ class EncryptionService: ObservableObject {
         return SymmetricKey(data: unwrappedKeyData)
     }
 
-    private func persistWrappedKeyIfNeeded(
+    /// Migra una conversación legacy a wrappedKeys y elimina la clave en claro del doc.
+    /// Solo borra los campos legacy cuando TODOS los participantes quedan cubiertos;
+    /// si falta la identidad de alguno, no toca nada y se reintenta en la próxima lectura.
+    private func upgradeLegacyConversationKeyIfPossible(
         conversationId: String,
         conversationData: [String: Any],
         conversationKey: SymmetricKey,
-        for userId: String
+        currentUserId: String
     ) async {
-        guard let identity = try? await fetchChatIdentity(for: userId) else {
+        guard let participants = conversationData["participants"] as? [String],
+              !participants.isEmpty,
+              participants.contains(currentUserId) else {
             return
         }
 
         let existingWrappedKeys = conversationData["wrappedKeys"] as? [String: Any] ?? [:]
-        guard existingWrappedKeys[userId] == nil else {
-            return
+        let missingParticipants = participants.filter { existingWrappedKeys[$0] == nil }
+
+        var newWrappedKeys: [String: [String: Any]] = [:]
+        if !missingParticipants.isEmpty {
+            guard let built = try? await buildWrappedConversationKeys(
+                for: missingParticipants,
+                conversationKey: conversationKey,
+                wrappedBy: currentUserId
+            ), built.count == missingParticipants.count else {
+                return
+            }
+            newWrappedKeys = built
         }
 
-        let conversationKeyData = conversationKey.withUnsafeBytes { Data($0) }
-        guard let wrappedKey = try? wrapConversationKey(conversationKeyData, for: identity, wrappedBy: userId) else {
-            return
+        var upgradeData: [String: Any] = [
+            "conversationKeyVersion": 1,
+            "encryptionVersion": "3.0",
+            "sharedEncryptionKey": FieldValue.delete(),
+            "encryptionKey": FieldValue.delete(),
+            "encryptionKeyCreatedAt": FieldValue.delete(),
+            "keyMetadata": FieldValue.delete()
+        ]
+        if !newWrappedKeys.isEmpty {
+            upgradeData["wrappedKeys"] = newWrappedKeys
         }
 
         do {
             try await db.collection("conversations")
                 .document(conversationId)
-                .setData([
-                    "wrappedKeys": [
-                        userId: wrappedKey.asFirestoreData()
-                    ],
-                    "conversationKeyVersion": 1,
-                    "encryptionVersion": "3.0"
-                ], merge: true)
+                .setData(upgradeData, merge: true)
         } catch {
         }
     }
@@ -1797,11 +1799,11 @@ class EncryptionService: ObservableObject {
                let keyData = Data(base64Encoded: keyDataString) {
                 let sharedKey = SymmetricKey(data: keyData)
                 await cacheConversationKey(conversationId: conversationId, key: sharedKey)
-                await persistWrappedKeyIfNeeded(
+                await upgradeLegacyConversationKeyIfPossible(
                     conversationId: conversationId,
                     conversationData: data,
                     conversationKey: sharedKey,
-                    for: currentUserId
+                    currentUserId: currentUserId
                 )
                 await updateMetrics { $0.firestoreHits += 1 }
                 return sharedKey
@@ -1811,11 +1813,11 @@ class EncryptionService: ObservableObject {
                let keyData = Data(base64Encoded: keyDataString) {
                 let sharedKey = SymmetricKey(data: keyData)
                 await cacheConversationKey(conversationId: conversationId, key: sharedKey)
-                await persistWrappedKeyIfNeeded(
+                await upgradeLegacyConversationKeyIfPossible(
                     conversationId: conversationId,
                     conversationData: data,
                     conversationKey: sharedKey,
-                    for: currentUserId
+                    currentUserId: currentUserId
                 )
                 await updateMetrics { $0.firestoreHits += 1 }
                 return sharedKey
@@ -1827,12 +1829,6 @@ class EncryptionService: ObservableObject {
                     conversationId: conversationId,
                     participants: participants,
                     currentUserId: currentUserId
-                )
-                await persistWrappedKeyIfNeeded(
-                    conversationId: conversationId,
-                    conversationData: data,
-                    conversationKey: sharedKey,
-                    for: currentUserId
                 )
                 await updateMetrics { $0.newKeysCreated += 1 }
                 return sharedKey
@@ -1850,6 +1846,8 @@ class EncryptionService: ObservableObject {
     }
     
     // MARK: - 🛡️ ATOMIC Key Creation (evita race conditions)
+    // Sin fallback en claro: si no se puede wrappear para todos los participantes,
+    // la creación falla y el envío queda bloqueado hasta que el peer registre su clave.
     private func createNewSharedConversationKey(
         conversationId: String,
         participants: [String],
@@ -1857,49 +1855,26 @@ class EncryptionService: ObservableObject {
     ) async throws -> SymmetricKey {
         let newKey = SymmetricKey(size: .bits256)
 
-        if
-            let wrappedKeys = try? await withTimeout(seconds: 5, operation: {
-                try await self.buildWrappedConversationKeys(
-                    for: participants,
-                    conversationKey: newKey,
-                    wrappedBy: currentUserId
-                )
-            }),
-            wrappedKeys.count == participants.count
-        {
-            let uploadData: [String: Any] = [
-                "wrappedKeys": wrappedKeys,
-                "conversationKeyVersion": 1,
-                "encryptionVersion": "3.0"
-            ]
-            try await db.collection("conversations")
-                .document(conversationId)
-                .setData(uploadData, merge: true)
-            await cacheConversationKey(conversationId: conversationId, key: newKey)
-            return newKey
+        let wrappedKeys = try await withTimeout(seconds: 10) {
+            try await self.buildWrappedConversationKeys(
+                for: participants,
+                conversationKey: newKey,
+                wrappedBy: currentUserId
+            )
+        }
+        guard wrappedKeys.count == participants.count else {
+            throw EncryptionError.peerKeyUnavailable
         }
 
-        let deviceId = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "unknown" }
-        let keyData = newKey.withUnsafeBytes { Data($0) }
-        let keyDataString = keyData.base64EncodedString()
-        let metadata = KeyMetadata(keyId: UUID().uuidString, deviceId: deviceId)
-
         let uploadData: [String: Any] = [
-            "encryptionKey": keyDataString,
-            "encryptionKeyCreatedAt": FieldValue.serverTimestamp(),
-            "encryptionVersion": "2.0",
-            "keyMetadata": try JSONEncoder().encode(metadata).base64EncodedString(),
-            "lastKeyUpdate": FieldValue.serverTimestamp(),
-            "createdByDevice": deviceId
+            "wrappedKeys": wrappedKeys,
+            "conversationKeyVersion": 1,
+            "encryptionVersion": "3.0"
         ]
-
-        // Atomic write with merge
         try await db.collection("conversations")
             .document(conversationId)
             .setData(uploadData, merge: true)
-
         await cacheConversationKey(conversationId: conversationId, key: newKey)
-
         return newKey
     }
     
@@ -2296,52 +2271,30 @@ class EncryptionService: ObservableObject {
         let snapshot = try await db.collection("conversations").document(conversationId).getDocument()
         let participants = (snapshot.data()?["participants"] as? [String]) ?? [currentUserId]
 
-        if
-            let wrappedKeys = try? await withTimeout(seconds: 5, operation: {
-                try await self.buildWrappedConversationKeys(
-                    for: participants,
-                    conversationKey: newKey,
-                    wrappedBy: currentUserId
-                )
-            }),
-            wrappedKeys.count == participants.count
-        {
-            let rotationData: [String: Any] = [
-                "wrappedKeys": wrappedKeys,
-                "conversationKeyVersion": FieldValue.increment(Int64(1)),
-                "encryptionVersion": "3.0",
-                "sharedEncryptionKey": FieldValue.delete(),
-                "encryptionKey": FieldValue.delete(),
-                "lastKeyRotation": FieldValue.serverTimestamp(),
-                "rotationReason": reason.rawValue,
-                "rotatedByDevice": UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
-            ]
-            try await db.collection("conversations").document(conversationId).setData(rotationData, merge: true)
-            await cacheConversationKey(conversationId: conversationId, key: newKey)
-            await updateMetrics { $0.keyRotations += 1 }
-            return true
+        let wrappedKeys = try await withTimeout(seconds: 10) {
+            try await self.buildWrappedConversationKeys(
+                for: participants,
+                conversationKey: newKey,
+                wrappedBy: currentUserId
+            )
+        }
+        guard wrappedKeys.count == participants.count else {
+            throw EncryptionError.peerKeyUnavailable
         }
 
-        let keyData = newKey.withUnsafeBytes { Data($0) }
-        let keyDataString = keyData.base64EncodedString()
-
         let rotationData: [String: Any] = [
-            "sharedEncryptionKey": keyDataString,
+            "wrappedKeys": wrappedKeys,
+            "conversationKeyVersion": FieldValue.increment(Int64(1)),
+            "encryptionVersion": "3.0",
+            "sharedEncryptionKey": FieldValue.delete(),
+            "encryptionKey": FieldValue.delete(),
             "lastKeyRotation": FieldValue.serverTimestamp(),
             "rotationReason": reason.rawValue,
-            "encryptionVersion": "2.0",
             "rotatedByDevice": UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
         ]
-
-        try await db.collection("conversations")
-            .document(conversationId)
-            .updateData(rotationData)
-
-        // Update local cache
+        try await db.collection("conversations").document(conversationId).setData(rotationData, merge: true)
         await cacheConversationKey(conversationId: conversationId, key: newKey)
-
         await updateMetrics { $0.keyRotations += 1 }
-
         return true
     }
     
@@ -2434,10 +2387,20 @@ class EncryptionService: ObservableObject {
             purpose: purpose,
             contentType: contentType
         )
-        let sealedBox = try AES.GCM.seal(data, using: mediaKey, authenticating: authenticatedData)
-        guard let combined = sealedBox.combined else {
-            throw EncryptionError.encryptionFailed
-        }
+        // AES sobre el blob completo fuera de MainActor: con imágenes de varios MB
+        // el sellado en main congelaba la UI durante el envío.
+        let mediaKeyData = mediaKey.withUnsafeBytes { Data($0) }
+        let combined = try await Task.detached(priority: .userInitiated) {
+            let sealedBox = try AES.GCM.seal(
+                data,
+                using: SymmetricKey(data: mediaKeyData),
+                authenticating: authenticatedData
+            )
+            guard let combined = sealedBox.combined else {
+                throw EncryptionError.encryptionFailed
+            }
+            return combined
+        }.value
 
         return (
             combined,
@@ -2470,8 +2433,112 @@ class EncryptionService: ObservableObject {
             purpose: metadata.purpose,
             contentType: metadata.contentType
         )
-        let sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
-        return try AES.GCM.open(sealedBox, using: mediaKey, authenticating: authenticatedData)
+        // Formato legacy 1.0 (blob completo): el descifrado en main congelaba el
+        // scroll al hidratar media antigua. El formato por bloques ya va detached.
+        let mediaKeyData = mediaKey.withUnsafeBytes { Data($0) }
+        return try await Task.detached(priority: .userInitiated) {
+            let sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
+            return try AES.GCM.open(
+                sealedBox,
+                using: SymmetricKey(data: mediaKeyData),
+                authenticating: authenticatedData
+            )
+        }.value
+    }
+
+    /// Cifra media grande directamente de fichero a fichero. La CPU y el I/O se
+    /// ejecutan fuera de `MainActor` y nunca existe un `Data` con el vídeo completo.
+    func encryptChatMediaFile(
+        at inputURL: URL,
+        for conversationId: String,
+        messageId: String,
+        purpose: ChatMediaPurpose,
+        contentType: String,
+        fileExtension: String
+    ) async throws -> (ciphertextURL: URL, metadata: EncryptedChatMediaMetadata) {
+        let key = try await getConversationKey(for: conversationId)
+        let mediaKey = deriveChatMediaKey(
+            from: key,
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: purpose
+        )
+        let authenticatedData = mediaAuthenticatedData(
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: purpose,
+            contentType: contentType
+        )
+        let mediaKeyData = mediaKey.withUnsafeBytes { Data($0) }
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-encrypted-\(UUID().uuidString).bin")
+
+        do {
+            let plaintextSize = try await Task.detached(priority: .userInitiated) {
+                try ChatMediaChunkedCipher.encryptFile(
+                    inputURL: inputURL,
+                    outputURL: outputURL,
+                    key: SymmetricKey(data: mediaKeyData),
+                    authenticatedData: authenticatedData
+                )
+            }.value
+
+            return (
+                outputURL,
+                EncryptedChatMediaMetadata(
+                    version: ChatMediaChunkedCipher.metadataVersion,
+                    algorithm: ChatMediaChunkedCipher.algorithm,
+                    purpose: purpose,
+                    mediaId: messageId,
+                    contentType: contentType,
+                    fileExtension: fileExtension,
+                    plaintextSize: plaintextSize
+                )
+            )
+        } catch {
+            try? FileManager.default.removeItem(at: outputURL)
+            throw error
+        }
+    }
+
+    /// Descifra el formato por bloques directamente al destino local. Los mensajes
+    /// existentes con metadata 1.0 siguen usando `decryptChatMedia`.
+    func decryptChatMediaFile(
+        at encryptedURL: URL,
+        to outputURL: URL,
+        metadata: EncryptedChatMediaMetadata,
+        for conversationId: String,
+        messageId: String
+    ) async throws {
+        guard metadata.version == ChatMediaChunkedCipher.metadataVersion,
+              metadata.algorithm == ChatMediaChunkedCipher.algorithm else {
+            throw EncryptionError.decryptionFailed
+        }
+
+        let key = try await getConversationKey(for: conversationId)
+        let mediaKey = deriveChatMediaKey(
+            from: key,
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: metadata.purpose
+        )
+        let authenticatedData = mediaAuthenticatedData(
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: metadata.purpose,
+            contentType: metadata.contentType
+        )
+        let mediaKeyData = mediaKey.withUnsafeBytes { Data($0) }
+
+        try await Task.detached(priority: .userInitiated) {
+            try ChatMediaChunkedCipher.decryptFile(
+                inputURL: encryptedURL,
+                outputURL: outputURL,
+                key: SymmetricKey(data: mediaKeyData),
+                authenticatedData: authenticatedData,
+                expectedPlaintextSize: metadata.plaintextSize
+            )
+        }.value
     }
     
     // MARK: - PUBLIC ENCRYPTION METHODS (Optimizadas con métricas)
@@ -2528,9 +2595,10 @@ class EncryptionService: ObservableObject {
         }
     }
     
-    func encryptChatMessage(_ text: String, for conversationId: String) async -> String? {
-        guard isEncryptionEnabled else { return text }
-        
+    // Fail-closed: sin clave utilizable no se devuelve nunca el texto en claro.
+    func encryptChatMessage(_ text: String, for conversationId: String) async throws -> String {
+        guard isEncryptionEnabled else { throw EncryptionError.encryptionFailed }
+
         do {
             let key = try await getConversationKey(for: conversationId)
             let result = try encrypt(text: text, with: key)
@@ -2541,7 +2609,7 @@ class EncryptionService: ObservableObject {
                 $0.encryptionErrors += 1
                 $0.lastError = error.localizedDescription
             }
-            return text
+            throw error
         }
     }
     

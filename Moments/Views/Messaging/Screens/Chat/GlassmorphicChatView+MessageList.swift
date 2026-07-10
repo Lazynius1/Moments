@@ -12,15 +12,15 @@ extension GlassmorphicChatView {
         switch viewModel.historyLoadNotice {
         case .hidden:
             return false
-        case .loadingRemote, .offline, .error:
+        case .offline, .error:
             return hasCompletedInitialScroll && !isPinnedToBottom
         }
     }
 
     var historyLoadNoticeTextKey: LocalizedStringKey {
         switch viewModel.historyLoadNotice {
-        case .hidden, .loadingRemote:
-            return "chat.loadingOlderMessages"
+        case .hidden:
+            return "common.error"
         case .offline:
             return "network.offline.title"
         case .error:
@@ -28,18 +28,11 @@ extension GlassmorphicChatView {
         }
     }
 
-    var historyLoadNoticeShowsProgress: Bool {
-        if case .loadingRemote = viewModel.historyLoadNotice {
-            return true
-        }
-        return false
-    }
-
     var historyLoadNoticeRetryTextKey: LocalizedStringKey? {
         switch viewModel.historyLoadNotice {
         case .offline, .error:
             return "messaging.retry"
-        case .hidden, .loadingRemote:
+        case .hidden:
             return nil
         }
     }
@@ -57,7 +50,7 @@ extension GlassmorphicChatView {
                     ChatHistoryLoadingIndicator(
                         adaptiveColors: adaptiveColors,
                         textKey: historyLoadNoticeTextKey,
-                        showsProgress: historyLoadNoticeShowsProgress,
+                        showsProgress: false,
                         retryTextKey: historyLoadNoticeRetryTextKey,
                         onTap: historyLoadNoticeRetryTextKey == nil ? nil : retryHistoryLoadFromNotice
                     )
@@ -273,7 +266,6 @@ extension GlassmorphicChatView {
             onReachedTop: {
                 deferListStateUpdate {
                     ChatScrollDebug.log("onReachedTop fired pinned=\(isPinnedToBottom) loadingOlder=\(viewModel.isLoadingOlderHistory) canLoadMore=\(viewModel.canLoadMore)")
-                    chatListController.prepareHistoryPrepend()
                     loadOlderHistoryIfNeeded()
                 }
             },
@@ -283,8 +275,12 @@ extension GlassmorphicChatView {
             onVanishPullReleased: { result in
                 handleVanishPullReleased(result)
             },
-            onContentOffsetChanged: { _ in
-                scrollContentExceedsViewport = chatListController.contentExceedsViewport
+            onContentExtentChanged: { exceedsViewport in
+                deferListStateUpdate {
+                    if scrollContentExceedsViewport != exceedsViewport {
+                        scrollContentExceedsViewport = exceedsViewport
+                    }
+                }
             },
             onPrependFinished: {
                 ChatScrollDebug.log("onPrependFinished pinned=\(isPinnedToBottom) listAtBottom=\(listIsAtBottom)")
