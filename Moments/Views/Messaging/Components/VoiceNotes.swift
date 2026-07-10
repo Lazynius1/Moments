@@ -16,9 +16,22 @@ struct VoiceRecordingSegment {
 struct VoiceRecordingDraft {
     var segments: [VoiceRecordingSegment]
     var recording: RecordedVoiceNote?
+    var trimRange: Range<TimeInterval>? = nil
+
+    var fullDuration: TimeInterval {
+        segments.reduce(0) { $0 + $1.duration }
+    }
 
     var duration: TimeInterval {
-        segments.reduce(0) { $0 + $1.duration }
+        normalizedTrimRange.map { $0.upperBound - $0.lowerBound } ?? fullDuration
+    }
+
+    var normalizedTrimRange: Range<TimeInterval>? {
+        guard let trimRange, fullDuration > 0 else { return nil }
+        let lowerBound = min(fullDuration, max(0, trimRange.lowerBound))
+        let upperBound = min(fullDuration, max(lowerBound, trimRange.upperBound))
+        guard upperBound > lowerBound else { return nil }
+        return lowerBound..<upperBound
     }
 
     var waveform: [Float] {
@@ -97,6 +110,73 @@ enum VoiceRecordingComposer {
             return nil
         }
     }
+
+    static func trim(
+        _ recording: RecordedVoiceNote,
+        fullDuration: TimeInterval,
+        to requestedRange: Range<TimeInterval>?
+    ) async -> VoiceRecordingSegment? {
+        guard fullDuration > 0 else { return nil }
+        guard let requestedRange else {
+            return VoiceRecordingSegment(recording: recording, duration: fullDuration)
+        }
+
+        let lowerBound = min(fullDuration, max(0, requestedRange.lowerBound))
+        let upperBound = min(fullDuration, max(lowerBound, requestedRange.upperBound))
+        let trimmedDuration = upperBound - lowerBound
+        guard trimmedDuration > 0 else { return nil }
+
+        let tolerance = 0.025
+        if lowerBound <= tolerance, upperBound >= fullDuration - tolerance {
+            return VoiceRecordingSegment(recording: recording, duration: fullDuration)
+        }
+
+        let fileManager = FileManager.default
+        let sourceURL = fileManager.temporaryDirectory
+            .appendingPathComponent("voice_trim_source_\(UUID().uuidString).m4a")
+        let outputURL = fileManager.temporaryDirectory
+            .appendingPathComponent("voice_trimmed_\(UUID().uuidString).m4a")
+        defer {
+            try? fileManager.removeItem(at: sourceURL)
+            try? fileManager.removeItem(at: outputURL)
+        }
+
+        do {
+            try recording.data.write(to: sourceURL, options: .atomic)
+            let asset = AVURLAsset(url: sourceURL)
+            let assetDuration = try await asset.load(.duration).seconds
+            let exportLowerBound = min(assetDuration, lowerBound)
+            let exportUpperBound = min(assetDuration, max(exportLowerBound, upperBound))
+            let exportDuration = exportUpperBound - exportLowerBound
+            guard exportDuration > 0 else { return nil }
+            guard let exporter = AVAssetExportSession(
+                asset: asset,
+                presetName: AVAssetExportPresetAppleM4A
+            ) else { return nil }
+
+            let start = CMTime(seconds: exportLowerBound, preferredTimescale: 600)
+            let duration = CMTime(seconds: exportDuration, preferredTimescale: 600)
+            exporter.outputURL = outputURL
+            exporter.outputFileType = .m4a
+            exporter.shouldOptimizeForNetworkUse = true
+            exporter.timeRange = CMTimeRange(start: start, duration: duration)
+            try await exporter.export(to: outputURL, as: .m4a)
+
+            let data = try Data(contentsOf: outputURL)
+            guard !data.isEmpty else { return nil }
+            let waveform = ChatVoiceWaveformSamples.cropped(
+                recording.waveform,
+                fullDuration: fullDuration,
+                range: exportLowerBound..<exportUpperBound
+            )
+            return VoiceRecordingSegment(
+                recording: RecordedVoiceNote(data: data, waveform: waveform),
+                duration: exportDuration
+            )
+        } catch {
+            return nil
+        }
+    }
 }
 
 enum ChatVoiceWaveformSamples {
@@ -112,6 +192,22 @@ enum ChatVoiceWaveformSamples {
             let peak = slice.max() ?? average
             return min(1, max(0.12, average * 0.7 + peak * 0.3))
         }
+    }
+
+    static func cropped(
+        _ source: [Float],
+        fullDuration: TimeInterval,
+        range: Range<TimeInterval>
+    ) -> [Float] {
+        guard !source.isEmpty, fullDuration > 0 else { return [] }
+        let lowerFraction = min(1, max(0, range.lowerBound / fullDuration))
+        let upperFraction = min(1, max(lowerFraction, range.upperBound / fullDuration))
+        let lowerIndex = min(source.count - 1, Int(floor(lowerFraction * Double(source.count))))
+        let upperIndex = min(source.count, max(lowerIndex + 1, Int(ceil(upperFraction * Double(source.count)))))
+        return resampled(
+            Array(source[lowerIndex..<upperIndex]),
+            count: storedSampleCount
+        )
     }
 }
 

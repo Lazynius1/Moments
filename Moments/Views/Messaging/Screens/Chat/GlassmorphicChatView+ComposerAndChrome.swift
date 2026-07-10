@@ -361,6 +361,9 @@ extension GlassmorphicChatView {
                                 interactionId: interactionId,
                                 action: action
                             )
+                        },
+                        onVoiceRecordingTrimChanged: { range in
+                            updateVoiceRecordingTrimRange(range)
                         }
                     )
                     .focused($isTextFieldFocused)

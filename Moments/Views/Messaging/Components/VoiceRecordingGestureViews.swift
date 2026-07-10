@@ -18,11 +18,84 @@ final class VoiceRecordingGestureState: ObservableObject {
 /// Medidas compartidas del blob de grabación (botón mantenido y send en locked).
 enum VoiceRecordingBlobMetrics {
     static let surface: CGFloat = 110
-    static let aura: CGFloat = 160
+    static let aura: CGFloat = 176
+    static let innerAura: CGFloat = 150
     static let icon: CGFloat = 30
     static let lockOffset: CGFloat = -122
 
     static var auraScaleMinimum: CGFloat { surface / aura }
+    static var innerAuraScaleMinimum: CGFloat { surface / innerAura }
+}
+
+/// Dos ondas con distinta inercia: la interior sigue los picos de voz y la
+/// exterior conserva parte de esa energía para producir un halo orgánico.
+struct VoiceRecordingReactiveAura: View {
+    @ObservedObject private var recorder = AudioRecordingManager.shared
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @State private var fastLevel: CGFloat = 0
+    @State private var slowLevel: CGFloat = 0
+
+    private var motionMultiplier: CGFloat {
+        reduceMotion ? 0.18 : 1
+    }
+
+    private var innerScale: CGFloat {
+        let minimum = VoiceRecordingBlobMetrics.innerAuraScaleMinimum
+        return minimum + fastLevel * motionMultiplier * (1 - minimum)
+    }
+
+    private var outerScale: CGFloat {
+        let minimum = VoiceRecordingBlobMetrics.auraScaleMinimum
+        let energy = max(slowLevel, fastLevel * 0.62)
+        return minimum + energy * motionMultiplier * (1 - minimum)
+    }
+
+    var body: some View {
+        ZStack {
+            AuroraMeshLayer(speed: 0.42)
+                .frame(width: VoiceRecordingBlobMetrics.aura, height: VoiceRecordingBlobMetrics.aura)
+                .clipShape(Circle())
+                .blur(radius: 5)
+                .opacity(outerOpacity)
+                .scaleEffect(outerScale)
+
+            AuroraMeshLayer(speed: 0.78)
+                .frame(width: VoiceRecordingBlobMetrics.innerAura, height: VoiceRecordingBlobMetrics.innerAura)
+                .clipShape(Circle())
+                .blur(radius: 2.5)
+                .opacity(innerOpacity)
+                .scaleEffect(innerScale)
+        }
+        .frame(width: VoiceRecordingBlobMetrics.aura, height: VoiceRecordingBlobMetrics.aura)
+        .allowsHitTesting(false)
+        .animation(.linear(duration: 0.055), value: fastLevel)
+        .animation(.linear(duration: 0.11), value: slowLevel)
+        .onReceive(recorder.$audioPower) { power in
+            updateLevels(with: power)
+        }
+    }
+
+    private var innerOpacity: Double {
+        let base = colorScheme == .dark ? 0.34 : 0.28
+        return base + Double(fastLevel) * 0.22
+    }
+
+    private var outerOpacity: Double {
+        let base = colorScheme == .dark ? 0.22 : 0.18
+        return base + Double(slowLevel) * 0.18
+    }
+
+    private func updateLevels(with power: Float) {
+        let rawLevel = CGFloat(min(1, max(0, power)))
+        let gatedLevel = max(0, (rawLevel - 0.12) / 0.88)
+        let voiceEnergy = pow(gatedLevel, 0.48)
+
+        let fastCoefficient: CGFloat = voiceEnergy > fastLevel ? 0.72 : 0.34
+        fastLevel += (voiceEnergy - fastLevel) * fastCoefficient
+        slowLevel += (voiceEnergy - slowLevel) * 0.18
+    }
 }
 
 private enum VoiceRecordingGesturePhase: Equatable {
@@ -43,8 +116,6 @@ struct VoiceRecordingGestureButton: View {
     let onStart: (UUID, Bool) -> Void
     let onFinish: (UUID, VoiceRecordingFinishAction) -> Void
 
-    @ObservedObject private var recorder = AudioRecordingManager.shared
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
 
@@ -53,7 +124,6 @@ struct VoiceRecordingGestureButton: View {
     @State private var holdTask: Task<Void, Never>?
     @State private var lockProgress: CGFloat = 0
     @State private var cancelProgress: CGFloat = 0
-    @State private var smoothedLevel: CGFloat = 0
     @State private var lastLockTick = 0
     @State private var latestTranslation: CGSize = .zero
     // El blob sigue al dedo con retardo (spring interactivo): es lo que da el
@@ -102,16 +172,6 @@ struct VoiceRecordingGestureButton: View {
         .simultaneousGesture(recordingGesture)
         .accessibilityLabel(Text("chat.voice.record.accessibility"))
         .accessibilityHint(Text("chat.voice.record.holdHint"))
-        .onReceive(recorder.$audioPower) { power in
-            let target = CGFloat(min(1, max(0, power)))
-            if reduceMotion {
-                smoothedLevel = target
-            } else {
-                withAnimation(.linear(duration: 0.08)) {
-                    smoothedLevel = smoothedLevel * 0.72 + target * 0.28
-                }
-            }
-        }
         .onChange(of: isRecording) { _, recording in
             if !recording, interactionId == nil {
                 resetLocalState()
@@ -136,12 +196,7 @@ struct VoiceRecordingGestureButton: View {
     private var recordingOverlay: some View {
         ZStack {
             Group {
-                AuroraMeshLayer(speed: 0.65)
-                    .frame(width: VoiceRecordingBlobMetrics.aura, height: VoiceRecordingBlobMetrics.aura)
-                    .clipShape(Circle())
-                    .blur(radius: 10)
-                    .opacity(auroraOpacity)
-                    .scaleEffect(auraScale)
+                VoiceRecordingReactiveAura()
 
                 VoiceRecordingAuroraCircleSurface {
                     Image(systemName: "mic.fill")
@@ -155,20 +210,6 @@ struct VoiceRecordingGestureButton: View {
         }
         .frame(width: 44, height: 44)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isLocked), value: isLocked)
-    }
-
-    private var auroraOpacity: Double {
-        // Con glass nativo la aurora baja de opacidad para que el fondo refracte a través.
-        if #available(iOS 26.0, *) {
-            return colorScheme == .dark ? 0.52 : 0.44
-        }
-        return colorScheme == .dark ? 0.88 : 0.78
-    }
-
-    private var auraScale: CGFloat {
-        let minimum = VoiceRecordingBlobMetrics.auraScaleMinimum
-        let activity = reduceMotion ? smoothedLevel * 0.18 : smoothedLevel
-        return minimum + activity * (1 - minimum)
     }
 
     private var recordingGesture: some Gesture {
@@ -345,7 +386,6 @@ struct VoiceRecordingGestureButton: View {
         cancelProgress = 0
         lastLockTick = 0
         latestTranslation = .zero
-        smoothedLevel = 0
         blobFollowOffset = .zero
         gestureState.followOffset = .zero
         gestureState.cancelDragOffset = 0

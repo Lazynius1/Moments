@@ -20,8 +20,39 @@ extension GlassmorphicChatView {
     }
 
     func resumeVoiceRecording() {
-        guard let interactionId = voiceRecordingInteractionId, voiceRecordingDraft != nil else { return }
-        beginVoiceRecordingSegment(interactionId: interactionId, startsLocked: true)
+        guard
+            let interactionId = voiceRecordingInteractionId,
+            let draft = voiceRecordingDraft
+        else { return }
+
+        guard draft.normalizedTrimRange != nil else {
+            beginVoiceRecordingSegment(interactionId: interactionId, startsLocked: true)
+            return
+        }
+
+        isPreparingVoiceRecordingPreview = true
+        Task { @MainActor in
+            guard let segment = await materializedVoiceRecordingSegment(from: draft) else {
+                guard voiceRecordingInteractionId == interactionId else { return }
+                isPreparingVoiceRecordingPreview = false
+                HapticManager.shared.error()
+                return
+            }
+            guard voiceRecordingInteractionId == interactionId else { return }
+            voiceRecordingDraft = VoiceRecordingDraft(
+                segments: [segment],
+                recording: segment.recording
+            )
+            recordingTime = segment.duration
+            beginVoiceRecordingSegment(interactionId: interactionId, startsLocked: true)
+        }
+    }
+
+    func updateVoiceRecordingTrimRange(_ range: Range<TimeInterval>) {
+        guard var draft = voiceRecordingDraft, !isRecordingVoice else { return }
+        draft.trimRange = range
+        voiceRecordingDraft = draft
+        recordingTime = draft.duration
     }
 
     private func beginVoiceRecordingSegment(interactionId: UUID, startsLocked: Bool) {
@@ -125,13 +156,44 @@ extension GlassmorphicChatView {
                 sendVoiceRecordingSegments(segments, interactionId: interactionId)
             }
         } else if let draft = voiceRecordingDraft {
-            if let recording = draft.recording {
-                sendComposedVoiceRecording(recording, duration: draft.duration)
-                clearVoiceRecordingState()
-            } else {
-                sendVoiceRecordingSegments(draft.segments, interactionId: interactionId)
-            }
+            sendVoiceRecordingDraft(draft, interactionId: interactionId)
         }
+    }
+
+    private func sendVoiceRecordingDraft(
+        _ draft: VoiceRecordingDraft,
+        interactionId: UUID
+    ) {
+        isPreparingVoiceRecordingPreview = true
+        Task { @MainActor in
+            let segment = await materializedVoiceRecordingSegment(from: draft)
+            guard voiceRecordingInteractionId == interactionId else { return }
+            if let segment {
+                sendComposedVoiceRecording(segment.recording, duration: segment.duration)
+            } else {
+                HapticManager.shared.error()
+            }
+            clearVoiceRecordingState()
+        }
+    }
+
+    private func materializedVoiceRecordingSegment(
+        from draft: VoiceRecordingDraft
+    ) async -> VoiceRecordingSegment? {
+        let recording: RecordedVoiceNote
+        if let composed = draft.recording {
+            recording = composed
+        } else if let composed = await VoiceRecordingComposer.compose(draft.segments) {
+            recording = composed
+        } else {
+            return nil
+        }
+
+        return await VoiceRecordingComposer.trim(
+            recording,
+            fullDuration: draft.fullDuration,
+            to: draft.normalizedTrimRange
+        )
     }
 
     private func sendVoiceRecordingSegments(

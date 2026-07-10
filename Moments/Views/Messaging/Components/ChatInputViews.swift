@@ -17,6 +17,7 @@ struct GlassmorphicInputBar: View {
     let onSend: () -> Void
     let onStartVoiceRecording: (UUID, Bool) -> Void
     let onFinishVoiceRecording: (UUID, VoiceRecordingFinishAction) -> Void
+    let onVoiceRecordingTrimChanged: (Range<TimeInterval>) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     private var adaptiveColors: AdaptiveColors {
@@ -80,7 +81,8 @@ struct GlassmorphicInputBar: View {
                     draft: voiceRecordingDraft,
                     fallbackDuration: recordingTime,
                     isPreparing: isPreparingVoiceRecordingPreview,
-                    adaptiveColors: adaptiveColors
+                    adaptiveColors: adaptiveColors,
+                    onTrimChanged: onVoiceRecordingTrimChanged
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
@@ -242,6 +244,15 @@ struct VoiceRecordingFloatingControlHost: View {
         return nil
     }
 
+    /// Mientras arrastras hacia el lock, el candado viaja con el mismo desplazamiento
+    /// que el blob: siempre va por delante y el blob nunca lo adelanta.
+    private var rideAlongOffsetY: CGFloat {
+        if case .locking = mode {
+            return gestureState.followOffset.height
+        }
+        return 0
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             if let mode {
@@ -252,6 +263,7 @@ struct VoiceRecordingFloatingControlHost: View {
                     onPause: onPause,
                     onResume: onResume
                 )
+                .offset(y: rideAlongOffsetY)
                 .transition(.opacity.combined(with: .scale(scale: 0.72, anchor: .bottom)))
             }
         }
@@ -404,33 +416,10 @@ struct VoiceRecordingAuroraCircleSurface<Content: View>: View {
 private struct VoiceRecordingLockedSendButton: View {
     let action: () -> Void
 
-    @ObservedObject private var recorder = AudioRecordingManager.shared
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var smoothedLevel: CGFloat = 0
-
-    private var auraScale: CGFloat {
-        let minimum = VoiceRecordingBlobMetrics.auraScaleMinimum
-        let activity = reduceMotion ? smoothedLevel * 0.18 : smoothedLevel
-        return minimum + activity * (1 - minimum)
-    }
-
-    private var auroraOpacity: Double {
-        if #available(iOS 26.0, *) {
-            return colorScheme == .dark ? 0.62 : 0.52
-        }
-        return colorScheme == .dark ? 0.88 : 0.78
-    }
-
     var body: some View {
         Button(action: action) {
             ZStack {
-                AuroraMeshLayer(speed: 0.65)
-                    .frame(width: VoiceRecordingBlobMetrics.aura, height: VoiceRecordingBlobMetrics.aura)
-                    .clipShape(Circle())
-                    .blur(radius: 10)
-                    .opacity(auroraOpacity)
-                    .scaleEffect(auraScale)
+                VoiceRecordingReactiveAura()
 
                 VoiceRecordingAuroraCircleSurface {
                     Image(systemName: "arrow.up")
@@ -443,16 +432,6 @@ private struct VoiceRecordingLockedSendButton: View {
         .buttonStyle(.plain)
         .frame(width: 44, height: 44)
         .accessibilityLabel(Text("notification.action.send"))
-        .onReceive(recorder.$audioPower) { power in
-            let target = CGFloat(min(1, max(0, power)))
-            if reduceMotion {
-                smoothedLevel = target
-            } else {
-                withAnimation(.linear(duration: 0.08)) {
-                    smoothedLevel = smoothedLevel * 0.72 + target * 0.28
-                }
-            }
-        }
     }
 }
 
@@ -509,8 +488,11 @@ private struct VoiceRecordingDraftPreview: View {
     let fallbackDuration: TimeInterval
     let isPreparing: Bool
     let adaptiveColors: AdaptiveColors
+    let onTrimChanged: (Range<TimeInterval>) -> Void
 
     @StateObject private var player = VoiceRecordingDraftPlayer()
+    @State private var workingTrimRange: Range<TimeInterval>?
+    @State private var trimGestureOrigin: Range<TimeInterval>?
 
     private var sourceWaveform: [Float] {
         let samples = draft?.waveform ?? []
@@ -521,38 +503,140 @@ private struct VoiceRecordingDraftPreview: View {
         draft?.duration ?? fallbackDuration
     }
 
+    private var fullDuration: TimeInterval {
+        draft?.fullDuration ?? fallbackDuration
+    }
+
+    private var trimRange: Range<TimeInterval> {
+        workingTrimRange
+            ?? draft?.normalizedTrimRange
+            ?? 0..<max(fullDuration, 0)
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             playbackControl
 
             GeometryReader { proxy in
                 let sampleCount = max(18, min(64, Int(proxy.size.width / 4.5)))
-                VisualWaveformView(
-                    levels: ChatVoiceWaveformSamples.resampled(sourceWaveform, count: sampleCount),
-                    color: adaptiveColors.timestampColor.opacity(0.45),
-                    activeColor: adaptiveColors.primary.opacity(0.82),
-                    progress: player.progress,
-                    height: 23,
-                    barWidth: 2.5,
-                    spacing: 2
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            player.seek(to: value.location.x / max(proxy.size.width, 1))
-                        }
-                )
+                let width = max(proxy.size.width, 1)
+                let lowerX = width * trimFraction(trimRange.lowerBound)
+                let upperX = width * trimFraction(trimRange.upperBound)
+
+                ZStack(alignment: .leading) {
+                    VisualWaveformView(
+                        levels: ChatVoiceWaveformSamples.resampled(sourceWaveform, count: sampleCount),
+                        color: adaptiveColors.timestampColor.opacity(0.45),
+                        activeColor: adaptiveColors.primary.opacity(0.82),
+                        progress: player.progress,
+                        height: 23,
+                        barWidth: 2.5,
+                        spacing: 2
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                player.seek(to: value.location.x / width)
+                            }
+                    )
+
+                    adaptiveColors.background.opacity(0.58)
+                        .frame(width: lowerX)
+                        .allowsHitTesting(false)
+
+                    adaptiveColors.background.opacity(0.58)
+                        .frame(width: max(0, width - upperX))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .allowsHitTesting(false)
+
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .stroke(adaptiveColors.primary.opacity(0.58), lineWidth: 1)
+                        .frame(width: max(1, upperX - lowerX), height: 26)
+                        .offset(x: lowerX)
+                        .allowsHitTesting(false)
+
+                    trimHandle(isLeading: true, x: lowerX, width: width)
+                    trimHandle(isLeading: false, x: upperX, width: width)
+                }
+                .coordinateSpace(.named("voiceTrimWaveform"))
             }
             .frame(height: 26)
         }
         .frame(maxWidth: .infinity, minHeight: 28)
-        .onAppear { player.load(draft?.recording?.data) }
+        .onAppear {
+            workingTrimRange = draft?.normalizedTrimRange
+            player.load(draft?.recording?.data, trimRange: trimRange)
+        }
         .onChange(of: draft?.recording?.data.count) { _, _ in
-            player.load(draft?.recording?.data)
+            workingTrimRange = draft?.normalizedTrimRange
+            player.load(draft?.recording?.data, trimRange: trimRange)
+        }
+        .onChange(of: draft?.normalizedTrimRange) { _, newValue in
+            workingTrimRange = newValue
+            player.setTrimRange(newValue ?? 0..<max(fullDuration, 0))
         }
         .onDisappear { player.stop() }
+    }
+
+    private func trimFraction(_ time: TimeInterval) -> CGFloat {
+        guard fullDuration > 0 else { return 0 }
+        return CGFloat(min(1, max(0, time / fullDuration)))
+    }
+
+    private func trimHandle(isLeading: Bool, x: CGFloat, width: CGFloat) -> some View {
+        Capsule()
+            .fill(adaptiveColors.primary.opacity(0.88))
+            .frame(width: 3, height: 26)
+            .overlay {
+                Color.clear
+                    .frame(width: 30, height: 44)
+                    .contentShape(Rectangle())
+                    .gesture(trimGesture(isLeading: isLeading, width: width))
+            }
+            .position(x: x, y: 13)
+            .accessibilityHidden(true)
+    }
+
+    private func trimGesture(isLeading: Bool, width: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named("voiceTrimWaveform"))
+            .onChanged { value in
+                guard fullDuration > 0 else { return }
+                if trimGestureOrigin == nil {
+                    trimGestureOrigin = trimRange
+                    player.pauseForEditing()
+                }
+                guard let origin = trimGestureOrigin else { return }
+                let proposedTime = min(
+                    fullDuration,
+                    max(0, Double(value.location.x / width) * fullDuration)
+                )
+                let minimumDuration = min(2, fullDuration)
+                let updatedRange: Range<TimeInterval>
+                if isLeading {
+                    let lowerBound = min(
+                        origin.upperBound - minimumDuration,
+                        proposedTime
+                    )
+                    updatedRange = lowerBound..<origin.upperBound
+                } else {
+                    let upperBound = max(
+                        origin.lowerBound + minimumDuration,
+                        proposedTime
+                    )
+                    updatedRange = origin.lowerBound..<upperBound
+                }
+                workingTrimRange = updatedRange
+            }
+            .onEnded { _ in
+                if let finalRange = workingTrimRange {
+                    player.setTrimRange(finalRange)
+                    onTrimChanged(finalRange)
+                }
+                trimGestureOrigin = nil
+                HapticManager.shared.selection()
+            }
     }
 
     private var playbackControl: some View {
@@ -594,13 +678,28 @@ private final class VoiceRecordingDraftPlayer: NSObject, ObservableObject, AVAud
 
     private var audioPlayer: AVAudioPlayer?
     private var timer: Timer?
+    private var trimRange: Range<TimeInterval> = 0..<0
 
-    func load(_ data: Data?) {
+    func load(_ data: Data?, trimRange: Range<TimeInterval>) {
         stop()
+        self.trimRange = trimRange
         guard let data else { return }
         audioPlayer = try? AVAudioPlayer(data: data)
         audioPlayer?.delegate = self
         audioPlayer?.prepareToPlay()
+        normalizeTrimRange()
+        resetToTrimStart()
+    }
+
+    func setTrimRange(_ range: Range<TimeInterval>) {
+        trimRange = range
+        normalizeTrimRange()
+        guard let audioPlayer else { return }
+        if audioPlayer.currentTime < trimRange.lowerBound || audioPlayer.currentTime > trimRange.upperBound {
+            resetToTrimStart()
+        } else {
+            updateProgress()
+        }
     }
 
     func togglePlayback() {
@@ -610,8 +709,8 @@ private final class VoiceRecordingDraftPlayer: NSObject, ObservableObject, AVAud
             isPlaying = false
             timer?.invalidate()
         } else {
-            if audioPlayer.currentTime >= audioPlayer.duration {
-                audioPlayer.currentTime = 0
+            if audioPlayer.currentTime < trimRange.lowerBound || audioPlayer.currentTime >= trimRange.upperBound {
+                resetToTrimStart()
             }
             guard audioPlayer.play() else { return }
             isPlaying = true
@@ -622,14 +721,23 @@ private final class VoiceRecordingDraftPlayer: NSObject, ObservableObject, AVAud
     func seek(to fraction: Double) {
         guard let audioPlayer else { return }
         let clamped = min(1, max(0, fraction))
-        audioPlayer.currentTime = audioPlayer.duration * clamped
-        progress = clamped
+        let requestedTime = audioPlayer.duration * clamped
+        audioPlayer.currentTime = min(trimRange.upperBound, max(trimRange.lowerBound, requestedTime))
+        updateProgress()
     }
 
     func displayTime(fallback: TimeInterval) -> String {
-        let currentTime = audioPlayer?.currentTime ?? 0
-        let value = currentTime > 0 || isPlaying ? currentTime : fallback
+        let currentTime = audioPlayer?.currentTime ?? trimRange.lowerBound
+        let elapsed = max(0, currentTime - trimRange.lowerBound)
+        let value = elapsed > 0 || isPlaying ? elapsed : fallback
         return String(format: "%d:%02d", Int(value) / 60, Int(value) % 60)
+    }
+
+    func pauseForEditing() {
+        audioPlayer?.pause()
+        isPlaying = false
+        timer?.invalidate()
+        timer = nil
     }
 
     func stop() {
@@ -645,7 +753,14 @@ private final class VoiceRecordingDraftPlayer: NSObject, ObservableObject, AVAud
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             guard let self, let audioPlayer = self.audioPlayer else { return }
-            self.progress = audioPlayer.duration > 0 ? audioPlayer.currentTime / audioPlayer.duration : 0
+            if audioPlayer.currentTime >= self.trimRange.upperBound {
+                audioPlayer.pause()
+                self.isPlaying = false
+                self.timer?.invalidate()
+                self.resetToTrimStart()
+                return
+            }
+            self.updateProgress()
             if !audioPlayer.isPlaying {
                 self.isPlaying = false
                 self.timer?.invalidate()
@@ -655,8 +770,27 @@ private final class VoiceRecordingDraftPlayer: NSObject, ObservableObject, AVAud
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         isPlaying = false
-        progress = 0
         timer?.invalidate()
-        player.currentTime = 0
+        resetToTrimStart()
+    }
+
+    private func normalizeTrimRange() {
+        guard let audioPlayer else { return }
+        let lowerBound = min(audioPlayer.duration, max(0, trimRange.lowerBound))
+        let upperBound = min(audioPlayer.duration, max(lowerBound, trimRange.upperBound))
+        trimRange = lowerBound..<upperBound
+    }
+
+    private func resetToTrimStart() {
+        audioPlayer?.currentTime = trimRange.lowerBound
+        updateProgress()
+    }
+
+    private func updateProgress() {
+        guard let audioPlayer, audioPlayer.duration > 0 else {
+            progress = 0
+            return
+        }
+        progress = audioPlayer.currentTime / audioPlayer.duration
     }
 }
