@@ -777,7 +777,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         return true // Por ahora retornamos true
     }
 
-    /// Indica si el último mensaje del hilo es del usuario actual (para preview estilo Instagram).
+    /// Indica si el último mensaje del hilo es del usuario actual (para preview del inbox).
     /// Infiere desde metadatos de lectura/reacción cuando `lastMessageSenderId` no llegó sincronizado.
     func isOwnLastMessage(for currentUserId: String) -> Bool {
         if lastMessageSenderId == currentUserId { return true }
@@ -786,7 +786,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         return false
     }
 
-    /// Botón play azul en inbox (Instagram) cuando hay view-once entrante sin abrir.
+    /// Botón play azul en inbox cuando hay view-once entrante sin abrir.
     func showsViewOnceInboxPlayButton(for currentUserId: String) -> Bool {
         guard lastMessageViewOncePending,
               let type = lastMessageType,
@@ -797,7 +797,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         return true
     }
 
-    /// Preview de lista estilo Instagram: view-once entrante → "Foto"/"Video" genérico.
+    /// Preview de lista: view-once entrante → "Foto"/"Video" genérico.
     func inboxMessagePreview(for currentUserId: String) -> String {
         if let type = lastMessageType,
            type.isViewOnce,

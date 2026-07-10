@@ -1,6 +1,6 @@
 import Foundation
 
-// Modo de envío de la cámara del chat, estilo Instagram: un botón cíclico
+// Modo de envío de la cámara del chat: un botón cíclico
 // rota entre ver una vez, permitir repetición y guardar en el chat.
 enum ChatMediaSendMode: CaseIterable {
     case viewOnce

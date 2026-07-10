@@ -114,7 +114,7 @@ private struct ViewOnceZoomSourceModifier: ViewModifier {
     }
 }
 
-// Píldora compacta estilo Instagram compartida por los estados del view-once.
+// Píldora compacta compartida por los estados del view-once.
 private struct ViewOncePillBubble: View {
     let adaptiveColors: AdaptiveColors
     let glyph: AnyView

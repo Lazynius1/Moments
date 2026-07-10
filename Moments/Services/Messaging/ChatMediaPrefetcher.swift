@@ -1,7 +1,7 @@
 import Foundation
 import FirebaseAuth
 
-/// Precarga proactiva de media de chat (estilo WhatsApp/Telegram): cuando llegan
+/// Precarga proactiva de media de chat: cuando llegan
 /// mensajes con media, descarga y descifra el contenido en segundo plano —según la
 /// política de auto-descarga y la cuota— para que el caché refleje lo recibido y la
 /// media esté lista antes de abrir la conversación.

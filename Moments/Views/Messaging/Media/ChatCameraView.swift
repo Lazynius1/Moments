@@ -3,7 +3,7 @@ import AVFoundation
 import Photos
 import PhotosUI
 
-// Cámara del chat estilo story (Instagram DM): captura full-bleed 9:16 con la
+// Cámara del chat estilo story: captura full-bleed 9:16 con la
 // misma base de cámara que las historias, y compose posterior con edición
 // ligera + selector cíclico de modo (ver una vez / repetir / guardar en chat).
 struct ChatCameraView: View {

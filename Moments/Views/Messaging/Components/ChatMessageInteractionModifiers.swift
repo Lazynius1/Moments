@@ -23,7 +23,7 @@ enum ChatHorizontalPanDirection {
     }
 }
 
-/// Reconocedor horizontal inspirado en Telegram: permanece pendiente durante los
+/// Reconocedor horizontal: permanece pendiente durante los
 /// primeros puntos y falla en cuanto la intención es vertical. De este modo el pan
 /// del UICollectionView recibe el scroll sin esperar a que un DragGesture de SwiftUI
 /// termine de decidir que no iba a hacer nada.

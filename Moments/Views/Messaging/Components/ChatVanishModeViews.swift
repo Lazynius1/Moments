@@ -11,7 +11,7 @@ enum ChatVanishSwipeMetrics {
     /// Lift adicional tras revelar UI para completar el arco (~frames 8→14).
     /// Ojo con subirlo: el lift máximo alcanzable es 0.48·maxPull^1.08 ≈ 147 (el rubber-band
     /// capa el pull en maxPull asintóticamente). El umbral de completado debe quedar por debajo:
-    /// con 64 y threshold 0.9 se completa a ~160pt de recorrido real de dedo (feel Instagram).
+    /// con 64 y threshold 0.9 se completa a ~160pt de recorrido real de dedo.
     static let activationDistance: CGFloat = 64
     static let maxPull: CGFloat = 200
     static let completionThreshold: CGFloat = 0.9

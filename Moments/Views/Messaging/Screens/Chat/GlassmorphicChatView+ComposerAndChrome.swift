@@ -876,14 +876,14 @@ extension GlassmorphicChatView {
         viewModel.markVisibleConversationAsRead(sealsVanish: sealsVanish)
     }
 
-    /// Estilo WhatsApp: el divisor desaparece al responder, no al llegar al fondo.
+    /// El divisor desaparece al responder, no al llegar al fondo.
     func dismissUnreadDividerOnUserReply() {
         guard unreadDividerMessageId != nil || hasUnreadIncomingMessages() else { return }
         ChatScrollDebug.log("unread divider dismissed — user replied")
         clearUnreadDividerAndMarkReadIfNeeded(sealsVanish: false)
     }
 
-    /// Marca leído al salir del hilo (estilo WhatsApp: no depende de llegar al fondo).
+    /// Marca leído al salir del hilo (no depende de llegar al fondo).
     func markConversationReadOnExit(sealsVanish: Bool = false) {
         ChatScrollDebug.log("markConversationReadOnExit sealsVanish=\(sealsVanish)")
         clearUnreadDividerAndMarkReadIfNeeded(sealsVanish: sealsVanish)
@@ -941,7 +941,7 @@ extension GlassmorphicChatView {
             return
         }
 
-        // Al salir del hilo marcamos leído (estilo WhatsApp); no al llegar al fondo.
+        // Al salir del hilo marcamos leído; no al llegar al fondo.
         markConversationReadOnExit(sealsVanish: false)
         initialScrollTask?.cancel()
         initialScrollTask = nil

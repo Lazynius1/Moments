@@ -259,7 +259,7 @@ private enum ChatListLayoutMetrics {
     static let sectionBottomInset: CGFloat = 4
 }
 
-/// Caché de alturas reales por fila (estilo Telegram `ListView`): con alturas estimadas, cada
+/// Caché de alturas reales por fila: con alturas estimadas, cada
 /// celda nunca medida hace bailar el contentSize y los scrolls programáticos aterrizan lejos.
 /// Con las alturas reales cacheadas, los saltos aciertan a la primera. Vive en el controller
 /// (sobrevive a recreaciones del view controller) y se invalida si cambia el ancho.
