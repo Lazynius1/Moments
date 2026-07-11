@@ -78,6 +78,7 @@ extension GlassmorphicChatView {
             }
 
             isRecordingVoice = true
+            HapticManager.shared.playVoiceRecordStartSound()
             recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
                 recordingTime += 0.1
                 if recordingTime >= 60.0 {
@@ -99,6 +100,7 @@ extension GlassmorphicChatView {
         isRecordingVoice = false
         isVoiceRecordingLocked = false
         isPreparingVoiceRecordingPreview = true
+        HapticManager.shared.playVoiceRecordEndSound()
 
         let previousDuration = voiceRecordingDraft?.duration ?? 0
         let segmentDuration = max(0.1, recordingTime - previousDuration)
@@ -141,6 +143,7 @@ extension GlassmorphicChatView {
             isRecordingVoice = false
             isVoiceRecordingLocked = false
             isPreparingVoiceRecordingPreview = true
+            HapticManager.shared.playVoiceRecordEndSound()
 
             let previousDuration = voiceRecordingDraft?.duration ?? 0
             let segmentDuration = max(0.1, recordingTime - previousDuration)

@@ -37,6 +37,9 @@ struct VoiceRecordingReactiveAura: View {
     @State private var fastLevel: CGFloat = 0
     @State private var slowLevel: CGFloat = 0
 
+    private let outerMorph = VoiceBlobMorphProfile(seed: 0x51A1_7E55, segmentDuration: 1.35, pointsCount: 8)
+    private let innerMorph = VoiceBlobMorphProfile(seed: 0xC0DE_FACE, segmentDuration: 0.95, pointsCount: 8)
+
     private var motionMultiplier: CGFloat {
         reduceMotion ? 0.18 : 1
     }
@@ -53,20 +56,17 @@ struct VoiceRecordingReactiveAura: View {
     }
 
     var body: some View {
-        ZStack {
-            AuroraMeshLayer(speed: 0.42)
-                .frame(width: VoiceRecordingBlobMetrics.aura, height: VoiceRecordingBlobMetrics.aura)
-                .clipShape(Circle())
-                .blur(radius: 5)
-                .opacity(outerOpacity)
-                .scaleEffect(outerScale)
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { context in
+            let now = context.date.timeIntervalSinceReferenceDate
+            ZStack {
+                blobLayer(morph: outerMorph, now: now, size: VoiceRecordingBlobMetrics.aura, meshSpeed: 0.42)
+                    .opacity(outerOpacity)
+                    .scaleEffect(outerScale)
 
-            AuroraMeshLayer(speed: 0.78)
-                .frame(width: VoiceRecordingBlobMetrics.innerAura, height: VoiceRecordingBlobMetrics.innerAura)
-                .clipShape(Circle())
-                .blur(radius: 2.5)
-                .opacity(innerOpacity)
-                .scaleEffect(innerScale)
+                blobLayer(morph: innerMorph, now: now, size: VoiceRecordingBlobMetrics.innerAura, meshSpeed: 0.78)
+                    .opacity(innerOpacity)
+                    .scaleEffect(innerScale)
+            }
         }
         .frame(width: VoiceRecordingBlobMetrics.aura, height: VoiceRecordingBlobMetrics.aura)
         .allowsHitTesting(false)
@@ -75,6 +75,14 @@ struct VoiceRecordingReactiveAura: View {
         .onReceive(recorder.$audioPower) { power in
             updateLevels(with: power)
         }
+    }
+
+    @ViewBuilder
+    private func blobLayer(morph: VoiceBlobMorphProfile, now: TimeInterval, size: CGFloat, meshSpeed: Double) -> some View {
+        let points = reduceMotion ? VoiceBlobShape.circlePoints(count: morph.pointsCount) : morph.points(at: now)
+        AuroraMeshLayer(speed: meshSpeed)
+            .frame(width: size, height: size)
+            .mask(VoiceBlobShape(points: points))
     }
 
     private var innerOpacity: Double {
@@ -95,6 +103,136 @@ struct VoiceRecordingReactiveAura: View {
         let fastCoefficient: CGFloat = voiceEnergy > fastLevel ? 0.72 : 0.34
         fastLevel += (voiceEnergy - fastLevel) * fastCoefficient
         slowLevel += (voiceEnergy - slowLevel) * 0.18
+    }
+}
+
+private struct VoiceBlobMorphProfile {
+    let seed: UInt64
+    let segmentDuration: Double
+    let pointsCount: Int
+
+    func points(at time: TimeInterval) -> [CGPoint] {
+        guard segmentDuration > 0 else { return VoiceBlobShape.circlePoints(count: pointsCount) }
+        let segment = floor(time / segmentDuration)
+        let localT = (time - segment * segmentDuration) / segmentDuration
+        let eased = Self.easeInOut(localT)
+        let from = Self.randomPoints(seed: seed, segment: Int64(segment), count: pointsCount)
+        let to = Self.randomPoints(seed: seed, segment: Int64(segment) + 1, count: pointsCount)
+        return zip(from, to).map {
+            CGPoint(x: $0.x + ($1.x - $0.x) * eased, y: $0.y + ($1.y - $0.y) * eased)
+        }
+    }
+
+    private static func easeInOut(_ t: Double) -> Double {
+        t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2
+    }
+
+    private static func randomPoints(seed: UInt64, segment: Int64, count: Int) -> [CGPoint] {
+        var rng = SplitMix64(seed: seed &+ UInt64(bitPattern: segment) &* 0x9E37_79B9_7F4A_7C15)
+        let angle = (Double.pi * 2) / Double(count)
+        let randomness = 1.0
+        let rangeStart = 1 / (1 + randomness / 10)
+        let startAngle = angle * Double.random(in: 0..<1, using: &rng)
+
+        return (0..<count).map { i -> CGPoint in
+            let randPointOffset = (rangeStart + Double.random(in: 0..<1, using: &rng) * (1 - rangeStart)) / 2
+            let angleRandomness = angle * 0.1
+            let randAngle = angle + angle * (angleRandomness * Double.random(in: 0..<1, using: &rng) - angleRandomness * 0.5)
+            let a = startAngle + Double(i) * randAngle
+            return CGPoint(x: sin(a) * randPointOffset, y: cos(a) * randPointOffset)
+        }
+    }
+}
+
+private struct SplitMix64: RandomNumberGenerator {
+    private var state: UInt64
+    init(seed: UInt64) { self.state = seed == 0 ? 0x9E37_79B9_7F4A_7C15 : seed }
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
+    }
+}
+
+private struct VoiceBlobShape: Shape {
+    var points: [CGPoint]
+
+    func path(in rect: CGRect) -> Path {
+        guard points.count >= 3 else { return Circle().path(in: rect) }
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let scaled = points.map {
+            CGPoint(x: center.x + $0.x * rect.width, y: center.y + $0.y * rect.height)
+        }
+        return Self.smoothClosedPath(through: scaled, smoothness: Self.smoothness(for: points.count))
+    }
+
+    static func circlePoints(count: Int) -> [CGPoint] {
+        (0..<count).map { i in
+            let a = (Double.pi * 2) * Double(i) / Double(count)
+            return CGPoint(x: cos(a) * 0.46, y: sin(a) * 0.46)
+        }
+    }
+
+    private static func smoothness(for count: Int) -> CGFloat {
+        let angle = (CGFloat.pi * 2) / CGFloat(count)
+        return ((4 / 3) * tan(angle / 4)) / sin(angle / 2) / 2
+    }
+
+    private struct SmoothPoint {
+        let point: CGPoint
+        let inAngle: CGFloat
+        let inLength: CGFloat
+        let outAngle: CGFloat
+        let outLength: CGFloat
+
+        func smoothIn() -> CGPoint { smooth(angle: inAngle, length: inLength) }
+        func smoothOut() -> CGPoint { smooth(angle: outAngle, length: outLength) }
+        private func smooth(angle: CGFloat, length: CGFloat) -> CGPoint {
+            CGPoint(x: point.x + length * cos(angle), y: point.y + length * sin(angle))
+        }
+    }
+
+    private static func smoothClosedPath(through points: [CGPoint], smoothness: CGFloat) -> Path {
+        func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat {
+            sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y))
+        }
+
+        var smoothPoints: [SmoothPoint] = []
+        smoothPoints.reserveCapacity(points.count)
+        for index in points.indices {
+            let prevIndex = index - 1
+            let prev = points[prevIndex >= 0 ? prevIndex : points.count + prevIndex]
+            let curr = points[index]
+            let next = points[(index + 1) % points.count]
+
+            let dx = next.x - prev.x
+            let dy = -next.y + prev.y
+            let rawAngle = atan2(dy, dx)
+            let angle: CGFloat = rawAngle < 0 ? abs(rawAngle) : 2 * .pi - rawAngle
+
+            smoothPoints.append(
+                SmoothPoint(
+                    point: curr,
+                    inAngle: angle + .pi,
+                    inLength: smoothness * distance(curr, prev),
+                    outAngle: angle,
+                    outLength: smoothness * distance(curr, next)
+                )
+            )
+        }
+
+        var path = Path()
+        guard let first = smoothPoints.first else { return path }
+        path.move(to: first.point)
+        for index in smoothPoints.indices {
+            let curr = smoothPoints[index]
+            let next = smoothPoints[(index + 1) % smoothPoints.count]
+            path.addCurve(to: next.point, control1: curr.smoothOut(), control2: next.smoothIn())
+        }
+        path.closeSubpath()
+        return path
     }
 }
 

@@ -96,7 +96,7 @@ extension MomentsChatViewModel {
             isVanishModeMessage: outgoingVanishMessageFlag
         )
 
-        appendOutgoingMessage(tempMessage)
+        appendOutgoingMessage(tempMessage, playsSentSound: false)
 
         chatService.sendAudioMessage(
             conversationId: conversationId,

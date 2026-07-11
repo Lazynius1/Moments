@@ -2817,38 +2817,18 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Missatges que desapareixen, brunzits, xats arxivats, resposta rapida des de les notificacions, fonts noves per a histories i un xat mes rapid i polit amb la descarrega de dades renovada.";
-"whatsNew.button" = "Explorar Moments 2.16";
+"whatsNew.subtitle" = "Notes de veu reinventades, missatges que sempre arriben, cerca als teus xats, Nova AI connectada a la web i un xat més segur i configurable.";
+"whatsNew.button" = "Explorar Moments 2.17";
 
-"whatsNew.vanish.title" = "Missatges que desapareixen";
-"whatsNew.vanish.description" = "Activa'ls en una conversa i tria quan s'esborren. Deslitza cap amunt per activar-los o desactivar-los a l'instant.";
 
-"whatsNew.buzz.title" = "Brunzits";
-"whatsNew.buzz.description" = "Crida l'atencio d'algú al xat amb vibracio i animacio. Pots desactivar els brunzits per conversa.";
 
-"whatsNew.archived.title" = "Xats arxivats";
-"whatsNew.archived.description" = "Guarda converses fora de la safata principal i recupera-les quan vulguis, amb els no llegits.";
 
-"whatsNew.fasterChat.title" = "Xat mes rapid";
-"whatsNew.fasterChat.description" = "Els missatges i les fotos es guarden al teu telefon per obrir converses a l'instant i carregar l'historial amb mes suavitat. Els xats que ja has obert abans carreguen gairebe a l'instant.";
 
-"whatsNew.notifications.title" = "Notificacions millorades";
-"whatsNew.notifications.description" = "Respon mantenint premuda la notificacio i veu millor quan t'envien fotos, videos o un brunzit.";
 
-"whatsNew.chatPolish.title" = "Xat mes polit";
-"whatsNew.chatPolish.description" = "Respostes dins la bombolla, llista mes compacta, deslitza per tornar i notes de veu mes comodes.";
 
-"whatsNew.storyFonts.title" = "Fonts noves per a histories";
-"whatsNew.storyFonts.description" = "6 tipografies i 3 efectes de text nous per a les teves histories, a mes d'arranjaments en el ressaltat i en els estils amb fons.";
 
-"whatsNew.social.title" = "Activitat i visites";
-"whatsNew.social.description" = "Consulta la teva activitat compartida amb una altra persona i revisa qui visita el teu perfil amb mes claredat.";
 
-"whatsNew.dataExport.title" = "Descarrega les teves dades a la teva manera";
-"whatsNew.dataExport.description" = "Tria descarregar només les teves converses, i inclou els teus xats i converses amb Nova desxifrats amb el teu PIN de recuperacio.";
 
-"whatsNew.discovery.title" = "Per a tu i mes";
-"whatsNew.discovery.description" = "Descobreix moments de gent nova, dates mes naturals en el teu idioma i millores d'estabilitat a tota l'app.";
 
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";
@@ -4285,3 +4265,25 @@
 "nova.search.sourceHint" = "Obre la font";
 
 "messaging.messages" = "Missatges";
+
+// What's New 2.17
+"whatsNew.voice.title" = "Notes de veu noves";
+"whatsNew.voice.description" = "Grava per segments, retalla l'àudio i fes servir el nou gest de gravació amb control de velocitat.";
+"whatsNew.reliable.title" = "Missatges que sempre arriben";
+"whatsNew.reliable.description" = "Envia sense connexió i reintenta qualsevol missatge fallit amb un toc.";
+"whatsNew.search.title" = "Cerca als teus xats";
+"whatsNew.search.description" = "Troba qualsevol missatge des del cercador i salta-hi directament, encara que sigui de fa mesos.";
+"whatsNew.nova.title" = "Nova AI connectada";
+"whatsNew.nova.description" = "Nova consulta la web en temps real per donar-te respostes actuals i contrastades.";
+"whatsNew.encryption.title" = "Xifratge reforçat";
+"whatsNew.encryption.description" = "Protecció de claus d'extrem a extrem millorada per a les teves converses.";
+"whatsNew.chatSettings.title" = "Ajustos de xat renovats";
+"whatsNew.chatSettings.description" = "Nou disseny amb accions ràpides i gestió d'emmagatzematge per conversa.";
+"whatsNew.mute.title" = "Silencia converses";
+"whatsNew.mute.description" = "Silencia cada xat de manera individual quan ho necessitis.";
+"whatsNew.requests.title" = "Sol·licituds integrades";
+"whatsNew.requests.description" = "Les sol·licituds viuen dins del xat, amb nous controls de privacitat.";
+"whatsNew.vanishReplies.title" = "Mode efímer ampliat";
+"whatsNew.vanishReplies.description" = "Respon a històries també en mode efímer.";
+"whatsNew.signin.title" = "Accés renovat";
+"whatsNew.signin.description" = "Nova benvinguda i registre progressiu, més fiable a tots els dispositius.";

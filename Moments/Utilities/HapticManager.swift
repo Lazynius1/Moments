@@ -15,6 +15,22 @@ class HapticManager {
         AudioServicesPlaySystemSound(1033)
     }
 
+    func playVoiceRecordStartSound() {
+        AudioServicesPlaySystemSound(1113)
+    }
+
+    func playVoiceRecordEndSound() {
+        AudioServicesPlaySystemSound(1114)
+    }
+
+    func playMessageSentSound() {
+        AudioServicesPlaySystemSound(1004)
+    }
+
+    func playMessageReceivedSound() {
+        AudioServicesPlaySystemSound(1003)
+    }
+
     private let selectionFeedback = UISelectionFeedbackGenerator()
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
     private let impactMedium = UIImpactFeedbackGenerator(style: .medium)

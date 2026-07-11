@@ -2828,38 +2828,18 @@
 /* Whats New v2.14 */
 /* Whats New v2.16 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Mensajes que desaparecen, zumbidos, chats archivados, respuesta rápida desde notificaciones, fuentes nuevas para historias y un chat más rápido y pulido con la descarga de datos renovada.";
-"whatsNew.button" = "Explorar Moments 2.16";
+"whatsNew.subtitle" = "Notas de voz reinventadas, mensajes que siempre llegan, búsqueda en tus chats, Nova AI conectada a la web y un chat más seguro y configurable.";
+"whatsNew.button" = "Explorar Moments 2.17";
 
-"whatsNew.vanish.title" = "Mensajes que desaparecen";
-"whatsNew.vanish.description" = "Actívalos en una conversación y elige cuándo se borran. Desliza hacia arriba para activarlos o desactivarlos al momento.";
 
-"whatsNew.buzz.title" = "Zumbidos";
-"whatsNew.buzz.description" = "Llama la atención de alguien en el chat con vibración y animación. Puedes desactivarlos por conversación.";
 
-"whatsNew.archived.title" = "Chats archivados";
-"whatsNew.archived.description" = "Guarda conversaciones fuera de la bandeja principal y recupéralas cuando quieras, con sus no leídos.";
 
-"whatsNew.fasterChat.title" = "Chat más rápido";
-"whatsNew.fasterChat.description" = "Los mensajes y las fotos se guardan en tu teléfono para abrir conversaciones al momento y cargar el historial con más fluidez. Los chats que ya has abierto antes cargan casi al instante.";
 
-"whatsNew.notifications.title" = "Notificaciones mejoradas";
-"whatsNew.notifications.description" = "Responde manteniendo pulsada la notificación y ve mejor cuándo te envían fotos, vídeos o un zumbido.";
 
-"whatsNew.chatPolish.title" = "Chat más pulido";
-"whatsNew.chatPolish.description" = "Respuestas dentro de la burbuja, lista más compacta, desliza para volver y notas de voz más cómodas.";
 
-"whatsNew.storyFonts.title" = "Fuentes nuevas para historias";
-"whatsNew.storyFonts.description" = "6 tipografías y 3 efectos de texto nuevos para tus historias, además de arreglos en el resaltado y en los estilos con fondo.";
 
-"whatsNew.social.title" = "Actividad y visitas";
-"whatsNew.social.description" = "Consulta tu actividad compartida con otra persona y revisa quién visita tu perfil con más claridad.";
 
-"whatsNew.dataExport.title" = "Descarga tus datos a tu manera";
-"whatsNew.dataExport.description" = "Elige descargar solo tus conversaciones, e incluye tus chats y conversaciones con Nova descifrados con tu PIN de recuperación.";
 
-"whatsNew.discovery.title" = "Para ti y más";
-"whatsNew.discovery.description" = "Descubre moments de gente nueva, fechas más naturales en tu idioma y mejoras de estabilidad en toda la app.";
 
 /* Best Friends */
 "bestFriends.title" = "Mejores Amigos";
@@ -4316,3 +4296,25 @@
 "nova.search.sourceHint" = "Abre la fuente";
 
 "messaging.messages" = "Mensajes";
+
+// What's New 2.17
+"whatsNew.voice.title" = "Notas de voz nuevas";
+"whatsNew.voice.description" = "Graba por segmentos, recorta el audio y usa el nuevo gesto de grabación con control de velocidad.";
+"whatsNew.reliable.title" = "Mensajes que siempre llegan";
+"whatsNew.reliable.description" = "Envía sin conexión y reintenta cualquier mensaje fallido con un toque.";
+"whatsNew.search.title" = "Busca en tus chats";
+"whatsNew.search.description" = "Encuentra cualquier mensaje desde el buscador y salta directo a él, aunque sea de hace meses.";
+"whatsNew.nova.title" = "Nova AI conectada";
+"whatsNew.nova.description" = "Nova consulta la web en tiempo real para darte respuestas actuales y contrastadas.";
+"whatsNew.encryption.title" = "Cifrado reforzado";
+"whatsNew.encryption.description" = "Protección de claves de extremo a extremo mejorada para tus conversaciones.";
+"whatsNew.chatSettings.title" = "Ajustes de chat renovados";
+"whatsNew.chatSettings.description" = "Nuevo diseño con acciones rápidas y gestión de almacenamiento por conversación.";
+"whatsNew.mute.title" = "Silencia conversaciones";
+"whatsNew.mute.description" = "Silencia cada chat de forma individual cuando lo necesites.";
+"whatsNew.requests.title" = "Solicitudes integradas";
+"whatsNew.requests.description" = "Las solicitudes viven dentro del chat, con nuevos controles de privacidad.";
+"whatsNew.vanishReplies.title" = "Modo efímero ampliado";
+"whatsNew.vanishReplies.description" = "Responde a historias también en modo efímero.";
+"whatsNew.signin.title" = "Acceso renovado";
+"whatsNew.signin.description" = "Nueva bienvenida y registro progresivo, más fiable en todos los dispositivos.";

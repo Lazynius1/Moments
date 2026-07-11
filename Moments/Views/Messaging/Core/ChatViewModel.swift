@@ -675,11 +675,14 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
-    func appendOutgoingMessage(_ message: EnhancedMessage) {
+    func appendOutgoingMessage(_ message: EnhancedMessage, playsSentSound: Bool = true) {
         outgoingTempMessages[message.id] = message
         messages.append(message)
         messages = Array(messages)
         objectWillChange.send()
+        if playsSentSound {
+            HapticManager.shared.playMessageSentSound()
+        }
         if let momentsViewModel = self as? MomentsChatViewModel {
             momentsViewModel.syncMessagePresentation()
         }
@@ -1715,6 +1718,17 @@ class EnhancedChatViewModel: ObservableObject {
 
         let existingById = existingMessagesById()
 
+        if !isFirstFetch, isChatVisible {
+            let hasNewIncoming = messages.contains { incoming in
+                incoming.type != .chatNotice
+                    && incoming.senderId != currentUserId
+                    && existingById[incoming.id] == nil
+            }
+            if hasNewIncoming {
+                HapticManager.shared.playMessageReceivedSound()
+            }
+        }
+
         if LocalFirstMessagingSettings.isEnabled {
             realTimeMessages = messages.map { incoming in
                 preserveLocalMediaFields(from: existingById[incoming.id], into: incoming)
@@ -2389,8 +2403,7 @@ class EnhancedChatViewModel: ObservableObject {
             isVanishModeMessage: outgoingVanishMessageFlag
         )
 
-        // Agregar mensaje temporal a la lista local
-        appendOutgoingMessage(tempMessage)
+        appendOutgoingMessage(tempMessage, playsSentSound: false)
 
         chatService.sendAudioMessage(
             conversationId: conversationId,

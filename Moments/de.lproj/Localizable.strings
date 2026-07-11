@@ -2796,38 +2796,18 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Neu in Moments!";
-"whatsNew.subtitle" = "Verschwindende Nachrichten, Anstupser, archivierte Chats, Schnellantwort aus Benachrichtigungen, neue Story-Schriftarten und ein schnellerer, verfeinerter Chat mit uberarbeitetem Datendownload.";
-"whatsNew.button" = "Moments 2.16 entdecken";
+"whatsNew.subtitle" = "Neu erfundene Sprachnachrichten, Nachrichten die immer ankommen, Suche in deinen Chats, Nova AI mit Web-Zugriff und ein sichererer, anpassbarer Chat.";
+"whatsNew.button" = "Moments 2.17 entdecken";
 
-"whatsNew.vanish.title" = "Verschwindende Nachrichten";
-"whatsNew.vanish.description" = "Aktiviere sie in einer Unterhaltung und wahle, wann sie geloscht werden. Wische nach oben, um den Modus sofort ein- oder auszuschalten.";
 
-"whatsNew.buzz.title" = "Anstupser";
-"whatsNew.buzz.description" = "Hole jemandes Aufmerksamkeit im Chat mit Vibration und Animation. Anstupser kannst du pro Unterhaltung deaktivieren.";
 
-"whatsNew.archived.title" = "Archivierte Chats";
-"whatsNew.archived.description" = "Räume Unterhaltungen aus deinem Posteingang aus und hole sie jederzeit zuruck, inklusive ungelesener Nachrichten.";
 
-"whatsNew.fasterChat.title" = "Schnellerer Chat";
-"whatsNew.fasterChat.description" = "Nachrichten und Fotos werden auf deinem Handy gespeichert, damit Chats sofort offnen und der Verlauf flussiger ladet. Chats, die du schon geoffnet hast, laden jetzt fast sofort.";
 
-"whatsNew.notifications.title" = "Bessere Benachrichtigungen";
-"whatsNew.notifications.description" = "Antworte, indem du die Benachrichtigung gedruckt haltst, und sieh klarer, wenn dir Fotos, Videos oder ein Anstupser geschickt werden.";
 
-"whatsNew.chatPolish.title" = "Verfeinerter Chat";
-"whatsNew.chatPolish.description" = "Antworten in der Sprechblase, kompaktere Liste, Wischen zum Zuruckgehen und bequemere Sprachnachrichten.";
 
-"whatsNew.storyFonts.title" = "Neue Story-Schriftarten";
-"whatsNew.storyFonts.description" = "6 neue Schriftarten und 3 neue Texteffekte fur deine Storys, außerdem Korrekturen bei Textmarker-Hervorhebungen und Stilen mit Hintergrund.";
 
-"whatsNew.social.title" = "Aktivitat und Besuche";
-"whatsNew.social.description" = "Sieh deine geteilte Aktivitat mit einer anderen Person und prufe klarer, wer dein Profil besucht.";
 
-"whatsNew.dataExport.title" = "Lade deine Daten nach deinen Wunschen herunter";
-"whatsNew.dataExport.description" = "Lade nur deine Unterhaltungen herunter und schließe deine Chats und Nova-Unterhaltungen ein, entschlusselt mit deiner Wiederherstellungs-PIN.";
 
-"whatsNew.discovery.title" = "Fur dich und mehr";
-"whatsNew.discovery.description" = "Entdecke Momente von neuen Personen, naturlichere Datumsangaben in deiner Sprache und Stabilitatsverbesserungen in der ganzen App.";
 
 /* Best Friends */
 "bestFriends.title" = "Enge Freunde";
@@ -4265,3 +4245,25 @@
 "nova.search.sourceHint" = "Öffnet die Quelle";
 
 "messaging.messages" = "Nachrichten";
+
+// What's New 2.17
+"whatsNew.voice.title" = "Neue Sprachnachrichten";
+"whatsNew.voice.description" = "Nimm in Segmenten auf, schneide das Audio zu und nutze die neue Aufnahmegeste mit Geschwindigkeitsregelung.";
+"whatsNew.reliable.title" = "Nachrichten, die immer ankommen";
+"whatsNew.reliable.description" = "Sende offline und wiederhole jede fehlgeschlagene Nachricht mit einem Tipp.";
+"whatsNew.search.title" = "Durchsuche deine Chats";
+"whatsNew.search.description" = "Finde jede Nachricht über die Suche und springe direkt zu ihr, auch Monate zurück.";
+"whatsNew.nova.title" = "Nova AI, vernetzt";
+"whatsNew.nova.description" = "Nova durchsucht das Web in Echtzeit und liefert dir aktuelle, fundierte Antworten.";
+"whatsNew.encryption.title" = "Verstärkte Verschlüsselung";
+"whatsNew.encryption.description" = "Verbesserter Ende-zu-Ende-Schlüsselschutz für deine Unterhaltungen.";
+"whatsNew.chatSettings.title" = "Neue Chat-Einstellungen";
+"whatsNew.chatSettings.description" = "Neues Design mit Schnellaktionen und Speicherverwaltung pro Unterhaltung.";
+"whatsNew.mute.title" = "Unterhaltungen stummschalten";
+"whatsNew.mute.description" = "Schalte jeden Chat einzeln stumm, wann immer du willst.";
+"whatsNew.requests.title" = "Integrierte Anfragen";
+"whatsNew.requests.description" = "Nachrichtenanfragen leben im Chat, mit neuen Privatsphäre-Einstellungen.";
+"whatsNew.vanishReplies.title" = "Erweiterter Vanish-Modus";
+"whatsNew.vanishReplies.description" = "Antworte auch im Vanish-Modus auf Stories.";
+"whatsNew.signin.title" = "Erneuerte Anmeldung";
+"whatsNew.signin.description" = "Neuer Willkommensbildschirm und schrittweise Registrierung, zuverlässiger auf jedem Gerät.";

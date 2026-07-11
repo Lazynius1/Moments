@@ -2805,38 +2805,18 @@
 
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Disappearing messages, buzzes, archived chats, quick reply from notifications, new story fonts, and a faster, more polished chat with a refreshed data download.";
-"whatsNew.button" = "Explore Moments 2.16";
+"whatsNew.subtitle" = "Reinvented voice notes, messages that always arrive, search across your chats, Nova AI connected to the web, and a safer, more configurable chat.";
+"whatsNew.button" = "Explore Moments 2.17";
 
-"whatsNew.vanish.title" = "Disappearing messages";
-"whatsNew.vanish.description" = "Turn them on in a conversation and choose when they are deleted. Swipe up to turn the mode on or off instantly.";
 
-"whatsNew.buzz.title" = "Buzzes";
-"whatsNew.buzz.description" = "Get someone's attention in chat with vibration and animation. You can turn buzzes off per conversation.";
 
-"whatsNew.archived.title" = "Archived chats";
-"whatsNew.archived.description" = "Move conversations out of your main inbox and bring them back anytime, unread count included.";
 
-"whatsNew.fasterChat.title" = "Faster chat";
-"whatsNew.fasterChat.description" = "Messages and photos are saved on your phone so conversations open right away and history loads more smoothly. Chats you've already opened now load almost instantly.";
 
-"whatsNew.notifications.title" = "Better notifications";
-"whatsNew.notifications.description" = "Reply by pressing and holding the notification and get clearer previews for photos, videos, and buzzes.";
 
-"whatsNew.chatPolish.title" = "Refined chat";
-"whatsNew.chatPolish.description" = "Replies inside the bubble, a more compact list, swipe to go back, and more comfortable voice notes.";
 
-"whatsNew.storyFonts.title" = "New story fonts";
-"whatsNew.storyFonts.description" = "6 new fonts and 3 new text effects for your stories, plus fixes for marker highlights and boxed text styles.";
 
-"whatsNew.social.title" = "Activity and visits";
-"whatsNew.social.description" = "See your shared activity with someone else and check who visits your profile more clearly.";
 
-"whatsNew.dataExport.title" = "Download your data, your way";
-"whatsNew.dataExport.description" = "Choose to download just your conversations, and include your chats and Nova conversations decrypted with your recovery PIN.";
 
-"whatsNew.discovery.title" = "For You and more";
-"whatsNew.discovery.description" = "Discover moments from new people, more natural dates in your language, and stability improvements across the app.";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";
@@ -4295,3 +4275,25 @@
 "nova.search.sourceHint" = "Opens the source";
 
 "messaging.messages" = "Messages";
+
+// What's New 2.17
+"whatsNew.voice.title" = "New voice notes";
+"whatsNew.voice.description" = "Record in segments, trim the audio, and use the new recording gesture with speed control.";
+"whatsNew.reliable.title" = "Messages that always arrive";
+"whatsNew.reliable.description" = "Send offline and retry any failed message with a tap.";
+"whatsNew.search.title" = "Search your chats";
+"whatsNew.search.description" = "Find any message from the search bar and jump straight to it, even months back.";
+"whatsNew.nova.title" = "Nova AI, connected";
+"whatsNew.nova.description" = "Nova searches the web in real time to give you current, well-sourced answers.";
+"whatsNew.encryption.title" = "Hardened encryption";
+"whatsNew.encryption.description" = "Improved end-to-end key protection for your conversations.";
+"whatsNew.chatSettings.title" = "Redesigned chat settings";
+"whatsNew.chatSettings.description" = "A new design with quick actions and per-conversation storage management.";
+"whatsNew.mute.title" = "Mute conversations";
+"whatsNew.mute.description" = "Mute each chat individually whenever you need to.";
+"whatsNew.requests.title" = "Integrated requests";
+"whatsNew.requests.description" = "Message requests live inside the chat, with new privacy controls.";
+"whatsNew.vanishReplies.title" = "Extended vanish mode";
+"whatsNew.vanishReplies.description" = "Reply to stories in vanish mode too.";
+"whatsNew.signin.title" = "Refreshed sign-in";
+"whatsNew.signin.description" = "A new welcome and progressive sign-up, more reliable on every device.";
