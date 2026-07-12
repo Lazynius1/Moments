@@ -577,6 +577,7 @@ struct ProfileView: View {
             )
             .zIndex(100)
             }
+            .coordinateSpace(name: "profileHeroStage")
         }
         .environmentObject(heroCoordinator)
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)

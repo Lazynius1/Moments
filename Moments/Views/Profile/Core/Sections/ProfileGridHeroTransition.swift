@@ -110,21 +110,46 @@ private struct ProfileGridLiftedSourceModifier: ViewModifier {
     let moment: Moment
     let gridIndex: Int
 
-    private var contentOpacity: CGFloat {
-        coordinator?.liftedGridSourceContentOpacity(moment: moment, gridIndex: gridIndex) ?? 1
-    }
-
     private var holeBackground: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }
 
     func body(content: Content) -> some View {
+        if let coordinator {
+            ProfileGridLiftedSourceContent(
+                coordinator: coordinator,
+                moment: moment,
+                gridIndex: gridIndex,
+                holeBackground: holeBackground
+            ) {
+                content
+            }
+        } else {
+            content
+        }
+    }
+}
+
+// Observa el coordinator para que la celda se re-renderice al cambiar peekProgress
+// y el hueco se vacíe al salir el hero y se rellene al volver.
+private struct ProfileGridLiftedSourceContent<Content: View>: View {
+    @ObservedObject var coordinator: ProfileGridHeroTransitionCoordinator
+    let moment: Moment
+    let gridIndex: Int
+    let holeBackground: Color
+    @ViewBuilder let content: () -> Content
+
+    private var contentOpacity: CGFloat {
+        coordinator.liftedGridSourceContentOpacity(moment: moment, gridIndex: gridIndex)
+    }
+
+    var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(holeBackground)
                 .opacity(1 - contentOpacity)
 
-            content
+            content()
                 .opacity(contentOpacity)
         }
     }
@@ -1199,5 +1224,6 @@ struct ProfileGridMenuRow: View {
             .padding(.vertical, 13)
             .contentShape(Rectangle())
         }
+        .buttonStyle(.momentsMenuRow)
     }
 }

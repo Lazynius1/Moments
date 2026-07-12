@@ -779,7 +779,7 @@ private struct HiddenLayerMetricsSummaryCard: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        MomentRowButton(action: action) {
+        MomentRowButton(feedback: .menu, action: action) {
             VStack(spacing: 0) {
                 Divider()
                     .background(colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.08))
@@ -1342,7 +1342,7 @@ struct ContextMenuButton: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        MomentRowButton(action: action) {
+        MomentRowButton(feedback: .menu, action: action) {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))

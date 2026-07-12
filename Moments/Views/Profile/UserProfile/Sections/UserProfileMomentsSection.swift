@@ -63,7 +63,7 @@ struct UserModernMomentThumbnail: View {
         .animation(.easeInOut(duration: 0.12), value: isPressed)
         .profileGridThumbnailFrameReporter(
             momentId: moment.id ?? "profile-grid-\(gridIndex)",
-            coordinateSpace: .named("profileGridOverlay")
+            coordinateSpace: .named("profileHeroStage")
         )
         .overlay {
             ProfileMomentThumbnailGestureOverlay(

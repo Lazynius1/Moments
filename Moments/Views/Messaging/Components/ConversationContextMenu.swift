@@ -254,7 +254,7 @@ private struct ConversationContextMenuRow: View {
     }
 
     var body: some View {
-        MomentRowButton(action: action) {
+        MomentRowButton(feedback: .menu, action: action) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.system(size: 15, weight: .medium))

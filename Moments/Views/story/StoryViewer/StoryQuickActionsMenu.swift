@@ -113,6 +113,6 @@ private struct StoryMenuActionRow: View {
             .padding(.vertical, 15)
             .contentShape(Rectangle())
         }
-        .buttonStyle(MomentRowButtonStyle())
+        .buttonStyle(.momentsMenuRow)
     }
 }

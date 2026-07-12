@@ -255,7 +255,7 @@ private struct NovaAttachmentMenuPopoverCard: View {
             .padding(.vertical, 8)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsMenuRow)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

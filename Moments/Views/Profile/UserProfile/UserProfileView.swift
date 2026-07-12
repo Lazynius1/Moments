@@ -380,6 +380,7 @@ struct UserProfileView: View {
                 .zIndex(100)
             }
             .offlineBannerOverlay()
+            .coordinateSpace(name: "profileHeroStage")
         }
         .environmentObject(heroCoordinator)
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)

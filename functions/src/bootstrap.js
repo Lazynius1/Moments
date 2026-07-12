@@ -20,7 +20,7 @@ const VIDEO_DOWNLOAD_TIMEOUT_MS = 60 * 1000;
 const IMAGE_DOWNLOAD_MAX_BYTES = 15 * 1024 * 1024;
 const IMAGE_DOWNLOAD_TIMEOUT_MS = 30 * 1000;
 const PUBLISHABLE_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']);
-setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80, retry: true });
+setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80, maxInstances: 20, retry: true });
 const admin = require('firebase-admin');
 if (!admin.apps.length) {
   admin.initializeApp();

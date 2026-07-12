@@ -485,7 +485,7 @@ private struct ChatContextMenuRow: View {
     let action: () -> Void
 
     var body: some View {
-        MomentRowButton(action: action) {
+        MomentRowButton(feedback: .menu, action: action) {
             HStack {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
