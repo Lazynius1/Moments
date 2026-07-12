@@ -116,6 +116,10 @@ struct SettingsFormView: View {
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
                 .animation(.easeOut(duration: 0.6).delay(0.4), value: animateSections)
+
+                SettingsVersionFooter()
+                    .opacity(animateSections ? 1 : 0)
+                    .animation(.easeOut(duration: 0.6).delay(0.5), value: animateSections)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -126,6 +130,32 @@ struct SettingsFormView: View {
             }
         }
         .presentationDragIndicator(.visible)
+    }
+}
+
+// Footer: logo por tema + versión de la app (CFBundleShortVersionString)
+struct SettingsVersionFooter: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(colorScheme == .dark ? "SplashLogoDark" : "SplashLogoLight")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 30)
+
+            Text(verbatim: "v\(appVersion)")
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.35) : .black.opacity(0.30))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 24)
+        .padding(.bottom, 8)
+        .accessibilityElement(children: .combine)
     }
 }
 

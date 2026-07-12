@@ -82,3 +82,6 @@ npm_cache/
 # Internal design notes and research docs (local only)
 docs/superpowers/plans/*.md
 docs/superpowers/specs/*.md
+
+# Camera Kit / secrets — do NOT commit real tokens
+Secrets.xcconfig

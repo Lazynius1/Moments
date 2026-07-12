@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseAppCheck
 import FirebaseCore
 import FirebaseFirestore
 import FirebaseAuth // Añadir este import
@@ -27,6 +28,7 @@ struct MomentsApp: App {
     @State private var didPostLaunchInit = false
 
     init() {
+        AppCheck.setAppCheckProviderFactory(MomentsAppCheckProviderFactory())
         FirebaseApp.configure()
 
         let settings = FirestoreSettings()
