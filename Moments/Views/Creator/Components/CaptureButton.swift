@@ -3,6 +3,7 @@ import SwiftUI
 struct CaptureButton: View {
     @Environment(\.colorScheme) private var colorScheme
     @Binding var isRecording: Bool
+    var lensIconURL: URL? = nil
     let onTap: () -> Void
     let onLongPressStart: () -> Void
     let onLongPressEnd: () -> Void
@@ -14,15 +15,12 @@ struct CaptureButton: View {
         ZStack {
             outerRing
 
-            Circle()
-                .fill(isRecording ? Color.red : innerFillColor)
-                .frame(width: isPressed ? 58 : 68, height: isPressed ? 58 : 68)
-                .scaleEffect(isRecording ? 0.8 : 1.0)
-                .animation(.easeInOut(duration: 0.1), value: isPressed)
+            innerCircle
+                .frame(width: 68, height: 68)
                 .animation(.easeInOut(duration: 0.2), value: isRecording)
         }
-        .scaleEffect(isPressed ? 1.1 : 1.0)
-        .animation(.easeInOut(duration: 0.1), value: isPressed)
+        .scaleEffect(isPressed ? 1.05 : 1.0)
+        .animation(.easeInOut(duration: 0.15), value: isPressed)
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
@@ -54,6 +52,20 @@ struct CaptureButton: View {
         )
     }
 
+    @ViewBuilder
+    private var innerCircle: some View {
+        if let lensIconURL {
+            AsyncImage(url: lensIconURL) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Circle().fill(innerFillColor)
+            }
+            .clipShape(Circle())
+        } else {
+            Circle().fill(innerFillColor)
+        }
+    }
+
     private var innerFillColor: Color {
         .white
     }
@@ -61,10 +73,16 @@ struct CaptureButton: View {
     private var outerRing: some View {
         Circle()
             .frame(width: 88, height: 88)
-            .momentsChromeGlass(in: Circle(), interactive: true)
+            .momentsChromeGlass(
+                in: Circle(),
+                interactive: true,
+                tintOpacity: isRecording ? 0.55 : MomentsChromeGlass.defaultTintOpacity,
+                tint: isRecording ? .red : nil
+            )
             .overlay(
                 Circle()
                     .stroke(Color.white.opacity(0.22), lineWidth: 1.5)
             )
+            .animation(.easeInOut(duration: 0.2), value: isRecording)
     }
 }

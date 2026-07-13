@@ -85,3 +85,4 @@ docs/superpowers/specs/*.md
 
 # Camera Kit / secrets — do NOT commit real tokens
 Secrets.xcconfig
+Moments/SnapCameraKit.plist

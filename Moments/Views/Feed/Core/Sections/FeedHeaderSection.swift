@@ -196,7 +196,8 @@ struct FeedFloatingSelector: View {
 
             FloatingGlassFeedToggle(selectedFeedType: $selectedFeedType)
 
-            if isManualRefreshing {
+            // En iOS 26+ el refresco lo indica la gota Liquid Glass; el chip solo en versiones anteriores.
+            if isManualRefreshing, #unavailable(iOS 26.0) {
                 FeedRefreshIndicator(colorScheme: colorScheme)
                     .padding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))

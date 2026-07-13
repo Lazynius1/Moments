@@ -98,6 +98,13 @@ struct TabBarView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 .zIndex(1000)
             }
+
+            // Gota del pull-to-refresh (iOS 26+): una sola, por encima de todo.
+            if shouldShowMainApp, #available(iOS 26.0, *) {
+                MomentRefreshGota(state: .shared)
+                    .zIndex(4000)
+                    .allowsHitTesting(false)
+            }
         }
         .offlineBannerOverlay()
         .onAppear {

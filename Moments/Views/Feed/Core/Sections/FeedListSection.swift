@@ -105,7 +105,7 @@ struct FeedListSection: View {
                     proxy.scrollTo(0, anchor: .top)
                 }
             }
-            .refreshable {
+            .momentRefresh {
                 if let userId = Auth.auth().currentUser?.uid {
                     // Un solo pipeline de refresco (antes se llamaba también onForceRefresh()
                     // que disparaba un segundo fetchMoments en paralelo).

@@ -112,20 +112,6 @@ struct ExploreView: View {
                 Image(systemName: "map.fill")
                     .foregroundColor(Color(hex: "0A84FF"))
             }
-
-            Button {
-                ExploreHapticFeedback.impact(.medium)
-                viewModel.refreshAllContent()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
-                    .animation(
-                        viewModel.isLoading
-                            ? .linear(duration: 1).repeatForever(autoreverses: false)
-                            : .default,
-                        value: viewModel.isLoading
-                    )
-            }
         }
     }
 
@@ -257,6 +243,11 @@ struct ExploreView: View {
                     searchResultsSection
                 }
             }
+        }
+        .momentRefresh {
+            viewModel.refreshAllContent()
+            // Mantener la gota visible mientras arranca la recarga.
+            try? await Task.sleep(nanoseconds: 900_000_000)
         }
     }
 

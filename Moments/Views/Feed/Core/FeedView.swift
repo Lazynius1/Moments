@@ -154,6 +154,7 @@ struct FeedView: View {
                 badgeService: badgeService,
                 colorScheme: colorScheme
             )
+
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar(.hidden, for: .navigationBar)

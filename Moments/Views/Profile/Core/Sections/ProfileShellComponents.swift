@@ -313,7 +313,7 @@ struct ModernProfileContentView: View {
                     .padding(.bottom, safeAreaBottom + 100)
                 }
                 .coordinateSpace(name: "scroll")
-                .refreshable {
+                .momentRefresh {
                     await withCheckedContinuation { continuation in
                         var savedRefreshCompleted = true
 

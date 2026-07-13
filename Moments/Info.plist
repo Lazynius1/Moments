@@ -59,6 +59,8 @@
 	<string>Este identificador se usará para mostrarte anuncios personalizados y mejorar tu experiencia en la app.</string>
 	<key>SCCameraKitAPIToken</key>
 	<string>$(SCCAMERAKIT_API_TOKEN)</string>
+	<key>SCCameraKitClientID</key>
+	<string>$(SCCAMERAKIT_CLIENT_ID)</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>

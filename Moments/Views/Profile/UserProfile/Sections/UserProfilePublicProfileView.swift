@@ -227,7 +227,7 @@ struct UserModernPublicProfileView: View {
                 .padding(.bottom, safeAreaBottom + 120)
             }
             .coordinateSpace(name: "scroll")
-            .refreshable {
+            .momentRefresh {
                 await withCheckedContinuation { continuation in
                     highlightsRefreshToken += 1
                     storyRingRefreshToken += 1

@@ -408,7 +408,7 @@ struct NotificationsView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .padding(.top, 4)
-        .refreshable {
+        .momentRefresh {
             await viewModel.refreshNotifications()
         }
     }

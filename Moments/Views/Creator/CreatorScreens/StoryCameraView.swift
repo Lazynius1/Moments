@@ -32,6 +32,8 @@ struct StoryCameraView: View {
     @State private var capturePhotoTrigger = false
     @State private var lastGalleryImage: UIImage?
     @StateObject private var orientationManager = OrientationManager.shared
+    @StateObject private var cameraKit = CameraKitController()
+    @State private var usingCameraKit = false
 
     private var deviceOrientation: UIDeviceOrientation {
         orientationManager.orientation
@@ -49,28 +51,36 @@ struct StoryCameraView: View {
     var body: some View {
         GeometryReader { proxy in
             let captureRect = creatorMomentsCaptureRect(in: proxy.size, topInset: proxy.safeAreaInsets.top, bottomInset: proxy.safeAreaInsets.bottom)
-            let controlY = min(proxy.size.height - proxy.safeAreaInsets.bottom - 20, captureRect.maxY + 50)
+            let controlY = min(proxy.size.height - proxy.safeAreaInsets.bottom - 20, captureRect.maxY + 84)
             let captureButtonY = captureRect.maxY - 10
 
             ZStack {
                 safeAreaTintColor
                     .ignoresSafeArea()
 
-                // Camera preview
-                CameraPreviewRepresentable(
-                    cameraPosition: $cameraPosition,
-                    flashMode: $flashMode,
-                    isRecording: $isRecording,
-                    zoomLevel: $zoomLevel,
-                    capturePhotoTrigger: $capturePhotoTrigger,
-                    deviceOrientation: deviceOrientation,
-                    onImageCaptured: { image in
-                        handleCapturedImage(image)
-                    },
-                    onVideoCaptured: { videoURL in
-                        handleCapturedVideo(videoURL)
+                // Camera preview: tu cámara nativa por defecto; Camera Kit solo cuando hay lente activa.
+                Group {
+                    if usingCameraKit {
+                        CameraKitPreviewRepresentable(
+                            previewView: cameraKit.previewView,
+                            canvasSize: captureRect.size,
+                            onViewportUpdate: { size in
+                                cameraKit.updateViewport(forCanvasSize: size)
+                            }
+                        )
+                    } else {
+                        CameraPreviewRepresentable(
+                            cameraPosition: $cameraPosition,
+                            flashMode: $flashMode,
+                            isRecording: $isRecording,
+                            zoomLevel: $zoomLevel,
+                            capturePhotoTrigger: $capturePhotoTrigger,
+                            deviceOrientation: deviceOrientation,
+                            onImageCaptured: { image in handleCapturedImage(image) },
+                            onVideoCaptured: { videoURL in handleCapturedVideo(videoURL) }
+                        )
                     }
-                )
+                }
                 .frame(width: captureRect.width, height: captureRect.height)
                 .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                 .position(x: captureRect.midX, y: captureRect.midY)
@@ -79,6 +89,7 @@ struct StoryCameraView: View {
                         .onChanged { value in
                             let newZoom = lastZoomLevel * value
                             zoomLevel = min(max(newZoom, 1.0), 5.0)
+                            if usingCameraKit { cameraKit.setZoom(zoomLevel) }
                         }
                         .onEnded { value in
                             lastZoomLevel = zoomLevel
@@ -100,8 +111,31 @@ struct StoryCameraView: View {
                     .frame(width: min(captureRect.width + 54, proxy.size.width - 72))
                     .position(x: captureRect.midX, y: controlY)
 
-                captureButtonOverlay
-                    .position(x: captureRect.midX, y: captureButtonY)
+                LensReel(
+                    lenses: cameraKit.lenses,
+                    isRecording: $isRecording,
+                    onSelect: { lens in
+                        if let lens {
+                            if usingCameraKit {
+                                cameraKit.selectLens(lens)
+                            } else {
+                                // Sin filtro -> con filtro: ocultar nativa (se para sola) y encender CK, aplicando la lente al arrancar.
+                                usingCameraKit = true
+                                cameraKit.activateCamera(applyingLens: lens)
+                            }
+                        } else {
+                            // Volver a "sin filtro": apagar CK y volver a la cámara nativa.
+                            cameraKit.selectLens(nil)
+                            cameraKit.deactivateCamera()
+                            usingCameraKit = false
+                        }
+                    },
+                    onCapturePhoto: { takePhoto() },
+                    onStartVideo: { startRecording() },
+                    onStopVideo: { stopRecording() }
+                )
+                .frame(width: captureRect.width)
+                .position(x: captureRect.midX, y: captureButtonY)
             }
         }
         .sheet(isPresented: $showingGallery) {
@@ -115,10 +149,14 @@ struct StoryCameraView: View {
             setupAudioSession()
             loadLastGalleryImage()
             orientationManager.startTracking()
+            cameraKit.onCapturedPhoto = { image in handleCapturedImage(image) }
+            cameraKit.onCapturedVideo = { url in handleCapturedVideo(url) }
+            cameraKit.prepareLenses()
         }
         .onDisappear {
             stopRecording()
             orientationManager.stopTracking()
+            cameraKit.stop()
         }
     }
 
@@ -309,16 +347,25 @@ struct StoryCameraView: View {
             zoomLevel = 1.0
             lastZoomLevel = 1.0
         }
+        if usingCameraKit {
+            cameraKit.setCameraPosition(cameraPosition)
+            cameraKit.setZoom(1.0)
+        }
     }
 
     private func takePhoto() {
-        capturePhotoTrigger.toggle()
+        if usingCameraKit {
+            cameraKit.capturePhoto()
+        } else {
+            capturePhotoTrigger.toggle()
+        }
     }
 
     private func startRecording() {
         isRecording = true
         recordingDuration = 0
         startRecordingTimer()
+        if usingCameraKit { cameraKit.startRecording() }
     }
 
     private func stopRecording() {
@@ -326,6 +373,7 @@ struct StoryCameraView: View {
         isRecording = false
         recordingTimer?.invalidate()
         recordingTimer = nil
+        if usingCameraKit { cameraKit.stopRecording() }
     }
 
     private func startRecordingTimer() {

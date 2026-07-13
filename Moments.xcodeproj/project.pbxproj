@@ -14,11 +14,6 @@
 		0DFC6C872DB6E1BE0067BA36 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 0DFC6C862DB6E1BE0067BA36 /* FirebaseStorage */; };
 		36267A602E06374300A99130 /* CropViewController in Frameworks */ = {isa = PBXBuildFile; productRef = 36267A5F2E06374300A99130 /* CropViewController */; };
 		36267A622E06374300A99130 /* TOCropViewController in Frameworks */ = {isa = PBXBuildFile; productRef = 36267A612E06374300A99130 /* TOCropViewController */; };
-		3635B43B3004209F0025EFAB /* SCSDKCameraKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3635B43A3004209F0025EFAB /* SCSDKCameraKit */; };
-		3635B43D3004209F0025EFAB /* SCSDKCameraKitLoginKitAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 3635B43C3004209F0025EFAB /* SCSDKCameraKitLoginKitAuth */; };
-		3635B43F3004209F0025EFAB /* SCSDKCameraKitPushToDeviceExtension in Frameworks */ = {isa = PBXBuildFile; productRef = 3635B43E3004209F0025EFAB /* SCSDKCameraKitPushToDeviceExtension */; };
-		3635B4413004209F0025EFAB /* SCSDKCameraKitReferenceSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 3635B4403004209F0025EFAB /* SCSDKCameraKitReferenceSwiftUI */; };
-		3635B4433004209F0025EFAB /* SCSDKCameraKitReferenceUI in Frameworks */ = {isa = PBXBuildFile; productRef = 3635B4423004209F0025EFAB /* SCSDKCameraKitReferenceUI */; };
 		36748B7F2DE112DD0094D43D /* FirebaseAI in Frameworks */ = {isa = PBXBuildFile; productRef = 36748B7E2DE112DD0094D43D /* FirebaseAI */; };
 		368B7D842DE79DC6001D7971 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 368B7D832DE79DC6001D7971 /* FirebaseMessaging */; };
 		369D7AC82DE9EACD005F30AB /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 369D7AC72DE9EACD005F30AB /* Kingfisher */; };
@@ -32,6 +27,7 @@
 		36BDF4122ED7DD7B00683AB4 /* GlowsyWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 36BDF3FC2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		36CE4D382E0A18F400901FD0 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 36CE4D372E0A18F400901FD0 /* ZIPFoundation */; };
 		36CE4D4E2E0DEE4400901FD0 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 36CE4D4D2E0DEE4400901FD0 /* GoogleMobileAds */; };
+		36CK00032F70000100CAMKIT /* SCSDKCameraKit in Frameworks */ = {isa = PBXBuildFile; productRef = 36CK00022F70000100CAMKIT /* SCSDKCameraKit */; };
 		7A6D2F212F5A120100A1B2C3 /* IncognitoActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F202F5A120100A1B2C3 /* IncognitoActivityAttributes.swift */; };
 		7A6D2F222F5A120100A1B2C3 /* IncognitoActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F202F5A120100A1B2C3 /* IncognitoActivityAttributes.swift */; };
 		7A6D2F242F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F232F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift */; };
@@ -66,7 +62,7 @@
 		36BDF4172ED7DD7B00683AB4 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			dstPath = "";
-			dstSubfolder = PlugIns;
+			dstSubfolder = None;
 			files = (
 				36A036E52F38B220002B2937 /* MomentsNotificationService.appex in Embed Foundation Extensions */,
 				36BDF4122ED7DD7B00683AB4 /* GlowsyWidgetExtensionExtension.appex in Embed Foundation Extensions */,
@@ -77,6 +73,7 @@
 
 /* Begin PBXFileReference section */
 		0D4FD1B92DB27BFE00CA6DB1 /* Moments Social.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Moments Social.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3635B4443004241A0025EFAB /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		368B7D822DE792C2001D7971 /* Moments.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Moments.entitlements; sourceTree = "<group>"; };
 		36A036DE2F38B220002B2937 /* MomentsNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MomentsNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		36AD0CE62EE1D97100C4FC30 /* GlowsyWidgetExtensionExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GlowsyWidgetExtensionExtension.entitlements; sourceTree = "<group>"; };
@@ -163,23 +160,19 @@
 			files = (
 				A1C7A0012F5F100100A11C7A /* FirebaseAppCheck in Frameworks */,
 				368B7D842DE79DC6001D7971 /* FirebaseMessaging in Frameworks */,
-				3635B4433004209F0025EFAB /* SCSDKCameraKitReferenceUI in Frameworks */,
 				36267A602E06374300A99130 /* CropViewController in Frameworks */,
-				3635B43B3004209F0025EFAB /* SCSDKCameraKit in Frameworks */,
 				369D7AC82DE9EACD005F30AB /* Kingfisher in Frameworks */,
 				36CE4D4E2E0DEE4400901FD0 /* GoogleMobileAds in Frameworks */,
-				3635B43F3004209F0025EFAB /* SCSDKCameraKitPushToDeviceExtension in Frameworks */,
-				3635B43D3004209F0025EFAB /* SCSDKCameraKitLoginKitAuth in Frameworks */,
 				0D4FD1FD2DB2818900CA6DB1 /* FirebaseAuth in Frameworks */,
 				0DFC6C872DB6E1BE0067BA36 /* FirebaseStorage in Frameworks */,
 				0D4FD2012DB2818900CA6DB1 /* FirebaseFunctions in Frameworks */,
 				36748B7F2DE112DD0094D43D /* FirebaseAI in Frameworks */,
 				0DFC6C852DB6E1BE0067BA36 /* FirebaseCore in Frameworks */,
-				3635B4413004209F0025EFAB /* SCSDKCameraKitReferenceSwiftUI in Frameworks */,
 				36267A622E06374300A99130 /* TOCropViewController in Frameworks */,
 				0D4FD1FF2DB2818900CA6DB1 /* FirebaseFirestore in Frameworks */,
 				36A036D32F36BCDB002B2937 /* GoogleUserMessagingPlatform in Frameworks */,
 				36CE4D382E0A18F400901FD0 /* ZIPFoundation in Frameworks */,
+				36CK00032F70000100CAMKIT /* SCSDKCameraKit in Frameworks */,
 			);
 		};
 		36A036DB2F38B220002B2937 /* Frameworks */ = {
@@ -211,6 +204,7 @@
 				36A036DF2F38B220002B2937 /* MomentsNotificationService */,
 				36BDF3FD2ED7DD7800683AB4 /* Frameworks */,
 				0D4FD1BA2DB27BFE00CA6DB1 /* Products */,
+				3635B4443004241A0025EFAB /* Secrets.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -282,11 +276,7 @@
 				36CE4D372E0A18F400901FD0 /* ZIPFoundation */,
 				36CE4D4D2E0DEE4400901FD0 /* GoogleMobileAds */,
 				36A036D22F36BCDB002B2937 /* GoogleUserMessagingPlatform */,
-				3635B43A3004209F0025EFAB /* SCSDKCameraKit */,
-				3635B43C3004209F0025EFAB /* SCSDKCameraKitLoginKitAuth */,
-				3635B43E3004209F0025EFAB /* SCSDKCameraKitPushToDeviceExtension */,
-				3635B4403004209F0025EFAB /* SCSDKCameraKitReferenceSwiftUI */,
-				3635B4423004209F0025EFAB /* SCSDKCameraKitReferenceUI */,
+				36CK00022F70000100CAMKIT /* SCSDKCameraKit */,
 			);
 			productName = Moments;
 			productReference = 0D4FD1B92DB27BFE00CA6DB1 /* Moments Social.app */;
@@ -380,7 +370,7 @@
 				36CE4D362E0A18F400901FD0 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 				36CE4D4C2E0DEE4400901FD0 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 				36A036D12F36BCDB002B2937 /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */,
-				3635B4393004209F0025EFAB /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */,
+				36CK00012F70000100CAMKIT /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 100;
 			productRefGroup = 0D4FD1BA2DB27BFE00CA6DB1 /* Products */;
@@ -456,6 +446,7 @@
 /* Begin XCBuildConfiguration section */
 		0D4FD1C22DB27C0000CA6DB1 /* Debug configuration for PBXProject "Moments" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3635B4443004241A0025EFAB /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -523,6 +514,7 @@
 		};
 		0D4FD1C32DB27C0000CA6DB1 /* Release configuration for PBXProject "Moments" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3635B4443004241A0025EFAB /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -596,6 +588,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6T7NTUGU3C;
+				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Moments/Info.plist;
@@ -620,7 +613,10 @@
 				INFOPLIST_KEY_UIStatusBarStyle = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Moments/Resources/AudienceIcons/alternatives/.venv/lib/python3.14/site-packages/PIL/.dylibs",
@@ -674,7 +670,10 @@
 				INFOPLIST_KEY_UIStatusBarStyle = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Moments/Resources/AudienceIcons/alternatives/.venv/lib/python3.14/site-packages/PIL/.dylibs",
@@ -877,14 +876,6 @@
 				minimumVersion = 2.7.4;
 			};
 		};
-		3635B4393004209F0025EFAB /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Snapchat/camera-kit-ios-sdk";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.50.0;
-			};
-		};
 		369D7AC62DE9EACD005F30AB /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
@@ -915,6 +906,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 12.6.0;
+			};
+		};
+		36CK00012F70000100CAMKIT /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Snapchat/camera-kit-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.50.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -954,31 +953,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 36267A5E2E06374300A99130 /* XCRemoteSwiftPackageReference "TOCropViewController" */;
 			productName = TOCropViewController;
-		};
-		3635B43A3004209F0025EFAB /* SCSDKCameraKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3635B4393004209F0025EFAB /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */;
-			productName = SCSDKCameraKit;
-		};
-		3635B43C3004209F0025EFAB /* SCSDKCameraKitLoginKitAuth */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3635B4393004209F0025EFAB /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */;
-			productName = SCSDKCameraKitLoginKitAuth;
-		};
-		3635B43E3004209F0025EFAB /* SCSDKCameraKitPushToDeviceExtension */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3635B4393004209F0025EFAB /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */;
-			productName = SCSDKCameraKitPushToDeviceExtension;
-		};
-		3635B4403004209F0025EFAB /* SCSDKCameraKitReferenceSwiftUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3635B4393004209F0025EFAB /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */;
-			productName = SCSDKCameraKitReferenceSwiftUI;
-		};
-		3635B4423004209F0025EFAB /* SCSDKCameraKitReferenceUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3635B4393004209F0025EFAB /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */;
-			productName = SCSDKCameraKitReferenceUI;
 		};
 		36748B7E2DE112DD0094D43D /* FirebaseAI */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1024,6 +998,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 36CE4D4C2E0DEE4400901FD0 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
 			productName = GoogleMobileAds;
+		};
+		36CK00022F70000100CAMKIT /* SCSDKCameraKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 36CK00012F70000100CAMKIT /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */;
+			productName = SCSDKCameraKit;
 		};
 		A1C7A0022F5F100100A11C7A /* FirebaseAppCheck */ = {
 			isa = XCSwiftPackageProductDependency;
