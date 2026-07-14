@@ -467,6 +467,22 @@ struct MessagingView: View {
         profileRoute = MessagingProfileRoute(id: trimmed)
     }
 
+    /// Abre un chat como borrador (sin crear el documento). Si no hay follow mutuo,
+    /// redirige al flujo de solicitud de mensaje.
+    private func startDraftConversation(with user: AppUser) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        viewModel.startConversation(with: user, from: userId, initialMessage: nil) { conversation in
+            if let conversation {
+                selectedConversation = conversation
+            } else if viewModel.requiresMessageRequest {
+                Task { @MainActor in
+                    let context = await PendingChatContextFactory.outgoing(to: user, from: userId)
+                    pendingChatContext = context
+                }
+            }
+        }
+    }
+
     // ✅ SOLICITUDES: Función para actualizar el conteo de solicitudes pendientes
     private func updatePendingRequestCount(for userId: String) {
         messageRequestService.getPendingRequestCount(for: userId) { count in
@@ -796,14 +812,12 @@ struct MessagingView: View {
         if !viewModel.searchedUsers.isEmpty {
             Section {
                 ForEach(viewModel.searchedUsers) { user in
-                    SearchUserRow(user: user) { conversation in
-                        if let conversation = conversation {
-                            selectedConversation = conversation
-                            searchText = ""
-                            isSearching = false
-                            isSearchFocused = false
-                            viewModel.clearSearch()
-                        }
+                    SearchUserRow(user: user) { selectedUser in
+                        searchText = ""
+                        isSearching = false
+                        isSearchFocused = false
+                        viewModel.clearSearch()
+                        startDraftConversation(with: selectedUser)
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
@@ -1254,38 +1268,14 @@ struct SearchMessageResultRow: View {
 
 struct SearchUserRow: View {
     let user: AppUser
-    let onTap: (Conversation?) -> Void
+    let onSelect: (AppUser) -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: {
-            if let userId = Auth.auth().currentUser?.uid {
-                ChatService().getOrCreateConversation(between: userId, and: user.id) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success(let conversationId):
-
-                            let conversation = Conversation(
-                                id: conversationId,
-                                participants: [userId, user.id],
-                                lastMessage: "",
-                                timestamp: Date(),
-                                readStatus: [userId: true, user.id: false],
-                                otherParticipantId: user.id,
-                                otherParticipantUsername: user.username,
-                                otherParticipantProfileImagePath: user.profileImagePath
-                            )
-
-                            onTap(conversation)
-
-                        case .failure:
-                            onTap(nil)
-                        }
-                    }
-                }
-            } else {
-                onTap(nil)
-            }
+            // No se crea nada aquí: el chat se abre como borrador y solo se
+            // persiste cuando el usuario envía el primer mensaje.
+            onSelect(user)
         }) {
             HStack(spacing: 14) {
                 AsyncProfileImageView(userId: user.id)

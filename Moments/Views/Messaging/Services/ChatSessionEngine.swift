@@ -37,6 +37,19 @@ final class ChatSessionEngine: ObservableObject {
         return session
     }
 
+    /// Registra en el cache una sesión que se abrió como borrador (sin id) una vez que
+    /// se ha materializado su conversación en Firestore, para que las siguientes aperturas
+    /// reutilicen la misma sesión en lugar de crear una nueva.
+    func registerMaterializedSession(_ session: ConversationChatSession, conversationId: String) {
+        guard !conversationId.isEmpty else { return }
+        reconcileCurrentUser()
+        conversationById[conversationId] = session.conversation
+        if sessions[conversationId] == nil {
+            trimSessionCache(excluding: conversationId)
+            sessions[conversationId] = session
+        }
+    }
+
     func preloadRecentSessions(from conversations: [Conversation], limit: Int = 5) {
         reconcileCurrentUser()
         for conversation in conversations.prefix(limit) {

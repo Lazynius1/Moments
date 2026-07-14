@@ -610,6 +610,63 @@ class MessagingViewModel: ObservableObject {
                     return
                 }
 
+                // Sin mensaje inicial: abrir un borrador local en vez de crear el documento.
+                // Solo se persiste en Firestore cuando el usuario envía el primer mensaje.
+                let trimmedInitial = initialMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if trimmedInitial.isEmpty {
+                    // Si ya existe una conversación (aunque esté "borrada" o no cargada en la
+                    // lista local), se abre directa: no se exige una solicitud nueva.
+                    self.chatService.findExistingConversation(between: userId, and: user.id) { existingResult in
+                        let existingId = (try? existingResult.get()) ?? nil
+                        if let existingId {
+                            DispatchQueue.main.async {
+                                let existing = Conversation(
+                                    id: existingId,
+                                    participants: [userId, user.id].sorted(),
+                                    lastMessage: "",
+                                    timestamp: Date(),
+                                    readStatus: [userId: true, user.id: false],
+                                    otherParticipantId: user.id,
+                                    otherParticipantUsername: user.username,
+                                    otherParticipantProfileImagePath: user.profileImagePath
+                                )
+                                self.selectedConversation = existing
+                                self.errorMessage = nil
+                                self.requiresMessageRequest = false
+                                completion(existing)
+                            }
+                            return
+                        }
+
+                        // No hay conversación previa: follow mutuo → borrador; si no → solicitud.
+                        self.chatService.areMutualFollowers(user1Id: userId, user2Id: user.id) { mutual in
+                            DispatchQueue.main.async {
+                                if mutual {
+                                    let draftConversation = Conversation(
+                                        id: nil,
+                                        participants: [userId, user.id].sorted(),
+                                        lastMessage: "",
+                                        timestamp: Date(),
+                                        readStatus: [userId: true, user.id: false],
+                                        otherParticipantId: user.id,
+                                        otherParticipantUsername: user.username,
+                                        otherParticipantProfileImagePath: user.profileImagePath
+                                    )
+                                    self.selectedConversation = draftConversation
+                                    self.errorMessage = nil
+                                    self.requiresMessageRequest = false
+                                    completion(draftConversation)
+                                } else {
+                                    self.errorMessage = NSLocalizedString("messaging.error.messageRequestRequired", comment: "A message request is required to start this conversation")
+                                    self.requiresMessageRequest = true
+                                    completion(nil)
+                                }
+                            }
+                        }
+                    }
+                    return
+                }
+
                 self.chatService.getOrCreateConversation(between: userId, and: user.id, initialMessage: initialMessage) { result in
                     switch result {
                     case .success(let conversationId):

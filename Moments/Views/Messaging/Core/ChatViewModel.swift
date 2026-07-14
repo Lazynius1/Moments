@@ -254,6 +254,9 @@ class EnhancedChatViewModel: ObservableObject {
 
     private(set) var chatSessionMode: ChatSessionMode = .idle
     private var sessionListenersAttached = false
+    // Estado de materialización de un chat borrador (abierto sin id hasta el primer envío).
+    private var isMaterializingConversation = false
+    private var pendingMaterializationCallbacks: [(String?) -> Void] = []
     private var listenerPauseTask: Task<Void, Never>?
     private var didLoadCacheFromSwiftData = false
     private var requestedHighlightMessageIds = Set<String>()
@@ -1793,9 +1796,59 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
+    /// `true` mientras la conversación es solo un borrador local sin documento en Firestore.
+    var isDraftConversation: Bool {
+        (conversation.id ?? "").isEmpty
+    }
+
+    /// Garantiza que la conversación exista en Firestore antes de enviar.
+    /// Si es un borrador, la materializa (creándola perezosamente) y engancha los listeners.
+    /// Los envíos concurrentes se encolan para no crear el documento dos veces.
+    func ensureConversationExists(_ completion: @escaping (String?) -> Void) {
+        if let id = conversation.id, !id.isEmpty {
+            completion(id)
+            return
+        }
+
+        pendingMaterializationCallbacks.append(completion)
+        guard !isMaterializingConversation else { return }
+        isMaterializingConversation = true
+
+        chatService.materializeConversation(with: conversation.otherParticipantId, from: currentUserId) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isMaterializingConversation = false
+                let callbacks = self.pendingMaterializationCallbacks
+                self.pendingMaterializationCallbacks = []
+
+                switch result {
+                case .success(let newId):
+                    self.adoptMaterializedConversationId(newId)
+                    callbacks.forEach { $0(newId) }
+                case .failure(let error):
+                    self.error = error.localizedDescription
+                    callbacks.forEach { $0(nil) }
+                }
+            }
+        }
+    }
+
+    private func adoptMaterializedConversationId(_ newId: String) {
+        guard isDraftConversation, !newId.isEmpty else { return }
+        conversation.id = newId
+        // En la práctica toda sesión activa es un MomentsChatViewModel; si no lo fuera,
+        // el envío igual funciona pero la sesión no queda cacheada.
+        if let session = self as? ConversationChatSession {
+            ChatSessionEngine.shared.registerMaterializedSession(session, conversationId: newId)
+        }
+        // El chat está en pantalla al enviar el primer mensaje: activarlo engancha
+        // los listeners y marca la conversación como activa en el engine.
+        ChatSessionEngine.shared.activate(conversationId: newId)
+    }
+
     func attachChatListenersIfNeeded() {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            self.error = "ID de conversación no válido"
+            // Borrador sin materializar: aún no hay nada que escuchar. No es un error.
             return
         }
         guard !sessionListenersAttached else { return }
@@ -2041,7 +2094,10 @@ class EnhancedChatViewModel: ObservableObject {
 
     func sendTextMessage(_ text: String, replyTo: String? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = "No se puede enviar el mensaje: ID de conversación no válido"
+            ensureConversationExists { [weak self] id in
+                guard let self, let id, !id.isEmpty else { return }
+                self.sendTextMessage(text, replyTo: replyTo)
+            }
             return
         }
 
@@ -2092,7 +2148,10 @@ class EnhancedChatViewModel: ObservableObject {
 
     func sendImageMessage(_ image: UIImage, mediaBatchId: String?) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = "No se puede enviar la imagen: ID de conversación no válido"
+            ensureConversationExists { [weak self] id in
+                guard let self, let id, !id.isEmpty else { return }
+                self.sendImageMessage(image, mediaBatchId: mediaBatchId)
+            }
             return
         }
 
@@ -2268,7 +2327,10 @@ class EnhancedChatViewModel: ObservableObject {
 
     func sendVideoMessage(data: Data, mediaBatchId: String?, replyTo: String?) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = "No se puede enviar el video: ID de conversación no válido"
+            ensureConversationExists { [weak self] id in
+                guard let self, let id, !id.isEmpty else { return }
+                self.sendVideoMessage(data: data, mediaBatchId: mediaBatchId, replyTo: replyTo)
+            }
             return
         }
 
@@ -2326,7 +2388,10 @@ class EnhancedChatViewModel: ObservableObject {
 
     func sendLocationMessage(latitude: Double, longitude: Double) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = "No se puede enviar la ubicación: ID de conversación no válido"
+            ensureConversationExists { [weak self] id in
+                guard let self, let id, !id.isEmpty else { return }
+                self.sendLocationMessage(latitude: latitude, longitude: longitude)
+            }
             return
         }
 
@@ -2378,7 +2443,10 @@ class EnhancedChatViewModel: ObservableObject {
         waveform: [Float]? = nil
     ) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = "No se puede enviar el audio: ID de conversación no válido"
+            ensureConversationExists { [weak self] id in
+                guard let self, let id, !id.isEmpty else { return }
+                self.sendAudioMessage(audioData: audioData, duration: duration, waveform: waveform)
+            }
             return
         }
 

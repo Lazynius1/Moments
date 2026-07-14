@@ -11,7 +11,10 @@ extension MomentsChatViewModel {
     // MARK: - New Media Message Functions
     func sendImageMessage(_ imageData: Data, replyTo: String? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = NSLocalizedString("chat.error.invalidConversation.image", comment: "Invalid conversation ID when sending image")
+            ensureConversationExists { [weak self] id in
+                guard let self, let id, !id.isEmpty else { return }
+                self.sendImageMessage(imageData, replyTo: replyTo)
+            }
             return
         }
 
@@ -68,7 +71,10 @@ extension MomentsChatViewModel {
         waveform: [Float]? = nil
     ) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = NSLocalizedString("chat.error.invalidConversation.audio", comment: "Invalid conversation ID when sending audio")
+            ensureConversationExists { [weak self] id in
+                guard let self, let id, !id.isEmpty else { return }
+                self.sendAudioMessage(audioData, duration: duration, waveform: waveform)
+            }
             return
         }
 
@@ -190,7 +196,10 @@ extension MomentsChatViewModel {
     /// Envía un GIF de Giphy por referencia (URL pública, sin cifrado ni re-subida).
     func sendGif(from asset: ChatGiphyAsset) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = NSLocalizedString("chat.error.invalidConversation.image", comment: "")
+            ensureConversationExists { [weak self] id in
+                guard let self, let id, !id.isEmpty else { return }
+                self.sendGif(from: asset)
+            }
             return
         }
 
@@ -240,7 +249,10 @@ extension MomentsChatViewModel {
     /// Envía un sticker de Giphy por referencia (URL pública, sin cifrado ni re-subida).
     func sendSticker(from asset: ChatStickerAsset) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = NSLocalizedString("chat.error.invalidConversation.image", comment: "")
+            ensureConversationExists { [weak self] id in
+                guard let self, let id, !id.isEmpty else { return }
+                self.sendSticker(from: asset)
+            }
             return
         }
 

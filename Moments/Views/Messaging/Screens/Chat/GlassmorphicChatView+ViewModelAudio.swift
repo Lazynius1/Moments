@@ -60,9 +60,14 @@ class MomentsChatViewModel: EnhancedChatViewModel {
 
     override func sendTextMessage(_ content: String, replyTo: String? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = NSLocalizedString("chat.error.invalidConversation.text", comment: "Invalid conversation ID when sending text")
+            // Chat borrador: materializar la conversación y reintentar el envío.
+            ensureConversationExists { [weak self] id in
+                guard let self, let id, !id.isEmpty else { return }
+                self.sendTextMessage(content, replyTo: replyTo)
+            }
             return
         }
+        _ = conversationId
 
         // Track antes de enviar
 
