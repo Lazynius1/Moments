@@ -198,7 +198,7 @@ struct AppealsListView: View {
             }
             .padding()
         }
-        .refreshable {
+        .momentRefresh {
             onRefresh()
         }
     }

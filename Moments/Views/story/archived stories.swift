@@ -76,42 +76,60 @@ struct ArchiveView: View {
             (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
 
             if viewModel.isLoading {
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(1.2)
+                ScrollView {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(1.2)
 
-                    Text("archivedStories.loading")
-                        .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundColor(.gray)
+                        Text("archivedStories.loading")
+                            .font(.system(size: legacyPoppinsSize(16)))
+                            .foregroundColor(.gray)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 400)
+                }
+                .momentRefresh {
+                    await reloadArchivedStories()
                 }
             } else if viewModel.groupedStories.isEmpty {
-                VStack(spacing: 20) {
-                    Image(systemName: "archivebox")
-                        .font(.system(size: 60))
-                        .foregroundColor(.gray.opacity(0.5))
+                ScrollView {
+                    VStack(spacing: 20) {
+                        Image(systemName: "archivebox")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray.opacity(0.5))
 
-                    VStack(spacing: 8) {
-                        Text("archivedStories.empty.title")
-                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                        VStack(spacing: 8) {
+                            Text("archivedStories.empty.title")
+                                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
 
-                        Text("archivedStories.empty.description")
-                            .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
+                            Text("archivedStories.empty.description")
+                                .font(.system(size: legacyPoppinsSize(14)))
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                        }
                     }
+                    .padding()
+                    .frame(maxWidth: .infinity, minHeight: 400)
                 }
-                .padding()
+                .momentRefresh {
+                    await reloadArchivedStories()
+                }
             } else {
                 VStack(spacing: 0) {
                     switch selectedDisplayMode {
                     case .stories:
                         if storiesForGrid.isEmpty {
-                            archiveEmptyView(
-                                icon: "tray",
-                                text: NSLocalizedString("archivedStories.empty.description", comment: "No archived stories")
-                            )
+                            ScrollView {
+                                archiveEmptyView(
+                                    icon: "tray",
+                                    text: NSLocalizedString("archivedStories.empty.description", comment: "No archived stories")
+                                )
+                                .frame(maxWidth: .infinity, minHeight: 400)
+                            }
+                            .momentRefresh {
+                                await reloadArchivedStories()
+                            }
                         } else {
                             ScrollView {
                                 ZStack(alignment: .topLeading) {
@@ -151,6 +169,9 @@ struct ArchiveView: View {
                             .onPreferenceChange(ArchiveStoryCardFrameKey.self) { frames in
                                 archiveStoryCardFrames = frames
                             }
+                            .momentRefresh {
+                                await reloadArchivedStories()
+                            }
                         }
                     case .calendar:
                         archiveCalendarView
@@ -162,6 +183,7 @@ struct ArchiveView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(showsCustomDismiss)
+        .settingsSubsectionNavigationChrome(colorScheme: colorScheme)
         .toolbar {
             if embedInNavigation {
                 ToolbarItem(placement: .principal) {
@@ -276,13 +298,26 @@ struct ArchiveView: View {
         .padding(.top, 40)
     }
 
+    private func reloadArchivedStories() async {
+        viewModel.loadArchivedStories()
+        while viewModel.isLoading {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+    }
+
     private var archiveCalendarView: some View {
         Group {
             if calendarMonthSections.isEmpty {
-                archiveEmptyView(
-                    icon: "calendar.badge.exclamationmark",
-                    text: NSLocalizedString("archivedStories.calendar.empty", comment: "No stories for selected date")
-                )
+                ScrollView {
+                    archiveEmptyView(
+                        icon: "calendar.badge.exclamationmark",
+                        text: NSLocalizedString("archivedStories.calendar.empty", comment: "No stories for selected date")
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 400)
+                }
+                .momentRefresh {
+                    await reloadArchivedStories()
+                }
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 22) {
@@ -352,6 +387,9 @@ struct ArchiveView: View {
                     }
                     .padding(.top, 8)
                     .padding(.bottom, 24)
+                }
+                .momentRefresh {
+                    await reloadArchivedStories()
                 }
             }
         }

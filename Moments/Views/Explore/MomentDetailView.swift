@@ -30,7 +30,7 @@ struct MomentDetailView: View {
     @State private var hasTrackedMomentView = false
     
     // ✅ NUEVO: Estado para navegación al perfil
-    @State private var navigateToProfile: Bool = false
+    @State private var profileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
     @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
@@ -92,25 +92,27 @@ struct MomentDetailView: View {
             keyboardHeight = 0
         }
         .momentDetailSwipeDismiss(swipeToDismissGesture, enabled: true)
-        .fullScreenCover(isPresented: $navigateToProfile) {
-            UserProfileView(userId: moment.authorId)
-                .userProfileZoomDestination(userId: moment.authorId, namespace: profileZoomNamespace)
-        }
+        .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
         .fullScreenCover(isPresented: $showingStories) {
             StoriesView(startWithUserId: .constant(moment.authorId))
         }
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
-        .fullScreenCover(item: $selectedLocationMoment) { moment in
-            LocationMapView(
-                locationName: resolvedLocationName(moment.location ?? ""),
-                coordinate: moment.locationCoordinate?.toCLLocationCoordinate2D,
-                isPresented: Binding(
-                    get: { selectedLocationMoment != nil },
-                    set: { if !$0 { selectedLocationMoment = nil } }
+        .navigationDestination(isPresented: Binding(
+            get: { selectedLocationMoment != nil },
+            set: { if !$0 { selectedLocationMoment = nil } }
+        )) {
+            if let moment = selectedLocationMoment {
+                LocationMapView(
+                    locationName: resolvedLocationName(moment.location ?? ""),
+                    coordinate: moment.locationCoordinate?.toCLLocationCoordinate2D,
+                    isPresented: Binding(
+                        get: { selectedLocationMoment != nil },
+                        set: { if !$0 { selectedLocationMoment = nil } }
+                    )
                 )
-            )
+            }
         }
         .environmentObject(firestoreService)
     }
@@ -150,7 +152,7 @@ struct MomentDetailView: View {
         if hasStory {
             showingStories = true
         } else {
-            navigateToProfile = true
+            profileRoute = FeedProfileSheetRoute(userId: moment.authorId)
         }
     }
 

@@ -204,21 +204,29 @@ struct ModernActionButtons: View {
 
 // ✅ REUSABLE: ModernFollowButton
 struct ModernFollowButton: View {
+    enum Style {
+        case standard
+        case compact
+    }
+
     let state: FollowButtonState
     let isLoading: Bool
-    let colorScheme: ColorScheme 
+    let colorScheme: ColorScheme
+    var style: Style = .standard
     let action: () -> Void
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
+
+    private var isCompact: Bool { style == .compact }
     
     var body: some View {
         Button(action: {
             HapticManager.shared.mediumImpact()
             action()
         }) {
-            HStack(spacing: 6) {
+            HStack(spacing: isCompact ? 4 : 6) {
                 if isLoading {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
@@ -226,15 +234,18 @@ struct ModernFollowButton: View {
                         .tint(adaptiveColors.primary)
                 } else {
                     Image(systemName: iconName)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: isCompact ? 11 : 14, weight: .semibold))
                 }
                 
                 Text(title)
-                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                    .font(.system(size: legacyPoppinsSize(isCompact ? 11 : 14), weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(isCompact ? 0.82 : 1)
+                    .allowsTightening(isCompact)
             }
             .foregroundColor(adaptiveColors.primary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, isCompact ? 10 : 16)
+            .padding(.vertical, isCompact ? 6 : 8)
             .momentsChromeGlass(in: Capsule(), interactive: state.isActionable)
         }
         .disabled(isLoading || !state.isActionable)

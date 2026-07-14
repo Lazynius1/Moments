@@ -199,10 +199,7 @@ struct LocationMomentDetailView: View {
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
-        .fullScreenCover(item: $profileRoute) { route in
-            UserProfileView(userId: route.userId)
-                .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
-        }
+        .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
         .alert(NSLocalizedString("locationMomentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
             Button(NSLocalizedString("locationMomentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
             Button(NSLocalizedString("locationMomentDetail.delete.confirm", comment: "Delete"), role: .destructive) {

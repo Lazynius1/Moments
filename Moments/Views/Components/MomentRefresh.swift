@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // Pull-to-refresh con efecto "gota" (Liquid Glass, iOS 26+): una gota nace fundida
 // en la Dynamic Island y se despega al tirar, con el spinner del sistema al refrescar.
@@ -6,8 +7,10 @@ import SwiftUI
 //
 // Piezas:
 //  1) MomentRefreshState.shared — estado ÚNICO compartido (pull + isRefreshing + action).
-//  2) .momentRefresh { }        — se aplica al scroll; mide el pull y fija la action.
-//  3) MomentRefreshGota(state:.shared) — la gota; se dibuja UNA sola vez en TabBarView (raíz).
+//  2) .momentRefresh { }        — en el ScrollView/List; mide el pull y fija la action.
+//  3) Gota global:
+//     - TabBarView: una gota para tabs + navigation push.
+//     - .momentRefreshOverlayHost(): sheets / fullScreenCover (la gota del tab queda debajo).
 
 @MainActor
 final class MomentRefreshState: ObservableObject {
@@ -77,6 +80,19 @@ extension View {
                 .modifier(MomentRefreshDetector(state: MomentRefreshState.shared))
         } else {
             self.refreshable { await action() }
+        }
+    }
+
+    /// Gota en pantallas modales (sheet / fullScreenCover). El host del TabBar queda debajo.
+    @ViewBuilder
+    func momentRefreshOverlayHost() -> some View {
+        if #available(iOS 26.0, *) {
+            overlay(alignment: .top) {
+                MomentRefreshGota(state: .shared)
+                    .allowsHitTesting(false)
+            }
+        } else {
+            self
         }
     }
 }

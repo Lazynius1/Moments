@@ -166,27 +166,17 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
         return selectedTab != .visits || includesVisits
     }
 
-    private var shouldShowSortRow: Bool {
+    private var shouldShowSortControl: Bool {
         guard let selectedTab else { return true }
         if selectedTab == .inCommon { return false }
         return canViewList(for: selectedTab)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            SocialConnectionUnderlineTabBar(
-                tabItems: tabItems,
-                selectedIndex: $selectedTabIndex
-            )
-            if shouldShowSearchBar {
-                searchBar
-            }
-            if shouldShowSortRow {
-                sortRow
-            }
+        ZStack {
+            backgroundColor.ignoresSafeArea()
             tabContent
         }
-        .background(backgroundColor.ignoresSafeArea())
         .navigationTitle(username)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -208,6 +198,7 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                 viewModel: listViewModel,
                 profileZoomNamespace: zoomNamespace
             )
+            .toolbar(.hidden, for: .tabBar)
         }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startAtUserId: route.userId)
@@ -243,17 +234,39 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
 
 
 
-    private var searchBar: some View {
-        HStack(spacing: 10) {
+    private var socialInlineHeader: some View {
+        VStack(spacing: 0) {
+            SocialConnectionUnderlineTabBar(
+                tabItems: tabItems,
+                selectedIndex: $selectedTabIndex
+            )
+            if shouldShowSearchBar || shouldShowSortControl {
+                HStack(spacing: 8) {
+                    if shouldShowSearchBar {
+                        socialSearchBar
+                    }
+                    if shouldShowSortControl {
+                        socialSortIconButton
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 6)
+            }
+        }
+    }
+
+    private var socialSearchBar: some View {
+        HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.secondary)
-                .font(.system(size: 15))
 
             TextField(
                 NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"),
                 text: $searchText
             )
-            .font(.system(size: 15, weight: .regular))
+            .font(.system(size: legacyPoppinsSize(14), weight: .regular))
             .foregroundStyle(primaryTextColor)
             .textFieldStyle(.plain)
 
@@ -261,20 +274,75 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                 Button(action: { searchText = "" }) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
-                        .font(.system(size: 15))
+                        .font(.system(size: 14))
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color.clear.momentsChromeGlass(in: Capsule()))
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
     }
 
-    private var sortRow: some View {
+    @ViewBuilder
+    private var tabContent: some View {
+        if availableTabs.isEmpty {
+            Spacer()
+        } else if let selectedTab {
+            ActivityCollapsibleFilterScroll(
+                onRefresh: { await refreshSocialTab(selectedTab) },
+                header: { socialInlineHeader },
+                floatingHeader: { socialFloatingChrome },
+                content: { _ in
+                    tabEmbeddedContent(for: selectedTab)
+                        .frame(maxWidth: .infinity, alignment: .top)
+                }
+            )
+            .id(selectedTabIndex)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+    }
+
+    private var socialFloatingChrome: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(tabItems.enumerated()), id: \.offset) { index, item in
+                    socialTabChip(item: item, index: index)
+                }
+                if shouldShowSortControl {
+                    socialSortIconButton
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+        }
+    }
+
+    private func socialTabChip(item: SocialConnectionTabItem, index: Int) -> some View {
+        let isSelected = selectedTabIndex == index
+
+        return Button {
+            MotionPolicy.withOptionalAnimation(.easeOut(duration: 0.18)) {
+                selectedTabIndex = index
+            }
+        } label: {
+            Text(item.title)
+                .font(.system(size: legacyPoppinsSize(12), weight: isSelected ? .semibold : .medium))
+                .foregroundStyle(isSelected ? (colorScheme == .dark ? Color.black : Color.white) : (colorScheme == .dark ? Color.white.opacity(0.72) : Color.black.opacity(0.62)))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
+                )
+        }
+        .buttonStyle(.plain)
+        .environment(\.colorScheme, isSelected ? (colorScheme == .dark ? .light : .dark) : colorScheme)
+    }
+
+    private var socialSortIconButton: some View {
         Menu {
             ForEach(SocialConnectionsSortMode.allCases) { mode in
                 Button {
@@ -288,45 +356,17 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                 }
             }
         } label: {
-            HStack(spacing: 4) {
-                Text(NSLocalizedString("socialConnections.sort.by", comment: ""))
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(.secondary)
-
-                Text(currentSortMode.title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(primaryTextColor)
-
-                Spacer()
-
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(primaryTextColor)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(primaryTextColor)
+                .frame(width: 36, height: 36)
+                .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
         }
         .buttonStyle(.plain)
     }
 
     @ViewBuilder
-    private var tabContent: some View {
-        if availableTabs.isEmpty {
-            Spacer()
-        } else {
-            TabView(selection: $selectedTabIndex) {
-                ForEach(Array(availableTabs.enumerated()), id: \.offset) { index, tab in
-                    tabPage(for: tab)
-                        .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-        }
-    }
-
-    @ViewBuilder
-    private func tabPage(for tab: SocialConnectionTab) -> some View {
+    private func tabEmbeddedContent(for tab: SocialConnectionTab) -> some View {
         let sortMode = sortModes[tab] ?? .default
 
         switch tab {
@@ -342,7 +382,8 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                 onUserTap: { userId in
                     selectedProfileTarget = SocialProfileNavigationTarget(id: userId)
                 },
-                onAvatarTap: handleAvatarTap
+                onAvatarTap: handleAvatarTap,
+                usesOwnScroll: false
             )
         case .inCommon:
             CommonConnectionsTabContent(
@@ -354,7 +395,8 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                     selectedProfileTarget = SocialProfileNavigationTarget(id: user.id)
                 },
                 onAvatarTap: handleAvatarTap,
-                profileZoomNamespace: zoomNamespace
+                profileZoomNamespace: zoomNamespace,
+                usesOwnScroll: false
             )
         case .followers, .following, .mutuals:
             UsersTabContent(
@@ -384,9 +426,45 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                     (listViewModel as? ProfileViewModel)?.removeFollower(userId: user.id)
                 } : nil,
                 onAvatarTap: handleAvatarTap,
-                mutualUserIds: Set(mutuals.map { $0.id })
+                mutualUserIds: Set(mutuals.map { $0.id }),
+                usesOwnScroll: false
             )
         }
+    }
+
+    private func refreshSocialTab(_ tab: SocialConnectionTab) async {
+        switch tab {
+        case .visits:
+            if isOwnProfile, let profileViewModel = listViewModel as? ProfileViewModel {
+                profileViewModel.refreshVisits()
+                while profileViewModel.isLoadingVisits {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+            } else {
+                visitsViewModel.fetchVisits()
+                while visitsViewModel.isLoading {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+            }
+        case .inCommon, .followers, .following, .mutuals:
+            if let profileViewModel = listViewModel as? ProfileViewModel {
+                profileViewModel.refreshProfile()
+                while profileViewModel.isRefreshing {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+            } else if let userProfileViewModel = listViewModel as? UserProfileViewModel {
+                userProfileViewModel.refreshProfile()
+                while userProfileViewModel.isRefreshing || userProfileViewModel.isLoading {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+            }
+            followerTimestamps.removeAll()
+            followingTimestamps.removeAll()
+            loadFollowerTimestampsIfNeeded()
+            loadFollowingTimestampsIfNeeded()
+            loadFollowingInsightsIfNeeded()
+        }
+        try? await Task.sleep(nanoseconds: 200_000_000)
     }
 
     @ViewBuilder

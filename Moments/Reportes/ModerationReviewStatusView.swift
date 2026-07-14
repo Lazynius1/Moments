@@ -124,7 +124,7 @@ private struct ModerationReviewListView: View {
             }
             .padding()
         }
-        .refreshable {
+        .momentRefresh {
             onRefresh()
         }
     }

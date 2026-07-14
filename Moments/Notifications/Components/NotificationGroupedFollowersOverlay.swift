@@ -21,11 +21,10 @@ struct NotificationGroupedFollowersOverlay: View {
     @ObservedObject var viewModel: NotificationsViewModel
     let colorScheme: ColorScheme
     @Binding var isPresented: Bool
+    var onOpenProfile: ((String) -> Void)? = nil
 
     @State private var followStates: [String: FollowButtonState] = [:]
     @State private var loadingStates: [String: Bool] = [:]
-    @State private var profileUserId: String?
-    @State private var showProfile = false
     @Namespace private var profileZoomNamespace
     @State private var storyRoute: GroupedFollowerStoryRoute?
     @State private var unfollowTargetId: String?
@@ -89,12 +88,6 @@ struct NotificationGroupedFollowersOverlay: View {
             guard let userId = notification.userInfo?["userId"] as? String,
                   let state = notification.userInfo?["state"] as? FollowButtonState else { return }
             followStates[userId] = state
-        }
-        .fullScreenCover(isPresented: $showProfile) {
-            if let profileUserId, !profileUserId.isEmpty {
-                UserProfileView(userId: profileUserId)
-                    .userProfileZoomDestination(userId: profileUserId, namespace: profileZoomNamespace)
-            }
         }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.id))
@@ -182,14 +175,12 @@ struct NotificationGroupedFollowersOverlay: View {
                 if hasStory {
                     storyRoute = GroupedFollowerStoryRoute(id: item.id)
                 } else {
-                    profileUserId = item.id
-                    showProfile = true
+                    openProfile(userId: item.id)
                 }
             }
 
             Button {
-                profileUserId = item.id
-                showProfile = true
+                openProfile(userId: item.id)
             } label: {
                 HStack(spacing: 4) {
                     Text(item.username)
@@ -322,5 +313,11 @@ struct NotificationGroupedFollowersOverlay: View {
     private func isPassiveFollowState(_ state: FollowButtonState) -> Bool {
         if case .requestPending = state { return true }
         return false
+    }
+
+    private func openProfile(userId: String) {
+        let trimmed = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onOpenProfile?(trimmed)
     }
 }

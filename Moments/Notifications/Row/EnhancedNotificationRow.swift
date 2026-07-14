@@ -11,8 +11,7 @@ struct EnhancedNotificationRow: View {
     let onTapAction: () -> Void
     let onShowGroupedFollowers: ((NotificationGroup) -> Void)?
     let onModerationReviewTap: ((Notification) -> Void)?
-    @State var showProfile = false
-    @State var profileUserId: String?
+    var onOpenProfile: ((String) -> Void)? = nil
     @Namespace private var profileZoomNamespace
     @State var showStories = false
     @State var momentImagePath: String?
@@ -101,12 +100,6 @@ struct EnhancedNotificationRow: View {
             },
             perform: {}
         )
-        .fullScreenCover(isPresented: $showProfile) {
-            if let profileUserId, !profileUserId.isEmpty {
-                UserProfileView(userId: profileUserId)
-                    .userProfileZoomDestination(userId: profileUserId, namespace: profileZoomNamespace)
-            }
-        }
         .fullScreenCover(isPresented: $showStories) {
             StoriesView(startWithUserId: .constant(group.notifications.first?.senderId ?? ""))
         }
@@ -212,8 +205,9 @@ struct EnhancedNotificationRow: View {
     func openProfile(userId: String) {
         let trimmed = userId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        profileUserId = trimmed
-        showProfile = true
+        if let onOpenProfile {
+            onOpenProfile(trimmed)
+        }
     }
 
     var notificationMessageColor: Color {

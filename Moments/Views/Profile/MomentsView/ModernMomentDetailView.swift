@@ -211,24 +211,26 @@ struct ModernMomentDetailView: View {
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
-        .fullScreenCover(item: $profileRoute) { route in
-            UserProfileView(userId: route.userId)
-                .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
-        }
+        .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.userId))
                 .environmentObject(firestoreService)
                 .ignoresSafeArea(.keyboard)
         }
-        .fullScreenCover(item: $selectedLocationMoment) { moment in
-            LocationMapView(
-                locationName: resolvedLocationName(moment.location ?? ""),
-                coordinate: moment.locationCoordinate?.toCLLocationCoordinate2D,
-                isPresented: Binding(
-                    get: { selectedLocationMoment != nil },
-                    set: { if !$0 { selectedLocationMoment = nil } }
+        .navigationDestination(isPresented: Binding(
+            get: { selectedLocationMoment != nil },
+            set: { if !$0 { selectedLocationMoment = nil } }
+        )) {
+            if let moment = selectedLocationMoment {
+                LocationMapView(
+                    locationName: resolvedLocationName(moment.location ?? ""),
+                    coordinate: moment.locationCoordinate?.toCLLocationCoordinate2D,
+                    isPresented: Binding(
+                        get: { selectedLocationMoment != nil },
+                        set: { if !$0 { selectedLocationMoment = nil } }
+                    )
                 )
-            )
+            }
         }
         .onAppear {
             let target = clampedInitialIndex

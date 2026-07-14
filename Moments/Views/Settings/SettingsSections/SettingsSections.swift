@@ -334,42 +334,44 @@ struct AdvancedAccountManagementView: View {
     @State private var showError = false
 
     var body: some View {
-        ZStack {
-            Color.clear.ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                Color.clear.ignoresSafeArea()
 
-            if flowDestination == .main {
-                advancedMainContent
+                if flowDestination == .main {
+                    advancedMainContent
+                        .transition(flowTransition)
+                } else {
+                    DeleteAccountVerificationView(
+                        isProcessing: $isProcessing,
+                        passwordErrorMessage: $deletePasswordErrorMessage,
+                        onConfirm: deleteAccount(confirmation:),
+                        onCancel: { navigate(to: .main, forward: false) }
+                    )
+                    .environmentObject(authService)
                     .transition(flowTransition)
-            } else {
-                DeleteAccountVerificationView(
-                    isProcessing: $isProcessing,
-                    passwordErrorMessage: $deletePasswordErrorMessage,
-                    onConfirm: deleteAccount(confirmation:),
-                    onCancel: { navigate(to: .main, forward: false) }
-                )
-                .environmentObject(authService)
-                .transition(flowTransition)
+                }
             }
-        }
-        .animation(.spring(response: 0.36, dampingFraction: 0.86), value: flowDestination)
-        .interactiveDismissDisabled(isProcessing)
-        .alert(NSLocalizedString("accountManagement.deactivate.title", comment: "Deactivate account"), isPresented: $showDeactivateConfirmation) {
-            Button(NSLocalizedString("accountManagement.cancel", comment: "Cancel"), role: .cancel) {}
-            Button(NSLocalizedString("accountManagement.deactivate", comment: "Deactivate"), role: .destructive) {
-                deactivateAccount()
+            .animation(.spring(response: 0.36, dampingFraction: 0.86), value: flowDestination)
+            .interactiveDismissDisabled(isProcessing)
+            .navigationDestination(isPresented: $isShowingSessionManagement) {
+                LoginActivityView()
             }
-        } message: {
-            Text(NSLocalizedString("accountManagement.deactivate.message", comment: "Deactivate account message"))
-        }
-        .alert(NSLocalizedString("accountManagement.error.title", comment: "Error"), isPresented: $showError) {
-            Button(NSLocalizedString("accountManagement.ok", comment: "OK")) {}
-        } message: {
-            if let errorMessage {
-                Text(errorMessage)
+            .alert(NSLocalizedString("accountManagement.deactivate.title", comment: "Deactivate account"), isPresented: $showDeactivateConfirmation) {
+                Button(NSLocalizedString("accountManagement.cancel", comment: "Cancel"), role: .cancel) {}
+                Button(NSLocalizedString("accountManagement.deactivate", comment: "Deactivate"), role: .destructive) {
+                    deactivateAccount()
+                }
+            } message: {
+                Text(NSLocalizedString("accountManagement.deactivate.message", comment: "Deactivate account message"))
             }
-        }
-        .fullScreenCover(isPresented: $isShowingSessionManagement) {
-            LoginActivityView()
+            .alert(NSLocalizedString("accountManagement.error.title", comment: "Error"), isPresented: $showError) {
+                Button(NSLocalizedString("accountManagement.ok", comment: "OK")) {}
+            } message: {
+                if let errorMessage {
+                    Text(errorMessage)
+                }
+            }
         }
     }
 

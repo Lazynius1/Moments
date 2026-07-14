@@ -56,6 +56,8 @@ enum ProfileMomentZoomNavigation {
         highlight.id ?? "highlight-\(index)"
     }
 
+    static let profileSavedManagerZoomSourceID = "profile-saved-manager"
+
     static func canvasBackground(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }

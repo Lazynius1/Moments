@@ -20,13 +20,21 @@ struct SearchHistoryActivityView: View {
                 .ignoresSafeArea()
             
             if searches.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 40))
-                        .foregroundColor(.gray.opacity(0.5))
-                    Text(NSLocalizedString("userActivity.recentSearches.empty", value: "No hay búsquedas recientes", comment: "Empty search history"))
-                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(.gray)
+                ScrollView {
+                    VStack(spacing: 16) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 40))
+                            .foregroundColor(.gray.opacity(0.5))
+                        Text(NSLocalizedString("userActivity.recentSearches.empty", value: "No hay búsquedas recientes", comment: "Empty search history"))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                            .foregroundColor(.gray)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 400)
+                }
+                .momentRefresh {
+                    loadSearches()
+                    loadConnections()
+                    try? await Task.sleep(nanoseconds: 300_000_000)
                 }
             } else {
                 ScrollView {
@@ -59,12 +67,16 @@ struct SearchHistoryActivityView: View {
                     }
                     .padding(.vertical, 8)
                 }
+                .momentRefresh {
+                    loadSearches()
+                    loadConnections()
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                }
             }
         }
         .navigationTitle(NSLocalizedString("userActivity.recentSearches.title", value: "Historial de búsquedas", comment: "Search history title"))
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .settingsSubsectionNavigationChrome(colorScheme: colorScheme)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })

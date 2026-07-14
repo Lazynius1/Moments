@@ -21,6 +21,8 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
     @State private var followedYouAt: Date?
     @State private var followingSince: Date?
 
+    @Namespace private var localProfileZoomNamespace
+
     private let firestore = Firestore.firestore()
 
     private var backgroundColor: Color {
@@ -78,11 +80,15 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
             }
             .padding(.bottom, 32)
         }
+        .momentRefresh {
+            loadRelationshipTimeline()
+        }
         .background(backgroundColor.ignoresSafeArea())
         .navigationTitle(NSLocalizedString("sharedActivity.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .navigationInteractivePopEnabled()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
@@ -90,6 +96,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
         }
         .navigationDestination(isPresented: $navigateToProfile) {
             UserProfileView(userId: otherUser.id)
+                .userProfileZoomDestination(userId: otherUser.id, namespace: localProfileZoomNamespace)
         }
         .navigationDestination(isPresented: $navigateToChat) {
             if let conversation = targetConversation {
@@ -126,6 +133,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
                 }
             )
         }
+        .toolbar(.hidden, for: .tabBar)
         .confirmationDialog(
             NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
             isPresented: $showingUnfollowConfirmation,
@@ -266,39 +274,38 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
 
     private var modulesSection: some View {
         VStack(spacing: 0) {
-            NavigationLink {
-                SharedActivityDetailView(category: .tags, currentUser: currentUser, otherUser: otherUser)
-            } label: {
-                sharedModuleRow(
-                    category: .tags,
-                    title: NSLocalizedString("editMoment.tags.title", comment: ""),
-                    subtitle: NSLocalizedString("sharedActivity.modules.tags.subtitle", value: "Momentos en los que os habéis etiquetado", comment: "")
-                )
-            }
-            .buttonStyle(.plain)
+            sharedModuleButton(
+                category: .tags,
+                title: NSLocalizedString("editMoment.tags.title", comment: ""),
+                subtitle: NSLocalizedString("sharedActivity.modules.tags.subtitle", value: "Momentos en los que os habéis etiquetado", comment: "")
+            )
 
-            NavigationLink {
-                SharedActivityDetailView(category: .reactions, currentUser: currentUser, otherUser: otherUser)
-            } label: {
-                sharedModuleRow(
-                    category: .reactions,
-                    title: NSLocalizedString("userActivity.simple.item.reactions.title", comment: ""),
-                    subtitle: NSLocalizedString("sharedActivity.modules.reactions.subtitle", value: "Reacciones en los momentos de cada uno", comment: "")
-                )
-            }
-            .buttonStyle(.plain)
+            sharedModuleButton(
+                category: .reactions,
+                title: NSLocalizedString("userActivity.simple.item.reactions.title", comment: ""),
+                subtitle: NSLocalizedString("sharedActivity.modules.reactions.subtitle", value: "Reacciones en los momentos de cada uno", comment: "")
+            )
 
-            NavigationLink {
-                SharedActivityDetailView(category: .comments, currentUser: currentUser, otherUser: otherUser)
-            } label: {
-                sharedModuleRow(
-                    category: .comments,
-                    title: NSLocalizedString("comments.title", comment: ""),
-                    subtitle: NSLocalizedString("sharedActivity.modules.comments.subtitle", value: "Comentarios en las publicaciones del otro", comment: "")
-                )
-            }
-            .buttonStyle(.plain)
+            sharedModuleButton(
+                category: .comments,
+                title: NSLocalizedString("comments.title", comment: ""),
+                subtitle: NSLocalizedString("sharedActivity.modules.comments.subtitle", value: "Comentarios en las publicaciones del otro", comment: "")
+            )
         }
+    }
+
+    private func sharedModuleButton(category: SharedActivityCategory, title: String, subtitle: String) -> some View {
+        NavigationLink {
+            SharedActivityDetailView(
+                category: category,
+                currentUser: currentUser,
+                otherUser: otherUser
+            )
+            .toolbar(.hidden, for: .tabBar)
+        } label: {
+            sharedModuleRow(category: category, title: title, subtitle: subtitle)
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder

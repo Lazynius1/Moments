@@ -305,6 +305,7 @@ struct UserProfileView: View {
     @State private var hasRegisteredVisit = false
     @State private var selectedTab: UserProfileTabType = .moments // ✅ NUEVO: Tab seleccionado
     @Namespace private var profileZoomNamespace
+    @State private var momentZoomDestination: ProfileMomentZoomDestination?
 
     // ✅ NUEVOS: Estados para navegación al explorer
     @State private var selectedHashtag: String = ""
@@ -344,9 +345,7 @@ struct UserProfileView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            profileContent
-        }
+        profileContent
     }
 
     private var profileContent: some View {
@@ -407,6 +406,13 @@ struct UserProfileView: View {
                 connectionVisibility: viewModel.visibleConnectionTypes,
                 listViewModel: viewModel,
                 profileZoomNamespace: profileZoomNamespace
+            )
+        }
+        .navigationDestination(item: $momentZoomDestination) { destination in
+            ProfileMomentZoomDetailDestination(
+                destination: destination,
+                moments: momentsForZoomDestination(destination),
+                namespace: profileZoomNamespace
             )
         }
         .sheet(isPresented: $showExploreWithHashtag) {
@@ -510,6 +516,9 @@ struct UserProfileView: View {
             .presentationDragIndicator(.visible)
         }
         .onAppear {
+            heroCoordinator.openZoomDetail = { momentZoomDestination = $0 }
+            heroCoordinator.clearZoomNavigation = { momentZoomDestination = nil }
+
             if let currentUserId = Auth.auth().currentUser?.uid {
                 // ✅ Todo dentro del if let currentUserId
 
@@ -627,7 +636,9 @@ struct UserProfileView: View {
                         storyRoute = UserProfileStoryRoute(userId: userId)
                     },
                     chatZoomNamespace: profileZoomNamespace,
-                    selectedTab: $selectedTab // ✅ NUEVO
+                    gridZoomNamespace: profileZoomNamespace,
+                    momentZoomDestination: $momentZoomDestination,
+                    selectedTab: $selectedTab
                 )
             }
         }
@@ -652,6 +663,17 @@ struct UserProfileView: View {
             return NSLocalizedString("userProfile.unfollow.confirm.private.message", comment: "Private profile unfollow confirmation message")
         }
         return NSLocalizedString("userProfile.unfollow.confirm.message", comment: "Unfollow confirmation message")
+    }
+
+    private func momentsForZoomDestination(_ destination: ProfileMomentZoomDestination) -> [Moment] {
+        switch destination.feedKind {
+        case .userProfileMoments:
+            return viewModel.moments
+        case .userProfileTagged:
+            return viewModel.taggedMoments
+        default:
+            return []
+        }
     }
 
 }

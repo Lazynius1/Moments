@@ -53,7 +53,7 @@ struct LocationMapView: View {
     @State private var isLoadingNearbyMoments = false
     @State private var showingGallery = false
     @State private var selectedMoment: Moment?  // ✅ USAR MOMENT
-    @State private var showingProfile = false
+    @State private var profileRoute: FeedProfileSheetRoute?
     @State private var selectedMomentIndex = 0
 
     @State private var locationPermissionGranted = false
@@ -291,12 +291,7 @@ struct LocationMapView: View {
                 isPresented: $showingGallery
             )
         }
-        .fullScreenCover(isPresented: $showingProfile) {
-            if let moment = selectedMoment {
-                UserProfileView(userId: moment.authorId)
-                    .userProfileZoomDestination(userId: moment.authorId, namespace: profileZoomNamespace)
-            }
-        }
+        .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
         .onChange(of: zoomDestination) { _, newValue in
             if newValue == nil {
                 zoomMapMomentsPool = []

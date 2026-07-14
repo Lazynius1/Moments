@@ -64,11 +64,13 @@ struct UserActivityView: View {
                     .padding(.top, 16)
                     .padding(.bottom, 24)
                 }
+                .momentRefresh {
+                    summaryVM.load()
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                }
             }
             .navigationTitle(NSLocalizedString("userActivity.title", comment: "User activity title"))
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     SettingsToolbarBackButton(action: { dismiss() })
@@ -78,7 +80,7 @@ struct UserActivityView: View {
                 summaryVM.load()
                 summaryVM.autoRefresh()
             }
-        .momentZoomNavigationSurface(colorScheme: colorScheme)
+        .settingsSubsectionNavigationChrome(colorScheme: colorScheme)
     }
 
     private func activitySection(title: String, categories: [ActivityInteractionCategory]) -> some View {
@@ -134,6 +136,7 @@ struct UserActivityView: View {
 
 struct RecentlyDeletedActivityView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedKind: RecentlyDeletedContentKind = .moments
 
     private var momentsTitle: String {
@@ -149,9 +152,12 @@ struct RecentlyDeletedActivityView: View {
     }
 
     var body: some View {
-        ActivityInteractionDetailView(category: .recentlyDeleted, recentlyDeletedKind: selectedKind)
+        ActivityInteractionDetailView(category: .recentlyDeleted, recentlyDeletedKind: selectedKind, suppressInlineNavigationTitle: true)
             .id(selectedKind)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    SettingsToolbarBackButton(action: { dismiss() })
+                }
                 ToolbarItem(placement: .principal) {
                     Menu {
                         Button {
@@ -181,6 +187,7 @@ struct RecentlyDeletedActivityView: View {
 
 struct ArchivedActivityView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedKind: ArchivedContentKind
 
     init(initialKind: ArchivedContentKind = .moments) {
@@ -210,6 +217,9 @@ struct ArchivedActivityView: View {
         }
         .id(selectedKind)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                SettingsToolbarBackButton(action: { dismiss() })
+            }
             ToolbarItem(placement: .principal) {
                 Menu {
                     Button {

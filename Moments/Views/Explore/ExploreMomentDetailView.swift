@@ -159,17 +159,14 @@ struct ExploreMomentDetailView: View {
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
-        .fullScreenCover(isPresented: $showingLocationMap) {
+        .navigationDestination(isPresented: $showingLocationMap) {
             LocationMapView(
                 locationName: selectedLocationName,
                 coordinate: selectedLocationCoordinate,
                 isPresented: $showingLocationMap
             )
         }
-        .fullScreenCover(item: $profileRoute) { route in
-            UserProfileView(userId: route.userId)
-                .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
-        }
+        .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
         .alert(NSLocalizedString("modernMomentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
             Button(NSLocalizedString("modernMomentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
             Button(NSLocalizedString("modernMomentDetail.delete.confirm", comment: "Delete"), role: .destructive) {

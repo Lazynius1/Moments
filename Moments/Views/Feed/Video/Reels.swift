@@ -132,7 +132,7 @@ struct ReelVideoView: View {
     @State private var showShareSheet = false
     @State private var showReportSheet = false
     @State private var showDeleteAlert = false
-    @State private var navigateToProfile = false
+    @State private var profileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
     @State private var hasStory = false
     @State private var hasUnseenStory = false
@@ -392,7 +392,7 @@ struct ReelVideoView: View {
                                             if hasStory {
                                                 storyRoute = ReelsStoryRoute(id: video.moment.authorId)
                                             } else {
-                                                navigateToProfile = true
+                                                profileRoute = FeedProfileSheetRoute(userId: video.moment.authorId)
                                             }
                                         }
                                     }) {
@@ -423,7 +423,7 @@ struct ReelVideoView: View {
                                     VStack(alignment: .leading, spacing: 3) {
                                         Button(action: {
                                             if !video.moment.authorId.isEmpty {
-                                                navigateToProfile = true
+                                                profileRoute = FeedProfileSheetRoute(userId: video.moment.authorId)
                                             }
                                         }) {
                                             HStack(spacing: 6) {
@@ -653,10 +653,7 @@ struct ReelVideoView: View {
         /*.sheet(isPresented: $showReportSheet) {
             ReportBottomSheet(moment: video.moment)
         }*/
-        .fullScreenCover(isPresented: $navigateToProfile) {
-            UserProfileView(userId: video.moment.authorId)
-                .userProfileZoomDestination(userId: video.moment.authorId, namespace: profileZoomNamespace)
-        }
+        .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.id))
         }

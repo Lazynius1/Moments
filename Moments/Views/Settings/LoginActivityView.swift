@@ -82,6 +82,9 @@ struct LoginActivityView: View {
                         }
                         .padding(.top)
                     }
+                    .momentRefresh {
+                        await viewModel.refreshLoginActivity()
+                    }
                 }
             }
             .navigationTitle(NSLocalizedString("loginActivity.navigation.title", comment: "Login activity navigation title"))
@@ -104,9 +107,6 @@ struct LoginActivityView: View {
                         isLoading = false
                     }
                 }
-            }
-            .refreshable {
-                await viewModel.refreshLoginActivity()
             }
             .alert(NSLocalizedString("loginActivity.logoutAll.title", comment: "Logout all sessions"), isPresented: $viewModel.showLogoutAllAlert) {
                 Button(NSLocalizedString("loginActivity.cancel", comment: "Cancel"), role: .cancel) { }

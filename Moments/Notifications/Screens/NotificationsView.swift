@@ -19,6 +19,8 @@ struct NotificationsView: View {
     @State private var showChat = false
     @ObservedObject private var chatAccessCoordinator = ChatAccessCoordinator.shared
     @State private var groupedFollowersOverlayGroup: NotificationGroup?
+    @State private var profileRoute: FeedProfileSheetRoute?
+    @Namespace private var profileZoomNamespace
     @Namespace private var tabAnimation
     let onNotificationsCleared: (() -> Void)?
 
@@ -58,6 +60,10 @@ struct NotificationsView: View {
                     namespace: momentZoomNamespace
                 )
             }
+            .userProfileNavigationDestination(
+                item: $profileRoute,
+                namespace: profileZoomNamespace
+            )
             .onChange(of: zoomDestination) { _, newValue in
                 if newValue == nil {
                     zoomResolvedMoment = nil
@@ -111,7 +117,11 @@ struct NotificationsView: View {
                     isPresented: Binding(
                         get: { groupedFollowersOverlayGroup != nil },
                         set: { if !$0 { groupedFollowersOverlayGroup = nil } }
-                    )
+                    ),
+                    onOpenProfile: { userId in
+                        groupedFollowersOverlayGroup = nil
+                        profileRoute = FeedProfileSheetRoute(userId: userId)
+                    }
                 )
                 .transition(.scale(scale: 0.94).combined(with: .opacity))
                 .zIndex(5000)
@@ -366,6 +376,9 @@ struct NotificationsView: View {
                         },
                         onModerationReviewTap: { notification in
                             moderationReviewNotification = notification
+                        },
+                        onOpenProfile: { userId in
+                            profileRoute = FeedProfileSheetRoute(userId: userId)
                         }
                     )
                     .listRowInsets(EdgeInsets())

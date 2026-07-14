@@ -68,6 +68,10 @@ struct BlockedUsersView: View {
                         .padding(.horizontal, 12)
                         .padding(.bottom, 20)
                     }
+                    .momentRefresh {
+                        viewModel.fetchBlockedUsers()
+                        try? await Task.sleep(nanoseconds: 400_000_000)
+                    }
                 }
             }
             .padding(.top, 8)

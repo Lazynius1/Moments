@@ -700,47 +700,52 @@ struct StoryViewerScreen: View {
 
     private var profileAndChainBoundView: AnyView {
         AnyView(
-            overlayBoundView
-                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUserProfileFromStory"))) { notification in
-                    if let userId = notification.object as? String, !userId.isEmpty {
-                        profileRoute = FeedProfileSheetRoute(userId: userId)
-                        pauseStory()
-                    }
-                }
-                .fullScreenCover(item: $profileRoute, onDismiss: {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        resumeStory()
-                    }
-                }) { route in
-                    UserProfileView(userId: route.userId)
-                        .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
-                }
-                .sheet(isPresented: $showChainView, onDismiss: {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        resumeStory()
-                    }
-                }) {
-                    StoryChainView(
-                        chainId: selectedChainId,
-                        chainTitle: selectedChainTitle,
-                        canContinueChain: canContinueChain,
-                        initialStoryId: selectedChainStoryId.isEmpty ? nil : selectedChainStoryId,
-                        initialChainPosition: selectedChainStoryPosition
-                    )
-                    .background(Color.clear)
-                }
-                .onChange(of: showChainView) { _, isOpen in
-                    if isOpen {
-                        pauseStory()
-                    }
-                }
-                .onChange(of: profileRoute) { oldValue, newValue in
-                    if newValue == nil && oldValue != nil {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            resumeStory()
+            NavigationStack {
+                overlayBoundView
+                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUserProfileFromStory"))) { notification in
+                        if let userId = notification.object as? String, !userId.isEmpty {
+                            profileRoute = FeedProfileSheetRoute(userId: userId)
+                            pauseStory()
                         }
                     }
-                }
+                    .userProfileNavigationDestination(
+                        item: $profileRoute,
+                        namespace: profileZoomNamespace
+                    )
+                    .onChange(of: profileRoute) { _, newValue in
+                        if newValue == nil {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                resumeStory()
+                            }
+                        }
+                    }
+                    .sheet(isPresented: $showChainView, onDismiss: {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            resumeStory()
+                        }
+                    }) {
+                        StoryChainView(
+                            chainId: selectedChainId,
+                            chainTitle: selectedChainTitle,
+                            canContinueChain: canContinueChain,
+                            initialStoryId: selectedChainStoryId.isEmpty ? nil : selectedChainStoryId,
+                            initialChainPosition: selectedChainStoryPosition
+                        )
+                        .background(Color.clear)
+                    }
+                    .onChange(of: showChainView) { _, isOpen in
+                        if isOpen {
+                            pauseStory()
+                        }
+                    }
+                    .onChange(of: profileRoute) { oldValue, newValue in
+                        if newValue == nil && oldValue != nil {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                resumeStory()
+                            }
+                        }
+                    }
+            }
         )
     }
 

@@ -113,17 +113,19 @@ struct QuestionResponsesView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            sheetHeader
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 10)
+        NavigationStack {
+            VStack(spacing: 0) {
+                sheetHeader
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 10)
 
-            Group {
-                if let selectedResponse {
-                    shareQuestionFlow(response: selectedResponse)
-                } else {
-                    receivedQuestionsFlow
+                Group {
+                    if let selectedResponse {
+                        shareQuestionFlow(response: selectedResponse)
+                    } else {
+                        receivedQuestionsFlow
+                    }
                 }
             }
         }
@@ -352,7 +354,7 @@ private struct QuestionResponseRow: View {
     let onShare: () -> Void
 
     @State private var responderUsername: String = ""
-    @State private var showingResponderProfile = false
+    @State private var profileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
 
     var body: some View {
@@ -366,7 +368,7 @@ private struct QuestionResponseRow: View {
                         cornerRadius: 19
                     )
                     .onTapGesture {
-                        showingResponderProfile = true
+                        profileRoute = FeedProfileSheetRoute(userId: response.userId)
                     }
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -402,10 +404,7 @@ private struct QuestionResponseRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
-        .fullScreenCover(isPresented: $showingResponderProfile) {
-            UserProfileView(userId: response.userId)
-                .userProfileZoomDestination(userId: response.userId, namespace: profileZoomNamespace)
-        }
+        .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
         .onAppear {
             loadResponderUsername()
         }

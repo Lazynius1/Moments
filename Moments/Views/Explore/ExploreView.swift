@@ -14,7 +14,7 @@ struct ExploreView: View {
     @Namespace private var zoomNamespace
     @Namespace private var profileZoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
-    @State private var selectedUser: AppUser?
+    @State private var selectedProfileRoute: FeedProfileSheetRoute?
     @State private var showDiscoverMap = false
 
     @State private var showSuggestedUsersView = false
@@ -50,10 +50,10 @@ struct ExploreView: View {
             .alert(isPresented: $showPrivateProfileAlert) {
                 privateProfileAlert
             }
-            .fullScreenCover(item: $selectedUser) { user in
-                UserProfileView(userId: user.id)
-                    .userProfileZoomDestination(userId: user.id, namespace: profileZoomNamespace)
-            }
+            .userProfileNavigationDestination(
+                item: $selectedProfileRoute,
+                namespace: profileZoomNamespace
+            )
             .navigationDestination(item: $zoomDestination) { destination in
                 MomentZoomDetailDestination(
                     destination: destination,
@@ -61,7 +61,7 @@ struct ExploreView: View {
                     namespace: zoomNamespace
                 )
             }
-            .fullScreenCover(isPresented: $showDiscoverMap) {
+            .navigationDestination(isPresented: $showDiscoverMap) {
                 DiscoverMapView(isPresented: $showDiscoverMap)
             }
             .sheet(isPresented: $showSuggestedUsersView) {
@@ -259,7 +259,7 @@ struct ExploreView: View {
                 userButtonStates: viewModel.userButtonStates,
                 onFollowUser: viewModel.followUser,
                 onUserTap: { user in
-                    selectedUser = user
+                    selectedProfileRoute = FeedProfileSheetRoute(userId: user.id)
                     viewModel.checkCanViewContent(for: user.id) { _ in }
                 },
                 onShowMore: {
@@ -331,7 +331,7 @@ struct ExploreView: View {
                 currentUserInterests: viewModel.currentUserInterests,
                 onFollowUser: viewModel.followUser,
                 onUserTap: { user in
-                    selectedUser = user
+                    selectedProfileRoute = FeedProfileSheetRoute(userId: user.id)
                     viewModel.checkCanViewContent(for: user.id) { _ in }
                     // ✅ Guardar en historial
                     viewModel.saveSearchRecord(query: user.username, type: "user", targetId: user.id)

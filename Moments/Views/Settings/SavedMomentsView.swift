@@ -133,9 +133,6 @@ struct SavedMomentsView: View {
                 viewModel.loadSavedMoments()
             }
         }
-        .refreshable {
-            await refreshMoments()
-        }
         .alert(NSLocalizedString("savedMoments.selection.remove.title", comment: "Remove selected alert title"), isPresented: $showRemoveSelectionAlert) {
             Button(NSLocalizedString("savedMoments.cancel", comment: "Cancel action"), role: .cancel) { }
             Button(NSLocalizedString("savedMoments.remove.confirm", comment: "Confirm remove action"), role: .destructive) {
@@ -392,6 +389,9 @@ struct SavedMomentsView: View {
                 .padding(.horizontal, 10)
                 .padding(.bottom, isSelectionMode ? 90 : 20)
             }
+        }
+        .momentRefresh {
+            await refreshMoments()
         }
     }
 

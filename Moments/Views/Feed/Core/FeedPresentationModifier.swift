@@ -84,11 +84,13 @@ struct FeedPresentationModifier: ViewModifier {
             }
             .sheet(isPresented: $showExploreWithHashtag) {
                 ExploreView(initialSearchQuery: selectedHashtag)
+                    .momentRefreshOverlayHost()
             }
             .sheet(isPresented: $showExplore) {
                 ExploreView()
+                    .momentRefreshOverlayHost()
             }
-            .fullScreenCover(isPresented: $showingLocationMap) {
+            .navigationDestination(isPresented: $showingLocationMap) {
                 LocationMapView(
                     locationName: selectedLocationName.isEmpty ? NSLocalizedString("feed.location.default", comment: "Default location name") : selectedLocationName,
                     coordinate: selectedLocationCoordinate,
@@ -130,13 +132,14 @@ struct FeedPresentationModifier: ViewModifier {
             } message: {
                 Text("feed.delete.confirm")
             }
-            .fullScreenCover(item: $selectedProfileRoute, onDismiss: {
-                selectedUserId = ""
-                selectedProfileRoute = nil
-            }) { route in
-                UserProfileView(userId: route.userId)
-                    .id(route.userId)
-                    .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
+            .userProfileNavigationDestination(
+                item: $selectedProfileRoute,
+                namespace: profileZoomNamespace
+            )
+            .onChange(of: selectedProfileRoute) { _, newRoute in
+                if newRoute == nil {
+                    selectedUserId = ""
+                }
             }
             .sheet(isPresented: $showEchoHistory) {
                 EchoHistoryView()

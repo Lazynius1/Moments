@@ -127,6 +127,13 @@ struct ProfileSavedContent: View {
                         .padding(.vertical, 8)
                         .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                     }
+                    .modifier(
+                        ProfileMomentZoomSourceModifier(
+                            namespace: zoomNamespace,
+                            sourceID: ProfileMomentZoomNavigation.profileSavedManagerZoomSourceID,
+                            cornerRadius: 16
+                        )
+                    )
                 }
                 .padding(.horizontal, 20)
 
@@ -209,8 +216,14 @@ struct ProfileSavedContent: View {
                     }
                 }
             }
-            .fullScreenCover(isPresented: $showingSavedManager) {
+            .navigationDestination(isPresented: $showingSavedManager) {
                 SavedMomentsView()
+                    .navigationTransition(
+                        .zoom(
+                            sourceID: ProfileMomentZoomNavigation.profileSavedManagerZoomSourceID,
+                            in: zoomNamespace
+                        )
+                    )
             }
             .alert(NSLocalizedString("savedMoments.remove.title", comment: "Remove from saved"), isPresented: $showingRestrictedRemoveAlert) {
                 Button(NSLocalizedString("savedMoments.cancel", comment: "Cancel"), role: .cancel) {

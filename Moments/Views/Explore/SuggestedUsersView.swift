@@ -2,33 +2,29 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 
-private struct SuggestedUserProfileRoute: Identifiable, Equatable {
-    let userId: String
-
-    var id: String { userId }
-}
-
 struct SuggestedUsersView: View {
     @StateObject private var viewModel = SuggestedUsersViewModel()
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
-    @State private var selectedProfileRoute: SuggestedUserProfileRoute?
+    @State private var selectedProfileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header con título
-            headerView
-            
-            // Contenido principal
-            contentView
-        }
-        .onAppear {
-            viewModel.loadInitialUsers()
-        }
-        .fullScreenCover(item: $selectedProfileRoute) { route in
-            UserProfileView(userId: route.userId)
-                .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Header con título
+                headerView
+                
+                // Contenido principal
+                contentView
+            }
+            .onAppear {
+                viewModel.loadInitialUsers()
+            }
+            .userProfileNavigationDestination(
+                item: $selectedProfileRoute,
+                namespace: profileZoomNamespace
+            )
         }
     }
     
@@ -85,7 +81,7 @@ struct SuggestedUsersView: View {
                                 onTap: {
                                     let trimmedUserId = user.id.trimmingCharacters(in: .whitespacesAndNewlines)
                                     guard !trimmedUserId.isEmpty else { return }
-                                    selectedProfileRoute = SuggestedUserProfileRoute(userId: trimmedUserId)
+                                    selectedProfileRoute = FeedProfileSheetRoute(userId: trimmedUserId)
                                 }
                             )
                             .onAppear {

@@ -47,6 +47,8 @@ struct UsersTabContent<ViewModel: UserListViewModel>: View {
     var onRemoveFollower: ((AppUser) -> Void)? = nil
     var onAvatarTap: ((String, Bool) -> Void)? = nil
     var mutualUserIds: Set<String> = []
+    var onRefresh: (() async -> Void)? = nil
+    var usesOwnScroll: Bool = true
     @Environment(\.colorScheme) var colorScheme
 
     private var filteredUsers: [AppUser] {
@@ -68,14 +70,87 @@ struct UsersTabContent<ViewModel: UserListViewModel>: View {
 
     var body: some View {
         Group {
-            if filteredUsers.isEmpty {
-                if users.isEmpty {
-                    emptyStateView
+            if usesOwnScroll {
+                if filteredUsers.isEmpty {
+                    if users.isEmpty {
+                        refreshableScroll(minHeight: 400) {
+                            emptyStateView
+                        }
+                    } else {
+                        refreshableScroll(minHeight: 400) {
+                            SocialConnectionsNoResultsView(colorScheme: colorScheme)
+                        }
+                    }
                 } else {
-                    SocialConnectionsNoResultsView(colorScheme: colorScheme)
+                    refreshableScroll {
+                        userListContent
+                    }
                 }
             } else {
-                userListView
+                embeddedListContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var embeddedListContent: some View {
+        if filteredUsers.isEmpty {
+            if users.isEmpty {
+                emptyStateView
+                    .frame(maxWidth: .infinity, minHeight: 400, alignment: .center)
+            } else {
+                SocialConnectionsNoResultsView(colorScheme: colorScheme)
+                    .frame(maxWidth: .infinity, minHeight: 400, alignment: .center)
+            }
+        } else {
+            userListContent
+        }
+    }
+
+    private var userListContent: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(filteredUsers) { user in
+                SocialConnectionUserRow(
+                    user: user,
+                    subtitle: nil,
+                    viewModel: viewModel,
+                    onUserTap: onUserTap,
+                    profileZoomNamespace: profileZoomNamespace,
+                    activeTab: activeTab,
+                    includesVisits: includesVisits,
+                    configuration: rowConfiguration ?? .init(
+                        showsRemoveFollower: false,
+                        showsRelationshipButton: rowAction != .none,
+                        showsOverflowMenu: rowAction == .unfollow,
+                        showsFollowBackHint: false,
+                        showsBio: true,
+                        showsNewPosts: false
+                    ),
+                    newContentCount: recentMomentCounts[user.id],
+                    onViewSharedActivity: onViewSharedActivity,
+                    onRemoveFollower: onRemoveFollower,
+                    onAvatarTap: onAvatarTap,
+                    isMutual: mutualUserIds.contains(user.id)
+                )
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func refreshableScroll<Content: View>(minHeight: CGFloat? = nil, @ViewBuilder content: () -> Content) -> some View {
+        if let onRefresh {
+            ScrollView {
+                content()
+                    .frame(maxWidth: .infinity, minHeight: minHeight ?? 0, alignment: .center)
+            }
+            .momentRefresh {
+                await onRefresh()
+            }
+        } else {
+            ScrollView {
+                content()
+                    .frame(maxWidth: .infinity, minHeight: minHeight ?? 0, alignment: .center)
             }
         }
     }
@@ -164,38 +239,6 @@ struct UsersTabContent<ViewModel: UserListViewModel>: View {
         )
     }
 
-    private var userListView: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(filteredUsers) { user in
-                    SocialConnectionUserRow(
-                        user: user,
-                        subtitle: nil,
-                        viewModel: viewModel,
-                        onUserTap: onUserTap,
-                        profileZoomNamespace: profileZoomNamespace,
-                        activeTab: activeTab,
-                        includesVisits: includesVisits,
-                        configuration: rowConfiguration ?? .init(
-                            showsRemoveFollower: false,
-                            showsRelationshipButton: rowAction != .none,
-                            showsOverflowMenu: rowAction == .unfollow,
-                            showsFollowBackHint: false,
-                            showsBio: true,
-                            showsNewPosts: false
-                        ),
-                        newContentCount: recentMomentCounts[user.id],
-                        onViewSharedActivity: onViewSharedActivity,
-                        onRemoveFollower: onRemoveFollower,
-                        onAvatarTap: onAvatarTap,
-                        isMutual: mutualUserIds.contains(user.id)
-                    )
-                }
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
     private func emptyStateIcon(for tab: SocialConnectionTab) -> String {
         switch tab {
         case .visits: return "eye.slash"
@@ -214,68 +257,101 @@ struct CommonConnectionsTabContent<ViewModel: UserListViewModel>: View {
     let onUserTap: ((AppUser) -> Void)?
     var onAvatarTap: ((String, Bool) -> Void)? = nil
     var profileZoomNamespace: Namespace.ID? = nil
+    var onRefresh: (() async -> Void)? = nil
+    var usesOwnScroll: Bool = true
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         Group {
-            if commonUsers.isEmpty && suggestedUsers.isEmpty {
-                SocialConnectionsNoResultsView(colorScheme: colorScheme)
-            } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        if !commonUsers.isEmpty {
-                            sectionHeader(NSLocalizedString("socialConnections.common.section.people", comment: ""))
-
-                            ForEach(commonUsers) { user in
-                                SocialConnectionUserRow(
-                                    user: user,
-                                    subtitle: nil,
-                                    viewModel: viewModel,
-                                    onUserTap: onUserTap,
-                                    profileZoomNamespace: profileZoomNamespace,
-                                    activeTab: .inCommon,
-                                    configuration: .init(
-                                        showsRemoveFollower: false,
-                                        showsRelationshipButton: true,
-                                        showsOverflowMenu: false,
-                                        showsFollowBackHint: false,
-                                        showsBio: true,
-                                        showsNewPosts: false
-                                    ),
-                                    onAvatarTap: onAvatarTap
-                                )
-                            }
-                        }
-
-                        if !suggestedUsers.isEmpty {
-                            sectionHeader(NSLocalizedString("explore.suggestedUsers.suggestedForYou", comment: ""))
-
-                            ForEach(suggestedUsers) { user in
-                                SuggestedUserRow(
-                                    user: user,
-                                    commonInterests: Set(user.interests).intersection(Set(viewerInterests)).count,
-                                    buttonState: viewModel.relationshipState(for: user.id),
-                                    profileZoomNamespace: profileZoomNamespace,
-                                    onFollow: {
-                                        let state = viewModel.relationshipState(for: user.id)
-                                        if state == .canFollow || state == .canRequestFollow {
-                                            viewModel.followUser(userId: user.id)
-                                        } else if state == .requestPendingCancellable {
-                                            viewModel.cancelFollowRequest(userId: user.id)
-                                        }
-                                    },
-                                    onTap: {
-                                        onUserTap?(user)
-                                    }
-                                )
-                                .onAppear {
-                                    viewModel.prefetchRelationshipState(for: user.id)
-                                }
-                            }
-                        }
+            if usesOwnScroll {
+                if commonUsers.isEmpty && suggestedUsers.isEmpty {
+                    refreshableScroll(minHeight: 400) {
+                        SocialConnectionsNoResultsView(colorScheme: colorScheme)
                     }
-                    .padding(.vertical, 4)
+                } else {
+                    refreshableScroll {
+                        commonConnectionsContent
+                    }
                 }
+            } else if commonUsers.isEmpty && suggestedUsers.isEmpty {
+                SocialConnectionsNoResultsView(colorScheme: colorScheme)
+                    .frame(maxWidth: .infinity, minHeight: 400, alignment: .center)
+            } else {
+                commonConnectionsContent
+            }
+        }
+    }
+
+    private var commonConnectionsContent: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            if !commonUsers.isEmpty {
+                sectionHeader(NSLocalizedString("socialConnections.common.section.people", comment: ""))
+
+                ForEach(commonUsers) { user in
+                    SocialConnectionUserRow(
+                        user: user,
+                        subtitle: nil,
+                        viewModel: viewModel,
+                        onUserTap: onUserTap,
+                        profileZoomNamespace: profileZoomNamespace,
+                        activeTab: .inCommon,
+                        configuration: .init(
+                            showsRemoveFollower: false,
+                            showsRelationshipButton: true,
+                            showsOverflowMenu: false,
+                            showsFollowBackHint: false,
+                            showsBio: true,
+                            showsNewPosts: false
+                        ),
+                        onAvatarTap: onAvatarTap
+                    )
+                }
+            }
+
+            if !suggestedUsers.isEmpty {
+                sectionHeader(NSLocalizedString("explore.suggestedUsers.suggestedForYou", comment: ""))
+
+                ForEach(suggestedUsers) { user in
+                    SuggestedUserRow(
+                        user: user,
+                        commonInterests: Set(user.interests).intersection(Set(viewerInterests)).count,
+                        buttonState: viewModel.relationshipState(for: user.id),
+                        profileZoomNamespace: profileZoomNamespace,
+                        onFollow: {
+                            let state = viewModel.relationshipState(for: user.id)
+                            if state == .canFollow || state == .canRequestFollow {
+                                viewModel.followUser(userId: user.id)
+                            } else if state == .requestPendingCancellable {
+                                viewModel.cancelFollowRequest(userId: user.id)
+                            }
+                        },
+                        onTap: {
+                            onUserTap?(user)
+                        }
+                    )
+                    .onAppear {
+                        viewModel.prefetchRelationshipState(for: user.id)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func refreshableScroll<Content: View>(minHeight: CGFloat? = nil, @ViewBuilder content: () -> Content) -> some View {
+        if let onRefresh {
+            ScrollView {
+                content()
+                    .frame(maxWidth: .infinity, minHeight: minHeight ?? 0, alignment: .center)
+            }
+            .momentRefresh {
+                await onRefresh()
+            }
+        } else {
+            ScrollView {
+                content()
+                    .frame(maxWidth: .infinity, minHeight: minHeight ?? 0, alignment: .center)
             }
         }
     }

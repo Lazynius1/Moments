@@ -382,7 +382,7 @@ struct SharedActivityDetailView: View {
     @Namespace private var zoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
     @State private var zoomMomentsPool: [Moment] = []
-    @State private var selectedProfileUserId: String?
+    @State private var profileRoute: FeedProfileSheetRoute?
     @State private var isSelectionMode = false
     @State private var selectedReactionIds: Set<String> = []
     @State private var selectedCommentIds: Set<String> = []
@@ -419,28 +419,26 @@ struct SharedActivityDetailView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            SharedActivityUnderlineTabBar(
-                tabTitles: [
-                    viewModel.tabTitle(for: 0),
-                    viewModel.tabTitle(for: 1)
-                ],
-                selectedIndex: $viewModel.selectedTab
+        ZStack {
+            backgroundColor.ignoresSafeArea()
+
+            ActivityCollapsibleFilterScroll(
+                onRefresh: { await performSharedRefresh() },
+                header: { sharedInlineHeader },
+                floatingHeader: { sharedFloatingChrome },
+                content: { _ in
+                    sharedScrollContent
+                        .frame(maxWidth: .infinity, alignment: .top)
+                }
             )
-
-            filtersBar
-
-            if dateFilter == .custom {
-                customDateRangeControls
-            }
-
-            contentArea
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .background(backgroundColor.ignoresSafeArea())
         .navigationTitle(viewModel.category.title)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+        .navigationInteractivePopEnabled()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
@@ -466,14 +464,7 @@ struct SharedActivityDetailView: View {
                 namespace: zoomNamespace
             )
         }
-        .fullScreenCover(isPresented: Binding(
-            get: { selectedProfileUserId != nil },
-            set: { if !$0 { selectedProfileUserId = nil } }
-        )) {
-            if let selectedProfileUserId {
-                UserProfileView(userId: selectedProfileUserId)
-            }
-        }
+        .userProfileNavigationDestination(item: $profileRoute, namespace: zoomNamespace)
         .alert(item: $pendingSelectionConfirmation) { action in
             selectionConfirmationAlert(for: action)
         }
@@ -485,131 +476,239 @@ struct SharedActivityDetailView: View {
         }
     }
 
-    private var contentArea: some View {
-        Group {
-            if viewModel.isLoading && filteredReactionItems.isEmpty && filteredCommentItems.isEmpty {
-                ProgressView(NSLocalizedString("userActivity.loading", comment: "Loading activity"))
-                    .tint(primaryTextColor)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage = viewModel.errorMessage,
-                      filteredReactionItems.isEmpty && filteredCommentItems.isEmpty {
-                errorStateView(errorMessage: errorMessage)
-            } else {
-                switch viewModel.category {
-                case .comments:
-                    commentsList
-                case .reactions, .tags:
-                    reactionsGrid
-                }
+    private var sharedInlineHeader: some View {
+        VStack(spacing: 0) {
+            SharedActivityUnderlineTabBar(
+                tabTitles: [
+                    viewModel.tabTitle(for: 0),
+                    viewModel.tabTitle(for: 1)
+                ],
+                selectedIndex: $viewModel.selectedTab
+            )
+            sharedFiltersBar
+            if dateFilter == .custom {
+                customDateRangeControls
             }
         }
     }
 
-    private var reactionsGrid: some View {
-        GeometryReader { geometry in
-            if filteredReactionItems.isEmpty {
-                emptyStateView
-            } else {
-                let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 3)
-                let side = floor((geometry.size.width - 2) / 3)
+    private var sharedFloatingChrome: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(0..<2, id: \.self) { index in
+                    sharedTabChip(title: viewModel.tabTitle(for: index), index: index)
+                }
+                sharedSortFilterChip
+                sharedDateFilterChip
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+        }
+    }
 
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 1) {
-                        ForEach(filteredReactionItems) { item in
-                            Button {
-                                if isSelectionMode {
-                                    toggleReactionSelection(for: item.id)
-                                    return
-                                }
-                                guard let moment = item.moment, item.canView else { return }
-                                openMomentZoom(moment: moment)
-                            } label: {
-                                sharedMomentThumbnail(
-                                    moment: item.moment,
-                                    size: side,
-                                    reactionType: viewModel.category == .reactions ? item.reactionType : nil,
-                                    canView: item.canView,
-                                    isSelected: selectedReactionIds.contains(item.id)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .simultaneousGesture(
-                                LongPressGesture(minimumDuration: 0.35).onEnded { _ in
-                                    guard !isSelectionMode else { return }
-                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
-                                        isSelectionMode = true
-                                        selectedReactionIds.insert(item.id)
-                                    }
-                                }
-                            )
-                        }
+    private func sharedTabChip(title: String, index: Int) -> some View {
+        let isSelected = viewModel.selectedTab == index
 
-                        if viewModel.hasMore {
-                            Color.clear
-                                .frame(height: 50)
-                                .onAppear {
-                                    viewModel.loadNextPage()
-                                }
+        return Button {
+            MotionPolicy.withOptionalAnimation(.easeOut(duration: 0.18)) {
+                viewModel.selectedTab = index
+            }
+        } label: {
+            Text(title)
+                .font(.system(size: legacyPoppinsSize(12), weight: isSelected ? .semibold : .medium))
+                .foregroundStyle(isSelected ? (colorScheme == .dark ? Color.black : Color.white) : (colorScheme == .dark ? Color.white.opacity(0.72) : Color.black.opacity(0.62)))
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
+        }
+        .buttonStyle(.plain)
+        .environment(\.colorScheme, isSelected ? (colorScheme == .dark ? .light : .dark) : colorScheme)
+    }
+
+    private var sharedSortFilterChip: some View {
+        Menu {
+            ForEach(ReactionsSortOption.allCases) { option in
+                Button {
+                    sortOption = option
+                } label: {
+                    HStack {
+                        Text(NSLocalizedString(option.titleKey, comment: "Sort option"))
+                        if sortOption == option {
+                            Image(systemName: "checkmark")
                         }
                     }
                 }
             }
+        } label: {
+            filterChip(
+                title: NSLocalizedString("userActivity.simple.filters.sort", comment: "Sort filter title"),
+                value: NSLocalizedString(sortOption.titleKey, comment: "Selected sort option")
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var sharedDateFilterChip: some View {
+        Menu {
+            ForEach(ReactionsDateFilter.allCases) { option in
+                Button {
+                    dateFilter = option
+                } label: {
+                    HStack {
+                        Text(NSLocalizedString(option.titleKey, comment: "Date filter option"))
+                        if dateFilter == option {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+        } label: {
+            filterChip(
+                title: NSLocalizedString("userActivity.simple.filters.date", comment: "Date filter title"),
+                value: NSLocalizedString(dateFilter.titleKey, comment: "Selected date filter")
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var sharedScrollContent: some View {
+        if viewModel.isLoading && filteredReactionItems.isEmpty && filteredCommentItems.isEmpty {
+            ProgressView(NSLocalizedString("userActivity.loading", comment: "Loading activity"))
+                .tint(primaryTextColor)
+                .frame(maxWidth: .infinity, minHeight: 420)
+        } else if let errorMessage = viewModel.errorMessage,
+                  filteredReactionItems.isEmpty && filteredCommentItems.isEmpty {
+            errorStateView(errorMessage: errorMessage)
+                .frame(maxWidth: .infinity, minHeight: 420)
+        } else {
+            switch viewModel.category {
+            case .comments:
+                commentsScrollBody
+            case .reactions, .tags:
+                reactionsScrollBody
+            }
         }
     }
 
-    private var commentsList: some View {
+    private func performSharedRefresh() async {
+        viewModel.reload()
+        while viewModel.isLoading {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        try? await Task.sleep(nanoseconds: 200_000_000)
+    }
+
+    private var gridColumnSide: CGFloat {
+        floor((UIScreen.main.bounds.width - 2) / 3)
+    }
+
+    private var reactionsScrollBody: some View {
         Group {
-            if filteredCommentItems.isEmpty {
+            if filteredReactionItems.isEmpty {
                 emptyStateView
+                    .frame(maxWidth: .infinity, minHeight: 420)
             } else {
-                ScrollView {
-                    VStack(spacing: 10) {
-                        ForEach(filteredCommentItems) { item in
-                            SharedActivityCommentRow(
-                                item: item,
-                                commentLabelText: commentLabelText,
-                                isSelectionMode: isSelectionMode,
-                                isSelected: selectedCommentIds.contains(item.id),
-                                onOpenMoment: {
-                                    if isSelectionMode {
-                                        toggleCommentSelection(for: item.id)
-                                        return
-                                    }
-                                    guard item.canView, let moment = item.moment else { return }
-                                    openMomentZoom(moment: moment)
-                                },
-                                onOpenAuthor: {
-                                    if isSelectionMode {
-                                        toggleCommentSelection(for: item.id)
-                                        return
-                                    }
-                                    openProfile(userId: item.authorId)
-                                },
-                                onToggleSelection: {
-                                    toggleCommentSelection(for: item.id)
-                                }
+                let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 3)
+                let side = gridColumnSide
+
+                LazyVGrid(columns: columns, spacing: 1) {
+                    ForEach(filteredReactionItems) { item in
+                        Button {
+                            if isSelectionMode {
+                                toggleReactionSelection(for: item.id)
+                                return
+                            }
+                            guard let moment = item.moment, item.canView else { return }
+                            openMomentZoom(moment: moment)
+                        } label: {
+                            sharedMomentThumbnail(
+                                moment: item.moment,
+                                size: side,
+                                reactionType: viewModel.category == .reactions ? item.reactionType : nil,
+                                canView: item.canView,
+                                isSelected: selectedReactionIds.contains(item.id)
                             )
-                            .onLongPressGesture(minimumDuration: 0.35) {
+                        }
+                        .buttonStyle(.plain)
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.35).onEnded { _ in
                                 guard !isSelectionMode else { return }
                                 withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
                                     isSelectionMode = true
-                                    selectedCommentIds.insert(item.id)
+                                    selectedReactionIds.insert(item.id)
                                 }
                             }
-                        }
+                        )
+                    }
 
-                        if viewModel.hasMore {
-                            ProgressView()
-                                .padding(.vertical, 12)
-                                .onAppear {
-                                    viewModel.loadNextPage()
+                    if viewModel.hasMore {
+                        Color.clear
+                            .frame(height: 50)
+                            .onAppear {
+                                viewModel.loadNextPage()
+                            }
+                    }
+                }
+                .padding(.bottom, isSelectionMode ? 88 : 16)
+            }
+        }
+    }
+
+    private var commentsScrollBody: some View {
+        Group {
+            if filteredCommentItems.isEmpty {
+                emptyStateView
+                    .frame(maxWidth: .infinity, minHeight: 420)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(filteredCommentItems) { item in
+                        SharedActivityCommentRow(
+                            item: item,
+                            commentLabelText: commentLabelText,
+                            isSelectionMode: isSelectionMode,
+                            isSelected: selectedCommentIds.contains(item.id),
+                            onOpenMoment: {
+                                if isSelectionMode {
+                                    toggleCommentSelection(for: item.id)
+                                    return
                                 }
+                                guard item.canView, let moment = item.moment else { return }
+                                openMomentZoom(moment: moment)
+                            },
+                            onOpenAuthor: {
+                                if isSelectionMode {
+                                    toggleCommentSelection(for: item.id)
+                                    return
+                                }
+                                openProfile(userId: item.authorId)
+                            },
+                            onToggleSelection: {
+                                toggleCommentSelection(for: item.id)
+                            }
+                        )
+                        .onLongPressGesture(minimumDuration: 0.35) {
+                            guard !isSelectionMode else { return }
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                                isSelectionMode = true
+                                selectedCommentIds.insert(item.id)
+                            }
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 10)
-                    .padding(.bottom, 16)
+
+                    if viewModel.hasMore {
+                        ProgressView()
+                            .padding(.vertical, 12)
+                            .onAppear {
+                                viewModel.loadNextPage()
+                            }
+                    }
                 }
+                .padding(.horizontal, 8)
+                .padding(.top, 10)
+                .padding(.bottom, isSelectionMode ? 88 : 16)
             }
         }
     }
@@ -644,7 +743,7 @@ struct SharedActivityDetailView: View {
         .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isProcessingSelectionAction), value: isProcessingSelectionAction)
     }
 
-    private var filtersBar: some View {
+    private var sharedFiltersBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 Menu {
@@ -696,25 +795,19 @@ struct SharedActivityDetailView: View {
     private func filterChip(title: String, value: String) -> some View {
         HStack(spacing: 6) {
             Text(title)
-                .font(.system(size: 12, weight: .regular))
+                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                 .foregroundColor(secondaryTextColor)
             Text(value)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                 .foregroundColor(primaryTextColor)
+                .lineLimit(1)
             Image(systemName: "chevron.down")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(primaryTextColor.opacity(0.85))
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(secondaryTextColor)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .background(
-            Capsule()
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.06))
-        )
-        .overlay(
-            Capsule()
-                .stroke(Color(colorScheme == .dark ? .white : .black).opacity(0.08), lineWidth: 0.8)
-        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
     }
 
     private var reactionsSelectionBar: some View {
@@ -1025,7 +1118,7 @@ struct SharedActivityDetailView: View {
     }
 
     private func openProfile(userId: String) {
-        selectedProfileUserId = userId
+        profileRoute = FeedProfileSheetRoute(userId: userId)
     }
 
     private var isProcessingSelectionAction: Bool {
@@ -1422,7 +1515,7 @@ struct SharedActivityUnderlineTabBar: View {
     }
 }
 
-enum SharedActivityCategory: String, CaseIterable, Identifiable {
+enum SharedActivityCategory: String, CaseIterable, Identifiable, Hashable {
     case reactions
     case comments
     case tags

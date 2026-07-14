@@ -196,6 +196,8 @@ struct VisitsTabContent<VM: UserListViewModel>: View {
     var profileZoomNamespace: Namespace.ID? = nil
     let onUserTap: (String) -> Void
     var onAvatarTap: ((String, Bool) -> Void)? = nil
+    var onRefresh: (() async -> Void)? = nil
+    var usesOwnScroll: Bool = true
 
     private var filteredVisits: [GroupedVisit] {
         let base: [GroupedVisit]
@@ -212,28 +214,74 @@ struct VisitsTabContent<VM: UserListViewModel>: View {
 
     var body: some View {
         Group {
-            if isLoading {
-                VisitsTabSkeletonView(colorScheme: colorScheme)
-            } else if groupedVisits.isEmpty {
-                ModernEmptyVisitsView(colorScheme: colorScheme)
-            } else if filteredVisits.isEmpty {
-                SocialConnectionsNoResultsView(colorScheme: colorScheme)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(filteredVisits) { groupedVisit in
-                            GroupedVisitRow(
-                                groupedVisit: groupedVisit,
-                                colorScheme: colorScheme,
-                                profileZoomNamespace: profileZoomNamespace,
-                                listViewModel: listViewModel,
-                                onUserTap: onUserTap,
-                                onAvatarTap: onAvatarTap
-                            )
-                        }
+            if usesOwnScroll {
+                if isLoading {
+                    VisitsTabSkeletonView(colorScheme: colorScheme)
+                } else if groupedVisits.isEmpty {
+                    refreshableScroll(minHeight: 400) {
+                        ModernEmptyVisitsView(colorScheme: colorScheme)
                     }
-                    .padding(.bottom, 40)
+                } else if filteredVisits.isEmpty {
+                    refreshableScroll(minHeight: 400) {
+                        SocialConnectionsNoResultsView(colorScheme: colorScheme)
+                    }
+                } else {
+                    refreshableScroll {
+                        visitsListContent
+                    }
                 }
+            } else if isLoading {
+                VisitsTabSkeletonView(colorScheme: colorScheme)
+                    .frame(maxWidth: .infinity, minHeight: 400, alignment: .top)
+            } else {
+                embeddedListContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var embeddedListContent: some View {
+        if groupedVisits.isEmpty {
+            ModernEmptyVisitsView(colorScheme: colorScheme)
+                .frame(maxWidth: .infinity, minHeight: 400, alignment: .center)
+        } else if filteredVisits.isEmpty {
+            SocialConnectionsNoResultsView(colorScheme: colorScheme)
+                .frame(maxWidth: .infinity, minHeight: 400, alignment: .center)
+        } else {
+            visitsListContent
+        }
+    }
+
+    private var visitsListContent: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(filteredVisits) { groupedVisit in
+                GroupedVisitRow(
+                    groupedVisit: groupedVisit,
+                    colorScheme: colorScheme,
+                    profileZoomNamespace: profileZoomNamespace,
+                    listViewModel: listViewModel,
+                    onUserTap: onUserTap,
+                    onAvatarTap: onAvatarTap
+                )
+            }
+        }
+        .padding(.bottom, 40)
+    }
+
+    @ViewBuilder
+    private func refreshableScroll<Content: View>(minHeight: CGFloat? = nil, @ViewBuilder content: () -> Content) -> some View {
+        if let onRefresh {
+            ScrollView {
+                content()
+                    .frame(maxWidth: .infinity, minHeight: minHeight ?? 0, alignment: .center)
+            }
+            .momentRefresh {
+                await onRefresh()
+            }
+        } else {
+            ScrollView {
+                content()
+                    .frame(maxWidth: .infinity, minHeight: minHeight ?? 0, alignment: .center)
             }
         }
     }

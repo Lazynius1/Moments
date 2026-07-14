@@ -409,6 +409,7 @@ struct SocialConnectionUserRow<ViewModel: UserListViewModel>: View {
             state: followState,
             isLoading: isFollowLoading,
             colorScheme: colorScheme,
+            style: .compact,
             action: performRelationshipAction
         )
     }

@@ -82,14 +82,42 @@ struct SettingsSubsectionWrapper<Content: View>: View {
             SettingsSubsectionBackground()
             content
         }
+        .settingsSubsectionNavigationChrome()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
             }
         }
+    }
+}
+
+extension View {
+    /// Canvas + fix del bloque sólido que NavigationStack pinta bajo la toolbar en subsecciones.
+    func settingsSubsectionNavigationChrome(colorScheme: ColorScheme? = nil) -> some View {
+        modifier(SettingsSubsectionNavigationChromeModifier(colorScheme: colorScheme))
+    }
+
+    /// Swipe desde el borde izquierdo cuando el back button del sistema está oculto.
+    func navigationInteractivePopEnabled() -> some View {
+        chatInteractivePopEnabled()
+    }
+}
+
+private struct SettingsSubsectionNavigationChromeModifier: ViewModifier {
+    @Environment(\.colorScheme) private var environmentColorScheme
+    let colorScheme: ColorScheme?
+
+    private var resolvedColorScheme: ColorScheme {
+        colorScheme ?? environmentColorScheme
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .momentZoomNavigationSurface(colorScheme: resolvedColorScheme)
+            .profileGridNavigationChrome(colorScheme: resolvedColorScheme)
+            .navigationBarBackButtonHidden(true)
+            .toolbarBackground(.hidden, for: .navigationBar)
     }
 }

@@ -23,11 +23,11 @@ struct UserModernPublicProfileView: View {
     let onDismiss: () -> Void
     let onOpenStories: () -> Void
     let chatZoomNamespace: Namespace.ID
+    let gridZoomNamespace: Namespace.ID
+    @Binding var momentZoomDestination: ProfileMomentZoomDestination?
 
     @State private var showingFullInfo = false // ✅ NUEVO: Colapsable
     @Binding var selectedTab: UserProfileTabType // ✅ NUEVO: Tab seleccionado (Binding)
-    @Namespace private var profileZoomNamespace
-    @State private var zoomDestination: ProfileMomentZoomDestination?
     @State private var identityMinY: CGFloat = .greatestFiniteMagnitude
     @State private var tabsMinY: CGFloat = .greatestFiniteMagnitude
     @State private var showingQRCode = false
@@ -141,7 +141,7 @@ struct UserModernPublicProfileView: View {
                                                     UserModernMomentThumbnail(
                                                         moment: moment,
                                                         size: itemWidth,
-                                                        zoomNamespace: profileZoomNamespace,
+                                                        zoomNamespace: gridZoomNamespace,
                                                         zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, gridIndex: index),
                                                         onTap: {
                                                             heroCoordinator.openDirectDetail(
@@ -189,7 +189,7 @@ struct UserModernPublicProfileView: View {
                                                 UserModernMomentThumbnail(
                                                     moment: moment,
                                                     size: itemWidth,
-                                                    zoomNamespace: profileZoomNamespace,
+                                                    zoomNamespace: gridZoomNamespace,
                                                     zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, gridIndex: index),
                                                     onTap: {
                                                         heroCoordinator.openDirectDetail(
@@ -297,14 +297,7 @@ struct UserModernPublicProfileView: View {
                     visitTimestamps: [:],
                     connectionVisibility: viewModel.visibleConnectionTypes,
                     listViewModel: viewModel,
-                    profileZoomNamespace: profileZoomNamespace
-                )
-            }
-            .navigationDestination(item: $zoomDestination) { destination in
-                ProfileMomentZoomDetailDestination(
-                    destination: destination,
-                    moments: momentsForZoomDestination(destination),
-                    namespace: profileZoomNamespace
+                    profileZoomNamespace: gridZoomNamespace
                 )
             }
             .sheet(isPresented: $showingReportSheet) {
@@ -314,10 +307,6 @@ struct UserModernPublicProfileView: View {
                 )
             }
             .toolbar(.hidden, for: .navigationBar)
-            .onAppear {
-                heroCoordinator.openZoomDetail = { zoomDestination = $0 }
-                heroCoordinator.clearZoomNavigation = { zoomDestination = nil }
-            }
         .profileNavigationSurface(colorScheme: colorScheme)
         .sheet(isPresented: $showingQRCode) {
             QRCodeView(targetUser: viewModel.userProfile)
@@ -326,16 +315,5 @@ struct UserModernPublicProfileView: View {
 
     private func openVisitorGridMenu(moment: Moment, index: Int) {
         heroCoordinator.openMenu(moment: moment, index: index, kind: .visitor)
-    }
-
-    private func momentsForZoomDestination(_ destination: ProfileMomentZoomDestination) -> [Moment] {
-        switch destination.feedKind {
-        case .userProfileMoments:
-            return viewModel.moments
-        case .userProfileTagged:
-            return viewModel.taggedMoments
-        default:
-            return []
-        }
     }
 }

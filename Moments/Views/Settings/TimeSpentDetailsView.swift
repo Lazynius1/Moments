@@ -51,11 +51,13 @@ struct TimeSpentDetailsView: View {
                 }
                 .padding(.bottom, 32)
             }
+            .momentRefresh {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+            }
         }
         .navigationTitle(NSLocalizedString("userActivity.timeSpent.navTitle", value: "Time Spent", comment: "Nav title for Time spent"))
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .settingsSubsectionNavigationChrome(colorScheme: colorScheme)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })

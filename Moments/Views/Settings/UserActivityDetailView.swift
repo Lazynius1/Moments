@@ -4,6 +4,7 @@ import AVFoundation
 
 struct ActivityInteractionDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
     let category: ActivityInteractionCategory
     let recentlyDeletedKind: RecentlyDeletedContentKind
     let suppressInlineNavigationTitle: Bool
@@ -22,7 +23,7 @@ struct ActivityInteractionDetailView: View {
     @State private var reelsPresentation: ActivityReelsPresentation?
     @State private var recentlyDeletedStoryPresentation: RecentlyDeletedStoriesPresentation?
     @State private var storyRoute: IdentifiableString?
-    @State private var selectedProfileUserIdForSheet: String?
+    @State private var profileRoute: FeedProfileSheetRoute?
     @State private var isSelectionMode = false
     @State private var selectedReactionIds: Set<String> = []
     @State private var selectedCommentIds: Set<String> = []
@@ -124,6 +125,133 @@ struct ActivityInteractionDetailView: View {
     }
 
     var body: some View {
+        activityDetailPresentedView
+    }
+
+    private var activityDetailPresentedView: some View {
+        activityDetailLifecycleView
+            .sheet(isPresented: $showingAuthorFilterSheet) {
+                AuthorFilterSheet(
+                    selectedAuthorId: $selectedAuthorId,
+                    availableAuthorIds: availableAuthorIds,
+                    authorUsernameMap: authorUsernameMap
+                )
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+            .navigationDestination(item: $zoomDestination) { destination in
+                MomentZoomDetailDestination(
+                    destination: destination,
+                    moments: momentsForZoomDestination(destination),
+                    namespace: zoomNamespace
+                )
+            }
+            .onChange(of: zoomDestination) { _, newValue in
+                if newValue == nil {
+                    zoomActivityMomentsPool = []
+                }
+            }
+            .fullScreenCover(item: $reelsPresentation) { presentation in
+                ReelsViewer(
+                    videos: presentation.videos,
+                    startIndex: presentation.startIndex
+                )
+                .environmentObject(FirestoreService.shared)
+            }
+            .fullScreenCover(item: $recentlyDeletedStoryPresentation) { presentation in
+                ArchiveDayStoriesViewer(
+                    stories: presentation.stories,
+                    initialIndex: presentation.initialIndex
+                )
+            }
+            .fullScreenCover(item: $storyRoute) { route in
+                StoriesView(startWithUserId: .constant(route.id))
+            }
+            .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
+            .fullScreenCover(item: selectedEchoPresentation) { ident in
+                EchoViewerUI(echoId: ident.id)
+            }
+    }
+
+    private var selectedEchoPresentation: Binding<IdentifiableString?> {
+        Binding(
+            get: { selectedEchoId.map { IdentifiableString(id: $0) } },
+            set: { newValue in selectedEchoId = newValue?.id }
+        )
+    }
+
+    private var activityDetailLifecycleView: some View {
+        activityDetailChromeView
+            .alert(item: $pendingActivitySelectionConfirmation) { action in
+                activitySelectionConfirmationAlert(for: action)
+            }
+            .onAppear {
+                viewModel.loadIfNeeded()
+            }
+            .onChange(of: filteredReactionItems.map(\.id)) {
+                let validIds = Set(filteredReactionItems.map(\.id))
+                selectedReactionIds = Set(selectedReactionIds.filter { validIds.contains($0) })
+            }
+            .onChange(of: selectedReactionIds) {
+                if (category == .archived || category == .recentlyDeleted), isSelectionMode, selectedReactionIds.isEmpty {
+                    isSelectionMode = false
+                }
+            }
+            .onChange(of: isSelectionMode) {
+                if !isSelectionMode {
+                    stopRecentlyDeletedAutoScroll()
+                }
+            }
+            .onChange(of: filteredCommentItems.map(\.id)) {
+                let validIds = Set(filteredCommentItems.map(\.id))
+                selectedCommentIds = Set(selectedCommentIds.filter { validIds.contains($0) })
+            }
+            .onChange(of: filteredEventItems.map(\.id)) {
+                let validIds = Set(filteredEventItems.map(\.id))
+                selectedEventIds = Set(selectedEventIds.filter { validIds.contains($0) })
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                selectionBars
+            }
+            .overlay(alignment: .top) {
+                activityDetailBannerOverlay
+            }
+            .onDisappear {
+                stopRecentlyDeletedAutoScroll()
+            }
+    }
+
+    @ViewBuilder
+    private var activityDetailBannerOverlay: some View {
+        if let successKey = activitySelectionSuccessBannerKey {
+            selectionSuccessBanner(textKey: successKey)
+                .padding(.top, 12)
+                .transition(.move(edge: .top).combined(with: .opacity))
+        }
+        if let successKey = recentlyDeletedSuccessBannerKey {
+            selectionSuccessBanner(textKey: successKey)
+                .padding(.top, 12)
+                .transition(.move(edge: .top).combined(with: .opacity))
+        }
+        if let action = recentlyDeletedInFlightAction {
+            processingBanner(
+                titleKey: recentlyDeletedProcessingTitleKey(for: action),
+                subtitleKey: "userActivity.simple.recentlyDeleted.processing.subtitle"
+            )
+            .padding(.top, 12)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+        if isRestoringArchivedSelection {
+            processingBanner(
+                titleKey: "userActivity.event.archived.processing.restore",
+                subtitleKey: "userActivity.simple.recentlyDeleted.processing.subtitle"
+            )
+            .padding(.top, 12)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    private var activityDetailChromeView: some View {
         ZStack {
             (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                 .ignoresSafeArea()
@@ -135,126 +263,15 @@ struct ActivityInteractionDetailView: View {
             titleKey: detailNavigationTitleKey,
             isSuppressed: suppressInlineNavigationTitle
         ))
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            navigationToolbar
-        }
-        .alert(item: $pendingActivitySelectionConfirmation) { action in
-            activitySelectionConfirmationAlert(for: action)
-        }
-        .onAppear {
-            viewModel.loadIfNeeded()
-        }
-        .onChange(of: filteredReactionItems.map(\.id)) {
-            let validIds = Set(filteredReactionItems.map(\.id))
-            selectedReactionIds = Set(selectedReactionIds.filter { validIds.contains($0) })
-        }
-        .onChange(of: selectedReactionIds) {
-            if (category == .archived || category == .recentlyDeleted), isSelectionMode, selectedReactionIds.isEmpty {
-                isSelectionMode = false
-            }
-        }
-        .onChange(of: isSelectionMode) {
-            if !isSelectionMode {
-                stopRecentlyDeletedAutoScroll()
-            }
-        }
-        .onChange(of: filteredCommentItems.map(\.id)) {
-            let validIds = Set(filteredCommentItems.map(\.id))
-            selectedCommentIds = Set(selectedCommentIds.filter { validIds.contains($0) })
-        }
-        .onChange(of: filteredEventItems.map(\.id)) {
-            let validIds = Set(filteredEventItems.map(\.id))
-            selectedEventIds = Set(selectedEventIds.filter { validIds.contains($0) })
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            selectionBars
-        }
-        .overlay(alignment: .top) {
-            if let successKey = activitySelectionSuccessBannerKey {
-                selectionSuccessBanner(textKey: successKey)
-                    .padding(.top, 12)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-            if let successKey = recentlyDeletedSuccessBannerKey {
-                selectionSuccessBanner(textKey: successKey)
-                    .padding(.top, 12)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-            if let action = recentlyDeletedInFlightAction {
-                processingBanner(
-                    titleKey: recentlyDeletedProcessingTitleKey(for: action),
-                    subtitleKey: "userActivity.simple.recentlyDeleted.processing.subtitle"
-                )
-                .padding(.top, 12)
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
-            if isRestoringArchivedSelection {
-                processingBanner(
-                    titleKey: "userActivity.event.archived.processing.restore",
-                    subtitleKey: "userActivity.simple.recentlyDeleted.processing.subtitle"
-                )
-                .padding(.top, 12)
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
-        }
-        .sheet(isPresented: $showingAuthorFilterSheet) {
-            AuthorFilterSheet(
-                selectedAuthorId: $selectedAuthorId,
-                availableAuthorIds: availableAuthorIds,
-                authorUsernameMap: authorUsernameMap
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-        .navigationDestination(item: $zoomDestination) { destination in
-            MomentZoomDetailDestination(
-                destination: destination,
-                moments: momentsForZoomDestination(destination),
-                namespace: zoomNamespace
-            )
-        }
-        .onChange(of: zoomDestination) { _, newValue in
-            if newValue == nil {
-                zoomActivityMomentsPool = []
-            }
-        }
-        .fullScreenCover(item: $reelsPresentation) { presentation in
-            ReelsViewer(
-                videos: presentation.videos,
-                startIndex: presentation.startIndex
-            )
-            .environmentObject(FirestoreService.shared)
-        }
-        .fullScreenCover(item: $recentlyDeletedStoryPresentation) { presentation in
-            ArchiveDayStoriesViewer(
-                stories: presentation.stories,
-                initialIndex: presentation.initialIndex
-            )
-        }
-        .fullScreenCover(item: $storyRoute) { route in
-            StoriesView(startWithUserId: .constant(route.id))
-        }
-        .fullScreenCover(isPresented: Binding(
-            get: { selectedProfileUserIdForSheet != nil },
-            set: { isPresented in
-                if !isPresented {
-                    selectedProfileUserIdForSheet = nil
+            if !suppressInlineNavigationTitle {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    SettingsToolbarBackButton(action: { dismiss() })
                 }
             }
-        )) {
-            if let userId = selectedProfileUserIdForSheet {
-                UserProfileView(userId: userId)
-                    .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
-            }
-        }
-        .fullScreenCover(item: Binding(
-            get: { selectedEchoId.map { IdentifiableString(id: $0) } },
-            set: { newVal in selectedEchoId = newVal?.id }
-        )) { ident in
-            EchoViewerUI(echoId: ident.id)
-        }
-        .onDisappear {
-            stopRecentlyDeletedAutoScroll()
+            navigationToolbar
         }
     }
 
@@ -333,6 +350,13 @@ struct ActivityInteractionDetailView: View {
         }
     }
 
+    private func performActivityRefresh() async {
+        viewModel.reload()
+        while viewModel.isLoading {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+    }
+
     @ViewBuilder
     private var selectionBars: some View {
         if (category == .reactions || category == .tags), isSelectionMode {
@@ -400,277 +424,306 @@ struct ActivityInteractionDetailView: View {
     }
 
     private var reactionsContent: some View {
-        VStack(spacing: 0) {
-            reactionsFiltersBar
-
-            if reactionsDateFilter == .custom {
-                customDateRangeControls
-            }
-
-            reactionsGrid
+        activityFilteredScroll { proxy in
+            reactionsGridBody(scrollProxy: proxy)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var recentlyDeletedStoriesContent: some View {
-        VStack(spacing: 0) {
-            reactionsFiltersBar
-
-            if reactionsDateFilter == .custom {
-                customDateRangeControls
-            }
-
-            recentlyDeletedStoriesGrid
+        activityFilteredScroll { proxy in
+            recentlyDeletedStoriesGridBody(scrollProxy: proxy)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var commentsContent: some View {
-        VStack(spacing: 0) {
-            reactionsFiltersBar
-
-            if reactionsDateFilter == .custom {
-                customDateRangeControls
-            }
-
-            commentsList
+        activityFilteredScroll { _ in
+            commentsListBody
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var momentsContent: some View {
-        VStack(spacing: 0) {
-            // Keep the same filters bar for consistency (Sort, and eventually Date)
-            reactionsFiltersBar
+        activityFilteredScroll { _ in
+            momentsGridBody
+        }
+    }
 
+    private var eventsContent: some View {
+        activityFilteredScroll { _ in
+            eventsListBody
+        }
+    }
+
+    private func activityFilteredScroll<Content: View>(
+        @ViewBuilder content: @escaping (ScrollViewProxy) -> Content
+    ) -> some View {
+        ActivityCollapsibleFilterScroll(
+            onRefresh: { await performActivityRefresh() },
+            header: { activityFiltersHeader },
+            content: content
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var activityFiltersHeader: some View {
+        VStack(spacing: 0) {
+            reactionsFiltersHeader
             if reactionsDateFilter == .custom {
                 customDateRangeControls
             }
-
-            momentsGrid
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    }
-
-    private var reactionsGrid: some View {
-        GeometryReader { geometry in
-            if filteredReactionItems.isEmpty {
-                emptyState(textKey: category.emptyKey)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            } else {
-                let spacing = activityGridSpacing
-                let totalSpacing = spacing * 2
-                let side = floor((geometry.size.width - totalSpacing) / 3)
-                let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
-
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: spacing) {
-                            ForEach(Array(filteredReactionItems.enumerated()), id: \.element.id) { index, item in
-                                ActivityReactionMomentCard(
-                                    item: item,
-                                    size: side,
-                                    isSelectionMode: isSelectionMode,
-                                    isSelected: selectedReactionIds.contains(item.id),
-                                    overlayBadge: reactionCardOverlayBadge
-                                )
-                                .contentShape(Rectangle())
-                                .modifier(ProfileMomentZoomSourceModifier(
-                                    namespace: item.moment == nil ? nil : zoomNamespace,
-                                    sourceID: item.moment.map {
-                                        ProfileMomentZoomNavigation.sourceID(moment: $0, index: index, prefix: "activity-reaction")
-                                    },
-                                    cornerRadius: 4
-                                ))
-                                .id(item.id)
-                                .onTapGesture {
-                                    if longPressActivatedItemId == item.id {
-                                        longPressActivatedItemId = nil
-                                        return
-                                    }
-                                    if isSelectionMode {
-                                        toggleSelection(for: item.id)
-                                        return
-                                    }
-                                    guard item.canView, let moment = item.moment else { return }
-                                    openActivityMomentZoom(moment: moment)
-                                }
-                                .onLongPressGesture(minimumDuration: 0.3) {
-                                    guard category == .archived || category == .recentlyDeleted else { return }
-                                    longPressActivatedItemId = item.id
-                                    if !isSelectionMode {
-                                        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
-                                            isSelectionMode = true
-                                        }
-                                    }
-                                    selectedReactionIds.insert(item.id)
-                                }
-                            }
-                        }
-                        .padding(.top, 8)
-                        .padding(.bottom, isSelectionMode ? 88 : 12)
-                        .modifier(ActivityGridDragSelectionModifier(
-                            isEnabled: category == .recentlyDeleted && isSelectionMode,
-                            gesture: recentlyDeletedDragSelectionGesture(
-                                items: filteredReactionItems.map(\.id),
-                                side: side,
-                                spacing: spacing,
-                                viewportHeight: geometry.size.height,
-                                scrollProxy: proxy,
-                                horizontalInset: 0
-                            )
-                        ))
-                    }
-                }
+            if category == .echoes {
+                echoesSummaryHeader
             }
         }
     }
 
-    private var recentlyDeletedStoriesGrid: some View {
-        GeometryReader { geometry in
-            if filteredDeletedStoryItems.isEmpty {
-                emptyState(textKey: category.emptyKey)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            } else {
-                let spacing: CGFloat = 1
-                let totalSpacing: CGFloat = spacing * 2
-                let side = floor((geometry.size.width - totalSpacing) / 3)
-                let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
+    private var activityGridViewportHeight: CGFloat {
+        UIScreen.main.bounds.height * 0.62
+    }
 
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: spacing) {
-                            ForEach(Array(filteredDeletedStoryItems.enumerated()), id: \.element.id) { _, item in
-                                ActivityDeletedStoryCard(
-                                    item: item,
-                                    isSelectionMode: isSelectionMode,
-                                    isSelected: selectedReactionIds.contains(item.id)
-                                )
-                                .contentShape(Rectangle())
-                                .id(item.id)
-                                .onTapGesture {
-                                    if longPressActivatedItemId == item.id {
-                                        longPressActivatedItemId = nil
-                                        return
-                                    }
-                                    if isSelectionMode {
-                                        toggleSelection(for: item.id)
-                                        return
-                                    }
-                                    openRecentlyDeletedStory(item)
-                                }
-                                .onLongPressGesture(minimumDuration: 0.3) {
-                                    longPressActivatedItemId = item.id
-                                    if !isSelectionMode {
-                                        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
-                                            isSelectionMode = true
-                                        }
-                                    }
-                                    selectedReactionIds.insert(item.id)
-                                }
+    private func activityGridColumnSide(containerWidth: CGFloat = UIScreen.main.bounds.width) -> CGFloat {
+        let spacing = activityGridSpacing
+        return floor((containerWidth - spacing * 2) / 3)
+    }
+
+    @ViewBuilder
+    private func reactionsGridBody(scrollProxy: ScrollViewProxy) -> some View {
+        if filteredReactionItems.isEmpty {
+            emptyState(textKey: category.emptyKey)
+                .frame(maxWidth: .infinity, minHeight: 420, alignment: .center)
+        } else {
+            let spacing = activityGridSpacing
+            let side = activityGridColumnSide()
+            let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
+
+            LazyVGrid(columns: columns, spacing: spacing) {
+                ForEach(Array(filteredReactionItems.enumerated()), id: \.element.id) { index, item in
+                    ActivityReactionMomentCard(
+                        item: item,
+                        size: side,
+                        isSelectionMode: isSelectionMode,
+                        isSelected: selectedReactionIds.contains(item.id),
+                        overlayBadge: reactionCardOverlayBadge
+                    )
+                    .contentShape(Rectangle())
+                    .modifier(ProfileMomentZoomSourceModifier(
+                        namespace: item.moment == nil ? nil : zoomNamespace,
+                        sourceID: item.moment.map {
+                            ProfileMomentZoomNavigation.sourceID(moment: $0, index: index, prefix: "activity-reaction")
+                        },
+                        cornerRadius: 4
+                    ))
+                    .id(item.id)
+                    .onTapGesture {
+                        if longPressActivatedItemId == item.id {
+                            longPressActivatedItemId = nil
+                            return
+                        }
+                        if isSelectionMode {
+                            toggleSelection(for: item.id)
+                            return
+                        }
+                        guard item.canView, let moment = item.moment else { return }
+                        openActivityMomentZoom(moment: moment)
+                    }
+                    .onLongPressGesture(minimumDuration: 0.3) {
+                        guard category == .archived || category == .recentlyDeleted else { return }
+                        longPressActivatedItemId = item.id
+                        if !isSelectionMode {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                                isSelectionMode = true
                             }
                         }
-                        .padding(.top, 8)
-                        .padding(.bottom, isSelectionMode ? 88 : 12)
-                        .modifier(ActivityGridDragSelectionModifier(
-                            isEnabled: isSelectionMode,
-                            gesture: recentlyDeletedDragSelectionGesture(
-                                items: filteredDeletedStoryItems.map(\.id),
-                                side: side,
-                                spacing: spacing,
-                                viewportHeight: geometry.size.height,
-                                scrollProxy: proxy,
-                                horizontalInset: 0,
-                                usesPortraitStoryCells: true
-                            )
-                        ))
+                        selectedReactionIds.insert(item.id)
                     }
                 }
             }
+            .padding(.top, 8)
+            .padding(.bottom, isSelectionMode ? 88 : 12)
+            .modifier(ActivityGridDragSelectionModifier(
+                isEnabled: category == .recentlyDeleted && isSelectionMode,
+                gesture: recentlyDeletedDragSelectionGesture(
+                    items: filteredReactionItems.map(\.id),
+                    side: side,
+                    spacing: spacing,
+                    viewportHeight: activityGridViewportHeight,
+                    scrollProxy: scrollProxy,
+                    horizontalInset: 0
+                )
+            ))
         }
     }
 
-    private var momentsGrid: some View {
-        GeometryReader { geometry in
-            if filteredMoments.isEmpty {
-                emptyState(textKey: category.emptyKey)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            } else {
-                let spacing = activityGridSpacing
-                let totalSpacing = spacing * 2
-                let columnWidth = floor((geometry.size.width - totalSpacing) / 3)
-                let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
-                let isReelsCategory = category == .reels
+    @ViewBuilder
+    private func recentlyDeletedStoriesGridBody(scrollProxy: ScrollViewProxy) -> some View {
+        if filteredDeletedStoryItems.isEmpty {
+            emptyState(textKey: category.emptyKey)
+                .frame(maxWidth: .infinity, minHeight: 420, alignment: .center)
+        } else {
+            let spacing: CGFloat = 1
+            let side = activityGridColumnSide()
+            let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
 
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: spacing) {
-                        ForEach(Array(filteredMoments.enumerated()), id: \.element.id) { index, moment in
-                            if isReelsCategory {
-                                ActivityPortraitMomentCard(moment: moment)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        openActivityReels(moment: moment, moments: filteredMoments)
-                                    }
-                            } else {
-                                ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
-                                    ModernMomentThumbnail(
-                                        moment: moment,
-                                        size: columnWidth,
-                                        customListNamesById: viewModel.customListNamesById,
-                                        zoomNamespace: zoomNamespace,
-                                        zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "activity"),
-                                        onTap: {
-                                            openActivityMomentZoom(moment: moment)
-                                        },
-                                        usesDiscreetAudienceIcon: true
-                                    )
-                                    .frame(width: columnWidth, height: columnWidth)
-                                }
+            LazyVGrid(columns: columns, spacing: spacing) {
+                ForEach(Array(filteredDeletedStoryItems.enumerated()), id: \.element.id) { _, item in
+                    ActivityDeletedStoryCard(
+                        item: item,
+                        isSelectionMode: isSelectionMode,
+                        isSelected: selectedReactionIds.contains(item.id)
+                    )
+                    .contentShape(Rectangle())
+                    .id(item.id)
+                    .onTapGesture {
+                        if longPressActivatedItemId == item.id {
+                            longPressActivatedItemId = nil
+                            return
+                        }
+                        if isSelectionMode {
+                            toggleSelection(for: item.id)
+                            return
+                        }
+                        openRecentlyDeletedStory(item)
+                    }
+                    .onLongPressGesture(minimumDuration: 0.3) {
+                        longPressActivatedItemId = item.id
+                        if !isSelectionMode {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                                isSelectionMode = true
                             }
                         }
+                        selectedReactionIds.insert(item.id)
                     }
-                    .padding(.top, 8)
-                    .padding(.bottom, 20)
                 }
             }
+            .padding(.top, 8)
+            .padding(.bottom, isSelectionMode ? 88 : 12)
+            .modifier(ActivityGridDragSelectionModifier(
+                isEnabled: isSelectionMode,
+                gesture: recentlyDeletedDragSelectionGesture(
+                    items: filteredDeletedStoryItems.map(\.id),
+                    side: side,
+                    spacing: spacing,
+                    viewportHeight: activityGridViewportHeight,
+                    scrollProxy: scrollProxy,
+                    horizontalInset: 0,
+                    usesPortraitStoryCells: true
+                )
+            ))
         }
     }
 
-    private var commentsList: some View {
-        Group {
-            if filteredCommentItems.isEmpty {
-                emptyState(textKey: category.emptyKey)
-            } else {
-                ScrollView {
-                    VStack(spacing: 10) {
-                        ForEach(filteredCommentItems) { item in
-                            ActivityCommentItemRow(
-                                item: item,
-                                isSelectionMode: isSelectionMode,
-                                isSelected: selectedCommentIds.contains(item.id),
-                                onOpenMoment: {
-                                    guard item.canView, let moment = item.moment else { return }
+    @ViewBuilder
+    private var momentsGridBody: some View {
+        if filteredMoments.isEmpty {
+            emptyState(textKey: category.emptyKey)
+                .frame(maxWidth: .infinity, minHeight: 420, alignment: .center)
+        } else {
+            let spacing = activityGridSpacing
+            let columnWidth = activityGridColumnSide()
+            let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
+            let isReelsCategory = category == .reels
+
+            LazyVGrid(columns: columns, spacing: spacing) {
+                ForEach(Array(filteredMoments.enumerated()), id: \.element.id) { index, moment in
+                    if isReelsCategory {
+                        ActivityPortraitMomentCard(moment: moment)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                openActivityReels(moment: moment, moments: filteredMoments)
+                            }
+                    } else {
+                        ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
+                            ModernMomentThumbnail(
+                                moment: moment,
+                                size: columnWidth,
+                                customListNamesById: viewModel.customListNamesById,
+                                zoomNamespace: zoomNamespace,
+                                zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "activity"),
+                                onTap: {
                                     openActivityMomentZoom(moment: moment)
                                 },
-                                onOpenAuthorAvatar: { hasStory in
-                                    openAuthor(authorId: item.authorId, hasStory: hasStory)
-                                },
-                                onOpenAuthorProfile: {
-                                    openAuthor(authorId: item.authorId, hasStory: false)
-                                },
-                                onToggleSelection: {
-                                    toggleCommentSelection(for: item.id)
-                                }
+                                usesDiscreetAudienceIcon: true
                             )
+                            .frame(width: columnWidth, height: columnWidth)
                         }
                     }
-                    .padding(.horizontal, sectionHorizontalPadding)
-                    .padding(.top, 10)
-                    .padding(.bottom, isSelectionMode ? 88 : 16)
                 }
             }
+            .padding(.top, 8)
+            .padding(.bottom, 20)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    private var commentsListBody: some View {
+        if filteredCommentItems.isEmpty {
+            emptyState(textKey: category.emptyKey)
+                .frame(maxWidth: .infinity, minHeight: 420, alignment: .center)
+        } else {
+            VStack(spacing: 10) {
+                ForEach(filteredCommentItems) { item in
+                    ActivityCommentItemRow(
+                        item: item,
+                        isSelectionMode: isSelectionMode,
+                        isSelected: selectedCommentIds.contains(item.id),
+                        onOpenMoment: {
+                            guard item.canView, let moment = item.moment else { return }
+                            openActivityMomentZoom(moment: moment)
+                        },
+                        onOpenAuthorAvatar: { hasStory in
+                            openAuthor(authorId: item.authorId, hasStory: hasStory)
+                        },
+                        onOpenAuthorProfile: {
+                            openAuthor(authorId: item.authorId, hasStory: false)
+                        },
+                        onToggleSelection: {
+                            toggleCommentSelection(for: item.id)
+                        }
+                    )
+                }
+            }
+            .padding(.horizontal, sectionHorizontalPadding)
+            .padding(.top, 10)
+            .padding(.bottom, isSelectionMode ? 88 : 16)
+        }
+    }
+
+    @ViewBuilder
+    private var eventsListBody: some View {
+        if filteredEventItems.isEmpty {
+            emptyState(textKey: category.emptyKey)
+                .frame(maxWidth: .infinity, minHeight: 420, alignment: .center)
+        } else {
+            VStack(spacing: 10) {
+                ForEach(filteredEventItems) { item in
+                    Button {
+                        if isSelectionMode {
+                            toggleEventSelection(for: item.id)
+                        }
+                    } label: {
+                        ActivityEventRow(
+                            item: item,
+                            isSelectionMode: isSelectionMode,
+                            isSelected: selectedEventIds.contains(item.id),
+                            onOpenTargetProfile: {
+                                guard let authorId = item.targetAuthorId, !authorId.isEmpty else { return }
+                                openAuthor(authorId: authorId, hasStory: false)
+                            },
+                            onRowTap: {
+                                if isSelectionMode {
+                                    toggleEventSelection(for: item.id)
+                                } else {
+                                    handleEventTap(item)
+                                }
+                            }
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, sectionHorizontalPadding)
+            .padding(.top, 10)
+            .padding(.bottom, isSelectionMode ? 88 : 20)
+        }
     }
 
     private var filteredReactionItems: [ActivityReactionItem] {
@@ -878,7 +931,7 @@ struct ActivityInteractionDetailView: View {
         return map
     }
 
-    private var reactionsFiltersBar: some View {
+    private var reactionsFiltersHeader: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 Menu {
@@ -974,12 +1027,7 @@ struct ActivityInteractionDetailView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
-            Capsule()
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.07))
-                .overlay(
-                    Capsule()
-                        .stroke(Color.gray.opacity(0.22), lineWidth: 1)
-                )
+            Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
         )
     }
 
@@ -1025,67 +1073,6 @@ struct ActivityInteractionDetailView: View {
         .padding(.bottom, 6)
     }
 
-    private var eventsContent: some View {
-        VStack(spacing: 0) {
-            reactionsFiltersBar
-
-            if reactionsDateFilter == .custom {
-                customDateRangeControls
-            }
-
-            if category == .echoes {
-                echoesSummaryHeader
-            }
-
-            eventsList
-        }
-        .frame(maxHeight: .infinity, alignment: .top)
-    }
-
-    private var eventsList: some View {
-        Group {
-            if filteredEventItems.isEmpty {
-                GeometryReader { _ in
-                    emptyState(textKey: category.emptyKey)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                }
-            } else {
-                ScrollView {
-                    VStack(spacing: 10) {
-                        ForEach(filteredEventItems) { item in
-                            Button {
-                                if isSelectionMode {
-                                    toggleEventSelection(for: item.id)
-                                }
-                            } label: {
-                                ActivityEventRow(
-                                    item: item,
-                                    isSelectionMode: isSelectionMode,
-                                    isSelected: selectedEventIds.contains(item.id),
-                                    onOpenTargetProfile: {
-                                        guard let authorId = item.targetAuthorId, !authorId.isEmpty else { return }
-                                        openAuthor(authorId: authorId, hasStory: false)
-                                    },
-                                    onRowTap: {
-                                        if isSelectionMode {
-                                            toggleEventSelection(for: item.id)
-                                        } else {
-                                            handleEventTap(item)
-                                        }
-                                    }
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, sectionHorizontalPadding)
-                    .padding(.top, 10)
-                    .padding(.bottom, isSelectionMode ? 88 : 20)
-                }
-                .frame(maxHeight: .infinity, alignment: .top)
-            }
-        }
-    }
 
     private var filteredEventItems: [ActivityEventItem] {
         let filteredByDate = viewModel.events.filter { item in
@@ -1161,12 +1148,12 @@ struct ActivityInteractionDetailView: View {
             }
         case "follower", "visit":
             if let actorId = item.actorId {
-                selectedProfileUserIdForSheet = actorId
+                profileRoute = FeedProfileSheetRoute(userId: actorId)
             }
         case "sticker_reply", "poll", "question":
              // Handle if needed, or default to profile
              if let actorId = item.actorId {
-                 selectedProfileUserIdForSheet = actorId
+                 profileRoute = FeedProfileSheetRoute(userId: actorId)
              }
         default:
             break
@@ -2091,7 +2078,7 @@ struct ActivityInteractionDetailView: View {
         if hasStory {
             storyRoute = IdentifiableString(id: authorId)
         } else {
-            selectedProfileUserIdForSheet = authorId
+            profileRoute = FeedProfileSheetRoute(userId: authorId)
         }
     }
 

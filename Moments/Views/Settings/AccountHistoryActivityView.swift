@@ -35,61 +35,30 @@ struct AccountHistoryActivityView: View {
             (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                 .ignoresSafeArea()
             
-            VStack(spacing: 0) {
-                accountHistoryHeader
-                
-                if dateFilter == .custom {
-                    customDateRangeControls
-                }
-                
-                if isLoading {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                } else {
-                    ScrollView {
-                        VStack(spacing: 24) {
-                            // Title and Description
-                            VStack(alignment: .center, spacing: 8) {
-                                Text(NSLocalizedString("userActivity.accountHistory.title", value: "Información sobre el historial de la cuenta", comment: "Account history title"))
-                                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    .multilineTextAlignment(.center)
-                                
-                                Text(NSLocalizedString("userActivity.accountHistory.description", value: "Revisa los cambios que has hecho en tu cuenta desde que la creaste.", comment: "Description for Account History"))
-                                    .font(.system(size: legacyPoppinsSize(14)))
-                                    .foregroundColor(.gray)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, 24)
-                            .padding(.top, 8)
-                            
-                            // Timeline View
-                            let filteredHistory = getFilteredAndSortedHistory()
-                            
-                            if filteredHistory.isEmpty {
-                                Text(NSLocalizedString("userActivity.accountHistory.noChanges", value: "No record of changes found.", comment: "No changes state for account history"))
-                                    .font(.system(size: legacyPoppinsSize(14)))
-                                    .foregroundColor(.gray)
-                                    .padding(.top, 40)
-                            } else {
-                                VStack(spacing: 0) {
-                                    ForEach(Array(filteredHistory.enumerated()), id: \.element.id) { index, item in
-                                        AccountHistoryRowView(
-                                            item: item,
-                                            isFirst: index == 0,
-                                            isLast: index == filteredHistory.count - 1
-                                        )
-                                    }
-                                }
-                                .padding(.horizontal, 20)
+            if isLoading {
+                Spacer()
+                ProgressView()
+                Spacer()
+            } else {
+                ActivityCollapsibleFilterScroll(
+                    onRefresh: {
+                        fetchHistory()
+                        while isLoading {
+                            try? await Task.sleep(nanoseconds: 100_000_000)
+                        }
+                    },
+                    header: {
+                        VStack(spacing: 0) {
+                            accountHistoryHeader
+                            if dateFilter == .custom {
+                                customDateRangeControls
                             }
                         }
-                        .padding(.top, 24)
-                        .padding(.bottom, 40)
+                    },
+                    content: { _ in
+                        accountHistoryScrollBody
                     }
-                }
+                )
             }
         }
         .navigationTitle(NSLocalizedString("userActivity.accountHistory.title", value: "Historial de la cuenta", comment: "Account history title"))
@@ -104,6 +73,48 @@ struct AccountHistoryActivityView: View {
         .onAppear {
             fetchHistory()
         }
+    }
+
+    @ViewBuilder
+    private var accountHistoryScrollBody: some View {
+        VStack(spacing: 24) {
+            VStack(alignment: .center, spacing: 8) {
+                Text(NSLocalizedString("userActivity.accountHistory.title", value: "Información sobre el historial de la cuenta", comment: "Account history title"))
+                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .multilineTextAlignment(.center)
+
+                Text(NSLocalizedString("userActivity.accountHistory.description", value: "Revisa los cambios que has hecho en tu cuenta desde que la creaste.", comment: "Description for Account History"))
+                    .font(.system(size: legacyPoppinsSize(14)))
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.top, 8)
+
+            let filteredHistory = getFilteredAndSortedHistory()
+
+            if filteredHistory.isEmpty {
+                Text(NSLocalizedString("userActivity.accountHistory.noChanges", value: "No record of changes found.", comment: "No changes state for account history"))
+                    .font(.system(size: legacyPoppinsSize(14)))
+                    .foregroundColor(.gray)
+                    .padding(.top, 40)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(filteredHistory.enumerated()), id: \.element.id) { index, item in
+                        AccountHistoryRowView(
+                            item: item,
+                            isFirst: index == 0,
+                            isLast: index == filteredHistory.count - 1
+                        )
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+        .padding(.top, 24)
+        .padding(.bottom, 40)
     }
     
     private var accountHistoryHeader: some View {

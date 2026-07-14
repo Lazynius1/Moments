@@ -88,6 +88,7 @@ enum SettingsRoute: Hashable, Identifiable {
     case moderationReviews
     case archivedStories
     case notificationSettings
+    case loginActivity
 
     var id: Self { self }
 }
@@ -277,6 +278,8 @@ struct SettingsView: View {
                 startTime: $startTime,
                 endTime: $endTime
             )
+        case .loginActivity:
+            LoginActivityView()
         }
     }
 

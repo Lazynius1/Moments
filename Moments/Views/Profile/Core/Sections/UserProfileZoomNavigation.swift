@@ -43,4 +43,16 @@ extension View {
             .zoom(sourceID: UserProfileZoomNavigation.sourceID(userId: userId), in: namespace)
         )
     }
+
+    /// Push de perfil ajeno con zoom — sustituye `fullScreenCover { UserProfileView }`.
+    func userProfileNavigationDestination(
+        item: Binding<FeedProfileSheetRoute?>,
+        namespace: Namespace.ID
+    ) -> some View {
+        navigationDestination(item: item) { route in
+            UserProfileView(userId: route.userId)
+                .id(route.userId)
+                .userProfileZoomDestination(userId: route.userId, namespace: namespace)
+        }
+    }
 }

@@ -1,4 +1,4 @@
-struct FeedProfileSheetRoute: Identifiable, Equatable {
+struct FeedProfileSheetRoute: Identifiable, Equatable, Hashable {
     let userId: String
 
     var id: String { userId }
