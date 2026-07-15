@@ -17,38 +17,17 @@ struct SearchBarView: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
                             .stroke(
-                                LinearGradient(
-                                    colors: isSearchFocused ?
-                                        [Color(hex: "667eea").opacity(0.6), Color(hex: "764ba2").opacity(0.4)] :
-                                        [Color.white.opacity(0.3), Color.clear],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
+                                isSearchFocused
+                                    ? Color.primary.opacity(0.28)
+                                    : Color.primary.opacity(0.08),
+                                lineWidth: 1
                             )
-                    )
-                    .background(
-                        IntelligentGlow(
-                            isFocused: isSearchFocused,
-                            cornerRadius: 10,
-                            colors: [
-                                Color(hex: "667eea"),
-                                Color(hex: "764ba2"),
-                                Color(hex: "6B73FF")
-                            ]
-                        )
-                    )
-                    .shadow(
-                        color: isSearchFocused ? Color(hex: "667eea").opacity(0.2) : .black.opacity(0.05),
-                        radius: isSearchFocused ? 6 : 4,
-                        x: 0,
-                        y: isSearchFocused ? 3 : 2
                     )
 
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(isSearchFocused ? Color(hex: "667eea") : .secondary)
+                        .foregroundStyle(isSearchFocused ? Color.primary : .secondary)
                         .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isSearchFocused), value: isSearchFocused)
 
                     TextField("explore.search.placeholder", text: $searchText)
@@ -72,6 +51,7 @@ struct SearchBarView: View {
                                 .font(.system(size: 15))
                                 .foregroundStyle(.secondary)
                         }
+                        .buttonStyle(.momentsPressIcon)
                         .transition(MotionPolicy.Transition.enterPop)
                     }
                 }
@@ -87,7 +67,7 @@ struct SearchBarView: View {
                     isSearchFocused = false
                 }
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundStyle(Color(hex: "667eea"))
+                .foregroundStyle(Color.accentColor)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
@@ -109,11 +89,7 @@ struct LoadingStateView: View {
                 Circle()
                     .trim(from: 0, to: 0.75)
                     .stroke(
-                        LinearGradient(
-                            colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
+                        Color.accentColor,
                         style: StrokeStyle(lineWidth: 4, lineCap: .round)
                     )
                     .frame(width: 60, height: 60)
@@ -172,19 +148,16 @@ struct ErrorStateView: View {
                         Image(systemName: "arrow.clockwise")
                         Text("explore.error.retry")
                     }
-                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(
-                        LinearGradient(
-                            colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(Capsule())
-                    .shadow(color: Color(hex: "667eea").opacity(0.3), radius: 8, x: 0, y: 4)
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(height: 50)
+                    .padding(.horizontal, 22)
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.momentsPress)
+                .background {
+                    Color.clear
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
                 .padding(.top, 8)
             }
@@ -224,7 +197,7 @@ struct SuggestedUsersSection: View {
                         onShowMore()
                     }
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundStyle(Color(hex: "667eea"))
+                    .foregroundStyle(Color.accentColor)
                 }
                 .padding(.horizontal, 10)
                 .padding(.top, 10)
@@ -300,7 +273,7 @@ struct SuggestedUserCard: View {
                 // Profile Image with Glow
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "667eea").opacity(0.3))
+                        .fill(Color.accentColor.opacity(0.3))
                         .frame(width: 48, height: 48)
                         .blur(radius: 6)
 
@@ -366,16 +339,11 @@ struct SuggestedUserCard: View {
     }
 
     private var defaultBackground: some View {
-        LinearGradient(
-            colors: [Color(hex: "667eea").opacity(0.2), Color(hex: "764ba2").opacity(0.1)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .overlay(
-            // Patrón sutil o efecto glass
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-        )
+        (Color.primary.opacity(0.06))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.ultraThinMaterial.opacity(0.55))
+            )
     }
 
     private var buttonTitle: String {
@@ -418,14 +386,7 @@ struct SearchResultCard: View {
                 .fill(.ultraThinMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color.clear],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 6)
 
@@ -461,7 +422,7 @@ struct SearchResultCard: View {
                     if commonInterests > 0 {
                         Text(String(format: NSLocalizedString("explore.commonInterests", comment: "Common interests"), commonInterests))
                             .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                            .foregroundStyle(Color(hex: "667eea"))
+                            .foregroundStyle(Color.accentColor)
                     }
                 }
 
@@ -502,7 +463,10 @@ struct FollowButton: View {
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: {
+            HapticManager.shared.lightImpact()
+            onTap()
+        }) {
             HStack(spacing: 8) {
                 Image(systemName: buttonIcon)
                 Text(buttonText)
@@ -513,6 +477,7 @@ struct FollowButton: View {
             .padding(.vertical, 10)
             .momentsChromeGlass(in: Capsule(), interactive: buttonState.isActionable)
         }
+        .buttonStyle(.momentsPressSubtle)
         .disabled(!buttonState.isActionable)
         .opacity(isPassiveState ? 0.78 : 1)
     }
@@ -576,7 +541,7 @@ struct ProfileImageeView: View {
                             .frame(width: size, height: size)
                             .overlay(
                                 ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "667eea")))
+                                    .progressViewStyle(CircularProgressViewStyle(tint: Color.accentColor))
                             )
                     }
                     .onFailure { error in
@@ -601,20 +566,15 @@ struct ProfileImageeView: View {
 
 struct EmptyMomentsView: View {
     var body: some View {
-        VStack(spacing: 20) {
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 2)
-                    )
-
-                Image(systemName: "photo.stack")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.secondary)
-            }
+        VStack(spacing: 16) {
+            Image(systemName: "photo.stack")
+                .font(.system(size: 31, weight: .medium))
+                .foregroundStyle(.primary)
+                .frame(width: 76, height: 76)
+                .background {
+                    Color.clear
+                        .momentsChromeGlass(in: Circle())
+                }
 
             VStack(spacing: 8) {
                 Text("explore.noMoments")
@@ -627,26 +587,23 @@ struct EmptyMomentsView: View {
                     .multilineTextAlignment(.center)
             }
         }
+        .padding(.horizontal, 28)
         .padding(.vertical, 40)
+        .momentsEmptyStateAppear()
     }
 }
 
 struct EmptySearchView: View {
     var body: some View {
-        VStack(spacing: 20) {
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 2)
-                    )
-
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.secondary)
-            }
+        VStack(spacing: 16) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 31, weight: .medium))
+                .foregroundStyle(.primary)
+                .frame(width: 76, height: 76)
+                .background {
+                    Color.clear
+                        .momentsChromeGlass(in: Circle())
+                }
 
             VStack(spacing: 8) {
                 Text("explore.noUsers")
@@ -658,6 +615,8 @@ struct EmptySearchView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .padding(.horizontal, 28)
         .padding(.vertical, 40)
+        .momentsEmptyStateAppear()
     }
 }

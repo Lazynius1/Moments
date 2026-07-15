@@ -58,7 +58,7 @@ struct BlockedUsersView: View {
                                                 .padding(.vertical, 8)
                                                 .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                                         }
-                                        .buttonStyle(.plain)
+                                        .buttonStyle(.momentsPressSubtle)
                                     }
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 12)
@@ -90,7 +90,9 @@ struct BlockedUsersView: View {
         .navigationTitle(NSLocalizedString("blockedUsers.title", comment: "Blocked Users"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })

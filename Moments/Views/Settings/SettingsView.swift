@@ -154,6 +154,7 @@ struct SettingsView: View {
         .navigationTitle(NSLocalizedString("settings.title", comment: "Settings"))
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $isShowingQRCode) {
             QRCodeView()

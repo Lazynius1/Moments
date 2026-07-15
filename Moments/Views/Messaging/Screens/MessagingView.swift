@@ -177,6 +177,7 @@ struct MessagingView: View {
             }
             .toolbar(.visible, for: .navigationBar)
             .navigationBarBackButtonHidden(true)
+            .chatInteractivePopEnabled()
             .toolbar(.hidden, for: .tabBar)
     }
 
@@ -560,7 +561,8 @@ struct MessagingView: View {
                 .frame(width: 40, height: 40)
                 .modifier(ChatToolbarIconGlassModifier())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressIcon)
+        .accessibilityLabel(NSLocalizedString("messaging.newConversation", comment: "New conversation"))
     }
 
     private var messagingToolbarRequestsButton: some View {
@@ -583,7 +585,8 @@ struct MessagingView: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
+        .accessibilityLabel(NSLocalizedString("messageRequests.title", comment: "Message requests"))
     }
 
     private var messagingToolbarRequestsClusterButton: some View {
@@ -609,7 +612,8 @@ struct MessagingView: View {
             }
             .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
+        .accessibilityLabel(NSLocalizedString("messageRequests.title", comment: "Message requests"))
     }
 
     private var messagingToolbarTitleStack: some View {
@@ -635,7 +639,7 @@ struct MessagingView: View {
                         .foregroundStyle(adaptiveColors.secondary)
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -698,79 +702,97 @@ struct MessagingView: View {
     @ViewBuilder
      private var conversationList: some View {
          if let errorMessage = viewModel.errorMessage {
-             VStack(spacing: 20) {
-                 Spacer()
+             VStack(spacing: 22) {
+                 Image(systemName: "exclamationmark.triangle")
+                     .font(.system(size: 31, weight: .medium))
+                     .foregroundStyle(adaptiveColors.primary)
+                     .frame(width: 76, height: 76)
+                     .background {
+                         Color.clear
+                             .momentsChromeGlass(in: Circle())
+                     }
 
-                 VStack(spacing: 12) {
-                     Image(systemName: "exclamationmark.triangle.fill")
-                         .font(.system(size: 50))
-                         .foregroundStyle(.white.opacity(0.8))
-
+                 VStack(spacing: 8) {
                      Text(errorMessage)
                          .font(.system(size: legacyPoppinsSize(16)))
-                         .foregroundStyle(.white)
+                         .foregroundStyle(adaptiveColors.secondary)
                          .multilineTextAlignment(.center)
-                         .padding(.horizontal)
-
-                     Button(action: {
-                         if let userId = Auth.auth().currentUser?.uid {
-                             viewModel.fetchConversations(for: userId)
-                         }
-                     }) {
-                         Text("messaging.retry")
-                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                             .foregroundStyle(Color(hex: "007AFF"))
-                             .padding(.horizontal, 30)
-                             .padding(.vertical, 12)
-                             .background(Color.white.opacity(0.9))
-                             .clipShape(Capsule())
-                     }
+                         .padding(.horizontal, 24)
                  }
-                 .padding(30)
-                 .glassmorphic()
-                 .padding(.horizontal, 40)
 
-                 Spacer()
+                 Button(action: {
+                     if let userId = Auth.auth().currentUser?.uid {
+                         viewModel.fetchConversations(for: userId)
+                     }
+                 }) {
+                     Text("messaging.retry")
+                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                         .foregroundStyle(adaptiveColors.primary)
+                         .frame(height: 50)
+                         .padding(.horizontal, 22)
+                         .contentShape(Capsule())
+                 }
+                 .buttonStyle(.momentsPress)
+                 .background {
+                     Color.clear
+                         .momentsChromeGlass(in: Capsule(), interactive: true)
+                 }
+                 .padding(.top, 4)
              }
+             .frame(maxWidth: .infinity, maxHeight: .infinity)
+             .padding(.horizontal, 28)
+             .momentsEmptyStateAppear()
          } else if viewModel.conversations.isEmpty && viewModel.archivedConversations.isEmpty && messageRequestService.outgoingPendingRequests.isEmpty && !isSearching {
-             VStack(spacing: 20) {
-                 Spacer()
+             VStack(spacing: 22) {
+                 Image(systemName: "bubble.left.and.bubble.right")
+                     .font(.system(size: 31, weight: .medium))
+                     .foregroundStyle(adaptiveColors.primary)
+                     .frame(width: 76, height: 76)
+                     .background {
+                         Color.clear
+                             .momentsChromeGlass(in: Circle())
+                     }
 
-                 VStack(spacing: 16) {
-                     Image(systemName: "bubble.left.and.bubble.right.fill")
-                         .font(.system(size: 60))
-                         .foregroundStyle(.white.opacity(0.8))
-
+                 VStack(spacing: 8) {
                      Text("messaging.noConversations.title")
-                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                         .foregroundStyle(.white)
+                         .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
+                         .foregroundStyle(adaptiveColors.primary)
+                         .multilineTextAlignment(.center)
 
                      Text("messaging.noConversations.subtitle")
                          .font(.system(size: legacyPoppinsSize(14)))
-                         .foregroundStyle(.white.opacity(0.8))
-
-                     Button(action: {
-                         isShowingNewConversation = true
-                     }) {
-                         HStack {
-                             Image(systemName: "plus.circle.fill")
-                             Text("messaging.newConversation")
-                         }
-                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                         .foregroundStyle(Color(hex: "007AFF"))
+                         .foregroundStyle(adaptiveColors.secondary)
+                         .multilineTextAlignment(.center)
+                         .lineLimit(3)
+                         .fixedSize(horizontal: false, vertical: true)
                          .padding(.horizontal, 24)
-                         .padding(.vertical, 12)
-                         .background(Color.white.opacity(0.9))
-                         .clipShape(Capsule())
-                     }
-                     .padding(.top, 10)
                  }
-                 .padding(40)
-                 .glassmorphic()
-                 .padding(.horizontal, 30)
 
-                 Spacer()
+                 Button(action: {
+                     isShowingNewConversation = true
+                 }) {
+                     HStack(spacing: 10) {
+                         Text("messaging.newConversation")
+                             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+
+                         Image(systemName: "plus")
+                             .font(.system(size: 14, weight: .semibold))
+                     }
+                     .foregroundStyle(adaptiveColors.primary)
+                     .frame(height: 50)
+                     .padding(.horizontal, 22)
+                     .contentShape(Capsule())
+                 }
+                 .buttonStyle(.momentsPress)
+                 .background {
+                     Color.clear
+                         .momentsChromeGlass(in: Capsule(), interactive: true)
+                 }
+                 .padding(.top, 4)
              }
+             .frame(maxWidth: .infinity, maxHeight: .infinity)
+             .padding(.horizontal, 28)
+             .momentsEmptyStateAppear(appearedOffsetY: -28, initialOffsetY: -14)
          } else if isSearching {
              List {
                  searchResultsListContent
@@ -1095,7 +1117,7 @@ struct MessagingView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
@@ -1261,7 +1283,7 @@ struct SearchMessageResultRow: View {
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
     }
 }
 
@@ -1300,7 +1322,7 @@ struct SearchUserRow: View {
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
     }
 }
 
@@ -1645,6 +1667,7 @@ struct GlassmorphicNewConversationView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .chatInteractivePopEnabled()
         .toolbar { newConversationToolbarContent }
         .navigationDestination(item: $showingUserProfile) { user in
             UserProfileView(userId: user.id)
@@ -1699,7 +1722,7 @@ struct GlassmorphicNewConversationView: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(adaptiveColors.secondary)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.momentsPressSubtle)
                 }
             }
             .padding(.horizontal, 16)
@@ -1812,7 +1835,7 @@ private struct NewConversationUserRow: View {
                         cornerRadius: 28
                     )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
 
             Button(action: onSelect) {
                 Text(user.username)
@@ -1822,7 +1845,7 @@ private struct NewConversationUserRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)

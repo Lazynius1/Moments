@@ -67,6 +67,7 @@ struct ArchivedConversationsView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .chatInteractivePopEnabled()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 ProfileChromeIconButton(
@@ -105,6 +106,7 @@ struct ArchivedConversationsView: View {
                 .foregroundStyle(adaptiveColors.primary.opacity(0.7))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .momentsEmptyStateAppear()
     }
 
     @ViewBuilder

@@ -88,6 +88,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .navigationInteractivePopEnabled()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {

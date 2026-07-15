@@ -60,6 +60,7 @@ struct CreatorView: View {
     @State private var pendingChainId: String? = nil
     @State private var pendingChainTitle: String? = nil
     @State private var pendingChainPosition: Int? = nil
+    @State private var creatorNotificationTokens: [NSObjectProtocol] = []
 
     // ✅ Geometry Effect Namespace
     @Namespace private var animation
@@ -198,7 +199,7 @@ struct CreatorView: View {
 
     // MARK: - Response Sticker Handling
     private func setupResponseStickerListener() {
-        NotificationCenter.default.addObserver(
+        let token = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("AddResponseStickerToCreator"),
             object: nil,
             queue: .main
@@ -207,19 +208,16 @@ struct CreatorView: View {
                 addResponseStickerToStory(sticker)
             }
         }
+        creatorNotificationTokens.append(token)
     }
 
     private func removeResponseStickerListener() {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: NSNotification.Name("AddResponseStickerToCreator"),
-            object: nil
-        )
+        removeCreatorNotificationTokens()
     }
 
     // MARK: - Continue Chain Handling
     private func setupContinueChainListener() {
-        NotificationCenter.default.addObserver(
+        let continueToken = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("ContinueStoryChain"),
             object: nil,
             queue: .main
@@ -231,9 +229,9 @@ struct CreatorView: View {
                 continueStoryChain(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
             }
         }
+        creatorNotificationTokens.append(continueToken)
 
-        // 🔗 NUEVO: Listener para configurar tipo de contenido
-        NotificationCenter.default.addObserver(
+        let contentTypeToken = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("SetContentType"),
             object: nil,
             queue: .main
@@ -242,14 +240,14 @@ struct CreatorView: View {
                let contentTypeString = userInfo["contentType"] as? String {
                 if contentTypeString == "story" {
                     contentType = .story
-                    currentFlow = .storyCamera  // ✅ MANTENER: Ir a cámara para seleccionar medios
+                    currentFlow = .storyCamera
                     isCreatingStory = true
                 }
             }
         }
+        creatorNotificationTokens.append(contentTypeToken)
 
-        // 🔗 NUEVO: Listener para guardar contexto de cadena
-        NotificationCenter.default.addObserver(
+        let chainContextToken = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("SetChainContext"),
             object: nil,
             queue: .main
@@ -263,21 +261,16 @@ struct CreatorView: View {
                 pendingChainPosition = chainPosition
             }
         }
+        creatorNotificationTokens.append(chainContextToken)
     }
 
     private func removeContinueChainListener() {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: NSNotification.Name("ContinueStoryChain"),
-            object: nil
-        )
+        removeCreatorNotificationTokens()
+    }
 
-        // 🔗 NUEVO: Limpiar listener de tipo de contenido
-        NotificationCenter.default.removeObserver(
-            self,
-            name: NSNotification.Name("SetContentType"),
-            object: nil
-        )
+    private func removeCreatorNotificationTokens() {
+        creatorNotificationTokens.forEach { NotificationCenter.default.removeObserver($0) }
+        creatorNotificationTokens.removeAll()
     }
 
     private func continueStoryChain(chainId: String, chainTitle: String, chainPosition: Int) {

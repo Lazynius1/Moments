@@ -99,7 +99,7 @@ struct ActivityInteractionDetailView: View {
     private func handleSelectionToolbarTap() {
         switch category {
         case .reactions, .comments, .tags, .stickerReplies:
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
                 isSelectionMode.toggle()
                 if !isSelectionMode {
                     selectedReactionIds.removeAll()
@@ -108,14 +108,14 @@ struct ActivityInteractionDetailView: View {
                 }
             }
         case .recentlyDeleted:
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
                 isSelectionMode.toggle()
                 if !isSelectionMode {
                     selectedReactionIds.removeAll()
                 }
             }
         case .archived:
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
                 isSelectionMode = false
                 selectedReactionIds.removeAll()
             }
@@ -275,7 +275,9 @@ struct ActivityInteractionDetailView: View {
             isSuppressed: suppressInlineNavigationTitle
         ))
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             if !suppressInlineNavigationTitle {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -728,7 +730,7 @@ struct ActivityInteractionDetailView: View {
                             }
                         )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.momentsPressSubtle)
                 }
             }
             .padding(.horizontal, sectionHorizontalPadding)
@@ -1284,6 +1286,7 @@ struct ActivityInteractionDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 30)
+        .momentsEmptyStateAppear()
     }
 
     private var archivedSelectionBar: some View {
@@ -1471,7 +1474,7 @@ struct ActivityInteractionDetailView: View {
                     .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
                 }
                 .disabled(selectedCount == 0 || (isTagsCategory ? isRemovingSelectedTags : isDeletingSelectedReactions))
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
             .padding(.horizontal, sectionHorizontalPadding)
             .padding(.bottom, 8)
@@ -1524,7 +1527,7 @@ struct ActivityInteractionDetailView: View {
                     .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
                 }
                 .disabled(selectedCount == 0 || isDeletingSelectedComments)
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
             .padding(.horizontal, sectionHorizontalPadding)
             .padding(.bottom, 8)
@@ -1577,7 +1580,7 @@ struct ActivityInteractionDetailView: View {
                     .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
                 }
                 .disabled(selectedCount == 0 || isDeletingSelectedEvents)
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
             .padding(.horizontal, sectionHorizontalPadding)
             .padding(.bottom, 8)

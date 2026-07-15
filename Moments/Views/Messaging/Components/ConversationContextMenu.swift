@@ -66,10 +66,13 @@ struct ConversationContextMenuOverlay: View {
                         x: menuLeadingX(for: selection.rowFrame),
                         y: menuTopY(for: selection.rowFrame)
                     )
-                    .transition(.opacity)
+                    .transition(.scale(scale: 0.95).combined(with: .opacity))
             }
         }
-        .animation(.easeOut(duration: 0.18), value: selection?.conversation.id)
+        .animation(
+            MotionPolicy.animation(MotionPolicy.Spring.sheet, value: selection?.conversation.id),
+            value: selection?.conversation.id
+        )
     }
 
     @ViewBuilder

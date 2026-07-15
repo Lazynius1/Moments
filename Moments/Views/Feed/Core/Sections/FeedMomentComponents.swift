@@ -716,29 +716,34 @@ struct ModernPostCardView: View {
 
         if firstItem.type == .image {
 
-            _ = KFImage(URL(string: firstItem.url))
-                .onSuccess { result in
-                    let imageSize = result.image.size
-                    let ratio = imageSize.width / imageSize.height
-
-
-                    DispatchQueue.main.async {
-                        // ✅ Validar ratio calculado
-                        if ratio > 0 && ratio.isFinite {
-                            self.detectedAspectRatio = ratio
-                            self.classifyAspectRatio(ratio)
-                        } else {
-                            self.detectedAspectRatio = 1.0
-                            self.aspectRatioType = .square
+            if let url = URL(string: firstItem.url) {
+                KingfisherManager.shared.retrieveImage(with: url) { result in
+                    switch result {
+                    case .success(let value):
+                        let imageSize = value.image.size
+                        let ratio = imageSize.width / imageSize.height
+                        DispatchQueue.main.async {
+                            if ratio > 0 && ratio.isFinite {
+                                self.detectedAspectRatio = ratio
+                                self.classifyAspectRatio(ratio)
+                            } else {
+                                self.detectedAspectRatio = 1.0
+                                self.aspectRatioType = .square
+                            }
+                        }
+                    case .failure:
+                        DispatchQueue.main.async {
+                            self.detectedAspectRatio = 0.8
+                            self.aspectRatioType = .portrait
                         }
                     }
                 }
-                .onFailure { error in
-                    DispatchQueue.main.async {
-                        self.detectedAspectRatio = 0.8 // Fallback a 4:5
-                        self.aspectRatioType = .portrait
-                    }
+            } else {
+                DispatchQueue.main.async {
+                    self.detectedAspectRatio = 0.8
+                    self.aspectRatioType = .portrait
                 }
+            }
         } else {
             // ✅ MEJORADO: Para videos, detectar si es vertical (reels) o horizontal (landscape)
 
@@ -1043,7 +1048,7 @@ struct EnhancedCarouselView: View {
                                 showTags: $showTags,
                                 onTagTap: onTagTap,
                                 reelsVideos: reelsVideos,
-                                allowsVideoPlayback: allowsVideoPlayback,
+                                allowsVideoPlayback: allowsVideoPlayback && index == currentIndex,
                                 isImmersive: $isImmersive
                             )
                             .frame(width: pageWidth, height: pageHeight)
@@ -1234,11 +1239,10 @@ struct MediaItemView: View {
             MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 isImmersive = false
             }
-            GlobalVideoManager.shared.completeReelsFeedHandoff(for: currentMoment)
+            let handoffMedia: MediaItem? = prefersUnifiedCarouselFrame ? item : nil
+            GlobalVideoManager.shared.completeReelsFeedHandoff(for: currentMoment, mediaItem: handoffMedia)
             // Reanudar el vídeo del feed que estaba activo antes de abrir Reels.
-            GlobalVideoManager.shared.playVideo(
-                GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
-            )
+            GlobalVideoManager.shared.playVideo(feedVideoConsumerId)
         }) {
             ReelsViewer(
                 videos: resolvedReelsVideos,
@@ -1246,6 +1250,14 @@ struct MediaItemView: View {
                 initialStartSeconds: currentPlaybackStartSeconds
             )
             .environmentObject(FirestoreService.shared)
+        }
+    }
+
+    private var feedVideoConsumerId: String {
+        if prefersUnifiedCarouselFrame {
+            GlobalVideoManager.profileVideoConsumerId(for: currentMoment, mediaItem: item)
+        } else {
+            GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
         }
     }
 
@@ -1264,7 +1276,8 @@ struct MediaItemView: View {
     private func openReelsViewer() {
         // Pausar todos los reproductores del feed para evitar doble reproducción
         // (audio/decoders duplicados) mientras Reels está en primer plano.
-        GlobalVideoManager.shared.markReelsFeedHandoff(for: currentMoment)
+        let handoffMedia: MediaItem? = prefersUnifiedCarouselFrame ? item : nil
+        GlobalVideoManager.shared.markReelsFeedHandoff(for: currentMoment, mediaItem: handoffMedia)
         GlobalVideoManager.shared.pauseAllVideos()
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             isImmersive = true
@@ -1273,9 +1286,7 @@ struct MediaItemView: View {
     }
 
     private var currentPlaybackStartSeconds: Double {
-        GlobalVideoManager.shared.playbackPosition(
-            forMomentId: GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
-        )
+        GlobalVideoManager.shared.playbackPosition(forMomentId: feedVideoConsumerId)
     }
 }
 
@@ -1395,7 +1406,11 @@ struct CroppedVideoPlayer: View {
     @ObservedObject private var globalManager = GlobalVideoManager.shared
 
     private var videoConsumerId: String {
-        GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
+        if prefersUnifiedCarouselFrame {
+            GlobalVideoManager.profileVideoConsumerId(for: currentMoment, mediaItem: item)
+        } else {
+            GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
+        }
     }
 
     private var detailVideoActivationMode: VideoPlaybackActivationMode {
@@ -1415,7 +1430,15 @@ struct CroppedVideoPlayer: View {
                 .padding(10)
                 .background(.black.opacity(0.48), in: Circle())
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.momentsPressIcon)
+        .accessibilityLabel(
+            NSLocalizedString(
+                globalManager.userHasEnabledSoundInSession
+                    ? "feed.a11y.mute"
+                    : "feed.a11y.unmute",
+                comment: "Mute or unmute video"
+            )
+        )
     }
 
     private var resolvedItemAspectRatio: CGFloat {
@@ -1461,7 +1484,7 @@ struct CroppedVideoPlayer: View {
                 ModernVideoPlayer(
                     url: item.url,
                     aspectRatio: resolvedItemAspectRatio,
-                    videoId: GlobalVideoManager.profileVideoConsumerId(for: currentMoment),
+                    videoId: videoConsumerId,
                     chromeStyle: .socialReels,
                     posterURLString: currentMoment.videoPosterURLString(for: item),
                     mediaItem: item,
@@ -1493,7 +1516,7 @@ struct CroppedVideoPlayer: View {
                     ModernVideoPlayer(
                         url: item.url,
                         aspectRatio: aspectRatio,
-                        videoId: GlobalVideoManager.profileVideoConsumerId(for: currentMoment),
+                        videoId: videoConsumerId,
                         chromeStyle: .socialReels,
                         allowsPauseInteraction: false,
                         posterURLString: currentMoment.videoPosterURLString(for: item),
@@ -1576,7 +1599,7 @@ struct CroppedVideoPlayer: View {
                     ModernVideoPlayer(
                         url: item.url,
                         aspectRatio: feedDisplayRatio,
-                        videoId: GlobalVideoManager.profileVideoConsumerId(for: currentMoment),
+                        videoId: videoConsumerId,
                         chromeStyle: .socialReels,
                         posterURLString: currentMoment.videoPosterURLString(for: item),
                         mediaItem: item,

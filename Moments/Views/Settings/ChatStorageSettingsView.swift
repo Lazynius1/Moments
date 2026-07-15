@@ -61,6 +61,7 @@ struct ChatStorageSettingsView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
@@ -72,6 +73,7 @@ struct ChatStorageSettingsView: View {
             }
         }
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .onAppear { refreshUsage() }
         .confirmationDialog(
             NSLocalizedString("settings.chatStorage.clearMedia.confirm", comment: ""),
@@ -171,7 +173,7 @@ struct ChatStorageSettingsView: View {
                         .padding(.leading, 4)
                         .padding(.top, 4)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
         }
     }
@@ -201,7 +203,7 @@ struct ChatStorageSettingsView: View {
                     .frame(width: 32, height: 32)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 4)
@@ -299,7 +301,7 @@ struct ChatStorageSettingsView: View {
             .padding(.horizontal, 4)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
     }
 
     private func refreshUsage() {

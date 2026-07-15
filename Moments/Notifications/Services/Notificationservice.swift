@@ -54,7 +54,9 @@ class NotificationService: ObservableObject {
             self.notifications = visibleNotifications(from: cached)
             self.updateUnreadCount()
             self.isLoading = false
+            #if DEBUG
             print("🔔 NotificationService: Cargadas \(cached.count) notificaciones del caché")
+            #endif
         }
         
         var isFirstSnapshot = true
@@ -133,7 +135,9 @@ class NotificationService: ObservableObject {
             }
             return notification
         } catch {
+            #if DEBUG
             print("❌ NotificationService: Failed to decode notification \(doc.documentID): \(error)")
+            #endif
             return nil
         }
     }
@@ -162,7 +166,9 @@ class NotificationService: ObservableObject {
             try documentRef.setData(from: notificationToSave)
             LocalPersistenceService.shared.saveNotifications([notificationToSave])
         } catch {
+            #if DEBUG
             print("❌ Error saving notification: \(error)")
+            #endif
         }
     }
     
@@ -346,7 +352,9 @@ class NotificationService: ObservableObject {
                 await markAllAsReadLegacyBatch(userId: userId)
             }
         } catch {
+            #if DEBUG
             print("❌ Error marking batch as read: \(error)")
+            #endif
         }
     }
 
@@ -375,7 +383,9 @@ class NotificationService: ObservableObject {
                 await markAllAsReadLegacyBatch(userId: userId)
             }
         } catch {
+            #if DEBUG
             print("❌ Error marking legacy batch as read: \(error)")
+            #endif
         }
     }
 
@@ -399,7 +409,9 @@ class NotificationService: ObservableObject {
             do {
                 try await batch.commit()
             } catch {
+                #if DEBUG
                 print("❌ Error marking specific notifications as read: \(error)")
+                #endif
             }
         }
     }
@@ -439,7 +451,9 @@ class NotificationService: ObservableObject {
                 await markAllAsReadByScan(userId: userId, startAfter: last)
             }
         } catch {
+            #if DEBUG
             print("❌ Error marking scan batch as read: \(error)")
+            #endif
         }
     }
     
@@ -548,7 +562,9 @@ class NotificationService: ObservableObject {
             do {
                 try await batch.commit()
             } catch {
+                #if DEBUG
                 print("❌ Error deleting notifications: \(error)")
+                #endif
             }
         }
     }
@@ -581,9 +597,13 @@ class NotificationService: ObservableObject {
                     batch.deleteDocument(doc.reference)
                 }
                 try await batch.commit()
+                #if DEBUG
                 print("✅ Notification removed successfully")
+                #endif
             } catch {
+                #if DEBUG
                 print("❌ Error removing notification: \(error)")
+                #endif
             }
         }
     }

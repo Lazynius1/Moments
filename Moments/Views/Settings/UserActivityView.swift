@@ -100,7 +100,7 @@ struct UserActivityView: View {
                             summary: summaryVM.summaries[category]
                         )
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .buttonStyle(.momentsPressSubtle)
 
                     if index < categories.count - 1 {
                         Divider()

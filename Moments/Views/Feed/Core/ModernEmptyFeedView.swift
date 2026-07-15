@@ -3,7 +3,6 @@ import SwiftUI
 struct ModernEmptyFeedView: View {
     let feedType: FeedType
     @Environment(\.colorScheme) private var colorScheme
-    @State private var appearAnimation = false
 
     private var primaryText: Color {
         colorScheme == .dark ? .white : .black
@@ -45,7 +44,7 @@ struct ModernEmptyFeedView: View {
                 .padding(.horizontal, 22)
                 .contentShape(Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPress)
             .background {
                 Color.clear
                     .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -54,12 +53,7 @@ struct ModernEmptyFeedView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 28)
-        .offset(y: appearAnimation ? -28 : -14)
-        .opacity(appearAnimation ? 1 : 0)
-        .animation(.spring(response: 0.55, dampingFraction: 0.86).delay(0.08), value: appearAnimation)
-        .onAppear {
-            appearAnimation = true
-        }
+        .momentsEmptyStateAppear(appearedOffsetY: -28, initialOffsetY: -14)
     }
 
     private var iconView: some View {

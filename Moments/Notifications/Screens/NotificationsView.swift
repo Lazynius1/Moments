@@ -71,6 +71,7 @@ struct NotificationsView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .chatInteractivePopEnabled()
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {
@@ -203,7 +204,7 @@ struct NotificationsView: View {
             HStack(spacing: 18) {
                 ForEach(NotificationTab.allCases, id: \.self) { tab in
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                             viewModel.selectedTab = tab
                         }
                     }) {
@@ -257,14 +258,28 @@ struct NotificationsView: View {
         }
     }
 
+    private var contentPhase: Int {
+        if viewModel.isLoading { return 0 }
+        if filteredNotifications.isEmpty { return 1 }
+        return 2
+    }
+
+    @ViewBuilder
     private var contentView: some View {
-        if viewModel.isLoading {
-            return AnyView(loadingView)
-        } else if filteredNotifications.isEmpty {
-            return AnyView(emptyStateView)
-        } else {
-            return AnyView(notificationsListView)
+        ZStack {
+            if viewModel.isLoading {
+                loadingView
+                    .transition(MotionPolicy.Transition.enterPop)
+            } else if filteredNotifications.isEmpty {
+                emptyStateView
+                    .transition(MotionPolicy.Transition.enterPop)
+            } else {
+                notificationsListView
+                    .transition(MotionPolicy.Transition.enterPop)
+            }
         }
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.row, value: contentPhase), value: contentPhase)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: viewModel.selectedTab), value: viewModel.selectedTab)
     }
 
     private var filteredNotifications: [NotificationGroup] {
@@ -286,38 +301,34 @@ struct NotificationsView: View {
 
     // ✅ EMPTY STATE ADAPTATIVO
     private var emptyStateView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             Image(systemName: getEmptyStateIcon())
-                .font(.system(size: 48))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: colorScheme == .dark ? [
-                            Color.gray.opacity(0.6),
-                            Color(hex: "007AFF").opacity(0.4)
-                        ] : [
-                            Color.gray.opacity(0.8),
-                            Color(hex: "007AFF").opacity(0.6)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .font(.system(size: 31, weight: .medium))
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                .frame(width: 76, height: 76)
+                .background {
+                    Color.clear
+                        .momentsChromeGlass(in: Circle())
+                }
             
             VStack(spacing: 8) {
                 Text(emptyStateTitle)
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8)) // ✅ ADAPTATIVO
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Text(emptyStateMessage)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundStyle(colorScheme == .dark ? .gray : .gray.opacity(0.7)) // ✅ ADAPTATIVO
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
                     .multilineTextAlignment(.center)
             }
+            .id(viewModel.selectedTab)
+            .transition(.opacity)
             
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 40)
+        .padding(.horizontal, 28)
+        .momentsEmptyStateAppear()
     }
 
     private func getEmptyStateIcon() -> String {
@@ -418,6 +429,7 @@ struct NotificationsView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .momentsScrollEdgeChrome()
         .padding(.top, 4)
         .momentRefresh {
             await viewModel.refreshNotifications()

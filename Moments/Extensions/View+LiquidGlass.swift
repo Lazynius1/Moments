@@ -96,6 +96,15 @@ enum MomentsChromeGlass {
         colorScheme == .dark ? .white : MomentsGlassButtonTint.dark
     }
 
+    /// Fill detrás del `Glass.clear`. En iOS 27 el material difunde mejor, el dark glass
+    /// es más claro y el slider de sistema pelea con un underlay opaco → se atenúa.
+    static func underlayOpacity(forTintOpacity tintOpacity: CGFloat) -> CGFloat {
+        if #available(iOS 27.0, *) {
+            return tintOpacity * 0.42
+        }
+        return tintOpacity
+    }
+
     @available(iOS 26.0, *)
     static func clearChromeGlass(interactive: Bool, tint: Color) -> Glass {
         var glass = Glass.clear.tint(tint)
@@ -223,15 +232,25 @@ private struct MomentsChromeGlassModifier<S: Shape>: ViewModifier {
         tintOverride ?? MomentsChromeGlass.canvasTint(for: colorScheme, opacity: tintOpacity)
     }
 
+    private var underlayTint: Color {
+        if let tintOverride {
+            return tintOverride.opacity(MomentsChromeGlass.underlayOpacity(forTintOpacity: 1))
+        }
+        return MomentsChromeGlass.canvasTint(
+            for: colorScheme,
+            opacity: MomentsChromeGlass.underlayOpacity(forTintOpacity: tintOpacity)
+        )
+    }
+
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            // `.clear`: tint en Glass + capa canvas debajo (patrón Apple para clear glass).
+            // `.clear`: tint en Glass + underlay canvas (en iOS 27 el underlay es más suave).
             content
                 .glassEffect(
                     MomentsChromeGlass.clearChromeGlass(interactive: interactive, tint: resolvedTint),
                     in: shape
                 )
-                .background(resolvedTint, in: shape)
+                .background(underlayTint, in: shape)
         } else {
             content
                 .background {
@@ -311,6 +330,7 @@ struct ProfileChromeIconButton: View {
     var iconSize: CGFloat = ProfileChromeGlassMetrics.controlIconSize
     var standaloneGlass: Bool = true
     var tint: Color? = nil
+    var accessibilityLabelText: String? = nil
     let action: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -325,6 +345,24 @@ struct ProfileChromeIconButton: View {
 
     private var resolvedIconSize: CGFloat {
         preset?.iconSize ?? iconSize
+    }
+
+    private var resolvedAccessibilityLabel: String {
+        if let accessibilityLabelText, !accessibilityLabelText.isEmpty {
+            return accessibilityLabelText
+        }
+        switch systemName {
+        case "chevron.left":
+            return NSLocalizedString("common.back", comment: "Back")
+        case "xmark", "xmark.circle.fill":
+            return NSLocalizedString("common.close", comment: "Close")
+        case "square.and.pencil", "plus.message", "plus.bubble":
+            return NSLocalizedString("messaging.newConversation", comment: "New conversation")
+        default:
+            return systemName
+                .replacingOccurrences(of: ".fill", with: "")
+                .replacingOccurrences(of: ".", with: " ")
+        }
     }
 
     var body: some View {
@@ -342,7 +380,8 @@ struct ProfileChromeIconButton: View {
                 )
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressIcon)
+        .accessibilityLabel(resolvedAccessibilityLabel)
     }
 }
 

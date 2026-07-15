@@ -53,6 +53,9 @@ struct ChatToolbarIconGlassModifier: ViewModifier {
     }
 }
 
+/// Política Moments para scroll edge (iOS 26+).
+/// iOS 27 cambió el default automático a `.hard` (“bloque”); forzamos `.soft` tipo iOS 26.
+/// `hardBottomEdge`: escape si `.soft` + `safeAreaBar` falla en iOS 27 (bug beta conocido).
 struct ChatToolbarScrollEdgeModifier: ViewModifier {
     var hardBottomEdge = false
 
@@ -63,7 +66,9 @@ struct ChatToolbarScrollEdgeModifier: ViewModifier {
                     .scrollEdgeEffectStyle(.soft, for: .top)
                     .scrollEdgeEffectStyle(.hard, for: .bottom)
             } else {
-                content.scrollEdgeEffectStyle(.soft, for: .top)
+                content
+                    .scrollEdgeEffectStyle(.soft, for: .top)
+                    .scrollEdgeEffectStyle(.soft, for: .bottom)
             }
         } else {
             content
@@ -83,11 +88,12 @@ struct ChatToolbarScrollEdgeModifier: ViewModifier {
 }
 
 extension View {
+    /// Soft top + soft bottom (look iOS 26). Usa `hardBottomEdge: true` solo como escape bajo `safeAreaBar`.
     func momentsScrollEdgeChrome(hardBottomEdge: Bool = false) -> some View {
         modifier(ChatToolbarScrollEdgeModifier(hardBottomEdge: hardBottomEdge))
     }
 
-    /// Lista de conversaciones: solo difuminado superior. En el hilo, `hardBottomEdge: true` recorta el borde inferior en el composer.
+    /// Alias messaging. Por defecto soft en ambos bordes; `hardBottomEdge` solo si el soft inferior falla con el composer.
     func chatScrollEdgeEffect(hardBottomEdge: Bool = false) -> some View {
         momentsScrollEdgeChrome(hardBottomEdge: hardBottomEdge)
     }
@@ -108,6 +114,11 @@ extension View {
     /// Swipe desde el borde izquierdo para volver a la lista (push/pop nativo).
     func chatInteractivePopEnabled() -> some View {
         background(NavigationInteractivePopEnabler())
+    }
+
+    /// Alias para pantallas fuera del chat (Settings, Profile, Notifications, etc.).
+    func navigationInteractivePopEnabled() -> some View {
+        chatInteractivePopEnabled()
     }
 
     /// Reporta la altura del composer (input + reply) para re-anclar scroll cuando crece.

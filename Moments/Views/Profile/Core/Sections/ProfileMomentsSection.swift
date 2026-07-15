@@ -501,6 +501,7 @@ struct ProfileSectionEmptyState: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 56)
+        .momentsEmptyStateAppear()
     }
 }
 

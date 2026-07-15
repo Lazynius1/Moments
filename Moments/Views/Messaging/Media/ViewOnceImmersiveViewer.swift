@@ -155,6 +155,7 @@ struct ViewOnceImmersiveViewer: View {
             }
         }
         .onAppear {
+            GlobalVideoManager.shared.pauseAllVideos()
             hydrateOverlayState()
             markAsStarted()
             refreshVideoAspectRatio()

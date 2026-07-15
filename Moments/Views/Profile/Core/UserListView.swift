@@ -179,6 +179,7 @@ struct UsersTabContent<ViewModel: UserListViewModel>: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 40)
         .padding(.vertical, 60)
+        .momentsEmptyStateAppear()
     }
 
     private struct UserListEmptyStateContent {

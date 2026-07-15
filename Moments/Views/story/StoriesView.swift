@@ -165,6 +165,7 @@ struct StoriesView: View {
         .ignoresSafeArea(.container, edges: .all)
         .statusBar(hidden: false)
         .onAppear {
+            GlobalVideoManager.shared.pauseAllVideos()
             loadStories()
             preloadAdOnAppear()
             updateLoadingTimeout(for: currentLoadingMode)

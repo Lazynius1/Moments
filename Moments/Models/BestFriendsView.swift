@@ -29,6 +29,7 @@ struct BestFriendsView: View {
         .navigationTitle(NSLocalizedString("bestFriends.title", comment: "Best Friends"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: { dismiss() }) {
@@ -76,6 +77,7 @@ struct BestFriendsView: View {
             Spacer()
         }
         .padding()
+        .momentsEmptyStateAppear()
     }
 
     private var filteredResults: (bestFriends: [AppUser], following: [AppUser], mutuals: [AppUser], followers: [AppUser]) {
@@ -216,6 +218,7 @@ struct BestFriendsView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
             }
+            .momentsScrollEdgeChrome()
         }
     }
 

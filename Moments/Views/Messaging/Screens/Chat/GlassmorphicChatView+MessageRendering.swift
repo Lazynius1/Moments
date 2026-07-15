@@ -186,6 +186,7 @@ extension GlassmorphicChatView {
 
     var mainChatStack: some View {
         messagesListSection
+            .chatScrollEdgeEffect(hardBottomEdge: true)
             .environment(\.chatFailedMessageRetryAction, ChatFailedMessageRetryAction(
                 canRetry: { viewModel.canRetryMessage($0) },
                 retry: { viewModel.retryFailedMessage($0) }

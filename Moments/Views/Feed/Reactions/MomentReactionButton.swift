@@ -663,40 +663,40 @@ struct ReactionsListSheet: View {
     // MARK: - Empty State
     private var emptyStateView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "heart.slash")
-                .font(.system(size: 48))
-                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+            Image(systemName: "heart")
+                .font(.system(size: 31, weight: .medium))
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                .frame(width: 76, height: 76)
+                .background {
+                    Color.clear
+                        .momentsChromeGlass(in: Circle())
+                }
             
             Text(NSLocalizedString("reactions.empty.title", comment: "No reactions"))
-                .font(.system(size: legacyPoppinsSize(18), weight: .bold))
+                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                 .foregroundStyle(colorScheme == .dark ? .white : .black)
             
             Text(NSLocalizedString("reactions.empty.subtitle", comment: "Empty reactions subtitle"))
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
                 .multilineTextAlignment(.center)
+                .padding(.horizontal, 28)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .momentsEmptyStateAppear()
     }
     
     // MARK: - No Results View
     private var noResultsView: some View {
         VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.1))
-                    .frame(width: 80, height: 80)
-                
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.6), Color.white.opacity(0.4)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 31, weight: .medium))
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                .frame(width: 76, height: 76)
+                .background {
+                    Color.clear
+                        .momentsChromeGlass(in: Circle())
+                }
             
             VStack(spacing: 8) {
                 Text(NSLocalizedString("reactions.search.noResults.title", comment: "No search results"))
@@ -705,13 +705,13 @@ struct ReactionsListSheet: View {
                 
                 Text(NSLocalizedString("reactions.search.noResults.subtitle", comment: "No search results subtitle"))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
                     .multilineTextAlignment(.center)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 40)
-        .padding(.vertical, 60)
+        .padding(.horizontal, 28)
+        .momentsEmptyStateAppear()
     }
 
     // MARK: - Reactions List
@@ -759,37 +759,27 @@ struct ReactionsListSheet: View {
             }
             
             // Lista de usuarios
-            VStack(spacing: 6) {
-                ForEach(group.users.prefix(10), id: \.self) { userId in
+            VStack(spacing: 0) {
+                ForEach(Array(group.users.prefix(10).enumerated()), id: \.element) { index, userId in
                     userRowView(userId: userId, reactionType: group.type)
+                    if index < min(group.users.count, 10) - 1 {
+                        Divider()
+                            .opacity(colorScheme == .dark ? 0.18 : 0.12)
+                            .padding(.leading, 52)
+                    }
                 }
                 
                 if group.users.count > 10 {
-                    HStack {
-                        Spacer()
-                        Text(String(format: NSLocalizedString("reactions.more", comment: "More reactions"), group.users.count - 10))
-                            .font(.system(size: legacyPoppinsSize(11)))
-                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(Color.gray.opacity(0.1))
-                            )
-                        Spacer()
-                    }
+                    Text(String(format: NSLocalizedString("reactions.more", comment: "More reactions"), group.users.count - 10))
+                        .font(.system(size: legacyPoppinsSize(11)))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 8)
                 }
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                )
-        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 
     // MARK: - User Row View
@@ -808,7 +798,7 @@ struct ReactionsListSheet: View {
                 } placeholder: {
                     Image(systemName: "person.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.35))
                 }
                 .frame(width: 36, height: 36)
                 .clipShape(Circle())
@@ -841,15 +831,8 @@ struct ReactionsListSheet: View {
                 .font(.system(size: 16))
                 .foregroundStyle(reactionType.color)
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                )
-        )
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
     }
 
     // MARK: - Data Loading
@@ -931,7 +914,8 @@ struct ReactionsListSheet: View {
             }
             .disabled(isLoading || !state.isActionable)
             .opacity(isPassiveFollowState(state) ? 0.78 : 1)
-            .animation(.easeInOut(duration: 0.2), value: isLoading)
+            .buttonStyle(.momentsPressSubtle)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isLoading), value: isLoading)
         }
     }
     

@@ -828,7 +828,7 @@ struct PersonCell: View {
                             .overlay(
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(.primary)
                             )
                             .shadow(color: Color(hex: "00A896").opacity(0.4), radius: 4, x: 0, y: 2)
                             .offset(x: 24, y: -24)
@@ -918,7 +918,7 @@ struct EmptyStateView: View {
             VStack(spacing: 8) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                 
                 Text(subtitle)
@@ -947,7 +947,6 @@ struct AddToStoryView: View {
     
     var body: some View {
         ZStack {
-            let _ = print("🔄 AddToStoryView Body Update - Sticker: \(createdSticker?.id ?? "nil"), Show: \(showCreatorView)")
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 20) {

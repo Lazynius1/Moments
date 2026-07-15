@@ -46,7 +46,7 @@ struct ContentVisibilityView: View {
                                             customCount: viewModel.storyCustomUsers.count
                                         )
                                     }
-                                    .buttonStyle(PlainButtonStyle())
+                                    .buttonStyle(.momentsPressSubtle)
                                     Divider().opacity(0.2).padding(.leading, 42)
                                     
                                     Button(action: { showingStoryInteractionSettings = true }) {
@@ -76,7 +76,7 @@ struct ContentVisibilityView: View {
                                         .padding(.horizontal, 4)
                                         .contentShape(Rectangle())
                                     }
-                                    .buttonStyle(PlainButtonStyle())
+                                    .buttonStyle(.momentsPressSubtle)
                                 }
                             }
                             
@@ -100,7 +100,7 @@ struct ContentVisibilityView: View {
                                             customCount: viewModel.postCustomUsers.count
                                         )
                                     }
-                                    .buttonStyle(PlainButtonStyle())
+                                    .buttonStyle(.momentsPressSubtle)
                                 }
                             }
                             
@@ -137,7 +137,7 @@ struct ContentVisibilityView: View {
                                         .padding(.vertical, 11)
                                         .padding(.horizontal, 4)
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.momentsPressSubtle)
                                 }
                             }
                             
@@ -171,7 +171,7 @@ struct ContentVisibilityView: View {
                                         .padding(.vertical, 11)
                                         .padding(.horizontal, 4)
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.momentsPressSubtle)
                                 }
                             }
                         }
@@ -183,7 +183,9 @@ struct ContentVisibilityView: View {
             .navigationTitle(NSLocalizedString("contentVisibility.title", comment: "Content Privacy"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .navigationInteractivePopEnabled()
             .toolbarBackground(.hidden, for: .navigationBar)
+            .momentsScrollEdgeChrome()
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     SettingsToolbarBackButton(action: { dismiss() })
@@ -452,6 +454,7 @@ struct StoryAudienceSelector: View {
             .navigationTitle(NSLocalizedString("contentVisibility.storyAudience.navigation", comment: "Story Audience"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .navigationInteractivePopEnabled()
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(NSLocalizedString("contentVisibility.done", comment: "Done")) {
@@ -483,6 +486,7 @@ struct PostAudienceSelector: View {
             .navigationTitle(NSLocalizedString("contentVisibility.postAudience.navigation", comment: "Post Audience"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .navigationInteractivePopEnabled()
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(NSLocalizedString("contentVisibility.done", comment: "Done")) {

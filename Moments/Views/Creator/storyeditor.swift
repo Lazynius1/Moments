@@ -3125,6 +3125,7 @@ struct EmojiPickerView: View {
                     .navigationTitle(NSLocalizedString("storyEditor.emojiPicker.title", comment: "Emoji Picker Title"))
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbarBackground(.hidden, for: .navigationBar)
+                    .momentsScrollEdgeChrome()
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             Button(NSLocalizedString("storyEditor.emojiPicker.close", comment: "Close button")) {

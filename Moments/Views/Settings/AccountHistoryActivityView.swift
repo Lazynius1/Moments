@@ -64,7 +64,9 @@ struct AccountHistoryActivityView: View {
         .navigationTitle(NSLocalizedString("userActivity.accountHistory.title", value: "Historial de la cuenta", comment: "Account history title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })

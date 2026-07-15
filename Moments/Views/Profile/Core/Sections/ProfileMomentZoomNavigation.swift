@@ -115,6 +115,7 @@ extension View {
     func profileGridNavigationChrome(colorScheme: ColorScheme) -> some View {
         scrollContentBackground(.hidden)
             .toolbarBackground(.hidden, for: .navigationBar)
+            .momentsScrollEdgeChrome()
     }
 
     func profileNavigationSurface(colorScheme: ColorScheme) -> some View {
@@ -168,6 +169,7 @@ struct ProfileMomentZoomDetailDestination: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbar(.hidden, for: .tabBar)
         .navigationTransition(.zoom(sourceID: destination.zoomSourceID, in: namespace))
     }
@@ -250,6 +252,7 @@ struct MomentZoomDetailDestination: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .modifier(MomentZoomNavigationBarVisibilityModifier(
             hidesNavigationBar: !showsNativeFeedDetailChrome(for: destination.presentation)
         ))
@@ -321,6 +324,7 @@ struct HighlightZoomDetailDestination: View {
     var body: some View {
         HighlightViewer(highlight: highlight)
             .navigationBarBackButtonHidden(true)
+            .navigationInteractivePopEnabled()
             .toolbar(.hidden, for: .navigationBar)
             .toolbar(.hidden, for: .tabBar)
             .navigationTransition(.zoom(sourceID: destination.zoomSourceID, in: namespace))

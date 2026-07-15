@@ -85,6 +85,7 @@ struct MessageComposerView: View {
             .navigationTitle(NSLocalizedString("messaging.compose.title", comment: "New message title"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .chatInteractivePopEnabled()
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(NSLocalizedString("common.cancel", comment: "Cancel")) {

@@ -238,7 +238,7 @@ struct ModernProfileHeader: View {
                 .padding(.vertical, 10)
                 .momentsChromeGlass(in: Capsule(), interactive: true)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
             .matchedTransitionSource(id: "edit-profile-view", in: profileZoomNamespace)
         }
     }

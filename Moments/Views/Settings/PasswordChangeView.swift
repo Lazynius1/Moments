@@ -243,7 +243,9 @@ struct PasswordChangeView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .navigationInteractivePopEnabled()
             .toolbarBackground(.hidden, for: .navigationBar)
+            .momentsScrollEdgeChrome()
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     SettingsToolbarBackButton(action: { dismiss() })

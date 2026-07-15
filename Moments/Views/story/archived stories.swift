@@ -183,6 +183,7 @@ struct ArchiveView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(showsCustomDismiss)
+        .navigationInteractivePopEnabled()
         .settingsSubsectionNavigationChrome(colorScheme: colorScheme)
         .toolbar {
             if embedInNavigation {
@@ -1227,6 +1228,7 @@ struct ArchiveDayStoriesViewer: View {
         .ignoresSafeArea(.container, edges: .all)
         .statusBar(hidden: false)
         .onAppear {
+            GlobalVideoManager.shared.pauseAllVideos()
             hydrateStoryViewerContext()
         }
     }

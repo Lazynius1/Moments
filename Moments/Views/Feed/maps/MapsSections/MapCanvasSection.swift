@@ -493,6 +493,7 @@ struct ModernLocationGalleryView: View {
                 .foregroundStyle(adaptiveColors.primary)
         }
         .frame(maxHeight: .infinity)
+        .momentsEmptyStateAppear()
     }
 
     private var galleryGrid: some View {

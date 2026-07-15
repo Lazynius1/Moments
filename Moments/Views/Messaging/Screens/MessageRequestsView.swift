@@ -137,6 +137,7 @@ struct MessageRequestsView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 96)
+        .momentsEmptyStateAppear()
     }
     
     // MARK: - Requests List View
@@ -156,6 +157,7 @@ struct MessageRequestsView: View {
             .padding(.bottom, 24)
         }
         .scrollContentBackground(.hidden)
+        .momentsScrollEdgeChrome()
     }
     
 }

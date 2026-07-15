@@ -398,6 +398,9 @@ struct NormalVideoPlayerView: View {
         .statusBar(hidden: false)
         .preferredColorScheme(.dark)
         .contentShape(Rectangle())
+        .onAppear {
+            GlobalVideoManager.shared.pauseAllVideos()
+        }
         .onLongPressGesture(minimumDuration: .infinity, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             isPaused = pressing
         })

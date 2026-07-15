@@ -180,7 +180,9 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
         .navigationTitle(username)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })

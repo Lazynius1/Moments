@@ -303,7 +303,7 @@ struct DeleteAccountVerificationView: View {
                             .frame(height: 52)
                             .contentShape(Capsule())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.momentsPressSubtle)
                         .background {
                             Color.clear
                                 .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -320,7 +320,7 @@ struct DeleteAccountVerificationView: View {
                                         .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
                                 }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.momentsPressSubtle)
                     }
                 }
                 .padding(.horizontal, 22)
@@ -410,7 +410,7 @@ struct DeleteAccountVerificationView: View {
                         .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.momentsPressSubtle)
 
                     Button(action: submitDeletion) {
                         HStack(spacing: 10) {
@@ -424,7 +424,7 @@ struct DeleteAccountVerificationView: View {
                         .frame(height: 54)
                         .contentShape(Capsule())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.momentsPressSubtle)
                     .background {
                         Color.clear
                             .momentsChromeGlass(in: Capsule(), interactive: isFormValid)
@@ -523,7 +523,7 @@ struct DeleteAccountVerificationView: View {
                         .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.58))
                         .frame(width: 30, height: 30)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
             .padding(.leading, 18)
             .padding(.trailing, 12)
@@ -686,7 +686,7 @@ private struct DeleteAccountHeader: View {
                                 .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
 
                 Spacer()
             }

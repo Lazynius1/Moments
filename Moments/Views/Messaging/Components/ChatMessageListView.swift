@@ -628,6 +628,11 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         collectionView.prefetchDataSource = self
         collectionView.isPrefetchingEnabled = true
         collectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        // iOS 27 default hard → soft tipo 26. Bottom hard: escape bajo safeAreaBar del composer.
+        if #available(iOS 26.0, *) {
+            collectionView.topEdgeEffect.style = .soft
+            collectionView.bottomEdgeEffect.style = .hard
+        }
         view.addSubview(collectionView)
     }
 

@@ -46,6 +46,8 @@ struct CommentsView: View {
                     .font(.system(size: 24))
                     .foregroundStyle(.gray)
             }
+            .buttonStyle(.momentsPressIcon)
+            .accessibilityLabel(NSLocalizedString("common.close", comment: "Close"))
         }
         .padding(.horizontal)
         .padding(.top, 16)
@@ -69,12 +71,9 @@ struct CommentsView: View {
     }
 
     // Vista individual para cada comentario
+    @ViewBuilder
     private func commentRowView(for comment: Comment) -> some View {
-        guard let commentId = comment.id else {
-            return AnyView(EmptyView()) // Si no hay ID, no renderizamos el comentario
-        }
-
-        return AnyView(
+        if let commentId = comment.id {
             CommentRow(
                 comment: comment,
                 isEditing: viewModel.editingCommentId == comment.id,
@@ -99,7 +98,7 @@ struct CommentsView: View {
                         commentId: commentId
                     )
                 },
-                onLike: { // Nuevo closure para like
+                onLike: {
                     viewModel.addCommentReaction(
                         momentId: moment.id,
                         userId: moment.authorId,
@@ -118,7 +117,7 @@ struct CommentsView: View {
             .contextMenu {
                 commentContextMenu(for: comment)
             }
-        )
+        }
     }
 
     // Menú contextual para cada comentario

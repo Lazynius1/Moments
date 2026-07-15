@@ -61,7 +61,7 @@ struct CustomAudienceSelector: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.gray)
                     
-                    TextField("Buscar personas...", text: $searchText)
+                    TextField(NSLocalizedString("audience.search.people.placeholder", comment: "Search people placeholder"), text: $searchText)
                         .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .onChange(of: searchText) { _, newValue in

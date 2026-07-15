@@ -98,11 +98,6 @@ extension View {
     func settingsSubsectionNavigationChrome(colorScheme: ColorScheme? = nil) -> some View {
         modifier(SettingsSubsectionNavigationChromeModifier(colorScheme: colorScheme))
     }
-
-    /// Swipe desde el borde izquierdo cuando el back button del sistema está oculto.
-    func navigationInteractivePopEnabled() -> some View {
-        chatInteractivePopEnabled()
-    }
 }
 
 private struct SettingsSubsectionNavigationChromeModifier: ViewModifier {
@@ -118,6 +113,9 @@ private struct SettingsSubsectionNavigationChromeModifier: ViewModifier {
             .momentZoomNavigationSurface(colorScheme: resolvedColorScheme)
             .profileGridNavigationChrome(colorScheme: resolvedColorScheme)
             .navigationBarBackButtonHidden(true)
+            .navigationInteractivePopEnabled()
             .toolbarBackground(.hidden, for: .navigationBar)
+            // iOS 27 default hard → soft tipo 26 bajo la toolbar transparente.
+            .momentsScrollEdgeChrome()
     }
 }

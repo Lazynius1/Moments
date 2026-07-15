@@ -1062,5 +1062,6 @@ struct GlassmorphicEmptyState: View {
         }
         .padding()
         .padding(.horizontal, 40)
+        .momentsEmptyStateAppear()
     }
 }

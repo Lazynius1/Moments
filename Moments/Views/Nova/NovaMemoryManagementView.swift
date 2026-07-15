@@ -135,6 +135,7 @@ struct NovaMemoryManagementView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .momentsEmptyStateAppear()
     }
 
     private var memoryContentView: some View {
@@ -164,6 +165,7 @@ struct NovaMemoryManagementView: View {
             .padding(.horizontal, 20)
             .padding(.top, 4)
         }
+        .momentsScrollEdgeChrome()
     }
 
     private var clearAllButton: some View {

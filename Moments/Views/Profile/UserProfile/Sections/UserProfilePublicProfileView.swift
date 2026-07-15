@@ -243,6 +243,7 @@ struct UserModernPublicProfileView: View {
                     }
                 }
             }
+            .momentsScrollEdgeChrome()
             .onPreferenceChange(UserScrollOffsetPreferenceKey.self) { value in
                 scrollOffset = value
             }

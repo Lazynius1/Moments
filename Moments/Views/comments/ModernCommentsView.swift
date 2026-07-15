@@ -438,7 +438,7 @@ struct ModernCommentsView: View {
                                 Spacer()
                             }
                             
-                            TextField("Editar comentario...", text: $editingCommentContent, axis: .vertical)
+                            TextField(NSLocalizedString("comments.edit.placeholder", comment: "Edit comment placeholder"), text: $editingCommentContent, axis: .vertical)
                                 .font(.system(size: legacyPoppinsSize(15)))
                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .lineLimit(1...4)

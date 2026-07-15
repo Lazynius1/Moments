@@ -109,7 +109,7 @@ struct DailyLimitView: View {
                             )
                             .shadow(color: SettingsProfileColors.accent(colorScheme).opacity(0.2), radius: 8, y: 4)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.momentsPressSubtle)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 32)
                 }
@@ -119,7 +119,9 @@ struct DailyLimitView: View {
         .navigationTitle(NSLocalizedString("userActivity.timeSpent.dailyLimit.title", value: "Límite diario", comment: "Daily limit title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })

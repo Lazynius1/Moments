@@ -4,6 +4,41 @@ import AVKit
 import CoreLocation
 import UIKit
 
+enum StoryOverlayToast: Equatable {
+    case userNotFound(String)
+    case hashtag(String)
+    case location(String)
+    case poll
+    case question
+    case questionResponse
+
+    var message: String {
+        switch self {
+        case .userNotFound(let username):
+            return String(
+                format: NSLocalizedString("storyOverlay.toast.userNotFound", comment: "Story overlay user not found toast"),
+                username
+            )
+        case .hashtag(let hashtag):
+            return String(
+                format: NSLocalizedString("storyOverlay.toast.hashtag", comment: "Story overlay hashtag toast"),
+                hashtag
+            )
+        case .location(let location):
+            return String(
+                format: NSLocalizedString("storyOverlay.toast.location", comment: "Story overlay location toast"),
+                location
+            )
+        case .poll:
+            return NSLocalizedString("storyOverlay.toast.poll", comment: "Story overlay poll toast")
+        case .question:
+            return NSLocalizedString("storyOverlay.toast.question", comment: "Story overlay question toast")
+        case .questionResponse:
+            return NSLocalizedString("storyOverlay.toast.questionResponse", comment: "Story overlay question response toast")
+        }
+    }
+}
+
 struct StoryOverlaysView: View {
     let canvasSize: CGSize
     @Binding var textOverlays: [StoryTextOverlayDraft]
@@ -35,6 +70,8 @@ struct StoryOverlaysView: View {
     @State private var originalStickerTransform: (pos: CGPoint, scale: CGFloat, rot: Angle)? = nil
     @State private var focusedInlineStickerTransform: (id: String, pos: CGPoint, scale: CGFloat, rot: Angle)? = nil
     @State private var keyboardHeight: CGFloat = 0
+    @State private var activeToast: StoryOverlayToast?
+    @State private var toastDismissTask: Task<Void, Never>?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.displayScale) private var displayScale
 
@@ -420,7 +457,10 @@ struct StoryOverlaysView: View {
                 .zIndex(3000)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+
+            storyToastOverlay
         }
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: activeToast), value: activeToast)
         .onChange(of: editingPolaroidId) { _, newValue in
             // ✅ AVISAR AL PADRE PARA OCULTAR LA UI
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -505,17 +545,19 @@ struct StoryOverlaysView: View {
         case .mention:
             if let username = sticker.interactionData?.username {
                 findUserIdByUsername(username) { userId in
-                    if let userId = userId {
-                        DispatchQueue.main.async {
+                    DispatchQueue.main.async {
+                        if let userId {
                             onNavigateToProfile(userId)
+                        } else {
+                            showUserNotFoundToast(username: username)
                         }
                     }
                 }
             }
 
         case .hashtag:
-            if sticker.interactionData?.hashtag != nil {
-                // Handle hashtag tap
+            if let hashtag = sticker.interactionData?.hashtag {
+                showHashtagToast(hashtag: hashtag)
             }
 
         case .location:
@@ -525,16 +567,13 @@ struct StoryOverlaysView: View {
             }
 
         case .poll:
-            // Handle poll tap
-            break
+            showPollToast()
 
         case .question:
-            // Handle question tap
-            break
+            showQuestionToast()
 
         case .questionResponse:
-            // Handle question response tap
-            break
+            showQuestionResponseToast()
 
         case .frame:
             // 📸 EFECTO ENFOQUE: Guardar posición y centrar para editar
@@ -619,28 +658,74 @@ struct StoryOverlaysView: View {
 
 
     // ✅ FUNCIONES AUXILIARES: Mostrar toasts informativos
+    @ViewBuilder
+    private var storyToastOverlay: some View {
+        if let activeToast {
+            VStack {
+                Spacer()
+                storyToastBanner(message: activeToast.message)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+            }
+            .frame(width: canvasSize.width, height: canvasSize.height)
+            .zIndex(4000)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .allowsHitTesting(false)
+        }
+    }
+
+    private func storyToastBanner(message: String) -> some View {
+        Text(message)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(colorScheme == .dark ? .white : .black)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .background {
+                Color.clear
+                    .momentsChromeGlass(in: Capsule(), interactive: false)
+            }
+    }
+
+    private func presentToast(_ toast: StoryOverlayToast) {
+        toastDismissTask?.cancel()
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
+            activeToast = toast
+        }
+        toastDismissTask = Task {
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
+                    activeToast = nil
+                }
+            }
+        }
+    }
+
     private func showUserNotFoundToast(username: String) {
-        // Implementar toast: "Usuario @username no encontrado"
+        presentToast(.userNotFound(username))
     }
 
     private func showHashtagToast(hashtag: String) {
-        // Implementar toast: "Ver publicaciones con #hashtag"
+        presentToast(.hashtag(hashtag))
     }
 
     private func showLocationToast(location: String) {
-        // Implementar toast: "Ver ubicación: location"
+        presentToast(.location(location))
     }
 
     private func showPollToast() {
-        // Implementar toast: "Toca para votar en la encuesta"
+        presentToast(.poll)
     }
 
     private func showQuestionToast() {
-        // Implementar toast: "Toca para responder la pregunta"
+        presentToast(.question)
     }
 
     private func showQuestionResponseToast() {
-        // Implementar toast: "Respuesta anónima compartida"
+        presentToast(.questionResponse)
     }
 
     private func focusInlineEditableSticker(_ stickerId: String) {

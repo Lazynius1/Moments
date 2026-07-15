@@ -62,7 +62,9 @@ struct ModerationReviewStatusView: View {
             : NSLocalizedString("moderationReview.status.detailTitle", comment: "Moderation review request detail title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: {

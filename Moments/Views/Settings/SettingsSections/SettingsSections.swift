@@ -48,7 +48,7 @@ struct SettingsFormView: View {
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.1), value: animateSections)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.1), value: animateSections), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.privacy", comment: "Privacy")) {
                     PrivacySection(
@@ -63,7 +63,7 @@ struct SettingsFormView: View {
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.15), value: animateSections)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.15), value: animateSections), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.content", comment: "Your Content & Activity")) {
                     ActivitySection(
@@ -75,7 +75,7 @@ struct SettingsFormView: View {
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.2), value: animateSections)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.2), value: animateSections), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.notifications", comment: "Notifications & presence")) {
                     NotificationsSection(
@@ -90,21 +90,21 @@ struct SettingsFormView: View {
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.25), value: animateSections)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.25), value: animateSections), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.data", comment: "Data")) {
                     DataSection(route: $route)
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.3), value: animateSections)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.3), value: animateSections), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.support", comment: "Support & Legal")) {
                     HelpSection(route: $route)
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.35), value: animateSections)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.35), value: animateSections), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.advanced", comment: "Advanced Settings")) {
                     AdvancedAccountSection(
@@ -115,11 +115,11 @@ struct SettingsFormView: View {
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
-                .animation(.easeOut(duration: 0.6).delay(0.4), value: animateSections)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.4), value: animateSections), value: animateSections)
 
                 SettingsVersionFooter()
                     .opacity(animateSections ? 1 : 0)
-                    .animation(.easeOut(duration: 0.6).delay(0.5), value: animateSections)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.5), value: animateSections), value: animateSections)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -202,12 +202,12 @@ struct SettingsRow: View {
                 NavigationLink(destination: destination) {
                     rowContent
                 }
-                .buttonStyle(PlainButtonStyle())
+                .buttonStyle(.momentsPressSubtle)
             } else {
                 Button(action: { action?() }) {
                     rowContent
                 }
-                .buttonStyle(PlainButtonStyle())
+                .buttonStyle(.momentsPressSubtle)
             }
         }
     }
@@ -310,7 +310,7 @@ struct AdvancedAccountSection: View {
                     .padding(.leading, 42)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
     }
 }
 
@@ -352,7 +352,7 @@ struct AdvancedAccountManagementView: View {
                     .transition(flowTransition)
                 }
             }
-            .animation(.spring(response: 0.36, dampingFraction: 0.86), value: flowDestination)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: flowDestination), value: flowDestination)
             .interactiveDismissDisabled(isProcessing)
             .navigationDestination(isPresented: $isShowingSessionManagement) {
                 LoginActivityView()
@@ -522,7 +522,7 @@ private struct AdvancedSheetHeader: View {
                                 .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
 
                 Spacer()
             }
@@ -588,7 +588,7 @@ private struct AdvancedAccountActionRow: View {
             .padding(.vertical, 16)
             .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
     }
 }
 
@@ -1008,7 +1008,9 @@ struct ConnectionVisibilityView: View {
         .navigationTitle(NSLocalizedString("settings.connectionPrivacy", comment: "Connection Privacy"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true) // Ocultar botón de atrás
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
@@ -1176,7 +1178,7 @@ struct SecurityStatusRow<OverlayView: View>: View {
                 Button(action: action) {
                     rowBody
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             } else {
                 rowBody
             }
@@ -1563,7 +1565,7 @@ struct LogoutSection: View {
             .padding(.horizontal, 4)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
         .alert("settings.logout.alert.title", isPresented: $showLogoutAlert) {
             Button("settings.logout.alert.cancel", role: .cancel) {}
             Button("settings.logout.alert.confirm", role: .destructive) {

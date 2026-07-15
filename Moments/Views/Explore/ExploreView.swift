@@ -251,6 +251,7 @@ struct ExploreView: View {
             // Mantener la gota visible mientras arranca la recarga.
             try? await Task.sleep(nanoseconds: 900_000_000)
         }
+        .momentsScrollEdgeChrome()
     }
 
         private var suggestedUsersSection: some View {

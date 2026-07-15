@@ -225,8 +225,15 @@ struct ModernTabView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         // TabView nativo solo admite ShapeStyle en toolbarBackground (no View).
         // Tinte canvas alineado al chrome; el glass completo está en legacy CustomTabBar.
+        // iOS 27: underlay más suave para no pelear con Liquid Glass del sistema.
         .toolbarBackground(.visible, for: .tabBar)
-        .toolbarBackground(MomentsChromeGlass.canvasTint(for: colorScheme), for: .tabBar)
+        .toolbarBackground(
+            MomentsChromeGlass.canvasTint(
+                for: colorScheme,
+                opacity: MomentsChromeGlass.underlayOpacity(forTintOpacity: MomentsChromeGlass.defaultTintOpacity)
+            ),
+            for: .tabBar
+        )
         .environmentObject(authService)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .fullScreenCover(isPresented: $showCreatorView) {

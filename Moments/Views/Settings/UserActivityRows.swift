@@ -21,7 +21,7 @@ struct ActivityCommentItemRow: View {
                     Button(action: onOpenMoment) {
                         ActivityCommentMomentPreview(moment: item.moment, canView: item.canView, size: 84)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.momentsPressSubtle)
                 }
             }
 
@@ -39,7 +39,7 @@ struct ActivityCommentItemRow: View {
                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .lineLimit(1)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.momentsPressSubtle)
                     }
 
                     if !item.canView {
@@ -100,7 +100,7 @@ struct ActivityCommentItemRow: View {
                         .foregroundStyle(isSelected ? Color(hex: "2563EB") : .gray.opacity(0.8))
                         .padding(.top, 2)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: 12))
@@ -407,7 +407,7 @@ struct ActivityEventRow: View {
                                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                                             .lineLimit(1)
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.momentsPressSubtle)
                                 } else if let context = item.contextText, !context.isEmpty {
                                     Text(context)
                                         .font(.system(size: legacyPoppinsSize(11)))
@@ -709,7 +709,7 @@ struct ActivityEventRow: View {
                                 )
                         )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
         }
         .padding(.vertical, 4)

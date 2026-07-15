@@ -336,6 +336,7 @@ struct ModernProfileContentView: View {
                         }
                     }
                 }
+                .momentsScrollEdgeChrome()
                 .profileGridNavigationChrome(colorScheme: colorScheme)
                 .scrollDisabled(heroCoordinator.isInteractive)
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in

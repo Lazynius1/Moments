@@ -65,7 +65,9 @@ struct ConversationSettingsView: View {
         .navigationTitle("conversationSettings.title")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .chatInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
@@ -97,6 +99,7 @@ struct ConversationSettingsView: View {
         .navigationDestination(isPresented: $viewModel.showSharedGallery) {
             sharedMediaGalleryDestination
                 .toolbar(.hidden, for: .tabBar)
+                .chatInteractivePopEnabled()
         }
         .navigationDestination(isPresented: $showChatPreferences) {
             ConversationChatPreferencesView(viewModel: viewModel)
@@ -315,7 +318,7 @@ struct ConversationSettingsView: View {
             .foregroundStyle(adaptiveColors.primary)
             .frame(width: 70)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
     }
 
     private func refreshOtherParticipantUsername() {
@@ -381,7 +384,7 @@ struct ConversationSettingsView: View {
                 .padding(.vertical, 14)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
 
             dividerLine.padding(.leading, 38)
 
@@ -413,7 +416,7 @@ struct ConversationSettingsView: View {
                 .padding(.vertical, 14)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
 
             dividerLine.padding(.leading, 38)
 
@@ -446,7 +449,7 @@ struct ConversationSettingsView: View {
                 .padding(.vertical, 14)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
 
             dividerLine.padding(.leading, 38)
 
@@ -484,7 +487,7 @@ struct ConversationSettingsView: View {
                 .padding(.vertical, 14)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
 
             if conversationMediaBytes > 0 {
                 dividerLine.padding(.leading, 38)
@@ -508,7 +511,7 @@ struct ConversationSettingsView: View {
                     .padding(.vertical, 14)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
         }
         .confirmationDialog(
@@ -624,6 +627,7 @@ struct ConversationSettingsView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 16)
         .padding(.vertical, 36)
+        .momentsEmptyStateAppear()
     }
 
     private func refreshMediaUsage() {
@@ -703,7 +707,7 @@ struct ConversationSettingsNavigationRow: View {
             .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
     }
 }
 
@@ -1791,7 +1795,7 @@ private struct StarredMessageRow: View {
             .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
     }
 }
 
@@ -2054,6 +2058,7 @@ struct FullScreenMediaView: View {
             restartEphemeralCountdownIfNeeded()
         }
         .onAppear {
+            GlobalVideoManager.shared.pauseAllVideos()
             restartEphemeralCountdownIfNeeded()
         }
         .onDisappear {
@@ -2293,7 +2298,7 @@ struct FullScreenMediaView: View {
                     .padding(60)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
 
             VStack {
                 HStack {
@@ -2310,7 +2315,7 @@ struct FullScreenMediaView: View {
                                 .frame(width: 40, height: 40)
                                 .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.momentsPressSubtle)
                         
                         Divider()
                             .frame(height: 16)
@@ -2330,7 +2335,7 @@ struct FullScreenMediaView: View {
                                 .frame(width: 40, height: 40)
                                 .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.momentsPressSubtle)
                     }
                     .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                     .padding(12)
@@ -2612,7 +2617,9 @@ struct ConversationChatPreferencesView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .chatInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
@@ -2635,6 +2642,7 @@ struct ConversationChatPreferencesView: View {
             }
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
         }
+        .chatInteractivePopEnabled()
     }
 
     private func destructiveRow(icon: String, title: String, action: @escaping () -> Void) -> some View {
@@ -2654,7 +2662,7 @@ struct ConversationChatPreferencesView: View {
             .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
     }
 
     private func sectionHeader(_ key: LocalizedStringKey) -> some View {
@@ -2760,6 +2768,7 @@ struct ConversationVanishModeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
@@ -2793,7 +2802,7 @@ struct ConversationVanishModeView: View {
             .padding(.horizontal, 16)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
     }
 
     private var dividerLine: some View {

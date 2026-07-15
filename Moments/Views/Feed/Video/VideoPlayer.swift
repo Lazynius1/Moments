@@ -12,23 +12,58 @@ class GlobalVideoManager: ObservableObject {
     private var playbackPositionsByMomentId: [String: Double] = [:]
     private var preservedPlayerConsumerIds: Set<String> = []
     private var pendingDetailHandoffMomentIds: Set<String> = []
+    private var volumeObservation: NSKeyValueObservation?
     
     // Si el usuario activa el sonido en algún video, todos los posteriores tienen sonido
     @Published private(set) var userHasEnabledSoundInSession: Bool = false
     
     private init() {
-        // ✅ Escuchar cuando la app entra en background para resetear la sesión
+        // Pausar reproducción al salir a background / Control Center, sin resetear el mute de sesión.
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(appWillEnterBackground),
+            selector: #selector(appWillResignActive),
             name: UIApplication.willResignActiveNotification,
             object: nil
         )
+        startVolumeObservation()
     }
     
-    @objc private func appWillEnterBackground() {
-        // ✅ Resetear la sesión de sonido cuando la app entra en background
-        userHasEnabledSoundInSession = false
+    @objc private func appWillResignActive() {
+        pauseAllVideos()
+    }
+
+    private func startVolumeObservation() {
+        // Patrón IG: subir volumen físico con vídeo activo → unmute de sesión.
+        volumeObservation = AVAudioSession.sharedInstance().observe(
+            \.outputVolume,
+            options: [.old, .new]
+        ) { [weak self] _, change in
+            guard let self,
+                  let oldValue = change.oldValue,
+                  let newValue = change.newValue,
+                  newValue > oldValue,
+                  self.activeVideoId != nil,
+                  !self.userHasEnabledSoundInSession
+            else { return }
+
+            DispatchQueue.main.async {
+                self.enableSoundForSession()
+            }
+        }
+    }
+
+    private func configurePlaybackAudioSession() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            if session.category != .playback {
+                try session.setCategory(.playback, mode: .moviePlayback, options: [])
+            }
+            try session.setActive(true)
+        } catch {
+            #if DEBUG
+            print("GlobalVideoManager: failed to configure playback audio session — \(error)")
+            #endif
+        }
     }
     
     func registerPlayer(_ playerId: String, manager: VideoPlayerManager) {
@@ -82,6 +117,18 @@ class GlobalVideoManager: ObservableObject {
     /// El usuario activó sonido en Reels u otro reproductor fuera del registro de feed.
     func enableSoundForSession() {
         userHasEnabledSoundInSession = true
+        configurePlaybackAudioSession()
+        for (_, playerManager) in allPlayers {
+            playerManager.setMuted(false, respectSilentMode: true)
+        }
+    }
+
+    /// Remute simétrico: limpia la preferencia de sesión y mutea todos los players registrados.
+    func disableSoundForSession() {
+        userHasEnabledSoundInSession = false
+        for (_, playerManager) in allPlayers {
+            playerManager.setMuted(true)
+        }
     }
 
     // Toggle mute que activa/desactiva el sonido para toda la sesión
@@ -92,17 +139,9 @@ class GlobalVideoManager: ObservableObject {
         manager.toggleMute(respectSilentMode: true)
         
         if wasMuted && !manager.isMuted {
-            // El usuario activó el sonido → aplicar a toda la sesión
-            userHasEnabledSoundInSession = true
-            for (id, playerManager) in allPlayers where id != playerId {
-                playerManager.setMuted(false, respectSilentMode: true)
-            }
+            enableSoundForSession()
         } else if !wasMuted && manager.isMuted {
-            // El usuario silenció → actualizar sesión y mutear todos
-            userHasEnabledSoundInSession = false
-            for (id, playerManager) in allPlayers where id != playerId {
-                playerManager.setMuted(true)
-            }
+            disableSoundForSession()
         }
     }
     
@@ -128,6 +167,18 @@ class GlobalVideoManager: ObservableObject {
 
     static func profileVideoConsumerId(for moment: Moment) -> String {
         moment.id ?? "video_\(moment.authorId)_\(Int(moment.timestamp.timeIntervalSince1970))"
+    }
+
+    /// Carrusel: id estable por slide para que GlobalVideoManager no colisione entre medias del mismo post.
+    static func profileVideoConsumerId(for moment: Moment, mediaItem: MediaItem) -> String {
+        "\(profileVideoConsumerId(for: moment))_\(mediaItem.id)"
+    }
+
+    /// `FeedVisibilityCoordinator` publica el moment id; los slides del carrusel usan `momentId_mediaId`.
+    static func visibilityMatches(activeMomentId: String?, videoConsumerId: String) -> Bool {
+        guard let activeMomentId else { return false }
+        return videoConsumerId == activeMomentId
+            || videoConsumerId.hasPrefix(activeMomentId + "_")
     }
 
     /// Hero → detalle: conservar `AVPlayer` y posición hasta que monte el player del detalle.
@@ -171,12 +222,24 @@ class GlobalVideoManager: ObservableObject {
     }
 
     /// Feed → Reels: conservar el slot del pool del momento visible mientras se navega en Reels.
-    func markReelsFeedHandoff(for moment: Moment) {
-        preservedPlayerConsumerIds.insert(Self.profileVideoConsumerId(for: moment))
+    func markReelsFeedHandoff(for moment: Moment, mediaItem: MediaItem? = nil) {
+        let consumerId: String
+        if let mediaItem {
+            consumerId = Self.profileVideoConsumerId(for: moment, mediaItem: mediaItem)
+        } else {
+            consumerId = Self.profileVideoConsumerId(for: moment)
+        }
+        preservedPlayerConsumerIds.insert(consumerId)
     }
 
-    func completeReelsFeedHandoff(for moment: Moment) {
-        preservedPlayerConsumerIds.remove(Self.profileVideoConsumerId(for: moment))
+    func completeReelsFeedHandoff(for moment: Moment, mediaItem: MediaItem? = nil) {
+        let consumerId: String
+        if let mediaItem {
+            consumerId = Self.profileVideoConsumerId(for: moment, mediaItem: mediaItem)
+        } else {
+            consumerId = Self.profileVideoConsumerId(for: moment)
+        }
+        preservedPlayerConsumerIds.remove(consumerId)
     }
     
     // ✅ Verificar si el iPhone está en modo silencioso
@@ -342,10 +405,10 @@ struct ModernVideoPlayer: View {
             globalManager.pauseAllVideos()
         }
         .onChange(of: playerManager.currentTime) { _, newTime in
-            guard usesSocialChrome, let moment else { return }
+            guard usesSocialChrome, moment != nil else { return }
             globalManager.setPlaybackPosition(
                 seconds: newTime,
-                forMomentId: GlobalVideoManager.profileVideoConsumerId(for: moment)
+                forMomentId: videoId
             )
         }
     }
@@ -434,7 +497,7 @@ struct ModernVideoPlayer: View {
     // MARK: - Mute Button (igual que antes)
     private var muteButton: some View {
         Button(action: {
-            playerManager.toggleMute()
+            globalManager.toggleMute(videoId)
         }) {
             Image(systemName: playerManager.isMuted ? "speaker.slash.fill" : "speaker.2.fill")
                 .font(.system(size: 18, weight: .medium))
@@ -581,7 +644,7 @@ struct ModernVideoPlayer: View {
     
     private func updatePlaybackForVisibility(activeId: String?) {
         guard isVisible else { return }
-        if activeId == videoId {
+        if GlobalVideoManager.visibilityMatches(activeMomentId: activeId, videoConsumerId: videoId) {
             globalManager.playVideo(videoId)
         } else {
             globalManager.pauseVideo(videoId)

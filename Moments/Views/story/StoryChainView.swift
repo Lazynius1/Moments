@@ -143,6 +143,7 @@ struct StoryChainView: View {
             }
         }
         .padding(.horizontal, 28)
+        .momentsEmptyStateAppear()
     }
 
     private var continueFloatingButton: some View {

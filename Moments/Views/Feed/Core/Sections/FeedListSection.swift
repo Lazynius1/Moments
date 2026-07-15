@@ -112,6 +112,7 @@ struct FeedListSection: View {
                     await onManualRefresh(userId)
                 }
             }
+            .momentsScrollEdgeChrome()
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ScrollFeedToTop"))) { _ in
                 MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
                     proxy.scrollTo(0, anchor: .top)

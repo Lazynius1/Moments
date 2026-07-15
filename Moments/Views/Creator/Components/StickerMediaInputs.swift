@@ -56,6 +56,7 @@ struct SelfieCameraView: View {
             )
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .navigationInteractivePopEnabled()
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(NSLocalizedString("stickerview.cancel", comment: "Cancel")) {
@@ -358,9 +359,7 @@ struct AudioStickerRecordingView: View {
 
             playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
                 if let player = audioPlayer {
-                    withAnimation(.linear(duration: 0.05)) {
-                        playbackProgress = player.currentTime / player.duration
-                    }
+                    playbackProgress = player.currentTime / max(player.duration, 0.001)
                     if !player.isPlaying {
                         stopPlayback()
                     }

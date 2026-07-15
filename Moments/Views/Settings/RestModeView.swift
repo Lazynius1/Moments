@@ -112,7 +112,7 @@ struct RestModeView: View {
                             )
                             .shadow(color: SettingsProfileColors.accent(colorScheme).opacity(0.2), radius: 8, y: 4)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.momentsPressSubtle)
                         .disabled(isSaving)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 32)
@@ -124,7 +124,9 @@ struct RestModeView: View {
         .navigationTitle(NSLocalizedString("userActivity.timeSpent.restMode.title", value: "Modo descanso", comment: "Rest mode title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })

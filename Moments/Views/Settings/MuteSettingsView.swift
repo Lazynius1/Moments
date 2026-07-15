@@ -179,7 +179,9 @@ struct MuteSettingsView: View {
         .navigationTitle(NSLocalizedString("muteSettings.navigation.title", comment: "Mute navigation title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     SettingsToolbarBackButton(action: { dismiss() })
@@ -404,6 +406,7 @@ struct AddMutedUserView: View {
             .navigationTitle(NSLocalizedString("muteSettings.muteUser.title", comment: "Mute user navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .navigationInteractivePopEnabled()
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(NSLocalizedString("muteSettings.cancel", comment: "Cancel button")) {
@@ -487,6 +490,7 @@ struct AddMutedWordView: View {
             .navigationTitle(NSLocalizedString("muteSettings.mutedWord.title", comment: "Muted word navigation title"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .navigationInteractivePopEnabled()
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(NSLocalizedString("muteSettings.cancel", comment: "Cancel button")) {

@@ -21,7 +21,7 @@ extension GlassmorphicChatView {
             Button(action: openProfileOrStoryFromHeader) {
                 chatToolbarAvatar
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressIcon)
         }
         .chatHideSharedBackgroundIfAvailable()
 
@@ -32,7 +32,7 @@ extension GlassmorphicChatView {
                 chatToolbarTitleStack
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressIcon)
         }
     }
 
@@ -47,11 +47,22 @@ extension GlassmorphicChatView {
 
     /// Fila completa del header en modo búsqueda: pill glass + botón X circular.
     var chatHeaderSearchBar: some View {
-        HStack(spacing: 8) {
-            chatHeaderSearchField
-                .frame(maxWidth: .infinity)
-
-            chatHeaderSearchCloseButton
+        Group {
+            if #available(iOS 26.0, *) {
+                GlassEffectContainer(spacing: 8) {
+                    HStack(spacing: 8) {
+                        chatHeaderSearchField
+                            .frame(maxWidth: .infinity)
+                        chatHeaderSearchCloseButton
+                    }
+                }
+            } else {
+                HStack(spacing: 8) {
+                    chatHeaderSearchField
+                        .frame(maxWidth: .infinity)
+                    chatHeaderSearchCloseButton
+                }
+            }
         }
         .frame(height: 44)
     }
@@ -85,7 +96,7 @@ extension GlassmorphicChatView {
                         .font(.system(size: 16))
                         .foregroundStyle(adaptiveColors.secondary.opacity(0.75))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressIcon)
                 .padding(.trailing, 8)
             }
         }
@@ -103,7 +114,7 @@ extension GlassmorphicChatView {
                 .momentsChromeGlass(in: Circle(), interactive: true)
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressIcon)
         .accessibilityLabel(Text("common.cancel"))
     }
 

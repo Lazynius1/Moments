@@ -1472,6 +1472,8 @@ class ReelVideoPlayerManager: ObservableObject {
 
         if wasMuted && !isMuted {
             GlobalVideoManager.shared.enableSoundForSession()
+        } else if !wasMuted && isMuted {
+            GlobalVideoManager.shared.disableSoundForSession()
         }
     }
 

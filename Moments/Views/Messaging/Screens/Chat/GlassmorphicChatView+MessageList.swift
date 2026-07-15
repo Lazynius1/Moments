@@ -290,7 +290,7 @@ extension GlassmorphicChatView {
                 prefetchMediaForRows(rows)
             },
             rowContent: { row in
-                chatMessageListRowContent(row)
+                AnyView(chatMessageListRowContent(row))
             }
         )
         .ignoresSafeArea(.container, edges: .top)
@@ -317,12 +317,11 @@ extension GlassmorphicChatView {
         return keys.filter { old[$0] != new[$0] }
     }
 
-    func chatMessageListRowContent(_ row: ChatRenderRow) -> AnyView {
-        AnyView(
-            chatRenderRow(row, index: 0, proxy: nil)
-                .environment(\.chatSearchHighlightTerm, activeSearchHighlightTerm)
-                .environment(\.chatSearchActiveMessageId, currentSearchMatchId)
-        )
+    @ViewBuilder
+    func chatMessageListRowContent(_ row: ChatRenderRow) -> some View {
+        chatRenderRow(row, index: 0, proxy: nil)
+            .environment(\.chatSearchHighlightTerm, activeSearchHighlightTerm)
+            .environment(\.chatSearchActiveMessageId, currentSearchMatchId)
     }
 
     func handleListAtBottomChange(_ atBottom: Bool) {

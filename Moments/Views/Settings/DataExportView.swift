@@ -258,7 +258,9 @@ struct DataExportView: View {
         .navigationTitle(NSLocalizedString("dataExport.navigation.title", comment: "Download data navigation title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     SettingsToolbarBackButton(action: { dismiss() })
@@ -369,7 +371,7 @@ struct ExportOptionCard: View {
                     )
             )
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.momentsPressSubtle)
     }
 }
 
@@ -403,7 +405,7 @@ struct FormatButton: View {
                     )
             )
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.momentsPressSubtle)
     }
 }
 

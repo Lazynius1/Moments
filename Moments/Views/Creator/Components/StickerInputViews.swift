@@ -1336,17 +1336,10 @@ struct ModernEmojiGridView: View {
                     Text(emoji)
                         .font(.system(size: 35))
                         .frame(width: 55, height: 55)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.05))
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                                )
-                        )
+                        .contentShape(RoundedRectangle(cornerRadius: 16))
                 }
-                .scaleEffect(1.0)
-                .animation(.easeInOut(duration: 0.1), value: emoji)
+                .buttonStyle(.momentsPressIcon)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: emoji), value: emoji)
             }
         }
         .padding(.horizontal, 20)

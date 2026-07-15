@@ -799,6 +799,7 @@ struct ClusterGalleryView<Detail: View>: View {
         if let message = messageForDetailRoute(route) {
             ClusterGalleryDetailHost(message: message, detail: detail)
                 .navigationBarBackButtonHidden(true)
+                .chatInteractivePopEnabled()
                 .toolbar(.hidden, for: .navigationBar)
                 .toolbar(.hidden, for: .tabBar)
         }
@@ -917,7 +918,9 @@ struct ClusterGalleryView<Detail: View>: View {
         .navigationTitle(galleryTitle)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(presentation == .pushed)
+        .chatInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar { galleryToolbarContent }
         .safeAreaInset(edge: .bottom) {
             if isSelectionMode {

@@ -108,6 +108,7 @@ struct EchoHistoryView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
         }
+        .momentsEmptyStateAppear()
     }
     
     private var echoListView: some View {
@@ -123,6 +124,7 @@ struct EchoHistoryView: View {
             .padding(.bottom, 20)
         }
         .scrollIndicators(.hidden)
+        .momentsScrollEdgeChrome()
     }
 
     private var summaryHeader: some View {

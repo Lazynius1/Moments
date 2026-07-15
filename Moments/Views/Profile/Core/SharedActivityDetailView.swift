@@ -89,20 +89,20 @@ final class SharedActivityDetailViewModel: ObservableObject {
         if index == 0 {
             switch category {
             case .reactions:
-                return NSLocalizedString("sharedActivity.tab.yourReactions", value: "Tus reacciones", comment: "")
+                return NSLocalizedString("sharedActivity.tab.yourReactions", comment: "sharedActivity.tab.yourReactions")
             case .comments:
-                return NSLocalizedString("sharedActivity.tab.yourComments", value: "Tus comentarios", comment: "")
+                return NSLocalizedString("sharedActivity.tab.yourComments", comment: "sharedActivity.tab.yourComments")
             case .tags:
-                return NSLocalizedString("sharedActivity.tab.yourTags", value: "Tus etiquetas", comment: "")
+                return NSLocalizedString("sharedActivity.tab.yourTags", comment: "sharedActivity.tab.yourTags")
             }
         } else {
             switch category {
             case .reactions:
-                return String(format: NSLocalizedString("sharedActivity.tab.fromUser", value: "De %@", comment: ""), otherUser.username)
+                return String(format: NSLocalizedString("sharedActivity.tab.fromUser", comment: "sharedActivity.tab.fromUser"), otherUser.username)
             case .comments:
-                return String(format: NSLocalizedString("sharedActivity.tab.fromUser", value: "De %@", comment: ""), otherUser.username)
+                return String(format: NSLocalizedString("sharedActivity.tab.fromUser", comment: "sharedActivity.tab.fromUser"), otherUser.username)
             case .tags:
-                return String(format: NSLocalizedString("sharedActivity.tab.fromUser", value: "De %@", comment: ""), otherUser.username)
+                return String(format: NSLocalizedString("sharedActivity.tab.fromUser", comment: "sharedActivity.tab.fromUser"), otherUser.username)
             }
         }
     }
@@ -437,6 +437,7 @@ struct SharedActivityDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar(.hidden, for: .tabBar)
         .navigationInteractivePopEnabled()
         .toolbar {
@@ -950,9 +951,9 @@ struct SharedActivityDetailView: View {
 
     private var commentLabelText: String {
         if viewModel.selectedTab == 0 {
-            return NSLocalizedString("sharedActivity.comment.yours", value: "Tu comentario", comment: "")
+            return NSLocalizedString("sharedActivity.comment.yours", comment: "sharedActivity.comment.yours")
         }
-        return String(format: NSLocalizedString("sharedActivity.comment.fromUser", value: "Comentario de %@", comment: ""), viewModel.otherUser.username)
+        return String(format: NSLocalizedString("sharedActivity.comment.fromUser", comment: "sharedActivity.comment.fromUser"), viewModel.otherUser.username)
     }
 
     @ViewBuilder
@@ -1047,7 +1048,7 @@ struct SharedActivityDetailView: View {
             }
             .frame(height: 50)
 
-            Text(NSLocalizedString("savedMoments.noResults.title", value: "No hay resultados", comment: ""))
+            Text(NSLocalizedString("savedMoments.noResults.title", comment: "savedMoments.noResults.title"))
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(primaryTextColor)
 
@@ -1062,6 +1063,7 @@ struct SharedActivityDetailView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 30)
+        .momentsEmptyStateAppear()
     }
 
     private var emptyStateDescription: String {
@@ -1069,20 +1071,20 @@ struct SharedActivityDetailView: View {
         if viewModel.selectedTab == 0 {
             switch viewModel.category {
             case .reactions:
-                return String(format: NSLocalizedString("sharedActivity.empty.yourReactions", value: "Las reacciones que dejes en los momentos de %@ aparecerán aquí.", comment: ""), username)
+                return String(format: NSLocalizedString("sharedActivity.empty.yourReactions", comment: "sharedActivity.empty.yourReactions"), username)
             case .comments:
-                return String(format: NSLocalizedString("sharedActivity.empty.yourComments", value: "Los comentarios que dejes en los momentos de %@ aparecerán aquí.", comment: ""), username)
+                return String(format: NSLocalizedString("sharedActivity.empty.yourComments", comment: "sharedActivity.empty.yourComments"), username)
             case .tags:
-                return String(format: NSLocalizedString("sharedActivity.empty.yourTags", value: "Los momentos que publiques donde etiquetes a %@ aparecerán aquí.", comment: ""), username)
+                return String(format: NSLocalizedString("sharedActivity.empty.yourTags", comment: "sharedActivity.empty.yourTags"), username)
             }
         } else {
             switch viewModel.category {
             case .reactions:
-                return String(format: NSLocalizedString("sharedActivity.empty.theirReactions", value: "Las reacciones de %@ en tus momentos aparecerán aquí.", comment: ""), username)
+                return String(format: NSLocalizedString("sharedActivity.empty.theirReactions", comment: "sharedActivity.empty.theirReactions"), username)
             case .comments:
-                return String(format: NSLocalizedString("sharedActivity.empty.theirComments", value: "Los comentarios de %@ en tus momentos aparecerán aquí.", comment: ""), username)
+                return String(format: NSLocalizedString("sharedActivity.empty.theirComments", comment: "sharedActivity.empty.theirComments"), username)
             case .tags:
-                return String(format: NSLocalizedString("sharedActivity.empty.theirTags", value: "Los momentos publicados por %@ donde estés etiquetado aparecerán aquí.", comment: ""), username)
+                return String(format: NSLocalizedString("sharedActivity.empty.theirTags", comment: "sharedActivity.empty.theirTags"), username)
             }
         }
     }
@@ -1181,25 +1183,25 @@ struct SharedActivityDetailView: View {
     private func reactionsSelectionButtonTitle(selectedCount: Int, isTagsCategory: Bool) -> String {
         if isTagsCategory {
             if selectedCount > 0 {
-                return String(format: NSLocalizedString("sharedActivity.selection.tags.suppress.count", value: "Suprimir (%d)", comment: "Suppress selected tags"), selectedCount)
+                return String(format: NSLocalizedString("sharedActivity.selection.tags.suppress.count", comment: "Suppress selected tags"), selectedCount)
             }
-            return NSLocalizedString("sharedActivity.selection.tags.suppress", value: "Suprimir", comment: "Suppress tags")
+            return NSLocalizedString("sharedActivity.selection.tags.suppress", comment: "Suppress tags")
         }
 
         if selectedCount == 1 {
-            return NSLocalizedString("sharedActivity.selection.reactions.delete.single", value: "Eliminar reacción", comment: "Delete one reaction")
+            return NSLocalizedString("sharedActivity.selection.reactions.delete.single", comment: "Delete one reaction")
         }
         if selectedCount > 1 {
-            return String(format: NSLocalizedString("sharedActivity.selection.reactions.delete.multiple", value: "Eliminar reacciones (%d)", comment: "Delete multiple reactions"), selectedCount)
+            return String(format: NSLocalizedString("sharedActivity.selection.reactions.delete.multiple", comment: "Delete multiple reactions"), selectedCount)
         }
-        return NSLocalizedString("sharedActivity.selection.reactions.delete.base", value: "Eliminar reacción", comment: "Delete reaction")
+        return NSLocalizedString("sharedActivity.selection.reactions.delete.base", comment: "Delete reaction")
     }
 
     private func commentsSelectionButtonTitle(selectedCount: Int) -> String {
         if selectedCount > 0 {
-            return String(format: NSLocalizedString("sharedActivity.selection.comments.delete.count", value: "Eliminar (%d)", comment: "Delete selected comments"), selectedCount)
+            return String(format: NSLocalizedString("sharedActivity.selection.comments.delete.count", comment: "Delete selected comments"), selectedCount)
         }
-        return NSLocalizedString("sharedActivity.selection.comments.delete.base", value: "Eliminar", comment: "Delete comments")
+        return NSLocalizedString("sharedActivity.selection.comments.delete.base", comment: "Delete comments")
     }
 
     private func selectionSuccessBanner(textKey: String) -> some View {

@@ -169,7 +169,9 @@ struct SavedMomentsView: View {
         .navigationTitle(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
@@ -281,7 +283,7 @@ struct SavedMomentsView: View {
                             }
                         )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
         }
     }
@@ -314,7 +316,7 @@ struct SavedMomentsView: View {
                                 }
                             )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.momentsPressSubtle)
                 }
             }
         }
@@ -487,6 +489,7 @@ struct SavedMomentsView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 30)
         }
+        .momentsEmptyStateAppear()
     }
 
     private func hasVideo(_ moment: Moment) -> Bool {
@@ -680,7 +683,7 @@ private struct SavedMomentGridCard: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
             .accessibilityLabel(Text(moment.content.isEmpty ? NSLocalizedString("savedMoments.empty.title", comment: "Saved moments") : moment.content))
             .accessibilityAddTraits(isSelected ? .isSelected : [])
             .simultaneousGesture(LongPressGesture(minimumDuration: 0.28).onEnded { _ in onLongPress() })
@@ -1108,7 +1111,7 @@ struct ModernSavedDetailHeader: View {
                         .frame(width: 38, height: 38)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
                 .contentShape(Circle())
             }
             .padding(.horizontal, 16)
@@ -1528,7 +1531,7 @@ struct ModernSavedDetailMomentCard: View {
                     )
                     .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
         }
     }

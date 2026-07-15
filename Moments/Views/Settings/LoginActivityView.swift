@@ -9,134 +9,136 @@ struct LoginActivityView: View {
     @State private var isLoading = true
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
-                
-                if isLoading {
-                    ProgressView {
-                        Text("loginActivity.loading")
-                    }
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundStyle(.gray)
-                } else {
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            headerSection
+        ZStack {
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
+            
+            if isLoading {
+                ProgressView {
+                    Text("loginActivity.loading")
+                }
+                    .progressViewStyle(CircularProgressViewStyle())
+                    .font(.system(size: legacyPoppinsSize(16)))
+                    .foregroundStyle(.gray)
+            } else {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        headerSection
+                        
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("loginActivity.currentSession")
+                                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                             
-                            VStack(alignment: .leading, spacing: 16) {
-                                Text("loginActivity.currentSession")
+                            CurrentSessionCard(
+                                session: viewModel.currentSession,
+                                onLogout: viewModel.currentSession.map { session in
+                                    { viewModel.requestLogout(session: session) }
+                                }
+                            )
+                        }
+                        .padding(.horizontal)
+                        
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack {
+                                Text("loginActivity.otherSessions")
                                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 
-                                CurrentSessionCard(
-                                    session: viewModel.currentSession,
-                                    onLogout: viewModel.currentSession.map { session in
-                                        { viewModel.requestLogout(session: session) }
-                                    }
-                                )
-                            }
-                            .padding(.horizontal)
-                            
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("loginActivity.otherSessions")
-                                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                    
-                                    Spacer()
-                                    
-                                    Button(NSLocalizedString("loginActivity.logoutAll", comment: "Logout all sessions")) {
-                                        viewModel.showLogoutAllAlert = true
-                                    }
-                                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                    .foregroundStyle(.red)
-                                }
+                                Spacer()
                                 
-                                if viewModel.otherSessions.isEmpty {
-                                    VStack(spacing: 12) {
-                                        Image(systemName: "desktopcomputer.and.arrow.down")
-                                            .font(.system(size: 40))
-                                            .foregroundStyle(.gray)
-                                        
-                                        Text("loginActivity.noOtherSessions")
-                                            .font(.system(size: legacyPoppinsSize(16)))
-                                            .foregroundStyle(.gray)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 40)
-                                } else {
-                                    LazyVStack(spacing: 12) {
-                                        ForEach(viewModel.otherSessions) { session in
-                                            SessionCard(session: session) {
-                                                viewModel.requestLogout(session: session)
-                                            }
+                                Button(NSLocalizedString("loginActivity.logoutAll", comment: "Logout all sessions")) {
+                                    viewModel.showLogoutAllAlert = true
+                                }
+                                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+                                .foregroundStyle(.red)
+                            }
+                            
+                            if viewModel.otherSessions.isEmpty {
+                                VStack(spacing: 12) {
+                                    Image(systemName: "desktopcomputer.and.arrow.down")
+                                        .font(.system(size: 40))
+                                        .foregroundStyle(.gray)
+                                    
+                                    Text("loginActivity.noOtherSessions")
+                                        .font(.system(size: legacyPoppinsSize(16)))
+                                        .foregroundStyle(.gray)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 40)
+                                .momentsEmptyStateAppear()
+                            } else {
+                                LazyVStack(spacing: 12) {
+                                    ForEach(viewModel.otherSessions) { session in
+                                        SessionCard(session: session) {
+                                            viewModel.requestLogout(session: session)
                                         }
                                     }
                                 }
                             }
-                            .padding(.horizontal)
-                            
-                            Spacer(minLength: 20)
                         }
-                        .padding(.top)
+                        .padding(.horizontal)
+                        
+                        Spacer(minLength: 20)
                     }
-                    .momentRefresh {
-                        await viewModel.refreshLoginActivity()
-                    }
+                    .padding(.top)
                 }
-            }
-            .navigationTitle(NSLocalizedString("loginActivity.navigation.title", comment: "Login activity navigation title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    SettingsToolbarBackButton(action: { dismiss() })
+                .momentRefresh {
+                    await viewModel.refreshLoginActivity()
                 }
             }
         }
-            .onAppear {
-                viewModel.loadLoginActivity {
+        .navigationTitle(NSLocalizedString("loginActivity.navigation.title", comment: "Login activity navigation title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .navigationInteractivePopEnabled()
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                SettingsToolbarBackButton(action: { dismiss() })
+            }
+        }
+        .onAppear {
+            viewModel.loadLoginActivity {
+                isLoading = false
+            }
+
+            // Safety net to avoid indefinite loading UI if any callback is delayed.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+                if isLoading {
                     isLoading = false
                 }
-
-                // Safety net to avoid indefinite loading UI if any callback is delayed.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
-                    if isLoading {
-                        isLoading = false
-                    }
-                }
             }
-            .alert(NSLocalizedString("loginActivity.logoutAll.title", comment: "Logout all sessions"), isPresented: $viewModel.showLogoutAllAlert) {
-                Button(NSLocalizedString("loginActivity.cancel", comment: "Cancel"), role: .cancel) { }
-                Button(NSLocalizedString("loginActivity.logoutAll.confirm", comment: "Logout all"), role: .destructive) {
-                    viewModel.logoutAllSessions()
-                }
-            } message: {
-                Text("loginActivity.logoutAll.message")
+        }
+        .alert(NSLocalizedString("loginActivity.logoutAll.title", comment: "Logout all sessions"), isPresented: $viewModel.showLogoutAllAlert) {
+            Button(NSLocalizedString("loginActivity.cancel", comment: "Cancel"), role: .cancel) { }
+            Button(NSLocalizedString("loginActivity.logoutAll.confirm", comment: "Logout all"), role: .destructive) {
+                viewModel.logoutAllSessions()
             }
-            .alert(NSLocalizedString("loginActivity.error.title", comment: "Error"), isPresented: $viewModel.showError) {
-                Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
-            } message: {
-                Text(viewModel.errorMessage)
+        } message: {
+            Text("loginActivity.logoutAll.message")
+        }
+        .alert(NSLocalizedString("loginActivity.error.title", comment: "Error"), isPresented: $viewModel.showError) {
+            Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
+        } message: {
+            Text(viewModel.errorMessage)
+        }
+        .alert(NSLocalizedString("loginActivity.logoutSuccess.title", comment: "Sessions closed"), isPresented: $viewModel.showLogoutSuccess) {
+            Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
+        } message: {
+            Text(viewModel.logoutSuccessMessage)
+        }
+        .alert(
+            NSLocalizedString("loginActivity.logoutSession.title", comment: "Logout session title"),
+            isPresented: Binding(
+                get: { viewModel.sessionPendingLogout != nil },
+                set: { if !$0 { viewModel.sessionPendingLogout = nil } }
+            )
+        ) {
+            Button(NSLocalizedString("loginActivity.cancel", comment: "Cancel"), role: .cancel) {
+                viewModel.sessionPendingLogout = nil
             }
-            .alert(NSLocalizedString("loginActivity.logoutSuccess.title", comment: "Sessions closed"), isPresented: $viewModel.showLogoutSuccess) {
-                Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
-            } message: {
-                Text(viewModel.logoutSuccessMessage)
-            }
-            .alert(
-                NSLocalizedString("loginActivity.logoutSession.title", comment: "Logout session title"),
-                isPresented: Binding(
-                    get: { viewModel.sessionPendingLogout != nil },
-                    set: { if !$0 { viewModel.sessionPendingLogout = nil } }
-                )
-            ) {
-                Button(NSLocalizedString("loginActivity.cancel", comment: "Cancel"), role: .cancel) {
-                    viewModel.sessionPendingLogout = nil
-                }
-                Button(NSLocalizedString("loginActivity.logoutSession.confirm", comment: "Logout session confirm"), role: .destructive) {
+            Button(NSLocalizedString("loginActivity.logoutSession.confirm", comment: "Logout session confirm"), role: .destructive) {
                     viewModel.confirmLogoutPendingSession()
                 }
             } message: {
@@ -260,7 +262,7 @@ private struct SessionLogoutButton: View {
                 .foregroundStyle(.red)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.momentsPressSubtle)
         .padding(.top, 2)
     }
 }

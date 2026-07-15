@@ -138,7 +138,7 @@ struct PersonalInfoView: View {
                 .padding(.horizontal, 2)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPressSubtle)
             .padding(.bottom, 10)
 
             Divider()

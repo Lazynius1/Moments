@@ -198,7 +198,7 @@ struct AuthorFilterSheet: View {
                             }
                         }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.momentsPressSubtle)
                 }
             }
             .navigationTitle(NSLocalizedString("userActivity.simple.filters.author.sheet.title", comment: "Author filter sheet title"))
