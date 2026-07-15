@@ -47,6 +47,7 @@ final class CameraKitController: NSObject, ObservableObject {
     // Híbrido: solo carga la lista de lentes para el carrusel (SIN encender la cámara CK).
     func prepareLenses() {
         guard cameraKit == nil else { return }
+        guard SnapCameraKitConfiguration.isFeatureEnabled else { return }
         guard SnapCameraKitConfiguration.isConfigured else {
             statusMessage = "Faltan credenciales Snap (Secrets.xcconfig)"
             return

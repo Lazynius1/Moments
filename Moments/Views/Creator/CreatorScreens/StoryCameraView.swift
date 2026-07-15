@@ -51,7 +51,9 @@ struct StoryCameraView: View {
     var body: some View {
         GeometryReader { proxy in
             let captureRect = creatorMomentsCaptureRect(in: proxy.size, topInset: proxy.safeAreaInsets.top, bottomInset: proxy.safeAreaInsets.bottom)
-            let controlY = min(proxy.size.height - proxy.safeAreaInsets.bottom - 20, captureRect.maxY + 84)
+            // Separación extra respecto al LensReel (100pt de alto, con un UICollectionView de ancho completo
+            // que puede robar toques aunque esté vacío visualmente) para que la galería/cambio de cámara no queden pegados a su zona táctil.
+            let controlY = min(proxy.size.height - proxy.safeAreaInsets.bottom - 20, captureRect.maxY + 104)
             let captureButtonY = captureRect.maxY - 10
 
             ZStack {
@@ -85,9 +87,9 @@ struct StoryCameraView: View {
                 .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                 .position(x: captureRect.midX, y: captureRect.midY)
                 .gesture(
-                    MagnificationGesture()
+                    MagnifyGesture()
                         .onChanged { value in
-                            let newZoom = lastZoomLevel * value
+                            let newZoom = lastZoomLevel * value.magnification
                             zoomLevel = min(max(newZoom, 1.0), 5.0)
                             if usingCameraKit { cameraKit.setZoom(zoomLevel) }
                         }
@@ -110,11 +112,19 @@ struct StoryCameraView: View {
                 bottomSideControls
                     .frame(width: min(captureRect.width + 54, proxy.size.width - 72))
                     .position(x: captureRect.midX, y: controlY)
+                    // Prioridad de toque sobre el UICollectionView de LensReel (ancho completo, declarado después),
+                    // que puede robar toques en el margen entre ambos aunque no tenga contenido visible ahí.
+                    .zIndex(1)
 
+                // Filtros AR desactivados mientras solo haya lentes demo (ver SnapCameraKitConfiguration.isFeatureEnabled).
+                // LensReel siempre se muestra: incluye el botón de disparo (overlay), no solo el carrusel de lentes.
+                // Con el flag desactivado, cameraKit.lenses queda vacío (prepareLenses() no llega a cargarlas),
+                // así que el carrusel solo ofrece "sin filtro" y el disparador sigue funcionando con la cámara nativa.
                 LensReel(
-                    lenses: cameraKit.lenses,
+                    lenses: SnapCameraKitConfiguration.isFeatureEnabled ? cameraKit.lenses : [],
                     isRecording: $isRecording,
                     onSelect: { lens in
+                        guard SnapCameraKitConfiguration.isFeatureEnabled else { return }
                         if let lens {
                             if usingCameraKit {
                                 cameraKit.selectLens(lens)
@@ -205,12 +215,12 @@ struct StoryCameraView: View {
 
                     Text(formatTime(recordingDuration))
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(Color.black.opacity(0.5))
-                .cornerRadius(20)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
         }
         .frame(height: 36)
@@ -246,7 +256,7 @@ struct StoryCameraView: View {
         Button(action: openTextStoryMode) {
             Text("Aa")
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .foregroundColor(topControlForegroundColor)
+                .foregroundStyle(topControlForegroundColor)
                 .frame(width: 48, height: 48)
                 .background {
                     Color.clear
@@ -279,7 +289,7 @@ struct StoryCameraView: View {
                         .fill(Color.white.opacity(0.14))
                     Image(systemName: "photo.stack")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
                 .frame(width: 48, height: 48)
                 .clipShape(Circle())
@@ -301,7 +311,7 @@ struct StoryCameraView: View {
         }) {
             Image(systemName: "arrow.triangle.2.circlepath.camera")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(topControlForegroundColor)
+                .foregroundStyle(topControlForegroundColor)
                 .frame(width: 48, height: 48)
                 .background {
                     Color.clear
@@ -318,7 +328,7 @@ struct StoryCameraView: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(topControlForegroundColor)
+                .foregroundStyle(topControlForegroundColor)
                 .frame(width: 42, height: 42)
                 .background {
                     Color.clear

@@ -90,7 +90,7 @@ struct StickerOverlayView: View {
     }
 
     private var maximumStickerScale: CGFloat {
-        let screenBounds = UIScreen.main.bounds
+        let screenBounds = CGRect(origin: .zero, size: canvasSize)
         let hardMaxDimension: CGFloat = 2048
         let hardMaxScaleWidth = hardMaxDimension / max(stickerSize.width, 1)
         let hardMaxScaleHeight = hardMaxDimension / max(stickerSize.height, 1)
@@ -179,7 +179,7 @@ struct StickerOverlayView: View {
 
                                 Text(username)
                                     .font(.system(size: legacyPoppinsSize(10), weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
 
                                 Spacer()
                             }
@@ -204,7 +204,7 @@ struct StickerOverlayView: View {
                                 Spacer()
                                 Text(caption)
                                     .font(.system(size: legacyPoppinsSize(9), weight: .medium))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(.ultraThinMaterial)
@@ -261,7 +261,7 @@ struct StickerOverlayView: View {
                             Spacer()
                             Image(systemName: "camera.circle.fill")
                                 .font(.system(size: 22, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
                                 .padding(8)
                         }
@@ -453,13 +453,13 @@ struct StickerOverlayView: View {
                                 Image(systemName: "person.circle.fill")
                                     .resizable()
                                     .frame(width: 34, height: 34)
-                                    .foregroundColor(.white.opacity(0.5))
+                                    .foregroundStyle(.white.opacity(0.5))
                             }
 
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(sticker.interactionData?.username ?? "User")
                                     .font(.system(size: legacyPoppinsSize(13), weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                             }
                             Spacer()
@@ -484,7 +484,7 @@ struct StickerOverlayView: View {
                                 Spacer()
                                 Text(caption)
                                     .font(.system(size: legacyPoppinsSize(9), weight: .medium))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(.ultraThinMaterial)
@@ -500,7 +500,7 @@ struct StickerOverlayView: View {
                                     Spacer()
                                     Image(systemName: "square.on.square.fill")
                                         .font(.system(size: 11, weight: .bold))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                         .padding(6)
                                         .background(.ultraThinMaterial)
                                         .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -710,7 +710,7 @@ struct StickerOverlayView: View {
                 }
         )
         .simultaneousGesture(
-            MagnificationGesture()
+            MagnifyGesture()
                 .onChanged { value in
                     if isEditingInline { return }
                     if isContentEditing, sticker.type == .frame {
@@ -719,7 +719,7 @@ struct StickerOverlayView: View {
                             contentPinchStartScale = baseScale
                         }
 
-                        updateFrameContentScale(baseScale * value)
+                        updateFrameContentScale(baseScale * value.magnification)
                         return
                     }
 
@@ -728,7 +728,7 @@ struct StickerOverlayView: View {
                         stickerPinchStartScale = sticker.scale
                     }
 
-                    let newScale = baseScale * dampedMagnification(value)
+                    let newScale = baseScale * dampedMagnification(value.magnification)
                     scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
                     let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
                     currentPosition = clampedPosition
@@ -749,11 +749,11 @@ struct StickerOverlayView: View {
                 }
         )
         .simultaneousGesture(
-            RotationGesture()
+            RotateGesture()
                 .onChanged { value in
                     if isEditingInline { return }
                     guard !(isContentEditing && sticker.type == .frame) else { return }
-                    rotation = sticker.rotation + value
+                    rotation = sticker.rotation + value.rotation
                     let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
                     currentPosition = clampedPosition
                     sticker.position = clampedPosition
@@ -1016,6 +1016,9 @@ final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegat
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var isConfigured = false
     private var captureEventInteraction: AVCaptureEventInteraction?
+    /// Calcula el ángulo de rotación correcto por dispositivo (frontal y trasera pueden montar
+    /// el sensor con orientación física distinta; un ángulo fijo para ambas produce fotos giradas).
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
 
     var onPhotoCaptured: ((UIImage) -> Void)?
 
@@ -1069,8 +1072,9 @@ final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegat
             let settings = AVCapturePhotoSettings()
             settings.flashMode = .off
             if let connection = self.photoOutput.connection(with: .video) {
-                if connection.isVideoRotationAngleSupported(90) {
-                    connection.videoRotationAngle = 90
+                let angle = self.rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 90
+                if connection.isVideoRotationAngleSupported(angle) {
+                    connection.videoRotationAngle = angle
                 }
                 if connection.isVideoMirroringSupported {
                     connection.automaticallyAdjustsVideoMirroring = false
@@ -1163,9 +1167,14 @@ final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegat
     }
 
     private func applyPreviewConnectionConfiguration() {
+        if let device = currentInput?.device, let previewLayer {
+            rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: previewLayer)
+        }
+
         guard let previewConnection = previewLayer?.connection else { return }
-        if previewConnection.isVideoRotationAngleSupported(90) {
-            previewConnection.videoRotationAngle = 90
+        let angle = rotationCoordinator?.videoRotationAngleForHorizonLevelPreview ?? 90
+        if previewConnection.isVideoRotationAngleSupported(angle) {
+            previewConnection.videoRotationAngle = angle
         }
         if previewConnection.isVideoMirroringSupported {
             previewConnection.automaticallyAdjustsVideoMirroring = false

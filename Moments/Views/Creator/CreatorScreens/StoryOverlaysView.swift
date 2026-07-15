@@ -10,6 +10,8 @@ struct StoryOverlaysView: View {
     @Binding var isTextEditorPresented: Bool
     @Binding var stickers: [StickerItem]
     @Binding var drawingImage: UIImage?
+    @Binding var drawingOffset: CGSize
+    @Binding var drawingScale: CGFloat
     @Binding var isEditingSticker: Bool // ✅ NUEVO: Para ocultar la UI del padre
     @Binding var editingRevealId: String?
     let onEditTextOverlay: (String) -> Void
@@ -24,6 +26,8 @@ struct StoryOverlaysView: View {
     @State private var isOverTrash = false
     @State private var pinchStartTextFontSizes: [String: CGFloat] = [:]
     @State private var textDragOffsets: [String: CGSize] = [:]
+    @State private var drawingDragStartOffset: CGSize? = nil
+    @State private var drawingPinchStartScale: CGFloat? = nil
 
     // 📸 NUEVO: Estado para editar el pie de foto de la Polaroid
     @State private var editingPolaroidId: String? = nil
@@ -32,6 +36,7 @@ struct StoryOverlaysView: View {
     @State private var focusedInlineStickerTransform: (id: String, pos: CGPoint, scale: CGFloat, rot: Angle)? = nil
     @State private var keyboardHeight: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         ZStack {
@@ -55,36 +60,65 @@ struct StoryOverlaysView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: canvasSize.width, height: canvasSize.height)
-                    .scaleEffect(1.0)
+                    .scaleEffect(drawingScale)
                     .opacity(1.0)
+                    .offset(drawingOffset)
                     .allowsHitTesting(true)
                     .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                if !textOverlays.isEmpty { return }
+                        SimultaneousGesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    if !textOverlays.isEmpty { return }
 
-                                if !isDraggingItem {
+                                    if !isDraggingItem {
+                                        withAnimation(.easeOut(duration: 0.2)) {
+                                            isDraggingItem = true
+                                            showTrashZone = true
+                                        }
+                                    }
+
+                                    let start = drawingDragStartOffset ?? drawingOffset
+                                    if drawingDragStartOffset == nil {
+                                        drawingDragStartOffset = drawingOffset
+                                    }
+                                    drawingOffset = CGSize(
+                                        width: start.width + value.translation.width,
+                                        height: start.height + value.translation.height
+                                    )
+
+                                    isOverTrash = isPointOverTrash(value.location)
+                                }
+                                .onEnded { value in
+                                    if !textOverlays.isEmpty { return }
+
+                                    drawingDragStartOffset = nil
+
                                     withAnimation(.easeOut(duration: 0.2)) {
-                                        isDraggingItem = true
-                                        showTrashZone = true
+                                        isDraggingItem = false
+                                        showTrashZone = false
+
+                                        if isOverTrash {
+                                            drawingImage = nil
+                                            drawingOffset = .zero
+                                            drawingScale = 1.0
+                                        }
+                                        isOverTrash = false
                                     }
-                                }
+                                },
+                            MagnifyGesture()
+                                .onChanged { value in
+                                    if !textOverlays.isEmpty { return }
 
-                                isOverTrash = isPointOverTrash(value.location)
-                            }
-                            .onEnded { value in
-                                if !textOverlays.isEmpty { return }
-
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    isDraggingItem = false
-                                    showTrashZone = false
-
-                                    if isOverTrash {
-                                        drawingImage = nil
+                                    let baseScale = drawingPinchStartScale ?? drawingScale
+                                    if drawingPinchStartScale == nil {
+                                        drawingPinchStartScale = drawingScale
                                     }
-                                    isOverTrash = false
+                                    drawingScale = min(max(baseScale * value.magnification, 0.3), 4.0)
                                 }
-                            }
+                                .onEnded { _ in
+                                    drawingPinchStartScale = nil
+                                }
+                        )
                     )
                     .onTapGesture {
                         // Deseleccionar al tocar el fondo
@@ -121,60 +155,60 @@ struct StoryOverlaysView: View {
                     .frame(width: overlaySize.width, height: overlaySize.height)
                     .contentShape(Rectangle())
                     .gesture(
-                        DragGesture(coordinateSpace: .named("storyCanvas"))
-                            .onChanged { value in
-                                let dragOffset = textDragOffsets[overlay.id] ?? CGSize(
-                                    width: value.startLocation.x - overlay.position.x,
-                                    height: value.startLocation.y - overlay.position.y
-                                )
-                                textDragOffsets[overlay.id] = dragOffset
+                        SimultaneousGesture(
+                            DragGesture(coordinateSpace: .named("storyCanvas"))
+                                .onChanged { value in
+                                    let dragOffset = textDragOffsets[overlay.id] ?? CGSize(
+                                        width: value.startLocation.x - overlay.position.x,
+                                        height: value.startLocation.y - overlay.position.y
+                                    )
+                                    textDragOffsets[overlay.id] = dragOffset
 
-                                let newPos = CGPoint(
-                                    x: value.location.x - dragOffset.width,
-                                    y: value.location.y - dragOffset.height
-                                )
+                                    let newPos = CGPoint(
+                                        x: value.location.x - dragOffset.width,
+                                        y: value.location.y - dragOffset.height
+                                    )
 
-                                updateTextOverlay(overlay.id) { draft in
-                                    draft.position = clampedTextPosition(newPos, for: draft)
+                                    updateTextOverlay(overlay.id) { draft in
+                                        draft.position = clampedTextPosition(newPos, for: draft)
+                                    }
+
+                                    if !isDraggingItem {
+                                        withAnimation(.easeOut(duration: 0.2)) {
+                                            isDraggingItem = true
+                                            showTrashZone = true
+                                        }
+                                    }
+
+                                    isOverTrash = isPointOverTrash(newPos)
                                 }
-
-                                if !isDraggingItem {
+                                .onEnded { _ in
+                                    textDragOffsets[overlay.id] = nil
                                     withAnimation(.easeOut(duration: 0.2)) {
-                                        isDraggingItem = true
-                                        showTrashZone = true
+                                        isDraggingItem = false
+                                        showTrashZone = false
+
+                                        if isOverTrash {
+                                            textOverlays.removeAll { $0.id == overlay.id }
+                                        }
+                                        isOverTrash = false
+                                    }
+                                },
+                            MagnifyGesture()
+                                .onChanged { value in
+                                    let baseFontSize = pinchStartTextFontSizes[overlay.id] ?? overlay.fontSize
+                                    if pinchStartTextFontSizes[overlay.id] == nil {
+                                        pinchStartTextFontSizes[overlay.id] = overlay.fontSize
+                                    }
+                                    updateTextOverlay(overlay.id) { draft in
+                                        draft.fontSize = min(max(baseFontSize * value.magnification, 16), 72)
+                                        draft.position = clampedTextPosition(draft.position, for: draft)
                                     }
                                 }
-
-                                isOverTrash = isPointOverTrash(newPos)
-                            }
-                            .onEnded { _ in
-                                textDragOffsets[overlay.id] = nil
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    isDraggingItem = false
-                                    showTrashZone = false
-
-                                    if isOverTrash {
-                                        textOverlays.removeAll { $0.id == overlay.id }
-                                    }
-                                    isOverTrash = false
+                                .onEnded { _ in
+                                    pinchStartTextFontSizes[overlay.id] = nil
                                 }
-                            }
-                    )
-                    .simultaneousGesture(
-                        MagnificationGesture()
-                            .onChanged { value in
-                                let baseFontSize = pinchStartTextFontSizes[overlay.id] ?? overlay.fontSize
-                                if pinchStartTextFontSizes[overlay.id] == nil {
-                                    pinchStartTextFontSizes[overlay.id] = overlay.fontSize
-                                }
-                                updateTextOverlay(overlay.id) { draft in
-                                    draft.fontSize = min(max(baseFontSize * value, 16), 72)
-                                    draft.position = clampedTextPosition(draft.position, for: draft)
-                                }
-                            }
-                            .onEnded { _ in
-                                pinchStartTextFontSizes[overlay.id] = nil
-                            }
+                        )
                     )
                     .onTapGesture {
                         selectedStickerId = nil
@@ -286,7 +320,7 @@ struct StoryOverlaysView: View {
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: 14))
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .foregroundStyle(.white.opacity(0.6))
                             }
                         }
                         .padding(.horizontal, 12)
@@ -317,7 +351,7 @@ struct StoryOverlaysView: View {
 
                     Image(systemName: isOverTrash ? "trash.fill" : "trash")
                         .font(.system(size: 30, weight: .regular))
-                        .foregroundColor(isOverTrash ? .red : .white)
+                        .foregroundStyle(isOverTrash ? .red : .white)
                         .frame(width: 48, height: 48)
                         .shadow(color: Color.black.opacity(0.35), radius: 6, x: 0, y: 3)
                         .scaleEffect(isOverTrash ? 1.28 : 1.0)
@@ -349,7 +383,7 @@ struct StoryOverlaysView: View {
 
                     TextField(NSLocalizedString("storyEditor.polaroid.addNote", comment: "Prompt to add a note to a polaroid"), text: $polaroidCaptionBuffer)
                         .font(.custom("MarkerFelt-Wide", size: 24))
-                        .foregroundColor(.black)
+                        .foregroundStyle(.black)
                         .multilineTextAlignment(.center)
                         .padding(.vertical, 12)
                         .padding(.horizontal, 25)
@@ -416,7 +450,7 @@ struct StoryOverlaysView: View {
         .frame(width: canvasSize.width, height: canvasSize.height)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
             guard let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
-            let screenHeight = UIScreen.main.bounds.height
+            let screenHeight = (notification.object as? UIScreen)?.bounds.height ?? endFrame.maxY
             let overlap = max(0, screenHeight - endFrame.minY)
             keyboardHeight = overlap
         }
@@ -513,7 +547,7 @@ struct StoryOverlaysView: View {
 
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                     // Mover al centro (un poco arriba por el teclado) y ampliar
-                    stickers[index].position = CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 3)
+                    stickers[index].position = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 3)
                     stickers[index].scale = 1.4
                     stickers[index].rotation = .zero
                 }
@@ -730,7 +764,8 @@ struct StoryOverlaysView: View {
             let updatedImage = makeQuestionResponseStickerImage(
                 questionText: questionText,
                 styleVariant: interactionData.styleVariant ?? 0,
-                colorScheme: colorScheme
+                colorScheme: colorScheme,
+                traitCollection: UITraitCollection(displayScale: displayScale)
             )
 
             stickers[index] = StickerItem(

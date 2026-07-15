@@ -58,6 +58,10 @@ struct StoryEditingView: View {
     @State private var textOverlays: [StoryTextOverlayDraft] = []
     @State private var activeTextOverlayId: String?
     @State private var drawingImage: UIImage?
+    /// Posición del dibujo ya colocado en el canvas (espacio del editor), para poder moverlo como el resto de overlays.
+    @State private var drawingOffset: CGSize = .zero
+    /// Escala del dibujo ya colocado en el canvas, para poder agrandarlo/encogerlo como el resto de overlays.
+    @State private var drawingScale: CGFloat = 1.0
     @State private var editableImageViewRef: EditableImageView?
 
     // ✅ Filtros e Intensidad
@@ -119,6 +123,9 @@ struct StoryEditingView: View {
     @State private var showingChainConfiguration = false
     @State private var primaryVideoPresentationSize: CGSize? = nil
     @State private var isVideoPreviewMuted = false
+    /// Tamaño del viewport del editor capturado del GeometryReader del body.
+    /// Fuente de tamaño para `currentMediaCanvasRect()` cuando no hay keyWindow.
+    @State private var editorViewportSize: CGSize = .zero
     @State private var showingExpirationInfoOverlay = false
 
 
@@ -166,6 +173,8 @@ struct StoryEditingView: View {
                             .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
                             .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                             .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
+                            .scaleEffect(drawingScale)
+                            .offset(drawingOffset)
                             .allowsHitTesting(false)
                     }
 
@@ -186,6 +195,8 @@ struct StoryEditingView: View {
                             ),
                             stickers: $selectedStickers,
                             drawingImage: $drawingImage,
+                            drawingOffset: $drawingOffset,
+                            drawingScale: $drawingScale,
                             isEditingSticker: $isEditingSticker,
                             editingRevealId: $editingRevealStickerId,
                             onEditTextOverlay: { overlayId in
@@ -283,6 +294,8 @@ struct StoryEditingView: View {
                 }
                 .frame(width: viewportSize.width, height: viewportSize.height, alignment: .topLeading)
                 .ignoresSafeArea(.keyboard)
+                .onAppear { editorViewportSize = viewportSize }
+                .onChange(of: viewportSize) { _, newValue in editorViewportSize = newValue }
                 .task(id: selectedMediaItems.first?.id) {
                     await resolveAutoBackgroundPaletteIfNeeded()
                 }
@@ -380,7 +393,7 @@ struct StoryEditingView: View {
             )
         }
         .sheet(isPresented: $showingStickerPicker) {
-            StickerPickerView(selectedStickers: $selectedStickers, activeEditingStickerId: $activeEditingStickerId, isVideo: selectedMediaItems.first?.type == .video)
+            StickerPickerView(selectedStickers: $selectedStickers, activeEditingStickerId: $activeEditingStickerId, isVideo: selectedMediaItems.first?.type == .video, canvasSize: currentMediaCanvasRect().size)
                 .ignoresSafeArea()
                 .onDisappear {
                     activeEditorMode = .idle
@@ -408,7 +421,7 @@ struct StoryEditingView: View {
                             .tint(.white)
 
                         Text("storyEditor.sharing")
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 } else if showDiscardChangesAlert {
                     Color.black.opacity(0.28)
@@ -431,8 +444,8 @@ struct StoryEditingView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
             guard let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
-            let screenHeight = UIScreen.main.bounds.height
-            let overlap = max(0, screenHeight - endFrame.minY)
+            guard let windowHeight = keyWindowBounds()?.height else { return }
+            let overlap = max(0, windowHeight - endFrame.minY)
             let safeBottom = keyWindowSafeAreaInsets().bottom
             keyboardHeight = max(0, overlap - safeBottom)
         }
@@ -696,7 +709,7 @@ struct StoryEditingView: View {
                     }) {
                         Text(NSLocalizedString("storyTextEditor.done", comment: "Done"))
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(chromeIconColor)
+                            .foregroundStyle(chromeIconColor)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .momentsChromeGlass(in: Capsule())
@@ -718,7 +731,7 @@ struct StoryEditingView: View {
                                 }
                             }
                         }
-                        .foregroundColor(chromeIconColor)
+                        .foregroundStyle(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
                         .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -743,7 +756,7 @@ struct StoryEditingView: View {
                     }) {
                         Image(systemName: isFilterMode ? "chevron.left" : "xmark")
                             .font(.title2)
-                            .foregroundColor(chromeIconColor)
+                            .foregroundStyle(chromeIconColor)
                             .padding(12)
                             .momentsChromeGlass(in: Circle())
                     }
@@ -756,7 +769,7 @@ struct StoryEditingView: View {
                         }) {
                             Text("creator.done")
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(chromeIconColor)
+                                .foregroundStyle(chromeIconColor)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
                                 .momentsChromeGlass(in: Capsule())
@@ -769,7 +782,7 @@ struct StoryEditingView: View {
                         Button(action: { saveToGallery() }) {
                             Image(systemName: "arrow.down.circle")
                                 .font(.title2)
-                                .foregroundColor(chromeIconColor)
+                                .foregroundStyle(chromeIconColor)
                                 .padding(12)
                                 .momentsChromeGlass(in: Circle())
                         }
@@ -790,7 +803,7 @@ struct StoryEditingView: View {
                                 }
                             }
                         }
-                        .foregroundColor(chromeIconColor)
+                        .foregroundStyle(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
                         .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -810,7 +823,7 @@ struct StoryEditingView: View {
                                 }
                             }
                         }
-                        .foregroundColor(chromeIconColor)
+                        .foregroundStyle(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
                         .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -937,7 +950,7 @@ struct StoryEditingView: View {
                 }) {
                     Image(systemName: "camera.filters")
                         .font(.system(size: 20))
-                        .foregroundColor(isFilterMode ? .pink : chromeIconColor)
+                        .foregroundStyle(isFilterMode ? .pink : chromeIconColor)
                         .frame(width: 44, height: 44)
                         .momentsChromeGlass(in: Circle())
                         .overlay(Circle().stroke(isFilterMode ? Color.pink : Color.clear, lineWidth: 1))
@@ -949,7 +962,7 @@ struct StoryEditingView: View {
                     }) {
                         Image(systemName: isVideoPreviewMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(chromeIconColor)
+                            .foregroundStyle(chromeIconColor)
                             .frame(width: 44, height: 44)
                             .momentsChromeGlass(in: Circle())
                     }
@@ -961,7 +974,7 @@ struct StoryEditingView: View {
                     }) {
                         Image(systemName: "link")
                             .font(.system(size: 20))
-                            .foregroundColor(isCreatingChain ? .blue : chromeIconColor)
+                            .foregroundStyle(isCreatingChain ? .blue : chromeIconColor)
                             .frame(width: 44, height: 44)
                             .momentsChromeGlass(in: Circle())
                             .overlay(Circle().stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1))
@@ -974,7 +987,7 @@ struct StoryEditingView: View {
                     }) {
                         Text(String(format: NSLocalizedString("storyEditor.expiration.option", comment: "Story expiration option"), storyExpirationHours))
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(chromeIconColor)
+                            .foregroundStyle(chromeIconColor)
                             .frame(width: 44, height: 44)
                             .momentsChromeGlass(in: Circle())
                     }
@@ -1091,12 +1104,12 @@ struct StoryEditingView: View {
                         if isCreatingChain && !isCanvasModeActive {
                             HStack(spacing: 10) {
                                 Image(systemName: "link")
-                                    .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.72))
+                                    .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(0.72))
                                     .font(.system(size: 15, weight: .semibold))
 
                                 TextField(NSLocalizedString("storyChains.chainTitlePlaceholder", comment: "Chain title placeholder"), text: $chainTitle)
                                     .textFieldStyle(PlainTextFieldStyle())
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .tint(colorScheme == .dark ? .white : .black)
                                     .focused($isChainTitleFocused)
 
@@ -1104,7 +1117,7 @@ struct StoryEditingView: View {
                                     Button(action: { isChainTitleFocused = false }) {
                                         Image(systemName: "keyboard.chevron.compact.down")
                                             .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.72))
+                                            .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(0.72))
                                     }
                                 }
                             }
@@ -1132,7 +1145,7 @@ struct StoryEditingView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             }
                             .frame(maxWidth: .infinity)
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 14)
                             .momentsChromeGlass(in: Capsule(), interactive: false)
@@ -1162,7 +1175,7 @@ struct StoryEditingView: View {
                                         .minimumScaleFactor(0.85)
                                 }
                                 .frame(maxWidth: .infinity)
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 14)
                                 .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -1191,7 +1204,7 @@ struct StoryEditingView: View {
                         VStack(spacing: 4) {
                             Text("\(Int(filterIntensity * 100))%")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(chromeIconColor)
+                                .foregroundStyle(chromeIconColor)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
                                 .momentsChromeGlass(in: Capsule())
@@ -1252,7 +1265,7 @@ struct StoryEditingView: View {
 
                 Spacer(minLength: 0)
             }
-            .foregroundColor(chromeIconColor.opacity(0.86))
+            .foregroundStyle(chromeIconColor.opacity(0.86))
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
             .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), interactive: false)
@@ -1340,23 +1353,23 @@ struct StoryEditingView: View {
                     ZStack {
                         Circle()
                             .stroke(style: StrokeStyle(lineWidth: 1.6, dash: [3.5, 3.5]))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .frame(width: 30, height: 30)
 
                         if let icon = chatSendMode.innerSystemIcon {
                             Image(systemName: icon)
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                         } else {
                             Text("1")
                                 .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                         }
                     }
 
                     Text(chatSendMode.label)
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 .padding(.leading, 10)
                 .padding(.trailing, 16)
@@ -1377,11 +1390,11 @@ struct StoryEditingView: View {
 
                     Text("camera.preview.send")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
+                        .foregroundStyle(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
 
                     Image(systemName: "arrow.right")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
+                        .foregroundStyle(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
                 }
                 .padding(.leading, 9)
                 .padding(.trailing, 18)
@@ -1501,7 +1514,7 @@ struct StoryEditingView: View {
                 publishStory()
             }) {
                 Image(systemName: "arrow.right")
-                    .foregroundColor(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
+                    .foregroundStyle(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
                     .font(.system(size: 20, weight: .semibold))
                     .frame(width: 54, height: 48)
                 .background(
@@ -1518,7 +1531,7 @@ struct StoryEditingView: View {
             }) {
                 Image(systemName: "gearshape")
                     .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .frame(width: 54, height: 48)
                 .opacity(isLoadingUserSettings ? 0.5 : 1.0)
                 .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -1534,7 +1547,7 @@ struct StoryEditingView: View {
                         .font(.system(size: 16, weight: .semibold))
                     Image(systemName: "arrow.right")
                 }
-                .foregroundColor(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
+                .foregroundStyle(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
@@ -1675,7 +1688,7 @@ struct StoryEditingView: View {
         }
     }
 
-    private func storyRenderTargetSize(for screenSize: CGSize = UIScreen.main.bounds.size) -> CGSize {
+    private func storyRenderTargetSize() -> CGSize {
         let targetWidth: CGFloat = 1080
         let targetHeight = targetWidth / max(creatorMomentsCaptureAspectRatio, 0.0001)
         var targetSize = CGSize(width: targetWidth, height: targetHeight)
@@ -1986,7 +1999,7 @@ struct StoryEditingView: View {
             }) {
                 Image(systemName: "face.smiling")
                     .font(.system(size: 24, weight: .medium))
-                    .foregroundColor(chromeIconColor)
+                    .foregroundStyle(chromeIconColor)
                     .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.12), radius: 4, x: 0, y: 2)
                     .frame(width: 52, height: 52)
             }
@@ -2014,7 +2027,16 @@ struct StoryEditingView: View {
         let renderer = UIGraphicsImageRenderer(size: targetSize)
 
         return renderer.image { _ in
-            let rect = CGRect(origin: .zero, size: targetSize)
+            let scaledSize = CGSize(
+                width: targetSize.width * drawingScale,
+                height: targetSize.height * drawingScale
+            )
+            let rect = CGRect(
+                x: (targetSize.width - scaledSize.width) / 2 + drawingOffset.width * scaleFactorX,
+                y: (targetSize.height - scaledSize.height) / 2 + drawingOffset.height * scaleFactorY,
+                width: scaledSize.width,
+                height: scaledSize.height
+            )
 
             if let drawing = drawingImage {
                 drawing.draw(in: rect, blendMode: .normal, alpha: 1.0)
@@ -2024,8 +2046,7 @@ struct StoryEditingView: View {
     }
 
     private func renderStoryWithOverlays() -> UIImage {
-        let screenSize = UIScreen.main.bounds.size
-        let targetSize = storyRenderTargetSize(for: screenSize)
+        let targetSize = storyRenderTargetSize()
         let renderer = UIGraphicsImageRenderer(size: targetSize)
         let editorCanvasSize = currentMediaCanvasRect().size
 
@@ -2499,6 +2520,8 @@ struct StoryEditingView: View {
         textOverlays = []
         selectedStickers = []
         drawingImage = nil
+        drawingOffset = .zero
+        drawingScale = 1.0
         selectedTextStyle = .modern
         selectedTextMotion = .none
         selectedVisualEffect = .none
@@ -2799,7 +2822,7 @@ struct StoryEditingView: View {
         var mappedSticker = sticker
         let canvasRect = currentMediaCanvasRect()
 
-        let screenBounds = UIScreen.main.bounds
+        let screenBounds = keyWindowBounds() ?? canvasRect
         let looksLikeScreenPosition =
             sticker.position.x > canvasRect.width ||
             sticker.position.y > canvasRect.height ||
@@ -2833,7 +2856,7 @@ struct StoryEditingView: View {
 
     private func currentMediaCanvasRect() -> CGRect {
         let windowInsets = keyWindowSafeAreaInsets()
-        let viewport = keyWindowBounds()?.size ?? UIScreen.main.bounds.size
+        let viewport = keyWindowBounds()?.size ?? editorViewportSize
         return creatorMomentsCaptureRect(
             in: viewport,
             topInset: windowInsets.top,
@@ -3059,14 +3082,14 @@ struct EmojiPickerView: View {
     var body: some View {
         GeometryReader { outerGeo in
             ZStack {
-                NavigationView {
+                NavigationStack {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
                             if !recentEmojis.isEmpty {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text(LocalizedStringKey("chat.giphy.recents"))
                                         .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                                        .foregroundColor(secondaryText)
+                                        .foregroundStyle(secondaryText)
                                         .padding(.horizontal, 16)
 
                                     LazyVGrid(columns: gridColumns, spacing: 12) {
@@ -3083,7 +3106,7 @@ struct EmojiPickerView: View {
                                     VStack(alignment: .leading, spacing: 10) {
                                         Text(NSLocalizedString(category.nameKey, comment: ""))
                                             .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                             .padding(.horizontal)
 
                                         LazyVGrid(columns: gridColumns, spacing: 12) {
@@ -3108,7 +3131,7 @@ struct EmojiPickerView: View {
                                 isPresented = false
                             }
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         }
                     }
                 }

@@ -139,28 +139,31 @@ struct StoryDrawingEditorOverlay: View {
             .ignoresSafeArea()
             .overlay(alignment: .top) {
                 HStack {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 10) {
                         Button(action: { isPresented = false }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 20, weight: .medium))
-                                .foregroundColor(.white)
-                                .padding(14)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .momentsChromeGlass(in: Circle(), interactive: true, tint: chromeTintColor)
                         }
                         .buttonStyle(.plain)
 
                         Button(action: { undoToken += 1 }) {
                             Image(systemName: "arrow.uturn.backward")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.white)
-                                .padding(14)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .momentsChromeGlass(in: Circle(), interactive: true, tint: chromeTintColor)
                         }
                         .buttonStyle(.plain)
 
                         Button(action: { redoToken += 1 }) {
                             Image(systemName: "arrow.uturn.forward")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.white)
-                                .padding(14)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .momentsChromeGlass(in: Circle(), interactive: true, tint: chromeTintColor)
                         }
                         .buttonStyle(.plain)
                     }
@@ -170,9 +173,10 @@ struct StoryDrawingEditorOverlay: View {
                     Button(action: { exportToken += 1 }) {
                         Text(NSLocalizedString("storyTextEditor.done", comment: "Done"))
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
+                            .frame(height: 36)
+                            .momentsChromeGlass(in: Capsule(), interactive: true, tint: chromeTintColor)
                     }
                     .buttonStyle(.plain)
                 }
@@ -269,7 +273,7 @@ struct StoryDrawingEditorOverlay: View {
         return Button(action: { brush = brushType }) {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: isSelected ? .semibold : .medium))
-                .foregroundColor(isSelected ? chromeIconColor : chromeSecondaryColor)
+                .foregroundStyle(isSelected ? chromeIconColor : chromeSecondaryColor)
                 .shadow(color: isSelected && brushType == .glow ? Color(color).opacity(0.8) : Color.clear, radius: 6)
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
@@ -512,7 +516,7 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
             let exported = renderExportedImage(
                 from: uiView.drawing,
                 bounds: uiView.bounds,
-                scale: UIScreen.main.scale,
+                scale: uiView.traitCollection.displayScale,
                 strokeMetadata: context.coordinator.strokeMetadata
             )
             onExport(exported, hasStrokes)
@@ -563,6 +567,7 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
             let drawingSnapshot = canvasView.drawing
             let boundsSnapshot = canvasView.bounds
             let metadataSnapshot = strokeMetadata
+            let scaleSnapshot = canvasView.traitCollection.displayScale
 
             let workItem = DispatchWorkItem { [onLiveGlowPreview] in
                 guard shouldRenderGlow || shouldRenderArrow else {
@@ -574,7 +579,7 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
                     from: drawingSnapshot,
                     bounds: boundsSnapshot,
                     strokeMetadata: metadataSnapshot,
-                    scale: UIScreen.main.scale
+                    scale: scaleSnapshot
                 )
                 onLiveGlowPreview(preview)
             }

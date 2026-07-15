@@ -95,7 +95,7 @@ struct StoryTextEditor: View {
                     if isEyedropperActive {
                         Text(NSLocalizedString("storyTextEditor.eyedropperHint", comment: "Tap photo to pick color"))
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
                             .background(Capsule().fill(Color.black.opacity(0.65)))
@@ -145,18 +145,22 @@ struct StoryTextEditor: View {
                 HStack {
                     Button(action: { isPresented = false }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.white)
-                            .padding(14)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .momentsChromeGlass(in: Circle(), interactive: true)
                     }
+                    .buttonStyle(.plain)
                     Spacer()
                     Button(action: { isPresented = false }) {
                         Text(NSLocalizedString("storyTextEditor.done", comment: "Done"))
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
+                            .frame(height: 36)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 8)
                 .padding(.top, topBarTopPadding(proxy.safeAreaInsets.top))
@@ -454,7 +458,7 @@ struct TextStyleOption: View {
         Button(action: onTap) {
             Text(stylePreview)
                 .font(.system(size: 19, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 46, height: 46)
                 .background(
                     ZStack {
@@ -608,7 +612,7 @@ struct AlignmentButton: View {
         }) {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(currentAlignment == alignment ? .white : .gray)
+                .foregroundStyle(currentAlignment == alignment ? .white : .gray)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(currentAlignment == alignment ? Color.white.opacity(0.26) : Color.white.opacity(0.10))
@@ -655,7 +659,7 @@ class KeyboardMonitor: NSObject, ObservableObject {
             let convertedFrame = window.convert(keyboardFrame, from: nil)
             rawHeight = max(0, window.bounds.height - convertedFrame.minY)
         } else {
-            let screenHeight = UIScreen.main.bounds.height
+            let screenHeight = (notification.object as? UIScreen)?.bounds.height ?? keyboardFrame.maxY
             rawHeight = max(0, screenHeight - keyboardFrame.minY)
         }
 
