@@ -83,6 +83,10 @@
 "common.location" = "Location";
 "common.file" = "File";
 "common.close" = "Close";
+"common.back" = "Back";
+
+"feed.a11y.mute" = "Mute video";
+"feed.a11y.unmute" = "Unmute video";
 "storyChains.viewChain" = "View Chain";
 "storyChains.part" = "Part %d of '%@'";
 "storyChains.partShort" = "Part %d";
@@ -4297,3 +4301,25 @@
 "whatsNew.vanishReplies.description" = "Reply to stories in vanish mode too.";
 "whatsNew.signin.title" = "Refreshed sign-in";
 "whatsNew.signin.description" = "A new welcome and progressive sign-up, more reliable on every device.";
+
+"storyOverlay.toast.userNotFound" = "User @%@ not found";
+"storyOverlay.toast.hashtag" = "View posts with #%@";
+"storyOverlay.toast.location" = "View location: %@";
+"storyOverlay.toast.poll" = "Tap to vote in the poll";
+"storyOverlay.toast.question" = "Tap to answer the question";
+"storyOverlay.toast.questionResponse" = "Anonymous response shared";
+
+// Shared activity + edit placeholders
+"sharedActivity.tab.yourReactions" = "Your reactions";
+"sharedActivity.tab.yourComments" = "Your comments";
+"sharedActivity.tab.yourTags" = "Your tags";
+"sharedActivity.tab.fromUser" = "From %@";
+"sharedActivity.empty.yourReactions" = "Reactions you leave on %@'s moments will appear here.";
+"sharedActivity.empty.yourComments" = "Comments you leave on %@'s moments will appear here.";
+"sharedActivity.empty.yourTags" = "Moments you post tagging %@ will appear here.";
+"sharedActivity.empty.theirReactions" = "%@'s reactions on your moments will appear here.";
+"sharedActivity.empty.theirComments" = "%@'s comments on your moments will appear here.";
+"sharedActivity.empty.theirTags" = "Moments where %@ tagged you will appear here.";
+"savedMoments.noResults.title" = "No results";
+"comments.edit.placeholder" = "Edit comment...";
+"audience.search.people.placeholder" = "Search people...";

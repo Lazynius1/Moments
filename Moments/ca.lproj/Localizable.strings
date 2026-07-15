@@ -80,6 +80,10 @@
 "common.location" = "Ubicació";
 "common.file" = "Fitxer";
 "common.close" = "Tancar";
+"common.back" = "Enrere";
+
+"feed.a11y.mute" = "Silenciar vídeo";
+"feed.a11y.unmute" = "Activar so";
 "storyChains.viewChain" = "Veure Cadena";
 "storyChains.part" = "Part %d de '%@'";
 "storyChains.partShort" = "Part %d";
@@ -4287,3 +4291,25 @@
 "whatsNew.vanishReplies.description" = "Respon a històries també en mode efímer.";
 "whatsNew.signin.title" = "Accés renovat";
 "whatsNew.signin.description" = "Nova benvinguda i registre progressiu, més fiable a tots els dispositius.";
+
+"storyOverlay.toast.userNotFound" = "Usuari @%@ no trobat";
+"storyOverlay.toast.hashtag" = "Veure publicacions amb #%@";
+"storyOverlay.toast.location" = "Veure ubicació: %@";
+"storyOverlay.toast.poll" = "Toca per votar a l'enquesta";
+"storyOverlay.toast.question" = "Toca per respondre la pregunta";
+"storyOverlay.toast.questionResponse" = "Resposta anònima compartida";
+
+// Shared activity + edit placeholders
+"sharedActivity.tab.yourReactions" = "Les teves reaccions";
+"sharedActivity.tab.yourComments" = "Els teus comentaris";
+"sharedActivity.tab.yourTags" = "Les teves etiquetes";
+"sharedActivity.tab.fromUser" = "De %@";
+"sharedActivity.empty.yourReactions" = "Les reaccions que deixis als moments de %@ apareixeran aquí.";
+"sharedActivity.empty.yourComments" = "Els comentaris que deixis als moments de %@ apareixeran aquí.";
+"sharedActivity.empty.yourTags" = "Els moments que publiquis on etiquetis %@ apareixeran aquí.";
+"sharedActivity.empty.theirReactions" = "Les reaccions de %@ als teus moments apareixeran aquí.";
+"sharedActivity.empty.theirComments" = "Els comentaris de %@ als teus moments apareixeran aquí.";
+"sharedActivity.empty.theirTags" = "Els moments on %@ t'etiqueti apareixeran aquí.";
+"savedMoments.noResults.title" = "No hi ha resultats";
+"comments.edit.placeholder" = "Editar comentari...";
+"audience.search.people.placeholder" = "Cercar persones...";

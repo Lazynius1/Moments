@@ -83,6 +83,10 @@
 "common.location" = "Ubicación";
 "common.file" = "Archivo";
 "common.close" = "Cerrar";
+"common.back" = "Atrás";
+
+"feed.a11y.mute" = "Silenciar vídeo";
+"feed.a11y.unmute" = "Activar sonido";
 
 /* Custom Lists */
 "audience.customLists" = "Listas Personalizadas";
@@ -4318,3 +4322,25 @@
 "whatsNew.vanishReplies.description" = "Responde a historias también en modo efímero.";
 "whatsNew.signin.title" = "Acceso renovado";
 "whatsNew.signin.description" = "Nueva bienvenida y registro progresivo, más fiable en todos los dispositivos.";
+
+"storyOverlay.toast.userNotFound" = "Usuario @%@ no encontrado";
+"storyOverlay.toast.hashtag" = "Ver publicaciones con #%@";
+"storyOverlay.toast.location" = "Ver ubicación: %@";
+"storyOverlay.toast.poll" = "Toca para votar en la encuesta";
+"storyOverlay.toast.question" = "Toca para responder la pregunta";
+"storyOverlay.toast.questionResponse" = "Respuesta anónima compartida";
+
+// Shared activity + edit placeholders
+"sharedActivity.tab.yourReactions" = "Tus reacciones";
+"sharedActivity.tab.yourComments" = "Tus comentarios";
+"sharedActivity.tab.yourTags" = "Tus etiquetas";
+"sharedActivity.tab.fromUser" = "De %@";
+"sharedActivity.empty.yourReactions" = "Las reacciones que dejes en los momentos de %@ aparecerán aquí.";
+"sharedActivity.empty.yourComments" = "Los comentarios que dejes en los momentos de %@ aparecerán aquí.";
+"sharedActivity.empty.yourTags" = "Los momentos que publiques donde etiquetes a %@ aparecerán aquí.";
+"sharedActivity.empty.theirReactions" = "Las reacciones de %@ en tus momentos aparecerán aquí.";
+"sharedActivity.empty.theirComments" = "Los comentarios de %@ en tus momentos aparecerán aquí.";
+"sharedActivity.empty.theirTags" = "Los momentos donde %@ te etiquete aparecerán aquí.";
+"savedMoments.noResults.title" = "No hay resultados";
+"comments.edit.placeholder" = "Editar comentario...";
+"audience.search.people.placeholder" = "Buscar personas...";
