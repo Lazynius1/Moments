@@ -390,7 +390,7 @@ extension GlassmorphicChatView {
 
                 Spacer(minLength: 0)
             }
-            .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
+            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .momentsChromeGlass(in: Capsule(), interactive: false)
@@ -417,14 +417,14 @@ extension GlassmorphicChatView {
                 Button(action: onCancel) {
                     Text("chat.request.sent.cancel")
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
-            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.58))
+            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.58))
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .momentsChromeGlass(in: Capsule(), interactive: false)
@@ -453,7 +453,7 @@ extension GlassmorphicChatView {
                         Text("messageRequests.accept")
                             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     }
-                    .foregroundColor(colorScheme == .dark ? .black : .white)
+                    .foregroundStyle(colorScheme == .dark ? .black : .white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(
@@ -467,7 +467,7 @@ extension GlassmorphicChatView {
                     Button(role: .destructive, action: onDelete) {
                         Text("messageRequests.delete")
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -477,7 +477,7 @@ extension GlassmorphicChatView {
                     Button(role: .destructive, action: onBlock) {
                         Text("messageRequests.blockUser")
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -487,7 +487,7 @@ extension GlassmorphicChatView {
                     Button(action: onReport) {
                         Text("chat.request.report")
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -514,7 +514,7 @@ extension GlassmorphicChatView {
 
                 Spacer(minLength: 0)
             }
-            .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
+            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .momentsChromeGlass(in: Capsule(), interactive: false)
@@ -529,7 +529,7 @@ extension GlassmorphicChatView {
             HStack(spacing: 10) {
                 Text("chat.blockedByMe.input")
                     .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.58))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.58))
                     .lineLimit(2)
 
                 Spacer(minLength: 6)
@@ -537,7 +537,7 @@ extension GlassmorphicChatView {
                 Button(action: onUnblock) {
                     Text("chat.blockedByMe.unblock")
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .momentsChromeGlass(in: Capsule(), interactive: true)

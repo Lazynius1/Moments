@@ -42,7 +42,7 @@ struct InteractivePollOverlay: View {
                 // Pregunta
                 Text(pollData[0])
                     .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
 
@@ -68,13 +68,13 @@ struct InteractivePollOverlay: View {
                 if hasVoted {
                     Text("poll.thanks")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.green)
+                        .foregroundStyle(.green)
                         .padding(.top, 10)
                 }
 
                 Text(String(format: NSLocalizedString("poll.votes", comment: "Votes count"), totalVotes))
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
             }
             .padding(.vertical, 40)
         }
@@ -433,7 +433,7 @@ struct InteractivePollOption: View {
                     .overlay(
                         Rectangle()
                             .fill(isSelected ? Color.blue : Color.white.opacity(0.3))
-                            .frame(width: UIScreen.main.bounds.width * 0.7 * (percentage / 100))
+                            .frame(width: UIApplication.shared.activeWindowSize.width * 0.7 * (percentage / 100))
                             .animation(.easeInOut(duration: 0.5), value: percentage)
                         , alignment: .leading
                     )
@@ -443,14 +443,14 @@ struct InteractivePollOption: View {
                 HStack {
                     Text(text)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                     Spacer()
 
                     if hasVoted {
                         Text("\(Int(percentage))%")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -484,17 +484,17 @@ struct PollVoteView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "chart.bar.fill")
                         .font(.system(size: 40))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                     Text("poll.vote")
                         .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
 
                 // Pregunta
                 Text(pollData[0])
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
 
@@ -508,14 +508,14 @@ struct PollVoteView: View {
                             HStack {
                                 Text(pollData[index + 1])
                                     .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
 
                                 Spacer()
 
                                 if hasVoted {
                                     Text("\(voteCounts[index] ?? 0)")
                                         .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white.opacity(0.8))
+                                        .foregroundStyle(.white.opacity(0.8))
                                 }
                             }
                             .padding(.horizontal, 20)
@@ -533,7 +533,7 @@ struct PollVoteView: View {
                 if hasVoted {
                     Text("poll.thanks")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.green)
+                        .foregroundStyle(.green)
                 }
 
                 // Botón cerrar
@@ -541,7 +541,7 @@ struct PollVoteView: View {
                     dismiss()
                 }
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 30)
                 .padding(.vertical, 12)
                 .background(
@@ -912,13 +912,13 @@ struct StoryStickerView: View {
                                 Image(systemName: "person.circle.fill")
                                     .resizable()
                                     .frame(width: 34 * sticker.scale, height: 34 * sticker.scale)
-                                    .foregroundColor(.white.opacity(0.5))
+                                    .foregroundStyle(.white.opacity(0.5))
                             }
 
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(sticker.interactionData?.username ?? NSLocalizedString("storyEditor.mention.userFallback", comment: "Fallback username for mention sticker"))
                                     .font(.system(size: legacyPoppinsSize(13 * sticker.scale), weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                             }
 
@@ -944,7 +944,7 @@ struct StoryStickerView: View {
                                 Spacer()
                                 Text(caption)
                                     .font(.system(size: legacyPoppinsSize(9 * sticker.scale), weight: .medium))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 8 * sticker.scale)
                                     .padding(.vertical, 4 * sticker.scale)
                                     .background(.ultraThinMaterial)
@@ -960,7 +960,7 @@ struct StoryStickerView: View {
                                     Spacer()
                                     Image(systemName: "square.on.square.fill")
                                         .font(.system(size: 11 * sticker.scale, weight: .bold))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                         .padding(6 * sticker.scale)
                                         .background(.ultraThinMaterial)
                                         .clipShape(RoundedRectangle(cornerRadius: 8 * sticker.scale))
@@ -1003,7 +1003,7 @@ struct StoryStickerView: View {
 
                                     Text(username)
                                         .font(.system(size: legacyPoppinsSize(10 * sticker.scale), weight: .bold))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
 
                                     Spacer()
                                 }
@@ -1027,7 +1027,7 @@ struct StoryStickerView: View {
                                     Spacer()
                                     Text(caption)
                                         .font(.system(size: legacyPoppinsSize(9 * sticker.scale), weight: .medium))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                         .padding(.horizontal, 8 * sticker.scale)
                                         .padding(.vertical, 4 * sticker.scale)
                                         .background(.ultraThinMaterial)

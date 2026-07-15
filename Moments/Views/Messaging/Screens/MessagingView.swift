@@ -176,7 +176,6 @@ struct MessagingView: View {
                 statusSelectorSheet
             }
             .toolbar(.visible, for: .navigationBar)
-            .navigationBarHidden(false)
             .navigationBarBackButtonHidden(true)
             .toolbar(.hidden, for: .tabBar)
     }
@@ -557,7 +556,7 @@ struct MessagingView: View {
         Button(action: { isShowingNewConversation = true }) {
             Image(systemName: "square.and.pencil")
                 .font(.system(size: 17, weight: .medium))
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
                 .frame(width: 40, height: 40)
                 .modifier(ChatToolbarIconGlassModifier())
         }
@@ -569,7 +568,7 @@ struct MessagingView: View {
             ZStack {
                 Image(systemName: "message.circle")
                     .font(.system(size: 17, weight: .medium))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
                     .frame(width: 40, height: 40)
                     .modifier(ChatToolbarIconGlassModifier())
 
@@ -577,7 +576,7 @@ struct MessagingView: View {
                     Text("\(pendingRequestCount)")
                         .font(.caption2)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(width: 18, height: 18)
                         .background(Circle().fill(Color(hex: "FF3B30")))
                         .offset(x: 12, y: -12)
@@ -592,7 +591,7 @@ struct MessagingView: View {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "message.circle")
                     .font(.system(size: MomentsGlassControlMetrics.toolbarIconSize, weight: .medium))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
                     .frame(
                         width: MomentsGlassControlMetrics.toolbarControlSize,
                         height: MomentsGlassControlMetrics.toolbarControlSize
@@ -602,7 +601,7 @@ struct MessagingView: View {
                     Text("\(pendingRequestCount)")
                         .font(.caption2)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(width: 18, height: 18)
                         .background(Circle().fill(Color(hex: "FF3B30")))
                         .offset(x: 4, y: -4)
@@ -646,12 +645,12 @@ struct MessagingView: View {
         HStack(spacing: 12) {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
                     .font(.system(size: 16))
 
                 TextField(NSLocalizedString("messaging.search.placeholder", comment: "Search conversations placeholder"), text: $searchText)
                     .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
                     .focused($isSearchFocused)
                     .onChange(of: searchText) { _, newValue in
                         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
@@ -670,7 +669,7 @@ struct MessagingView: View {
                         viewModel.clearSearch()
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(adaptiveColors.secondary)
+                            .foregroundStyle(adaptiveColors.secondary)
                             .font(.system(size: 16))
                     }
                 }
@@ -687,7 +686,7 @@ struct MessagingView: View {
                     viewModel.clearSearch()
                 }
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
@@ -705,11 +704,11 @@ struct MessagingView: View {
                  VStack(spacing: 12) {
                      Image(systemName: "exclamationmark.triangle.fill")
                          .font(.system(size: 50))
-                         .foregroundColor(.white.opacity(0.8))
+                         .foregroundStyle(.white.opacity(0.8))
 
                      Text(errorMessage)
                          .font(.system(size: legacyPoppinsSize(16)))
-                         .foregroundColor(.white)
+                         .foregroundStyle(.white)
                          .multilineTextAlignment(.center)
                          .padding(.horizontal)
 
@@ -720,7 +719,7 @@ struct MessagingView: View {
                      }) {
                          Text("messaging.retry")
                              .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                             .foregroundColor(Color(hex: "007AFF"))
+                             .foregroundStyle(Color(hex: "007AFF"))
                              .padding(.horizontal, 30)
                              .padding(.vertical, 12)
                              .background(Color.white.opacity(0.9))
@@ -740,15 +739,15 @@ struct MessagingView: View {
                  VStack(spacing: 16) {
                      Image(systemName: "bubble.left.and.bubble.right.fill")
                          .font(.system(size: 60))
-                         .foregroundColor(.white.opacity(0.8))
+                         .foregroundStyle(.white.opacity(0.8))
 
                      Text("messaging.noConversations.title")
                          .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                         .foregroundColor(.white)
+                         .foregroundStyle(.white)
 
                      Text("messaging.noConversations.subtitle")
                          .font(.system(size: legacyPoppinsSize(14)))
-                         .foregroundColor(.white.opacity(0.8))
+                         .foregroundStyle(.white.opacity(0.8))
 
                      Button(action: {
                          isShowingNewConversation = true
@@ -758,7 +757,7 @@ struct MessagingView: View {
                              Text("messaging.newConversation")
                          }
                          .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                         .foregroundColor(Color(hex: "007AFF"))
+                         .foregroundStyle(Color(hex: "007AFF"))
                          .padding(.horizontal, 24)
                          .padding(.vertical, 12)
                          .background(Color.white.opacity(0.9))
@@ -1240,19 +1239,19 @@ struct SearchMessageResultRow: View {
                     HStack(spacing: 6) {
                         Text(result.conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name"))
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
 
                         Spacer(minLength: 4)
 
                         Text(MomentsFormat.relativeTime(from: result.message.timestamp, style: .compactBare))
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
                     }
 
                     Text(result.message.content ?? "")
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                 }
@@ -1284,18 +1283,18 @@ struct SearchUserRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user.username)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                     Text("messaging.tapToStartConversation")
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: "plus.circle")
                     .font(.system(size: 20))
-                    .foregroundColor(Color(hex: "007AFF"))
+                    .foregroundStyle(Color(hex: "007AFF"))
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
@@ -1421,7 +1420,7 @@ struct GlassmorphicConversationRow: View {
             Text(displayUsername)
                 .font(.system(size: 16, weight: .semibold))
                 .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
-                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(isOtherParticipantUnavailable ? 0.72 : 1.0))
+                .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(isOtherParticipantUnavailable ? 0.72 : 1.0))
 
             if !isOtherParticipantUnavailable {
                 VerifiedBadgeView(userId: conversation.otherParticipantId, size: 14)
@@ -1430,13 +1429,13 @@ struct GlassmorphicConversationRow: View {
             if conversation.isPinned == true {
                 Image(systemName: "pin.fill")
                     .font(.system(size: 12))
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
             }
 
             if conversation.isMuted == true {
                 Image(systemName: "bell.slash.fill")
                     .font(.system(size: 12))
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
             }
         }
 
@@ -1507,13 +1506,13 @@ struct GlassmorphicConversationRow: View {
                     : resolvedPreview
             )
             .font(.system(size: 14, weight: (isUnread && !showsDraftPreview) ? .semibold : .regular))
-            .foregroundColor(previewColor)
+            .foregroundStyle(previewColor)
             .lineLimit(1)
             .layoutPriority(-1)
 
             Text(relativeTime)
                 .font(.system(size: 14))
-                .foregroundColor(secondaryColor)
+                .foregroundStyle(secondaryColor)
                 .fixedSize(horizontal: true, vertical: false)
         }
 
@@ -1690,7 +1689,7 @@ struct GlassmorphicNewConversationView: View {
                     .foregroundStyle(adaptiveColors.primary)
                     .focused($isSearchFocused)
                     .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
+                    .autocorrectionDisabled(true)
 
                 if !searchText.isEmpty {
                     Button {
@@ -1818,7 +1817,7 @@ private struct NewConversationUserRow: View {
             Button(action: onSelect) {
                 Text(user.username)
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())

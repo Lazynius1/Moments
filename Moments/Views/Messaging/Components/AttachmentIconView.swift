@@ -342,7 +342,12 @@ enum AttachmentIconPreset {
 }
 
 extension AttachmentIcon {
+    @available(*, deprecated, message: "use uiImage(size:tint:traitCollection:) instead")
     func uiImage(size: CGFloat, tint: UIColor) -> UIImage? {
+        uiImage(size: size, tint: tint, traitCollection: .current)
+    }
+
+    func uiImage(size: CGFloat, tint: UIColor, traitCollection: UITraitCollection) -> UIImage? {
         guard let image = UIImage(named: rawValue)?.withRenderingMode(.alwaysTemplate) else {
             return nil
         }
@@ -350,7 +355,7 @@ extension AttachmentIcon {
         let target = CGSize(width: size, height: size)
         let format = UIGraphicsImageRendererFormat()
         format.opaque = false
-        format.scale = UIScreen.main.scale
+        format.scale = traitCollection.displayScale
 
         return UIGraphicsImageRenderer(size: target, format: format).image { context in
             tint.setFill()

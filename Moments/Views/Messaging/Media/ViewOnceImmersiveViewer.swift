@@ -15,6 +15,7 @@ struct ViewOnceImmersiveViewer: View {
     var onOpenCameraReply: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.displayScale) private var displayScale
 
     @State private var progress: Double = 0.0
     @State private var duration: Double = 5.0
@@ -335,7 +336,7 @@ struct ViewOnceImmersiveViewer: View {
                 text: $replyText,
                 axis: .vertical
             )
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .font(.system(size: legacyPoppinsSize(14)))
             .padding(.leading, 4)
             .lineLimit(1...3)
@@ -408,7 +409,7 @@ struct ViewOnceImmersiveViewer: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 40, height: 40)
                 .background(Color.white.opacity(0.001))
                 .momentsChromeGlass(in: Circle(), interactive: true)
@@ -456,7 +457,7 @@ struct ViewOnceImmersiveViewer: View {
             Text("chat.viewOnce.replySent")
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
         }
-        .foregroundColor(.white)
+        .foregroundStyle(.white)
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
         .background(Capsule().fill(Color.black.opacity(0.55)))
@@ -485,7 +486,7 @@ struct ViewOnceImmersiveViewer: View {
 
             Button(action: { closeViewer() }) {
                 Image(systemName: "xmark")
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .font(.system(size: 16, weight: .medium))
                     .frame(width: 40, height: 40)
                     .background(Color.white.opacity(0.001))
@@ -552,7 +553,7 @@ struct ViewOnceImmersiveViewer: View {
 
     private func hydrateOverlayState() {
         overlayTextOverlays = message.resolvedTextOverlays
-        overlayStickerItems = message.resolvedStickerItems
+        overlayStickerItems = message.resolvedStickerItems(traitCollection: UITraitCollection(displayScale: displayScale))
         overlayDrawingData = message.drawingData
     }
 

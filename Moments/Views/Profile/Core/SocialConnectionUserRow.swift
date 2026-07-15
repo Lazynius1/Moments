@@ -346,11 +346,11 @@ struct SocialConnectionUserRow<ViewModel: UserListViewModel>: View {
         )
         .contentShape(Rectangle())
         .onTapGesture { onUserTap?(user) }
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             withAnimation(.easeInOut(duration: 0.1)) {
                 isPressed = pressing
             }
-        }, perform: {})
+        })
     }
 
     private func handleAvatarTap(hasStory: Bool) {

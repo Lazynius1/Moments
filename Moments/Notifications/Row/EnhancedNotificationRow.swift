@@ -50,13 +50,13 @@ struct EnhancedNotificationRow: View {
                 if let preview = commentPreviewForGroup {
                     Text(preview)
                         .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.55) : Color.black.opacity(0.5))
+                        .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.55) : Color.black.opacity(0.5))
                         .lineLimit(2)
                 }
                 
                 Text(MomentsFormat.relativeTime(from: group.notifications.first!.timestamp))
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.gray.opacity(0.72))
+                    .foregroundStyle(.gray.opacity(0.72))
             }
             
             Spacer()

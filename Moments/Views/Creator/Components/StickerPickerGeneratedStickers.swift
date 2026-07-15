@@ -91,8 +91,8 @@ extension StickerPickerView {
             let sticker = StickerItem(
                 image: createWeatherBackgroundImage(for: weather.symbol),
                 position: constrainPositionToBounds(CGPoint(
-                    x: UIScreen.main.bounds.width / 2 + CGFloat.random(in: -40...40),
-                    y: UIScreen.main.bounds.height / 2 + CGFloat.random(in: -40...40)
+                    x: canvasSize.width / 2 + CGFloat.random(in: -40...40),
+                    y: canvasSize.height / 2 + CGFloat.random(in: -40...40)
                 )),
                 type: .weather,
                 interactionData: StickerItem.StickerInteractionData(
@@ -208,8 +208,8 @@ extension StickerPickerView {
             let sticker = StickerItem(
                 image: image,
                 position: constrainPositionToBounds(CGPoint(
-                    x: UIScreen.main.bounds.width / 2 + CGFloat.random(in: -40...40),
-                    y: UIScreen.main.bounds.height / 2 + CGFloat.random(in: -40...40)
+                    x: canvasSize.width / 2 + CGFloat.random(in: -40...40),
+                    y: canvasSize.height / 2 + CGFloat.random(in: -40...40)
                 )),
                 type: .weather,
                 interactionData: StickerItem.StickerInteractionData(
@@ -319,8 +319,8 @@ extension StickerPickerView {
             let sticker = StickerItem(
                 image: image,
                 position: constrainPositionToBounds(CGPoint(
-                    x: UIScreen.main.bounds.width / 2 + CGFloat.random(in: -40...40),
-                    y: UIScreen.main.bounds.height / 2 + CGFloat.random(in: -40...40)
+                    x: canvasSize.width / 2 + CGFloat.random(in: -40...40),
+                    y: canvasSize.height / 2 + CGFloat.random(in: -40...40)
                 )),
                 type: .time,
                 interactionData: StickerItem.StickerInteractionData(

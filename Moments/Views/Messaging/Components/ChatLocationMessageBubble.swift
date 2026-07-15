@@ -153,7 +153,7 @@ struct ChatLocationMessageBubble: View {
                 } else {
                     Image(systemName: "mappin.circle.fill")
                         .font(.system(size: 30))
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                 }
             }
             .frame(width: bubbleWidth, height: mapHeight)
@@ -173,13 +173,13 @@ struct ChatLocationMessageBubble: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(titleText)
                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .lineLimit(isLive ? 2 : 1)
                     .fixedSize(horizontal: false, vertical: true)
                 if let subtitle = subtitleText {
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
                         .lineLimit(1)
                 }
             }
@@ -201,7 +201,7 @@ struct ChatLocationMessageBubble: View {
                 Text(LocalizedStringKey("chat.location.stopSharing"))
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
             }
-            .foregroundColor(.red)
+            .foregroundStyle(.red)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
             .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white.opacity(0.6))
@@ -273,7 +273,7 @@ struct ChatLocationMessageBubble: View {
 
 private enum ChatLocationMapMetrics {
     static var displayCornerRadius: CGFloat {
-        let width = UIScreen.main.bounds.width
+        let width = UIApplication.shared.activeWindowSize.width
         if width >= 430 { return 62 }
         if width >= 428 { return 53.33 }
         if width >= 402 { return 62 }
@@ -431,13 +431,13 @@ struct ChatLocationDetailView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(titleText)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .lineLimit(isLive ? 2 : 1)
                         .fixedSize(horizontal: false, vertical: true)
                     if let subtitle = subtitleText {
                         Text(subtitle)
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55))
                             .lineLimit(2)
                     }
                 }
@@ -492,7 +492,7 @@ struct ChatLocationDetailView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .foregroundColor(tint == nil ? (colorScheme == .dark ? .white : .black) : .white)
+            .foregroundStyle(tint == nil ? (colorScheme == .dark ? .white : .black) : .white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
             .momentsChromeGlass(

@@ -39,7 +39,7 @@ struct FilterOption: View {
 
                 Text(filter.rawValue)
                     .font(.system(size: 11, weight: isSelected ? .bold : .medium))
-                    .foregroundColor(isSelected ? .white : .gray)
+                    .foregroundStyle(isSelected ? .white : .gray)
             }
         }
         .onAppear {

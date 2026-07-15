@@ -54,7 +54,7 @@ struct EditMomentView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 background
                     .ignoresSafeArea()
@@ -81,7 +81,7 @@ struct EditMomentView: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.down")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .frame(width: 34, height: 34)
                     }
                     .buttonStyle(.plain)
@@ -90,14 +90,14 @@ struct EditMomentView: View {
                 ToolbarItem(placement: .principal) {
                     Text(NSLocalizedString("editMoment.title", comment: "Edit moment"))
                         .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: saveChanges) {
                         Text(NSLocalizedString("editMoment.save", comment: "Save"))
                             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                            .foregroundColor(hasChanges && !isSaving
+                            .foregroundStyle(hasChanges && !isSaving
                                 ? (colorScheme == .dark ? .white : .black)
                                 : (colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35)))
                             .padding(.horizontal, 4)
@@ -139,7 +139,7 @@ struct EditMomentView: View {
                             .tint(colorScheme == .dark ? .white : .black)
                         Text(NSLocalizedString("editMoment.saving", comment: "Saving"))
                             .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                     .padding(.horizontal, 18)
                     .padding(.vertical, 16)
@@ -187,14 +187,14 @@ struct EditMomentView: View {
                 if editedContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text(NSLocalizedString("editMoment.placeholder", comment: "Placeholder"))
                         .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.35) : .black.opacity(0.32))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.35) : .black.opacity(0.32))
                         .padding(.top, 12)
                         .padding(.leading, 10)
                 }
 
                 TextEditor(text: $editedContent)
                     .font(.system(size: legacyPoppinsSize(16)))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
                     .frame(minHeight: 130)
@@ -248,11 +248,11 @@ struct EditMomentView: View {
         HStack(spacing: 10) {
             Image(systemName: "lock.fill")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.65))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.65))
 
             Text(NSLocalizedString("editMoment.audience.locked.explainer", value: "Este momento fue limitado por moderación y su audiencia no se puede cambiar desde aquí.", comment: "Audience locked explainer"))
                 .font(.system(size: legacyPoppinsSize(12)))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.58))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.58))
 
             Spacer(minLength: 0)
         }
@@ -265,11 +265,11 @@ struct EditMomentView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title)
                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
             Text(subtitle)
                 .font(.system(size: legacyPoppinsSize(12)))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.5))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.5))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -295,7 +295,7 @@ struct EditMomentView: View {
                     } else if let icon {
                         Image(systemName: icon)
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                 }
                 .frame(width: 22, height: 22)
@@ -303,16 +303,16 @@ struct EditMomentView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.62))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.62))
 
                     Text(value)
                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .lineLimit(2)
 
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.56) : .black.opacity(0.48))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.56) : .black.opacity(0.48))
                         .lineLimit(2)
                 }
 
@@ -320,7 +320,7 @@ struct EditMomentView: View {
 
                 Image(systemName: locked ? "lock.fill" : "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.32))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.32))
             }
             .padding(.horizontal, 2)
             .padding(.vertical, 15)
@@ -462,7 +462,7 @@ private struct EditMomentPhotoTagSheet: View {
     @State private var loadFailed = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Group {
                     if let creatorMediaBinding = creatorMediaBinding {
@@ -476,23 +476,23 @@ private struct EditMomentPhotoTagSheet: View {
                                 .tint(colorScheme == .dark ? .white : .black)
                             Text(NSLocalizedString("editMoment.tags.loading", value: "Cargando imagen…", comment: "Loading image for tag editor"))
                                 .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.66))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.66))
                         }
                     } else {
                         VStack(spacing: 14) {
                             Image(systemName: loadFailed ? "exclamationmark.triangle" : "photo")
                                 .font(.system(size: 28, weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.55))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.55))
 
                             Text(NSLocalizedString("editMoment.tags.unavailable", value: "No hemos podido abrir el editor de etiquetas.", comment: "Tags editor unavailable"))
                                 .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .multilineTextAlignment(.center)
 
                             Button(action: { dismiss() }) {
                                 Text(NSLocalizedString("common.ok", value: "OK", comment: "OK"))
                                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 10)
                                     .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -503,7 +503,7 @@ private struct EditMomentPhotoTagSheet: View {
                     }
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 loadEditorMediaIfNeeded()
             }
@@ -612,7 +612,7 @@ private struct EditMomentPreviewCard: View {
                     .overlay(
                         Image(systemName: "photo")
                             .font(.system(size: 28, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.white.opacity(0.8))
                     )
             }
         }

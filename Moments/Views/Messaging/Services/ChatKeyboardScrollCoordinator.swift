@@ -90,7 +90,7 @@ final class ChatKeyboardScrollCoordinator: NSObject, ObservableObject {
             return max(0, window.bounds.height - convertedFrame.minY)
         }
 
-        let screenHeight = UIScreen.main.bounds.height
+        let screenHeight = UIApplication.shared.activeWindowSize.height
         return max(0, screenHeight - keyboardFrame.minY)
     }
 }

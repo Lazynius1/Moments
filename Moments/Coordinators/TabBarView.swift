@@ -539,7 +539,7 @@ struct TabBarItem: View {
                     if usesSystemIcon {
                         Image(systemName: icon)
                             .symbolVariant(isSelected ? .fill : .none)
-                            .foregroundColor(isSelected ? activeColor : inactiveColor)
+                            .foregroundStyle(isSelected ? activeColor : inactiveColor)
                             .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
                     } else {
                         NovaTabGlyph(
@@ -552,7 +552,7 @@ struct TabBarItem: View {
                 // Etiqueta: siempre visible según HIG
                 Text(title)
                     .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? activeColor : inactiveColor)
+                    .foregroundStyle(isSelected ? activeColor : inactiveColor)
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle()) // Área de toque completa según HIG
@@ -601,7 +601,7 @@ struct CreateButton: View {
                 
                 Image(systemName: "plus")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             }
         }
         .buttonStyle(.momentsPress(scale: 0.92, haptic: .none))

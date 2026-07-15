@@ -25,11 +25,11 @@ struct DailyLimitView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(NSLocalizedString("userActivity.timeSpent.dailyLimit.descTitle", value: "Establece tu ritmo", comment: "Daily limit desc title"))
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             
                         Text(NSLocalizedString("userActivity.timeSpent.dailyLimit.descBody", value: "Moments te enviará una notificación cuando rebase el tiempo que hayas decidido pasar en la aplicación cada día.", comment: "Daily limit desc body"))
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .lineSpacing(4)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -41,7 +41,7 @@ struct DailyLimitView: View {
                         Toggle(isOn: $isLimitEnabled.animation(MotionPolicy.Spring.toggle)) {
                             Text(NSLocalizedString("userActivity.timeSpent.dailyLimit.toggle", value: "Aviso de límite diario", comment: "Daily limit toggle"))
                                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                         }
                         .tint(SettingsProfileColors.toggleTint)
                         .padding(.vertical, 14)
@@ -58,7 +58,7 @@ struct DailyLimitView: View {
                         VStack(spacing: 0) {
                             Text(NSLocalizedString("userActivity.timeSpent.dailyLimit.pickerTitle", value: "Duración del límite", comment: "Daily limit picker title"))
                                 .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 16)
                                 .padding(.top, 16)
@@ -100,7 +100,7 @@ struct DailyLimitView: View {
                     Button(action: saveSettings) {
                         Text(NSLocalizedString("settings.schedule.save", comment: "Save"))
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundColor(SettingsProfileColors.accentContrastingText(colorScheme))
+                            .foregroundStyle(SettingsProfileColors.accentContrastingText(colorScheme))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .background(

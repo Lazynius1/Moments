@@ -45,7 +45,7 @@ struct VerifiedUsernameView: View {
     var body: some View {
         HStack(spacing: spacing) {
             Text(username)
-                .foregroundColor(usernameColor)
+                .foregroundStyle(usernameColor)
             
             if isVerified {
                 VerifiedBadge(size: badgeSize)

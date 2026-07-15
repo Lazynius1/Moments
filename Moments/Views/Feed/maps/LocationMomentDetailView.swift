@@ -147,8 +147,8 @@ struct LocationMomentDetailView: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(
-                                    width: UIScreen.main.bounds.width - 32,
-                                    height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
+                                    width: UIApplication.shared.activeWindowSize.width - 32,
+                                    height: (UIApplication.shared.activeWindowSize.width - 32) / max(peekAspectRatio, 0.1)
                                 )
                                 .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
@@ -163,7 +163,7 @@ struct LocationMomentDetailView: View {
                 .zIndex(999)
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(
             isPresented: Binding(
                 get: { selectedMoment != nil },
@@ -263,7 +263,7 @@ struct LocationMomentDetailView: View {
 
                 if value.translation.width > dismissThreshold || velocity > 300 {
                     withAnimation(.easeOut(duration: 0.3)) {
-                        dragOffset = UIScreen.main.bounds.width
+                        dragOffset = UIApplication.shared.activeWindowSize.width
                         backgroundOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -380,7 +380,7 @@ struct LocationMomentDetailView: View {
     }
 
     private func locationMomentsScrollView() -> some View {
-        let screenHeight = UIScreen.main.bounds.height
+        let screenHeight = UIApplication.shared.activeWindowSize.height
         let feedCardHeight = screenHeight * 0.58
 
         return ScrollViewReader { proxy in
@@ -772,7 +772,7 @@ struct LocationMomentCard: View {
                     HStack(spacing: 3) {
                         LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
 
                         VerifiedBadgeView(userId: moment.authorId, size: 12)
                     }
@@ -781,7 +781,7 @@ struct LocationMomentCard: View {
 
                 Text(moment.timestamp.timeAgoDisplay())
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.75))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.75))
             }
         }
         .padding(.horizontal, 10)
@@ -930,7 +930,7 @@ struct LocationMomentCard: View {
                                 // Icon tinted if active
                                 Image(systemName: showTags ? "person.fill" : "person.circle.fill")
                                     .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(showTags ? Color(hex: "007AFF") : .white)
+                                    .foregroundStyle(showTags ? Color(hex: "007AFF") : .white)
                             }
                             .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
                         }
@@ -953,12 +953,12 @@ struct LocationMomentCard: View {
 
                 Text("locationMomentDetail.comments")
                     .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 if commentCount > 0 {
                     Text("(\(commentCount))")
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(
@@ -978,7 +978,7 @@ struct LocationMomentCard: View {
                     onComment()
                 }
                 .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                .foregroundColor(Color(hex: "007AFF"))
+                .foregroundStyle(Color(hex: "007AFF"))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(Color(hex: "007AFF").opacity(0.08))
@@ -1004,11 +1004,11 @@ struct LocationMomentCard: View {
                     VStack(spacing: 8) {
                         Text("locationMomentDetail.noComments.title")
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
 
                         Text("locationMomentDetail.noComments.description")
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.gray.opacity(0.8))
+                            .foregroundStyle(.gray.opacity(0.8))
                             .multilineTextAlignment(.center)
                     }
 
@@ -1016,7 +1016,7 @@ struct LocationMomentCard: View {
                         onComment()
                     }
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .background(
@@ -1214,7 +1214,7 @@ struct LocationActionButtons: View {
                     if commentCount > 0 {
                         Text("\(commentCount)")
                             .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                            .foregroundColor(adaptiveColors.secondary)
+                            .foregroundStyle(adaptiveColors.secondary)
                     }
                 }
                 .padding(.horizontal, 12)
@@ -1308,7 +1308,7 @@ struct LocationExpandableContentView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(content)
                 .font(.system(size: legacyPoppinsSize(13)))
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
                 .lineLimit(isExpanded ? nil : maxLines)
                 .multilineTextAlignment(.leading)
                 .shadow(color: adaptiveColors.shadowColor.opacity(0.8), radius: 2, x: 0, y: 1)
@@ -1338,11 +1338,11 @@ struct LocationExpandableContentView: View {
                     HStack(spacing: 3) {
                         Text(isExpanded ? "menos" : "más")
                             .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
 
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -1416,7 +1416,7 @@ struct FollowButtonForLocation: View {
                 Text(followTitle)
                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
             }
-            .foregroundColor(adaptiveColors.primary)
+            .foregroundStyle(adaptiveColors.primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14), interactive: followButtonState.isActionable)
@@ -1596,7 +1596,7 @@ struct LocationCommentRow: View {
                     HStack(spacing: 3) {
                         Text(comment.username)
                             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
 
                         // ✅ INSIGNIA DE VERIFICADO
                         VerifiedBadgeView(userId: comment.authorId, size: 10)
@@ -1604,14 +1604,14 @@ struct LocationCommentRow: View {
 
                     Text(comment.timestamp.timeAgoDisplay())
                         .font(.system(size: legacyPoppinsSize(10)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.7))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.7))
 
                     Spacer()
                 }
 
                 Text(comment.content)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 

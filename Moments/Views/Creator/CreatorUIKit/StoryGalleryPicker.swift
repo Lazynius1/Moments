@@ -196,18 +196,18 @@ struct StoryGalleryPicker: View {
 
                 Text("creator.gallery.permission")
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
 
                 VStack(spacing: 12) {
                     Text("creator.permissions.instructions.title")
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                     Text("creator.permissions.instructions.path")
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
+                        .foregroundStyle(colorScheme == .dark ? .gray : .gray.opacity(0.7))
                         .multilineTextAlignment(.center)
 
                     Button("creator.permissions.openSettings") {
@@ -216,7 +216,7 @@ struct StoryGalleryPicker: View {
                         }
                     }
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 10)
                     .background(
@@ -233,7 +233,7 @@ struct StoryGalleryPicker: View {
                     dismiss()
                 }
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
+                .foregroundStyle(colorScheme == .dark ? .gray : .gray.opacity(0.7))
             }
         }
     }
@@ -286,10 +286,10 @@ private struct StoryLongVideoDecisionOverlay: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("storyVideo.long.title")
                             .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                         Text(decisionMessage)
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(secondaryTextColor)
+                            .foregroundStyle(secondaryTextColor)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
@@ -298,7 +298,7 @@ private struct StoryLongVideoDecisionOverlay: View {
                 if canAutoSplit {
                     Text("storyVideo.long.revealHint")
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(tertiaryTextColor)
+                        .foregroundStyle(tertiaryTextColor)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
@@ -306,7 +306,7 @@ private struct StoryLongVideoDecisionOverlay: View {
                     Button(action: onCancel) {
                         Text("common.cancel")
                             .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                            .foregroundColor(secondaryTextColor)
+                            .foregroundStyle(secondaryTextColor)
                             .padding(.horizontal, 4)
                             .frame(minHeight: 44)
                     }
@@ -331,7 +331,7 @@ private struct StoryLongVideoDecisionOverlay: View {
                     }
                 }
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 18)

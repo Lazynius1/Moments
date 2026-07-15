@@ -74,19 +74,19 @@ struct ReportCategoryRow: View {
                 // ✅ Icono de la categoría
                 Image(systemName: category.icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(isSelected ? adaptiveColors.accent : adaptiveColors.secondary)
+                    .foregroundStyle(isSelected ? adaptiveColors.accent : adaptiveColors.secondary)
                     .frame(width: 24, height: 24)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(category.title)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
                         .multilineTextAlignment(.leading)
                     
                     if !category.subtitle.isEmpty {
                         Text(category.subtitle)
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(adaptiveColors.tertiary)
+                            .foregroundStyle(adaptiveColors.tertiary)
                             .multilineTextAlignment(.leading)
                     }
                 }
@@ -97,7 +97,7 @@ struct ReportCategoryRow: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(adaptiveColors.accent)
+                        .foregroundStyle(adaptiveColors.accent)
                 } else {
                     Circle()
                         .stroke(adaptiveColors.tertiary, lineWidth: 2)

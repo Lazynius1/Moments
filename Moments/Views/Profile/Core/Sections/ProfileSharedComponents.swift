@@ -20,17 +20,17 @@ struct ModernErrorView: View {
 
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 35))
-                    .foregroundColor(.red.opacity(0.8))
+                    .foregroundStyle(.red.opacity(0.8))
             }
 
             VStack(spacing: 12) {
                 Text("profile.error.title")
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(ProfileColors.textPrimary)
+                    .foregroundStyle(ProfileColors.textPrimary)
 
                 Text(errorMessage)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(ProfileColors.textSecondary)
+                    .foregroundStyle(ProfileColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
@@ -42,7 +42,7 @@ struct ModernErrorView: View {
                     Text("profile.error.retryButton")
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 }
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
                 .background(ProfileColors.accent)
@@ -64,7 +64,7 @@ struct ExpandableBioView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(bio)
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(ProfileColors.textSecondary)
+                .foregroundStyle(ProfileColors.textSecondary)
                 .multilineTextAlignment(.leading)
                 .lineLimit(isExpanded ? nil : 3)
                 .background(
@@ -91,7 +91,7 @@ struct ExpandableBioView: View {
                 }) {
                     Text(isExpanded ? NSLocalizedString("profile.content.seeLess", comment: "See less text") : NSLocalizedString("profile.content.seeMore", comment: "See more text"))
                         .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                        .foregroundColor(ProfileColors.accent)
+                        .foregroundStyle(ProfileColors.accent)
                         .padding(.vertical, 4)
                 }
             }
@@ -237,7 +237,7 @@ struct ProfileAvatarNoteView: View {
         } else if let displayText {
             Text(displayText)
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity)
@@ -250,7 +250,7 @@ struct ProfileAvatarNoteView: View {
         } else if isEditable {
             Text(NSLocalizedString("profile.avatarNote.placeholder", comment: "Avatar note placeholder"))
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity)
@@ -656,7 +656,7 @@ struct FeedPinnedTopChrome: View {
         } center: {
             Text(title)
                 .font(StickyChromeTitleTypography.font)
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
                 .multilineTextAlignment(.center)

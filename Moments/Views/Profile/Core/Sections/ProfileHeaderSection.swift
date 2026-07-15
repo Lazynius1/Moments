@@ -23,7 +23,7 @@ struct ProfileOwnPinnedTopChrome: View {
             HStack(spacing: 5) {
                 Text(username)
                     .font(StickyChromeTitleTypography.font)
-                    .foregroundColor(ProfileColors.textPrimary)
+                    .foregroundStyle(ProfileColors.textPrimary)
                     .lineLimit(1)
 
                 if isVerified {
@@ -75,7 +75,7 @@ struct ProfileOwnPinnedTopChrome: View {
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(ProfileColors.textPrimary)
+                .foregroundStyle(ProfileColors.textPrimary)
                 .frame(width: ProfileChromeGlassMetrics.controlSize, height: ProfileChromeGlassMetrics.controlSize)
                 .contentShape(Circle())
                 .matchedTransitionSource(id: "settings-view", in: profileZoomNamespace)
@@ -206,7 +206,7 @@ struct ModernProfileHeader: View {
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                             }
-                            .foregroundColor(Color(hex: "007AFF"))
+                            .foregroundStyle(Color(hex: "007AFF"))
                         }
                     }
                 }
@@ -233,7 +233,7 @@ struct ModernProfileHeader: View {
                     Text(NSLocalizedString("profile.editButton", comment: "Edit profile"))
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 }
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
                 .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -270,7 +270,7 @@ struct ModernProfileHeader: View {
                         .overlay(
                             Image(systemName: "person.circle.fill")
                                 .font(.system(size: 56))
-                                .foregroundColor(ProfileColors.textTertiary)
+                                .foregroundStyle(ProfileColors.textTertiary)
                         )
                 }
             }
@@ -308,7 +308,7 @@ struct ModernProfileHeader: View {
 
                     Image(systemName: "crown.fill")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(Color(hex: "FFD700"))
+                        .foregroundStyle(Color(hex: "FFD700"))
                 }
                 .offset(x: -37, y: -36)
                 .shadow(color: ProfileColors.shadowColor, radius: 5, x: 0, y: 2)
@@ -371,11 +371,11 @@ struct PlusBadgeInline: View {
         HStack(spacing: 4) {
             Image(systemName: "crown.fill")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
 
                             Text("profile.plus")
                 .font(.system(size: legacyPoppinsSize(9), weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -402,7 +402,7 @@ struct SupportBadgeInline: View {
 
             Text(badge.name.uppercased())
                 .font(.system(size: legacyPoppinsSize(8), weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -445,16 +445,16 @@ struct ProfileOverviewCard: View {
                     HStack(spacing: 10) {
                         Text("profile.interests.title")
                             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                            .foregroundColor(ProfileColors.textPrimary)
+                            .foregroundStyle(ProfileColors.textPrimary)
 
                         Text("· \(interests.count)")
                             .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                            .foregroundColor(ProfileColors.textSecondary)
+                            .foregroundStyle(ProfileColors.textSecondary)
 
                         if !showingInterests, let firstInterest = interests.first {
                             Text(firstInterest)
                                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                                .foregroundColor(ProfileColors.textSecondary)
+                                .foregroundStyle(ProfileColors.textSecondary)
                                 .lineLimit(1)
                         }
 
@@ -462,7 +462,7 @@ struct ProfileOverviewCard: View {
 
                         Image(systemName: "chevron.down")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(ProfileColors.textSecondary)
+                            .foregroundStyle(ProfileColors.textSecondary)
                             .rotationEffect(.degrees(showingInterests ? 180 : 0))
                     }
                     .contentShape(Rectangle())
@@ -516,11 +516,11 @@ struct ModernStatsSection: View {
                     VStack(spacing: 4) {
                         Text(MomentsFormat.count(stat.1, style: .profileStat))
                             .font(.system(size: legacyPoppinsSize(embeddedStyle ? 17 : 18), weight: .bold))
-                            .foregroundColor(ProfileColors.textPrimary)
+                            .foregroundStyle(ProfileColors.textPrimary)
 
                         Text(stat.0)
                             .font(.system(size: legacyPoppinsSize(embeddedStyle ? 10 : 11), weight: .medium))
-                            .foregroundColor(ProfileColors.textSecondary)
+                            .foregroundStyle(ProfileColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, embeddedStyle ? 8 : 14)
@@ -552,7 +552,7 @@ struct ModernInterestsView: View {
             if showsTitle {
                 Text("profile.interests.title")
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(ProfileColors.textPrimary)
+                    .foregroundStyle(ProfileColors.textPrimary)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -565,7 +565,7 @@ struct ModernInterestsView: View {
                                 .font(.system(size: 16))
                             Text(interest)
                                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                .foregroundColor(ProfileColors.textPrimary)
+                                .foregroundStyle(ProfileColors.textPrimary)
                         }
                         .padding(.horizontal, embeddedStyle ? 14 : 16)
                         .padding(.vertical, embeddedStyle ? 9 : 10)

@@ -261,7 +261,7 @@ struct StickerEmojiPalettePicker: View {
                                 Text(LocalizedStringKey(category.titleKey))
                                     .font(.system(size: 12, weight: .semibold))
                             }
-                            .foregroundColor(selectedCategory == category ? .white : categoryText)
+                            .foregroundStyle(selectedCategory == category ? .white : categoryText)
                             .padding(.horizontal, 10)
                             .frame(height: 30)
                             .background(
@@ -335,7 +335,7 @@ struct StickerEmojiPalettePicker: View {
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(categoryText.opacity(0.72))
+                            .foregroundStyle(categoryText.opacity(0.72))
                             .frame(width: 22, height: 22)
                             .background(
                                 Circle()

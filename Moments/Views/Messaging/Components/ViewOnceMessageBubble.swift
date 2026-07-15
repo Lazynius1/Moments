@@ -136,7 +136,7 @@ private struct ViewOncePillBubble: View {
                 if showsDashedRing {
                     Circle()
                         .stroke(style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
-                        .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7))
+                        .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.7))
                         .frame(width: 30, height: 30)
                 }
                 glyph
@@ -145,7 +145,7 @@ private struct ViewOncePillBubble: View {
 
             Text(label)
                 .font(.system(size: legacyPoppinsSize(14), weight: labelWeight))
-                .foregroundColor(adaptiveColors.messageTextColor.opacity(labelOpacity))
+                .foregroundStyle(adaptiveColors.messageTextColor.opacity(labelOpacity))
 
             if showsUnreadDot {
                 Circle()
@@ -191,7 +191,7 @@ struct ViewOnceUnreadBubble: View {
                 glyph: AnyView(
                     Image(systemName: message.type == .viewOnceVideo ? "play.fill" : "camera.fill")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(adaptiveColors.messageTextColor)
+                        .foregroundStyle(adaptiveColors.messageTextColor)
                 ),
                 label: viewOnceTypeText(for: message),
                 showsUnreadDot: true
@@ -214,7 +214,7 @@ struct ViewOnceReplayBubble: View {
                 glyph: AnyView(
                     Image(systemName: "arrow.counterclockwise")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(adaptiveColors.messageTextColor)
+                        .foregroundStyle(adaptiveColors.messageTextColor)
                 ),
                 label: NSLocalizedString("chat.viewOnce.tapToReplay", comment: "Tap to replay")
             )
@@ -234,7 +234,7 @@ struct ViewOnceOpenedBubble: View {
             glyph: AnyView(
                 Image(systemName: "eye.slash")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.4))
+                    .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.4))
             ),
             label: NSLocalizedString("chat.viewOnce.alreadyViewed", comment: "Already viewed"),
             labelWeight: .medium,
@@ -270,11 +270,11 @@ struct ViewOnceSentBubble: View {
                         } else if message.isViewed {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
+                                .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.5))
                         } else {
                             Image(systemName: message.type == .viewOnceVideo ? "play.fill" : "camera.fill")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(adaptiveColors.messageTextColor)
+                                .foregroundStyle(adaptiveColors.messageTextColor)
                         }
                     }
                 ),

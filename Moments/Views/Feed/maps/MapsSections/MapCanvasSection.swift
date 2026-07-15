@@ -41,13 +41,13 @@ struct MapPlacePin: View {
                 Circle()
                     .fill(Color.gray.opacity(0.25))
                     .frame(width: 48, height: 48)
-                    .overlay(Image(systemName: "mappin").foregroundColor(.white))
+                    .overlay(Image(systemName: "mappin").foregroundStyle(.white))
             }
 
             if extraCount > 0 {
                 Text("+\(extraCount)")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
                     .background(Capsule().fill(Color.black.opacity(0.78)))
@@ -87,7 +87,7 @@ struct MapMomentPin: View {
                         Spacer()
                         Text("+\(count)")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
                             .background(Capsule().fill(Color.black.opacity(0.78)))
@@ -118,7 +118,7 @@ struct MapMomentPin: View {
                 .overlay(
                     Image(systemName: "photo")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 )
                 .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
         }
@@ -195,7 +195,7 @@ struct ModernLocationPin: View {
 
             Text(locationName)
                 .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(
@@ -240,11 +240,11 @@ struct ModernLocationGallery: View {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 14))
-                        .foregroundColor(adaptiveColors.accent)
+                        .foregroundStyle(adaptiveColors.accent)
 
                     Text(NSLocalizedString("maps.gallery.explore", comment: "Explore gallery section title"))
                         .font(.system(size: legacyPoppinsSize(16), weight: .bold))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
                 }
 
                 Spacer()
@@ -253,7 +253,7 @@ struct ModernLocationGallery: View {
                     Button(action: onShowAll) {
                         Text(NSLocalizedString("maps.gallery.seeAll", comment: "See all gallery items"))
                             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                            .foregroundColor(adaptiveColors.accent)
+                            .foregroundStyle(adaptiveColors.accent)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(adaptiveColors.accent.opacity(0.1))
@@ -423,7 +423,7 @@ struct ModernLocationGalleryView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .fullScreenCover(isPresented: $showingDetail) {
             if let selectedMoment = selectedMoment,
                let selectedIndex = moments.firstIndex(where: { $0.id == selectedMoment.id }) {
@@ -445,18 +445,18 @@ struct ModernLocationGalleryView: View {
             Button(action: { isPresented = false }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(locationName)
                     .font(.system(size: legacyPoppinsSize(18), weight: .bold))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
                     .lineLimit(1)
 
                 Text(String(format: NSLocalizedString("maps.bottomSheet.moments", comment: "Number of moments in location"), moments.count))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(adaptiveColors.accent)
+                    .foregroundStyle(adaptiveColors.accent)
             }
 
             Spacer()
@@ -486,11 +486,11 @@ struct ModernLocationGalleryView: View {
         VStack(spacing: 16) {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 50))
-                .foregroundColor(adaptiveColors.tertiary)
+                .foregroundStyle(adaptiveColors.tertiary)
 
             Text(NSLocalizedString("maps.gallery.empty", comment: "Gallery empty state"))
                 .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
         }
         .frame(maxHeight: .infinity)
     }

@@ -200,7 +200,7 @@ struct ChatGiphyPickerContent: View {
         HStack {
             Text(LocalizedStringKey("chat.giphy.brand"))
                 .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                .foregroundColor(secondaryText)
+                .foregroundStyle(secondaryText)
                 .textCase(.uppercase)
             Spacer()
         }
@@ -214,7 +214,7 @@ struct ChatGiphyPickerContent: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(LocalizedStringKey("chat.giphy.recents"))
                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                .foregroundColor(secondaryText)
+                .foregroundStyle(secondaryText)
                 .padding(.horizontal, 16)
 
             LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
@@ -259,7 +259,7 @@ struct ChatGiphyPickerContent: View {
     private func stateMessage(key: String) -> some View {
         Text(LocalizedStringKey(key))
             .font(.system(size: legacyPoppinsSize(14)))
-            .foregroundColor(secondaryText)
+            .foregroundStyle(secondaryText)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .padding(.top, 40)

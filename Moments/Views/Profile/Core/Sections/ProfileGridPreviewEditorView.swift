@@ -19,7 +19,7 @@ struct ProfileGridPreviewEditorView: View {
     @State private var isDragging = false
     @State private var isZooming = false
     @GestureState private var gestureTranslation = CGSize.zero
-    @State private var cropSide: CGFloat = UIScreen.main.bounds.width - 24
+    @State private var cropSide: CGFloat = UIApplication.shared.activeWindowSize.width - 24
 
     private var liveOffset: CGSize {
         CGSize(
@@ -99,7 +99,7 @@ struct ProfileGridPreviewEditorView: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .primary)
+                    .foregroundStyle(colorScheme == .dark ? .white : .primary)
                     .padding(10)
                     .background(.ultraThinMaterial)
                     .clipShape(Circle())
@@ -109,7 +109,7 @@ struct ProfileGridPreviewEditorView: View {
 
             Text(NSLocalizedString("profileGridPreview.title", comment: "Adjust preview title"))
                 .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
             Spacer()
 
@@ -120,7 +120,7 @@ struct ProfileGridPreviewEditorView: View {
             } label: {
                 Image(systemName: "checkmark")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(10)
                     .background(.ultraThinMaterial)
                     .clipShape(Circle())
@@ -174,7 +174,7 @@ struct ProfileGridPreviewEditorView: View {
 
             Text(NSLocalizedString("profileGridPreview.hint", comment: "Pinch and drag hint"))
                 .font(.system(size: legacyPoppinsSize(13)))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.55))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.55))
                 .multilineTextAlignment(.center)
                 .frame(minHeight: 36, alignment: .top)
                 .opacity(fitMode == .fill ? 1 : 0)
@@ -225,7 +225,7 @@ struct ProfileGridPreviewEditorView: View {
             HStack(spacing: 8) {
                 label()
             }
-            .foregroundColor(foreground.opacity(foregroundOpacity))
+            .foregroundStyle(foreground.opacity(foregroundOpacity))
             .frame(maxWidth: .infinity, minHeight: 48)
             .background {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -347,10 +347,10 @@ struct ProfileGridPreviewEditorView: View {
                     }
                     HapticManager.shared.lightImpact()
                 },
-            MagnificationGesture()
+            MagnifyGesture()
                 .onChanged { value in
                     isZooming = true
-                    let damped = pow(value, 0.9)
+                    let damped = pow(value.magnification, 0.9)
                     let minimum = minimumScale(for: imageSize)
                     let proposedScale = max(minimum, min(lastScale * damped, 4))
                     let scaleRatio = proposedScale / max(scale, 0.001)

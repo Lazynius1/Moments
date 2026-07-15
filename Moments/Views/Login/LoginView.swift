@@ -28,7 +28,7 @@ struct LoginView: View {
                     WelcomeContent(showLoginForm: $showLoginForm)
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             .navigationDestination(isPresented: $showLoginForm) {
                 LoginFormScreen()
@@ -124,7 +124,7 @@ private struct AuroraGlassButton: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: buttonFontSize).weight(.semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.25), radius: 3, x: 0, y: 1)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: buttonHeight)
@@ -151,9 +151,9 @@ private struct AuroraGlassButton: View {
         }
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isPressed), value: isPressed)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             isPressed = pressing
-        }, perform: {})
+        })
         .accessibilityLabel(Text(title))
     }
 }
@@ -202,11 +202,11 @@ struct WelcomeContent: View {
                             HStack(spacing: 5) {
                                 Text("welcome.haveAccount")
                                     .font(.subheadline.weight(.regular))
-                                    .foregroundColor(primaryText.opacity(0.54))
+                                    .foregroundStyle(primaryText.opacity(0.54))
 
                                 Text("welcome.logIn")
                                     .font(.subheadline.bold())
-                                    .foregroundColor(primaryText)
+                                    .foregroundStyle(primaryText)
                             }
                             .frame(minHeight: 44)
                         }
@@ -299,19 +299,17 @@ struct LoginFormScreen: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .onAppear {
             MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
                 isVisible = true
             }
         }
-        .alert(isPresented: $showAlert) {
-            Alert(
-                title: Text("login.error.title"),
-                message: Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown login error")),
-                dismissButton: .default(Text("login.ok"))
-            )
+        .alert("login.error.title", isPresented: $showAlert) {
+            Button("login.ok") { }
+        } message: {
+            Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown login error"))
         }
         .sheet(isPresented: $showResetPassword) {
             EnhancedResetPasswordView(email: $resetEmail, isPresented: $showResetPassword)
@@ -327,7 +325,7 @@ struct LoginFormScreen: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .frame(width: 36, height: 36)
                     .background {
                         Color.clear
@@ -419,12 +417,10 @@ struct AppleContinueButton: View {
         .frame(height: buttonHeight)
         .clipShape(RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous))
         .disabled(isLoading)
-        .alert(isPresented: $showAlert) {
-            Alert(
-                title: Text("login.error.title"),
-                message: Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown login error")),
-                dismissButton: .default(Text("login.ok"))
-            )
+        .alert("login.error.title", isPresented: $showAlert) {
+            Button("login.ok") { }
+        } message: {
+            Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown login error"))
         }
     }
 
@@ -502,7 +498,7 @@ struct EnhancedHeaderView: View {
             VStack(spacing: 6) {
                 Text("login.hero.title")
                     .font(.system(size: heroFontSize).bold())
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 32)
@@ -583,7 +579,7 @@ struct EnhancedFormView: View {
                 }) {
                     Text("login.forgotPassword")
                         .font(.footnote.weight(.medium))
-                        .foregroundColor(primaryText.opacity(0.58))
+                        .foregroundStyle(primaryText.opacity(0.58))
                 }
             }
 
@@ -665,11 +661,11 @@ struct EnhancedFormView: View {
                     HStack {
                         Text("login.noAccount")
                             .font(.subheadline.weight(.regular))
-                            .foregroundColor(primaryText.opacity(0.54))
+                            .foregroundStyle(primaryText.opacity(0.54))
 
                         Text("login.register")
                             .font(.subheadline.bold())
-                            .foregroundColor(primaryText)
+                            .foregroundStyle(primaryText)
                     }
                 }
             }
@@ -691,7 +687,7 @@ struct EnhancedFormView: View {
                 Text("login.passkey")
                     .font(.system(size: buttonFontSize).weight(.semibold))
             }
-            .foregroundColor(primaryText)
+            .foregroundStyle(primaryText)
             .frame(maxWidth: .infinity)
             .frame(minHeight: buttonHeight)
         }
@@ -768,21 +764,21 @@ struct LoginDisclaimerView: View {
         VStack(spacing: 8) {
             Text("login.disclaimer.line1")
                 .font(.caption.weight(.medium))
-                .foregroundColor(primaryText.opacity(0.42))
+                .foregroundStyle(primaryText.opacity(0.42))
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
 
             (
                 Text(NSLocalizedString("login.disclaimer.line2.prefix", comment: "Login disclaimer prefix"))
-                    .foregroundColor(primaryText.opacity(0.42))
+                    .foregroundStyle(primaryText.opacity(0.42))
                 + Text("lazynius")
-                    .foregroundColor(primaryText.opacity(0.78))
+                    .foregroundStyle(primaryText.opacity(0.78))
                 + Text(NSLocalizedString("login.disclaimer.line2.middle", comment: "Login disclaimer middle"))
-                    .foregroundColor(primaryText.opacity(0.42))
+                    .foregroundStyle(primaryText.opacity(0.42))
                 + Text("Moments")
-                    .foregroundColor(primaryText.opacity(0.78))
+                    .foregroundStyle(primaryText.opacity(0.78))
                 + Text(NSLocalizedString("login.disclaimer.line2.suffix", comment: "Login disclaimer suffix"))
-                    .foregroundColor(primaryText.opacity(0.42))
+                    .foregroundStyle(primaryText.opacity(0.42))
             )
             .font(.caption.weight(.medium))
             .multilineTextAlignment(.center)
@@ -830,7 +826,7 @@ struct EnhancedLoginButton: View {
                         .font(.system(size: buttonFontSize).weight(.semibold))
                 }
             }
-            .foregroundColor(.white.opacity(isEnabled ? 1 : 0.6))
+            .foregroundStyle(.white.opacity(isEnabled ? 1 : 0.6))
             .shadow(color: .black.opacity(isEnabled ? 0.25 : 0.1), radius: 3, x: 0, y: 1)
             .frame(maxWidth: .infinity)
             .frame(minHeight: buttonHeight)
@@ -865,9 +861,9 @@ struct EnhancedLoginButton: View {
         .scaleEffect(isLoading ? 0.95 : (isPressed ? 0.98 : 1.0))
         .animation(.easeInOut(duration: 0.2), value: isLoading)
         .animation(.easeInOut(duration: 0.2), value: isEnabled)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             isPressed = pressing
-        }, perform: {})
+        })
         .accessibilityLabel(Text("login.signIn"))
     }
 }
@@ -899,7 +895,7 @@ struct EnhancedDividerView: View {
 
             Text("login.orContinue")
                 .font(.footnote.weight(.medium))
-                .foregroundColor(textColor)
+                .foregroundStyle(textColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
                 .layoutPriority(1)
@@ -979,12 +975,12 @@ struct EnhancedAccountVerificationView: View {
                     VStack(spacing: 12) {
                         Text("login.verifyingAccount")
                             .font(.system(size: legacyPoppinsSize(26), weight: .bold))
-                            .foregroundColor(AuthColors.primary(colorScheme))
+                            .foregroundStyle(AuthColors.primary(colorScheme))
                             .multilineTextAlignment(.center)
 
                         Text("login.checkingAccountStatus")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                            .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                             .multilineTextAlignment(.center)
                             .lineSpacing(4)
                     }
@@ -1050,7 +1046,7 @@ struct EnhancedResetPasswordView: View {
                             } else {
                                 Text("login.resetPassword.sendLink")
                                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                    .foregroundColor(primaryText)
+                                    .foregroundStyle(primaryText)
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -1082,16 +1078,14 @@ struct EnhancedResetPasswordView: View {
                 isVisible = true
             }
         }
-        .alert(isPresented: $showAlert) {
-            Alert(
-                title: Text("login.info.title"),
-                message: Text(alertMessage),
-                dismissButton: .default(Text("login.ok")) {
-                    if dismissAfterAlert {
-                        isPresented = false
-                    }
+        .alert("login.info.title", isPresented: $showAlert) {
+            Button("login.ok") {
+                if dismissAfterAlert {
+                    isPresented = false
                 }
-            )
+            }
+        } message: {
+            Text(alertMessage)
         }
     }
 
@@ -1100,11 +1094,11 @@ struct EnhancedResetPasswordView: View {
             VStack(spacing: 5) {
                 Text("login.resetPassword.title")
                     .font(.system(size: legacyPoppinsSize(22), weight: .bold))
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
 
                 Text("login.resetPassword.description")
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.68))
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
             }
@@ -1116,7 +1110,7 @@ struct EnhancedResetPasswordView: View {
                 } label: {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(primaryText)
+                        .foregroundStyle(primaryText)
                         .frame(width: 38, height: 38)
                         .background {
                             Color.clear

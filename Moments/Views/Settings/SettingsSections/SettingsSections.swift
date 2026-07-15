@@ -150,7 +150,7 @@ struct SettingsVersionFooter: View {
 
             Text(verbatim: "v\(appVersion)")
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.35) : .black.opacity(0.30))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.35) : .black.opacity(0.30))
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 24)
@@ -174,7 +174,7 @@ struct SettingsGroup<Content: View>: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())
                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                 .padding(.leading, 4)
 
             VStack(spacing: 0) {
@@ -228,7 +228,7 @@ struct SettingsRow: View {
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 19, weight: .regular))
-                            .foregroundColor(iconForegroundColor)
+                            .foregroundStyle(iconForegroundColor)
                     }
                 }
                 .frame(width: 28, alignment: .center)
@@ -236,12 +236,12 @@ struct SettingsRow: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(isDestructive ? .red : (colorScheme == .dark ? .white : .black))
+                        .foregroundStyle(isDestructive ? .red : (colorScheme == .dark ? .white : .black))
 
                     if let subtitle = subtitle, !subtitle.isEmpty {
                         Text(subtitle)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
                 }
 
@@ -250,11 +250,11 @@ struct SettingsRow: View {
                 if isExternal {
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.gray.opacity(0.5))
+                        .foregroundStyle(.gray.opacity(0.5))
                 } else {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.gray.opacity(0.3))
+                        .foregroundStyle(.gray.opacity(0.3))
                 }
             }
             .padding(.vertical, 11)
@@ -288,18 +288,18 @@ struct AdvancedAccountSection: View {
                 HStack(spacing: 14) {
                     Image(systemName: "gear.badge")
                         .font(.system(size: 19, weight: .regular))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(width: 28, alignment: .center)
 
                     Text(NSLocalizedString("settings.advanced.title", comment: "Advanced"))
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.gray.opacity(0.3))
+                        .foregroundStyle(.gray.opacity(0.3))
                 }
                 .padding(.vertical, 11)
                 .padding(.horizontal, 4)
@@ -419,7 +419,7 @@ struct AdvancedAccountManagementView: View {
                             Text("settings.info.title")
                                 .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                         }
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.62))
 
                         VStack(alignment: .leading, spacing: 6) {
                             Text("settings.info.deactivate")
@@ -427,7 +427,7 @@ struct AdvancedAccountManagementView: View {
                             Text("settings.info.reactivate")
                         }
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.58))
                         .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.horizontal, 4)
@@ -515,7 +515,7 @@ private struct AdvancedSheetHeader: View {
                 Button(action: onLeadingTap) {
                     Image(systemName: leadingIcon)
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .foregroundStyle(AuthColors.primary(colorScheme))
                         .frame(width: 40, height: 40)
                         .background {
                             Color.clear
@@ -530,13 +530,13 @@ private struct AdvancedSheetHeader: View {
             VStack(spacing: 5) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .multilineTextAlignment(.center)
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.58))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .padding(.horizontal, 56)
@@ -565,11 +565,11 @@ private struct AdvancedAccountActionRow: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                        .foregroundColor(isDestructive ? .red : AuthColors.primary(colorScheme))
+                        .foregroundStyle(isDestructive ? .red : AuthColors.primary(colorScheme))
 
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.54))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.54))
                         .lineLimit(2)
                 }
 
@@ -577,12 +577,12 @@ private struct AdvancedAccountActionRow: View {
 
                 Image(systemName: icon)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(accent)
+                    .foregroundStyle(accent)
                     .frame(width: 34, height: 34)
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.35))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.35))
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
@@ -613,7 +613,7 @@ struct ProfileSection: View {
                         .overlay(
                             Image(systemName: "person.fill")
                                 .font(.system(size: 35))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                         )
                 }
 
@@ -664,7 +664,7 @@ struct ProfileSection: View {
 
                             Image(systemName: "crown.fill")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(Color(hex: "FFD700"))
+                                .foregroundStyle(Color(hex: "FFD700"))
                         }
                         .offset(x: -28, y: -28)
                         .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
@@ -679,14 +679,14 @@ struct ProfileSection: View {
                 HStack(spacing: 8) {
                     Text(username.isEmpty ? "Usuario" : username)
                         .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                     // Badges inline
                     if let currentUser = authService.currentUser {
                         if currentUser.isPlusSubscriber {
                             Text(NSLocalizedString("common.pro", comment: "PRO badge"))
                                 .font(.system(size: legacyPoppinsSize(10), weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
                                 .background(Color(hex: "FFD700"))
@@ -700,11 +700,11 @@ struct ProfileSection: View {
                     HStack(spacing: 8) {
                         Image(systemName: "crown.fill")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color(hex: "FFD700"))
+                            .foregroundStyle(Color(hex: "FFD700"))
 
                         Text("settings.plus.active")
                             .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                            .foregroundColor(Color(hex: "FFD700"))
+                            .foregroundStyle(Color(hex: "FFD700"))
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -774,16 +774,16 @@ struct PrivacySection: View {
                 HStack(spacing: 14) {
                     Image(systemName: isPrivate ? "lock" : "lock.open")
                         .font(.system(size: 19, weight: .regular))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(width: 28, alignment: .center)
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text(NSLocalizedString("settings.privacy.privateAccount", comment: "Private account"))
                             .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         Text(NSLocalizedString("settings.privacy.privateAccount.description", comment: "Private account description"))
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
 
                     Spacer()
@@ -827,16 +827,16 @@ struct PrivacySection: View {
             HStack(spacing: 14) {
                 Image(systemName: "checkmark.circle")
                     .font(.system(size: 19, weight: .regular))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(width: 28, alignment: .center)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(NSLocalizedString("settings.privacy.readReceipts.title", comment: "Read receipts"))
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     Text(NSLocalizedString("settings.privacy.readReceipts.description", comment: "Read receipts description"))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 }
 
                 Spacer()
@@ -887,16 +887,16 @@ struct MessageRequestPolicyRow: View {
             HStack(spacing: 14) {
                 Image(systemName: "envelope.badge")
                     .font(.system(size: 19, weight: .regular))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(width: 28, alignment: .center)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(NSLocalizedString("settings.privacy.messageRequests.title", comment: "Message requests"))
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     Text(NSLocalizedString("settings.privacy.messageRequests.description", comment: "Who can send you message requests"))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 }
 
                 Spacer()
@@ -923,7 +923,7 @@ struct MessageRequestPolicyRow: View {
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.system(size: 11, weight: .semibold))
                     }
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                 }
             }
             .padding(.vertical, 11)
@@ -961,7 +961,7 @@ struct ConnectionVisibilityView: View {
                     LazyVStack(alignment: .leading, spacing: 20) {
                         Text("settings.privacy.control.title")
                             .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
 
                         VStack(spacing: 0) {
                             privacyToggleRow(
@@ -997,7 +997,7 @@ struct ConnectionVisibilityView: View {
 
                         Text("settings.privacy.control.description")
                             .font(.system(size: legacyPoppinsSize(11)))
-                            .foregroundColor(.gray.opacity(0.8))
+                            .foregroundStyle(.gray.opacity(0.8))
                             .padding(.top, 2)
                     }
                     .padding(.horizontal, 20)
@@ -1019,16 +1019,16 @@ struct ConnectionVisibilityView: View {
     private func privacyToggleRow(title: LocalizedStringKey, description: LocalizedStringKey, isOn: Binding<Bool>) -> some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: "eye.slash")
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .font(.system(size: 18))
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 Text(description)
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .font(.system(size: legacyPoppinsSize(12)))
             }
 
@@ -1055,17 +1055,17 @@ private struct AppleLinkSettingsRow: View {
                 HStack(spacing: 14) {
                     Image(systemName: "applelogo")
                         .font(.system(size: 19, weight: .regular))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(width: 28, alignment: .center)
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text("settings.security.appleId")
                             .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                         Text("settings.security.appleId.description")
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
 
                     Spacer()
@@ -1125,17 +1125,17 @@ struct SecurityStatusRow<OverlayView: View>: View {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.system(size: 19, weight: .regular))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(width: 28, alignment: .center)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 }
 
                 Spacer()
@@ -1146,11 +1146,11 @@ struct SecurityStatusRow<OverlayView: View>: View {
                 } else if isConfigured {
                     Image(systemName: "checkmark")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(hex: "34C759"))
+                        .foregroundStyle(Color(hex: "34C759"))
                 } else {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.gray.opacity(0.3))
+                        .foregroundStyle(.gray.opacity(0.3))
                 }
             }
             .padding(.vertical, 11)
@@ -1550,12 +1550,12 @@ struct LogoutSection: View {
             HStack(spacing: 14) {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
                     .font(.system(size: 19, weight: .regular))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                     .frame(width: 28, alignment: .center)
 
                 Text(NSLocalizedString("settings.logout", comment: "Log out"))
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
 
                 Spacer()
             }

@@ -42,7 +42,7 @@ struct ModernMomentContextMenu: View {
             }) {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
                     .background(
                         Color.clear
@@ -157,7 +157,8 @@ enum ContextMenuViewState {
 struct ModernContextMenuOverlay: View {
     let moment: Moment
     @Binding var isPresented: Bool
-    
+    @Environment(\.displayScale) private var displayScale
+
     @State private var viewState: ContextMenuViewState = .main
     
     // ✅ ESTADOS PARA HISTORIA
@@ -607,10 +608,10 @@ struct ModernContextMenuOverlay: View {
             .frame(width: 260)
         
         let renderer = ImageRenderer(content: stickerView)
-        renderer.scale = UIScreen.main.scale
+        renderer.scale = displayScale
         
         if let uiImage = renderer.uiImage {
-            let position = CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2)
+            let position = CGPoint(x: UIApplication.shared.activeWindowSize.width / 2, y: UIApplication.shared.activeWindowSize.height / 2)
             
             let interactionData = StickerItem.StickerInteractionData(
                 username: moment.username,
@@ -681,11 +682,11 @@ struct ModernContextMenuContent: View {
                 VStack(alignment: .leading, spacing: 2) {
                     LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     Text("Momento • \(formatRelativeTime(moment.timestamp))")
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
                 }
                 
             }
@@ -797,11 +798,11 @@ private struct HiddenLayerMetricsSummaryCard: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(NSLocalizedString("hiddenLayers.metrics.title", value: "Capas ocultas", comment: "Hidden layers metrics title"))
                             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                         Text(summaryText)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
                             .multilineTextAlignment(.leading)
                             .lineLimit(2)
                     }
@@ -811,7 +812,7 @@ private struct HiddenLayerMetricsSummaryCard: View {
                     if let leadingChip {
                         Text(leadingChip)
                             .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
                             .background(
@@ -822,7 +823,7 @@ private struct HiddenLayerMetricsSummaryCard: View {
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.35))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.35))
                 }
                 .padding(.vertical, 8)
             }
@@ -911,13 +912,13 @@ private struct HiddenLayerMetricsListView: View {
                     ProgressView()
                     Text(NSLocalizedString("hiddenLayers.metrics.loading", value: "Cargando actividad de tus secretos…", comment: "Hidden layers metrics loading"))
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.56))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.56))
                 }
                 .padding(.vertical, 32)
             } else if let errorMessage {
                     Text(errorMessage)
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.56))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.56))
                         .padding(.vertical, 32)
             } else if let metrics {
                 VStack(alignment: .leading, spacing: 0) {
@@ -958,14 +959,14 @@ private struct HiddenLayerMetricsListView: View {
             inlineMetricText("\(Int((metrics.coverageRatio * 100).rounded()))%", NSLocalizedString("hiddenLayers.metrics.card.coverage", value: "Cobertura", comment: ""))
         }
         .font(.system(size: legacyPoppinsSize(12)))
-        .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.58))
+        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.58))
     }
 
     private func inlineMetricText(_ value: String, _ label: String) -> some View {
         HStack(spacing: 4) {
             Text(value)
                 .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
             Text(label)
         }
     }
@@ -992,13 +993,13 @@ private struct HiddenLayerMetricsRow: View {
                 HStack(spacing: 8) {
                     Text(layer.metricsDisplayName)
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
 
                     if let status = layer.metricsStatusText {
                         Text(status)
                             .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.65))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.65))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Capsule().fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
@@ -1010,7 +1011,7 @@ private struct HiddenLayerMetricsRow: View {
                     Text(String(format: NSLocalizedString("hiddenLayers.metrics.row.people", value: "%d personas", comment: ""), layer.uniqueDiscovererCount ?? 0))
                 }
                 .font(.system(size: legacyPoppinsSize(11)))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.56))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.56))
 
                 if let latest = discoveries.first {
                     Text(String(
@@ -1018,7 +1019,7 @@ private struct HiddenLayerMetricsRow: View {
                         MomentsFormat.smartDate(from: latest.discoveredAt, context: .mediumDateTime)
                     ))
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
                 }
             }
 
@@ -1026,7 +1027,7 @@ private struct HiddenLayerMetricsRow: View {
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.3))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.3))
         }
         .padding(.vertical, 12)
     }
@@ -1082,13 +1083,13 @@ private struct HiddenLayerMetricDetailView: View {
                             HStack(spacing: 8) {
                                 Text(layer.metricsDisplayName)
                                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .lineLimit(1)
 
                                 if let status = layer.metricsStatusText {
                                     Text(status)
                                         .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.65))
+                                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.65))
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
                                         .background(Capsule().fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
@@ -1103,7 +1104,7 @@ private struct HiddenLayerMetricDetailView: View {
                         inlineStatText("\(detailCoveragePercent(for: layer))%", NSLocalizedString("hiddenLayers.metrics.card.coverage", value: "Cobertura", comment: ""))
                     }
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.56))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.56))
                 }
             }
 
@@ -1113,12 +1114,12 @@ private struct HiddenLayerMetricDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(NSLocalizedString("hiddenLayers.metrics.latestPeople", value: "Últimas personas", comment: "Latest people title"))
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 if discoveries.isEmpty {
                     Text(NSLocalizedString("hiddenLayers.metrics.latestPeople.empty", value: "Todavía no hay actividad reciente en esta capa.", comment: "No recent discoveries"))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.56))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.56))
                 } else {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(discoveries.enumerated()), id: \.element.id) { index, discovery in
@@ -1160,7 +1161,7 @@ private struct HiddenLayerMetricDetailView: View {
         HStack(spacing: 4) {
             Text(value)
                 .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
             Text(label)
         }
     }
@@ -1201,10 +1202,10 @@ private struct HiddenLayerDiscoveryPersonRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(discovery.username ?? "@\(discovery.viewerId.prefix(6))")
                         .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     Text(MomentsFormat.smartDate(from: discovery.discoveredAt, context: .mediumDateTime))
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.64) : .black.opacity(0.5))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.64) : .black.opacity(0.5))
                 }
 
                 Spacer(minLength: 0)
@@ -1244,13 +1245,13 @@ private struct HiddenLayerMetricLayerPreview: View {
             case .text:
                 Text(layer.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? String((layer.text ?? "").prefix(18)) : "Aa")
                     .font(.system(size: style == .detail ? 12 : 11, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .padding(style == .detail ? 8 : 6)
             case .audio:
                 Image(systemName: "waveform")
                     .font(.system(size: style == .detail ? 16 : 15, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             case .image:
                 if let mediaURL = layer.mediaURL, let url = URL(string: mediaURL) {
                     HiddenLayerRemotePolaroidPreview(
@@ -1266,7 +1267,7 @@ private struct HiddenLayerMetricLayerPreview: View {
                 } else {
                     Image(systemName: "photo")
                         .font(.system(size: style == .detail ? 16 : 15, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
         }
@@ -1290,7 +1291,7 @@ private struct ContextSubheaderView: View {
 
             Text(title)
                 .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
             Spacer()
         }
@@ -1346,24 +1347,24 @@ struct ContextMenuButton: View {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(icon == "flag" ? .red : (colorScheme == .dark ? .white : .black))
+                    .foregroundStyle(icon == "flag" ? .red : (colorScheme == .dark ? .white : .black))
                     .frame(width: 28)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
                 }
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.3))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.3))
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 4)
@@ -1384,24 +1385,24 @@ struct ContextMenuButtonDisabled: View {
         HStack(spacing: 16) {
             Image(systemName: icon)
                 .font(.system(size: 20, weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45))
                 .frame(width: 28)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
                 
                 Text(subtitle)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.3))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.3))
             }
             
             Spacer()
             
             Image(systemName: "lock.fill")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.2))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.2))
         }
         .padding(16)
         .background(

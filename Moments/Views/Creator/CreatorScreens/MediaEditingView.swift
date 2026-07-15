@@ -37,7 +37,7 @@ struct MediaEditingView: View {
                             cancelFilter()
                         }) {
                             Text(NSLocalizedString("common.cancel", comment: ""))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .font(.system(size: 16, weight: .medium))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
@@ -49,7 +49,7 @@ struct MediaEditingView: View {
 
                         Text(NSLocalizedString("creator.edit", comment: ""))
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
 
                         Spacer()
 
@@ -57,7 +57,7 @@ struct MediaEditingView: View {
                             applyFilter()
                         }) {
                             Text(NSLocalizedString("common.done", comment: ""))
-                                .foregroundColor(.pink)
+                                .foregroundStyle(.pink)
                                 .font(.system(size: 16, weight: .bold))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
@@ -70,7 +70,7 @@ struct MediaEditingView: View {
                         }) {
                             Image(systemName: "chevron.left")
                                 .font(.title2)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .padding(10)
                                 .momentsChromeGlass(in: Circle(), interactive: true)
                         }
@@ -79,7 +79,7 @@ struct MediaEditingView: View {
 
                         Text(NSLocalizedString("creator.edit", comment: ""))
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.5), radius: 5)
 
                         Spacer()
@@ -111,21 +111,21 @@ struct MediaEditingView: View {
                                         .aspectRatio(contentMode: .fit)
                                 }
                             }
-                            .cornerRadius(12)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .padding(.horizontal, 10)
                             .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
                             .tag(index)
                         }
                     }
                     .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                    .frame(maxHeight: UIScreen.main.bounds.height * 0.6)
+                    .containerRelativeFrame(.vertical) { height, _ in height * 0.6 }
 
                     // Recommended Dimensions badge
                     VStack {
                         if recommendedAspectRatio != .square || (currentMediaIndex < selectedMediaItems.count && selectedMediaItems[currentMediaIndex].aspectRatio != recommendedAspectRatio) {
                             Text("creator.recommendedDimensions")
                                 .font(.caption2)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
                                 .background(.ultraThinMaterial)
@@ -150,11 +150,11 @@ struct MediaEditingView: View {
                                     HStack {
                                         Text("creator.intensity")
                                             .font(.system(size: 13, weight: .medium))
-                                            .foregroundColor(.white.opacity(0.8))
+                                            .foregroundStyle(.white.opacity(0.8))
                                         Spacer()
                                         Text("\(Int(tempFilterIntensity * 100))%")
                                             .font(.system(size: 11, weight: .bold))
-                                            .foregroundColor(.pink)
+                                            .foregroundStyle(.pink)
                                     }
 
                                     Slider(value: $tempFilterIntensity, in: 0...1)
@@ -255,7 +255,7 @@ struct MediaEditingView: View {
 
                                                 Text(ratio.displayName)
                                                     .font(.system(size: 8, weight: .medium))
-                                                    .foregroundColor(selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? .pink : .white.opacity(0.6))
+                                                    .foregroundStyle(selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? .pink : .white.opacity(0.6))
                                             }
                                         }
                                     }
@@ -282,7 +282,7 @@ struct MediaEditingView: View {
                     LinearGradient(colors: [.clear, .black.opacity(0.9)], startPoint: .top, endPoint: .bottom)
                 )
             }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .background(
             ZStack {
                 Color.black.ignoresSafeArea()
@@ -290,7 +290,7 @@ struct MediaEditingView: View {
                     Image(uiImage: selectedMediaItems[currentMediaIndex].image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .blur(radius: 40)
                         .overlay(Color.black.opacity(0.4))
                         .ignoresSafeArea()

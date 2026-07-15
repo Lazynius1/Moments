@@ -23,7 +23,7 @@ struct UploadProgressRow: View {
                     .overlay(
                         Image(systemName: "photo")
                             .font(.system(size: 12))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     )
             }
 
@@ -31,7 +31,7 @@ struct UploadProgressRow: View {
                 HStack {
                     Text(uploadingMoment.content.isEmpty ? NSLocalizedString("feed.uploading.newMoment", comment: "New moment text") : uploadingMoment.content)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     Spacer()
@@ -78,7 +78,7 @@ struct UploadProgressRow: View {
 
                 Text(NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status"))
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
 
             case .uploading:
                 ProgressView()
@@ -87,12 +87,12 @@ struct UploadProgressRow: View {
 
                 Text(String(format: NSLocalizedString("feed.uploading.progress", comment: "Upload progress"), Int(uploadingMoment.uploadProgress * 100)))
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
 
             case .processing:
                 Image(systemName: "gearshape.2")
                     .font(.system(size: 12))
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
                     .rotationEffect(.degrees(rotationAngle))
                     .onAppear {
                         withAnimation(.linear(duration: 1.0).repeatForever(autoreverses: false)) {
@@ -102,12 +102,12 @@ struct UploadProgressRow: View {
 
                 Text("feed.uploading.processing")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
 
             case .completed, .moderated:
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 14))
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
                     .scaleEffect(checkScale)
                     .onAppear {
                         hapticNotification(.success)
@@ -123,7 +123,7 @@ struct UploadProgressRow: View {
 
                 Text("feed.uploading.published")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
 
             case .failed:
                 Button(action: {
@@ -137,7 +137,7 @@ struct UploadProgressRow: View {
                         Text("feed.uploading.retry")
                             .font(.system(size: 11, weight: .medium))
                     }
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                 }
 
                 Button(action: {
@@ -145,7 +145,7 @@ struct UploadProgressRow: View {
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 14))
-                        .foregroundColor(.red.opacity(0.7))
+                        .foregroundStyle(.red.opacity(0.7))
                 }
             }
         }
@@ -171,14 +171,14 @@ struct UploadProgressRow: View {
             HStack {
                 Text(statusText)
                     .font(.system(size: 10))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
 
                 if uploadingMoment.mediaCount > 1 {
                     Text(String(format: NSLocalizedString("feed.uploading.files", comment: "Files count"), uploadingMoment.mediaCount))
                         .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
         }

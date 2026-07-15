@@ -94,6 +94,7 @@ struct StoryViewerScreen: View {
     @State private var isVanishActiveWithAuthor = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.displayScale) private var displayScale
     @Environment(\.storyDeckGestureGate) private var deckGestureGate
     private let gestureCoordinator = StoryGestureCoordinator()
     @State private var keyboardHeight: CGFloat = 0 // Track keyboard height
@@ -181,7 +182,7 @@ struct StoryViewerScreen: View {
             return cached
         }
 
-        let stickers = story.convertStickersToStickerItems()
+        let stickers = story.convertStickersToStickerItems(traitCollection: UITraitCollection(displayScale: displayScale))
         storyStickerCache[key] = stickers
         return stickers
     }
@@ -787,7 +788,7 @@ struct StoryViewerScreen: View {
                                 .momentsChromeGlass(in: Circle())
 
                             Image(systemName: "person.circle.fill")
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundStyle(.white.opacity(0.7))
                                 .font(.system(size: 28))
                         }
                     }
@@ -795,7 +796,7 @@ struct StoryViewerScreen: View {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
                             Text(story.username)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                 .lineLimit(1)
                                 .shadow(color: Color.black.opacity(0.60), radius: 5, x: 0, y: 2)
@@ -808,7 +809,7 @@ struct StoryViewerScreen: View {
                         }
 
                         Text(timeAgoString(from: story.timestamp))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.7))
                             .font(.system(size: legacyPoppinsSize(11)))
                             .shadow(color: Color.black.opacity(0.55), radius: 4, x: 0, y: 2)
                     }
@@ -826,7 +827,7 @@ struct StoryViewerScreen: View {
                         }
                     }) {
                         Image(systemName: "link")
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .font(.system(size: 16, weight: .medium))
                             .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.001))
@@ -852,7 +853,7 @@ struct StoryViewerScreen: View {
 
                 Button(action: toggleQuickActions) {
                     Image(systemName: "ellipsis")
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .font(.system(size: 16, weight: .medium))
                         .frame(width: 40, height: 40)
                         .background(Color.white.opacity(0.001))
@@ -862,7 +863,7 @@ struct StoryViewerScreen: View {
 
                 Button(action: onClose) {
                     Image(systemName: "xmark")
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .font(.system(size: 16, weight: .medium))
                         .frame(width: 40, height: 40)
                         .background(Color.white.opacity(0.001))
@@ -880,11 +881,11 @@ struct StoryViewerScreen: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: "link")
-                    .foregroundColor(chainPanelSecondary)
+                    .foregroundStyle(chainPanelSecondary)
                     .font(.system(size: 13, weight: .semibold))
 
                 Text(String(format: NSLocalizedString("storyChains.part", comment: "Part"), chainPosition, chainTitle))
-                    .foregroundColor(chainPanelSecondary)
+                    .foregroundStyle(chainPanelSecondary)
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .lineLimit(1)
             }
@@ -906,7 +907,7 @@ struct StoryViewerScreen: View {
                             .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                             .lineLimit(1)
                     }
-                    .foregroundColor(chainPanelPrimary)
+                    .foregroundStyle(chainPanelPrimary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .frame(maxWidth: .infinity)
@@ -927,7 +928,7 @@ struct StoryViewerScreen: View {
                                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                 .lineLimit(1)
                         }
-                        .foregroundColor(chainPanelPrimary)
+                        .foregroundStyle(chainPanelPrimary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
@@ -950,7 +951,7 @@ struct StoryViewerScreen: View {
                                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                 .lineLimit(1)
                         }
-                        .foregroundColor(chainPanelPrimary.opacity(currentChainIndex > 0 ? 1 : 0.45))
+                        .foregroundStyle(chainPanelPrimary.opacity(currentChainIndex > 0 ? 1 : 0.45))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
@@ -970,7 +971,7 @@ struct StoryViewerScreen: View {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 13, weight: .semibold))
                         }
-                        .foregroundColor(chainPanelPrimary.opacity(currentChainIndex < chainStories.count - 1 ? 1 : 0.45))
+                        .foregroundStyle(chainPanelPrimary.opacity(currentChainIndex < chainStories.count - 1 ? 1 : 0.45))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
@@ -1088,7 +1089,7 @@ struct StoryViewerScreen: View {
                             HStack(spacing: 8) {
                                 if authorAllowsMessages {
                                     TextField(storyMessagePlaceholder, text: $messageText, axis: .vertical)
-                                        .foregroundColor(storyViewerChromeColors.messageTextColor)
+                                        .foregroundStyle(storyViewerChromeColors.messageTextColor)
                                         .font(.system(size: legacyPoppinsSize(14)))
                                         .padding(.leading, 4)
                                         .lineLimit(1...3)
@@ -1109,11 +1110,11 @@ struct StoryViewerScreen: View {
                                 } else {
                                     HStack(spacing: 8) {
                                         Image(systemName: "slash.circle")
-                                            .foregroundColor(storyViewerChromeColors.replyBarSecondaryText)
+                                            .foregroundStyle(storyViewerChromeColors.replyBarSecondaryText)
                                             .font(.system(size: 14, weight: .medium))
 
                                         Text(storyRepliesDisabledPlaceholder)
-                                            .foregroundColor(storyViewerChromeColors.replyBarSecondaryText)
+                                            .foregroundStyle(storyViewerChromeColors.replyBarSecondaryText)
                                             .font(.system(size: legacyPoppinsSize(14)))
                                             .lineLimit(2)
                                     }
@@ -1368,9 +1369,9 @@ struct StoryViewerScreen: View {
                             VStack(spacing: 12) {
                                 Image(systemName: "photo.on.rectangle")
                                     .font(.system(size: 40))
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .foregroundStyle(.white.opacity(0.6))
                                 Text("stories.contentUnavailable")
-                                    .foregroundColor(.white.opacity(0.8))
+                                    .foregroundStyle(.white.opacity(0.8))
                                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                             }
                         }
@@ -1671,10 +1672,10 @@ struct StoryViewerScreen: View {
 
     // ✅ ZOOM: Gesto de pinch to zoom
     private var pinchGesture: some Gesture {
-        MagnificationGesture()
-            .onChanged { scale in
+        MagnifyGesture()
+            .onChanged { value in
                 guard !isStoryInteractionBlocked else { return }
-                let newScale = lastZoomScale * scale
+                let newScale = lastZoomScale * value.magnification
                 zoomScale = min(max(newScale, 1.0), 3.0) // Limitar zoom entre 1x y 3x
             }
             .onEnded { _ in

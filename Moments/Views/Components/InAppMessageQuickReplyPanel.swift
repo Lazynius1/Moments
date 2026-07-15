@@ -42,10 +42,10 @@ struct InAppMessageQuickReplyPanel: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(notification.senderUsername)
                         .font(.system(size: legacyPoppinsSize(15), weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     Text(NSLocalizedString("notification.action.reply", comment: "Reply"))
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer(minLength: 0)
@@ -54,7 +54,7 @@ struct InAppMessageQuickReplyPanel: View {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 20))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -62,7 +62,7 @@ struct InAppMessageQuickReplyPanel: View {
             if let previewText {
                 Text(previewText)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 14)
@@ -100,7 +100,7 @@ struct InAppMessageQuickReplyPanel: View {
             } else {
                 Text(NSLocalizedString("chatRecovery.unavailable.title", comment: "Chat unavailable"))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, 16)

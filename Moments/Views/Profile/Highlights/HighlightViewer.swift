@@ -31,23 +31,23 @@ struct HighlightViewer: View {
 
                 Text(NSLocalizedString("highlightedStories.loading", comment: "Loading stories..."))
                     .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
             }
         } else if viewModel.stories.isEmpty {
             VStack(spacing: 20) {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.system(size: 56))
-                    .foregroundColor(.white.opacity(0.35))
+                    .foregroundStyle(.white.opacity(0.35))
 
                 Text(NSLocalizedString("stories.noStoriesAvailable", comment: "No stories available"))
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
 
                 Button(NSLocalizedString("common.close", comment: "Close")) {
                     dismiss()
                 }
                 .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                .foregroundColor(ProfileColors.accent)
+                .foregroundStyle(ProfileColors.accent)
             }
         } else {
             StoriesView(

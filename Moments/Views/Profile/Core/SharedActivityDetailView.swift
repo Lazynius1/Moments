@@ -448,7 +448,7 @@ struct SharedActivityDetailView: View {
                     handleSelectionToolbarTap()
                 }
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(isSelectionMode ? .red : primaryTextColor)
+                .foregroundStyle(isSelectionMode ? .red : primaryTextColor)
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -465,8 +465,19 @@ struct SharedActivityDetailView: View {
             )
         }
         .userProfileNavigationDestination(item: $profileRoute, namespace: zoomNamespace)
-        .alert(item: $pendingSelectionConfirmation) { action in
-            selectionConfirmationAlert(for: action)
+        .alert(
+            selectionConfirmationTitle,
+            isPresented: Binding(
+                get: { pendingSelectionConfirmation != nil },
+                set: { isPresented in
+                    if !isPresented { pendingSelectionConfirmation = nil }
+                }
+            ),
+            presenting: pendingSelectionConfirmation
+        ) { action in
+            selectionConfirmationActions(for: action)
+        } message: { action in
+            selectionConfirmationMessage(for: action)
         }
         .onChange(of: viewModel.selectedTab) { _, _ in
             resetSelectionState()
@@ -602,7 +613,7 @@ struct SharedActivityDetailView: View {
     }
 
     private var gridColumnSide: CGFloat {
-        floor((UIScreen.main.bounds.width - 2) / 3)
+        floor((UIApplication.shared.activeWindowSize.width - 2) / 3)
     }
 
     private var reactionsScrollBody: some View {
@@ -796,14 +807,14 @@ struct SharedActivityDetailView: View {
         HStack(spacing: 6) {
             Text(title)
                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
             Text(value)
                 .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
                 .lineLimit(1)
             Image(systemName: "chevron.down")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -832,7 +843,7 @@ struct SharedActivityDetailView: View {
                         Text(reactionsSelectionButtonTitle(selectedCount: selectedCount, isTagsCategory: isTagsCategory))
                             .font(.system(size: 13, weight: .semibold))
                     }
-                    .foregroundColor(.red.opacity(selectedCount > 0 ? 0.95 : 0.45))
+                    .foregroundStyle(.red.opacity(selectedCount > 0 ? 0.95 : 0.45))
                 }
                 .disabled(selectedCount == 0 || (isTagsCategory ? isRemovingSelectedTags : isDeletingSelectedReactions))
                 .buttonStyle(.plain)
@@ -866,7 +877,7 @@ struct SharedActivityDetailView: View {
                         Text(commentsSelectionButtonTitle(selectedCount: selectedCount))
                             .font(.system(size: 13, weight: .semibold))
                     }
-                    .foregroundColor(.red.opacity(selectedCount > 0 ? 0.95 : 0.45))
+                    .foregroundStyle(.red.opacity(selectedCount > 0 ? 0.95 : 0.45))
                 }
                 .disabled(selectedCount == 0 || isDeletingSelectedComments)
                 .buttonStyle(.plain)
@@ -973,7 +984,7 @@ struct SharedActivityDetailView: View {
                         Spacer()
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                             .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(isSelected ? Color(hex: "2563EB") : .white.opacity(0.95))
+                            .foregroundStyle(isSelected ? Color(hex: "2563EB") : .white.opacity(0.95))
                             .shadow(color: .black.opacity(0.28), radius: 4, y: 2)
                             .padding(8)
                     }
@@ -1038,11 +1049,11 @@ struct SharedActivityDetailView: View {
 
             Text(NSLocalizedString("savedMoments.noResults.title", value: "No hay resultados", comment: ""))
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
 
             Text(emptyStateDescription)
                 .font(.system(size: 14, weight: .regular))
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
                 .opacity(0.75)
@@ -1084,18 +1095,18 @@ struct SharedActivityDetailView: View {
 
             Text(NSLocalizedString("userActivity.error.generic.title", comment: "Error title"))
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
 
             Text(errorMessage)
                 .font(.system(size: 13, weight: .regular))
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
 
             Button(action: { viewModel.reload() }) {
                 Text(NSLocalizedString("userActivity.simple.retry", comment: "Retry activity load"))
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 10)
                     .background(Capsule().fill(Color(hex: "007AFF")))
@@ -1195,11 +1206,11 @@ struct SharedActivityDetailView: View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(Color(hex: "22C55E"))
+                .foregroundStyle(Color(hex: "22C55E"))
 
             Text(NSLocalizedString(textKey, comment: "Selection success banner"))
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
                 .multilineTextAlignment(.leading)
         }
         .padding(.horizontal, 14)
@@ -1221,11 +1232,11 @@ struct SharedActivityDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(NSLocalizedString(titleKey, comment: "Processing title"))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
 
                 Text(NSLocalizedString(subtitleKey, comment: "Processing subtitle"))
                     .font(.system(size: 11, weight: .regular))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             }
 
             Spacer(minLength: 0)
@@ -1257,38 +1268,48 @@ struct SharedActivityDetailView: View {
         }
     }
 
-    private func selectionConfirmationAlert(for action: SharedActivitySelectionConfirmationAction) -> Alert {
+    private var selectionConfirmationTitle: String {
+        guard let action = pendingSelectionConfirmation else { return "" }
         switch action {
         case .reactionsDelete:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.reactions.confirm.delete.title", comment: "Reactions delete confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.reactions.confirm.delete.message", comment: "Reactions delete confirmation message")),
-                primaryButton: .destructive(
-                    Text(NSLocalizedString("userActivity.simple.reactions.delete.single", comment: "Delete reaction")),
-                    action: { Task { await deleteSelectedReactions() } }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
+            return NSLocalizedString("userActivity.simple.reactions.confirm.delete.title", comment: "Reactions delete confirmation title")
         case .commentsDelete:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.comments.confirm.delete.title", comment: "Comments delete confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.comments.confirm.delete.message", comment: "Comments delete confirmation message")),
-                primaryButton: .destructive(
-                    Text(NSLocalizedString("userActivity.simple.comments.delete.single", comment: "Delete comment")),
-                    action: { Task { await deleteSelectedComments() } }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
+            return NSLocalizedString("userActivity.simple.comments.confirm.delete.title", comment: "Comments delete confirmation title")
         case .tagsRemove:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.tags.confirm.remove.title", comment: "Tags remove confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.tags.confirm.remove.message", comment: "Tags remove confirmation message")),
-                primaryButton: .destructive(
-                    Text(NSLocalizedString("userActivity.simple.tags.remove.single", comment: "Remove tag")),
-                    action: { Task { await removeSelectedTags() } }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
+            return NSLocalizedString("userActivity.simple.tags.confirm.remove.title", comment: "Tags remove confirmation title")
+        }
+    }
+
+    @ViewBuilder
+    private func selectionConfirmationMessage(for action: SharedActivitySelectionConfirmationAction) -> some View {
+        switch action {
+        case .reactionsDelete:
+            Text(NSLocalizedString("userActivity.simple.reactions.confirm.delete.message", comment: "Reactions delete confirmation message"))
+        case .commentsDelete:
+            Text(NSLocalizedString("userActivity.simple.comments.confirm.delete.message", comment: "Comments delete confirmation message"))
+        case .tagsRemove:
+            Text(NSLocalizedString("userActivity.simple.tags.confirm.remove.message", comment: "Tags remove confirmation message"))
+        }
+    }
+
+    @ViewBuilder
+    private func selectionConfirmationActions(for action: SharedActivitySelectionConfirmationAction) -> some View {
+        switch action {
+        case .reactionsDelete:
+            Button(NSLocalizedString("userActivity.simple.reactions.delete.single", comment: "Delete reaction"), role: .destructive) {
+                Task { await deleteSelectedReactions() }
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
+        case .commentsDelete:
+            Button(NSLocalizedString("userActivity.simple.comments.delete.single", comment: "Delete comment"), role: .destructive) {
+                Task { await deleteSelectedComments() }
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
+        case .tagsRemove:
+            Button(NSLocalizedString("userActivity.simple.tags.remove.single", comment: "Remove tag"), role: .destructive) {
+                Task { await removeSelectedTags() }
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
         }
     }
 
@@ -1385,7 +1406,7 @@ private struct SharedActivityCommentRow: View {
                 Button(action: onOpenAuthor) {
                     Text(item.moment?.username ?? NSLocalizedString("onlineStatus.unknown", comment: "Unknown"))
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                 }
                 .buttonStyle(.plain)
@@ -1394,23 +1415,23 @@ private struct SharedActivityCommentRow: View {
                      ? (item.moment?.content ?? "")
                      : NSLocalizedString("userActivity.simple.comments.momentNoContent", comment: "Moment without content"))
                     .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .lineLimit(2)
 
                 Text(commentLabelText)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.82))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.82))
 
                 Text(item.commentText.isEmpty
                      ? NSLocalizedString("userActivity.simple.comments.emptyComment", comment: "Empty comment fallback")
                      : item.commentText)
                     .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .lineLimit(3)
 
                 Text(item.commentedAt.timeAgoDisplay())
                     .font(.system(size: 11, weight: .regular))
-                    .foregroundColor(.gray.opacity(0.85))
+                    .foregroundStyle(.gray.opacity(0.85))
             }
 
             Spacer(minLength: 0)
@@ -1419,7 +1440,7 @@ private struct SharedActivityCommentRow: View {
                 Button(action: onToggleSelection) {
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(isSelected ? Color(hex: "2563EB") : .gray.opacity(0.8))
+                        .foregroundStyle(isSelected ? Color(hex: "2563EB") : .gray.opacity(0.8))
                         .padding(.top, 2)
                 }
                 .buttonStyle(.plain)

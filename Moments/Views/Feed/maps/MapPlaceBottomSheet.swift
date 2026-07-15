@@ -110,7 +110,7 @@ struct MapPlaceBottomSheet: View {
                             if cluster.storyCount > 1 {
                                 Text("\(cluster.storyCount)")
                                     .font(.system(size: 9, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 2)
                                     .background(Capsule().fill(adaptiveColors.accent))
@@ -124,13 +124,13 @@ struct MapPlaceBottomSheet: View {
 
                 Text(displayTitle.isEmpty ? cluster.displayName : displayTitle)
                     .font(.system(size: legacyPoppinsSize(22), weight: .bold))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
                 Text(statsText)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
             }
@@ -169,7 +169,7 @@ struct MapPlaceBottomSheet: View {
                 } label: {
                     Text(NSLocalizedString(filter.titleKey, comment: "Map time filter"))
                         .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                        .foregroundColor(
+                        .foregroundStyle(
                             timeFilter?.wrappedValue == filter ? .white : adaptiveColors.secondary
                         )
                         .padding(.horizontal, 12)
@@ -198,10 +198,10 @@ struct MapPlaceBottomSheet: View {
         HStack(spacing: 4) {
             Image(systemName: weather.condition.systemImageName)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(adaptiveColors.accent)
+                .foregroundStyle(adaptiveColors.accent)
             Text(weather.temperatureFormatted)
                 .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                .foregroundColor(adaptiveColors.secondary)
+                .foregroundStyle(adaptiveColors.secondary)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -218,7 +218,7 @@ struct MapPlaceBottomSheet: View {
                 } label: {
                     Image(systemName: mode.icon)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(viewMode == mode ? .white : adaptiveColors.tertiary)
+                        .foregroundStyle(viewMode == mode ? .white : adaptiveColors.tertiary)
                         .frame(width: 36, height: 36)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
@@ -280,7 +280,7 @@ struct MapPlaceBottomSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(NSLocalizedString("maps.zoneSheet.places", comment: "Places section title"))
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
                 .padding(.horizontal, 20)
 
             LazyVStack(spacing: 12) {
@@ -354,10 +354,10 @@ struct MapPlaceBottomSheet: View {
         VStack(spacing: 12) {
             Text(NSLocalizedString("maps.bottomSheet.empty.title", comment: ""))
                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
             Text(NSLocalizedString("maps.bottomSheet.empty.subtitle", comment: ""))
                 .font(.system(size: legacyPoppinsSize(13)))
-                .foregroundColor(adaptiveColors.secondary)
+                .foregroundStyle(adaptiveColors.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
         }
@@ -398,7 +398,7 @@ struct MapPlaceIndexRow: View {
                 HStack(spacing: 6) {
                     Text(place.displayName)
                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
                         .lineLimit(1)
 
                     if place.hasFreshStory {
@@ -410,7 +410,7 @@ struct MapPlaceIndexRow: View {
 
                 Text(metadataText)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
                     .lineLimit(1)
 
                 if place.storyCount > 0 {
@@ -421,7 +421,7 @@ struct MapPlaceIndexRow: View {
                         )
                     )
                     .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                    .foregroundColor(adaptiveColors.accent)
+                    .foregroundStyle(adaptiveColors.accent)
                 }
             }
 
@@ -453,7 +453,7 @@ struct MapPlaceIndexRow: View {
             if place.momentCount > 3 {
                 Text("+\(place.momentCount - 3)")
                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
                     .frame(width: 30, height: 44)
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)

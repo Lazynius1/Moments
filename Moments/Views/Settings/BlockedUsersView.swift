@@ -17,16 +17,16 @@ struct BlockedUsersView: View {
                     ProgressView(NSLocalizedString("common.searching", comment: "Searching"))
                         .progressViewStyle(CircularProgressViewStyle())
                         .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if viewModel.blockedUsers.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "hand.raised.slash")
                             .font(.system(size: 44, weight: .regular))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Text(NSLocalizedString("blockedUsers.empty", comment: "No blocked users"))
                             .font(.system(size: legacyPoppinsSize(16)))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.horizontal, 24)
@@ -35,7 +35,7 @@ struct BlockedUsersView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(String(format: NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "Blocked accounts count"), viewModel.blockedUsers.count))
                                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .padding(.horizontal, 16)
                                 .padding(.top, 8)
 
@@ -44,7 +44,7 @@ struct BlockedUsersView: View {
                                     HStack(spacing: 12) {
                                         Text(user.username)
                                             .font(.system(size: legacyPoppinsSize(15)))
-                                            .foregroundColor(.primary)
+                                            .foregroundStyle(.primary)
 
                                         Spacer()
 
@@ -53,7 +53,7 @@ struct BlockedUsersView: View {
                                         }) {
                                             Text(NSLocalizedString("blockedUsers.unblock", comment: "Unblock"))
                                                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                                                .foregroundColor(.primary)
+                                                .foregroundStyle(.primary)
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 8)
                                                 .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -82,12 +82,10 @@ struct BlockedUsersView: View {
                 hasFetchedBlockedUsers = true
             }
         }
-        .alert(isPresented: $viewModel.showError) {
-            Alert(
-                title: Text(NSLocalizedString("blockedUsers.error.title", comment: "Error")),
-                message: Text(viewModel.errorMessage ?? NSLocalizedString("blockedUsers.unknownError", comment: "Unknown error occurred")),
-                dismissButton: .default(Text(NSLocalizedString("blockedUsers.ok", comment: "OK")))
-            )
+        .alert(NSLocalizedString("blockedUsers.error.title", comment: "Error"), isPresented: $viewModel.showError) {
+            Button(NSLocalizedString("blockedUsers.ok", comment: "OK")) { }
+        } message: {
+            Text(viewModel.errorMessage ?? NSLocalizedString("blockedUsers.unknownError", comment: "Unknown error occurred"))
         }
         .navigationTitle(NSLocalizedString("blockedUsers.title", comment: "Blocked Users"))
         .navigationBarTitleDisplayMode(.inline)
@@ -177,7 +175,7 @@ class BlockedUsersViewModel: ObservableObject {
 
 struct BlockedUsersView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             BlockedUsersView()
         }
     }

@@ -111,7 +111,7 @@ struct GlassmorphicMessageRow: View {
                             } label: {
                                 Image(systemName: "exclamationmark.arrow.circlepath")
                                     .font(.system(size: 20, weight: .semibold))
-                                    .foregroundColor(.red)
+                                    .foregroundStyle(.red)
                                     .padding(6)
                                     .contentShape(Circle())
                             }
@@ -241,11 +241,11 @@ struct DeletedMessageBubble: View {
         HStack(spacing: 8) {
             Image(systemName: getDeletedIcon())
                 .font(.system(size: 16))
-                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
+                .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.5))
 
             Text(getDeletedText())
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6))
+                .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.6))
                 .italic()
         }
         .padding(.horizontal, 16)
@@ -426,7 +426,7 @@ struct GlassmorphicMessageBubble: View {
                                         Text("chat.forwarded")
                                     }
                                     .font(.system(size: legacyPoppinsSize(11)))
-                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.55))
+                                    .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.55))
                                 }
 
                                 textMessageBody(content)
@@ -587,7 +587,7 @@ struct GlassmorphicMessageBubble: View {
                             to: Text("chat.message.unsupported")
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 10)
-                                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6))
+                                .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.6))
                                 .glassmorphicChat()
                                 .clipShape(RoundedRectangle(cornerRadius: 20))
                         )
@@ -764,14 +764,14 @@ struct LinkPreviewCard: View {
                                 .scaleEffect(0.7)
                             Text(url.host ?? url.absoluteString)
                                 .font(.system(size: 11))
-                                .foregroundColor(embedded && isOutgoing ? .white.opacity(0.8) : .gray)
+                                .foregroundStyle(embedded && isOutgoing ? .white.opacity(0.8) : .gray)
                                 .lineLimit(1)
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                     )
                     .background(panelBackground)
-                    .cornerRadius(cornerRadius)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 } else if let title = title {
                     VStack(alignment: .leading, spacing: 0) {
                         if let image = image {
@@ -787,17 +787,17 @@ struct LinkPreviewCard: View {
                                 Text(title)
                                     .font(.system(size: 12, weight: .bold))
                                     .lineLimit(2)
-                                    .foregroundColor(titleColor)
+                                    .foregroundStyle(titleColor)
 
                                 Text(host ?? "")
                                     .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(hostColor)
+                                    .foregroundStyle(hostColor)
                             }
                             .padding(8)
                         )
                         .background(panelBackground)
                     }
-                    .cornerRadius(cornerRadius)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius)
                             .stroke(strokeColor, lineWidth: embedded ? 0 : 1)
@@ -807,17 +807,17 @@ struct LinkPreviewCard: View {
                         HStack(spacing: 8) {
                             Image(systemName: "link")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(hostColor)
+                                .foregroundStyle(hostColor)
                             Text(url.host ?? url.absoluteString)
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(titleColor)
+                                .foregroundStyle(titleColor)
                                 .lineLimit(2)
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
                     )
                     .background(panelBackground)
-                    .cornerRadius(cornerRadius)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius)
                             .stroke(strokeColor, lineWidth: embedded ? 0 : 1)

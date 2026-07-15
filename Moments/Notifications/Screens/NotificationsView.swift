@@ -76,14 +76,14 @@ struct NotificationsView: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                 }
 
                 ToolbarItem(placement: .principal) {
                     Text("notifications.title")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
             .toolbarBackground(.visible, for: .navigationBar)
@@ -141,12 +141,10 @@ struct NotificationsView: View {
             NotificationBadgeService.shared.clearNotificationBadge()
             onNotificationsCleared?()
         }
-        .alert(isPresented: $viewModel.showError) {
-            Alert(
-                title: Text("notifications.error.title"),
-                message: Text(viewModel.errorMessage),
-                dismissButton: .default(Text("notifications.ok"))
-            )
+        .alert("notifications.error.title", isPresented: $viewModel.showError) {
+            Button("notifications.ok") { }
+        } message: {
+            Text(viewModel.errorMessage)
         }
         .sheet(item: $moderationReviewNotification) { notification in
             ModerationReviewRequestSheet(
@@ -164,7 +162,7 @@ struct NotificationsView: View {
                 story: presentation.story,
                 storyCount: 1,
                 storyIndex: 0,
-                screenSize: UIScreen.main.bounds.size,
+                screenSize: UIApplication.shared.activeWindowSize,
                 storyViewModel: storyViewModel,
                 showingReportSheet: .constant(false),
                 showingBlockConfirmation: .constant(false),
@@ -213,7 +211,7 @@ struct NotificationsView: View {
                             HStack(spacing: 6) {
                                 Text(NSLocalizedString(tab.rawValue, comment: "Notification tab"))
                                     .font(.system(size: 14, weight: viewModel.selectedTab == tab ? .semibold : .medium))
-                                    .foregroundColor(
+                                    .foregroundStyle(
                                     viewModel.selectedTab == tab ?
                                         (colorScheme == .dark ? .white : .black) :
                                         .gray.opacity(0.82)
@@ -223,7 +221,7 @@ struct NotificationsView: View {
                                 if tab == .requests && viewModel.pendingRequestsCount > 0 {
                                     Text("\(viewModel.pendingRequestsCount)")
                                         .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                         .frame(width: 18, height: 18)
                                         .background(Color.red)
                                         .clipShape(Circle())
@@ -308,11 +306,11 @@ struct NotificationsView: View {
             VStack(spacing: 8) {
                 Text(emptyStateTitle)
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8)) // ✅ ADAPTATIVO
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8)) // ✅ ADAPTATIVO
                 
                 Text(emptyStateMessage)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7)) // ✅ ADAPTATIVO
+                    .foregroundStyle(colorScheme == .dark ? .gray : .gray.opacity(0.7)) // ✅ ADAPTATIVO
                     .multilineTextAlignment(.center)
             }
             

@@ -7,7 +7,15 @@ enum ProfileMomentsGridMetrics {
     static let spacing: CGFloat = 1
     static let columns = 3
 
-    static func columnWidth(for availableWidth: CGFloat = UIScreen.main.bounds.width) -> CGFloat {
+    /// Ancho de la ventana activa (vía window scene) como fallback cuando el caller no aporta uno.
+    static var defaultAvailableWidth: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first
+        return window?.bounds.width ?? 393
+    }
+
+    static func columnWidth(for availableWidth: CGFloat = ProfileMomentsGridMetrics.defaultAvailableWidth) -> CGFloat {
         let totalSpacing = spacing * CGFloat(columns - 1)
         return (availableWidth - totalSpacing) / CGFloat(columns)
     }
@@ -24,7 +32,7 @@ enum ProfileMomentsGridMetrics {
         }
     }
 
-    static func bentoHeight(tileKinds: [BentoTileKind], availableWidth: CGFloat = UIScreen.main.bounds.width) -> CGFloat {
+    static func bentoHeight(tileKinds: [BentoTileKind], availableWidth: CGFloat = ProfileMomentsGridMetrics.defaultAvailableWidth) -> CGFloat {
         guard !tileKinds.isEmpty else { return 0 }
         let unitWidth = columnWidth(for: availableWidth)
         let columnCount = columns
@@ -57,6 +65,7 @@ enum ProfileMomentsGridMetrics {
 }
 
 struct ModernMomentThumbnail: View {
+    @Environment(\.displayScale) private var displayScale
     let moment: Moment
     let size: CGFloat
     let customListNamesById: [String: String]
@@ -168,12 +177,12 @@ struct ModernMomentThumbnail: View {
                             .overlay(
                                 Image(systemName: "photo")
                                     .font(.system(size: 20))
-                                    .foregroundColor(.gray.opacity(0.6))
+                                    .foregroundStyle(.gray.opacity(0.6))
                             )
                             .overlay(ProgressView().tint(Color(hex: "007AFF")))
                     }
                     .downsampling(size: CGSize(width: size, height: size))
-                    .scaleFactor(UIScreen.main.scale)
+                    .scaleFactor(displayScale)
                     .cancelOnDisappear(true)
                     .resizable()
             }
@@ -219,7 +228,7 @@ struct ModernMomentThumbnail: View {
                 if descriptor.showsDuration, let duration = moment.videoDuration {
                     Text(Self.formatVideoDuration(duration))
                         .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
                 }
             }
@@ -279,7 +288,7 @@ struct ModernMomentThumbnail: View {
                 .font(.system(size: legacyPoppinsSize(8), weight: .semibold))
                 .lineLimit(1)
         }
-        .foregroundColor(.white)
+        .foregroundStyle(.white)
         .padding(.horizontal, 7)
         .padding(.vertical, 4)
         .background(Color.black.opacity(0.52))
@@ -290,7 +299,7 @@ struct ModernMomentThumbnail: View {
     private var pinnedBadgeView: some View {
         Image(systemName: "pin.fill")
             .font(.system(size: 9, weight: .bold))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(5)
             .background(Color.black.opacity(0.56))
             .clipShape(Circle())
@@ -341,16 +350,16 @@ struct ModernMomentThumbnail: View {
                                         .scaleEffect(0.8)
                                     Text("profile.video.uploading")
                                         .font(.system(size: legacyPoppinsSize(8)))
-                                        .foregroundColor(.white.opacity(0.6))
+                                        .foregroundStyle(.white.opacity(0.6))
                                 }
                             } else {
                                 VStack(spacing: 4) {
                                     Image(systemName: "video")
                                         .font(.system(size: 16))
-                                        .foregroundColor(.gray.opacity(0.6))
+                                        .foregroundStyle(.gray.opacity(0.6))
                                     Text("profile.video")
                                         .font(.system(size: legacyPoppinsSize(8)))
-                                        .foregroundColor(.white.opacity(0.6))
+                                        .foregroundStyle(.white.opacity(0.6))
                                 }
                             }
                         }
@@ -377,12 +386,12 @@ struct ModernMomentThumbnail: View {
                                         .scaleEffect(0.8)
                                     Text("profile.image.uploading")
                                         .font(.system(size: legacyPoppinsSize(8)))
-                                        .foregroundColor(.white.opacity(0.6))
+                                        .foregroundStyle(.white.opacity(0.6))
                                 }
                             )
                     }
                     .downsampling(size: CGSize(width: size, height: size))
-                    .scaleFactor(UIScreen.main.scale)
+                    .scaleFactor(displayScale)
                     .cancelOnDisappear(true)
                     .resizable()
             }
@@ -401,11 +410,11 @@ struct ModernMomentThumbnail: View {
                 VStack(spacing: 6) {
                     Image(systemName: "text.bubble")
                         .font(.system(size: 16))
-                        .foregroundColor(.gray.opacity(0.6))
+                        .foregroundStyle(.gray.opacity(0.6))
 
                     Text(moment.content.isEmpty ? NSLocalizedString("profile.content.empty", comment: "No content text") : String(moment.content.prefix(12)))
                         .font(.system(size: legacyPoppinsSize(8)))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .padding(.horizontal, 3)
@@ -474,18 +483,18 @@ struct ProfileSectionEmptyState: View {
                 } else {
                     Image(systemName: icon)
                         .font(.system(size: 22, weight: .medium))
-                        .foregroundColor(ProfileColors.textSecondary.opacity(0.7))
+                        .foregroundStyle(ProfileColors.textSecondary.opacity(0.7))
                 }
             }
 
             VStack(spacing: 6) {
                 Text(titleKey)
                     .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                    .foregroundColor(ProfileColors.textPrimary)
+                    .foregroundStyle(ProfileColors.textPrimary)
 
                 Text(subtitleKey)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(ProfileColors.textSecondary)
+                    .foregroundStyle(ProfileColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             }

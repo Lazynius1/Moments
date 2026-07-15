@@ -108,12 +108,12 @@ struct PersonalInfoView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(NSLocalizedString("settings.profile.username", comment: "Username label"))
                             .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                         if let nextDate = nextAvailableDate {
                             Text(String(format: NSLocalizedString("username.availableOn", comment: "Available on %@"), nextDate))
                                 .font(.system(size: legacyPoppinsSize(12)))
-                                .foregroundColor(.orange)
+                                .foregroundStyle(.orange)
                         }
                     }
 
@@ -121,17 +121,17 @@ struct PersonalInfoView: View {
 
                     Text("@\(username.isEmpty ? "—" : username)")
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         .lineLimit(1)
 
                     if canChangeUsername {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.gray.opacity(0.3))
+                            .foregroundStyle(.gray.opacity(0.3))
                     } else {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 13))
-                            .foregroundColor(.orange.opacity(0.8))
+                            .foregroundStyle(.orange.opacity(0.8))
                     }
                 }
                 .padding(.vertical, 10)
@@ -149,13 +149,13 @@ struct PersonalInfoView: View {
             HStack(spacing: 14) {
                 Text(NSLocalizedString("settings.profile.email", comment: "Email label"))
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 Spacer(minLength: 12)
 
                 Text(email.isEmpty ? NSLocalizedString("settings.notConfigured", comment: "Not configured") : email)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .lineLimit(1)
             }
             .padding(.vertical, 10)
@@ -205,10 +205,10 @@ struct UsernameChangeContent: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(NSLocalizedString("username.change.title", comment: "Change username title"))
                         .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     Text(NSLocalizedString("username.change.subtitle", comment: "Can be changed every 6 months"))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .padding(.top, 8)
 
@@ -216,7 +216,7 @@ struct UsernameChangeContent: View {
                     HStack(spacing: 10) {
                         Text("@")
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         TextField(currentUsername, text: $newUsername)
                             .font(.system(size: legacyPoppinsSize(17)))
@@ -234,7 +234,7 @@ struct UsernameChangeContent: View {
                         } else if newUsername.count >= 3 && isDifferent {
                             if let available = isAvailable {
                                 Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(available ? .green : .red)
+                                    .foregroundStyle(available ? .green : .red)
                                     .font(.system(size: 20))
                             }
                         }
@@ -253,17 +253,17 @@ struct UsernameChangeContent: View {
                     if let error = errorMessage {
                         Text(error)
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                     } else if newUsername.count >= 3 && isDifferent, let available = isAvailable {
                         Text(available
                              ? NSLocalizedString("username.available", comment: "Username available")
                              : NSLocalizedString("username.taken", comment: "Username taken"))
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(available ? .green : .red)
+                            .foregroundStyle(available ? .green : .red)
                     } else {
                         Text(NSLocalizedString("username.rules", comment: "3-30 chars, letters, numbers and _"))
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -283,7 +283,7 @@ struct UsernameChangeContent: View {
                         RoundedRectangle(cornerRadius: 14)
                             .fill(canSave ? Color.primary : Color.gray.opacity(0.3))
                     )
-                    .foregroundColor(canSave ? (colorScheme == .dark ? .black : .white) : .gray)
+                    .foregroundStyle(canSave ? (colorScheme == .dark ? .black : .white) : .gray)
                 }
                 .disabled(!canSave)
                 .animation(.easeInOut(duration: 0.2), value: canSave)

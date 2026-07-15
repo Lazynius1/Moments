@@ -76,7 +76,7 @@ struct ChatLocationSheetContent: View {
                 } else if listedPlaces.isEmpty {
                     Text(LocalizedStringKey(isShowingSearch ? "chat.location.noResults" : "chat.location.noNearby"))
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(secondaryText)
+                        .foregroundStyle(secondaryText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 20)
                 } else {
@@ -155,10 +155,10 @@ struct ChatLocationSheetContent: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(LocalizedStringKey("chat.location.sendCurrent"))
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(primaryText)
+                        .foregroundStyle(primaryText)
                     Text(accuracyText)
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(secondaryText)
+                        .foregroundStyle(secondaryText)
                         .lineLimit(1)
                 }
                 Spacer()
@@ -179,10 +179,10 @@ struct ChatLocationSheetContent: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(LocalizedStringKey("chat.location.shareLive"))
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(primaryText)
+                        .foregroundStyle(primaryText)
                     Text(LocalizedStringKey("chat.location.liveSubtitle"))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(secondaryText)
+                        .foregroundStyle(secondaryText)
                         .lineLimit(1)
                 }
                 Spacer()
@@ -203,12 +203,12 @@ struct ChatLocationSheetContent: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(place.name)
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(primaryText)
+                        .foregroundStyle(primaryText)
                         .lineLimit(1)
                     if let address = place.address {
                         Text(address)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(secondaryText)
+                            .foregroundStyle(secondaryText)
                             .lineLimit(1)
                     }
                 }
@@ -225,7 +225,7 @@ struct ChatLocationSheetContent: View {
         HStack {
             Text(LocalizedStringKey(key))
                 .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                .foregroundColor(secondaryText)
+                .foregroundStyle(secondaryText)
                 .textCase(.uppercase)
             Spacer()
         }
@@ -242,7 +242,7 @@ struct ChatLocationSheetContent: View {
     private func rowIcon(systemImage: String, tint: Color) -> some View {
         Image(systemName: systemImage)
             .font(.system(size: 20, weight: .semibold))
-            .foregroundColor(tint)
+            .foregroundStyle(tint)
             .frame(width: 30, alignment: .center)
     }
 

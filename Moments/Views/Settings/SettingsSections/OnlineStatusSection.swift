@@ -23,16 +23,16 @@ struct OnlineStatusSection: View {
             HStack(spacing: 14) {
                 Image(systemName: onlineStatusService.currentUserStatus.icon)
                     .font(.system(size: 19, weight: .regular))
-                    .foregroundColor(onlineStatusService.currentUserStatus.color)
+                    .foregroundStyle(onlineStatusService.currentUserStatus.color)
                     .frame(width: 28, alignment: .center)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(NSLocalizedString("settings.onlineStatus.title", comment: "Online Status"))
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     Text(String(format: NSLocalizedString("settings.onlineStatus.current", comment: "Current status"), onlineStatusService.currentUserStatus.displayName))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 }
 
                 Spacer()
@@ -53,7 +53,7 @@ struct OnlineStatusSection: View {
                         Image(systemName: "chevron.up.down")
                             .font(.system(size: 10, weight: .bold))
                     }
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(Color(colorScheme == .dark ? .white : .black).opacity(0.08))

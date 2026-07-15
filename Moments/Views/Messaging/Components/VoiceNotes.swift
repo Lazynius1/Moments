@@ -413,7 +413,7 @@ enum VoiceMessageLayout {
     static let speedControlWidth: CGFloat = 34
 
     static var bubbleWidth: CGFloat {
-        UIScreen.main.bounds.width * bubbleWidthFraction
+        UIApplication.shared.activeWindowSize.width * bubbleWidthFraction
     }
 
     static func availableWaveformWidth(includesSpeedControl: Bool) -> CGFloat {
@@ -634,7 +634,7 @@ struct GlassmorphicAudioMessage: View {
                     loadingWaveformPlaceholder
                     Text(NSLocalizedString("chat.loading", comment: "Loading audio message"))
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(durationLabelColor)
+                        .foregroundStyle(durationLabelColor)
                 }
                 Spacer(minLength: VoiceMessageLayout.trailingGapMinLength)
             } else if isAudioAvailable {
@@ -705,7 +705,7 @@ struct GlassmorphicAudioMessage: View {
                     MediaProgressRing(progress: uploadProgress, size: 34, lineWidth: 2)
                 }
             }
-            .foregroundColor(contentColor)
+            .foregroundStyle(contentColor)
             .frame(width: VoiceMessageLayout.playButtonSize, height: VoiceMessageLayout.playButtonSize)
         }
         .disabled(!isAudioAvailable || isCheckingAvailability)
@@ -776,11 +776,11 @@ struct GlassmorphicAudioMessage: View {
         HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 14))
-                .foregroundColor(.orange)
+                .foregroundStyle(.orange)
 
             Text(NSLocalizedString("chat.audio.unavailable", comment: "Audio message unavailable"))
                 .font(.system(size: legacyPoppinsSize(12)))
-                .foregroundColor(durationLabelColor)
+                .foregroundStyle(durationLabelColor)
         }
     }
 
@@ -789,7 +789,7 @@ struct GlassmorphicAudioMessage: View {
         Text(formatDuration(displayedTimeSeconds))
             .font(.system(size: legacyPoppinsSize(11), weight: .medium))
             .monospacedDigit()
-            .foregroundColor(durationLabelColor)
+            .foregroundStyle(durationLabelColor)
             .frame(minWidth: 34, alignment: .trailing)
             .accessibilityLabel(
                 Text(
@@ -809,7 +809,7 @@ struct GlassmorphicAudioMessage: View {
         Button(action: cyclePlaybackRate) {
             Text(speedLabel)
                 .font(.system(size: 10, weight: .bold))
-                .foregroundColor(contentColor)
+                .foregroundStyle(contentColor)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
                 .background(contentColor.opacity(colorScheme == .dark ? 0.15 : 0.12))

@@ -117,8 +117,8 @@ struct SingleMomentDetailView: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(
-                                    width: UIScreen.main.bounds.width - 32,
-                                    height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
+                                    width: UIApplication.shared.activeWindowSize.width - 32,
+                                    height: (UIApplication.shared.activeWindowSize.width - 32) / max(peekAspectRatio, 0.1)
                                 )
                                 .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
@@ -133,7 +133,7 @@ struct SingleMomentDetailView: View {
                 .zIndex(999)
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(
             isPresented: Binding(
                 get: { selectedMoment != nil },
@@ -203,7 +203,7 @@ struct SingleMomentDetailView: View {
     }
 
     private func singleMomentScrollView() -> some View {
-        let screenHeight = UIScreen.main.bounds.height
+        let screenHeight = UIApplication.shared.activeWindowSize.height
         let feedCardHeight = screenHeight * 0.58
 
         return ScrollView(.vertical, showsIndicators: false) {
@@ -296,7 +296,7 @@ struct SingleMomentDetailView: View {
 
                 if value.translation.width > dismissThreshold || velocity > 300 {
                     withAnimation(.easeOut(duration: 0.3)) {
-                        dragOffset = UIScreen.main.bounds.width
+                        dragOffset = UIApplication.shared.activeWindowSize.width
                         backgroundOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

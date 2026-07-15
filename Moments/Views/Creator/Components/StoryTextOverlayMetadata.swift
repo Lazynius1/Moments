@@ -392,15 +392,24 @@ extension Story {
         resolvedTextOverlays.first
     }
 
+    /// Tamaño de lienzo asumido para normalizar posiciones absolutas legacy.
+    /// Ventana activa (vía window scene); fallback canónico si no hay ventana (p. ej. persistencia).
+    private var inferredCanvasSize: CGSize {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first
+        return window?.bounds.size ?? CGSize(width: 393, height: 852)
+    }
+
     private var inferredNormalizedX: Double? {
         guard let textPosition else { return nil }
-        let width = max(UIScreen.main.bounds.width, 1)
+        let width = max(inferredCanvasSize.width, 1)
         return Double(textPosition.x / width).clamped01
     }
 
     private var inferredNormalizedY: Double? {
         guard let textPosition else { return nil }
-        let height = max(UIScreen.main.bounds.height, 1)
+        let height = max(inferredCanvasSize.height, 1)
         return Double(textPosition.y / height).clamped01
     }
 }

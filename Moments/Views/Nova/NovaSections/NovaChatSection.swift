@@ -22,11 +22,11 @@ struct EnhancedChatBubble: View {
                     HStack(spacing: 6) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(NovaColors.primary.opacity(0.7))
+                            .foregroundStyle(NovaColors.primary.opacity(0.7))
 
                         Text(message.text)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(NovaColors.textSecondary)
+                            .foregroundStyle(NovaColors.textSecondary)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.horizontal, 16)
@@ -59,7 +59,7 @@ struct EnhancedChatBubble: View {
                         if !message.text.isEmpty {
                             Text(message.text)
                                 .font(.system(size: legacyPoppinsSize(16)))
-                                .foregroundColor(NovaColors.textPrimary)
+                                .foregroundStyle(NovaColors.textPrimary)
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 14)
                                 .background(NovaColors.secondaryBackground)
@@ -87,7 +87,7 @@ struct EnhancedChatBubble: View {
 
                         Text("nova.you")
                             .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                            .foregroundColor(NovaColors.textSecondary)
+                            .foregroundStyle(NovaColors.textSecondary)
                             .padding(.trailing, 8)
                     }
                 }
@@ -108,7 +108,7 @@ struct EnhancedChatBubble: View {
 
                             Text("nova.name")
                                 .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                                .foregroundColor(NovaColors.textPrimary)
+                                .foregroundStyle(NovaColors.textPrimary)
 
                             Spacer()
 
@@ -138,7 +138,7 @@ struct EnhancedChatBubble: View {
                                         }) {
                                             Image(systemName: "arrow.clockwise")
                                                 .font(.system(size: 12))
-                                                .foregroundColor(NovaColors.textSecondary)
+                                                .foregroundStyle(NovaColors.textSecondary)
                                         }
                                     }
 
@@ -148,7 +148,7 @@ struct EnhancedChatBubble: View {
                                     }) {
                                         Image(systemName: "doc.on.doc")
                                             .font(.system(size: 12))
-                                            .foregroundColor(NovaColors.textSecondary)
+                                            .foregroundStyle(NovaColors.textSecondary)
                                     }
 
                                     ShareLink(item: message.text) {
@@ -649,7 +649,7 @@ struct BulletPointView: View {
 
             Text(text)
                 .font(.system(size: legacyPoppinsSize(16)))
-                .foregroundColor(NovaColors.textPrimary)
+                .foregroundStyle(NovaColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
@@ -665,14 +665,14 @@ struct NumberedListView: View {
         HStack(alignment: .top, spacing: 12) {
             Text("\(number)")
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 20, height: 20)
                 .background(NovaColors.primary)
                 .clipShape(Circle())
 
             Text(text)
                 .font(.system(size: legacyPoppinsSize(16)))
-                .foregroundColor(NovaColors.textPrimary)
+                .foregroundStyle(NovaColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
@@ -697,7 +697,7 @@ struct LinkView: View {
                 Image(systemName: "arrow.up.right.square")
                     .font(.system(size: 12))
             }
-            .foregroundColor(NovaColors.primary)
+            .foregroundStyle(NovaColors.primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(NovaColors.primary.opacity(0.1))
@@ -724,7 +724,7 @@ struct CodeBlockView: View {
             HStack {
                 Text(label.uppercased())
                     .font(.custom("SF Mono-Bold", size: 10))
-                    .foregroundColor(NovaColors.textSecondary)
+                    .foregroundStyle(NovaColors.textSecondary)
 
                 Spacer()
 
@@ -744,7 +744,7 @@ struct CodeBlockView: View {
                             : NSLocalizedString("chat.action.copy", comment: "Copy"))
                     }
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(isCopied ? .green : NovaColors.primary)
+                    .foregroundStyle(isCopied ? .green : NovaColors.primary)
                 }
             }
             .padding(.horizontal, 12)
@@ -757,7 +757,7 @@ struct CodeBlockView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(cleanCode)
                     .font(.custom("SF Mono", size: 13))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
                     .padding(12)
             }
         }
@@ -782,7 +782,7 @@ struct QuoteView: View {
 
             Text(text)
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(NovaColors.textSecondary)
+                .foregroundStyle(NovaColors.textSecondary)
                 .italic()
 
             Spacer()
@@ -797,7 +797,7 @@ struct RegularTextView: View {
     var body: some View {
         Text(parseInlineFormatting(text))
             .font(.system(size: legacyPoppinsSize(16)))
-            .foregroundColor(NovaColors.textPrimary)
+            .foregroundStyle(NovaColors.textPrimary)
             .lineSpacing(4)
     }
 

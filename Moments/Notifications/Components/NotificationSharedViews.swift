@@ -12,7 +12,7 @@ struct NotificationDateHeaderView: View {
         HStack {
             Text(localizedDateString(dateString))
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.6))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.6))
                 .textCase(.uppercase)
             Spacer()
         }
@@ -112,7 +112,7 @@ struct NotificationDeletionUndoToast: View {
         HStack(spacing: 10) {
             Text(message)
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .lineLimit(1)
 
             Spacer(minLength: 8)
@@ -120,7 +120,7 @@ struct NotificationDeletionUndoToast: View {
             Button(action: onUndo) {
                 Text(NSLocalizedString("notifications.deleted.undo", comment: "Undo notification deletion"))
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
             }
             .buttonStyle(.plain)
         }
@@ -140,7 +140,7 @@ struct GlassmorphicButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(

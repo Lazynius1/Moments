@@ -20,12 +20,12 @@ struct UserActivityView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text(NSLocalizedString("userActivity.simple.headline", comment: "Activity headline"))
                                 .font(.system(size: legacyPoppinsSize(30), weight: .bold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .multilineTextAlignment(.leading)
 
                             Text(NSLocalizedString("userActivity.simple.subtitle", comment: "Activity subtitle"))
                                 .font(.system(size: legacyPoppinsSize(14)))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                         }
 
                         VStack(alignment: .leading, spacing: 32) {
@@ -87,7 +87,7 @@ struct UserActivityView: View {
             VStack(alignment: .leading, spacing: 14) {
             Text(title.uppercased())
                 .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                .foregroundColor(.gray.opacity(0.8))
+                .foregroundStyle(.gray.opacity(0.8))
                 .padding(.leading, 4)
 
             VStack(alignment: .leading, spacing: 0) {
@@ -178,7 +178,7 @@ struct RecentlyDeletedActivityView: View {
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 11, weight: .semibold))
                         }
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                 }
             }
@@ -240,7 +240,7 @@ struct ArchivedActivityView: View {
                         Image(systemName: "chevron.down")
                             .font(.system(size: 11, weight: .semibold))
                     }
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
         }

@@ -27,7 +27,7 @@ struct CustomAudienceSelector: View {
                         Button(action: { onBack?() }) {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                                 .frame(width: 40, height: 40)
                                 .momentsChromeGlass(in: Circle(), interactive: true)
                         }
@@ -38,10 +38,10 @@ struct CustomAudienceSelector: View {
                         VStack(spacing: 2) {
                             Text(NSLocalizedString("audience.actions.selectPeople", comment: "Select people navigation title"))
                                 .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                             Text(NSLocalizedString("audience.description.custom", comment: "Custom audience description"))
                                 .font(.system(size: legacyPoppinsSize(13)))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                         }
                         .multilineTextAlignment(.center)
                         
@@ -59,11 +59,11 @@ struct CustomAudienceSelector: View {
                 // Barra de búsqueda
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                     
                     TextField("Buscar personas...", text: $searchText)
                         .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .onChange(of: searchText) { _, newValue in
                             if !newValue.isEmpty {
                                 searchUsers(query: newValue)
@@ -108,11 +108,11 @@ struct CustomAudienceSelector: View {
                     Button(action: onComplete) {
                         Text(String(format: NSLocalizedString("audience.selectPeople", comment: "Select people"), selectedUsers.count))
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color(hex: "007AFF"))
-                            .cornerRadius(12)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     .padding()
                 }
@@ -156,7 +156,7 @@ struct UserSelectionRow: View {
                         .fill(Color.gray.opacity(0.3))
                         .overlay(
                             Image(systemName: "person.fill")
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                         )
                 }
                 .frame(width: 40, height: 40)
@@ -166,7 +166,7 @@ struct UserSelectionRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(user.username)")
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 }
                 
                 Spacer()
@@ -174,7 +174,7 @@ struct UserSelectionRow: View {
                 // Checkbox
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20))
-                    .foregroundColor(isSelected ? Color(hex: "00A896") : .gray)
+                    .foregroundStyle(isSelected ? Color(hex: "00A896") : .gray)
             }
             .padding(.vertical, 8)
         }
@@ -249,7 +249,7 @@ struct CustomAudienceListsView: View {
             if showingDeleteFeedback {
                 Text(String(format: NSLocalizedString("audience.deleteList.success", comment: ""), deletedListName))
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 12)
                     .background(
@@ -268,7 +268,7 @@ struct CustomAudienceListsView: View {
             if viewModel.isLoading {
                 ProgressView(NSLocalizedString("common.loading", comment: ""))
                     .progressViewStyle(CircularProgressViewStyle())
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             } else {
                 VStack(spacing: 0) {
                     if embeddedInFlow {
@@ -276,7 +276,7 @@ struct CustomAudienceListsView: View {
                             Button(action: { onBack?() }) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                     .frame(width: 40, height: 40)
                                     .momentsChromeGlass(in: Circle(), interactive: true)
                             }
@@ -287,10 +287,10 @@ struct CustomAudienceListsView: View {
                             VStack(spacing: 2) {
                                 Text(NSLocalizedString("audience.customLists.title", comment: ""))
                                     .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 Text(NSLocalizedString("audience.customLists", comment: ""))
                                     .font(.system(size: legacyPoppinsSize(13)))
-                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+                                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                             }
                             .multilineTextAlignment(.center)
                             
@@ -305,7 +305,7 @@ struct CustomAudienceListsView: View {
                             }) {
                                 Image(systemName: "plus")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                     .frame(width: 40, height: 40)
                                     .momentsChromeGlass(in: Circle(), interactive: true)
                             }
@@ -319,7 +319,7 @@ struct CustomAudienceListsView: View {
                             Button(action: { dismiss() }) {
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                     .frame(width: 40, height: 40)
                                     .momentsChromeGlass(in: Circle(), interactive: true)
                             }
@@ -330,10 +330,10 @@ struct CustomAudienceListsView: View {
                             VStack(spacing: 2) {
                                 Text(NSLocalizedString("audience.customLists.title", comment: ""))
                                     .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 Text(NSLocalizedString("audience.customLists", comment: ""))
                                     .font(.system(size: legacyPoppinsSize(13)))
-                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+                                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                             }
                             .multilineTextAlignment(.center)
 
@@ -342,7 +342,7 @@ struct CustomAudienceListsView: View {
                             Button(action: { showingCreateList = true }) {
                                 Image(systemName: "plus")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                     .frame(width: 40, height: 40)
                                     .momentsChromeGlass(in: Circle(), interactive: true)
                             }
@@ -377,11 +377,11 @@ struct CustomAudienceListsView: View {
             VStack(spacing: 6) {
                 Text(NSLocalizedString("audience.noCustomLists.title", comment: ""))
                     .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Text(NSLocalizedString("audience.noCustomLists.description", comment: ""))
                     .font(.system(size: legacyPoppinsSize(16)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 28)
             }
@@ -396,13 +396,13 @@ struct CustomAudienceListsView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "plus")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(width: 30, height: 30)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                     
                     Text(NSLocalizedString("audience.createFirstList", comment: ""))
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                 }
             }
             .padding(.top, 6)
@@ -471,13 +471,13 @@ struct ManageableCustomListCard: View {
                     
                     Image(systemName: list.icon ?? "person.3.fill")
                         .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(Color(hex: list.color ?? "00A896"))
+                        .foregroundStyle(Color(hex: list.color ?? "00A896"))
                 }
                 
                 VStack(spacing: 4) {
                     Text(list.name)
                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                     
                     HStack(spacing: 4) {
@@ -486,7 +486,7 @@ struct ManageableCustomListCard: View {
                         Text(String(format: NSLocalizedString("audience.people.count", comment: ""), list.members.count))
                             .font(.system(size: legacyPoppinsSize(12)))
                     }
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -496,9 +496,9 @@ struct ManageableCustomListCard: View {
         .buttonStyle(PlainButtonStyle())
         .scaleEffect(isPressed ? 0.96 : 1.0)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isPressed), value: isPressed)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             isPressed = pressing
-        }, perform: {})
+        })
         .contextMenu {
             Button(role: .destructive, action: onDelete) {
                 Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash.fill")

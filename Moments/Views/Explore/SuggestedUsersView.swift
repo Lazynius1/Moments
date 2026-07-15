@@ -33,7 +33,7 @@ struct SuggestedUsersView: View {
         VStack(alignment: .center, spacing: 2) {
             Text("explore.suggestedUsers.title")
                 .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
         }
         .padding(.horizontal, 12)
         .padding(.top, 20)
@@ -50,22 +50,22 @@ struct SuggestedUsersView: View {
                         .scaleEffect(1.2)
                     Text("explore.suggestedUsers.loading")
                         .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.users.isEmpty {
                 VStack(spacing: 20) {
                     Image(systemName: "person.3.fill")
                         .font(.system(size: 60))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     Text("explore.suggestedUsers.empty")
                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     
                     Text("explore.suggestedUsers.emptyDescription")
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -99,7 +99,7 @@ struct SuggestedUsersView: View {
                                     .scaleEffect(0.8)
                                 Text("explore.suggestedUsers.loadingMore")
                                     .font(.system(size: legacyPoppinsSize(14)))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 Spacer()
                             }
                             .padding(.vertical, 20)
@@ -140,7 +140,7 @@ struct SuggestedUserRow: View {
                         .fill(Color.gray.opacity(0.3))
                         .overlay(
                             Image(systemName: "person.fill")
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                         )
                 }
                 .frame(width: 50, height: 50)
@@ -158,7 +158,7 @@ struct SuggestedUserRow: View {
                     HStack(spacing: 4) {
                         Text(user.username)
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                         
                         if user.isVerified {
                             VerifiedBadge(size: 12)
@@ -169,7 +169,7 @@ struct SuggestedUserRow: View {
                 if commonInterests > 0 {
                     Text(String(format: NSLocalizedString("explore.suggestedUsers.commonInterests", comment: "Common interests"), commonInterests))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 }
                 
                 // Intereses (máximo 2)
@@ -178,7 +178,7 @@ struct SuggestedUserRow: View {
                         ForEach(Array(user.interests.prefix(2)), id: \.self) { interest in
                             Text(interest)
                                 .font(.system(size: legacyPoppinsSize(11)))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .momentsChromeGlass(in: Capsule())
@@ -187,7 +187,7 @@ struct SuggestedUserRow: View {
                         if user.interests.count > 2 {
                             Text("+\(user.interests.count - 2)")
                                 .font(.system(size: legacyPoppinsSize(11)))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .momentsChromeGlass(in: Capsule())
@@ -225,7 +225,7 @@ struct SuggestedUserFollowButton: View {
                 Text(buttonText)
                     .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
             }
-            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .foregroundStyle(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 12), interactive: state.isActionable)

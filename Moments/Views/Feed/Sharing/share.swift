@@ -182,13 +182,13 @@ struct MainActionsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("share.moment.title")
                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     
                     LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
                         Text(String(format: NSLocalizedString("share.moment.from", comment: ""), username))
                     }
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
@@ -257,7 +257,7 @@ struct ShareActionButton: View {
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                     }
                 }
                 .frame(width: 28)
@@ -265,18 +265,18 @@ struct ShareActionButton: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .padding(.vertical, 14)
             .padding(.horizontal, 4)
@@ -444,11 +444,11 @@ struct ShareRecipientsPickerSheet: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .font(.system(size: 16))
 
                 TextField(NSLocalizedString("share.search.placeholder", comment: ""), text: $searchText)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .font(.system(size: legacyPoppinsSize(16)))
                     .textFieldStyle(PlainTextFieldStyle())
                     .autocorrectionDisabled()
@@ -529,7 +529,7 @@ struct ShareRecipientsPickerSheet: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("share.search.globalResults")
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .padding(.top, 8)
 
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
@@ -552,10 +552,10 @@ struct ShareRecipientsPickerSheet: View {
                     VStack(spacing: 12) {
                         Image(systemName: "star.slash")
                             .font(.system(size: 40))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Text("share.favorites.empty")
                             .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 40)
@@ -574,7 +574,7 @@ struct ShareRecipientsPickerSheet: View {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(Color.white.opacity(0.1)))
                 }
@@ -582,7 +582,7 @@ struct ShareRecipientsPickerSheet: View {
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(Color.white.opacity(0.1)))
                 }
@@ -591,12 +591,12 @@ struct ShareRecipientsPickerSheet: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(LocalizedStringKey(titleKey))
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
             }
@@ -740,13 +740,13 @@ struct QuickActionButton: View {
                     
                     Image(systemName: icon)
                         .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(iconColor)
+                        .foregroundStyle(iconColor)
                 }
             }
             
             Text(title)
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundStyle(.white.opacity(0.8))
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
         }
@@ -806,7 +806,7 @@ struct PersonCell: View {
                             .overlay(
                                 Image(systemName: "person.fill")
                                     .font(.system(size: 28))
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .foregroundStyle(.white.opacity(0.6))
                             )
                             .overlay(
                                 Circle()
@@ -828,7 +828,7 @@ struct PersonCell: View {
                             .overlay(
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             )
                             .shadow(color: Color(hex: "00A896").opacity(0.4), radius: 4, x: 0, y: 2)
                             .offset(x: 24, y: -24)
@@ -840,15 +840,15 @@ struct PersonCell: View {
             .scaleEffect(isPressed ? 0.95 : 1.0)
             .accessibilityLabel(Text(conversation.otherParticipantUsername ?? NSLocalizedString("nova.user", comment: "Default user name")))
             .accessibilityAddTraits(isSelected ? .isSelected : [])
-            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
                 withAnimation(.easeInOut(duration: 0.1)) {
                     isPressed = pressing
                 }
-            }, perform: {})
+            })
             
             Text(conversation.otherParticipantUsername ?? "Usuario")
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
@@ -912,18 +912,18 @@ struct EmptyStateView: View {
                 
                 Image(systemName: icon)
                     .font(.system(size: 48, weight: .light))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundStyle(Color(hex: "00A896"))
             }
             
             VStack(spacing: 8) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                 
                 Text(subtitle)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
             }
         }
@@ -936,6 +936,7 @@ struct EmptyStateView: View {
 
 // MARK: - Add to Story View
 struct AddToStoryView: View {
+    @Environment(\.displayScale) private var displayScale
     let moment: Moment
     @Environment(\.dismiss) var dismiss
     @State private var showCreatorView = false
@@ -953,11 +954,11 @@ struct AddToStoryView: View {
                 if let error = errorMessage {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 50))
-                        .foregroundColor(.yellow)
+                        .foregroundStyle(.yellow)
                     
                     Text(error)
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     
@@ -974,7 +975,7 @@ struct AddToStoryView: View {
                     
                     Text("share.preparing") // Assume this exists or add to Localizable
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
         }
@@ -1063,10 +1064,10 @@ struct AddToStoryView: View {
             .frame(width: 260)
         
         let renderer = ImageRenderer(content: stickerView)
-        renderer.scale = UIScreen.main.scale
+        renderer.scale = displayScale
         
         if let uiImage = renderer.uiImage {
-            let position = CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2)
+            let position = CGPoint(x: UIApplication.shared.activeWindowSize.width / 2, y: UIApplication.shared.activeWindowSize.height / 2)
             
             let interactionData = StickerItem.StickerInteractionData(
                 username: moment.username,
@@ -1187,7 +1188,7 @@ struct SharedDMPostCard<Media: View>: View {
             if let authorName, !authorName.isEmpty {
                 Text(authorName)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
                     .lineLimit(1)
             }
             if let authorId {
@@ -1237,7 +1238,7 @@ struct SharedDMPostCard<Media: View>: View {
         if let caption, !caption.isEmpty {
             captionText
                 .font(.system(size: 13))
-                .foregroundColor(primaryText)
+                .foregroundStyle(primaryText)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1337,7 +1338,7 @@ struct SharedDMPreviewAuthorRow: View {
                         .overlay(
                             Image(systemName: "person.fill")
                                 .font(.caption)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                         )
                 }
             }
@@ -1345,7 +1346,7 @@ struct SharedDMPreviewAuthorRow: View {
             if let authorName, !authorName.isEmpty {
                 Text(authorName)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .lineLimit(1)
             }
             if let authorId {
@@ -1375,7 +1376,7 @@ struct SharedDMCenteredPlayOverlay: View {
             .overlay(
                 Image(systemName: "play.fill")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .offset(x: 2)
             )
             .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
@@ -1426,11 +1427,11 @@ struct SharedDMUnavailablePreviewCard: View {
                 VStack(spacing: 8) {
                     Image(systemName: iconName)
                         .font(.system(size: 26, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
 
                     Text(LocalizedStringKey(titleKey))
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 14)
                 }
@@ -1539,7 +1540,7 @@ struct MomentBubbleContent: View {
             if let content = content, !content.isEmpty {
                 Text(content)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .padding(.bottom, 4)
             }
             
@@ -1615,7 +1616,7 @@ struct MomentVisualContent: View {
                      .overlay(
                         Image(systemName: "photo")
                             .font(.largeTitle)
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                      )
                 }
                 
@@ -1704,7 +1705,7 @@ struct FilterChip: View {
                             .stroke(isSelected ? color : Color.white.opacity(0.2), lineWidth: 1)
                     )
             )
-            .foregroundColor(isSelected ? color : .primary)
+            .foregroundStyle(isSelected ? color : .primary)
         }
     }
 }
@@ -1724,7 +1725,7 @@ struct SendActionBottomBar: View {
                          NSLocalizedString("share.selectContacts", comment: ""))
                 }
                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                .foregroundColor(selectedCount > 0 ? .white : .primary)
+                .foregroundStyle(selectedCount > 0 ? .white : .primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
                 .background(
@@ -1761,14 +1762,14 @@ struct GlobalUserCell: View {
                         Circle()
                             .fill(Color.white.opacity(0.1))
                             .frame(width: 60, height: 60)
-                            .overlay(Image(systemName: "person.fill").foregroundColor(.white.opacity(0.6)))
+                            .overlay(Image(systemName: "person.fill").foregroundStyle(.white.opacity(0.6)))
                     }
                     
                     if isSelected {
                         Circle()
                             .fill(Color(hex: "00A896"))
                             .frame(width: 20, height: 20)
-                            .overlay(Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(.white))
+                            .overlay(Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(.white))
                             .offset(x: 20, y: -20)
                     }
                 }
@@ -1779,7 +1780,7 @@ struct GlobalUserCell: View {
             
             Text(user.username)
                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
         }
     }
@@ -1810,10 +1811,10 @@ struct EmptySearchState: View {
         VStack(spacing: 12) {
             Image(systemName: "person.crop.circle.badge.exclamationmark")
                 .font(.system(size: 40))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text(NSLocalizedString("share.search.noResults", comment: ""))
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 40)
@@ -1833,11 +1834,11 @@ struct PreparingStoryOverlay: View {
                 if let error = errorMessage {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 50))
-                        .foregroundColor(.yellow)
+                        .foregroundStyle(.yellow)
                     
                     Text(error)
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     
@@ -1854,7 +1855,7 @@ struct PreparingStoryOverlay: View {
                     
                     Text(NSLocalizedString("share.preparing", comment: "Preparing story..."))
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
         }

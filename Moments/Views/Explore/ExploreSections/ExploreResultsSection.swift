@@ -60,11 +60,11 @@ struct SmartSearchResultsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(headerTitle)
                     .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text(headerSubtitle)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
@@ -72,7 +72,7 @@ struct SmartSearchResultsView: View {
             // Icono según tipo de búsqueda
             Image(systemName: headerIcon)
                 .font(.system(size: 24))
-                .foregroundColor(Color(hex: "667eea"))
+                .foregroundStyle(Color(hex: "667eea"))
                 .frame(width: 40, height: 40)
                 .background(.ultraThinMaterial)
                 .clipShape(Circle())
@@ -86,13 +86,13 @@ struct SmartSearchResultsView: View {
             HStack {
                 Text(String(format: NSLocalizedString("explore.search.moments", comment: "Search moments"), searchQuery))
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
                 Text("\(moments.count)")
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(Color(hex: "667eea"))
+                    .foregroundStyle(Color(hex: "667eea"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color(hex: "667eea").opacity(0.1))
@@ -130,13 +130,13 @@ struct SmartSearchResultsView: View {
             HStack {
                 Text("explore.search.results")
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
                 Text("\(moments.count)")
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(Color(hex: "667eea"))
+                    .foregroundStyle(Color(hex: "667eea"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color(hex: "667eea").opacity(0.1))
@@ -157,13 +157,13 @@ struct SmartSearchResultsView: View {
                     HStack {
                         Text("explore.search.users")
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
 
                         Spacer()
 
                         Text("\(users.count)")
                             .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(.horizontal, 24)
 
@@ -187,13 +187,13 @@ struct SmartSearchResultsView: View {
                     HStack {
                         Text("explore.search.moments.tab")
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
 
                         Spacer()
 
                         Text("\(moments.count)")
                             .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(.horizontal, 24)
 
@@ -286,7 +286,7 @@ struct MiniUserCard: View {
                 HStack(spacing: 2) {
                     Text("@\(user.username)")
                         .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     // ✅ INSIGNIA DE VERIFICADO
@@ -310,7 +310,7 @@ struct RecentSearchesView: View {
             HStack {
                 Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
                     .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
@@ -318,7 +318,7 @@ struct RecentSearchesView: View {
                     Button(action: onClearAll) {
                         Text(NSLocalizedString("explore.recentSearches.clearAll", comment: ""))
                             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                     }
                 }
             }
@@ -328,11 +328,11 @@ struct RecentSearchesView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 32))
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .foregroundStyle(.secondary.opacity(0.5))
 
                     Text(NSLocalizedString("explore.recentSearches.empty", comment: ""))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
@@ -343,7 +343,7 @@ struct RecentSearchesView: View {
                             HStack(spacing: 16) {
                                 Image(systemName: searchIcon(for: search.type))
                                     .font(.system(size: 16))
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .frame(width: 36, height: 36)
                                     .background(.ultraThinMaterial)
                                     .clipShape(Circle())
@@ -351,18 +351,18 @@ struct RecentSearchesView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(search.query)
                                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                                        .foregroundColor(.primary)
+                                        .foregroundStyle(.primary)
 
                                     Text(searchTypeLabel(for: search.type))
                                         .font(.system(size: legacyPoppinsSize(12)))
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
 
                                 Spacer()
 
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 14))
-                                    .foregroundColor(.secondary.opacity(0.5))
+                                    .foregroundStyle(.secondary.opacity(0.5))
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)

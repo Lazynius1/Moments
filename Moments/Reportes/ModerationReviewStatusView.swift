@@ -142,11 +142,11 @@ private struct ModerationReviewCard: View {
                     HStack(spacing: 10) {
                         Text(String(format: NSLocalizedString("moderationReview.status.ticket", comment: "Moderation review ticket number format"), request.ticketNumber))
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(AuthColors.primary(colorScheme))
+                            .foregroundStyle(AuthColors.primary(colorScheme))
 
                         Text(request.submittedAt)
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                            .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.62))
                             .lineLimit(1)
                     }
 
@@ -156,23 +156,23 @@ private struct ModerationReviewCard: View {
                          ? NSLocalizedString("moderationReview.context.story", comment: "Story content type")
                          : NSLocalizedString("moderationReview.context.moment", comment: "Moment content type"))
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
 
                     Text(request.reviewMessage)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                         .lineLimit(2)
 
                     Text(String(format: NSLocalizedString("moderationReview.status.estimatedResponse", comment: "Moderation review estimated response"), request.estimatedResponseTime))
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 }
 
                 Spacer(minLength: 10)
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.45))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.45))
             }
             .padding(18)
             .background(
@@ -255,12 +255,12 @@ private struct ModerationReviewDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.68))
 
             ForEach(lines, id: \.self) { line in
                 Text(line)
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -280,15 +280,15 @@ private struct ModerationReviewEmptyView: View {
         VStack(spacing: 18) {
             Image(systemName: "checkmark.shield")
                 .font(.system(size: 42, weight: .semibold))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.6))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.6))
 
             Text(NSLocalizedString("moderationReview.status.empty.title", comment: "Moderation review empty title"))
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
 
             Text(NSLocalizedString("moderationReview.status.empty.message", comment: "Moderation review empty message"))
                 .font(.system(size: 15, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 28)
         }

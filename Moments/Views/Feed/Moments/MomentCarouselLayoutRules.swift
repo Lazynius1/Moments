@@ -105,7 +105,7 @@ enum FeedMomentCardLayout {
     static var peekCornerRadius: CGFloat { mediaCornerRadius }
 
     static var mediaContentWidth: CGFloat {
-        max(UIScreen.main.bounds.width - (listHorizontalPadding * 2), 1)
+        max(UIApplication.shared.activeWindowSize.width - (listHorizontalPadding * 2), 1)
     }
 }
 

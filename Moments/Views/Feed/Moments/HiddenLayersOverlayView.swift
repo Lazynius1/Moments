@@ -37,7 +37,7 @@ struct HiddenLayersOverlayView: View {
                             if let topHintText {
                                 Text(topHintText)
                                     .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
                                     .momentsChromeGlass(in: Capsule())
@@ -433,7 +433,7 @@ struct HiddenLayersOverlayView: View {
     }
 
     private func overlayHasFocus(frame: CGRect) -> Bool {
-        let screen = UIScreen.main.bounds
+        let screen = CGRect(origin: .zero, size: UIApplication.shared.activeWindowSize)
         let visibleFrame = frame.intersection(screen)
         guard !visibleFrame.isNull, frame.height > 0 else { return false }
 
@@ -843,10 +843,10 @@ private struct TypewriterText: View {
         
         Text(text.prefix(visibleCount))
             .font(font)
-            .foregroundColor(foregroundColor)
+            .foregroundStyle(foregroundColor)
             + Text(text.dropFirst(visibleCount))
             .font(font)
-            .foregroundColor(.clear)
+            .foregroundStyle(.clear)
     }
 }
 
@@ -904,7 +904,7 @@ private struct HiddenLayerAudioTagView: View {
             VStack(spacing: 6) {
                 Image(systemName: isPreparing ? "arrow.down.circle" : (isPlaying ? "pause.fill" : "play.fill"))
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .contentTransition(.symbolEffect(.replace))
 
                 HStack(alignment: .center, spacing: 3) {

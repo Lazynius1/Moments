@@ -59,17 +59,17 @@ struct SetPasswordView: View {
                         VStack(spacing: 8) {
                             Image(systemName: "key.fill")
                                 .font(.system(size: 50))
-                                .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                                .foregroundStyle(SettingsProfileColors.accent(colorScheme))
 
                             Text("settings.security.password.add")
                                 .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                             Text(needsEditableEmail
                                  ? "settings.security.password.addSheetDescriptionNoEmail"
                                  : "settings.security.password.addSheetDescription")
                                 .font(.system(size: legacyPoppinsSize(16)))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                                 .multilineTextAlignment(.center)
                         }
                         .padding(.top, 20)
@@ -110,7 +110,7 @@ struct SetPasswordView: View {
                                 Text("settings.security.password.save")
                                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             }
-                            .foregroundColor(isFormValid ? SettingsProfileColors.accentContrastingText(colorScheme) : .white)
+                            .foregroundStyle(isFormValid ? SettingsProfileColors.accentContrastingText(colorScheme) : .white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .background(
@@ -159,7 +159,7 @@ struct SetPasswordView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("settings.security.password.accountEmail")
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
             if needsEditableEmail {
                 TextField(
@@ -179,16 +179,16 @@ struct SetPasswordView: View {
                 if authService.backupEmailStatus == .appleRelay {
                     Text("settings.security.password.relayWarning")
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                 } else {
                     Text("settings.security.password.emailRequired")
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.65))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.65))
                 }
             } else {
                 Text(emailInput)
                     .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(
@@ -198,7 +198,7 @@ struct SetPasswordView: View {
 
                 Text("settings.security.password.emailLoginHint")
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.65))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.65))
             }
         }
         .padding(.horizontal)
@@ -209,12 +209,12 @@ struct SetPasswordView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("settings.security.password.verifyApple")
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
             if appleIdentityVerified {
                 HStack(spacing: 10) {
                     Image(systemName: "checkmark.seal.fill")
-                        .foregroundColor(.green)
+                        .foregroundStyle(.green)
                     Text("accountManagement.identityVerified")
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 }
@@ -240,7 +240,7 @@ struct SetPasswordView: View {
             if let verificationErrorMessage {
                 Text(verificationErrorMessage)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
             }
         }
         .padding(.horizontal)
@@ -255,7 +255,7 @@ struct SetPasswordView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
             HStack {
                 if isVisible.wrappedValue {
@@ -268,7 +268,7 @@ struct SetPasswordView: View {
 
                 Button(action: { isVisible.wrappedValue.toggle() }) {
                     Image(systemName: isVisible.wrappedValue ? "eye.slash" : "eye")
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 }
             }
             .padding()

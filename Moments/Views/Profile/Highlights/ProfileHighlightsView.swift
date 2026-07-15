@@ -93,7 +93,7 @@ struct ProfileHighlightsView: View {
                             Rectangle()
                                 .fill(ProfileColors.cardBackground)
                                 .frame(width: 40, height: 10)
-                                .cornerRadius(4)
+                                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                                 .shimmering()
                         }
                     }
@@ -121,13 +121,13 @@ struct ProfileHighlightsView: View {
 
                                     Image(systemName: "plus")
                                         .font(.system(size: isCompact ? 16 : 20, weight: .semibold))
-                                        .foregroundColor(ProfileColors.accent)
+                                        .foregroundStyle(ProfileColors.accent)
                                 }
 
                                 if !isCompact {
                                     Text(NSLocalizedString("highlightedStories.new", comment: "New highlight"))
                                         .font(.system(size: legacyPoppinsSize(10)))
-                                        .foregroundColor(ProfileColors.textSecondary)
+                                        .foregroundStyle(ProfileColors.textSecondary)
                                 }
                             }
                         }
@@ -153,7 +153,7 @@ struct ProfileHighlightsView: View {
 
                                 Text(highlight.title)
                                     .font(.system(size: legacyPoppinsSize(isCompact ? 9 : 11), weight: .medium))
-                                    .foregroundColor(ProfileColors.textPrimary)
+                                    .foregroundStyle(ProfileColors.textPrimary)
                                     .lineLimit(1)
                                     .frame(width: isCompact ? 60 : 80)
                             }
@@ -217,7 +217,7 @@ struct HighlightIconView: View {
                     .frame(width: size, height: size)
                     .overlay(
                         Image(systemName: "star.fill")
-                            .foregroundColor(ProfileColors.accent.opacity(0.5))
+                            .foregroundStyle(ProfileColors.accent.opacity(0.5))
                             .font(.system(size: size * 0.3))
                     )
             }

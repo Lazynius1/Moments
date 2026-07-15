@@ -25,7 +25,7 @@ struct ConversationHistoryOverlay: View {
                     HStack {
                         Text("nova.recentConversations")
                             .font(.system(size: legacyPoppinsSize(20), weight: .bold))
-                            .foregroundColor(NovaColors.textPrimary)
+                            .foregroundStyle(NovaColors.textPrimary)
 
                         Spacer()
 
@@ -34,7 +34,7 @@ struct ConversationHistoryOverlay: View {
                         }) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(NovaColors.textPrimary)
+                                .foregroundStyle(NovaColors.textPrimary)
                                 .frame(width: 36, height: 36)
                                 .background {
                                     Color.clear
@@ -55,11 +55,11 @@ struct ConversationHistoryOverlay: View {
 
                                     Text("nova.noConversations")
                                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                                        .foregroundColor(NovaColors.textSecondary)
+                                        .foregroundStyle(NovaColors.textSecondary)
 
                                     Text("nova.startNewConversation")
                                         .font(.system(size: legacyPoppinsSize(14)))
-                                        .foregroundColor(NovaColors.textTertiary)
+                                        .foregroundStyle(NovaColors.textTertiary)
                                         .multilineTextAlignment(.center)
                                 }
                                 .padding(.vertical, 40)
@@ -73,7 +73,7 @@ struct ConversationHistoryOverlay: View {
                                     HStack {
                                         Image(systemName: "plus")
                                             .font(.system(size: 14, weight: .semibold))
-                                            .foregroundColor(NovaColors.textPrimary)
+                                            .foregroundStyle(NovaColors.textPrimary)
                                             .frame(width: 28, height: 28)
                                             .background {
                                                 Color.clear
@@ -82,13 +82,13 @@ struct ConversationHistoryOverlay: View {
 
                                         Text("nova.newConversation")
                                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                            .foregroundColor(NovaColors.textPrimary)
+                                            .foregroundStyle(NovaColors.textPrimary)
 
                                         Spacer()
 
                                         Image(systemName: "chevron.right")
                                             .font(.system(size: 12))
-                                            .foregroundColor(NovaColors.textSecondary)
+                                            .foregroundStyle(NovaColors.textSecondary)
                                     }
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 16)
@@ -124,7 +124,7 @@ struct ConversationHistoryOverlay: View {
                         }
                         .padding(.bottom, 20)
                     }
-                    .frame(maxHeight: UIScreen.main.bounds.height * 0.6)
+                    .frame(maxHeight: UIApplication.shared.activeWindowSize.height * 0.6)
                 }
                 .padding(.top, 6)
                 .padding(.bottom, 8)
@@ -160,18 +160,18 @@ struct ConversationHistoryItem: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(conversation.title)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(NovaColors.textPrimary)
+                        .foregroundStyle(NovaColors.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
                     Text(conversation.lastUpdated.timeAgoDisplay())
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(NovaColors.textSecondary)
+                        .foregroundStyle(NovaColors.textSecondary)
 
                     if conversation.messageCount > 0 {
                         Text("\(conversation.messageCount) \(NSLocalizedString("nova.messages", comment: "Messages count"))")
                             .font(.system(size: legacyPoppinsSize(11)))
-                            .foregroundColor(NovaColors.textTertiary)
+                            .foregroundStyle(NovaColors.textTertiary)
                     }
                 }
 
@@ -186,7 +186,7 @@ struct ConversationHistoryItem: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 16))
-                        .foregroundColor(NovaColors.textPrimary)
+                        .foregroundStyle(NovaColors.textPrimary)
                         .frame(width: 34, height: 34)
                         .background {
                             Color.clear

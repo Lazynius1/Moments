@@ -62,7 +62,7 @@ struct EchoHistoryView: View {
                 } label: {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(width: 36, height: 36)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                 }
@@ -74,7 +74,7 @@ struct EchoHistoryView: View {
                 } label: {
                     Image(systemName: "info.circle")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(width: 36, height: 36)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                 }
@@ -83,7 +83,7 @@ struct EchoHistoryView: View {
             VStack(spacing: 3) {
                 Text(NSLocalizedString("echo.history.title", comment: ""))
                     .font(.system(size: 21, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
         }
         .padding(.horizontal, 20)
@@ -100,11 +100,11 @@ struct EchoHistoryView: View {
             
             Text(NSLocalizedString("echo.history.empty.title", comment: ""))
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
             
             Text(NSLocalizedString("echo.history.empty.subtitle", comment: ""))
                 .font(.system(size: 14))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
         }
@@ -143,7 +143,7 @@ struct EchoHistoryView: View {
             Text(text)
                 .font(.system(size: 12, weight: .semibold))
         }
-        .foregroundColor(.primary)
+        .foregroundStyle(.primary)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .momentsChromeGlass(in: Capsule())
@@ -178,7 +178,7 @@ private struct EchoHistoryInfoSheetView: View {
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                             .frame(width: 36, height: 36)
                             .momentsChromeGlass(in: Circle(), interactive: true)
                     }
@@ -188,7 +188,7 @@ private struct EchoHistoryInfoSheetView: View {
 
                 Text(NSLocalizedString("echo.info.title", comment: ""))
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
@@ -231,7 +231,7 @@ private struct EchoHistoryInfoSheetView: View {
                 .font(.system(size: 15, weight: .semibold))
             Text(body)
                 .font(.system(size: 14))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -308,11 +308,11 @@ struct EchoHistoryCard: View {
                     if let location = echo.locationName {
                         Text(location)
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                     } else {
                         Text("Echo")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                     }
                     
                     // Participantes y fecha
@@ -321,14 +321,14 @@ struct EchoHistoryCard: View {
                         let format = count == 1 ? "echo.participants.singular" : "echo.participants.plural"
                         Text(String(format: NSLocalizedString(format, comment: ""), count))
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         
                         Text("•")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         
                         Text(expiresLabel)
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 
@@ -338,14 +338,14 @@ struct EchoHistoryCard: View {
                 VStack(alignment: .trailing, spacing: 8) {
                     Text(statusText)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(statusColor)
+                        .foregroundStyle(statusColor)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(statusColor.opacity(0.12), in: Capsule())
                     
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 4)

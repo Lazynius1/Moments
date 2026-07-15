@@ -507,7 +507,7 @@ struct ChatTintedGlassCircleButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: iconSize, weight: .medium))
-                .foregroundColor(foregroundColor)
+                .foregroundStyle(foregroundColor)
                 .frame(width: size, height: size)
                 .modifier(ChatTintedGlassCircleModifier(tint: tint))
                 .contentShape(Circle())
@@ -626,7 +626,7 @@ struct GlassmorphicDateHeader: View {
     var body: some View {
         Text(formatDate(date))
             .font(.system(size: legacyPoppinsSize(12)))
-            .foregroundColor(adaptiveColors.dateHeaderColor)
+            .foregroundStyle(adaptiveColors.dateHeaderColor)
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
             .glassmorphicChat()
@@ -665,7 +665,7 @@ struct GlassmorphicUnreadDivider: View {
                 dividerText
                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
             }
-            .foregroundColor(adaptiveColors.primary.opacity(0.9))
+            .foregroundStyle(adaptiveColors.primary.opacity(0.9))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(adaptiveColors.chatInputBackground)
@@ -828,7 +828,7 @@ struct ChatInThreadSearchField: View {
                 .font(.system(size: legacyPoppinsSize(15)))
                 .foregroundStyle(adaptiveColors.primary)
                 .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
+                .autocorrectionDisabled(true)
                 .submitLabel(.search)
                 .focused(focused)
                 .onSubmit(onSubmit)

@@ -74,7 +74,7 @@ struct FeedMomentVisibilityReporter: ViewModifier {
         content.background(
             GeometryReader { proxy in
                 let frame = proxy.frame(in: .global)
-                let screen = UIScreen.main.bounds
+                let screen = CGRect(origin: .zero, size: UIApplication.shared.activeWindowSize)
                 let intersection = frame.intersection(screen)
                 let fraction: CGFloat = frame.height > 0
                     ? max(0, min(1, intersection.height / frame.height))

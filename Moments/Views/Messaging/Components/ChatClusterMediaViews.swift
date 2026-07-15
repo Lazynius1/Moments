@@ -258,6 +258,7 @@ enum ClusterMediaLayout {
 }
 
 struct MediaGridBubble: View {
+    @Environment(\.displayScale) private var displayScale
     let messages: [EnhancedMessage]
     let isCurrentUser: Bool
     let uploadProgress: [String: Double]
@@ -372,7 +373,7 @@ struct MediaGridBubble: View {
         }
         return Text(String(format: NSLocalizedString(key, comment: ""), count))
             .font(.system(size: 12, weight: .medium))
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
             .padding(.horizontal, 6)
     }
 
@@ -381,8 +382,8 @@ struct MediaGridBubble: View {
             message: message,
             progress: uploadProgress[message.id],
             downsamplingSize: CGSize(
-                width: ClusterMediaLayout.frontWidth * UIScreen.main.scale,
-                height: ClusterMediaLayout.frontHeight * UIScreen.main.scale
+                width: ClusterMediaLayout.frontWidth * displayScale,
+                height: ClusterMediaLayout.frontHeight * displayScale
             )
         )
         .frame(width: ClusterMediaLayout.frontWidth, height: ClusterMediaLayout.frontHeight)
@@ -552,7 +553,7 @@ struct MediaGridTileView: View {
             .overlay(
                 Image(systemName: icon)
                     .font(.system(size: 22))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
             )
     }
 }
@@ -619,6 +620,7 @@ enum ClusterGalleryTab: String, CaseIterable, Identifiable {
 }
 
 struct ClusterGalleryView<Detail: View>: View {
+    @Environment(\.displayScale) private var displayScale
     let messages: [EnhancedMessage]
     let currentUserId: String
     var scope: ClusterGalleryScope = .cluster
@@ -825,7 +827,7 @@ struct ClusterGalleryView<Detail: View>: View {
                 toggleSelectionMode()
             }
             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-            .foregroundColor(isSelectionMode ? .red : MomentsChromeGlass.contentColor(for: colorScheme))
+            .foregroundStyle(isSelectionMode ? .red : MomentsChromeGlass.contentColor(for: colorScheme))
         }
     }
 
@@ -833,7 +835,7 @@ struct ClusterGalleryView<Detail: View>: View {
         HStack(spacing: 10) {
             Text(String(format: NSLocalizedString("chat.gallery.selectedCount", comment: ""), selectedIds.count))
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundColor(MomentsChromeGlass.contentColor(for: colorScheme))
+                .foregroundStyle(MomentsChromeGlass.contentColor(for: colorScheme))
 
             Spacer()
 
@@ -841,7 +843,7 @@ struct ClusterGalleryView<Detail: View>: View {
                 Label("common.delete", systemImage: "trash")
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
             }
-            .foregroundColor(.red)
+            .foregroundStyle(.red)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -872,7 +874,7 @@ struct ClusterGalleryView<Detail: View>: View {
                             VStack(spacing: 6) {
                                 Text(NSLocalizedString(tab.rawValue, comment: ""))
                                     .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium))
-                                    .foregroundColor(selectedTab == tab ? MomentsChromeGlass.contentColor(for: colorScheme) : .gray)
+                                    .foregroundStyle(selectedTab == tab ? MomentsChromeGlass.contentColor(for: colorScheme) : .gray)
                                     .frame(maxWidth: .infinity)
 
                                 Rectangle()
@@ -982,8 +984,8 @@ struct ClusterGalleryView<Detail: View>: View {
                     message: message,
                     progress: nil,
                     downsamplingSize: CGSize(
-                        width: 400 * UIScreen.main.scale,
-                        height: max(400 / ratio, 1) * UIScreen.main.scale
+                        width: 400 * displayScale,
+                        height: max(400 / ratio, 1) * displayScale
                     ),
                     isDownloadingMedia: isDownloading,
                     downloadProgress: downloadProgress?(message.id)
@@ -994,12 +996,12 @@ struct ClusterGalleryView<Detail: View>: View {
                     HStack(spacing: 4) {
                         Image(systemName: "play.fill")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
                         if let durationStr = message.formattedDuration {
                             Text(durationStr)
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
                         }
                     }
@@ -1018,7 +1020,7 @@ struct ClusterGalleryView<Detail: View>: View {
                 if isSelectionMode {
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 22, weight: .semibold))
-                        .foregroundColor(isSelected ? .white : .white.opacity(0.92))
+                        .foregroundStyle(isSelected ? .white : .white.opacity(0.92))
                         .shadow(color: .black.opacity(0.35), radius: 2, x: 0, y: 1)
                         .padding(8)
                 }
@@ -1053,7 +1055,7 @@ struct ClusterGalleryView<Detail: View>: View {
                     if isSelectionMode {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                             .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(isSelected ? .white : .white.opacity(0.92))
+                            .foregroundStyle(isSelected ? .white : .white.opacity(0.92))
                             .shadow(color: .black.opacity(0.35), radius: 2, x: 0, y: 1)
                             .padding(8)
                     }
@@ -1083,17 +1085,17 @@ struct ClusterGalleryView<Detail: View>: View {
             HStack(spacing: 6) {
                 Image(systemName: "link.circle.fill")
                     .font(.system(size: 20))
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
                 if !linkHost.isEmpty {
                     Text(linkHost)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                 }
             }
             Spacer()
             Text(linkContent)
                 .font(.system(size: 12))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.85))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.85))
                 .lineLimit(3)
         }
         .padding(12)
@@ -1215,14 +1217,14 @@ struct GlassmorphicMediaSelectionSheet: View {
             HStack {
                 Text("chat.reply.select_item")
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
 
                 Spacer()
 
                 Button(action: onCancel) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundColor(adaptiveColors.primary.opacity(0.6))
+                        .foregroundStyle(adaptiveColors.primary.opacity(0.6))
                 }
             }
             .padding(.horizontal, 24)

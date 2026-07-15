@@ -47,7 +47,7 @@ struct CarouselView: View {
                             .overlay(
                                 Image(systemName: "photo.fill")
                                     .font(.system(size: 40))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             )
                     }
                 }
@@ -163,7 +163,7 @@ struct AsyncProfileImageView: View {
                 // Placeholder cuando no hay imagen
                 Image(systemName: "person.fill")
                     .font(.system(size: 20))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             }
         }
         .overlay(
@@ -248,6 +248,7 @@ struct AsyncProfileImageView: View {
 }
 
 struct ProfileImageView: View {
+    @Environment(\.displayScale) private var displayScale
     let imagePath: String?
 
     var body: some View {
@@ -260,7 +261,7 @@ struct ProfileImageView: View {
                             .overlay(ProgressView().tint(.white))
                     }
                     .downsampling(size: CGSize(width: 40, height: 40))
-                    .scaleFactor(UIScreen.main.scale)
+                    .scaleFactor(displayScale)
                     .cancelOnDisappear(true)
                     .resizable()
                     .scaledToFill()
@@ -272,7 +273,7 @@ struct ProfileImageView: View {
                     .overlay(
                         Image(systemName: "person.fill")
                             .font(.system(size: 20))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     )
                     .frame(width: 40, height: 40)
             }
@@ -295,12 +296,12 @@ struct ActionSubCardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: moment.reactions["heart"]?.contains(Auth.auth().currentUser?.uid ?? "") ?? false ? "heart.fill" : "heart")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                     // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
                     if moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts {
                         Text(MomentsFormat.count(moment.reactions["heart"]?.count ?? 0, style: .socialMetric))
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
             }
@@ -309,10 +310,10 @@ struct ActionSubCardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "message")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                     Text(MomentsFormat.count(moment.commentCount, style: .socialMetric))
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
             
@@ -321,7 +322,7 @@ struct ActionSubCardView: View {
                     AttachmentIconView(icon: .share, preset: .momentActionBar, tintColor: .white)
                     Text("0")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
             

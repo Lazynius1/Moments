@@ -201,7 +201,7 @@ struct NeutralStickerAccentPill: View {
                 .font(.system(size: 11, weight: .semibold))
                 .tracking(usesUppercase ? 0.2 : 0)
         }
-        .foregroundColor(foreground)
+        .foregroundStyle(foreground)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(
@@ -317,7 +317,7 @@ private struct StickerCountdownDigitBox: View {
     var body: some View {
         Text(value)
             .font(.system(size: 22, weight: .bold, design: .rounded))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .frame(width: 26, height: 32)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -1180,11 +1180,11 @@ struct StickerPolaroidFrameView: View {
                     (
                         Text(caption.prefix(visibleCount))
                             .font(captionFont)
-                            .foregroundColor(captionColor)
+                            .foregroundStyle(captionColor)
                         +
                         Text(caption.dropFirst(visibleCount))
                             .font(captionFont)
-                            .foregroundColor(.clear)
+                            .foregroundStyle(.clear)
                     )
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -1705,7 +1705,7 @@ struct InteractiveAudioStickerView: View {
                 // Mic/Pause Icon
                 Image(systemName: isPlaying ? "pause.fill" : "mic.fill")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .contentTransition(.symbolEffect(.replace))
 
                 // 3 Wave Bars

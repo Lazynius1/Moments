@@ -36,7 +36,8 @@ struct PrivacyPolicyView: View {
             }
             .scrollContentBackground(.hidden)
             .background((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea())
-            .navigationBarTitle(NSLocalizedString("privacyPolicy.title", comment: "Privacy policy title"), displayMode: .inline)
+            .navigationTitle(NSLocalizedString("privacyPolicy.title", comment: "Privacy policy title"))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -44,7 +45,7 @@ struct PrivacyPolicyView: View {
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                             .frame(width: 34, height: 34)
                             .background {
                                 Color.clear
@@ -63,11 +64,11 @@ struct PrivacyPolicyView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(NSLocalizedString("privacyPolicy.title", comment: "Privacy policy title"))
                 .font(.system(size: legacyPoppinsSize(28), weight: .bold))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
 
             Text(NSLocalizedString("privacyPolicy.lastUpdated", comment: "Privacy policy last updated date"))
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.64))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.64))
         }
     }
 
@@ -75,12 +76,12 @@ struct PrivacyPolicyView: View {
         VStack(alignment: .leading, spacing: 9) {
             Text(NSLocalizedString(section.titleKey, comment: "Privacy policy section title"))
                 .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
 
             Text(NSLocalizedString(section.bodyKey, comment: "Privacy policy section body"))
                 .font(.system(size: legacyPoppinsSize(15)))
                 .lineSpacing(4)
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.78))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.78))
                 .textSelection(.enabled)
         }
     }

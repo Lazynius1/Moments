@@ -176,7 +176,7 @@ struct ModernProfileContentView: View {
                             ProfilePillTabs(selectedTab: $selectedProfileTab)
                             .padding(.horizontal, 20)
                             .padding(.bottom, 4)
-                            .frame(maxWidth: UIScreen.main.bounds.width)
+                            .frame(maxWidth: .infinity)
                             .background(
                                 GeometryReader { geometry in
                                     Color.clear.preference(
@@ -196,7 +196,7 @@ struct ModernProfileContentView: View {
                                     } else {
                                         ModernEmptyMomentsView()
                                             .padding(.horizontal, 20)
-                                            .frame(maxWidth: UIScreen.main.bounds.width - 40)
+                                            .frame(maxWidth: .infinity)
                                     }
                                 } else {
                                     GeometryReader { geometry in
@@ -302,7 +302,7 @@ struct ModernProfileContentView: View {
                                 }
                             }
                         }
-                        .frame(maxWidth: UIScreen.main.bounds.width)
+                        .frame(maxWidth: .infinity)
                     }
                     .background(
                         GeometryReader { geo in
@@ -562,7 +562,7 @@ struct ModernRefreshIndicator: View {
 
                             Text("profile.updating")
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundColor(ProfileColors.textSecondary)
+                .foregroundStyle(ProfileColors.textSecondary)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

@@ -54,13 +54,13 @@ struct HighlightCreateFlowView: View {
                     dismiss()
                 }
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(ProfileColors.textPrimary)
+                .foregroundStyle(ProfileColors.textPrimary)
             }
 
             ToolbarItem(placement: .principal) {
                 Text(navigationTitle(for: viewModel))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(ProfileColors.textPrimary)
+                    .foregroundStyle(ProfileColors.textPrimary)
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -69,7 +69,7 @@ struct HighlightCreateFlowView: View {
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(viewModel.canAdvance ? ProfileColors.accent : .secondary)
+                        .foregroundStyle(viewModel.canAdvance ? ProfileColors.accent : .secondary)
                 }
                 .disabled(!viewModel.canAdvance)
             }
@@ -81,14 +81,14 @@ struct HighlightCreateFlowView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(ProfileColors.textPrimary)
+                        .foregroundStyle(ProfileColors.textPrimary)
                 }
             }
 
             ToolbarItem(placement: .principal) {
                 Text(nameCoverNavigationTitle(for: viewModel))
                     .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                    .foregroundColor(ProfileColors.textPrimary)
+                    .foregroundStyle(ProfileColors.textPrimary)
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -102,7 +102,7 @@ struct HighlightCreateFlowView: View {
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(ProfileColors.textPrimary)
+                            .foregroundStyle(ProfileColors.textPrimary)
                     }
                 }
 
@@ -118,7 +118,7 @@ struct HighlightCreateFlowView: View {
                     } else {
                         Image(systemName: viewModel.isEditMode ? "checkmark" : "plus")
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(viewModel.canSave ? ProfileColors.accent : .secondary)
+                            .foregroundStyle(viewModel.canSave ? ProfileColors.accent : .secondary)
                     }
                 }
                 .disabled(!viewModel.canSave || viewModel.isSaving)

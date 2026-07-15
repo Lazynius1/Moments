@@ -383,7 +383,7 @@ struct EnhancedProfileAvatar: View {
                     
                     Image(systemName: "person.circle.fill")
                         .font(.system(size: size * 0.6))
-                        .foregroundColor(.gray.opacity(0.7))
+                        .foregroundStyle(.gray.opacity(0.7))
                 }
             }
         }
@@ -867,7 +867,7 @@ struct EnhancedProfilePreviewCard: View {
                 VStack(spacing: 8) {
                     Text("Tu Perfil")
                         .font(.system(size: legacyPoppinsSize(20), weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                     
                     // Enhanced badge
@@ -879,7 +879,7 @@ struct EnhancedProfilePreviewCard: View {
                         
                         Text(theme.displayName)
                             .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                            .foregroundColor(.white.opacity(0.95))
+                            .foregroundStyle(.white.opacity(0.95))
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)

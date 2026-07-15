@@ -21,12 +21,12 @@ struct OfflineBanner: View {
                         
                         Image(systemName: "wifi.slash")
                             .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                     }
                     
                     Text("network.offline.title")
                         .font(.system(size: legacyPoppinsSize(17), weight: .semibold)) // Más cuerpo al texto
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .padding(.trailing, 12) // Margen derecho para balancear la cápsula
                 }
                 .padding(.leading, 8)   // Menos padding a la izquierda (el círculo ya tiene su espacio)
@@ -85,7 +85,7 @@ struct OfflineBanner: View {
                     }) {
                         Image(systemName: "wifi.slash")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.primary.opacity(0.6))
+                            .foregroundStyle(.primary.opacity(0.6))
                             .padding(8)
                             .background(Color.black.opacity(0.4))
                             .clipShape(Circle())
@@ -123,12 +123,12 @@ struct SlowConnectionBanner: View {
                             
                             Image(systemName: "tortoise.fill")
                                 .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.yellow)
+                                .foregroundStyle(.yellow)
                         }
                         
                         Text("network.slow.title")
                             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                         
                         Spacer(minLength: 12)
                         
@@ -137,7 +137,7 @@ struct SlowConnectionBanner: View {
                         }) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.primary.opacity(0.7))
+                                .foregroundStyle(.primary.opacity(0.7))
                                 .padding(8)
                         }
                     }

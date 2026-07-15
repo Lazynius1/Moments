@@ -71,25 +71,25 @@ struct ModernMentionInputView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("stickerview.mention.searchTitle")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
 
                     Text("stickerview.mention.searchSubtitle")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(palette.secondaryText)
+                        .foregroundStyle(palette.secondaryText)
                 }
 
                 HStack(spacing: 12) {
                     Image(systemName: isSearching ? "magnifyingglass" : (searchText.isEmpty ? "magnifyingglass" : "person.circle.fill"))
                         .font(.system(size: 16))
-                        .foregroundColor(searchText.isEmpty ? palette.searchIcon : palette.searchIconActive)
+                        .foregroundStyle(searchText.isEmpty ? palette.searchIcon : palette.searchIconActive)
                         .animation(.easeInOut(duration: 0.2), value: searchText)
 
                     TextField(NSLocalizedString("stickerview.mention.searchPlaceholder", comment: "Mention search placeholder"), text: $searchText)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
                         .focused($isTextFieldFocused)
                         .autocapitalization(.none)
-                        .disableAutocorrection(true)
+                        .autocorrectionDisabled(true)
                         .onChange(of: searchText) { _, newValue in
                             if newValue.isEmpty {
                                 searchResults = []
@@ -109,7 +109,7 @@ struct ModernMentionInputView: View {
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 16))
-                                .foregroundColor(palette.clearIcon)
+                                .foregroundStyle(palette.clearIcon)
                         }
                         .transition(MotionPolicy.Transition.enterPop)
                     }
@@ -354,7 +354,7 @@ struct StickerUserRowView: View {
                             .overlay(
                                 Text(String(user.username.prefix(1)).uppercased())
                                     .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             )
                     }
                 }
@@ -370,20 +370,20 @@ struct StickerUserRowView: View {
                     HStack(spacing: 6) {
                         Text("\(user.username)")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(palette.primaryText)
+                            .foregroundStyle(palette.primaryText)
 
                         // Badge de Plus subscriber si aplica
                         if user.isPlusSubscriber {
                             Image(systemName: "star.fill")
                                 .font(.system(size: 14))
-                                .foregroundColor(.yellow)
+                                .foregroundStyle(.yellow)
                         }
                     }
 
                     if let bio = user.bio, !bio.isEmpty {
                         Text(bio)
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(palette.secondaryText)
+                            .foregroundStyle(palette.secondaryText)
                             .lineLimit(1)
                     }
 
@@ -392,11 +392,11 @@ struct StickerUserRowView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 10))
-                                .foregroundColor(palette.tertiaryText)
+                                .foregroundStyle(palette.tertiaryText)
 
                             Text("stickerview.privateAccount")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(palette.tertiaryText)
+                                .foregroundStyle(palette.tertiaryText)
                         }
                     }
                 }
@@ -406,7 +406,7 @@ struct StickerUserRowView: View {
                 // Flecha de selección
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(palette.tertiaryText)
+                    .foregroundStyle(palette.tertiaryText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
@@ -486,12 +486,12 @@ struct SectionHeader: View {
             } else {
                 Image(systemName: systemIcon ?? "questionmark")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(color)
+                    .foregroundStyle(color)
             }
 
             Text(title)
                 .font(.system(size: 14, weight: .bold))
-                .foregroundColor(palette.primaryText)
+                .foregroundStyle(palette.primaryText)
 
             Spacer()
         }
@@ -512,16 +512,16 @@ struct StickerEmptySearchView: View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "person.2.slash")
                 .font(.system(size: 40))
-                .foregroundColor(palette.secondaryText)
+                .foregroundStyle(palette.secondaryText)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("stickerview.noUsersFound")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
 
                 Text(String(format: NSLocalizedString("stickerview.tryDifferentUsername", comment: "Try different username"), searchQuery.lowercased()))
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(palette.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
                     .multilineTextAlignment(.leading)
             }
         }
@@ -576,26 +576,26 @@ struct ModernHashtagInputView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("stickerview.addHashtag")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
 
                 Text("stickerview.hashtag.subtitle")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(palette.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
             }
 
             VStack(spacing: 15) {
                 HStack {
                     Text("#")
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(.pink)
+                        .foregroundStyle(.pink)
                         .frame(width: 18, alignment: .leading)
 
                     TextField(NSLocalizedString("stickerview.hashtag.placeholder", comment: "Hashtag placeholder"), text: $hashtag)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
                         .focused($isTextFieldFocused)
                         .autocapitalization(.none)
-                        .disableAutocorrection(true)
+                        .autocorrectionDisabled(true)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
@@ -611,7 +611,7 @@ struct ModernHashtagInputView: View {
                         Text("stickerview.addHashtag")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(hashtag.isEmpty ? palette.secondaryText : palette.primaryText)
+                    .foregroundStyle(hashtag.isEmpty ? palette.secondaryText : palette.primaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                 }
@@ -656,23 +656,23 @@ struct ModernLinkInputView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("stickerview.addLink")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
 
                 Text("stickerview.link.subtitle")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(palette.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
             }
 
             VStack(spacing: 15) {
                 HStack {
                     Image(systemName: "link")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color(red: 0.29, green: 0.72, blue: 0.98))
+                        .foregroundStyle(Color(red: 0.29, green: 0.72, blue: 0.98))
                         .frame(width: 18, alignment: .leading)
 
                     TextField(NSLocalizedString("stickerview.link.urlPlaceholder", comment: "Link URL placeholder"), text: $urlString)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
@@ -685,12 +685,12 @@ struct ModernLinkInputView: View {
                 HStack {
                     Image(systemName: "text.cursor")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(Color(red: 0.29, green: 0.72, blue: 0.98))
+                        .foregroundStyle(Color(red: 0.29, green: 0.72, blue: 0.98))
                         .frame(width: 18, alignment: .leading)
 
                     TextField(NSLocalizedString("stickerview.link.titlePlaceholder", comment: "Link title placeholder"), text: $customTitle)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
                         .focused($focusedField, equals: .title)
                 }
                 .padding(.horizontal, 20)
@@ -707,7 +707,7 @@ struct ModernLinkInputView: View {
                         Text("stickerview.addLink")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(isFormValid ? palette.primaryText : palette.secondaryText)
+                    .foregroundStyle(isFormValid ? palette.primaryText : palette.secondaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                 }
@@ -747,23 +747,23 @@ struct ModernCountdownInputView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("stickerview.createCountdown")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
 
                 Text("stickerview.countdown.subtitle")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(palette.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
             }
 
             VStack(spacing: 15) {
                 HStack {
                     Image(systemName: "timer")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color(red: 0.61, green: 0.34, blue: 0.97))
+                        .foregroundStyle(Color(red: 0.61, green: 0.34, blue: 0.97))
                         .frame(width: 18, alignment: .leading)
 
                     TextField(NSLocalizedString("stickerview.countdown.titlePlaceholder", comment: "Countdown title placeholder"), text: $title)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
                         .focused($isTextFieldFocused)
                 }
                 .padding(.horizontal, 20)
@@ -773,7 +773,7 @@ struct ModernCountdownInputView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("stickerview.countdown.endsLabel")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(palette.secondaryText)
+                        .foregroundStyle(palette.secondaryText)
                         .kerning(1)
 
                     DatePicker(
@@ -801,7 +801,7 @@ struct ModernCountdownInputView: View {
                         Text("stickerview.createCountdown")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(isFormValid ? palette.primaryText : palette.secondaryText)
+                    .foregroundStyle(isFormValid ? palette.primaryText : palette.secondaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                 }
@@ -852,23 +852,23 @@ struct ModernEmojiSliderInputView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("stickerview.createEmojiSlider")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
 
                 Text("stickerview.emojiSlider.subtitle")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(palette.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
             }
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Image(systemName: "face.smiling.inverse")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color(red: 0.99, green: 0.56, blue: 0.21))
+                        .foregroundStyle(Color(red: 0.99, green: 0.56, blue: 0.21))
                         .frame(width: 18, alignment: .leading)
 
                     TextField(NSLocalizedString("stickerview.emojiSlider.promptPlaceholder", comment: "Emoji slider prompt placeholder"), text: $prompt)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
                         .focused($focusedField, equals: .prompt)
                 }
                 .padding(.horizontal, 20)
@@ -908,7 +908,7 @@ struct ModernEmojiSliderInputView: View {
                         } label: {
                             Image(systemName: "plus")
                                 .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(palette.primaryText)
+                                .foregroundStyle(palette.primaryText)
                                 .frame(width: 48, height: 48)
                                 .background {
                                     Color.clear
@@ -958,7 +958,7 @@ struct ModernEmojiSliderInputView: View {
                         Text("stickerview.createEmojiSlider")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                 }
@@ -996,17 +996,17 @@ struct ModernQuizInputView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(NSLocalizedString("quiz.title", comment: ""))
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
 
                 Text(NSLocalizedString("quiz.subtitle", comment: ""))
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(palette.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
             }
 
             VStack(alignment: .leading, spacing: 10) {
                 TextField(NSLocalizedString("quiz.question.placeholder", comment: ""), text: $question)
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
                     .stickerGlassField(accentColor: accentColor, isFocused: focusedField == -1)
@@ -1028,7 +1028,7 @@ struct ModernQuizInputView: View {
                             Text(NSLocalizedString("quiz.addOption", comment: ""))
                                 .font(.system(size: 13, weight: .semibold))
                         }
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 14)
                     }
@@ -1052,7 +1052,7 @@ struct ModernQuizInputView: View {
                     Text(NSLocalizedString("quiz.done", comment: ""))
                         .font(.system(size: 16, weight: .semibold))
                 }
-                    .foregroundColor(isFormValid ? palette.primaryText : palette.secondaryText)
+                    .foregroundStyle(isFormValid ? palette.primaryText : palette.secondaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
             }
@@ -1075,7 +1075,7 @@ struct ModernQuizInputView: View {
         HStack {
             TextField(NSLocalizedString("quiz.option.placeholder", comment: "") + " \(index + 1)", text: $options[index])
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(palette.primaryText)
+                .foregroundStyle(palette.primaryText)
                 .focused($focusedField, equals: index)
 
             Spacer()
@@ -1086,7 +1086,7 @@ struct ModernQuizInputView: View {
             }) {
                 Image(systemName: correctIndex == index ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22))
-                    .foregroundColor(correctIndex == index ? .green : .gray.opacity(0.5))
+                    .foregroundStyle(correctIndex == index ? .green : .gray.opacity(0.5))
             }
         }
         .padding(.horizontal, 20)
@@ -1120,23 +1120,23 @@ struct ModernPollInputView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("stickerview.createPoll")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
 
                 Text("stickerview.poll.subtitleCompact")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(palette.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
             }
 
             VStack(spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("stickerview.question")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(palette.secondaryText)
+                        .foregroundStyle(palette.secondaryText)
                         .kerning(1)
 
                     TextField(NSLocalizedString("stickerview.poll.placeholder", comment: "Poll question placeholder"), text: $question)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
                         .focused($focusedField, equals: .question)
                         .onChange(of: question) { _, newValue in
                             if newValue.count > maxPollQuestionLength {
@@ -1151,18 +1151,18 @@ struct ModernPollInputView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("stickerview.option1")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(palette.secondaryText)
+                        .foregroundStyle(palette.secondaryText)
                         .kerning(1)
 
                     HStack {
                         Image(systemName: "circle.fill")
                             .font(.system(size: 10))
-                            .foregroundColor(.blue)
+                            .foregroundStyle(.blue)
                             .frame(width: 14, alignment: .leading)
 
                         TextField(NSLocalizedString("stickerview.poll.option1Placeholder", comment: "First option placeholder"), text: $option1)
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(palette.primaryText)
+                            .foregroundStyle(palette.primaryText)
                             .focused($focusedField, equals: .option1)
                             .onChange(of: option1) { _, newValue in
                                 if newValue.count > maxPollOptionLength {
@@ -1178,18 +1178,18 @@ struct ModernPollInputView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("stickerview.option2")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(palette.secondaryText)
+                        .foregroundStyle(palette.secondaryText)
                         .kerning(1)
 
                     HStack {
                         Image(systemName: "circle.fill")
                             .font(.system(size: 10))
-                            .foregroundColor(.pink)
+                            .foregroundStyle(.pink)
                             .frame(width: 14, alignment: .leading)
 
                         TextField(NSLocalizedString("stickerview.poll.option2Placeholder", comment: "Second option placeholder"), text: $option2)
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(palette.primaryText)
+                            .foregroundStyle(palette.primaryText)
                             .focused($focusedField, equals: .option2)
                             .onChange(of: option2) { _, newValue in
                                 if newValue.count > maxPollOptionLength {
@@ -1212,7 +1212,7 @@ struct ModernPollInputView: View {
                         Text("stickerview.createPoll")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(isFormValid ? palette.primaryText : palette.secondaryText)
+                    .foregroundStyle(isFormValid ? palette.primaryText : palette.secondaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                 }
@@ -1253,23 +1253,23 @@ struct ModernQuestionInputView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("stickerview.addQuestion")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
 
                 Text("stickerview.question.subtitleCompact")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(palette.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
             }
 
             VStack(spacing: 15) {
                 HStack {
                     Image(systemName: "bubble.left.fill")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.teal)
+                        .foregroundStyle(.teal)
                         .frame(width: 18, alignment: .leading)
 
                     TextField(NSLocalizedString("stickerview.question.placeholder", comment: "Question sticker placeholder"), text: $question)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
                         .focused($isTextFieldFocused)
                         .onChange(of: question) { _, newValue in
                             if newValue.count > maxQuestionLength {
@@ -1291,7 +1291,7 @@ struct ModernQuestionInputView: View {
                         Text("stickerview.addQuestion")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(palette.primaryText)
+                    .foregroundStyle(palette.primaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                 }

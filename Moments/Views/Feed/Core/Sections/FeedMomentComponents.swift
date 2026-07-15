@@ -29,7 +29,7 @@ struct ModernStoryButton: View {
 
                 Image(systemName: uploadProgressManager.isUploading ? "arrow.up" : "play.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ?
+                    .foregroundStyle(colorScheme == .dark ?
                                    Color.white.opacity(0.9) :
                                    Color.black.opacity(0.8))
 
@@ -75,7 +75,7 @@ struct ModernNotificationButton: View {
                 // ✅ CAMBIAR: Corazón rojo cuando hay notificaciones
                 Image(systemName: hasNotification ? "heart.fill" : "heart")
                     .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(hasNotification ?
+                    .foregroundStyle(hasNotification ?
                         .red :  // ✅ ROJO cuando hay notificaciones
                                      (colorScheme == .dark ?
                                       Color.white.opacity(0.9) :
@@ -99,7 +99,7 @@ struct ModernMessageButton: View {
             ZStack {
                 Image(systemName: "paperplane")
                     .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(colorScheme == .dark ?
+                    .foregroundStyle(colorScheme == .dark ?
                                    Color.white.opacity(0.9) :
                                    Color.black.opacity(0.8))
 
@@ -112,7 +112,7 @@ struct ModernMessageButton: View {
 
                         Text("\(min(messageCount, 99))")
                             .font(.system(size: messageCount > 9 ? 10 : 11, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .lineLimit(1)
                     }
                     .offset(x: 10, y: -10)
@@ -157,7 +157,7 @@ struct ModernLoadingMoreView: View {
 
             Text("feed.loadingMore")
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(adaptiveColors.secondary)
+                .foregroundStyle(adaptiveColors.secondary)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
@@ -481,8 +481,8 @@ struct ModernPostCardView: View {
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(Color.black.opacity(0.6))
-                                    .cornerRadius(8)
-                                    .foregroundColor(.white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                    .foregroundStyle(.white)
                                     .padding(.trailing, 20)
                                     .padding(.top, 20)
                             }
@@ -589,7 +589,7 @@ struct ModernPostCardView: View {
                     Button(action: openAuthorProfile) {
                         Text(displayAuthorUsername)
                             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
                     }
                     .buttonStyle(PlainButtonStyle())
 
@@ -604,11 +604,11 @@ struct ModernPostCardView: View {
 
                     Text("·")
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundStyle(adaptiveColors.tertiary)
 
                     Text(moment.timestamp.timeAgoDisplay())
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundStyle(adaptiveColors.tertiary)
                 }
 
                 if let location = moment.location, !location.isEmpty {
@@ -623,11 +623,11 @@ struct ModernPostCardView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "location.fill")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(adaptiveColors.accent)
+                                .foregroundStyle(adaptiveColors.accent)
 
                             Text(location)
                                 .font(.system(size: legacyPoppinsSize(13)))
-                                .foregroundColor(adaptiveColors.secondary)
+                                .foregroundStyle(adaptiveColors.secondary)
                                 .lineLimit(1)
                         }
                     }
@@ -1085,6 +1085,7 @@ struct EnhancedCarouselView: View {
 }
 
 struct MediaItemView: View {
+    @Environment(\.displayScale) private var displayScale
     let item: MediaItem
     let aspectRatio: CGFloat
     let prefersUnifiedCarouselFrame: Bool
@@ -1149,7 +1150,7 @@ struct MediaItemView: View {
                                 .setProcessor(
                                     DownsamplingImageProcessor(size: geometry.size)
                                 )
-                                .scaleFactor(UIScreen.main.scale)
+                                .scaleFactor(displayScale)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: geometry.size.width, height: geometry.size.height)
@@ -1166,7 +1167,7 @@ struct MediaItemView: View {
                                 .setProcessor(
                                     DownsamplingImageProcessor(size: geometry.size)
                                 )
-                                .scaleFactor(UIScreen.main.scale)
+                                .scaleFactor(displayScale)
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: geometry.size.width, height: geometry.size.height)
@@ -1334,15 +1335,15 @@ private struct ModeratedMediaItemView: View {
             VStack(spacing: 10) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.92))
+                    .foregroundStyle(.white.opacity(0.92))
 
                 Text(NSLocalizedString("mediaModeration.hidden.title", comment: "Hidden content title"))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 Text(NSLocalizedString("mediaModeration.hidden.subtitle", comment: "Hidden content subtitle"))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(.white.opacity(0.78))
+                    .foregroundStyle(.white.opacity(0.78))
             }
             .multilineTextAlignment(.center)
             .padding(.horizontal, 24)
@@ -1410,7 +1411,7 @@ struct CroppedVideoPlayer: View {
             let isMuted = !globalManager.userHasEnabledSoundInSession
             Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(10)
                 .background(.black.opacity(0.48), in: Circle())
         }
@@ -1533,7 +1534,7 @@ struct CroppedVideoPlayer: View {
                                 Text(NSLocalizedString("feed.reels.badge", comment: "Reels badge"))
                                     .font(.system(size: 11, weight: .bold))
                             }
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(
@@ -1602,10 +1603,10 @@ struct CroppedVideoPlayer: View {
                             Spacer()
                             Image(systemName: "arrow.up.right.square")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundStyle(.white.opacity(0.7))
                                 .padding(6)
                                 .background(Color(hex: "0B1215").opacity(0.4))
-                                .cornerRadius(6)
+                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                 .padding(.trailing, 8)
                                 .padding(.bottom, 8)
                         }
@@ -1730,11 +1731,11 @@ struct ExpandableContentView: View {
                     HStack(spacing: 4) {
                         Text(isExpanded ? "feed.seeLess" : "feed.seeMore")
                             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
 
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)

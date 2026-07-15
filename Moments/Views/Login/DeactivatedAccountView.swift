@@ -81,11 +81,11 @@ struct DeactivationLoadingView: View {
                 VStack(spacing: 12) {
                     Text(NSLocalizedString("deactivated.reactivating", value: "Reactivando cuenta...", comment: "Reactivating account title"))
                         .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .foregroundStyle(AuthColors.primary(colorScheme))
                     
                     Text(NSLocalizedString("deactivated.verifying", value: "Verificando estado...", comment: "Verifying status"))
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 }
             }
         }
@@ -115,15 +115,15 @@ struct DeactivationContent: View {
                         VStack(spacing: 14) {
                             Image(systemName: "moon.stars")
                                 .font(.system(size: titleIconSize).weight(.medium))
-                                .foregroundColor(AuthColors.primary(colorScheme))
+                                .foregroundStyle(AuthColors.primary(colorScheme))
 
                             Text(NSLocalizedString("deactivated.title", value: "Cuenta en Reposo", comment: "Sleeping account title"))
                                 .font(.system(size: titleFontSize).bold())
-                                .foregroundColor(AuthColors.primary(colorScheme))
+                                .foregroundStyle(AuthColors.primary(colorScheme))
 
                             Text(NSLocalizedString("deactivated.subtitle", value: "Tu cuenta está desactivada temporalmente pero todos tus datos están seguros.", comment: "Deactivated subtitle"))
                                 .font(.system(size: subtitleFontSize).weight(.medium))
-                                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                                 .multilineTextAlignment(.center)
                                 .lineSpacing(4)
                         }
@@ -218,13 +218,13 @@ private struct DeactivatedProfileCard: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(username)
                                 .font(.system(size: usernameFontSize).bold())
-                                .foregroundColor(AuthColors.primary(colorScheme))
+                                .foregroundStyle(AuthColors.primary(colorScheme))
                                 .lineLimit(1)
 
                             if let email {
                                 Text(email)
                                     .font(.system(size: emailFontSize).weight(.medium))
-                                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
+                                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.68))
                                     .lineLimit(1)
                             }
                         }
@@ -273,7 +273,7 @@ private struct DeactivatedProfileCard: View {
 
             Image(systemName: "person.crop.square")
                 .font(.system(size: 44, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.48))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.48))
         }
     }
 
@@ -284,7 +284,7 @@ private struct DeactivatedProfileCard: View {
             Text(NSLocalizedString("deactivated.status", value: "En pausa", comment: "Account paused status"))
                 .font(.system(size: 12, weight: .semibold))
         }
-        .foregroundColor(AuthColors.primary(colorScheme))
+        .foregroundStyle(AuthColors.primary(colorScheme))
         .padding(.horizontal, 11)
         .padding(.vertical, 7)
         .background {

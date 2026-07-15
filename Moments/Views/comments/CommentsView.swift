@@ -22,8 +22,10 @@ struct CommentsView: View {
         .onAppear {
             viewModel.fetchComments(momentId: moment.id, userId: moment.authorId)
         }
-        .alert(isPresented: $viewModel.showError) {
-            Alert(title: Text(NSLocalizedString("comments.error.title", comment: "Error title")), message: Text(viewModel.errorMessage ?? NSLocalizedString("comments.error.unknown", comment: "Unknown error")), dismissButton: .default(Text(NSLocalizedString("comments.error.ok", comment: "OK button"))))
+        .alert(NSLocalizedString("comments.error.title", comment: "Error title"), isPresented: $viewModel.showError) {
+            Button(NSLocalizedString("comments.error.ok", comment: "OK button")) { }
+        } message: {
+            Text(viewModel.errorMessage ?? NSLocalizedString("comments.error.unknown", comment: "Unknown error"))
         }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.userId))
@@ -37,12 +39,12 @@ struct CommentsView: View {
         HStack {
             Text(NSLocalizedString("comments.title", comment: "Comments title"))
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
             Spacer()
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 24))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             }
         }
         .padding(.horizontal)
@@ -137,7 +139,7 @@ struct CommentsView: View {
                 }
             }) {
                 Label(NSLocalizedString("comments.actions.delete", comment: "Delete comment"), systemImage: "trash")
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
             }
         }
     }
@@ -167,7 +169,7 @@ struct CommentsView: View {
             }) {
                 Text(NSLocalizedString("comments.actions.publish", comment: "Publish comment"))
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(viewModel.newComment.isEmpty ? .gray : (colorScheme == .dark ? .yellow : .blue))
+                    .foregroundStyle(viewModel.newComment.isEmpty ? .gray : (colorScheme == .dark ? .yellow : .blue))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(
@@ -213,16 +215,16 @@ struct CommentRow: View {
                 HStack {
                     Text(comment.username)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     if let updatedAt = comment.updatedAt, abs(updatedAt.timeIntervalSince(comment.timestamp)) > 1 {
                         Text(NSLocalizedString("comments.edited", comment: "Edited comment indicator"))
                             .font(.system(size: 12))
-                            .foregroundColor(.gray.opacity(0.6))
+                            .foregroundStyle(.gray.opacity(0.6))
                     }
                     Spacer()
                     Text(comment.timestamp.timeAgoDisplay())
                         .font(.system(size: 12))
-                        .foregroundColor(.gray.opacity(0.6))
+                        .foregroundStyle(.gray.opacity(0.6))
                 }
 
                 if isEditing {
@@ -239,31 +241,31 @@ struct CommentRow: View {
                             onCancelEdit()
                         }
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         Spacer()
                         Button(NSLocalizedString("comments.actions.save", comment: "Save edit")) {
                             onSaveEdit()
                         }
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                         .disabled(editedContent.isEmpty)
                     }
                     .padding(.top, 4)
                 } else {
                     Text(comment.content)
                         .font(.system(size: 14))
-                        .foregroundColor(.primary) // Cambiado a .primary para mejor legibilidad
+                        .foregroundStyle(.primary) // Cambiado a .primary para mejor legibilidad
                         .fixedSize(horizontal: false, vertical: true)
                     // Botón de like
                     HStack(spacing: 8) {
                         Button(action: onLike) {
                             HStack(spacing: 4) {
                                 Image(systemName: comment.reactions["like"]?.contains(Auth.auth().currentUser?.uid ?? "") ?? false ? "heart.fill" : "heart")
-                                    .foregroundColor(.red)
+                                    .foregroundStyle(.red)
                                 if (comment.reactions["like"]?.count ?? 0) > 0 {
                                     Text("\(comment.reactions["like"]?.count ?? 0)")
                                         .font(.system(size: 12))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                 }
                             }
                         }

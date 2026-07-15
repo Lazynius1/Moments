@@ -30,13 +30,13 @@ struct ActivityCommentItemRow: View {
                     if isSelectionMode {
                         Text(item.moment?.username ?? NSLocalizedString("onlineStatus.unknown", comment: "Unknown"))
                             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
                     } else {
                         Button(action: onOpenAuthorProfile) {
                             Text(item.moment?.username ?? NSLocalizedString("onlineStatus.unknown", comment: "Unknown"))
                                 .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .lineLimit(1)
                         }
                         .buttonStyle(.plain)
@@ -45,7 +45,7 @@ struct ActivityCommentItemRow: View {
                     if !item.canView {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
 
                     Spacer()
@@ -72,23 +72,23 @@ struct ActivityCommentItemRow: View {
                      ? (item.moment?.content ?? "")
                      : NSLocalizedString("userActivity.simple.comments.momentNoContent", comment: "Moment without content"))
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .lineLimit(2)
 
                 Text(NSLocalizedString("userActivity.simple.comments.yourComment", comment: "Your comment label"))
                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.82))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.82))
 
                 Text(item.commentText.isEmpty
                      ? NSLocalizedString("userActivity.simple.comments.emptyComment", comment: "Empty comment fallback")
                      : item.commentText)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .lineLimit(3)
 
                 Text(item.commentedAt.timeAgoDisplay())
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(.gray.opacity(0.85))
+                    .foregroundStyle(.gray.opacity(0.85))
             }
 
             Spacer(minLength: 0)
@@ -97,7 +97,7 @@ struct ActivityCommentItemRow: View {
                 Button(action: onToggleSelection) {
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(isSelected ? Color(hex: "2563EB") : .gray.opacity(0.8))
+                        .foregroundStyle(isSelected ? Color(hex: "2563EB") : .gray.opacity(0.8))
                         .padding(.top, 2)
                 }
                 .buttonStyle(.plain)
@@ -254,7 +254,7 @@ struct ActivityCommentMomentPreview: View {
             Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
             Image(systemName: "photo")
                 .font(.system(size: 18, weight: .regular))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
         }
     }
 
@@ -270,17 +270,17 @@ struct ActivityCommentMomentPreview: View {
             VStack(spacing: 3) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.95))
+                    .foregroundStyle(.white.opacity(0.95))
 
                 Text(NSLocalizedString("savedMoments.restricted.title", comment: "Saved moment restricted title"))
                     .font(.system(size: legacyPoppinsSize(8), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString("savedMoments.restricted.subtitle", comment: "Saved moment restricted subtitle"))
                     .font(.system(size: legacyPoppinsSize(7)))
-                    .foregroundColor(.white.opacity(0.86))
+                    .foregroundStyle(.white.opacity(0.86))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
             }
@@ -347,71 +347,71 @@ struct ActivityEventRow: View {
                                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                                     Text(item.title)
                                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                                         .lineLimit(1)
 
                                     Spacer(minLength: 0)
 
                                     Text(actionText)
                                         .font(.system(size: legacyPoppinsSize(12)))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                                         .lineLimit(1)
                                 }
                             } else {
                                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                                     Text(item.title)
                                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                                         .lineLimit(1)
                                     Text(actionText)
                                         .font(.system(size: legacyPoppinsSize(12)))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                                         .lineLimit(1)
                                 }
                             }
                         } else {
                             Text(item.title)
                                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .lineLimit(2)
                         }
 
                         if !item.subtitle.isEmpty {
                             Text(item.subtitle)
                                 .font(.system(size: legacyPoppinsSize(13)))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .lineLimit(2)
                         }
 
                         HStack(spacing: 6) {
                             Text(item.timestamp.timeAgoDisplay())
                                 .font(.system(size: legacyPoppinsSize(11)))
-                                .foregroundColor(.gray.opacity(0.85))
+                                .foregroundStyle(.gray.opacity(0.85))
 
                             if hasContext {
                                 Text("•")
                                     .font(.system(size: legacyPoppinsSize(10)))
-                                    .foregroundColor(.gray.opacity(0.7))
+                                    .foregroundStyle(.gray.opacity(0.7))
 
                                 if let username = item.targetUsername,
                                    !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                     Text(contextPrefix)
                                         .font(.system(size: legacyPoppinsSize(11)))
-                                        .foregroundColor(.gray.opacity(0.85))
+                                        .foregroundStyle(.gray.opacity(0.85))
 
                                     Button {
                                         onOpenTargetProfile()
                                     } label: {
                                         Text(username)
                                             .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                                             .lineLimit(1)
                                     }
                                     .buttonStyle(.plain)
                                 } else if let context = item.contextText, !context.isEmpty {
                                     Text(context)
                                         .font(.system(size: legacyPoppinsSize(11)))
-                                        .foregroundColor(.gray.opacity(0.85))
+                                        .foregroundStyle(.gray.opacity(0.85))
                                         .lineLimit(1)
                                 }
                             }
@@ -435,7 +435,7 @@ struct ActivityEventRow: View {
                     if isSelectionMode {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                             .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(isSelected ? Color(hex: "2563EB") : .gray.opacity(0.8))
+                            .foregroundStyle(isSelected ? Color(hex: "2563EB") : .gray.opacity(0.8))
                     }
                 }
                 .padding(.vertical, 8)
@@ -474,20 +474,20 @@ struct ActivityEventRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 HStack(spacing: 8) {
                     Text(participantsText)
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     Text("•")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     Text(expiresLabel)
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -496,7 +496,7 @@ struct ActivityEventRow: View {
             VStack(alignment: .trailing, spacing: 8) {
                 Text(statusText)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(statusColor)
+                    .foregroundStyle(statusColor)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(statusColor.opacity(0.15))
@@ -504,7 +504,7 @@ struct ActivityEventRow: View {
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(12)
@@ -632,7 +632,7 @@ struct ActivityEventRow: View {
             } else {
                 Image(systemName: item.icon)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                    .foregroundStyle(SettingsProfileColors.accent(colorScheme))
             }
         }
     }
@@ -654,21 +654,21 @@ struct ActivityEventRow: View {
                 HStack(spacing: 6) {
                     Text(item.title)
                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                     
                     Text("•")
                         .font(.system(size: 10))
-                        .foregroundColor(.secondary.opacity(0.7))
+                        .foregroundStyle(.secondary.opacity(0.7))
                     
                     Text(item.timestamp.timeAgoDisplay())
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Text(cleanDescriptionText)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             
@@ -680,7 +680,7 @@ struct ActivityEventRow: View {
                 } label: {
                     Text(actionText)
                         .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
                         .background(
@@ -746,7 +746,7 @@ struct ActivityReactionMomentCard: View {
                             Spacer()
                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                 .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(isSelected ? Color(hex: "2563EB") : .white.opacity(0.92))
+                                .foregroundStyle(isSelected ? Color(hex: "2563EB") : .white.opacity(0.92))
                                 .padding(6)
                         }
                         Spacer()
@@ -817,7 +817,7 @@ struct ActivityReactionMomentCard: View {
                 Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
                 Image(systemName: "photo")
                     .font(.system(size: 20, weight: .regular))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             }
             .frame(width: size, height: size)
         }
@@ -888,7 +888,7 @@ struct ActivityReactionMomentCard: View {
             Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
             Image(systemName: "video")
                 .font(.system(size: 22, weight: .regular))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
         }
         .frame(width: size, height: size)
     }
@@ -918,17 +918,17 @@ struct ActivityReactionMomentCard: View {
             VStack(spacing: 4) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.95))
+                    .foregroundStyle(.white.opacity(0.95))
 
                 Text(NSLocalizedString("savedMoments.restricted.title", comment: "Saved moment restricted title"))
                     .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString("savedMoments.restricted.subtitle", comment: "Saved moment restricted subtitle"))
                     .font(.system(size: legacyPoppinsSize(9)))
-                    .foregroundColor(.white.opacity(0.84))
+                    .foregroundStyle(.white.opacity(0.84))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
             }
@@ -1063,7 +1063,7 @@ struct ActivityPortraitMomentCard: View {
             Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
             Image(systemName: "video")
                 .font(.system(size: 22, weight: .regular))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
         }
     }
 
@@ -1130,7 +1130,7 @@ struct ActivityDeletedStoryCard: View {
                             Spacer(minLength: 0)
                             Text(HighlightArchiveStoryCardVisual.formatVideoDuration(item.story.duration))
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
                         }
                     }
@@ -1140,7 +1140,7 @@ struct ActivityDeletedStoryCard: View {
                 if isSelectionMode {
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(isSelected ? Color(hex: "2563EB") : .white.opacity(0.92))
+                        .foregroundStyle(isSelected ? Color(hex: "2563EB") : .white.opacity(0.92))
                         .padding(8)
                 }
             }
@@ -1154,7 +1154,7 @@ struct ActivityDeletedStoryCard: View {
             Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
             Image(systemName: item.story.mediaItem.type == .video ? "play.rectangle.fill" : "photo")
                 .font(.system(size: 24, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -1167,7 +1167,7 @@ struct ActivityThumbnailVideoPlayIndicator: View {
                 Spacer()
                 Image(systemName: "play.fill")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(5)
                     .background(Circle().fill(Color.black.opacity(0.55)))
             }

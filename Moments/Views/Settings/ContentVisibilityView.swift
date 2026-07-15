@@ -21,7 +21,7 @@ struct ContentVisibilityView: View {
                     ProgressView(NSLocalizedString("contentVisibility.loading", comment: "Loading configuration..."))
                         .progressViewStyle(CircularProgressViewStyle())
                         .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 28) {
@@ -31,10 +31,10 @@ struct ContentVisibilityView: View {
                                 HStack(spacing: 5) {
                                     Image(systemName: "circle.dashed")
                                         .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                     Text(NSLocalizedString("contentVisibility.stories.title", comment: "Stories").uppercased())
                                         .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                 }
                                 .padding(.leading, 4)
                                 
@@ -53,23 +53,23 @@ struct ContentVisibilityView: View {
                                         HStack(spacing: 14) {
                                             Image(systemName: "gear")
                                                 .font(.system(size: 19, weight: .regular))
-                                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                                 .frame(width: 28, alignment: .center)
                                             
                                             VStack(alignment: .leading, spacing: 4) {
                                                 Text(NSLocalizedString("contentVisibility.interactions.title", comment: "Interactions title"))
                                                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                                 
                                                 Text(getInteractionSummary())
                                                     .font(.system(size: legacyPoppinsSize(13)))
-                                                    .foregroundColor(.gray)
+                                                    .foregroundStyle(.gray)
                                             }
                                             
                                             Spacer()
                                             
                                             Image(systemName: "chevron.right")
-                                                .foregroundColor(.gray)
+                                                .foregroundStyle(.gray)
                                                 .font(.system(size: 12, weight: .semibold))
                                         }
                                         .padding(.vertical, 11)
@@ -85,10 +85,10 @@ struct ContentVisibilityView: View {
                                 HStack(spacing: 5) {
                                     Image(systemName: "square.grid.3x3")
                                         .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                     Text(NSLocalizedString("contentVisibility.posts.title", comment: "Posts").uppercased())
                                         .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                 }
                                 .padding(.leading, 4)
                                 
@@ -109,10 +109,10 @@ struct ContentVisibilityView: View {
                                 HStack(spacing: 5) {
                                     Image(systemName: "eye.slash")
                                         .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                     Text(NSLocalizedString("contentVisibility.additionalRestrictions", comment: "Additional restrictions header").uppercased())
                                         .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                 }
                                 .padding(.leading, 4)
                                 
@@ -120,17 +120,17 @@ struct ContentVisibilityView: View {
                                     Button(action: { showingHiddenFromView = true }) {
                                         HStack(spacing: 14) {
                                             Image(systemName: "eye.slash")
-                                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                                 .font(.system(size: 18))
                                                 .frame(width: 28, alignment: .center)
                                             
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(NSLocalizedString("contentVisibility.hideFrom", comment: "Hide from label"))
                                                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                                 Text(String(format: NSLocalizedString("contentVisibility.hiddenCount", comment: "Hidden users count"), viewModel.hiddenFromUsers.count))
                                                     .font(.system(size: legacyPoppinsSize(13)))
-                                                    .foregroundColor(.gray)
+                                                    .foregroundStyle(.gray)
                                             }
                                             Spacer()
                                         }
@@ -145,7 +145,7 @@ struct ContentVisibilityView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(NSLocalizedString("contentVisibility.audienceLists", comment: "Audience lists header").uppercased())
                                     .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                     .padding(.leading, 4)
                                 
                                 VStack(spacing: 0) {
@@ -161,10 +161,10 @@ struct ContentVisibilityView: View {
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(NSLocalizedString("contentVisibility.manageCustomLists", comment: "Manage custom lists label"))
                                                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                                 Text(NSLocalizedString("contentVisibility.createEditAudience", comment: "Create and edit custom audiences label"))
                                                     .font(.system(size: legacyPoppinsSize(13)))
-                                                    .foregroundColor(.gray)
+                                                    .foregroundStyle(.gray)
                                             }
                                             Spacer()
                                         }
@@ -242,17 +242,17 @@ struct ContentVisibilityView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .font(.system(size: 18, weight: .medium))
 
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
             }
 
             Text(description)
                 .font(.system(size: legacyPoppinsSize(13)))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
         }
         .padding(.vertical, 6)
     }
@@ -269,17 +269,17 @@ struct ContentVisibilityView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(getAudienceDisplayTitle(audience: audience, customListName: customListName))
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 Text(getAudienceDisplayDescription(audience: audience, customCount: customCount))
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
                 .font(.system(size: 12, weight: .semibold))
         }
         .padding(.vertical, 11)
@@ -317,7 +317,7 @@ struct StoryInteractionSettingsView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(width: 44, height: 44)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                 }
@@ -329,7 +329,7 @@ struct StoryInteractionSettingsView: View {
                     dismiss()
                 }
                 .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .frame(height: 44)
                 .padding(.horizontal, 16)
                 .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -343,12 +343,12 @@ struct StoryInteractionSettingsView: View {
                     VStack(spacing: 4) {
                         Text(NSLocalizedString("contentVisibility.interactionsConfig.description", comment: "Configure interactions description"))
                             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .multilineTextAlignment(.center)
 
                         Text(NSLocalizedString("contentVisibility.interactionsConfig.subtitle", comment: "Configure interactions subtitle"))
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.horizontal, 12)
@@ -379,11 +379,11 @@ struct StoryInteractionSettingsView: View {
                         VStack(spacing: 6) {
                             Text(NSLocalizedString("contentVisibility.viewOnlyMode", comment: "View only mode label"))
                                 .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                             Text(NSLocalizedString("contentVisibility.viewOnlyMode.description", comment: "View only mode description"))
                                 .font(.system(size: legacyPoppinsSize(13)))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: .infinity)
@@ -410,17 +410,17 @@ struct InteractionToggleRow: View {
         HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 19, weight: .regular))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .frame(width: 28, alignment: .center)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 Text(description)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -442,7 +442,7 @@ struct StoryAudienceSelector: View {
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             AudienceSelectionView(
                 selectedAudience: $viewModel.storyAudience,
                 selectedListId: $viewModel.storyCustomListId,
@@ -458,7 +458,7 @@ struct StoryAudienceSelector: View {
                         viewModel.saveStorySettings()
                         dismiss()
                     }
-                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                    .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                     .fontWeight(.semibold)
                 }
             }
@@ -473,7 +473,7 @@ struct PostAudienceSelector: View {
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             AudienceSelectionView(
                 selectedAudience: $viewModel.postAudience,
                 selectedListId: $viewModel.postCustomListId,
@@ -489,7 +489,7 @@ struct PostAudienceSelector: View {
                         viewModel.savePostSettings()
                         dismiss()
                     }
-                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                    .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                     .fontWeight(.semibold)
                 }
             }
@@ -662,7 +662,7 @@ struct HiddenFromView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(width: 44, height: 44)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                 }
@@ -671,7 +671,7 @@ struct HiddenFromView: View {
 
                 Text(NSLocalizedString("contentVisibility.hideContent.navigation", comment: "Hide Content"))
                     .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 Spacer()
             }
@@ -683,13 +683,13 @@ struct HiddenFromView: View {
                 VStack(spacing: 16) {
                     Text(NSLocalizedString("contentVisibility.info.description", comment: "Information description"))
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 12)
 
                     HStack {
                         Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
 
                         TextField(NSLocalizedString("audience.picker.searchPlaceholder", comment: ""), text: $searchText)
                             .font(.system(size: legacyPoppinsSize(16)))
@@ -743,16 +743,16 @@ struct HiddenFromView: View {
                                 VStack(spacing: 12) {
                                     Image(systemName: "eye.slash.circle")
                                         .font(.system(size: 40))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
 
                                     Text("contentVisibility.noHiddenUsers.title")
                                         .font(.system(size: legacyPoppinsSize(16)))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                         .multilineTextAlignment(.center)
 
                                     Text("contentVisibility.noHiddenUsers.description")
                                         .font(.system(size: legacyPoppinsSize(14)))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                         .multilineTextAlignment(.center)
                                 }
                                 .frame(maxWidth: .infinity)
@@ -770,7 +770,7 @@ struct HiddenFromView: View {
     private func sectionLabel(_ text: String) -> some View {
         Text(text.uppercased())
             .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-            .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
             .padding(.leading, 4)
     }
     
@@ -811,7 +811,7 @@ struct UserRowView: View {
                     .frame(width: 40, height: 40)
                     .overlay(
                         Image(systemName: "person.fill")
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .font(.system(size: 16))
                     )
             }
@@ -819,12 +819,12 @@ struct UserRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.username)
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 if let bio = user.bio, !bio.isEmpty {
                     Text(bio)
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         .lineLimit(1)
                 }
             }
@@ -834,11 +834,11 @@ struct UserRowView: View {
             Button(action: onTap) {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .font(.system(size: 20))
                 } else {
                     Image(systemName: "circle")
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         .font(.system(size: 20))
                 }
             }

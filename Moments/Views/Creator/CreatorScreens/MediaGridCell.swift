@@ -55,7 +55,7 @@ struct MediaGridCell: View {
                             Text(formatDuration(asset.duration))
                                 .font(.system(size: 10, weight: .bold))
                         }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
                         .background(.black.opacity(0.5))
@@ -77,7 +77,7 @@ struct MediaGridCell: View {
 
                                 Text("\(number)")
                                     .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             }
                             .padding(6)
                         } else {

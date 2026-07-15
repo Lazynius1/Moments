@@ -17,15 +17,15 @@ struct StatItem: View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 24, weight: .medium))
-                .foregroundColor(color)
+                .foregroundStyle(color)
 
             Text(value)
                 .font(.system(size: legacyPoppinsSize(20), weight: .bold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
 
             Text(label)
                 .font(.system(size: legacyPoppinsSize(12)))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -155,20 +155,20 @@ struct UserMomentPreviewView: View {
                 KFImage(url)
                     .placeholder {
                         Color.gray.opacity(0.2)
-                            .frame(width: UIScreen.main.bounds.width - 32, height: (UIScreen.main.bounds.width - 32) * 0.75)
+                            .frame(width: UIApplication.shared.activeWindowSize.width - 32, height: (UIApplication.shared.activeWindowSize.width - 32) * 0.75)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                             .overlay(ProgressView().tint(.gray))
                     }
                     .resizable()
                     .scaledToFill()
-                    .frame(width: UIScreen.main.bounds.width - 32, height: (UIScreen.main.bounds.width - 32) * 0.75)
+                    .frame(width: UIApplication.shared.activeWindowSize.width - 32, height: (UIApplication.shared.activeWindowSize.width - 32) * 0.75)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.2), lineWidth: 1))
             } else {
                 Color.gray.opacity(0.2)
-                    .frame(width: UIScreen.main.bounds.width - 32, height: (UIScreen.main.bounds.width - 32) * 0.75)
+                    .frame(width: UIApplication.shared.activeWindowSize.width - 32, height: (UIApplication.shared.activeWindowSize.width - 32) * 0.75)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(Image(systemName: "exclamationmark.triangle").foregroundColor(.gray))
+                    .overlay(Image(systemName: "exclamationmark.triangle").foregroundStyle(.gray))
             }
             UserExpandableContentView(
                 content: moment.content,
@@ -217,7 +217,7 @@ struct UserExpandableContentView: View {
                 }) {
                     Text(isExpanded ? NSLocalizedString("userProfile.seeLess", comment: "See less") : NSLocalizedString("userProfile.seeMore", comment: "See more"))
                         .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                        .foregroundColor(UserProfileColors.accent)
+                        .foregroundStyle(UserProfileColors.accent)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 4)
                         .background(UserProfileColors.accent.opacity(0.1))
@@ -278,21 +278,21 @@ struct ProfileImageViewer: View {
                                 .overlay(
                                     Image(systemName: "person.circle.fill")
                                         .font(.system(size: 120))
-                                        .foregroundColor(.gray.opacity(0.6))
+                                        .foregroundStyle(.gray.opacity(0.6))
                                 )
                         }
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: UIScreen.main.bounds.width - 40)
+                        .frame(maxWidth: UIApplication.shared.activeWindowSize.width - 40)
                         .clipShape(Circle())
                         .scaleEffect(scale)
                         .offset(dragOffset)
                         .gesture(
                             SimultaneousGesture(
                                 // Gesture de zoom
-                                MagnificationGesture()
+                                MagnifyGesture()
                                     .onChanged { value in
-                                        scale = max(0.5, min(3.0, value))
+                                        scale = max(0.5, min(3.0, value.magnification))
                                     },
                                 // Gesture de arrastre
                                 DragGesture()
@@ -320,10 +320,10 @@ struct ProfileImageViewer: View {
                             VStack(spacing: 16) {
                                 Image(systemName: "person.circle.fill")
                                     .font(.system(size: 120))
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                 Text(username)
                                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                             }
                         )
                         .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)

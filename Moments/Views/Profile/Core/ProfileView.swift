@@ -142,7 +142,7 @@ struct ProfilePillTabs: View {
                                 Text(tab.localizedTitle)
                                     .font(.system(size: legacyPoppinsSize(12), weight: labelWeight(for: index, width: proxy.size.width)))
                             }
-                            .foregroundColor(labelColor(for: index, width: proxy.size.width))
+                            .foregroundStyle(labelColor(for: index, width: proxy.size.width))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .contentShape(Rectangle())
                         }
@@ -493,7 +493,7 @@ struct ProfileView: View {
                             story: stories[safeStoryIndex],
                             storyCount: stories.count,
                             storyIndex: safeStoryIndex,
-                            screenSize: UIScreen.main.bounds.size,
+                            screenSize: UIApplication.shared.activeWindowSize,
                             storyViewModel: storyViewModel,
                             // ✅ AGREGAR: Pasar los bindings
                             showingReportSheet: $showingReportSheet,
@@ -582,7 +582,7 @@ struct ProfileView: View {
         .environmentObject(heroCoordinator)
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
         .toolbar(.hidden, for: .navigationBar)
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private func updateMoment(payload: EditMomentPayload, for moment: Moment) {

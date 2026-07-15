@@ -76,7 +76,7 @@ struct RealStoryCircle: View {
             LiveUsernameContent(userId: userId, fallbackUsername: fallbackUsername) { username in
                 Text(username)
                     .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                    .foregroundColor(Color.primary.opacity(0.76))
+                    .foregroundStyle(Color.primary.opacity(0.76))
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .minimumScaleFactor(0.75)
@@ -162,7 +162,7 @@ struct YourStoryCircleWithProgress: View {
             } else {
                 Text(NSLocalizedString("stories.yourStory", comment: "Your story label"))
                     .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                    .foregroundColor(Color.primary.opacity(0.76))
+                    .foregroundStyle(Color.primary.opacity(0.76))
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                     .frame(width: 64)
@@ -183,7 +183,7 @@ struct StoryUploadStatusLabel: View {
     var body: some View {
         Text(labelText)
             .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-            .foregroundColor(Color.primary.opacity(0.76))
+            .foregroundStyle(Color.primary.opacity(0.76))
             .lineLimit(1)
             .minimumScaleFactor(0.75)
             .frame(width: 64)

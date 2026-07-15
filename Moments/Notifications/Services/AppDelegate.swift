@@ -66,7 +66,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         kingfisherCache.diskStorage.config.expiration = .days(7)
 
         KingfisherManager.shared.defaultOptions = [
-            .scaleFactor(UIScreen.main.scale),
+            .scaleFactor(UIApplication.shared.activeDisplayScale),
             .backgroundDecode,
             .asyncCacheTypeCheck
         ]

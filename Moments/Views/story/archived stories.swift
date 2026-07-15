@@ -62,7 +62,7 @@ struct ArchiveView: View {
     var body: some View {
         Group {
             if embedInNavigation {
-                NavigationView {
+                NavigationStack {
                     archiveContent
                 }
             } else {
@@ -84,7 +84,7 @@ struct ArchiveView: View {
 
                         Text("archivedStories.loading")
                             .font(.system(size: legacyPoppinsSize(16)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
                     .frame(maxWidth: .infinity, minHeight: 400)
                 }
@@ -96,16 +96,16 @@ struct ArchiveView: View {
                     VStack(spacing: 20) {
                         Image(systemName: "archivebox")
                             .font(.system(size: 60))
-                            .foregroundColor(.gray.opacity(0.5))
+                            .foregroundStyle(.gray.opacity(0.5))
 
                         VStack(spacing: 8) {
                             Text("archivedStories.empty.title")
                                 .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                             Text("archivedStories.empty.description")
                                 .font(.system(size: legacyPoppinsSize(14)))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                                 .multilineTextAlignment(.center)
                         }
                     }
@@ -202,7 +202,7 @@ struct ArchiveView: View {
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 11, weight: .semibold))
                         }
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                 }
             }
@@ -212,7 +212,7 @@ struct ArchiveView: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .frame(width: 44, height: 44)
                     }
                 }
@@ -226,7 +226,7 @@ struct ArchiveView: View {
                     } label: {
                         Image(systemName: selectedDisplayMode == .calendar ? "calendar.circle.fill" : "calendar")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(selectedDisplayMode == .calendar ? Color(hex: "0A84FF") : (colorScheme == .dark ? .white : .black))
+                            .foregroundStyle(selectedDisplayMode == .calendar ? Color(hex: "0A84FF") : (colorScheme == .dark ? .white : .black))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(Text(NSLocalizedString("archivedStories.mode.calendar", comment: "Calendar mode")))
@@ -238,7 +238,7 @@ struct ArchiveView: View {
                     } label: {
                         Image(systemName: selectedDisplayMode == .map ? "map.circle.fill" : "map")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(selectedDisplayMode == .map ? Color(hex: "0A84FF") : (colorScheme == .dark ? .white : .black))
+                            .foregroundStyle(selectedDisplayMode == .map ? Color(hex: "0A84FF") : (colorScheme == .dark ? .white : .black))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(Text(NSLocalizedString("archivedStories.mode.map", comment: "Map mode")))
@@ -289,10 +289,10 @@ struct ArchiveView: View {
         VStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 28))
-                .foregroundColor(.gray.opacity(0.75))
+                .foregroundStyle(.gray.opacity(0.75))
             Text(text)
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.top, 40)
@@ -325,14 +325,14 @@ struct ArchiveView: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text(calendarMonthTitle(monthSection.monthStart))
                                     .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .padding(.horizontal, sectionHorizontalPadding)
 
                                 HStack(spacing: 0) {
                                     ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
                                         Text(symbol)
                                             .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                                            .foregroundColor(.gray)
+                                            .foregroundStyle(.gray)
                                             .frame(maxWidth: .infinity)
                                     }
                                 }
@@ -368,7 +368,7 @@ struct ArchiveView: View {
 
                                                     Text("\(dayNumber)")
                                                         .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                                                        .foregroundColor(cell.bucket == nil ? (colorScheme == .dark ? .white : .black) : .white)
+                                                        .foregroundStyle(cell.bucket == nil ? (colorScheme == .dark ? .white : .black) : .white)
                                                 }
                                                 .frame(height: 42)
                                                 .frame(maxWidth: .infinity)
@@ -417,13 +417,13 @@ struct ArchiveView: View {
                                 } else {
                                     Image(systemName: "mappin.circle.fill")
                                         .font(.system(size: 34))
-                                        .foregroundColor(Color(hex: "0A84FF"))
+                                        .foregroundStyle(Color(hex: "0A84FF"))
                                 }
 
                                 if pin.stories.count > 1 {
                                     Text("\(pin.stories.count)")
                                         .font(.system(size: legacyPoppinsSize(10), weight: .bold))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                         .padding(.horizontal, 5)
                                         .padding(.vertical, 2)
                                         .background(Capsule().fill(Color(hex: "0A84FF")))
@@ -441,10 +441,10 @@ struct ArchiveView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "mappin.slash")
                         .font(.system(size: 22, weight: .semibold))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                     Text(NSLocalizedString("archivedStories.map.empty", comment: "No geolocated stories"))
                         .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 18)
@@ -736,13 +736,13 @@ struct ArchiveDateSectionVertical: View {
             HStack {
                 Text(formatDateKey(dateKey))
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 Text(String(format: NSLocalizedString("archivedStories.count", comment: "Story count"), stories.count))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
@@ -799,13 +799,13 @@ struct ArchiveDateSectionGrid: View {
             HStack {
                 Text(formatDateKey(dateKey))
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 Text(String(format: NSLocalizedString("archivedStories.count", comment: "Story count"), stories.count))
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             }
             .padding(.horizontal, 20)
             .padding(.top, 14)
@@ -867,7 +867,7 @@ struct ArchiveStoryVerticalCard: View {
                                     .frame(width: 70, height: 124)
                                     .overlay(
                                         Image(systemName: "photo")
-                                            .foregroundColor(.gray.opacity(0.5))
+                                            .foregroundStyle(.gray.opacity(0.5))
                                             .font(.system(size: 20))
                                     )
                             }
@@ -881,7 +881,7 @@ struct ArchiveStoryVerticalCard: View {
                             .frame(width: 70, height: 124)
                             .overlay(
                                 Image(systemName: "photo")
-                                    .foregroundColor(.gray)
+                                    .foregroundStyle(.gray)
                                     .font(.system(size: 20))
                             )
                     }
@@ -892,7 +892,7 @@ struct ArchiveStoryVerticalCard: View {
                             HStack {
                                 Spacer()
                                 Image(systemName: "play.circle.fill")
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .font(.system(size: 18))
                                     .background(
                                         Circle()
@@ -912,7 +912,7 @@ struct ArchiveStoryVerticalCard: View {
                             Spacer()
                             Text(formatDuration(story.duration))
                                 .font(.system(size: legacyPoppinsSize(10), weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 3)
                                 .background(
@@ -956,24 +956,24 @@ struct ArchiveStoryVerticalCard: View {
                                 .overlay(
                                     Image(systemName: "person.fill")
                                         .font(.system(size: 12))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                 )
                         }
                         
                         Text(story.username)
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
                         Text(formatTime(story.timestamp))
                             .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.8))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.8))
                         
                         Text(formatRelativeDate(story.timestamp))
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
                     
                     // Story type and stats
@@ -981,11 +981,11 @@ struct ArchiveStoryVerticalCard: View {
                         HStack(spacing: 4) {
                             Image(systemName: story.mediaItem.type == .video ? "video.fill" : "photo.fill")
                                 .font(.system(size: 10))
-                                .foregroundColor(Color(hex: "007AFF"))
+                                .foregroundStyle(Color(hex: "007AFF"))
                             
                             Text(story.mediaItem.type == .video ? NSLocalizedString("archivedStories.video", comment: "Video") : NSLocalizedString("archivedStories.photo", comment: "Photo"))
                                 .font(.system(size: legacyPoppinsSize(11)))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                         }
                         
                         // Stats button
@@ -993,11 +993,11 @@ struct ArchiveStoryVerticalCard: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "eye.fill")
                                     .font(.system(size: 10))
-                                    .foregroundColor(.blue.opacity(0.8))
+                                    .foregroundStyle(.blue.opacity(0.8))
                                 
                                 Text("archivedStories.viewActivity")
                                     .font(.system(size: legacyPoppinsSize(11)))
-                                    .foregroundColor(.blue.opacity(0.8))
+                                    .foregroundStyle(.blue.opacity(0.8))
                             }
                         }
                         .buttonStyle(PlainButtonStyle())
@@ -1011,7 +1011,7 @@ struct ArchiveStoryVerticalCard: View {
                 // Archive indicator
                 Image(systemName: "archivebox.fill")
                     .font(.system(size: 16))
-                    .foregroundColor(.gray.opacity(0.6))
+                    .foregroundStyle(.gray.opacity(0.6))
             }
             .padding(16)
             .background(
@@ -1070,7 +1070,7 @@ struct ArchiveStoryCardVisual: View {
                         .fill(Color.gray.opacity(0.26))
                         .overlay(
                             Image(systemName: "photo")
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                         )
                 }
 
@@ -1090,7 +1090,7 @@ struct ArchiveStoryCardVisual: View {
                             Spacer()
                             Text(HighlightArchiveStoryCardVisual.formatVideoDuration(story.duration))
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
                         }
                     }
@@ -1185,7 +1185,7 @@ struct ArchiveDayStoriesViewer: View {
                     story: story,
                     storyCount: stories.count,
                     storyIndex: currentIndex,
-                    screenSize: UIScreen.main.bounds.size,
+                    screenSize: UIApplication.shared.activeWindowSize,
                     storyViewModel: storyViewModel,
                     showingReportSheet: $showingReportSheet,
                     showingBlockConfirmation: $showingBlockConfirmation,
@@ -1272,7 +1272,7 @@ struct StoryStatsView: View {
 
                     Text(NSLocalizedString("archivedStories.loadingStats", comment: "Loading statistics"))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(secondaryText)
+                        .foregroundStyle(secondaryText)
                 }
             } else {
                 VStack(spacing: 0) {
@@ -1324,7 +1324,7 @@ struct StoryStatsView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(primaryText)
+                        .foregroundStyle(primaryText)
                         .frame(width: 40, height: 40)
                         .background(Color.white.opacity(0.001))
                         .momentsChromeGlass(in: Circle(), interactive: true)
@@ -1336,7 +1336,7 @@ struct StoryStatsView: View {
 
             Text(NSLocalizedString("archivedStories.stats.title", comment: "Statistics title"))
                 .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                .foregroundColor(primaryText)
+                .foregroundStyle(primaryText)
                 .padding(.top, 2)
         }
     }
@@ -1345,17 +1345,17 @@ struct StoryStatsView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(String(format: NSLocalizedString("archivedStories.storyFrom", comment: "Story from date"), formatStoryDate(story.timestamp)))
                 .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                .foregroundColor(primaryText)
+                .foregroundStyle(primaryText)
 
             Text(String(format: NSLocalizedString("archivedStories.publishedAt", comment: "Published at time"), formatStoryTime(story.timestamp)))
                 .font(.system(size: legacyPoppinsSize(13)))
-                .foregroundColor(secondaryText)
+                .foregroundStyle(secondaryText)
 
             Text(story.mediaItem.type == .video
                  ? NSLocalizedString("archivedStories.video", comment: "Video")
                  : NSLocalizedString("archivedStories.photo", comment: "Photo"))
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(secondaryText)
+                .foregroundStyle(secondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1482,12 +1482,12 @@ struct StoryStatsView: View {
     private func archivedSearchBar(text: Binding<String>) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
                 .font(.system(size: 15, weight: .medium))
 
             TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: text)
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(primaryText)
+                .foregroundStyle(primaryText)
                 .textFieldStyle(.plain)
 
             if !text.wrappedValue.isEmpty {
@@ -1495,7 +1495,7 @@ struct StoryStatsView: View {
                     text.wrappedValue = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                         .font(.system(size: 16))
                 }
                 .buttonStyle(.plain)
@@ -1566,13 +1566,13 @@ private struct ArchivedStoryStatMetric: View {
         VStack(spacing: 3) {
             Text(value)
                 .font(.system(size: legacyPoppinsSize(17), weight: .bold))
-                .foregroundColor(primaryText)
+                .foregroundStyle(primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
             Text(title)
                 .font(.system(size: legacyPoppinsSize(10)))
-                .foregroundColor(secondaryText)
+                .foregroundStyle(secondaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
@@ -1603,12 +1603,12 @@ private struct ArchivedStoryViewerRow: View {
             HStack(spacing: 6) {
                 Text(viewer.username ?? NSLocalizedString("archivedStories.user", comment: "User"))
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
 
                 if let badgeText = viewer.rewatchBadgeText {
                     Text(badgeText)
                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                        .foregroundColor(primaryText)
+                        .foregroundStyle(primaryText)
                 }
             }
 
@@ -1654,11 +1654,11 @@ private struct ArchivedStoryReactionRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(user?.username ?? NSLocalizedString("archivedStories.user", comment: "User"))
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
 
                 Text(timeAgo(from: reaction.timestamp))
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(secondaryText)
+                    .foregroundStyle(secondaryText)
             }
 
             Spacer(minLength: 0)
@@ -1816,12 +1816,12 @@ class StoryStatsViewModel: ObservableObject {
 // MARK: - Preview
 struct ArchiveView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             ArchiveView()
         }
         .preferredColorScheme(.light)
         
-        NavigationView {
+        NavigationStack {
             ArchiveView()
         }
         .preferredColorScheme(.dark)

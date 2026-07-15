@@ -103,7 +103,7 @@ struct NotificationStoryThumbnailView: View {
             .overlay(
                 Image(systemName: "photo")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
             )
     }
 }

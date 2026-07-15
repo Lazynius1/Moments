@@ -263,7 +263,7 @@ struct HiddenLayersEditorView: View {
             } label: {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .padding(10)
                     .momentsChromeGlass(in: Circle(), interactive: true)
             }
@@ -272,12 +272,12 @@ struct HiddenLayersEditorView: View {
             VStack(spacing: 1) {
                 Text(NSLocalizedString("hiddenLayers.editor.title", value: "Capas ocultas", comment: "Hidden layers editor title"))
                     .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
 
                 if selectedLayerId == nil {
                     Text(layerCountSummary)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(secondaryTextColor)
+                        .foregroundStyle(secondaryTextColor)
                 }
             }
 
@@ -285,7 +285,7 @@ struct HiddenLayersEditorView: View {
                 dismiss()
             }
             .font(.system(size: 14, weight: .bold, design: .rounded))
-            .foregroundColor(primaryTextColor)
+            .foregroundStyle(primaryTextColor)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -381,12 +381,20 @@ struct HiddenLayersEditorView: View {
         return scaledHeight
     }
 
+    /// Altura de la ventana activa (viewport del feed a pantalla completa), vía window scene.
+    private func activeWindowHeight() -> CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first
+        return window?.bounds.height ?? 0
+    }
+
     private func feedCardHeight(for width: CGFloat, ratio: CGFloat) -> CGFloat {
         guard width > 0 else { return 300 }
 
         let safeRatio = (ratio > 0 && ratio.isFinite) ? ratio : 1.0
         let idealHeight = width / safeRatio
-        let screenHeight = UIScreen.main.bounds.height
+        let screenHeight = activeWindowHeight()
         let feedHeaderHeight: CGFloat = 88
         let feedSelectorHeight: CGFloat = 35
         let tabbarHeight: CGFloat = 50
@@ -409,7 +417,7 @@ struct HiddenLayersEditorView: View {
                                 selectedLayerId = nil
                             } label: {
                                 Image(systemName: "chevron.down")
-                                    .foregroundColor(primaryTextColor)
+                                    .foregroundStyle(primaryTextColor)
                                     .padding(10)
                                     .background(strongSurfaceFill, in: Circle())
                             }
@@ -419,7 +427,7 @@ struct HiddenLayersEditorView: View {
                                     createLayer(for: selectedDockType)
                                 } label: {
                                     Image(systemName: "plus")
-                                        .foregroundColor(primaryTextColor)
+                                        .foregroundStyle(primaryTextColor)
                                         .padding(10)
                                         .background(strongSurfaceFill, in: Circle())
                                 }
@@ -429,7 +437,7 @@ struct HiddenLayersEditorView: View {
 
                         Text(layerTitle(layers[index]))
                             .font(.headline)
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .offset(x: layers[index].type == .image ? -12 : 0)
 
@@ -439,7 +447,7 @@ struct HiddenLayersEditorView: View {
                                     createLayer(for: selectedDockType)
                                 } label: {
                                     Image(systemName: "plus")
-                                        .foregroundColor(primaryTextColor)
+                                        .foregroundStyle(primaryTextColor)
                                         .padding(10)
                                         .background(strongSurfaceFill, in: Circle())
                                 }
@@ -464,7 +472,7 @@ struct HiddenLayersEditorView: View {
                                 selectedDockType = removedType
                             } label: {
                                 Image(systemName: "trash")
-                                    .foregroundColor(primaryTextColor)
+                                    .foregroundStyle(primaryTextColor)
                                     .padding(10)
                                     .background(strongSurfaceFill, in: Circle())
                             }
@@ -475,7 +483,7 @@ struct HiddenLayersEditorView: View {
                     if layers[index].type == .text {
                         TextField(NSLocalizedString("hiddenLayers.text.placeholder", value: "Escribe el secreto...", comment: "Hidden layer text placeholder"), text: limitedTextBinding(for: index))
                             .textFieldStyle(.plain)
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                             .padding(14)
                             .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
 
@@ -526,7 +534,7 @@ struct HiddenLayersEditorView: View {
                                 text: limitedCaptionBinding(for: index)
                             )
                             .textFieldStyle(.plain)
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 12)
                             .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
@@ -581,11 +589,11 @@ struct HiddenLayersEditorView: View {
                 VStack(spacing: 3) {
                     Text(emptyStateTitle(for: selectedDockType))
                         .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .foregroundColor(primaryTextColor)
+                        .foregroundStyle(primaryTextColor)
 
                     Text(emptyStateSubtitle(for: selectedDockType))
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(secondaryTextColor)
+                        .foregroundStyle(secondaryTextColor)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                 }
@@ -600,7 +608,7 @@ struct HiddenLayersEditorView: View {
                         Text(addActionTitle(for: selectedDockType))
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                     }
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .frame(minWidth: 168)
@@ -685,7 +693,7 @@ struct HiddenLayersEditorView: View {
                                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                                     .lineLimit(1)
                             }
-                            .foregroundColor(activeType == type ? primaryTextColor : secondaryTextColor)
+                            .foregroundStyle(activeType == type ? primaryTextColor : secondaryTextColor)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .contentShape(Rectangle())
                         }
@@ -780,7 +788,7 @@ struct HiddenLayersEditorView: View {
                 }
         )
         .simultaneousGesture(
-            MagnificationGesture()
+            MagnifyGesture()
                 .onChanged { value in
                     if adjustingImageLayerId == layer.id && layer.type == .image { return }
                     guard let index = layers.firstIndex(where: { $0.id == layer.id }) else { return }
@@ -791,7 +799,7 @@ struct HiddenLayersEditorView: View {
                         magnifyBaseSize = CGSize(width: layers[index].width, height: layers[index].height)
                     }
                     guard let base = magnifyBaseSize else { return }
-                    let ratio = max(0.7, min(2.2, value))
+                    let ratio = max(0.7, min(2.2, value.magnification))
                     let aspect: CGFloat
                     let minWidth: CGFloat
                     let maxWidth: CGFloat
@@ -891,12 +899,12 @@ struct HiddenLayersEditorView: View {
                     VStack(spacing: 4) {
                         Text((layers[index].duration ?? 0).formattedDetailedDuration)
                             .font(.system(size: 20, weight: .bold, design: .monospaced))
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                             .contentTransition(.numericText())
 
                         Text(NSLocalizedString("hiddenLayers.audio.ready", value: "Listo para revelar", comment: "Audio ready state"))
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(tertiaryTextColor)
+                            .foregroundStyle(tertiaryTextColor)
 
                         Button {
                             isPreviewPlaying ? stopAudioPreview() : startAudioPreview(for: index)
@@ -907,7 +915,7 @@ struct HiddenLayersEditorView: View {
                                 Text(NSLocalizedString("hiddenLayers.audio.preview", value: "Escuchar", comment: "Listen to hidden audio"))
                                     .font(.system(size: 12, weight: .semibold))
                             }
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(subtleSurfaceFill, in: Capsule())
@@ -959,14 +967,14 @@ struct HiddenLayersEditorView: View {
                     VStack(spacing: 4) {
                         Text((audioRecorder.isRecording ? audioRecorder.elapsedTime : 0).formattedDetailedDuration)
                             .font(.system(size: 20, weight: .bold, design: .monospaced))
-                            .foregroundColor(audioRecorder.isRecording ? .red : primaryTextColor)
+                            .foregroundStyle(audioRecorder.isRecording ? .red : primaryTextColor)
                             .contentTransition(.numericText())
 
                         Text(audioRecorder.isRecording
                              ? NSLocalizedString("hiddenLayers.audio.recording", value: "Grabando...", comment: "Recording state")
                              : NSLocalizedString("hiddenLayers.audio.tapToRecord", value: "Toca para grabar", comment: "Tap to record"))
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(tertiaryTextColor)
+                            .foregroundStyle(tertiaryTextColor)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -978,7 +986,7 @@ struct HiddenLayersEditorView: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
                 .frame(width: 44, height: 44)
                 .momentsChromeGlass(in: Circle(), interactive: true)
         }
@@ -992,7 +1000,7 @@ struct HiddenLayersEditorView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .lineLimit(1)
         }
-        .foregroundColor(primaryTextColor)
+        .foregroundStyle(primaryTextColor)
         .frame(maxWidth: .infinity)
         .frame(height: 54)
         .background(strongSurfaceFill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -1269,7 +1277,7 @@ struct HiddenLayersEditorView: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(
@@ -1298,11 +1306,11 @@ struct HiddenLayersEditorView: View {
 
             Text((audioRecorder.isRecording ? audioRecorder.elapsedTime : (layers[index].duration ?? 0)).formattedDetailedDuration)
                 .font(.system(size: 22, weight: .bold, design: .monospaced))
-                .foregroundColor(audioRecorder.isRecording ? .red : primaryTextColor)
+                .foregroundStyle(audioRecorder.isRecording ? .red : primaryTextColor)
 
             Text(audioRecorder.isRecording ? NSLocalizedString("hiddenLayers.audio.recording", value: "Grabando...", comment: "Recording state") : (layers[index].localAudioURL == nil ? NSLocalizedString("hiddenLayers.audio.tapToRecord", value: "Toca para grabar", comment: "Tap to record") : NSLocalizedString("hiddenLayers.audio.ready", value: "Listo para revelar", comment: "Audio ready state")))
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
         }
     }
 
@@ -1333,10 +1341,10 @@ struct HiddenLayersEditorView: View {
                     layers[index].imageOffsetX = min(48, max(-48, value.translation.width))
                     layers[index].imageOffsetY = min(48, max(-48, value.translation.height))
                 },
-            MagnificationGesture()
-                .onChanged { scale in
+            MagnifyGesture()
+                .onChanged { value in
                     guard let index = layers.firstIndex(where: { $0.id == layerId }) else { return }
-                    layers[index].imageScale = min(2.2, max(1.0, scale))
+                    layers[index].imageScale = min(2.2, max(1.0, value.magnification))
                 }
         )
     }
@@ -1344,7 +1352,7 @@ struct HiddenLayersEditorView: View {
     private func miniSheetHeaderIconButton(_ systemName: String, isActive: Bool = false) -> some View {
         Image(systemName: systemName)
             .font(.system(size: 16, weight: .semibold))
-            .foregroundColor(primaryTextColor)
+            .foregroundStyle(primaryTextColor)
             .frame(width: 40, height: 40)
             .background((isActive ? strongSurfaceFill : subtleSurfaceFill), in: Circle())
             .overlay(
@@ -1361,11 +1369,11 @@ struct HiddenLayersEditorView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(secondaryTextColor)
+                    .foregroundStyle(secondaryTextColor)
 
                 Text(value)
                     .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .lineLimit(1)
             }
 
@@ -1373,7 +1381,7 @@ struct HiddenLayersEditorView: View {
 
             Image(systemName: "chevron.up.chevron.down")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
         }
         .padding(.horizontal, 12)
         .frame(height: 42)
@@ -1737,7 +1745,7 @@ private struct HiddenLayerScheduleSheet: View {
                     onCancel()
                 }
                 .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -1746,7 +1754,7 @@ private struct HiddenLayerScheduleSheet: View {
                     onApply()
                 }
                 .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -1805,7 +1813,7 @@ private struct HiddenLayerTextCardPreview: View {
         if presentationStyle == .glassCard {
             Text(text)
                 .font(font)
-                .foregroundColor(foreground)
+                .foregroundStyle(foreground)
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -1817,7 +1825,7 @@ private struct HiddenLayerTextCardPreview: View {
         } else {
             Text(text)
                 .font(font)
-                .foregroundColor(foreground)
+                .foregroundStyle(foreground)
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -1903,7 +1911,7 @@ private struct HiddenLayerPolaroidPreview: View {
                 if let caption, !caption.isEmpty {
                     Text(caption)
                         .font(captionFont)
-                        .foregroundColor(captionColor)
+                        .foregroundStyle(captionColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
                         .padding(.horizontal, 12)
@@ -2025,7 +2033,7 @@ struct HiddenLayerRemotePolaroidPreview: View {
                 if let caption, !caption.isEmpty {
                     Text(caption)
                         .font(captionFont)
-                        .foregroundColor(captionColor)
+                        .foregroundStyle(captionColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
                         .padding(.horizontal, 12)

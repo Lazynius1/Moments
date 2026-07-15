@@ -258,12 +258,12 @@ private struct ConversationContextMenuRow: View {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(textColor)
+                    .foregroundStyle(textColor)
                     .frame(width: 18, alignment: .center)
 
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(14.5), weight: .medium))
-                    .foregroundColor(textColor)
+                    .foregroundStyle(textColor)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: 0)

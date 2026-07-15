@@ -66,18 +66,18 @@ struct CommentMentionSearchOverlay: View {
     private var searchField: some View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             TextField("", text: $searchText)
                 .placeholder(when: searchText.isEmpty) {
                     Text(placeholder)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .focused($isSearchFocused)
                 .submitLabel(.search)
                 .autocapitalization(.none)
-                .disableAutocorrection(true)
+                .autocorrectionDisabled(true)
                 .onChange(of: searchText) { _, newValue in
                     searchUsers(query: newValue)
                 }
@@ -85,14 +85,14 @@ struct CommentMentionSearchOverlay: View {
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
             Button(action: onCancel) {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .frame(width: 30, height: 30)
                     .momentsChromeGlass(in: Circle(), interactive: true)
             }
@@ -106,11 +106,11 @@ struct CommentMentionSearchOverlay: View {
         HStack(spacing: 10) {
             Image(systemName: "at")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             Text(query?.isEmpty == false ? "@\(query ?? "")" : placeholder)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
 
             Spacer()
@@ -118,7 +118,7 @@ struct CommentMentionSearchOverlay: View {
             Button(action: onCancel) {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .frame(width: 30, height: 30)
                     .momentsChromeGlass(in: Circle(), interactive: true)
             }
@@ -137,7 +137,7 @@ struct CommentMentionSearchOverlay: View {
             } else if searchResults.isEmpty {
                 Text(NSLocalizedString("common.noResults", value: "No users found", comment: ""))
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 88)
             } else {
                 ScrollView {
@@ -202,7 +202,7 @@ private struct CommentMentionSearchRow: View {
                 } else {
                     Image(systemName: "person.circle.fill")
                         .resizable()
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 }
             }
             .frame(width: 42, height: 42)
@@ -210,13 +210,13 @@ private struct CommentMentionSearchRow: View {
 
             Text(user.username)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
 
             Spacer()
 
             Image(systemName: "plus")
                 .font(.system(size: 14, weight: .bold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .frame(width: 28, height: 28)
                 .momentsChromeGlass(in: Circle(), interactive: true)
         }

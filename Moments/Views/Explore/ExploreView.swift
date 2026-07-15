@@ -47,8 +47,10 @@ struct ExploreView: View {
                 viewModel.smartSearch(query: newValue)
             }
             .onAppear(perform: handleExploreAppear)
-            .alert(isPresented: $showPrivateProfileAlert) {
-                privateProfileAlert
+            .alert("explore.privateProfile.title", isPresented: $showPrivateProfileAlert) {
+                Button("common.ok") { }
+            } message: {
+                Text("explore.privateProfile.message")
             }
             .userProfileNavigationDestination(
                 item: $selectedProfileRoute,
@@ -110,7 +112,7 @@ struct ExploreView: View {
                 showDiscoverMap = true
             } label: {
                 Image(systemName: "map.fill")
-                    .foregroundColor(Color(hex: "0A84FF"))
+                    .foregroundStyle(Color(hex: "0A84FF"))
             }
         }
     }
@@ -149,13 +151,13 @@ struct ExploreView: View {
         HStack {
             Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
                 .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
             Spacer()
             Button(NSLocalizedString("explore.recentSearches.clearAll", comment: "")) {
                 viewModel.clearAllSearches()
             }
             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
         }
         .textCase(nil)
         .padding(.vertical, 8)
@@ -365,14 +367,6 @@ struct ExploreView: View {
                     viewModel.loadAuthorProfile(for: moment.authorId)
                 }
             }
-        }
-
-        private var privateProfileAlert: Alert {
-            Alert(
-                title: Text("explore.privateProfile.title"),
-                message: Text("explore.privateProfile.message"),
-                dismissButton: .default(Text("common.ok"))
-            )
         }
     }
 

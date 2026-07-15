@@ -65,7 +65,7 @@ struct AlbumPickerView: View {
 
             Text(NSLocalizedString("creator.album.select", comment: "Select Album"))
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .padding(.bottom, 20)
         }
     }
@@ -99,7 +99,7 @@ struct AlbumPickerView: View {
             }
         }
         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-        .foregroundColor(colorScheme == .dark ? .white : .black)
+        .foregroundStyle(colorScheme == .dark ? .white : .black)
         .frame(maxWidth: .infinity)
         .frame(height: 50)
         .background(
@@ -167,19 +167,19 @@ private struct AlbumRowView: View {
                     } else {
                         Image(systemName: "photo.on.rectangle")
                             .font(.system(size: 24))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(album.title)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     Text(String(format: NSLocalizedString("creator.album.elements", comment: "Album elements"), album.assetCount))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.gray.opacity(0.8))
+                        .foregroundStyle(.gray.opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
@@ -188,11 +188,11 @@ private struct AlbumRowView: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundStyle(Color(hex: "00A896"))
                 } else {
                     Image(systemName: "circle")
                         .font(.system(size: 20))
-                        .foregroundColor(.gray.opacity(0.5))
+                        .foregroundStyle(.gray.opacity(0.5))
                 }
             }
             .padding(.horizontal, 16)

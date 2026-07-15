@@ -57,7 +57,7 @@ struct LoadingMomentView: View {
 
                 Text("feed.loadingMoment")
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             }
         }
     }
@@ -74,18 +74,18 @@ struct ErrorMomentView: View {
             VStack(spacing: 20) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 50))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
 
                 Text(message)
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
 
                 Button(NSLocalizedString("common.close", comment: "Close")) {
                     onClose()
                 }
                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
                 .background(Color.red)

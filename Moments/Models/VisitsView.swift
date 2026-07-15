@@ -505,11 +505,11 @@ struct GroupedVisitRow<VM: UserListViewModel>: View {
         )
         .contentShape(Rectangle())
         .onTapGesture { onUserTap?(groupedVisit.user.id) }
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             withAnimation(.easeInOut(duration: 0.1)) {
                 isPressed = pressing
             }
-        }, perform: {})
+        })
     }
 
     private func handleAvatarTap(hasStory: Bool) {
@@ -659,7 +659,7 @@ struct StalkerCard: View {
                             .overlay(
                                 Image(systemName: "person.circle.fill")
                                     .font(.system(size: 30))
-                                    .foregroundColor(.gray)
+                                    .foregroundStyle(.gray)
                             )
                     }
                     
@@ -677,7 +677,7 @@ struct StalkerCard: View {
                     HStack(spacing: 2) {
                         Text(analysis.username)
                             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
                         
                         // ✅ INSIGNIA DE VERIFICADO
@@ -686,7 +686,7 @@ struct StalkerCard: View {
                     
                     Text(String(format: NSLocalizedString("visits.count", comment: ""), analysis.visitsLast24h))
                         .font(.system(size: legacyPoppinsSize(10)))
-                        .foregroundColor(analysis.frequencyType.color)
+                        .foregroundStyle(analysis.frequencyType.color)
                 }
             }
             .frame(width: 80)
@@ -712,7 +712,7 @@ struct StalkerAlertView: View {
         VStack(spacing: 20) {
             Text("visits.stalkerAlert.title")
                 .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
             
             AsyncImage(url: URL(string: stalker.profileImagePath ?? "")) { image in
                 image
@@ -731,7 +731,7 @@ struct StalkerAlertView: View {
                     .overlay(
                         Image(systemName: "person.circle.fill")
                             .font(.system(size: 40))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     )
             }
             
@@ -739,7 +739,7 @@ struct StalkerAlertView: View {
                 HStack(spacing: 4) {
                     Text(stalker.username)
                         .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     // ✅ INSIGNIA DE VERIFICADO
                     VerifiedBadgeView(userId: stalker.userId, size: 16)
@@ -747,12 +747,12 @@ struct StalkerAlertView: View {
                 
                 Text(String(format: NSLocalizedString("visits.stalkerAlert.message", comment: ""), stalker.visitsLast24h))
                     .font(.system(size: legacyPoppinsSize(16)))
-                    .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.7))
+                    .foregroundStyle(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.7))
                     .multilineTextAlignment(.center)
                 
                 Text(stalker.frequencyType.message)
                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                    .foregroundColor(stalker.frequencyType.color)
+                    .foregroundStyle(stalker.frequencyType.color)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(stalker.frequencyType.color.opacity(0.2))
@@ -763,7 +763,7 @@ struct StalkerAlertView: View {
                 isPresented = false
             }
             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(.horizontal, 30)
             .padding(.vertical, 12)
             .background(Color(hex: "00A896"))
@@ -860,7 +860,7 @@ struct VisitModernLoadingView: View {
             
             Text("visits.loading")
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
         }
         .onAppear {
             isAnimating = true
@@ -908,11 +908,11 @@ struct ModernEmptyVisitsView: View {
             VStack(spacing: 8) {
                 Text("visits.empty.title")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 Text("visits.empty.description")
                     .font(.system(size: 16, weight: .regular))
-                    .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
+                    .foregroundStyle(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
@@ -934,7 +934,7 @@ extension VisitsView {
         VStack(alignment: .center, spacing: 2) {
             Text("visits.title")
                 .font(.system(size: legacyPoppinsSize(22), weight: .bold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
             Text(
                 String(
@@ -946,7 +946,7 @@ extension VisitsView {
                 )
             )
                 .font(.system(size: legacyPoppinsSize(13)))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 20)

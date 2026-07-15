@@ -51,23 +51,23 @@ struct CollapsibleOfflineBanner: View {
         HStack(spacing: 10) {
             Image(systemName: "wifi.slash")
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("network.offline.title")
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text("offline.banner.message")
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(.primary.opacity(0.72))
+                    .foregroundStyle(.primary.opacity(0.72))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Text("network.offline.retry")
                 .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 8)
                 .contentShape(Rectangle())
@@ -96,7 +96,7 @@ struct CollapsibleOfflineBanner: View {
 
                 Image(systemName: "wifi.slash")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
             .shadow(color: Color.red.opacity(0.22), radius: 14, x: 0, y: 8)
             .padding(10)

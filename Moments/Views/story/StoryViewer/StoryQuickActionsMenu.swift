@@ -105,7 +105,7 @@ private struct StoryMenuActionRow: View {
                 Spacer(minLength: 0)
                 Text(title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(isDestructive ? .red : textColor)
+                    .foregroundStyle(isDestructive ? .red : textColor)
                     .multilineTextAlignment(.center)
                 Spacer()
             }

@@ -14,16 +14,16 @@ struct UserSearchView: View {
     private let firestoreService = FirestoreService()
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
 
                     TextField(NSLocalizedString("creator.tag.search", comment: ""), text: $searchText)
                         .textFieldStyle(PlainTextFieldStyle())
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .onChange(of: searchText) { _, newValue in
                             searchUsers(query: newValue)
                         }
@@ -34,13 +34,13 @@ struct UserSearchView: View {
                             searchResults = []
                         }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                         }
                     }
                 }
                 .padding()
                 .background(Color.gray.opacity(0.2))
-                .cornerRadius(10)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .padding()
 
                 // Selected users
@@ -66,7 +66,7 @@ struct UserSearchView: View {
                         ProgressView()
                             .tint(.white)
                         Text("creator.searching")
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -94,7 +94,7 @@ struct UserSearchView: View {
                     Button("common.cancel") {
                         dismiss()
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -102,7 +102,7 @@ struct UserSearchView: View {
                         selectedUsers = Array(selectedUserIds)
                         dismiss()
                     }
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
                     .fontWeight(.semibold)
                 }
             }
@@ -168,22 +168,22 @@ struct UserSearchRow: View {
                     if user.profileImagePath != nil {
                         // AsyncImage for profile
                         Image(systemName: "person.fill")
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     } else {
                         Image(systemName: "person.fill")
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user.username)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                     if let bio = user.bio, !bio.isEmpty {
                         Text(bio)
                             .font(.caption)
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .lineLimit(1)
                     }
                 }
@@ -191,7 +191,7 @@ struct UserSearchRow: View {
                 Spacer()
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(isSelected ? .blue : .gray)
+                    .foregroundStyle(isSelected ? .blue : .gray)
                     .font(.title2)
             }
             .padding(.horizontal)
@@ -208,12 +208,12 @@ struct SelectedUserChip: View {
         HStack(spacing: 6) {
             Text(user.username)
                 .font(.caption)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
 
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
             }
         }
         .padding(.horizontal, 12)

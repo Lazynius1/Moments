@@ -12,7 +12,7 @@ struct AppealStatusView: View {
     @State private var refreshing = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.clear.ignoresSafeArea()
 
@@ -61,7 +61,7 @@ struct AppealStatusView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
         }
         .animation(.spring(response: 0.36, dampingFraction: 0.86), value: selectedAppeal?.id)
         .onAppear {
@@ -117,7 +117,7 @@ struct AppealStatusHeader: View {
         ZStack {
             Text(title)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
                 .lineLimit(1)
 
             HStack {
@@ -154,7 +154,7 @@ struct AppealStatusHeader: View {
 
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .rotationEffect(.degrees(refreshing ? 360 : 0))
                     .animation(refreshing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: refreshing)
             }
@@ -167,7 +167,7 @@ struct AppealStatusHeader: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
                 .frame(width: 42, height: 42)
                 .background {
                     Color.clear
@@ -217,11 +217,11 @@ struct AppealCard: View {
                     HStack(spacing: 10) {
                         Text(String(format: NSLocalizedString("appeal.status.ticket", comment: "Ticket number format"), appeal.ticketNumber))
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(AuthColors.primary(colorScheme))
+                            .foregroundStyle(AuthColors.primary(colorScheme))
 
                         Text(appeal.submittedAt)
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                            .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.62))
                     }
 
                     AppealStatusBadge(status: appeal.status, priority: appeal.priority)
@@ -229,20 +229,20 @@ struct AppealCard: View {
                     if let reason = appeal.suspensionReason, !reason.isEmpty {
                         Text(String(format: NSLocalizedString("appeal.status.reason", comment: "Suspension reason format"), reason))
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                            .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                             .lineLimit(2)
                     }
 
                     Text(String(format: NSLocalizedString("appeal.status.estimatedResponse", comment: "Estimated response format"), appeal.estimatedResponseTime))
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 }
 
                 Spacer(minLength: 10)
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.45))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.45))
             }
             .padding(18)
             .background(
@@ -273,7 +273,7 @@ struct AppealStatusBadge: View {
             Text(statusText)
                 .font(.system(size: 12, weight: .semibold))
         }
-        .foregroundColor(statusColor)
+        .foregroundStyle(statusColor)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(
@@ -331,14 +331,14 @@ struct AppealDetailFlowView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(String(format: NSLocalizedString("appeal.status.ticket", comment: "Ticket number format"), appeal.ticketNumber))
                         .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .foregroundStyle(AuthColors.primary(colorScheme))
 
                     AppealStatusBadge(status: appeal.status, priority: appeal.priority)
 
                     if !appeal.statusDescription.isEmpty {
                         Text(appeal.statusDescription)
                             .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.74))
+                            .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.74))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -386,14 +386,14 @@ struct AppealDetailFlowView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         Text(NSLocalizedString("appeal.detail.nextSteps", comment: "Next steps section title"))
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(AuthColors.primary(colorScheme))
+                            .foregroundStyle(AuthColors.primary(colorScheme))
 
                         VStack(alignment: .leading, spacing: 12) {
                             ForEach(Array(appeal.nextSteps.enumerated()), id: \.offset) { index, step in
                                 HStack(alignment: .top, spacing: 12) {
                                     Text("\(index + 1)")
                                         .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(AuthColors.primary(colorScheme))
+                                        .foregroundStyle(AuthColors.primary(colorScheme))
                                         .frame(width: 24, height: 24)
                                         .background {
                                             Color.clear
@@ -402,7 +402,7 @@ struct AppealDetailFlowView: View {
 
                                     Text(step)
                                         .font(.system(size: 15, weight: .medium))
-                                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.76))
+                                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.76))
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                             }
@@ -425,11 +425,11 @@ struct AppealDetailLine: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.62))
 
             Text(value)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
                 .fixedSize(horizontal: false, vertical: true)
 
             Divider()
@@ -448,11 +448,11 @@ struct AppealTextSection: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
 
             Text(text)
                 .font(.system(size: 15, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.76))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.76))
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -467,16 +467,16 @@ struct EmptyAppealsView: View {
         VStack(spacing: 24) {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 64, weight: .light))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.58))
 
             VStack(spacing: 12) {
                 Text(NSLocalizedString("appeal.status.noAppeals.title", comment: "No appeals title"))
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
 
                 Text(NSLocalizedString("appeal.status.noAppeals.description", comment: "No appeals description"))
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
             }
         }
@@ -496,7 +496,7 @@ struct LoadingView: View {
 
             Text(NSLocalizedString("appeal.status.loading", comment: "Loading appeals text"))
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
         }
     }
 }

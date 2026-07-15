@@ -143,7 +143,7 @@ struct StoryVideoTrimEditorView: View {
                             Button(action: onCancel) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(colorScheme == .dark ? .white : Color.black.opacity(0.82))
+                                    .foregroundStyle(colorScheme == .dark ? .white : Color.black.opacity(0.82))
                                     .frame(width: 42, height: 42)
                                     .background {
                                         Color.clear
@@ -162,7 +162,7 @@ struct StoryVideoTrimEditorView: View {
                             Button(action: confirmTrim) {
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(colorScheme == .dark ? .white : Color.black.opacity(0.82))
+                                    .foregroundStyle(colorScheme == .dark ? .white : Color.black.opacity(0.82))
                                     .frame(width: 42, height: 42)
                                     .background {
                                         Color.clear
@@ -186,7 +186,7 @@ struct StoryVideoTrimEditorView: View {
                     Button(action: toggleMute) {
                         Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : Color.black.opacity(0.82))
+                            .foregroundStyle(colorScheme == .dark ? .white : Color.black.opacity(0.82))
                             .frame(width: 38, height: 38)
                             .background {
                                 Color.clear
@@ -207,7 +207,7 @@ struct StoryVideoTrimEditorView: View {
                         Spacer()
                         Text(String(format: "%.1fs selected", trimDuration))
                             .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background {
@@ -363,7 +363,7 @@ struct StoryVideoTrimEditorView: View {
                     .tint(.white)
                 Text("storyVideo.trim.processing")
                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 22)

@@ -126,7 +126,7 @@ struct UserModernPublicProfileView: View {
                                 } else {
                                     UserModernEmptyMomentsView()
                                         .padding(.horizontal, 20)
-                                        .frame(maxWidth: UIScreen.main.bounds.width - 40)
+                                        .frame(maxWidth: .infinity)
                                 }
                             } else {
                                 GeometryReader { geometry in

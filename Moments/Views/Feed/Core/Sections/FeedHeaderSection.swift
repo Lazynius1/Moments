@@ -12,7 +12,7 @@ struct FeedRefreshIndicator: View {
 
             Text("feed.refreshing")
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.74) : .black.opacity(0.62))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.74) : .black.opacity(0.62))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -167,7 +167,7 @@ struct FeedHeaderBar: View {
             if !pendingEchoes.isEmpty {
                 Text("\(pendingEchoes.count)")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 16, height: 16)
                     .background(Color.orange)
                     .clipShape(Circle())

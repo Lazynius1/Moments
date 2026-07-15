@@ -186,11 +186,11 @@ struct ChatEphemeralTapCard: View {
                 VStack(spacing: 4) {
                     Text("chat.tapToView")
                         .font(.system(size: legacyPoppinsSize(layout == .compact ? 11 : 13), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                     Text("chat.ephemeral.title")
                         .font(.system(size: legacyPoppinsSize(layout == .compact ? 10 : 11)))
-                        .foregroundColor(.white.opacity(0.78))
+                        .foregroundStyle(.white.opacity(0.78))
 
                     if let expirationDate, expirationDate > Date() {
                         Text(
@@ -200,7 +200,7 @@ struct ChatEphemeralTapCard: View {
                             )
                         )
                         .font(.system(size: legacyPoppinsSize(10)))
-                        .foregroundColor(ChatEphemeralPalette.accent.opacity(0.9))
+                        .foregroundStyle(ChatEphemeralPalette.accent.opacity(0.9))
                     }
                 }
                 .padding(.horizontal, 8)
@@ -256,7 +256,7 @@ struct ChatEphemeralImageCard: View {
                 if let expirationDate, expirationDate > Date() {
                     Text(ChatEphemeralTimeFormatting.shortLabel(until: expirationDate))
                         .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
@@ -295,7 +295,7 @@ struct ChatEphemeralResolvingCard: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: ChatEphemeralPalette.accent))
                 Text("common.loading")
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(.white.opacity(0.72))
+                    .foregroundStyle(.white.opacity(0.72))
             }
         }
         .frame(width: layout.width, height: layout.height)
@@ -318,11 +318,11 @@ struct ChatEphemeralExpiredCard: View {
             VStack(spacing: 8) {
                 Image(systemName: "hourglass.bottomhalf.filled")
                     .font(.system(size: layout == .compact ? 18 : 22, weight: .medium))
-                    .foregroundColor(.white.opacity(0.45))
+                    .foregroundStyle(.white.opacity(0.45))
 
                 Text("stories.ephemeral.expired")
                     .font(.system(size: legacyPoppinsSize(layout == .compact ? 10 : 12), weight: .medium))
-                    .foregroundColor(.white.opacity(0.55))
+                    .foregroundStyle(.white.opacity(0.55))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)
             }

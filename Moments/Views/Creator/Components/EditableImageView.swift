@@ -434,9 +434,9 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
     }
 
     private func magnificationGesture() -> some Gesture {
-        MagnificationGesture()
+        MagnifyGesture()
             .onChanged { value in
-                let proposedScale = storyClampedMediaScale(lastScale * value)
+                let proposedScale = storyClampedMediaScale(lastScale * value.magnification)
                 scale = proposedScale
                 offset = storyClampedMediaOffset(
                     offset,
@@ -446,7 +446,7 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
                 )
             }
             .onEnded { value in
-                let resolvedScale = storySnappedMediaScale(storyClampedMediaScale(lastScale * value))
+                let resolvedScale = storySnappedMediaScale(storyClampedMediaScale(lastScale * value.magnification))
                 scale = resolvedScale
                 offset = storyClampedMediaOffset(
                     offset,
@@ -460,12 +460,12 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
     }
 
     private func rotationGesture() -> some Gesture {
-        RotationGesture()
+        RotateGesture()
             .onChanged { value in
-                rotation = lastRotation + value
+                rotation = lastRotation + value.rotation
             }
             .onEnded { value in
-                let resolvedRotation = storySnappedMediaRotation(lastRotation + value)
+                let resolvedRotation = storySnappedMediaRotation(lastRotation + value.rotation)
                 rotation = resolvedRotation
                 lastRotation = resolvedRotation
             }

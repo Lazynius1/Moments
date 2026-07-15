@@ -299,7 +299,7 @@ struct AnimatedCommentIcon: View {
     var body: some View {
         Image(systemName: bubbles[currentIndex])
             .font(.system(size: 20, weight: .regular))
-            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .foregroundStyle(colorScheme == .dark ? .white : .black)
             .scaleEffect(scale)
             .opacity(opacity)
             .frame(width: 36, height: 36)

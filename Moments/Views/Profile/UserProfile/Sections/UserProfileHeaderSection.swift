@@ -27,7 +27,7 @@ struct ProfileVisitorPinnedTopChrome: View {
             HStack(spacing: 5) {
                 Text(viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
                     .font(StickyChromeTitleTypography.font)
-                    .foregroundColor(UserProfileColors.textPrimary)
+                    .foregroundStyle(UserProfileColors.textPrimary)
                     .lineLimit(1)
 
                 if viewModel.userProfile?.isVerified == true {
@@ -97,7 +97,7 @@ struct ProfileVisitorPinnedTopChrome: View {
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(UserProfileColors.textPrimary)
+                .foregroundStyle(UserProfileColors.textPrimary)
                 .frame(
                     width: MomentsGlassButtonPreset.toolbarAction.controlSize,
                     height: MomentsGlassButtonPreset.toolbarAction.controlSize
@@ -198,7 +198,7 @@ struct UserModernProfileHeader: View {
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                             }
-                            .foregroundColor(UserProfileColors.accent)
+                            .foregroundStyle(UserProfileColors.accent)
                         }
                     }
                 }
@@ -219,7 +219,7 @@ struct UserModernProfileHeader: View {
                                 .font(.system(size: 10, weight: .bold))
                         }
                     }
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
                     .momentsChromeGlass(in: Capsule(), interactive: viewModel.followButtonState.isActionable)
@@ -238,7 +238,7 @@ struct UserModernProfileHeader: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
                     }
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
                     .momentsChromeGlass(in: Capsule(), interactive: true)

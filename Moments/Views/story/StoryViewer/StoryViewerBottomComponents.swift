@@ -149,11 +149,11 @@ struct StoryOwnStoryBottomBar: View {
             VStack(spacing: 6) {
                 Image(systemName: "paperplane.fill")
                     .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(chromeColors.messageTextColor)
+                    .foregroundStyle(chromeColors.messageTextColor)
                     .frame(height: 32)
                 Text(NSLocalizedString("stories.ownBottom.share", comment: "Share story"))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(chromeColors.messageTextColor)
+                    .foregroundStyle(chromeColors.messageTextColor)
                     .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
                     .lineLimit(1)
             }
@@ -170,7 +170,7 @@ struct StoryOwnStoryBottomBar: View {
 
                 Text(MomentsFormat.count(reactionCount, style: .socialMetric))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(chromeColors.messageTextColor)
+                    .foregroundStyle(chromeColors.messageTextColor)
                     .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
             }
         }
@@ -225,14 +225,14 @@ struct StoryOwnStoryBottomBar: View {
                         .renderingMode(.template)
                         .resizable()
                         .scaledToFit()
-                        .foregroundColor(chromeColors.messageTextColor)
+                        .foregroundStyle(chromeColors.messageTextColor)
                         .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
                         .frame(width:36, height: 36)
                 }
 
                 Text(NSLocalizedString("stories.ownBottom.activity", comment: "Activity label under avatars"))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(chromeColors.messageTextColor)
+                    .foregroundStyle(chromeColors.messageTextColor)
                     .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
             }
             .frame(minWidth: 56)
@@ -254,7 +254,7 @@ struct StoryOwnStoryBottomBar: View {
 
             Text(audienceTitle)
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(chromeColors.messageTextColor)
+                .foregroundStyle(chromeColors.messageTextColor)
                 .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -262,7 +262,7 @@ struct StoryOwnStoryBottomBar: View {
 
             Text(storyDurationLabel)
                 .font(.system(size: legacyPoppinsSize(11)))
-                .foregroundColor(chromeColors.messageTextColor.opacity(0.92))
+                .foregroundStyle(chromeColors.messageTextColor.opacity(0.92))
                 .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
                 .lineLimit(1)
         }
@@ -311,7 +311,7 @@ struct StoryOwnStoryBottomBar: View {
                     .resizable()
                     .scaledToFit()
                     .padding(5)
-                    .foregroundColor(chromeColors.replyBarSecondaryText)
+                    .foregroundStyle(chromeColors.replyBarSecondaryText)
                     .background(chromeColors.messageBubbleBackground)
             }
         }
@@ -344,7 +344,7 @@ struct StoryReactionsStrip: View {
                 Spacer()
                 Text(NSLocalizedString("storyContextMenu.scrollReactions", comment: "Scroll for more reactions"))
                     .font(.system(size: legacyPoppinsSize(10)))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                 Spacer()
             }
 
@@ -372,7 +372,7 @@ struct StoryReactionsStrip: View {
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                             .frame(width: 36, height: 36)
                             .background {
                                 Color.clear
@@ -412,7 +412,7 @@ struct StoryNoInteractionsNotice: View {
     var body: some View {
         Text("stories.noInteractions")
             .font(.system(size: legacyPoppinsSize(14)))
-            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.68) : Color.black.opacity(0.68))
+            .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.68) : Color.black.opacity(0.68))
             .multilineTextAlignment(.center)
             .padding(.horizontal, 20)
             .padding(.vertical, 8)

@@ -31,7 +31,7 @@ struct ActivityInteractionCategoryRow: View {
                     } else {
                         Image(systemName: category.icon)
                             .font(.system(size: 20, weight: .regular))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .frame(width: 36, height: 36)
                     }
                 }
@@ -40,12 +40,12 @@ struct ActivityInteractionCategoryRow: View {
                     HStack(spacing: 6) {
                         Text(NSLocalizedString(category.titleKey, comment: "Interaction category title"))
                             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                         if let count = summary?.count, count > 0 {
                             Text("\(count)")
                                 .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(
@@ -57,7 +57,7 @@ struct ActivityInteractionCategoryRow: View {
 
                     Text(NSLocalizedString(category.subtitleKey, comment: "Interaction category subtitle"))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
 
@@ -65,7 +65,7 @@ struct ActivityInteractionCategoryRow: View {
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.secondary.opacity(0.5))
+                    .foregroundStyle(.secondary.opacity(0.5))
             }
         }
         .padding(.vertical, 12)
@@ -93,7 +93,7 @@ struct StripThumbCell: View {
                         .fill(.ultraThinMaterial)
                     Image(systemName: "lock.fill")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
             }
             .frame(width: size, height: size)
@@ -128,7 +128,7 @@ struct StripThumbCell: View {
                 }
                 Image(systemName: "play.circle.fill")
                     .font(.system(size: 18))
-                    .foregroundColor(.white.opacity(0.85))
+                    .foregroundStyle(.white.opacity(0.85))
                     .shadow(radius: 2)
             }
         } else {
@@ -177,7 +177,7 @@ struct AuthorFilterSheet: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 ForEach(filteredAuthorIds, id: \.self) { authorId in
                     Button {
@@ -189,12 +189,12 @@ struct AuthorFilterSheet: View {
 
                             Text(authorUsernameMap[authorId] ?? NSLocalizedString("onlineStatus.unknown", comment: "Unknown"))
                                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                             Spacer()
                             if selectedAuthorId == authorId {
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                                    .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                             }
                         }
                     }

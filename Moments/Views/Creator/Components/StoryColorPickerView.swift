@@ -55,7 +55,7 @@ struct StoryColorPickerPanel: View {
                         systemImage: "eyedropper"
                     )
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
                     .background(Color.white.opacity(0.14))
@@ -78,7 +78,7 @@ struct StoryColorPickerPanel: View {
         HStack(spacing: 8) {
             Text(label)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.7))
                 .frame(width: 12)
             Slider(value: value, in: 0...1)
                 .tint(.white)
@@ -91,7 +91,7 @@ struct StoryColorPickerPanel: View {
             if let title {
                 Text(title)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.55))
+                    .foregroundStyle(.white.opacity(0.55))
             }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {

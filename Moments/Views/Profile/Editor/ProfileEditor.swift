@@ -114,7 +114,7 @@ struct GridPhotoPickerView: View {
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(10)
                     .background(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06))
                     .clipShape(Circle())
@@ -125,7 +125,7 @@ struct GridPhotoPickerView: View {
             
             Text(NSLocalizedString("profileEditor.library", comment: ""))
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
             
             Spacer()
             
@@ -139,7 +139,7 @@ struct GridPhotoPickerView: View {
                         Image(systemName: "chevron.right")
                     }
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(
@@ -165,7 +165,8 @@ struct GridPhotoPickerView: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: UIScreen.main.bounds.width, height: 300)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 300)
                     .blur(radius: 40)
                     .opacity(0.6)
                     .overlay(Color.black.opacity(0.1))
@@ -177,7 +178,7 @@ struct GridPhotoPickerView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(height: 280)
-                    .cornerRadius(12)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                     .padding(.vertical, 10)
             } else {
@@ -203,10 +204,10 @@ struct GridPhotoPickerView: View {
                     HStack(spacing: 6) {
                         Text(selectedAlbum?.title ?? NSLocalizedString("profileEditor.category.recent", comment: ""))
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         Image(systemName: "chevron.down")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
@@ -294,11 +295,11 @@ struct GridPhotoPickerView: View {
                 
                 Text("profileEditor.uploadingPhoto")
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 
                 Text("profileEditor.uploadingTime")
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
             }
             .padding(40)
             .background(.ultraThinMaterial)
@@ -347,7 +348,7 @@ struct GridPhotoPickerView: View {
             
                             Text("profileEditor.loadingPhotos")
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundStyle(.white.opacity(0.8))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -356,15 +357,15 @@ struct GridPhotoPickerView: View {
         VStack(spacing: 24) {
             Image(systemName: "photo.on.rectangle")
                 .font(.system(size: 60))
-                .foregroundColor(Color(hex: "007AFF"))
+                .foregroundStyle(Color(hex: "007AFF"))
             
                             Text("profileEditor.photosAccess.title")
                 .font(.system(size: legacyPoppinsSize(20), weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
             
                             Text("profileEditor.photosAccess.description")
                 .font(.system(size: legacyPoppinsSize(16)))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
@@ -372,7 +373,7 @@ struct GridPhotoPickerView: View {
                 requestPhotoLibraryPermission()
             }
             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(.horizontal, 32)
             .padding(.vertical, 16)
             .background(Color(hex: "007AFF"))
@@ -386,15 +387,15 @@ struct GridPhotoPickerView: View {
         VStack(spacing: 24) {
             Image(systemName: "photo.on.rectangle")
                 .font(.system(size: 60))
-                .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
+                .foregroundStyle(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
             
             Text("profileEditor.accessDenied.title")
                 .font(.system(size: legacyPoppinsSize(20), weight: .bold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
             
             Text("profileEditor.accessDenied.description")
                 .font(.system(size: legacyPoppinsSize(16)))
-                .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
+                .foregroundStyle(colorScheme == .dark ? .gray : .gray.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
@@ -405,7 +406,7 @@ struct GridPhotoPickerView: View {
                 }
             }
             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(.horizontal, 32)
             .padding(.vertical, 16)
             .background(
@@ -657,7 +658,7 @@ private struct CategoryFilterButton: View {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
             }
-            .foregroundColor(isSelected ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6)))
+            .foregroundStyle(isSelected ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6)))
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(
@@ -696,12 +697,14 @@ private struct PhotoGridItem: View {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(1, contentMode: .fill)
                         .clipped()
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
-                        .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(1, contentMode: .fill)
                         .overlay(
                             ProgressView()
                                 .scaleEffect(0.8)
@@ -722,7 +725,7 @@ private struct PhotoGridItem: View {
                                 
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             }
                             .padding(6)
                         } else {
@@ -752,10 +755,8 @@ private struct PhotoGridItem: View {
         options.isNetworkAccessAllowed = true
         options.isSynchronous = false
         
-        let targetSize = CGSize(
-            width: UIScreen.main.bounds.width / 3 * UIScreen.main.scale,
-            height: UIScreen.main.bounds.width / 3 * UIScreen.main.scale
-        )
+        // Resolución fija razonable para la miniatura del grid (independiente del dispositivo).
+        let targetSize = CGSize(width: 400, height: 400)
         
         imageManager.requestImage(
             for: asset,
@@ -886,7 +887,7 @@ struct ModernEditProfileView: View {
     @State private var availableInterests: [String] = []
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 immersiveBackground
                 
@@ -920,7 +921,7 @@ struct ModernEditProfileView: View {
                     }
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isShowingPhotoActions) {
                 photoActionsSheet
             }
@@ -971,7 +972,7 @@ struct ModernEditProfileView: View {
             
             Text("profileEditor.loadingProfile")
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundStyle(.white.opacity(0.8))
         }
     }
     
@@ -979,15 +980,15 @@ struct ModernEditProfileView: View {
         VStack(spacing: 20) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
-                .foregroundColor(.red.opacity(0.8))
+                .foregroundStyle(.red.opacity(0.8))
             
             Text("profileEditor.error")
                 .font(.system(size: legacyPoppinsSize(18), weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
             
             Text(message)
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
@@ -995,7 +996,7 @@ struct ModernEditProfileView: View {
                 loadUserData()
             }
             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .foregroundStyle(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
             .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -1066,7 +1067,7 @@ struct ModernEditProfileView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding(10)
                         .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                 }
@@ -1075,14 +1076,14 @@ struct ModernEditProfileView: View {
                 
                 Text("profileEditor.title")
                     .font(.system(size: legacyPoppinsSize(18), weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 Button(action: { saveProfile() }) {
                     Text("common.save")
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(characterCount <= 150 ? (colorScheme == .dark ? .white : .black) : .secondary)
+                        .foregroundStyle(characterCount <= 150 ? (colorScheme == .dark ? .white : .black) : .secondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: characterCount <= 150))
@@ -1113,7 +1114,7 @@ struct ModernEditProfileView: View {
                             .overlay(
                                 Image(systemName: "person.fill")
                                     .font(.system(size: 50))
-                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.35))
+                                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.35))
                             )
                     }
                     
@@ -1128,7 +1129,7 @@ struct ModernEditProfileView: View {
                             Button(action: { isShowingPhotoActions = true }) {
                                 Image(systemName: "camera.fill")
                                     .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .padding(8)
                                     .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                             }
@@ -1147,7 +1148,7 @@ struct ModernEditProfileView: View {
                         Text("profileEditor.change")
                             .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                     }
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -1172,7 +1173,7 @@ struct ModernEditProfileView: View {
                         Text(section.title)
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     }
-                    .foregroundColor(activeSection == section ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55)))
+                    .foregroundStyle(activeSection == section ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55)))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .background(
@@ -1195,17 +1196,17 @@ struct ModernEditProfileView: View {
                     HStack {
                         Image(systemName: "at")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                         
                         Text("profileEditor.username")
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                         
                         Spacer()
                         
                         Text("profileEditor.notEditable")
                             .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.35))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.35))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04))
@@ -1214,7 +1215,7 @@ struct ModernEditProfileView: View {
                     
                     Text("\(username)")
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.035))
@@ -1225,17 +1226,17 @@ struct ModernEditProfileView: View {
                     HStack {
                         Image(systemName: "envelope.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                         
                         Text("profileEditor.email")
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                         
                         Spacer()
                         
                         Text("profileEditor.notEditable")
                             .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.35))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.35))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04))
@@ -1244,7 +1245,7 @@ struct ModernEditProfileView: View {
                     
                     Text(email)
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.035))
@@ -1265,23 +1266,23 @@ struct ModernEditProfileView: View {
                 HStack {
                     Image(systemName: "pencil.and.outline")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                     
                     Text("profileEditor.bio")
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     Spacer()
                     
                     Text("\(characterCount)/150")
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(characterCount > 150 ? .red : (colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45)))
+                        .foregroundStyle(characterCount > 150 ? .red : (colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45)))
                 }
 
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $newBio)
                         .font(.system(size: legacyPoppinsSize(15)))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .scrollContentBackground(.hidden)
                         .background(Color.clear)
                         .frame(minHeight: 100)
@@ -1295,7 +1296,7 @@ struct ModernEditProfileView: View {
                     if newBio.isEmpty {
                         Text("profileEditor.bio.placeholder")
                             .font(.system(size: legacyPoppinsSize(15)))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.28))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.28))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 20)
                             .allowsHitTesting(false)
@@ -1313,18 +1314,18 @@ struct ModernEditProfileView: View {
                 HStack {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                     
                     Text("profileEditor.interests.title")
                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     Spacer()
                     
                     Button(action: { isShowingInterestsPicker = true }) {
                         Text(NSLocalizedString("creator.edit", comment: ""))
                             .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -1333,7 +1334,7 @@ struct ModernEditProfileView: View {
                 
                 Text("profileEditor.interests.description")
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                     .padding(.top, -10)
                 
                 // Grid de intereses seleccionados
@@ -1341,16 +1342,16 @@ struct ModernEditProfileView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "heart.circle")
                             .font(.system(size: 48))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.16))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.16))
                         
                         VStack(spacing: 4) {
                             Text("profileEditor.interests.empty.title")
                                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.78))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.78))
                             
                             Text("profileEditor.interests.empty.subtitle")
                                 .font(.system(size: legacyPoppinsSize(13)))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45))
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 20)
                         }
@@ -1359,7 +1360,7 @@ struct ModernEditProfileView: View {
                             isShowingInterestsPicker = true
                         }
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
                         .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -1376,7 +1377,7 @@ struct ModernEditProfileView: View {
                                     .font(.system(size: 14))
                                 Text(InterestOption.localize(interest))
                                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
@@ -1394,16 +1395,16 @@ struct ModernEditProfileView: View {
             HStack {
                 Image(systemName: icon)
                     .font(.system(size: 14))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                 
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
             }
             
-            TextField("", text: text, prompt: Text(placeholder).foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.28)))
+            TextField("", text: text, prompt: Text(placeholder).foregroundStyle(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.28)))
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .padding(16)
                 .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.035))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -1428,7 +1429,7 @@ struct ModernEditProfileView: View {
             Button(action: { isShowingInterestsPicker = false }) {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(10)
                     .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
             }
@@ -1438,18 +1439,18 @@ struct ModernEditProfileView: View {
             VStack(spacing: 4) {
                 Text("profileEditor.interests.navigationTitle")
                     .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Text("profileEditor.interests.select.title")
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55))
             }
             
             Spacer()
             
             Text("\(selectedInterests.count)/5")
                 .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                .foregroundColor(selectedInterests.count >= 5 ? .red : (colorScheme == .dark ? .white : .black))
+                .foregroundStyle(selectedInterests.count >= 5 ? .red : (colorScheme == .dark ? .white : .black))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: false))
@@ -1496,7 +1497,7 @@ struct ModernEditProfileView: View {
                 Button(action: { isShowingPhotoActions = false }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding(10)
                         .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                 }
@@ -1505,7 +1506,7 @@ struct ModernEditProfileView: View {
                 
                 Text("profileEditor.change")
                     .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
@@ -1562,12 +1563,12 @@ struct ModernEditProfileView: View {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(isDestructive ? .red.opacity(0.9) : (colorScheme == .dark ? .white : .black))
+                    .foregroundStyle(isDestructive ? .red.opacity(0.9) : (colorScheme == .dark ? .white : .black))
                     .frame(width: 20)
                 
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(isDestructive ? .red.opacity(0.9) : (colorScheme == .dark ? .white : .black))
+                    .foregroundStyle(isDestructive ? .red.opacity(0.9) : (colorScheme == .dark ? .white : .black))
                 
                 Spacer()
             }
@@ -1696,12 +1697,12 @@ private struct InterestPickerRow: View {
                     .font(.system(size: 16))
                 Text(InterestOption.localize(interest))
                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 Spacer()
                 
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
             .padding(.horizontal, 16)

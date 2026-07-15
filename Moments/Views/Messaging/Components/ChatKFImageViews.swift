@@ -3,6 +3,7 @@ import Kingfisher
 
 /// Carga de imágenes de chat con las opciones recomendadas de Kingfisher 8.x.
 struct ChatKFImage: View {
+    @Environment(\.displayScale) private var displayScale
     let url: URL?
     var downsamplingSize: CGSize? = nil
 
@@ -31,7 +32,7 @@ struct ChatKFImage: View {
                 .placeholder { ChatMediaResolvingPlaceholder() }
                 .loadTransition(.opacity, animation: .easeOut(duration: 0.2))
                 .downsampling(size: downsamplingSize)
-                .scaleFactor(UIScreen.main.scale)
+                .scaleFactor(displayScale)
                 .resizable()
                 .scaledToFill()
         } else {

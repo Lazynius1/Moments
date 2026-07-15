@@ -24,10 +24,10 @@ struct SearchHistoryActivityView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 40))
-                            .foregroundColor(.gray.opacity(0.5))
+                            .foregroundStyle(.gray.opacity(0.5))
                         Text(NSLocalizedString("userActivity.recentSearches.empty", value: "No hay búsquedas recientes", comment: "Empty search history"))
                             .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
                     .frame(maxWidth: .infinity, minHeight: 400)
                 }
@@ -89,7 +89,7 @@ struct SearchHistoryActivityView: View {
                     }) {
                         Text(NSLocalizedString("userActivity.recentSearches.clearAll", value: "Borrar todo", comment: "Clear all searches"))
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(Color(hex: "3B82F6"))
+                            .foregroundStyle(Color(hex: "3B82F6"))
                     }
                 }
             }
@@ -201,7 +201,7 @@ struct SearchHistoryRowView: View {
                         .fill(Color(hex: "3B82F6").opacity(0.1))
                         .frame(width: 40, height: 40)
                     Image(systemName: getSearchIcon(for: search.type))
-                        .foregroundColor(Color(hex: "3B82F6"))
+                        .foregroundStyle(Color(hex: "3B82F6"))
                         .font(.system(size: 16))
                 }
             }
@@ -210,29 +210,29 @@ struct SearchHistoryRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(search.query)
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
                 
                 if search.type == "user" {
                     if let status = socialStatus {
                         Text(status)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     } else if let user = userProfile, let bio = user.bio, !bio.isEmpty {
                         Text(bio)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .lineLimit(1)
                     } else {
                         Text(NSLocalizedString("explore.recentSearches.type.user", value: "Usuario", comment: ""))
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
                 } else {
                     // Si no es un usuario mostraremos el tipo explícito de la búsqueda
                     Text(getSearchTypeLabel(for: search.type))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 }
             }
             
@@ -241,7 +241,7 @@ struct SearchHistoryRowView: View {
             // Delete single search button
             Button(action: onDelete) {
                 Image(systemName: "xmark")
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .font(.system(size: 14, weight: .semibold))
                     .padding(8)
                     .background(Circle().fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05)))

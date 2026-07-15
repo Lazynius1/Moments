@@ -20,7 +20,7 @@ enum ChatInputBarLayout {
 
 private enum ChatDeviceCornerRadius {
     static var display: CGFloat {
-        let width = UIScreen.main.bounds.width
+        let width = UIApplication.shared.activeWindowSize.width
         if width >= 430 { return 62 }
         if width >= 428 { return 53.33 }
         if width >= 402 { return 62 }
@@ -490,18 +490,18 @@ private struct ChatAttachmentMenuPopoverCard: View {
                             .resizable()
                             .scaledToFit()
                             .frame(width: AttachmentIconMetrics.attachmentMenu, height: AttachmentIconMetrics.attachmentMenu)
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                     } else {
                         Image(systemName: systemImage ?? "questionmark")
                             .font(.system(size: 18, weight: .regular))
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                     }
                 }
                 .frame(width: 40, height: 40, alignment: .center)
 
                 Text(LocalizedStringKey(titleKey))
                     .font(.system(size: legacyPoppinsSize(17), weight: .medium))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
 
@@ -625,11 +625,11 @@ struct ChatAttachmentSearchField: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(secondaryText)
+                .foregroundStyle(secondaryText)
 
             TextField(LocalizedStringKey(placeholderKey), text: $text)
                 .textFieldStyle(.plain)
-                .foregroundColor(primaryText)
+                .foregroundStyle(primaryText)
                 .submitLabel(.search)
 
             if !text.isEmpty {
@@ -638,7 +638,7 @@ struct ChatAttachmentSearchField: View {
                     onClear?()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(secondaryText.opacity(0.85))
+                        .foregroundStyle(secondaryText.opacity(0.85))
                 }
                 .buttonStyle(.plain)
             }
@@ -947,7 +947,7 @@ private struct ChatAttachmentMediaCell: View {
                             Text(formatDuration(duration))
                                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                         }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 4)
                         .background(Color.black.opacity(0.55))
@@ -963,7 +963,7 @@ private struct ChatAttachmentMediaCell: View {
                             .overlay {
                                 Text("\(selectionIndex)")
                                     .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             }
                             .padding(8)
                     }
@@ -990,7 +990,7 @@ struct ChatAttachmentPermissionPrompt: View {
     var body: some View {
         Text(LocalizedStringKey(messageKey))
             .font(.system(size: legacyPoppinsSize(15)))
-            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
+            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
             .multilineTextAlignment(.center)
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1048,7 +1048,7 @@ struct ChatAttachmentRoundButton: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(StoryEditorChromeColor.icon(colorScheme))
+                .foregroundStyle(StoryEditorChromeColor.icon(colorScheme))
                 .frame(width: size, height: size)
                 .momentsChromeGlass(in: Circle(), interactive: true)
                 .overlay(
@@ -1092,7 +1092,7 @@ struct ChatAttachmentPillButton: View {
         Button(action: action) {
             label
                 .font(.system(size: legacyPoppinsSize(14), weight: tint == nil ? .medium : .semibold))
-                .foregroundColor(tint == nil ? StoryEditorChromeColor.icon(colorScheme) : .white)
+                .foregroundStyle(tint == nil ? StoryEditorChromeColor.icon(colorScheme) : .white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .momentsChromeGlass(

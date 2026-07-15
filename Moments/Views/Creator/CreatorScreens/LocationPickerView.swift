@@ -33,16 +33,16 @@ struct LocationPickerView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
 
                     TextField(NSLocalizedString("creator.location.search", comment: ""), text: $searchText)
                         .textFieldStyle(PlainTextFieldStyle())
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
                         .onSubmit {
                             searchLocation()
                         }
@@ -53,7 +53,7 @@ struct LocationPickerView: View {
                             showingNearbyPlaces = true
                         }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(adaptiveColors.secondary)
+                                .foregroundStyle(adaptiveColors.secondary)
                         }
                     }
                 }
@@ -73,7 +73,7 @@ struct LocationPickerView: View {
                     region = context.region
                 }
                 .frame(height: 200)
-                .cornerRadius(10)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .padding(.horizontal)
 
                 // Current location button
@@ -92,7 +92,7 @@ struct LocationPickerView: View {
                             Text("creator.location.useCurrent")
                         }
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
                         .padding(.vertical, 8)
                     }
                     .disabled(isRequestingLocation)
@@ -108,7 +108,7 @@ struct LocationPickerView: View {
                                 Text("common.update")
                             }
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
                             .padding(.vertical, 8)
                         }
                         .disabled(isRequestingLocation)
@@ -123,10 +123,10 @@ struct LocationPickerView: View {
                 if let error = locationError {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                         Text(error)
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                         Spacer()
                     }
                     .padding(.horizontal)
@@ -139,7 +139,7 @@ struct LocationPickerView: View {
                     ProgressView()
                         .tint(adaptiveColors.accent)
                     Text("creator.searching")
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
                         .padding(.top, 8)
                     Spacer()
                 } else {
@@ -148,7 +148,7 @@ struct LocationPickerView: View {
                             if showingNearbyPlaces {
                                 Text("creator.location.nearby")
                                     .font(.headline)
-                                    .foregroundColor(adaptiveColors.primary)
+                                    .foregroundStyle(adaptiveColors.primary)
                                     .padding(.horizontal)
                                     .padding(.top, 20)
                                     .padding(.bottom, 10)
@@ -171,7 +171,7 @@ struct LocationPickerView: View {
                 ToolbarItem(placement: .principal) {
                     Text("creator.addLocation")
                         .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
 
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -180,7 +180,7 @@ struct LocationPickerView: View {
                     }) {
                         Image(systemName: "chevron.down")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
                     }
                 }
 
@@ -188,7 +188,7 @@ struct LocationPickerView: View {
                     Button(NSLocalizedString("creator.tag.done", comment: "")) {
                         dismiss()
                     }
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
                     .fontWeight(.semibold)
                     .disabled(selectedLocation == nil)
                 }
@@ -534,22 +534,22 @@ struct LocationRow: View {
                 // Icono de categoría
                 Image(systemName: categoryIcon)
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
                     .frame(width: 30)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(place.name ?? "Ubicación sin nombre")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
 
                     Text(categoryName)
                         .font(.caption)
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
 
                     if let address = place.placemark.title {
                         Text(address)
                             .font(.caption)
-                            .foregroundColor(adaptiveColors.secondary.opacity(0.8))
+                            .foregroundStyle(adaptiveColors.secondary.opacity(0.8))
                     }
                 }
 
@@ -557,7 +557,7 @@ struct LocationRow: View {
 
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)

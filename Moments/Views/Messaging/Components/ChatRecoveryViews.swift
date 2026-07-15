@@ -116,7 +116,7 @@ struct ChatRecoverySettingsView: View {
                 Section {
                     Text(NSLocalizedString("chatRecovery.settings.description", comment: "Chat recovery description"))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section {
@@ -134,7 +134,7 @@ struct ChatRecoverySettingsView: View {
                     Section {
                         Text(statusMessage)
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -232,7 +232,7 @@ private struct CreateChatPINView: View {
             if let errorMessage {
                 Text(errorMessage)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(palette.error)
+                    .foregroundStyle(palette.error)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -247,7 +247,7 @@ private struct CreateChatPINView: View {
                     onCancel()
                 }
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundColor(palette.mutedAction)
+                .foregroundStyle(palette.mutedAction)
                 .frame(maxWidth: .infinity, alignment: .center)
             }
         }
@@ -326,7 +326,7 @@ private struct RestoreChatPINView: View {
             if let visibleMessage {
                 Text(visibleMessage)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(palette.error)
+                    .foregroundStyle(palette.error)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .monospacedDigit()
             }
@@ -342,7 +342,7 @@ private struct RestoreChatPINView: View {
                     onCancel()
                 }
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundColor(palette.mutedAction)
+                .foregroundStyle(palette.mutedAction)
                 .frame(maxWidth: .infinity, alignment: .center)
             }
         }
@@ -497,13 +497,13 @@ private struct ChatRecoveryFormContainer<FormContent: View, FooterContent: View>
 
                         Text(title)
                             .font(.system(size: legacyPoppinsSize(28), weight: .semibold))
-                            .foregroundColor(palette.title)
+                            .foregroundStyle(palette.title)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
 
                         Text(subtitle)
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(palette.body)
+                            .foregroundStyle(palette.body)
                             .fixedSize(horizontal: false, vertical: true)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
@@ -563,11 +563,11 @@ private struct ChatRecoveryStatusView: View {
 
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(24), weight: .semibold))
-                    .foregroundColor(palette.title)
+                    .foregroundStyle(palette.title)
 
                 Text(message)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(palette.body)
+                    .foregroundStyle(palette.body)
                     .multilineTextAlignment(.center)
 
                 Button(primaryTitle) {
@@ -580,7 +580,7 @@ private struct ChatRecoveryStatusView: View {
                         secondaryAction()
                     }
                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                    .foregroundColor(palette.mutedAction)
+                    .foregroundStyle(palette.mutedAction)
                 }
             }
             .padding(24)
@@ -607,7 +607,7 @@ private struct ChatRecoveryPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-            .foregroundColor(.black.opacity(0.88))
+            .foregroundStyle(.black.opacity(0.88))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(
@@ -651,19 +651,19 @@ private struct ChatRecoveryPINField: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(palette.title)
+                    .foregroundStyle(palette.title)
 
                 Text(subtitle)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(palette.secondary)
+                    .foregroundStyle(palette.secondary)
             }
 
             ZStack {
                 TextField("", text: $text)
                     .keyboardType(.numberPad)
                     .textContentType(.oneTimeCode)
-                    .foregroundColor(.clear)
-                    .accentColor(.clear)
+                    .foregroundStyle(.clear)
+                    .tint(.clear)
                     .focused($isFocused)
                     .frame(width: 1, height: 1)
                     .opacity(0.01)
@@ -730,7 +730,7 @@ private struct ChatRecoveryDigitCell: View {
 
             Text(state == .filled ? "*" : "")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(palette.digitText)
+                .foregroundStyle(palette.digitText)
                 .offset(y: 3)
         }
     }

@@ -44,7 +44,7 @@ extension EnhancedNotificationRow {
                         .frame(width: 44, height: 44)
                         .overlay(
                             Image(systemName: "photo")
-                                .foregroundColor(
+                                .foregroundStyle(
                                     colorScheme == .dark ?
                                     .white.opacity(0.6) :
                                     .black.opacity(0.5)
@@ -78,7 +78,7 @@ extension EnhancedNotificationRow {
                         .frame(width: 44, height: 44)
                         .overlay(
                             Image(systemName: "at")
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.55))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.55))
                                 .font(.system(size: 16, weight: .semibold))
                         )
                 }
@@ -123,7 +123,7 @@ extension EnhancedNotificationRow {
 
                         Image(systemName: "link.circle.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(2)
                             .background(Color.black.opacity(0.45))
                             .clipShape(Circle())
@@ -136,7 +136,7 @@ extension EnhancedNotificationRow {
                         .frame(width: 44, height: 44)
                         .overlay(
                             Image(systemName: "link.circle.fill")
-                                .foregroundColor(
+                                .foregroundStyle(
                                     colorScheme == .dark ?
                                     .white.opacity(0.72) :
                                     .black.opacity(0.62)
@@ -186,7 +186,7 @@ extension EnhancedNotificationRow {
                     }) {
                         Text(NSLocalizedString("notifications.groupedFollowers.viewAction", comment: "View grouped followers"))
                             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -204,7 +204,7 @@ extension EnhancedNotificationRow {
                                 .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                         }
                             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .momentsChromeGlass(in: Capsule(), interactive: followButtonState.isActionable)
@@ -219,12 +219,12 @@ extension EnhancedNotificationRow {
                 Button(action: onTapAction) {
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                             .font(.system(size: 20))
                         
                         Text(NSLocalizedString("notifications.echo.viewAction", comment: "View Echo button"))
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
@@ -258,7 +258,7 @@ extension EnhancedNotificationRow {
                         Text(NSLocalizedString("notifications.export.download", comment: "Download export button"))
                             .font(.system(size: 12, weight: .semibold))
                     }
-                    .foregroundColor(Color(hex: "007AFF"))
+                    .foregroundStyle(Color(hex: "007AFF"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(.ultraThinMaterial)
@@ -282,7 +282,7 @@ extension EnhancedNotificationRow {
                         Text(NSLocalizedString("notifications.mediaModeration.reviewAction", comment: "Review action for moderated content"))
                             .font(.system(size: 12, weight: .semibold))
                     }
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.92) : .black.opacity(0.84))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.92) : .black.opacity(0.84))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(.ultraThinMaterial)

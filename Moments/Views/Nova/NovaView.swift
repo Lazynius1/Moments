@@ -37,7 +37,7 @@ private struct NovaSecureContent: View {
         GeometryReader { geometry in
             novaRootContent(in: geometry)
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             viewModel.fetchUserData()
         }
@@ -377,7 +377,7 @@ private struct NovaSecureContent: View {
 
 struct NovaView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             NovaView()
         }
         .preferredColorScheme(.dark)

@@ -264,7 +264,7 @@ struct SocialVideoEditorView: View {
             }
         )
         .statusBar(hidden: false)
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .background(workspaceBg.ignoresSafeArea())
         .onAppear {
             setupVideoPlayer()
@@ -323,17 +323,17 @@ struct SocialVideoEditorView: View {
 
                     Text("\(Int(processingProgress * 100))%")
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
 
                 VStack(spacing: 8) {
                     Text(processingMessage)
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                     Text("videoEditor.optimizing")
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
                 }
             }
@@ -356,7 +356,7 @@ struct SocialVideoEditorView: View {
             Button(action: goBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(width: 40, height: 40)
                     .background {
                         Color.clear
@@ -373,7 +373,7 @@ struct SocialVideoEditorView: View {
 
             Text(NSLocalizedString("videoEditor.edit", comment: "Edit Video"))
                 .font(.system(size: legacyPoppinsSize(17), weight: .bold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
             Spacer()
 
@@ -404,7 +404,7 @@ struct SocialVideoEditorView: View {
             if let _ = currentVideo {
                 // Video Container with proper Aspect Ratio
                 VideoPlayerWrapper(player: player)
-                    .cornerRadius(20)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .shadow(color: .black.opacity(colorScheme == .dark ? 0.45 : 0.15), radius: 12, x: 0, y: 6)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -438,7 +438,7 @@ struct SocialVideoEditorView: View {
                             Text(playbackSpeed.rawValue)
                                 .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                         }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(10)
                         .background {
                             Color.clear
@@ -461,7 +461,7 @@ struct SocialVideoEditorView: View {
                 Button(action: togglePlayback) {
                     Image(systemName: "play.fill")
                         .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(width: 68, height: 68)
                         .background {
                             Color.clear
@@ -479,7 +479,7 @@ struct SocialVideoEditorView: View {
             if showingVolumeSlider {
                  Text("\(Int(volume * 100))%")
                     .font(.system(size: legacyPoppinsSize(22), weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(20)
                     .background {
                         Color.clear
@@ -492,7 +492,7 @@ struct SocialVideoEditorView: View {
             if showingFormatPicker {
                 Rectangle()
                     .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6]))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.4))
                     .aspectRatio(selectedFormat.ratio, contentMode: .fit)
                     .padding(20)
             }
@@ -505,19 +505,19 @@ struct SocialVideoEditorView: View {
             HStack {
                 Text(formatTime(max(trimStartTime, currentTime)))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 Spacer()
 
                 Text("\(formatTime(trimEndTime - trimStartTime)) de \(formatTime(duration))")
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
 
                 Spacer()
 
                 Text(formatTime(trimEndTime))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
             }
 
             timelineView
@@ -690,7 +690,7 @@ struct SocialVideoEditorView: View {
                 VStack(spacing: 4) {
                     Image(systemName: volume == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(width: 42, height: 42)
                         .background {
                             Circle()
@@ -731,11 +731,11 @@ struct SocialVideoEditorView: View {
                             VStack(spacing: 4) {
                                 Image(systemName: "play.rectangle")
                                     .font(.title3)
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                                 Text("\(index + 1)")
                                     .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                             }
 
                             if index == selectedClipIndex {
@@ -757,7 +757,7 @@ struct SocialVideoEditorView: View {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(width: 42, height: 42)
                     .background {
                         Circle()
@@ -766,11 +766,11 @@ struct SocialVideoEditorView: View {
 
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 Text(subtitle)
                     .font(.system(size: legacyPoppinsSize(9)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             }
             .frame(maxWidth: .infinity)
         }
@@ -794,13 +794,13 @@ struct SocialVideoEditorView: View {
                     }
                 }
                 .font(.system(size: legacyPoppinsSize(15)))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
 
                 Spacer()
 
                 Text("videoEditor.speed")
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(textPrimaryColor)
+                    .foregroundStyle(textPrimaryColor)
 
                 Spacer()
 
@@ -811,7 +811,7 @@ struct SocialVideoEditorView: View {
                     }
                 }
                 .font(.system(size: legacyPoppinsSize(15), weight: .bold))
-                .foregroundColor(textPrimaryColor)
+                .foregroundStyle(textPrimaryColor)
             }
             .padding(.horizontal)
             .padding(.bottom, 10)
@@ -833,12 +833,12 @@ struct SocialVideoEditorView: View {
 
                                 Image(systemName: speed.icon)
                                     .font(.title2)
-                                    .foregroundColor(playbackSpeed == speed ? gripColor : .gray)
+                                    .foregroundStyle(playbackSpeed == speed ? gripColor : .gray)
                             }
 
                             Text(speed.rawValue)
                                 .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                .foregroundColor(playbackSpeed == speed ? textPrimaryColor : .gray)
+                                .foregroundStyle(playbackSpeed == speed ? textPrimaryColor : .gray)
                         }
                     }
                 }
@@ -875,13 +875,13 @@ struct SocialVideoEditorView: View {
                     }
                 }
                 .font(.system(size: legacyPoppinsSize(15)))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
 
                 Spacer()
 
                 Text("videoEditor.format")
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(textPrimaryColor)
+                    .foregroundStyle(textPrimaryColor)
 
                 Spacer()
 
@@ -891,7 +891,7 @@ struct SocialVideoEditorView: View {
                     }
                 }
                 .font(.system(size: legacyPoppinsSize(15), weight: .bold))
-                .foregroundColor(textPrimaryColor)
+                .foregroundStyle(textPrimaryColor)
             }
             .padding(.horizontal)
             .padding(.bottom, 10)
@@ -908,22 +908,22 @@ struct SocialVideoEditorView: View {
                         HStack {
                             Image(systemName: format.icon)
                                 .font(.title3)
-                                .foregroundColor(selectedFormat == format ? textPrimaryColor : .gray)
+                                .foregroundStyle(selectedFormat == format ? textPrimaryColor : .gray)
                                 .frame(width: 30)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(format.displayName)
                                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                    .foregroundColor(textPrimaryColor)
+                                    .foregroundStyle(textPrimaryColor)
 
                                 HStack {
                                     Text(format.rawValue)
                                         .font(.system(size: legacyPoppinsSize(11)))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
 
                                     Text("• \(Int(format.targetSize.width))x\(Int(format.targetSize.height))")
                                         .font(.system(size: legacyPoppinsSize(11)))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                 }
                             }
 
@@ -931,13 +931,13 @@ struct SocialVideoEditorView: View {
 
                             if selectedFormat == format {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(textPrimaryColor)
+                                    .foregroundStyle(textPrimaryColor)
                             }
                         }
                         .padding(.horizontal)
                         .padding(.vertical, 12)
                         .background(selectedFormat == format ? selectionColor.opacity(0.12) : Color.clear)
-                        .cornerRadius(12)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                 }
             }
@@ -1748,7 +1748,7 @@ struct ThumbnailPickerView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 20)
@@ -1763,7 +1763,7 @@ struct ThumbnailPickerView: View {
                         Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .cornerRadius(20)
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                             .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
                     } else if isGenerating {
                         ProgressView()
@@ -1778,7 +1778,7 @@ struct ThumbnailPickerView: View {
                 VStack(spacing: 12) {
                     Text("videoEditor.coverPicker.instructions")
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     ZStack(alignment: .leading) {
                         HStack(spacing: 0) {
@@ -1799,7 +1799,7 @@ struct ThumbnailPickerView: View {
                             }
                         }
                         .frame(height: 60)
-                        .cornerRadius(10)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .opacity(0.6)
 
                         Slider(value: $currentTime, in: 0...max(duration, 0.1))
@@ -1812,7 +1812,7 @@ struct ThumbnailPickerView: View {
 
                     Text(formatTime(currentTime))
                         .font(.system(size: legacyPoppinsSize(14), weight: .bold))
-                        .foregroundColor(selectionColor)
+                        .foregroundStyle(selectionColor)
                 }
                 .padding(.bottom, 40)
             }
@@ -1825,7 +1825,7 @@ struct ThumbnailPickerView: View {
                         onDismiss()
                     }
                     .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("common.done") {
@@ -1834,7 +1834,7 @@ struct ThumbnailPickerView: View {
                         onDismiss()
                     }
                     .font(.system(size: legacyPoppinsSize(15), weight: .bold))
-                    .foregroundColor(selectionColor)
+                    .foregroundStyle(selectionColor)
                 }
             }
             .onAppear {

@@ -27,7 +27,7 @@ struct PhotoTagSelectionView: View {
                     Image(uiImage: mediaItem.image)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .cornerRadius(12) // Subtle corner radius for modern feel
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4) // Shadow for depth in light mode
                         .overlay(
                             // Gesture Reader & Tags
@@ -64,7 +64,7 @@ struct PhotoTagSelectionView: View {
                 // Footer Hint
                 Text(NSLocalizedString("creator.tag.instructions", comment: ""))
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.bottom, 40)
             }
             
@@ -75,7 +75,7 @@ struct PhotoTagSelectionView: View {
                         Button(action: { closeEditor() }) {
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                                 .frame(width: 40, height: 40)
                                 .momentsChromeGlass(in: Circle(), interactive: true)
                         }
@@ -85,14 +85,14 @@ struct PhotoTagSelectionView: View {
 
                         Text(NSLocalizedString("creator.tagPeople", comment: ""))
                             .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                         Spacer()
 
                         Button(action: { closeEditor() }) {
                             Text(NSLocalizedString("creator.tag.done", comment: ""))
                                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
                                 .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -221,13 +221,13 @@ struct TagView: View {
             HStack(spacing: 8) {
                 Text(tag.username)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                 
                 if isSelected {
                     Button(action: onDelete) {
                         Image(systemName: "xmark")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                             .frame(width: 20, height: 20)
                             .background(Color.primary.opacity(0.1))
                             .clipShape(Circle())
@@ -244,7 +244,7 @@ struct TagView: View {
             // Triangle Pointer
             Image(systemName: "triangle.fill")
                 .font(.system(size: 8))
-                .foregroundColor(.secondary) // Match glass somewhat
+                .foregroundStyle(.secondary) // Match glass somewhat
                 .rotationEffect(.degrees(180))
                 .offset(y: -3)
                 .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
@@ -287,14 +287,14 @@ struct TagUserSearchOverlay: View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 TextField("", text: $searchText)
                     .placeholder(when: searchText.isEmpty) {
                         Text(NSLocalizedString("creator.tag.search", comment: ""))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .focused($isSearchFocused)
                     .submitLabel(.search)
                     .onChange(of: searchText) { _, newValue in
@@ -304,14 +304,14 @@ struct TagUserSearchOverlay: View {
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
                 Button(action: onCancel) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(width: 30, height: 30)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                 }
@@ -329,7 +329,7 @@ struct TagUserSearchOverlay: View {
                     } else if searchResults.isEmpty {
                         Text(NSLocalizedString("common.noResults", value: "No users found", comment: ""))
                             .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, minHeight: 88)
                     } else {
                         ScrollView {
@@ -347,7 +347,7 @@ struct TagUserSearchOverlay: View {
                                                 } else {
                                                     Image(systemName: "person.circle.fill")
                                                         .resizable()
-                                                        .foregroundColor(.gray)
+                                                        .foregroundStyle(.gray)
                                                 }
                                             }
                                             .frame(width: 42, height: 42)
@@ -355,13 +355,13 @@ struct TagUserSearchOverlay: View {
 
                                             Text(user.username)
                                                 .font(.system(size: 16, weight: .semibold))
-                                                .foregroundColor(.primary)
+                                                .foregroundStyle(.primary)
 
                                             Spacer()
 
                                             Image(systemName: "plus")
                                                 .font(.system(size: 14, weight: .bold))
-                                                .foregroundColor(.primary)
+                                                .foregroundStyle(.primary)
                                                 .frame(width: 28, height: 28)
                                                 .momentsChromeGlass(in: Circle(), interactive: true)
                                         }

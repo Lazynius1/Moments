@@ -6,7 +6,7 @@ struct ProfileThemeDemo: View {
     @State private var selectedTheme: ProfileTheme = .default
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Fondo con el tema seleccionado
                 selectedTheme.backgroundGradient
@@ -17,11 +17,11 @@ struct ProfileThemeDemo: View {
                     VStack(spacing: 12) {
                         Text("Demostración de Temas")
                             .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         
                         Text("Prueba los diferentes temas de perfil")
                             .font(.system(size: legacyPoppinsSize(16)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 20)
@@ -56,17 +56,17 @@ struct ProfileThemeDemo: View {
                     VStack(spacing: 8) {
                         Text("Tema: \(selectedTheme.displayName)")
                             .font(.system(size: legacyPoppinsSize(18), weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         
                         Text(selectedTheme.description)
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .multilineTextAlignment(.center)
                         
                         if let price = selectedTheme.price {
                             Text("Precio: \(price)")
                                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                .foregroundColor(.blue)
+                                .foregroundStyle(.blue)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -81,7 +81,7 @@ struct ProfileThemeDemo: View {
                         // Cerrar la vista
                     }
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
         }
@@ -111,13 +111,13 @@ struct DemoProfilePreviewCard: View {
                     .overlay(
                         Image(systemName: "person.fill")
                             .font(.system(size: 30))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.white.opacity(0.8))
                     )
                 
                 // Nombre simulado
                 Text("Usuario Demo")
                     .font(.system(size: legacyPoppinsSize(18), weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 
                 // Badge simulado
                 HStack(spacing: 8) {
@@ -126,7 +126,7 @@ struct DemoProfilePreviewCard: View {
                     
                     Text(theme.displayName)
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)

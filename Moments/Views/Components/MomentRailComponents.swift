@@ -189,7 +189,7 @@ struct ModernActionButtons: View {
             if let count = count, count > 0 {
                 Text("\(count)")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(
@@ -243,7 +243,7 @@ struct ModernFollowButton: View {
                     .minimumScaleFactor(isCompact ? 0.82 : 1)
                     .allowsTightening(isCompact)
             }
-            .foregroundColor(adaptiveColors.primary)
+            .foregroundStyle(adaptiveColors.primary)
             .padding(.horizontal, isCompact ? 10 : 16)
             .padding(.vertical, isCompact ? 6 : 8)
             .momentsChromeGlass(in: Capsule(), interactive: state.isActionable)

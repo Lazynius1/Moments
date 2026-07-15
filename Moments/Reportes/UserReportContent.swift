@@ -39,7 +39,7 @@ struct UserReportContent: View {
                     VStack(alignment: .leading, spacing: 24) {
                         Text(NSLocalizedString("report.user.subtitle", comment: "Report account subtitle"))
                             .font(.system(size: legacyPoppinsSize(15)))
-                            .foregroundColor(secondaryText)
+                            .foregroundStyle(secondaryText)
                             .multilineTextAlignment(.leading)
                             .padding(.horizontal, 20)
 
@@ -101,17 +101,17 @@ struct UserReportContent: View {
 
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 50))
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
             }
 
             VStack(spacing: 8) {
                 Text(NSLocalizedString("report.success.title", comment: "Report success title"))
                     .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
 
                 Text(NSLocalizedString("report.success.message", comment: "Report success message"))
                     .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundColor(secondaryText)
+                    .foregroundStyle(secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }

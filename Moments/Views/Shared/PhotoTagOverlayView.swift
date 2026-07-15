@@ -41,11 +41,11 @@ private struct PhotoTagBubble: View {
             HStack(spacing: 4) {
                 Text(tag.username)
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 8, weight: .bold))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -62,7 +62,7 @@ private struct PhotoTagBubble: View {
             // Triangle pointer
             Image(systemName: "triangle.fill")
                 .font(.system(size: 6))
-                .foregroundColor(Color.black.opacity(0.75))
+                .foregroundStyle(Color.black.opacity(0.75))
                 .rotationEffect(.degrees(180))
                 .offset(y: -2)
         }

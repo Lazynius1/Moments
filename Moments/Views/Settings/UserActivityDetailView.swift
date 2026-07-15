@@ -182,8 +182,19 @@ struct ActivityInteractionDetailView: View {
 
     private var activityDetailLifecycleView: some View {
         activityDetailChromeView
-            .alert(item: $pendingActivitySelectionConfirmation) { action in
-                activitySelectionConfirmationAlert(for: action)
+            .alert(
+                activitySelectionConfirmationTitle,
+                isPresented: Binding(
+                    get: { pendingActivitySelectionConfirmation != nil },
+                    set: { isPresented in
+                        if !isPresented { pendingActivitySelectionConfirmation = nil }
+                    }
+                ),
+                presenting: pendingActivitySelectionConfirmation
+            ) { action in
+                activitySelectionConfirmationActions(for: action)
+            } message: { action in
+                activitySelectionConfirmationMessage(for: action)
             }
             .onAppear {
                 viewModel.loadIfNeeded()
@@ -316,19 +327,19 @@ struct ActivityInteractionDetailView: View {
             VStack(spacing: 6) {
                 Text(NSLocalizedString(titleKey, comment: "Error title"))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString(subtitleKey, comment: "Error subtitle"))
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
             Button(action: { viewModel.reload() }) {
                 Text(NSLocalizedString("userActivity.simple.retry", comment: "Retry activity load"))
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 10)
                     .background(Capsule().fill(Color(hex: "007AFF")))
@@ -477,10 +488,10 @@ struct ActivityInteractionDetailView: View {
     }
 
     private var activityGridViewportHeight: CGFloat {
-        UIScreen.main.bounds.height * 0.62
+        UIApplication.shared.activeWindowSize.height * 0.62
     }
 
-    private func activityGridColumnSide(containerWidth: CGFloat = UIScreen.main.bounds.width) -> CGFloat {
+    private func activityGridColumnSide(containerWidth: CGFloat = UIApplication.shared.activeWindowSize.width) -> CGFloat {
         let spacing = activityGridSpacing
         return floor((containerWidth - spacing * 2) / 3)
     }
@@ -1015,14 +1026,14 @@ struct ActivityInteractionDetailView: View {
         HStack(spacing: 6) {
             Text(title)
                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
             Text(value)
                 .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .lineLimit(1)
             Image(systemName: "chevron.down")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -1131,7 +1142,7 @@ struct ActivityInteractionDetailView: View {
             Text(text)
                 .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
         }
-        .foregroundColor(.secondary)
+        .foregroundStyle(.secondary)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
@@ -1206,7 +1217,7 @@ struct ActivityInteractionDetailView: View {
             } else if category == .recentlyDeleted {
                 Image(systemName: "trash")
                     .font(.system(size: 40, weight: .light))
-                    .foregroundColor(.secondary.opacity(0.55))
+                    .foregroundStyle(.secondary.opacity(0.55))
             } else {
                 ZStack {
                     Circle()
@@ -1246,7 +1257,7 @@ struct ActivityInteractionDetailView: View {
                     } else {
                         Image(systemName: category.icon)
                             .font(.system(size: 30, weight: .light))
-                            .foregroundColor(category.accentColor)
+                            .foregroundStyle(category.accentColor)
                     }
                 }
             }
@@ -1254,14 +1265,14 @@ struct ActivityInteractionDetailView: View {
             VStack(spacing: 8) {
                 Text(NSLocalizedString(textKey, comment: "Empty state text"))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
 
                 if !emptyStateSubtitle.isEmpty {
                     Text(emptyStateSubtitle)
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 36)
                         .opacity(0.7)
@@ -1286,14 +1297,14 @@ struct ActivityInteractionDetailView: View {
             HStack(spacing: 10) {
                 Text("\(selectedCount)")
                     .font(.system(size: legacyPoppinsSize(14), weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
                 Text(countText)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
 
                 Spacer()
 
@@ -1314,7 +1325,7 @@ struct ActivityInteractionDetailView: View {
                             }
                         }
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                        .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                     }
                     .disabled(selectedCount == 0 || viewModel.isLoading || isRestoringArchivedSelection)
                 }
@@ -1338,14 +1349,14 @@ struct ActivityInteractionDetailView: View {
             HStack(spacing: 10) {
                 Text("\(selectedCount)")
                     .font(.system(size: legacyPoppinsSize(14), weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
                 Text(countText)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
 
                 Spacer()
 
@@ -1355,7 +1366,7 @@ struct ActivityInteractionDetailView: View {
                     } label: {
                         Text(NSLocalizedString(allVisibleRecentlyDeletedSelected ? "common.clear" : "common.selectAll", comment: "Select all visible deleted content"))
                             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.88) : .black.opacity(0.78))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.88) : .black.opacity(0.78))
                     }
                     .disabled(visibleRecentlyDeletedIds.isEmpty || viewModel.isLoading || isProcessing)
 
@@ -1375,7 +1386,7 @@ struct ActivityInteractionDetailView: View {
                             }
                         }
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                     .disabled(selectedCount == 0 || viewModel.isLoading || isProcessing)
 
@@ -1395,7 +1406,7 @@ struct ActivityInteractionDetailView: View {
                             }
                         }
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                     }
                     .disabled(selectedCount == 0 || viewModel.isLoading || isProcessing)
                 }
@@ -1421,14 +1432,14 @@ struct ActivityInteractionDetailView: View {
             HStack(spacing: 10) {
                 Text("\(selectedCount)")
                     .font(.system(size: legacyPoppinsSize(14), weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
                 Text(countText)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
 
                 Spacer()
 
@@ -1454,7 +1465,7 @@ struct ActivityInteractionDetailView: View {
                                 : NSLocalizedString("userActivity.simple.reactions.delete.multiple", comment: "Delete multiple reactions")))
                             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
@@ -1478,14 +1489,14 @@ struct ActivityInteractionDetailView: View {
             HStack(spacing: 10) {
                 Text("\(selectedCount)")
                     .font(.system(size: legacyPoppinsSize(14), weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
                 Text(String(format: NSLocalizedString("userActivity.simple.comments.selectedCount", comment: "Selected comments count"), selectedCount))
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
 
                 Spacer()
 
@@ -1507,7 +1518,7 @@ struct ActivityInteractionDetailView: View {
                              : NSLocalizedString("userActivity.simple.comments.delete.multiple", comment: "Delete multiple comments"))
                             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
@@ -1531,14 +1542,14 @@ struct ActivityInteractionDetailView: View {
             HStack(spacing: 10) {
                 Text("\(selectedCount)")
                     .font(.system(size: legacyPoppinsSize(14), weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
                 Text(String(format: NSLocalizedString("userActivity.simple.stickers.selectedCount", comment: "Selected sticker replies count"), selectedCount))
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
 
                 Spacer()
 
@@ -1560,7 +1571,7 @@ struct ActivityInteractionDetailView: View {
                              : NSLocalizedString("userActivity.simple.stickers.delete.multiple", comment: "Delete multiple sticker replies"))
                             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
@@ -1838,11 +1849,11 @@ struct ActivityInteractionDetailView: View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(Color(hex: "22C55E"))
+                .foregroundStyle(Color(hex: "22C55E"))
 
             Text(NSLocalizedString(textKey, comment: "Selection success banner"))
                 .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .multilineTextAlignment(.leading)
         }
         .padding(.horizontal, 14)
@@ -1864,11 +1875,11 @@ struct ActivityInteractionDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(NSLocalizedString(titleKey, comment: "Processing title"))
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 Text(NSLocalizedString(subtitleKey, comment: "Processing subtitle"))
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             }
 
             Spacer(minLength: 0)
@@ -1893,92 +1904,84 @@ struct ActivityInteractionDetailView: View {
         }
     }
 
-    private func activitySelectionConfirmationAlert(for action: ActivitySelectionConfirmationAction) -> Alert {
+    private var activitySelectionConfirmationTitle: String {
+        guard let action = pendingActivitySelectionConfirmation else { return "" }
+        switch action {
+        case .archivedRestore:
+            return NSLocalizedString("userActivity.event.archived.confirm.restore.title", comment: "Archived restore confirmation title")
+        case .recentlyDeletedRestore:
+            return NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.restore.title", comment: "Restore recently deleted confirmation title")
+        case .recentlyDeletedDelete:
+            return NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.delete.title", comment: "Delete recently deleted confirmation title")
+        case .reactionsDelete:
+            return NSLocalizedString("userActivity.simple.reactions.confirm.delete.title", comment: "Reactions delete confirmation title")
+        case .tagsRemove:
+            return NSLocalizedString("userActivity.simple.tags.confirm.remove.title", comment: "Tags remove confirmation title")
+        case .commentsDelete:
+            return NSLocalizedString("userActivity.simple.comments.confirm.delete.title", comment: "Comments delete confirmation title")
+        case .stickerRepliesDelete:
+            return NSLocalizedString("userActivity.simple.stickers.confirm.delete.title", comment: "Sticker replies delete confirmation title")
+        }
+    }
+
+    @ViewBuilder
+    private func activitySelectionConfirmationMessage(for action: ActivitySelectionConfirmationAction) -> some View {
+        switch action {
+        case .archivedRestore:
+            Text(NSLocalizedString("userActivity.event.archived.confirm.restore.message", comment: "Archived restore confirmation message"))
+        case .recentlyDeletedRestore:
+            Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.restore.message", comment: "Restore recently deleted confirmation message"))
+        case .recentlyDeletedDelete:
+            Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.delete.message", comment: "Delete recently deleted confirmation message"))
+        case .reactionsDelete:
+            Text(NSLocalizedString("userActivity.simple.reactions.confirm.delete.message", comment: "Reactions delete confirmation message"))
+        case .tagsRemove:
+            Text(NSLocalizedString("userActivity.simple.tags.confirm.remove.message", comment: "Tags remove confirmation message"))
+        case .commentsDelete:
+            Text(NSLocalizedString("userActivity.simple.comments.confirm.delete.message", comment: "Comments delete confirmation message"))
+        case .stickerRepliesDelete:
+            Text(NSLocalizedString("userActivity.simple.stickers.confirm.delete.message", comment: "Sticker replies delete confirmation message"))
+        }
+    }
+
+    @ViewBuilder
+    private func activitySelectionConfirmationActions(for action: ActivitySelectionConfirmationAction) -> some View {
         switch action {
         case .archivedRestore(let ids):
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.event.archived.confirm.restore.title", comment: "Archived restore confirmation title")),
-                message: Text(NSLocalizedString("userActivity.event.archived.confirm.restore.message", comment: "Archived restore confirmation message")),
-                primaryButton: .default(
-                    Text(NSLocalizedString("userActivity.event.archived.action.restore", comment: "Restore action")),
-                    action: {
-                        Task { await performArchivedRestore(ids: ids) }
-                    }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
+            Button(NSLocalizedString("userActivity.event.archived.action.restore", comment: "Restore action")) {
+                Task { await performArchivedRestore(ids: ids) }
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
         case .recentlyDeletedRestore:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.restore.title", comment: "Restore recently deleted confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.restore.message", comment: "Restore recently deleted confirmation message")),
-                primaryButton: .default(
-                    Text(NSLocalizedString("userActivity.simple.recentlyDeleted.restore.single", comment: "Restore action")),
-                    action: {
-                        Task { await performRecentlyDeletedRestore() }
-                    }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
+            Button(NSLocalizedString("userActivity.simple.recentlyDeleted.restore.single", comment: "Restore action")) {
+                Task { await performRecentlyDeletedRestore() }
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
         case .recentlyDeletedDelete:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.delete.title", comment: "Delete recently deleted confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.delete.message", comment: "Delete recently deleted confirmation message")),
-                primaryButton: .destructive(
-                    Text(NSLocalizedString("userActivity.simple.recentlyDeleted.delete.single", comment: "Delete action")),
-                    action: {
-                        Task { await performRecentlyDeletedPermanentDelete() }
-                    }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
+            Button(NSLocalizedString("userActivity.simple.recentlyDeleted.delete.single", comment: "Delete action"), role: .destructive) {
+                Task { await performRecentlyDeletedPermanentDelete() }
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
         case .reactionsDelete:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.reactions.confirm.delete.title", comment: "Reactions delete confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.reactions.confirm.delete.message", comment: "Reactions delete confirmation message")),
-                primaryButton: .destructive(
-                    Text(NSLocalizedString("userActivity.simple.reactions.delete.single", comment: "Delete reaction")),
-                    action: {
-                        Task { await deleteSelectedReactions() }
-                    }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
+            Button(NSLocalizedString("userActivity.simple.reactions.delete.single", comment: "Delete reaction"), role: .destructive) {
+                Task { await deleteSelectedReactions() }
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
         case .tagsRemove:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.tags.confirm.remove.title", comment: "Tags remove confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.tags.confirm.remove.message", comment: "Tags remove confirmation message")),
-                primaryButton: .destructive(
-                    Text(NSLocalizedString("userActivity.simple.tags.remove.single", comment: "Remove tag")),
-                    action: {
-                        Task { await removeSelectedTags() }
-                    }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
+            Button(NSLocalizedString("userActivity.simple.tags.remove.single", comment: "Remove tag"), role: .destructive) {
+                Task { await removeSelectedTags() }
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
         case .commentsDelete:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.comments.confirm.delete.title", comment: "Comments delete confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.comments.confirm.delete.message", comment: "Comments delete confirmation message")),
-                primaryButton: .destructive(
-                    Text(NSLocalizedString("userActivity.simple.comments.delete.single", comment: "Delete comment")),
-                    action: {
-                        Task { await deleteSelectedComments() }
-                    }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
+            Button(NSLocalizedString("userActivity.simple.comments.delete.single", comment: "Delete comment"), role: .destructive) {
+                Task { await deleteSelectedComments() }
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
         case .stickerRepliesDelete:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.stickers.confirm.delete.title", comment: "Sticker replies delete confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.stickers.confirm.delete.message", comment: "Sticker replies delete confirmation message")),
-                primaryButton: .destructive(
-                    Text(NSLocalizedString("userActivity.simple.stickers.delete.single", comment: "Delete sticker reply")),
-                    action: {
-                        Task { await deleteSelectedEvents() }
-                    }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
+            Button(NSLocalizedString("userActivity.simple.stickers.delete.single", comment: "Delete sticker reply"), role: .destructive) {
+                Task { await deleteSelectedEvents() }
+            }
+            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
         }
     }
 

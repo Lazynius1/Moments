@@ -3,11 +3,27 @@ import FirebaseFirestore
 
 let questionResponseStickerRenderSize = CGSize(width: 300, height: 132)
 
+@available(*, deprecated, message: "use makeQuestionResponseStickerImage(questionText:styleVariant:colorScheme:traitCollection:) instead")
 @MainActor
 func makeQuestionResponseStickerImage(
     questionText: String,
     styleVariant: Int,
     colorScheme: ColorScheme
+) -> UIImage {
+    makeQuestionResponseStickerImage(
+        questionText: questionText,
+        styleVariant: styleVariant,
+        colorScheme: colorScheme,
+        traitCollection: .current
+    )
+}
+
+@MainActor
+func makeQuestionResponseStickerImage(
+    questionText: String,
+    styleVariant: Int,
+    colorScheme: ColorScheme,
+    traitCollection: UITraitCollection
 ) -> UIImage {
     let stickerView = QuestionResponseStoryStickerCardView(
         questionText: questionText,
@@ -20,7 +36,7 @@ func makeQuestionResponseStickerImage(
     )
 
     let renderer = ImageRenderer(content: stickerView)
-    renderer.scale = UIScreen.main.scale
+    renderer.scale = traitCollection.displayScale
 
     if let image = renderer.uiImage {
         return image
@@ -435,6 +451,7 @@ struct CreatorViewWithResponseData: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
     @State private var isCreatingStory: Bool = true
     @State private var showCreatorView: Bool = true
 
@@ -458,12 +475,14 @@ struct CreatorViewWithResponseData: View {
         let image = makeQuestionResponseStickerImage(
             questionText: responseText,
             styleVariant: styleVariant,
-            colorScheme: colorScheme
+            colorScheme: colorScheme,
+            traitCollection: UITraitCollection(displayScale: displayScale)
         )
 
+        let windowSize = UIApplication.shared.activeWindowSize
         return StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: CGPoint(x: windowSize.width / 2, y: windowSize.height / 2),
             type: .questionResponse,
             interactionData: StickerItem.StickerInteractionData(
                 username: nil,

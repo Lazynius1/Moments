@@ -16,9 +16,9 @@ struct EnhancedProfilePhotoPicker: View {
             }
             .scaleEffect(isPressed ? 0.95 : 1.0)
             .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isPressed), value: isPressed)
-            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
                 isPressed = pressing
-            }, perform: {})
+            })
             .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItem, matching: .images)
             .onChange(of: selectedPhotoItem) { _, newItem in
                 Task {
@@ -31,7 +31,7 @@ struct EnhancedProfilePhotoPicker: View {
             
             Text("register.profilePhoto.optional")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.62))
         }
     }
 }
@@ -87,7 +87,7 @@ struct EnhancedProfilePhotoContent: View {
                                 )
                             Text("register.profilePhoto.add")
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.64))
+                                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.64))
                         }
                     )
                     .overlay(
@@ -118,7 +118,7 @@ struct EnhancedProfilePhotoContent: View {
                     .overlay(
                         Image(systemName: "pencil")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.black)
+                            .foregroundStyle(.black)
                     )
                     .offset(x: AuthFormMetrics.profilePhotoSize * 0.32, y: AuthFormMetrics.profilePhotoSize * 0.32)
                     .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
@@ -159,14 +159,14 @@ struct EnhancedInterestsSelector: View {
                     
                     Text("register.interests.title")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.94))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.94))
                 }
                 
                 Spacer()
                 
                 Text(String(format: NSLocalizedString("register.interests.count", comment: "Interests count"), selectedInterests.count))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(
+                    .foregroundStyle(
                         selectedInterests.count >= RegisterInterestsPolicy.minimum
                             ? AuthColors.primary(colorScheme)
                             : .orange.opacity(0.92)
@@ -181,13 +181,13 @@ struct EnhancedInterestsSelector: View {
 
             Text("register.interests.description")
                 .font(.system(size: 14, weight: .regular))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.62))
                 .fixedSize(horizontal: false, vertical: true)
 
             if selectedInterests.count < RegisterInterestsPolicy.minimum {
                 Text("register.interests.minimumHint")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.orange.opacity(0.88))
+                    .foregroundStyle(.orange.opacity(0.88))
                     .fixedSize(horizontal: false, vertical: true)
             }
             
@@ -222,7 +222,7 @@ struct EnhancedInterestChip: View {
         Button(action: onTap) {
             Text(InterestOption.localize(interest))
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(isSelected ? AuthColors.primary(colorScheme) : AuthColors.secondary(colorScheme, opacity: 0.72))
+                .foregroundStyle(isSelected ? AuthColors.primary(colorScheme) : AuthColors.secondary(colorScheme, opacity: 0.72))
                 .padding(.horizontal, 15)
                 .padding(.vertical, 9)
                 .background {
@@ -240,9 +240,9 @@ struct EnhancedInterestChip: View {
         }
         .accessibilityLabel(Text(InterestOption.localize(interest)))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             isPressed = pressing
-        }, perform: {})
+        })
     }
 }
 

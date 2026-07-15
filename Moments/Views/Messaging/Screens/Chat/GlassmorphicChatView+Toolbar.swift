@@ -74,7 +74,7 @@ extension GlassmorphicChatView {
                 .font(.system(size: legacyPoppinsSize(17)))
                 .foregroundStyle(adaptiveColors.primary)
                 .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
+                .autocorrectionDisabled(true)
                 .submitLabel(.search)
                 .focused($isSearchFieldFocused)
                 .onSubmit(scrollToCurrentSearchMatch)

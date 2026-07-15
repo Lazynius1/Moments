@@ -105,8 +105,8 @@ struct ExploreMomentDetailView: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(
-                                    width: UIScreen.main.bounds.width - 32,
-                                    height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
+                                    width: UIApplication.shared.activeWindowSize.width - 32,
+                                    height: (UIApplication.shared.activeWindowSize.width - 32) / max(peekAspectRatio, 0.1)
                                 )
                                 .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
@@ -230,7 +230,7 @@ struct ExploreMomentDetailView: View {
 
                 if value.translation.width > dismissThreshold || velocity > 300 {
                     withAnimation(.easeOut(duration: 0.3)) {
-                        dragOffset = UIScreen.main.bounds.width
+                        dragOffset = UIApplication.shared.activeWindowSize.width
                         backgroundOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -258,7 +258,7 @@ struct ExploreMomentDetailView: View {
     }
 
     private func exploreMomentsScrollView() -> some View {
-        let screenHeight = UIScreen.main.bounds.height
+        let screenHeight = UIApplication.shared.activeWindowSize.height
         let feedCardHeight = screenHeight * 0.58
 
         return ScrollViewReader { proxy in

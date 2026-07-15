@@ -94,7 +94,7 @@ struct ModernAdLoadingView: View {
             HStack {
                 Text("ad.common.ad")
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(.gray.opacity(0.8))
+                    .foregroundStyle(.gray.opacity(0.8))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
                     .background(
@@ -117,7 +117,7 @@ struct ModernAdLoadingView: View {
                     .overlay(
                         Image(systemName: "photo")
                             .font(.system(size: 50))
-                            .foregroundColor(.gray.opacity(0.5))
+                            .foregroundStyle(.gray.opacity(0.5))
                     )
                     .shimmer(isAnimating: isAnimating)
 
@@ -185,7 +185,7 @@ struct ModernNativeAdCardViewWithMediaView: View {
             HStack {
                 Text("ad.common.ad")
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(.gray.opacity(0.8))
+                    .foregroundStyle(.gray.opacity(0.8))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
                     .background(
@@ -362,7 +362,7 @@ struct IntegratedAdLoadingView: View {
                 VStack(spacing: 2) {
                     Text("ad.common.ad")
                         .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
@@ -373,7 +373,7 @@ struct IntegratedAdLoadingView: View {
                     let personalizationStatus = AdMobConfiguration.shared.getAdPersonalizationStatus()
                     Text(personalizationStatus.isPersonalized ? "Personalizado" : "No personalizado")
                         .font(.system(size: legacyPoppinsSize(8)))
-                        .foregroundColor(personalizationStatus.isPersonalized ? .green : .orange)
+                        .foregroundStyle(personalizationStatus.isPersonalized ? .green : .orange)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(
@@ -402,7 +402,7 @@ struct IntegratedAdLoadingView: View {
             .padding(.vertical, 12)
         }
         .background(Color(.systemBackground))
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .padding(.horizontal, 16)
         .onAppear {
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
@@ -430,7 +430,7 @@ struct IntegratedNativeAdView: View {
                             .fill(.ultraThinMaterial)
                             .overlay(
                                 Image(systemName: "app.fill")
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             )
                     }
                     .frame(width: 36, height: 36)
@@ -442,19 +442,19 @@ struct IntegratedNativeAdView: View {
                         .frame(width: 36, height: 36)
                         .overlay(
                             Image(systemName: "app.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         )
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(nativeAd.advertiser ?? "Anunciante")
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     // Ad badge handled by UIKit's adAttributionView
                     
                     Text("ad.common.sponsored")
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
@@ -467,11 +467,11 @@ struct IntegratedNativeAdView: View {
                     .frame(height: 380) // Media 300 + headline/body ~80
                 // UIKit handles headline/body display - no SwiftUI overlay needed
             }
-            .cornerRadius(16) // Rounded corners without clipping content
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             // ✅ CORREGIDO: Botón SwiftUI eliminado - solo usamos el botón nativo de AdMob
         }
         .background(colorScheme == .dark ? Color(hex: "121212") : Color.white)
-        .cornerRadius(20)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         // ✅ Sistema de sombras multi-nivel (Efecto de profundidad premium)
         .shadow(color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.12), radius: 15, x: 0, y: 10)
         .shadow(color: colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.08), radius: 1, x: 0, y: 1)

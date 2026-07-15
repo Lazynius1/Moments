@@ -322,7 +322,8 @@ struct CreatorView: View {
 
     // ✅ Helper to create gradient image for sticker-only stories
     private func createDefaultGradientImage() -> UIImage {
-        let size = UIScreen.main.bounds.size
+        // Tamaño de lienzo de story fijo (resolución independiente del dispositivo).
+        let size = CGSize(width: 1080, height: 1920)
         let renderer = UIGraphicsImageRenderer(size: size)
 
         return renderer.image { context in
@@ -515,15 +516,15 @@ struct DeleteButton: View {
 
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             }
         }
         .scaleEffect(isPressed ? 0.9 : 1.0)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             withAnimation(.easeInOut(duration: 0.1)) {
                 isPressed = pressing
             }
-        }, perform: {})
+        })
         .offset(x: -10, y: -10)
     }
 }
@@ -550,19 +551,19 @@ struct RotationControl: View {
 
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .rotationEffect(isRotating ? .degrees(180) : .degrees(0))
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isRotating), value: isRotating)
         }
         .offset(x: 10, y: -10)
         .gesture(
-            RotationGesture()
+            RotateGesture()
                 .onChanged { value in
                     if !isRotating {
                         isRotating = true
                         lastRotation = currentRotation
                     }
-                    currentRotation = lastRotation + value
+                    currentRotation = lastRotation + value.rotation
                     onRotationChanged(currentRotation)
                 }
                 .onEnded { value in
@@ -595,7 +596,7 @@ struct ScaleControl: View {
 
             Image(systemName: "plus.magnifyingglass")
                 .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .scaleEffect(isScaling ? 1.2 : 1.0)
                 .animation(.easeInOut(duration: 0.2), value: isScaling)
         }
@@ -605,12 +606,12 @@ struct ScaleControl: View {
             currentScale = scale
         }
         .gesture(
-            MagnificationGesture()
+            MagnifyGesture()
                 .onChanged { value in
                     if !isScaling {
                         isScaling = true
                     }
-                    let newScale = lastScale * value
+                    let newScale = lastScale * value.magnification
                     currentScale = min(max(newScale, 0.3), 4.0)
                     onScaleChanged(currentScale)
                 }
@@ -686,7 +687,7 @@ struct RevealStickerEditorView: View {
             Button(action: { editingId = nil }) {
                 Image(systemName: "xmark")
                     .font(.title2)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(12)
                     .momentsChromeGlass(in: Circle())
             }
@@ -695,7 +696,7 @@ struct RevealStickerEditorView: View {
 
             Text(NSLocalizedString("revealEditor.title", comment: "Customize Reveal"))
                 .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .shadow(radius: 4)
 
             Spacer()
@@ -703,7 +704,7 @@ struct RevealStickerEditorView: View {
             Button(action: { editingId = nil }) {
                 Text(NSLocalizedString("common.done", comment: "Done"))
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .momentsChromeGlass(in: Capsule())
@@ -734,7 +735,7 @@ struct RevealStickerBottomControlsInset: View {
 
                 Text(NSLocalizedString("revealEditor.title", comment: "Customize Reveal"))
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
 
                 Spacer(minLength: 0)
             }
@@ -867,7 +868,7 @@ private struct RevealStickerControlsContent: View {
                             Text(title(for: tab))
                                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         }
-                        .foregroundColor(tabLabelColor(for: index, width: proxy.size.width))
+                        .foregroundStyle(tabLabelColor(for: index, width: proxy.size.width))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
                     }
@@ -922,7 +923,7 @@ private struct RevealStickerControlsContent: View {
 
                             Text(NSLocalizedString("revealEditor.preset.\(preset.id)", comment: ""))
                                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                                .foregroundColor(primaryTextColor)
+                                .foregroundStyle(primaryTextColor)
                         }
                     }
                 }
@@ -943,7 +944,7 @@ private struct RevealStickerControlsContent: View {
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
                                 .background(customPattern == p ? chipBackgroundColor : chipInactiveBackgroundColor)
-                                .foregroundColor(customPattern == p ? chipActiveTextColor : primaryTextColor)
+                                .foregroundStyle(customPattern == p ? chipActiveTextColor : primaryTextColor)
                                 .clipShape(Capsule())
                         }
                     }
@@ -983,7 +984,7 @@ private struct RevealStickerControlsContent: View {
                         Text(customType == "solid" ? "2" : "1")
                             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     }
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .frame(width: 50, height: 50)
                     .background(circleButtonBackgroundColor)
                     .clipShape(Circle())
@@ -994,12 +995,12 @@ private struct RevealStickerControlsContent: View {
                         ? NSLocalizedString("revealEditor.color.background", comment: "")
                         : NSLocalizedString("revealEditor.color1", comment: ""))
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(primaryTextColor)
+                        .foregroundStyle(primaryTextColor)
                     Text(customType == "solid"
                         ? NSLocalizedString("revealEditor.tab.custom", comment: "Custom")
                         : NSLocalizedString("revealEditor.color2", comment: ""))
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(tertiaryTextColor)
+                        .foregroundStyle(tertiaryTextColor)
                 }
             }
             .padding(.horizontal, 2)
@@ -1019,7 +1020,7 @@ private struct RevealStickerControlsContent: View {
 
             Text(NSLocalizedString(labelKey, comment: ""))
                 .font(.caption2)
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
         }
     }
 

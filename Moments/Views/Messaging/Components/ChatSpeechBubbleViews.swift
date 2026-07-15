@@ -136,7 +136,7 @@ struct ChatTextBubbleView: View {
     }
 
     private var maxBubbleWidth: CGFloat {
-        UIScreen.main.bounds.width * ChatTextBubbleMetrics.maxWidthScreenFraction
+        UIApplication.shared.activeWindowSize.width * ChatTextBubbleMetrics.maxWidthScreenFraction
     }
 
     private var bubbleShape: ChatBubbleShape {

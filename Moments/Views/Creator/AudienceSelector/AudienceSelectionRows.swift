@@ -19,14 +19,14 @@ struct CustomListRow: View {
                     
                     Image(systemName: list.icon ?? "person.3.fill")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(Color(hex: list.color ?? "00A896").opacity(isSelected ? 1.0 : 0.8))
+                        .foregroundStyle(Color(hex: list.color ?? "00A896").opacity(isSelected ? 1.0 : 0.8))
                 }
                 
                 // Texto
                 VStack(alignment: .leading, spacing: 4) {
                     Text(list.name)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     HStack(spacing: 4) {
                         Image(systemName: "person.fill")
@@ -34,12 +34,12 @@ struct CustomListRow: View {
                         Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), list.members.count))
                             .font(.system(size: legacyPoppinsSize(13)))
                     }
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     
                     if let description = list.description, !description.isEmpty {
                         Text(description)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .lineLimit(1)
                     }
                 }
@@ -50,7 +50,7 @@ struct CustomListRow: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundColor(Color(hex: list.color ?? "00A896"))
+                        .foregroundStyle(Color(hex: list.color ?? "00A896"))
                 }
             }
             .padding()
@@ -115,12 +115,12 @@ struct AudienceGridCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(audience.title)
                         .font(.system(size: legacyPoppinsSize(16), weight: isSelected ? .semibold : .medium))
-                        .foregroundColor(primaryText)
+                        .foregroundStyle(primaryText)
                         .opacity(isSelected ? 1 : 0.82)
 
                     Text(audience.description)
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(primaryText.opacity(0.55))
+                        .foregroundStyle(primaryText.opacity(0.55))
                         .opacity(isSelected ? 1 : 0.72)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -131,7 +131,7 @@ struct AudienceGridCard: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(primaryText)
+                        .foregroundStyle(primaryText)
                         .frame(width: 26, height: 26)
                         .background(
                             Circle()
@@ -170,19 +170,19 @@ struct CustomListCard: View {
                     
                     Image(systemName: list.icon ?? "person.3.fill")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(Color(hex: list.color ?? "00A896"))
+                        .foregroundStyle(Color(hex: list.color ?? "00A896"))
                 }
                 
                 // ✅ Información de la lista
                 VStack(spacing: 2) {
                     Text(list.name)
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                     
                     Text("\(list.members.count) personas")
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                 }
             }
             .frame(width: 96)
@@ -191,7 +191,7 @@ struct CustomListCard: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(width: 22, height: 22)
                         .background(
                             Circle()
@@ -204,9 +204,9 @@ struct CustomListCard: View {
         .buttonStyle(PlainButtonStyle())
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isPressed), value: isPressed)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             isPressed = pressing
-        }, perform: {})
+        })
     }
 }
 
@@ -231,14 +231,14 @@ struct CustomListRowModern: View {
                     
                     Image(systemName: list.icon ?? "person.3.fill")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(Color(hex: list.color ?? "00A896").opacity(isSelected ? 1.0 : 0.8))
+                        .foregroundStyle(Color(hex: list.color ?? "00A896").opacity(isSelected ? 1.0 : 0.8))
                 }
                 
                 // ✅ Información de la lista
                 VStack(alignment: .leading, spacing: 2) {
                     Text(list.name)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     HStack(spacing: 4) {
                         Image(systemName: "person.fill")
@@ -246,12 +246,12 @@ struct CustomListRowModern: View {
                         Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), list.members.count))
                             .font(.system(size: legacyPoppinsSize(13)))
                     }
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                     
                     if let description = list.description, !description.isEmpty {
                         Text(description)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                             .lineLimit(1)
                     }
                 }
@@ -262,11 +262,11 @@ struct CustomListRowModern: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundColor(Color(hex: list.color ?? "00A896"))
+                        .foregroundStyle(Color(hex: list.color ?? "00A896"))
                 } else {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(width: 28, height: 28)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                 }
@@ -288,11 +288,11 @@ struct CustomListRowModern: View {
         }
         .buttonStyle(PlainButtonStyle())
         .scaleEffect(isPressed ? 0.98 : 1.0)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             withAnimation(.easeInOut(duration: 0.1)) {
                 isPressed = pressing
             }
-        }, perform: {})
+        })
     }
 }
 
@@ -328,16 +328,16 @@ struct AudienceOptionRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(audience.title)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     if let count = customCount {
                         Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), count))
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     } else {
                         Text(audience.description)
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     }
                 }
                 
@@ -347,7 +347,7 @@ struct AudienceOptionRow: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundColor(Color(hex: "007AFF"))
+                        .foregroundStyle(Color(hex: "007AFF"))
                 }
             }
             .padding()

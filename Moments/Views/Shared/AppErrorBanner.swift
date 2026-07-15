@@ -9,11 +9,11 @@ struct AppErrorBanner: View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.orange)
+                .foregroundStyle(.orange)
 
             Text(message)
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .lineLimit(3)
 
             Spacer(minLength: 0)

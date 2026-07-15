@@ -15,11 +15,11 @@ struct TimeSpentDetailsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(NSLocalizedString("userActivity.timeSpent.details.title", value: "Time on Moments", comment: "Time spent details title"))
                             .font(.system(size: legacyPoppinsSize(28), weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         
                         Text(NSLocalizedString("userActivity.timeSpent.details.subtitle", value: "See how much time you spend on Moments each day. We use this data to help you manage your time.", comment: "Time spent details subtitle"))
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .lineSpacing(4)
                     }
                     .padding(.horizontal, 16)
@@ -77,17 +77,17 @@ struct TimeSpentSettingsRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Text(subtitle)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .multilineTextAlignment(.leading)
             }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.gray.opacity(0.8))
+                .foregroundStyle(.gray.opacity(0.8))
         }
         .padding(.vertical, 16)
         .contentShape(Rectangle())

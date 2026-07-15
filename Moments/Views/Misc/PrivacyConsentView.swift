@@ -13,7 +13,7 @@ struct PrivacyConsentView: View {
         ZStack {
             // Fondo con blur para focus
             Color.black.opacity(0.4)
-                .edgesIgnoringSafeArea(.all)
+                .ignoresSafeArea(.all, edges: .all)
                 .onTapGesture {
                     // Prevenir cierre accidental
                 }
@@ -35,23 +35,23 @@ struct PrivacyConsentView: View {
                     Text(NSLocalizedString("attPreAlert.title", comment: "ATT Pre-Alert title"))
                         .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                         .multilineTextAlignment(.center)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     VStack(spacing: 12) {
                         Text(NSLocalizedString("attPreAlert.description", comment: "ATT Pre-Alert description"))
                             .font(.system(size: legacyPoppinsSize(15)))
                             .multilineTextAlignment(.center)
-                            .foregroundColor(.primary.opacity(0.7))
+                            .foregroundStyle(.primary.opacity(0.7))
                         
                         // Information Box
                         HStack(spacing: 8) {
                             Image(systemName: "info.circle.fill")
                                 .font(.system(size: 14))
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                             
                             Text(NSLocalizedString("attPreAlert.info", comment: "ATT Pre-Alert info message"))
                                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                                .foregroundColor(.primary.opacity(0.6))
+                                .foregroundStyle(.primary.opacity(0.6))
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)

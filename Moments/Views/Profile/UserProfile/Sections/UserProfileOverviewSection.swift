@@ -43,16 +43,16 @@ struct UserProfileOverviewSection: View {
                     HStack(spacing: 10) {
                         Text("profile.interests.title")
                             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                            .foregroundColor(UserProfileColors.textPrimary)
+                            .foregroundStyle(UserProfileColors.textPrimary)
 
                         Text("· \(interests.count)")
                             .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                            .foregroundColor(UserProfileColors.textSecondary)
+                            .foregroundStyle(UserProfileColors.textSecondary)
 
                         if !showingInterests, let firstInterest = interests.first {
                             Text(firstInterest)
                                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                                .foregroundColor(UserProfileColors.textSecondary)
+                                .foregroundStyle(UserProfileColors.textSecondary)
                                 .lineLimit(1)
                         }
 
@@ -60,7 +60,7 @@ struct UserProfileOverviewSection: View {
 
                         Image(systemName: "chevron.down")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(UserProfileColors.textSecondary)
+                            .foregroundStyle(UserProfileColors.textSecondary)
                             .rotationEffect(.degrees(showingInterests ? 180 : 0))
                     }
                     .contentShape(Rectangle())
@@ -158,11 +158,11 @@ struct UserModernStatsSection: View {
                     VStack(spacing: 4) {
                         Text(MomentsFormat.count(stat.1, style: .profileStat))
                             .font(.system(size: legacyPoppinsSize(embeddedStyle ? 17 : 18), weight: .bold))
-                            .foregroundColor(UserProfileColors.textPrimary)
+                            .foregroundStyle(UserProfileColors.textPrimary)
 
                         Text(stat.0)
                             .font(.system(size: legacyPoppinsSize(embeddedStyle ? 10 : 11), weight: .medium))
-                            .foregroundColor(UserProfileColors.textSecondary)
+                            .foregroundStyle(UserProfileColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, embeddedStyle ? 8 : 14)
@@ -193,7 +193,7 @@ struct UserExpandableBioView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(bio)
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(UserProfileColors.textSecondary)
+                .foregroundStyle(UserProfileColors.textSecondary)
                 .multilineTextAlignment(.leading)
                 .lineLimit(isExpanded ? nil : 3)
                 .background(
@@ -219,7 +219,7 @@ struct UserExpandableBioView: View {
                 }) {
                     Text(isExpanded ? NSLocalizedString("userProfile.seeLess", comment: "See less") : NSLocalizedString("userProfile.seeMore", comment: "See more"))
                         .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                        .foregroundColor(UserProfileColors.accent)
+                        .foregroundStyle(UserProfileColors.accent)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 4)
                         .background(UserProfileColors.accent.opacity(0.1))
@@ -277,7 +277,7 @@ struct UserModernInterestsView: View {
             if showsTitle {
                 Text("userProfile.interests")
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(UserProfileColors.textPrimary)
+                    .foregroundStyle(UserProfileColors.textPrimary)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -291,7 +291,7 @@ struct UserModernInterestsView: View {
                                 .font(.system(size: 16))
                             Text(interest)
                                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                .foregroundColor(isShared ? .white : UserProfileColors.textPrimary)
+                                .foregroundStyle(isShared ? .white : UserProfileColors.textPrimary)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, embeddedStyle ? 9 : 10)

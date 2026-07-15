@@ -85,17 +85,17 @@ struct EnhancedSuspendedHeader: View {
             Image(systemName: "shield.lefthalf.filled.badge.checkmark")
                 .font(.system(size: 44, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
             
             VStack(spacing: 12) {
                 Text(NSLocalizedString("suspended.title", comment: "Suspended Account"))
                     .font(.system(size: legacyPoppinsSize(30), weight: .bold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .multilineTextAlignment(.center)
                 
                 Text(NSLocalizedString("suspended.subtitle", comment: "Account temporarily suspended"))
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
@@ -167,17 +167,17 @@ private struct SuspendedInfoRow: View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: .medium))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
                 .frame(width: 26, height: 26)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
 
                 Text(message)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .fixedSize(horizontal: false, vertical: true)
                     .lineSpacing(5)
             }
@@ -200,7 +200,7 @@ struct EnhancedCountdownTimer: View {
             VStack(spacing: 14) {
                 Text(NSLocalizedString("suspended.timeRemaining", comment: "Time remaining"))
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
                 HStack(spacing: 12) {
                     EnhancedTimeComponent(value: days, label: NSLocalizedString("suspended.days", comment: "days"))
@@ -259,13 +259,13 @@ struct EnhancedTimeComponent: View {
         VStack(spacing: 6) {
             Text("\(value)")
                 .font(.system(size: 23, weight: .bold, design: .rounded))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
                 .monospacedDigit()
                 .frame(width: 58, height: 42)
             
             Text(label)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.7))
         }
     }
 }
@@ -319,7 +319,7 @@ struct EnhancedContactSupportView: View {
     @State private var isVisible = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 LiquidAuroraBackground()
                 
@@ -362,13 +362,15 @@ struct EnhancedContactSupportView: View {
                     }
                 }
             }
-            .navigationBarItems(
-                leading: Button("Cancelar") {
-                    isPresented = false
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancelar") {
+                        isPresented = false
+                    }
+                    .foregroundStyle(AuthColors.primary(colorScheme))
+                    .font(.system(size: 16, weight: .medium))
                 }
-                .foregroundColor(AuthColors.primary(colorScheme))
-                .font(.system(size: 16, weight: .medium))
-            )
+            }
         }
         .onAppear {
             withAnimation {
@@ -380,16 +382,14 @@ struct EnhancedContactSupportView: View {
                 message = String(format: NSLocalizedString("suspended.contact.prefill", comment: ""), reason)
             }
         }
-        .alert(isPresented: $showAlert) {
-            Alert(
-                title: Text(NSLocalizedString("suspended.contact.alert.title", comment: "")),
-                message: Text(alertMessage),
-                dismissButton: .default(Text(NSLocalizedString("common.ok", comment: "OK"))) {
-                    if alertMessage == NSLocalizedString("suspended.contact.alert.success", comment: "") {
-                        isPresented = false
-                    }
+        .alert(NSLocalizedString("suspended.contact.alert.title", comment: ""), isPresented: $showAlert) {
+            Button(NSLocalizedString("common.ok", comment: "OK")) {
+                if alertMessage == NSLocalizedString("suspended.contact.alert.success", comment: "") {
+                    isPresented = false
                 }
-            )
+            }
+        } message: {
+            Text(alertMessage)
         }
     }
     
@@ -440,11 +440,11 @@ struct EnhancedContactSupportHeader: View {
             VStack(spacing: 12) {
                 Text(NSLocalizedString("suspended.contact.title", comment: ""))
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                 
                 Text(NSLocalizedString("suspended.contact.subtitle", comment: ""))
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
             }
         }
@@ -467,15 +467,15 @@ struct EnhancedEmailInputField: View {
             HStack(spacing: 8) {
                 Image(systemName: "envelope.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
                 Text(NSLocalizedString("suspended.contact.email", comment: ""))
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
             }
             
             TextField("correo@ejemplo.com", text: $email)
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
                 .font(.system(size: 16))
                 .keyboardType(.emailAddress)
                 .autocapitalization(.none)
@@ -517,11 +517,11 @@ struct EnhancedMessageInputField: View {
             HStack(spacing: 8) {
                 Image(systemName: "text.bubble.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
                 Text(NSLocalizedString("suspended.contact.message", comment: ""))
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
             }
             
             ZStack(alignment: .topLeading) {
@@ -550,7 +550,7 @@ struct EnhancedMessageInputField: View {
                 
                 if message.isEmpty {
                     Text(NSLocalizedString("suspended.contact.placeholder", comment: ""))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.52))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.52))
                         .font(.system(size: 16))
                         .padding(.horizontal, 20)
                         .padding(.vertical, 20)
@@ -558,7 +558,7 @@ struct EnhancedMessageInputField: View {
                 }
                 
                 TextEditor(text: $message)
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .font(.system(size: 16))
                     .padding(16)
                     .background(Color.clear)
@@ -589,7 +589,7 @@ struct EnhancedSendSupportButton: View {
                 } else {
                     Text(NSLocalizedString("suspended.contact.send", comment: ""))
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .foregroundStyle(AuthColors.primary(colorScheme))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -608,9 +608,9 @@ struct EnhancedSendSupportButton: View {
         .opacity((emailIsEmpty || messageIsEmpty) ? 0.6 : 1.0)
         .scaleEffect(isLoading ? 0.95 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isLoading)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             isPressed = pressing
-        }, perform: {})
+        })
     }
 }
 

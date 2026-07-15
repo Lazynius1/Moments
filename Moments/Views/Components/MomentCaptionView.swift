@@ -110,7 +110,7 @@ struct MomentCaptionView: View {
                         Image(systemName: "text.alignleft")
                             .font(.system(size: 10, weight: .semibold))
                     }
-                    .foregroundColor(secondaryTextColor)
+                    .foregroundStyle(secondaryTextColor)
                     .padding(.horizontal, 11)
                     .padding(.vertical, 6)
                     .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -314,7 +314,7 @@ private struct MomentCaptionReaderSheet: View {
                     HStack {
                         Text(NSLocalizedString("editMoment.description", comment: "Description"))
                             .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                            .foregroundColor(baseTextColor)
+                            .foregroundStyle(baseTextColor)
 
                         Spacer()
                     }
@@ -394,7 +394,7 @@ private struct MomentCaptionMediaPreview: View {
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .lineLimit(1)
                 }
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .momentsChromeGlass(in: Capsule(), interactive: false)

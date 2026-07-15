@@ -23,7 +23,7 @@ struct RefreshControl: View {
             if isRefreshing {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundStyle(Color(hex: "00A896"))
                     .rotationEffect(.degrees(rotation))
                     .padding()
                     .background(Circle().fill(.ultraThinMaterial))

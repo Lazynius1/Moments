@@ -22,7 +22,7 @@ struct HighlightStoryGrid: View {
                     ProgressView()
                     Text(NSLocalizedString("common.loading", comment: "Loading"))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 48)
@@ -30,10 +30,10 @@ struct HighlightStoryGrid: View {
                 VStack(spacing: 16) {
                     Image(systemName: "archivebox")
                         .font(.system(size: 48))
-                        .foregroundColor(.secondary.opacity(0.4))
+                        .foregroundStyle(.secondary.opacity(0.4))
                     Text(NSLocalizedString(emptyMessageKey, comment: "No stories to select"))
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -81,7 +81,7 @@ struct HighlightArchiveStoryCardVisual: View {
                             Spacer(minLength: 0)
                             Text(Self.formatVideoDuration(story.duration))
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
                         }
                     }
@@ -108,7 +108,7 @@ struct HighlightArchiveStoryCardVisual: View {
                 .fill(Color.gray.opacity(0.22))
                 .overlay(
                     Image(systemName: "photo")
-                        .foregroundColor(.gray.opacity(0.5))
+                        .foregroundStyle(.gray.opacity(0.5))
                 )
         }
     }
@@ -128,13 +128,13 @@ struct HighlightStoryDateBadge: View {
         VStack(spacing: 0) {
             Text(dayText)
                 .font(.system(size: 17, weight: .bold))
-                .foregroundColor(.black)
+                .foregroundStyle(.black)
                 .minimumScaleFactor(0.8)
                 .lineLimit(1)
 
             Text(monthText)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.black.opacity(0.75))
+                .foregroundStyle(.black.opacity(0.75))
                 .textCase(.lowercase)
                 .lineLimit(1)
         }
@@ -188,7 +188,7 @@ struct HighlightSelectableArchiveCard: View {
                     .frame(width: 24, height: 24)
                 Image(systemName: "checkmark")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             }
         } else {
             Circle()
@@ -233,12 +233,12 @@ struct HighlightEditorHeader: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 Text(subtitle)
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
@@ -270,7 +270,7 @@ struct HighlightViewerTitlePill: View {
     var body: some View {
         Text(title)
             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-            .foregroundColor(textColor)
+            .foregroundStyle(textColor)
             .lineLimit(1)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -308,7 +308,7 @@ struct HighlightEditorBottomBar: View {
                                 .frame(width: 52, height: 52)
                                 .overlay(
                                     Image(systemName: "photo")
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 )
                         }
 
@@ -322,7 +322,7 @@ struct HighlightEditorBottomBar: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(NSLocalizedString("highlightedStories.titleLabel", comment: "Title"))
                         .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     TextField(
                         NSLocalizedString("highlightedStories.titlePlaceholder", comment: "Title Placeholder"),
@@ -344,7 +344,7 @@ struct HighlightEditorBottomBar: View {
                     Text(actionTitle)
                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                 }
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(

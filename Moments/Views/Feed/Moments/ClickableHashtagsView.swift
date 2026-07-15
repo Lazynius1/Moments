@@ -18,13 +18,13 @@ struct ClickableHashtagsView: View {
                             }) {
                                 Text(word.content)
                                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                                    .foregroundColor(Color(hex: "667eea"))
+                                    .foregroundStyle(Color(hex: "667eea"))
                             }
                             .buttonStyle(PlainButtonStyle())
                         } else {
                             Text(word.content)
                                 .font(.system(size: legacyPoppinsSize(14)))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.95) : .black.opacity(0.9))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.95) : .black.opacity(0.9))
                         }
                     }
                     Spacer()
@@ -72,7 +72,7 @@ struct ClickableHashtagsHStackView: View {
             case .text:
                 Text(part.content)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.95) : .black.opacity(0.9))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.95) : .black.opacity(0.9))
                     .fixedSize(horizontal: false, vertical: true)
             
             case .hashtag:
@@ -82,7 +82,7 @@ struct ClickableHashtagsHStackView: View {
                 }) {
                     Text(part.content)
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(Color(hex: "667eea"))
+                        .foregroundStyle(Color(hex: "667eea"))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(

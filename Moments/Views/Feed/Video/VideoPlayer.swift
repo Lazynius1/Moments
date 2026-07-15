@@ -361,15 +361,15 @@ struct ModernVideoPlayer: View {
                 VStack(spacing: 10) {
                     Image(systemName: "wifi.exclamationmark")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                     Text(NSLocalizedString("feed.video.loadError", comment: "Video load error"))
                         .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundStyle(.white.opacity(0.85))
                     Button(NSLocalizedString("feed.video.retry", comment: "Retry video load")) {
                         forceReloadPlayer()
                     }
                     .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
                     .background(Color.white.opacity(0.18))
@@ -382,7 +382,7 @@ struct ModernVideoPlayer: View {
                 VStack(spacing: 12) {
                     Text(NSLocalizedString("feed.video.loading", comment: "Video loading state"))
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.white.opacity(0.8))
                 }
             }
         }
@@ -400,7 +400,7 @@ struct ModernVideoPlayer: View {
                 }) {
                     Image(systemName: playerManager.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 50, weight: .light))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(width: 80, height: 80)
                         .momentsChromeGlass(in: Circle())
                         .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
@@ -416,7 +416,7 @@ struct ModernVideoPlayer: View {
                     
 //                    Text("Buffering...")
 //                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-//                        .foregroundColor(.white.opacity(0.8))
+//                        .foregroundStyle(.white.opacity(0.8))
                 }
                 .transition(.opacity)
             }
@@ -438,7 +438,7 @@ struct ModernVideoPlayer: View {
         }) {
             Image(systemName: playerManager.isMuted ? "speaker.slash.fill" : "speaker.2.fill")
                 .font(.system(size: 18, weight: .medium))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 36, height: 36)
                 .momentsChromeGlass(in: Circle())
                 .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)

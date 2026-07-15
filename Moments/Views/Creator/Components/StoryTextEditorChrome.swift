@@ -52,7 +52,7 @@ struct StoryMomentsFontRow: View {
         } label: {
             Text(style.displayName)
                 .font(style.font(size: 15))
-                .foregroundColor(isSelected ? .black : .white)
+                .foregroundStyle(isSelected ? .black : .white)
                 .lineLimit(1)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
@@ -150,7 +150,7 @@ struct StoryTextEditorContextRow: View {
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(width: 26, height: 26)
                             .background(Circle().fill(Color.white.opacity(0.18)))
                     }
@@ -182,7 +182,7 @@ struct StoryTextEditorContextRow: View {
                 } label: {
                     Text(StoryTextGradientSettings.angleSymbol(gradientAngle))
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(width: 30, height: 26)
                         .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.14)))
                 }
@@ -205,7 +205,7 @@ struct StoryTextEditorContextRow: View {
                     Button(action: onEyedropper) {
                         Image(systemName: "eyedropper")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(width: 26, height: 26)
                     }
                     .buttonStyle(.plain)
@@ -225,7 +225,7 @@ struct StoryTextEditorContextRow: View {
         } label: {
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.14)))
@@ -278,7 +278,7 @@ struct StoryTextEditorContextRow: View {
                     Button(action: onEyedropper) {
                         Image(systemName: "eyedropper")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.plain)
@@ -304,7 +304,7 @@ struct StoryTextEditorContextRow: View {
                     } label: {
                         Text(title)
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(isSelected(value) ? .black : .white)
+                            .foregroundStyle(isSelected(value) ? .black : .white)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
@@ -375,7 +375,7 @@ struct StoryMomentsTextToolbar: View {
             .overlay(alignment: .topTrailing) {
                 Image(systemName: "sparkle")
                     .font(.system(size: 8, weight: .bold))
-                    .foregroundColor(activeContext == .visual ? .yellow : .white.opacity(0.7))
+                    .foregroundStyle(activeContext == .visual ? .yellow : .white.opacity(0.7))
                     .offset(x: 4, y: -2)
             }
 
@@ -448,7 +448,7 @@ struct StoryMomentsTextToolbar: View {
                         .font(.system(size: 17, weight: .medium))
                 }
             }
-            .foregroundColor(isActive ? .white : .white.opacity(0.55))
+            .foregroundStyle(isActive ? .white : .white.opacity(0.55))
             .frame(maxWidth: .infinity)
             .frame(height: StoryTextEditorChrome.toolbarHeight)
         }
@@ -463,7 +463,7 @@ struct StoryMomentsTextToolbar: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 17, weight: .medium))
-                .foregroundColor(isActive ? .white : .white.opacity(0.55))
+                .foregroundStyle(isActive ? .white : .white.opacity(0.55))
                 .frame(maxWidth: .infinity)
                 .frame(height: StoryTextEditorChrome.toolbarHeight)
         }
@@ -498,7 +498,7 @@ struct StoryMomentsTextToolbar: View {
                     )
                 Text("A")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(textForegroundColor)
+                    .foregroundStyle(textForegroundColor)
             }
             .frame(maxWidth: .infinity)
             .frame(height: StoryTextEditorChrome.toolbarHeight)

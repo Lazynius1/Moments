@@ -49,7 +49,7 @@ struct NovaAttachmentPlusButton: View {
 
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
                     .rotationEffect(.degrees(isMenuOpen ? 45 : 0))
             }
             .frame(width: 44, height: 44)
@@ -107,7 +107,7 @@ struct EnhancedInputBar: View {
                                 viewModel.selectedImage = nil
                             }) {
                                 Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .background(Circle().fill(Color.black.opacity(0.5)))
                                     .font(.system(size: 20))
                             }
@@ -132,7 +132,7 @@ struct EnhancedInputBar: View {
                     )
                     .lineLimit(1...6)
                     .font(.system(size: legacyPoppinsSize(16)))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
                     .padding(.leading, 14)
                     .padding(.trailing, 12)
                     .padding(.vertical, 10)
@@ -167,7 +167,7 @@ struct EnhancedInputBar: View {
                         }) {
                             Image(systemName: "paperplane.fill")
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(NovaColors.textPrimary)
+                                .foregroundStyle(NovaColors.textPrimary)
                                 .frame(width: 44, height: 44)
                                 .background {
                                     Color.clear
@@ -276,19 +276,19 @@ struct SmartSuggestionChip: View {
             HStack(spacing: style == .hero ? 12 : 8) {
                 Image(systemName: suggestion.icon)
                     .font(.system(size: style == .hero ? 15 : 14, weight: .medium))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
                     .frame(width: style == .hero ? 28 : 14)
 
                 Text(suggestion.text)
                     .font(.system(size: legacyPoppinsSize(style == .hero ? 15 : 14), weight: style == .hero ? .semibold : .medium))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
 
                 if style == .hero {
                     Spacer()
 
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(NovaColors.textSecondary)
+                        .foregroundStyle(NovaColors.textSecondary)
                 }
             }
             .padding(.horizontal, 16)

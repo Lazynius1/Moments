@@ -81,12 +81,12 @@ struct AccountHistoryActivityView: View {
             VStack(alignment: .center, spacing: 8) {
                 Text(NSLocalizedString("userActivity.accountHistory.title", value: "Información sobre el historial de la cuenta", comment: "Account history title"))
                     .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString("userActivity.accountHistory.description", value: "Revisa los cambios que has hecho en tu cuenta desde que la creaste.", comment: "Description for Account History"))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
@@ -98,7 +98,7 @@ struct AccountHistoryActivityView: View {
             if filteredHistory.isEmpty {
                 Text(NSLocalizedString("userActivity.accountHistory.noChanges", value: "No record of changes found.", comment: "No changes state for account history"))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .padding(.top, 40)
             } else {
                 VStack(spacing: 0) {
@@ -244,14 +244,14 @@ struct AccountHistoryActivityView: View {
         HStack(spacing: 6) {
             Text(title)
                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
             Text(value)
                 .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .lineLimit(1)
             Image(systemName: "chevron.down")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -368,7 +368,7 @@ struct AccountHistoryRowView: View {
                     
                     Image(systemName: item.type.icon)
                         .font(.system(size: 13, weight: .regular))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 
                 // Bottom line
@@ -382,37 +382,37 @@ struct AccountHistoryRowView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.type.localizedName)
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Text(dateString)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                 
                 if let oldValue = item.oldValue, let newValue = item.newValue {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(alignment: .top) {
                             Text("De:")
                                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                                .foregroundColor(Color(hex: "F97316"))
+                                .foregroundStyle(Color(hex: "F97316"))
                             Text(oldValue)
                                 .font(.system(size: legacyPoppinsSize(14)))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .lineLimit(3)
                         }
                         HStack(alignment: .top) {
                             Text("A:")
                                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                                .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                                .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                             Text(newValue)
                                 .font(.system(size: legacyPoppinsSize(14)))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .lineLimit(3)
                         }
                     }
                     .padding(.top, 8)
                     .padding(.all, 12)
                     .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
             }
             .padding(.top, 12) // Align text reasonably with the dot

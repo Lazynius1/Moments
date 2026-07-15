@@ -429,7 +429,7 @@ struct InteractiveRevealSticker: View {
                 Text(NSLocalizedString("reveal.viewerHint", comment: "Reveal hint"))
                     .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
             }
-            .foregroundColor(.white.opacity(0.96))
+            .foregroundStyle(.white.opacity(0.96))
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(Color.white.opacity(0.001))

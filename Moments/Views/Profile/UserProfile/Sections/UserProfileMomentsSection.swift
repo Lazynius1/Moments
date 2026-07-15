@@ -7,6 +7,7 @@ import FirebaseFirestore
 import AVKit
 
 struct UserModernMomentThumbnail: View {
+    @Environment(\.displayScale) private var displayScale
     let moment: Moment
     let size: CGFloat
     var zoomNamespace: Namespace.ID? = nil
@@ -97,12 +98,12 @@ struct UserModernMomentThumbnail: View {
                             .overlay(
                                 Image(systemName: "photo")
                                     .font(.system(size: 20))
-                                    .foregroundColor(UserProfileColors.textTertiary)
+                                    .foregroundStyle(UserProfileColors.textTertiary)
                             )
                             .overlay(ProgressView().tint(UserProfileColors.accent))
                     }
                     .downsampling(size: CGSize(width: size, height: size))
-                    .scaleFactor(UIScreen.main.scale)
+                    .scaleFactor(displayScale)
                     .cancelOnDisappear(true)
                     .resizable()
             }
@@ -143,7 +144,7 @@ struct UserModernMomentThumbnail: View {
                 if descriptor.showsDuration, let duration = moment.videoDuration {
                     Text(Self.formatVideoDuration(duration))
                         .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
                 }
             }
@@ -186,7 +187,7 @@ struct UserModernMomentThumbnail: View {
                     Rectangle().fill(UserProfileColors.cardBackground)
                 }
                 .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
-                .scaleFactor(UIScreen.main.scale)
+                .scaleFactor(displayScale)
                 .cancelOnDisappear(true)
                 .resizable()
                 .scaledToFill()
@@ -201,7 +202,7 @@ struct UserModernMomentThumbnail: View {
     private var pinnedBadgeView: some View {
         Image(systemName: "pin.fill")
             .font(.system(size: 9, weight: .bold))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(5)
             .background(Color.black.opacity(colorScheme == .dark ? 0.58 : 0.48))
             .clipShape(Circle())
@@ -216,7 +217,7 @@ struct UserModernMomentThumbnail: View {
                 .font(.system(size: legacyPoppinsSize(8), weight: .semibold))
                 .lineLimit(1)
         }
-        .foregroundColor(.white)
+        .foregroundStyle(.white)
         .padding(.horizontal, 7)
         .padding(.vertical, 4)
         .background(Color.black.opacity(0.52))
@@ -268,16 +269,16 @@ struct UserModernMomentThumbnail: View {
                                         .scaleEffect(0.8)
                                     Text("userProfile.video.loading")
                                         .font(.system(size: legacyPoppinsSize(8)))
-                                        .foregroundColor(UserProfileColors.textSecondary)
+                                        .foregroundStyle(UserProfileColors.textSecondary)
                                 }
                             } else {
                                 VStack(spacing: 4) {
                                     Image(systemName: "video")
                                         .font(.system(size: 16))
-                                        .foregroundColor(UserProfileColors.textTertiary)
+                                        .foregroundStyle(UserProfileColors.textTertiary)
                                     Text("userProfile.video")
                                         .font(.system(size: legacyPoppinsSize(8)))
-                                        .foregroundColor(UserProfileColors.textSecondary)
+                                        .foregroundStyle(UserProfileColors.textSecondary)
                                 }
                             }
                         }
@@ -304,12 +305,12 @@ struct UserModernMomentThumbnail: View {
                                         .scaleEffect(0.8)
                                     Text("userProfile.image.loading")
                                         .font(.system(size: legacyPoppinsSize(8)))
-                                        .foregroundColor(UserProfileColors.textSecondary)
+                                        .foregroundStyle(UserProfileColors.textSecondary)
                                 }
                             )
                     }
                     .downsampling(size: CGSize(width: size, height: size))
-                    .scaleFactor(UIScreen.main.scale)
+                    .scaleFactor(displayScale)
                     .cancelOnDisappear(true)
                     .resizable()
             }
@@ -328,11 +329,11 @@ struct UserModernMomentThumbnail: View {
                 VStack(spacing: 6) {
                     Image(systemName: "text.bubble")
                         .font(.system(size: 16))
-                        .foregroundColor(UserProfileColors.textTertiary)
+                        .foregroundStyle(UserProfileColors.textTertiary)
 
                     Text(moment.content.isEmpty ? NSLocalizedString("userProfile.noContent", comment: "No content") : String(moment.content.prefix(12)))
                         .font(.system(size: legacyPoppinsSize(8)))
-                        .foregroundColor(UserProfileColors.textPrimary)
+                        .foregroundStyle(UserProfileColors.textPrimary)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .padding(.horizontal, 3)

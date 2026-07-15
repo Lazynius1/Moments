@@ -9,7 +9,7 @@ func ToolIconButton(icon: String, action: @escaping () -> Void) -> some View {
     }) {
         Image(systemName: icon)
             .font(.system(size: 18))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .frame(width: 44, height: 44)
             .background(.ultraThinMaterial)
             .clipShape(Circle())

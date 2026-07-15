@@ -184,7 +184,7 @@ struct SavedMomentsView: View {
                     }
                 }
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundColor(isSelectionMode ? .red : .primary)
+                .foregroundStyle(isSelectionMode ? .red : .primary)
             }
         }
     }
@@ -206,7 +206,7 @@ struct SavedMomentsView: View {
     private var searchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             TextField(NSLocalizedString("savedMoments.search.placeholder", comment: "Saved moments search placeholder"), text: $searchText)
                 .font(.system(size: legacyPoppinsSize(15)))
                 .textInputAutocapitalization(.never)
@@ -215,7 +215,7 @@ struct SavedMomentsView: View {
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -242,7 +242,7 @@ struct SavedMomentsView: View {
                             .lineLimit(1)
                     }
                     .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -260,7 +260,7 @@ struct SavedMomentsView: View {
                 Button(action: { mediaFilter = filter }) {
                     Text(filter.title)
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(
@@ -293,7 +293,7 @@ struct SavedMomentsView: View {
                     Button(action: { collectionFilter = filter }) {
                         Text(filter.title)
                             .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 9)
                             .background(
@@ -326,12 +326,12 @@ struct SavedMomentsView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "line.3.horizontal.decrease.circle")
                         .font(.system(size: 36))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Text(NSLocalizedString("savedMoments.empty.filtered.title", comment: "No results for current filters"))
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     Text(NSLocalizedString("savedMoments.empty.filtered.description", comment: "Hint for filtered empty state"))
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
 
@@ -341,7 +341,7 @@ struct SavedMomentsView: View {
                         collectionFilter = .all
                     }
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -419,7 +419,7 @@ struct SavedMomentsView: View {
                 Label(NSLocalizedString("savedMoments.remove", comment: "Remove action"), systemImage: "bookmark.slash")
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
             }
-            .foregroundColor(.red)
+            .foregroundStyle(.red)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -442,7 +442,7 @@ struct SavedMomentsView: View {
             ProgressView().scaleEffect(1.2)
             Text(NSLocalizedString("savedMoments.loading", comment: "Loading saved moments"))
                 .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -450,19 +450,19 @@ struct SavedMomentsView: View {
         VStack(spacing: 14) {
             Image(systemName: "wifi.exclamationmark")
                 .font(.system(size: 40))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text(NSLocalizedString("savedMoments.error.title", comment: "Saved moments loading error title"))
                 .font(.system(size: legacyPoppinsSize(19), weight: .bold))
             Text(error.localizedDescription)
                 .font(.system(size: legacyPoppinsSize(13)))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
             Button(NSLocalizedString("savedMoments.retry", comment: "Retry action")) {
                 viewModel.loadSavedMoments()
             }
             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
             .padding(.horizontal, 16)
             .padding(.vertical, 11)
             .background(Capsule().fill(.ultraThinMaterial))
@@ -473,17 +473,17 @@ struct SavedMomentsView: View {
         VStack(spacing: 16) {
             Image(systemName: "bookmark.circle")
                 .font(.system(size: 64))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text(NSLocalizedString("savedMoments.empty.title", comment: "Saved moments empty title"))
                 .font(.system(size: legacyPoppinsSize(23), weight: .bold))
             Text(NSLocalizedString("savedMoments.empty.description", comment: "Saved moments empty description"))
                 .font(.system(size: legacyPoppinsSize(15)))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 26)
             Text(NSLocalizedString("savedMoments.empty.tip", comment: "Saved moments empty tip"))
                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 30)
         }
@@ -693,7 +693,7 @@ private struct SavedMomentGridCard: View {
             if isSelectionMode && !isRestricted {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(isSelected ? Color(hex: "2563EB") : .white.opacity(0.9))
+                    .foregroundStyle(isSelected ? Color(hex: "2563EB") : .white.opacity(0.9))
                     .padding(6)
             }
         }
@@ -711,7 +711,7 @@ private struct SavedMomentGridCard: View {
             VStack(spacing: 4) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.95))
+                    .foregroundStyle(.white.opacity(0.95))
 
                 Text(
                     NSLocalizedString(
@@ -720,7 +720,7 @@ private struct SavedMomentGridCard: View {
                     )
                 )
                     .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
@@ -731,7 +731,7 @@ private struct SavedMomentGridCard: View {
                     )
                 )
                     .font(.system(size: legacyPoppinsSize(9)))
-                    .foregroundColor(.white.opacity(0.84))
+                    .foregroundStyle(.white.opacity(0.84))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
             }
@@ -769,13 +769,13 @@ private struct SavedMomentGridCard: View {
                 if !moment.content.isEmpty {
                     Text(moment.content)
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .lineLimit(4)
                         .padding(8)
                 } else {
                     Image(systemName: "text.bubble")
                         .font(.system(size: 22))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
         }
@@ -797,7 +797,7 @@ private struct SavedMomentGridCard: View {
                     .overlay(
                         Image(systemName: "play.rectangle.fill")
                             .font(.system(size: 22))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.white.opacity(0.8))
                     )
                     .onAppear {
                         generateThumbnail(for: url)
@@ -810,7 +810,7 @@ private struct SavedMomentGridCard: View {
                     HStack {
                         Image(systemName: "play.fill")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(6)
                             .background(Circle().fill(Color.black.opacity(0.55)))
                         Spacer()
@@ -906,8 +906,8 @@ struct ModernSavedMomentsDetailView: View {
                                     .resizable()
                                     .scaledToFill()
                                     .frame(
-                                        width: UIScreen.main.bounds.width - 32,
-                                        height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
+                                        width: UIApplication.shared.activeWindowSize.width - 32,
+                                        height: (UIApplication.shared.activeWindowSize.width - 32) / max(peekAspectRatio, 0.1)
                                     )
                                     .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                     .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
@@ -923,7 +923,7 @@ struct ModernSavedMomentsDetailView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $commentsRoute) { route in
             ModernCommentsView(moment: route.moment)
                 .environmentObject(firestoreService)
@@ -1089,12 +1089,12 @@ struct ModernSavedDetailHeader: View {
                         VStack(alignment: .leading, spacing: 0) {
                             LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
                                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                .foregroundColor(primaryTextColor)
+                                .foregroundStyle(primaryTextColor)
                                 .lineLimit(1)
 
                             Text(timeAgo(from: moment.timestamp))
                                 .font(.system(size: legacyPoppinsSize(10)))
-                                .foregroundColor(secondaryTextColor)
+                                .foregroundStyle(secondaryTextColor)
                         }
                     }
                 }
@@ -1104,7 +1104,7 @@ struct ModernSavedDetailHeader: View {
                 Button(action: onRemove) {
                     Image(systemName: "bookmark.slash")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(iconColor)
+                        .foregroundStyle(iconColor)
                         .frame(width: 38, height: 38)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                 }
@@ -1496,7 +1496,7 @@ struct ModernSavedDetailMomentCard: View {
                         .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                         .lineLimit(1)
                 }
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 11)
                 .padding(.vertical, 8)
                 .momentsChromeGlass(in: Capsule(), interactive: false)
@@ -1518,7 +1518,7 @@ struct ModernSavedDetailMomentCard: View {
                         Text("\(tags.count)")
                             .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 11)
                     .padding(.vertical, 8)
                     .momentsChromeGlass(in: Capsule(), interactive: true)
@@ -1558,7 +1558,7 @@ struct AsyncSavedProfileImageView: View {
                 .fill(Color.gray.opacity(0.3))
                 .overlay(
                     Image(systemName: "person.fill")
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 )
         }
         .onAppear {

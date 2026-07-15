@@ -131,7 +131,7 @@ struct StoriesView: View {
                     },
                     storyCount: adStoryCount,
                     storyIndex: adStoryIndex,
-                    screenSize: UIScreen.main.bounds.size
+                    screenSize: UIApplication.shared.activeWindowSize
                 )
                 .environmentObject(authService)
 
@@ -269,7 +269,7 @@ struct StoriesView: View {
                     story: story,
                     storyCount: stories.count,
                     storyIndex: storyIndex,
-                    screenSize: UIScreen.main.bounds.size,
+                    screenSize: UIApplication.shared.activeWindowSize,
                     storyViewModel: storyViewModel,
                     showingReportSheet: $showingReportSheet,
                     showingBlockConfirmation: $showingBlockConfirmation,
@@ -925,17 +925,17 @@ private struct StoryViewerLoadingState: View {
             VStack(spacing: 14) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 26, weight: .medium))
-                    .foregroundColor(primaryChrome.opacity(0.88))
+                    .foregroundStyle(primaryChrome.opacity(0.88))
 
                 Text(message)
                     .font(.system(size: legacyPoppinsSize(18), weight: .medium))
-                    .foregroundColor(primaryChrome.opacity(0.88))
+                    .foregroundStyle(primaryChrome.opacity(0.88))
                     .multilineTextAlignment(.center)
 
                 Button(action: onClose) {
                     Text(NSLocalizedString("common.close", comment: "Close"))
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(primaryChrome)
+                        .foregroundStyle(primaryChrome)
                         .padding(.horizontal, 26)
                         .padding(.vertical, 12)
                         .background(
@@ -983,7 +983,7 @@ private struct StoryViewerLoadingState: View {
 
                         Image(systemName: "xmark")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(primaryChrome)
+                            .foregroundStyle(primaryChrome)
                     }
                 }
                 .buttonStyle(PlainButtonStyle())

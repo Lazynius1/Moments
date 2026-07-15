@@ -99,7 +99,7 @@ enum ExploreMomentsGridMetrics {
     static let spacing: CGFloat = 1
     static let columns = 3
 
-    static func columnWidth(for availableWidth: CGFloat = UIScreen.main.bounds.width) -> CGFloat {
+    static func columnWidth(for availableWidth: CGFloat = UIApplication.shared.activeWindowSize.width) -> CGFloat {
         let totalSpacing = spacing * CGFloat(columns - 1)
         return (availableWidth - totalSpacing) / CGFloat(columns)
     }
@@ -116,7 +116,7 @@ enum ExploreMomentsGridMetrics {
         }
     }
 
-    static func bentoHeight(tileKinds: [ExploreBentoTileKind], availableWidth: CGFloat = UIScreen.main.bounds.width) -> CGFloat {
+    static func bentoHeight(tileKinds: [ExploreBentoTileKind], availableWidth: CGFloat = UIApplication.shared.activeWindowSize.width) -> CGFloat {
         guard !tileKinds.isEmpty else { return 0 }
 
         let unitWidth = columnWidth(for: availableWidth)
@@ -148,7 +148,7 @@ enum ExploreMomentsGridMetrics {
     }
 }
 
-func exploreBentoGridHeight(moments: [Moment], availableWidth: CGFloat = UIScreen.main.bounds.width) -> CGFloat {
+func exploreBentoGridHeight(moments: [Moment], availableWidth: CGFloat = UIApplication.shared.activeWindowSize.width) -> CGFloat {
     let descriptors = ExploreBentoTileAssigner.assign(moments: moments)
     return ExploreMomentsGridMetrics.bentoHeight(
         tileKinds: descriptors.map(\.layoutKind),
@@ -294,7 +294,7 @@ struct ExploreMomentsBentoGrid: View {
     }
 
     private var gridWidth: CGFloat {
-        UIScreen.main.bounds.width
+        UIApplication.shared.activeWindowSize.width
     }
 
     private var gridHeight: CGFloat {
@@ -333,6 +333,7 @@ struct ExploreMomentsBentoGrid: View {
 // MARK: - Celda de momento (exclusiva de Explore)
 
 struct ExploreMomentThumbnail: View {
+    @Environment(\.displayScale) private var displayScale
     let moment: Moment
     let unitWidth: CGFloat
     let descriptor: ExploreGridTileDescriptor
@@ -418,7 +419,7 @@ struct ExploreMomentThumbnail: View {
             KFImage(url)
                 .placeholder { placeholder }
                 .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
-                .scaleFactor(UIScreen.main.scale)
+                .scaleFactor(displayScale)
                 .cancelOnDisappear(true)
                 .resizable()
                 .scaledToFill()
@@ -473,12 +474,12 @@ struct ExploreMomentThumbnail: View {
             HStack(spacing: 6) {
                 Image(systemName: "play.fill")
                     .font(.system(size: 8, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 if descriptor.showsDuration, let duration = moment.videoDuration {
                     Text(Self.formatVideoDuration(duration))
                         .font(.system(size: legacyPoppinsSize(8), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
             .padding(.horizontal, 8)
@@ -511,7 +512,7 @@ struct ExploreMomentThumbnail: View {
             .overlay(
                 Image(systemName: "photo")
                     .font(.system(size: 20))
-                    .foregroundColor(.secondary.opacity(0.5))
+                    .foregroundStyle(.secondary.opacity(0.5))
             )
     }
 

@@ -49,11 +49,11 @@ struct NovaHeader: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("nova.name")
                     .font(.system(size: legacyPoppinsSize(20), weight: .bold))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
 
                 Text(subtitleText)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(NovaColors.textSecondary)
+                    .foregroundStyle(NovaColors.textSecondary)
             }
 
             Spacer()
@@ -64,7 +64,7 @@ struct NovaHeader: View {
                 Button(action: { isShowingMemory = true }) {
                     Image(systemName: "brain.head.profile")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(NovaColors.textPrimary)
+                        .foregroundStyle(NovaColors.textPrimary)
                         .frame(width: 36, height: 36)
                         .background {
                             Color.clear
@@ -80,7 +80,7 @@ struct NovaHeader: View {
                     }) {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(NovaColors.textPrimary)
+                            .foregroundStyle(NovaColors.textPrimary)
                             .frame(width: 36, height: 36)
                             .background {
                                 Color.clear
@@ -95,7 +95,7 @@ struct NovaHeader: View {
                 }) {
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(NovaColors.textPrimary)
+                            .foregroundStyle(NovaColors.textPrimary)
                             .frame(width: 36, height: 36)
                             .background {
                                 Color.clear
@@ -229,7 +229,7 @@ struct ModernWelcomeSection: View {
             VStack(spacing: 24) {
                 Text(eyebrowText)
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(NovaColors.textSecondary)
+                    .foregroundStyle(NovaColors.textSecondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(NovaColors.materialBackground)
@@ -242,12 +242,12 @@ struct ModernWelcomeSection: View {
                 VStack(spacing: 12) {
                     Text("\(NSLocalizedString("nova.hello", comment: "Hello message")) \(viewModel.currentUserDisplayName)")
                         .font(.system(size: legacyPoppinsSize(34), weight: .bold))
-                        .foregroundColor(NovaColors.textPrimary)
+                        .foregroundStyle(NovaColors.textPrimary)
                         .multilineTextAlignment(.center)
 
                     Text("nova.introduction")
                         .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundColor(NovaColors.textSecondary)
+                        .foregroundStyle(NovaColors.textSecondary)
                         .multilineTextAlignment(.center)
                         .lineSpacing(3)
                         .padding(.horizontal, 8)
@@ -257,11 +257,11 @@ struct ModernWelcomeSection: View {
                     HStack(spacing: 8) {
                         Image(systemName: "brain.head.profile")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(NovaColors.textSecondary)
+                            .foregroundStyle(NovaColors.textSecondary)
 
                         Text(supportText)
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(NovaColors.textSecondary)
+                            .foregroundStyle(NovaColors.textSecondary)
                             .multilineTextAlignment(.leading)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -277,7 +277,7 @@ struct ModernWelcomeSection: View {
                     if let userData = viewModel.userData, !userData.interests.isEmpty {
                         Text(userData.interests.prefix(3).joined(separator: " • "))
                             .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                            .foregroundColor(NovaColors.textTertiary)
+                            .foregroundStyle(NovaColors.textTertiary)
                             .multilineTextAlignment(.center)
                     }
                 }
@@ -309,19 +309,19 @@ struct ModernInfoCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(NovaColors.primary)
+                    .foregroundStyle(NovaColors.primary)
                     .font(.system(size: 20))
 
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
 
                 Spacer()
             }
 
             Text(value)
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(NovaColors.textSecondary)
+                .foregroundStyle(NovaColors.textSecondary)
                 .lineLimit(3)
         }
         .padding(20)
@@ -354,16 +354,16 @@ struct ModernStatCard: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
-                .foregroundColor(NovaColors.secondary)
+                .foregroundStyle(NovaColors.secondary)
                 .font(.system(size: 24))
 
             Text(value)
                 .font(.system(size: legacyPoppinsSize(20), weight: .bold))
-                .foregroundColor(NovaColors.textPrimary)
+                .foregroundStyle(NovaColors.textPrimary)
 
             Text(title)
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(NovaColors.textSecondary)
+                .foregroundStyle(NovaColors.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
@@ -410,7 +410,7 @@ struct ModernSuggestionCard: View {
 
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
             }
@@ -532,7 +532,7 @@ struct PremiumSparkleEmitter: View {
                 Image(systemName: "sparkle")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .foregroundColor(color)
+                    .foregroundStyle(color)
                     .tag("sparkle")
             }
         }
@@ -668,7 +668,7 @@ struct ModernLoadingAnimation: View {
                     if let statusLabel, !statusLabel.isEmpty {
                         Text(statusLabel)
                             .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                            .foregroundColor(NovaColors.textSecondary)
+                            .foregroundStyle(NovaColors.textSecondary)
                     }
 
                     HStack(spacing: 5) {
@@ -710,11 +710,11 @@ struct NovaEncryptionBadge: View {
         HStack(spacing: 6) {
             Image(systemName: "lock.fill")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(NovaColors.textPrimary)
+                .foregroundStyle(NovaColors.textPrimary)
 
             Text("nova.encryptedData")
                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                .foregroundColor(NovaColors.textSecondary)
+                .foregroundStyle(NovaColors.textSecondary)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

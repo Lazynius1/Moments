@@ -856,7 +856,8 @@ class BackgroundStoryUploadService: ObservableObject {
     }
 
     private func makePreblurredStoryBackground(from image: UIImage) -> UIImage {
-        let screenSize = UIScreen.main.bounds.size
+        // Aspect fijo del lienzo de story (9:16), independiente del dispositivo.
+        let screenSize = CGSize(width: 1080, height: 1920)
         let screenAspectRatio = max(screenSize.height / max(screenSize.width, 1), 1)
         let downsampledWidth: CGFloat = 260
         let downsampledSize = CGSize(
@@ -1218,8 +1219,18 @@ class BackgroundStoryUploadService: ObservableObject {
     }
 
     // MARK: - 🎯 STICKER LAYOUT HELPERS
+
+    /// Tamaño de la ventana activa (espacio de puntos del editor donde se autoraron los stickers),
+    /// vía window scene. Fallback determinista a escala de puntos de referencia si no hay ventana.
+    private func activeEditorContainerSize() -> CGSize {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first
+        return window?.bounds.size ?? CGSize(width: 375, height: 375 * (1920.0 / 1080.0))
+    }
+
     private func storyContentRectInEditor() -> CGRect {
-        let containerSize = UIScreen.main.bounds.size
+        let containerSize = activeEditorContainerSize()
         let keyWindowInsets = currentKeyWindowSafeAreaInsets()
 
         // Use the exact same canvas geometry as camera/editor/viewer.

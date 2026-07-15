@@ -55,7 +55,7 @@ struct ModernReportContent: View {
                     VStack(alignment: .leading, spacing: 24) {
                         Text(String(format: NSLocalizedString("report.subtitle", comment: "Report subtitle"), contentType))
                             .font(.system(size: legacyPoppinsSize(15)))
-                            .foregroundColor(secondaryText)
+                            .foregroundStyle(secondaryText)
                             .multilineTextAlignment(.leading)
                             .padding(.horizontal, 20)
 
@@ -118,17 +118,17 @@ struct ModernReportContent: View {
                 
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 50))
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
             }
             
             VStack(spacing: 8) {
                 Text(NSLocalizedString("report.success.title", comment: "Report success title"))
                     .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
                 
                 Text(NSLocalizedString("report.success.message", comment: "Report success message"))
                     .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundColor(secondaryText)
+                    .foregroundStyle(secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
@@ -202,7 +202,7 @@ struct NativeReportSheetHeader: View {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
@@ -212,7 +212,7 @@ struct NativeReportSheetHeader: View {
 
             Text(title)
                 .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                .foregroundColor(primaryText)
+                .foregroundStyle(primaryText)
                 .lineLimit(1)
 
             Spacer()
@@ -260,19 +260,19 @@ struct NativeReportOptionRow: View {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.system(size: 17, weight: .medium))
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
                     .frame(width: 22)
 
                 VStack(alignment: .leading, spacing: subtitle.isEmpty ? 0 : 3) {
                     Text(title)
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(primaryText)
+                        .foregroundStyle(primaryText)
                         .multilineTextAlignment(.leading)
 
                     if !subtitle.isEmpty {
                         Text(subtitle)
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(secondaryText)
+                            .foregroundStyle(secondaryText)
                             .multilineTextAlignment(.leading)
                     }
                 }
@@ -282,11 +282,11 @@ struct NativeReportOptionRow: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                 } else if showsChevron {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(secondaryText)
+                        .foregroundStyle(secondaryText)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -299,11 +299,12 @@ struct NativeReportOptionRow: View {
 
 struct NativeReportDivider: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         Rectangle()
             .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
-            .frame(height: 1 / UIScreen.main.scale)
+            .frame(height: 1 / displayScale)
             .padding(.leading, 36)
     }
 }
@@ -327,12 +328,12 @@ struct NativeReportDetailsSection: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                .foregroundColor(primaryText)
+                .foregroundStyle(primaryText)
 
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $text)
                     .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 108)
                     .padding(.horizontal, 10)
@@ -345,7 +346,7 @@ struct NativeReportDetailsSection: View {
                 if text.isEmpty {
                     Text(placeholder)
                         .font(.system(size: legacyPoppinsSize(15)))
-                        .foregroundColor(secondaryText)
+                        .foregroundStyle(secondaryText)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 18)
                         .allowsHitTesting(false)
@@ -374,7 +375,7 @@ struct NativeReportSubmitBar: View {
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     }
                 }
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
                 .background(

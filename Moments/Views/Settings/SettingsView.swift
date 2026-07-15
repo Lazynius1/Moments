@@ -220,12 +220,10 @@ struct SettingsView: View {
             errorMessage = nil
             dismiss()
         }
-        .alert(isPresented: $showError) {
-            Alert(
-                title: Text("settings.error.title"),
-                message: Text(errorMessage ?? NSLocalizedString("settings.error.unknown", comment: "Unknown settings error")),
-                dismissButton: .default(Text("settings.ok"))
-            )
+        .alert("settings.error.title", isPresented: $showError) {
+            Button("settings.ok") { }
+        } message: {
+            Text(errorMessage ?? NSLocalizedString("settings.error.unknown", comment: "Unknown settings error"))
         }
     }
 
@@ -313,7 +311,7 @@ struct SettingsView: View {
 
                             Text("settings.loading")
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
         }
         .transition(MotionPolicy.Transition.enterPop)
     }

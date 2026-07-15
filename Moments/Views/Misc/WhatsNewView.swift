@@ -101,11 +101,11 @@ struct WhatsNewView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(NSLocalizedString("whatsNew.title", comment: ""))
                         .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     Text(NSLocalizedString("whatsNew.subtitle", comment: ""))
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -126,7 +126,7 @@ struct WhatsNewView: View {
         } label: {
             Text(NSLocalizedString("whatsNew.button", comment: ""))
                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background {
@@ -165,11 +165,11 @@ private struct WhatsNewFeatureRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(feature.title)
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text(feature.description)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -217,7 +217,7 @@ private struct WhatsNewFeatureRow: View {
                 .frame(width: 26, height: 26)
             }
         }
-        .foregroundColor(.primary)
+        .foregroundStyle(.primary)
         .frame(width: 38, height: 38)
         .background {
             Color.clear

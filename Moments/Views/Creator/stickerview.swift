@@ -14,9 +14,17 @@ import AVKit
 // MARK: - Sticker Picker
 
 struct StickerPickerView: View {
+    @Environment(\.displayScale) private var displayScale
     @Binding var selectedStickers: [StickerItem]
     @Binding var activeEditingStickerId: String? // ✅ NUEVO: Edición inline en Canvas
     let isVideo: Bool
+    /// Tamaño del lienzo del editor (no de la pantalla). Los stickers nuevos se centran aquí.
+    let canvasSize: CGSize
+
+    /// Centro del lienzo del editor para posicionar stickers recién creados.
+    private var defaultStickerCenter: CGPoint {
+        CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+    }
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
@@ -279,7 +287,7 @@ struct StickerPickerView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             if giphyResults.isEmpty {
                 loadTrendingStickers()
@@ -303,7 +311,7 @@ struct StickerPickerView: View {
             }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .frame(width: 42, height: 42)
                     .background(
                         Circle()
@@ -317,7 +325,7 @@ struct StickerPickerView: View {
 
             Text(detailTitle)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
 
             Spacer()
 
@@ -327,7 +335,7 @@ struct StickerPickerView: View {
             }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .frame(width: 42, height: 42)
                     .background(
                         Circle()
@@ -344,11 +352,11 @@ struct StickerPickerView: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16))
-                .foregroundColor(searchIconColor)
+                .foregroundStyle(searchIconColor)
 
             TextField(NSLocalizedString("stickerview.search.placeholder", comment: "Sticker catalog search placeholder"), text: $catalogSearchText)
                 .font(.system(size: 15, weight: .medium))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
                 .autocorrectionDisabled()
                 .autocapitalization(.none)
 
@@ -361,7 +369,7 @@ struct StickerPickerView: View {
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(searchClearColor)
+                        .foregroundStyle(searchClearColor)
                 }
                 .pressAnimation()
             }
@@ -378,11 +386,11 @@ struct StickerPickerView: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16))
-                .foregroundColor(searchIconColor)
+                .foregroundStyle(searchIconColor)
 
             TextField(NSLocalizedString("stickerview.searchGifs.placeholder", comment: "GIF search placeholder"), text: $gifSearchText)
                 .font(.system(size: 15, weight: .medium))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
                 .autocorrectionDisabled()
                 .autocapitalization(.none)
                 .onSubmit {
@@ -404,7 +412,7 @@ struct StickerPickerView: View {
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(searchClearColor)
+                        .foregroundStyle(searchClearColor)
                 }
                 .pressAnimation()
             }
@@ -455,7 +463,7 @@ struct StickerPickerView: View {
                 if category != .emojiSlider {
                     Text(category.displayName)
                         .font(.system(size: 15.5, weight: .semibold))
-                        .foregroundColor(pillTextColor)
+                        .foregroundStyle(pillTextColor)
                         .lineLimit(1)
                 }
             }
@@ -497,7 +505,7 @@ struct StickerPickerView: View {
         } else {
             Image(systemName: category.symbolName)
                 .font(.system(size: 16, weight: .bold))
-                .foregroundColor(category.accentColor)
+                .foregroundStyle(category.accentColor)
                 .shadow(color: category.accentColor.opacity(0.22), radius: 1.5, x: 0, y: 0)
                 .frame(width: 18, height: 18)
         }
@@ -509,7 +517,7 @@ struct StickerPickerView: View {
             HStack {
                 Text("stickerview.catalog.gifs")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
 
                 Spacer()
 
@@ -518,7 +526,7 @@ struct StickerPickerView: View {
                 }) {
                     Text("stickerview.catalog.viewAll")
                         .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundColor(primaryTextColor.opacity(0.82))
+                        .foregroundStyle(primaryTextColor.opacity(0.82))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(
@@ -672,7 +680,7 @@ struct StickerPickerView: View {
                 Text(NSLocalizedString("polaroid.subtitle", comment: ""))
                     .font(.system(size: 16, weight: .medium))
                     .multilineTextAlignment(.center)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 PhotosPicker(selection: $photoPickerItem, matching: .images) {
                     HStack(spacing: 8) {
@@ -680,11 +688,11 @@ struct StickerPickerView: View {
                         Text(NSLocalizedString("polaroid.selectPhoto", comment: ""))
                             .font(.system(size: 18, weight: .bold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding()
                     .frame(maxWidth: .infinity)
                     .background(selectedCategory.accentColor)
-                    .cornerRadius(16)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .onChange(of: photoPickerItem) { _, newItem in
                     Task {
@@ -705,18 +713,18 @@ struct StickerPickerView: View {
                 Text(NSLocalizedString("reveal.subtitle", comment: ""))
                     .font(.system(size: 16, weight: .medium))
                     .multilineTextAlignment(.center)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Button(action: {
                     createRevealSticker()
                 }) {
                     Text(NSLocalizedString("reveal.addLayer", comment: ""))
                         .font(.system(size: 16, weight: .black))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding()
                         .frame(maxWidth: .infinity)
                         .background(Color.purple)
-                        .cornerRadius(16)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
             }
             .padding(30)
@@ -837,11 +845,11 @@ struct StickerPickerView: View {
             VStack(spacing: 6) {
                 Text("stickerview.loadingStickers")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
 
                 Text("stickerview.loadingTime")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(secondaryTextColor)
+                    .foregroundStyle(secondaryTextColor)
             }
         }
         .frame(maxWidth: .infinity)
@@ -853,15 +861,15 @@ struct StickerPickerView: View {
         VStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 32, weight: .semibold))
-                .foregroundColor(secondaryTextColor.opacity(0.9))
+                .foregroundStyle(secondaryTextColor.opacity(0.9))
 
             Text(title)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(primaryTextColor)
+                .foregroundStyle(primaryTextColor)
 
             Text(subtitle)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -920,7 +928,7 @@ struct StickerPickerView: View {
         let sticker = StickerItem(
             id: UUID().uuidString,
             image: UIImage(),
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             scale: 1.0,
             rotation: .zero,
             gifURL: nil,
@@ -941,7 +949,7 @@ struct StickerPickerView: View {
         let sticker = StickerItem(
             id: UUID().uuidString,
             image: UIImage(),
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             scale: 1.0,
             rotation: .zero,
             gifURL: nil,
@@ -1059,7 +1067,7 @@ struct StickerPickerView: View {
 
         let sticker = StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .emoji,
             interactionData: nil
         )
@@ -1086,10 +1094,7 @@ struct StickerPickerView: View {
             let initialStickerImage = self.downscaleImageIfNeeded(staticImage, maxDimension: 180)
 
             DispatchQueue.main.async {
-                let screenCenter = CGPoint(
-                    x: UIScreen.main.bounds.width / 2,
-                    y: UIScreen.main.bounds.height / 2
-                )
+                let screenCenter = self.defaultStickerCenter
 
                 let randomOffset = CGPoint(
                     x: CGFloat.random(in: -40...40),
@@ -1121,7 +1126,7 @@ struct StickerPickerView: View {
     // CAMBIO 5: Función auxiliar para constrainPositionToBounds
     func constrainPositionToBounds(_ position: CGPoint) -> CGPoint {
         let padding: CGFloat = 60
-        let bounds = UIScreen.main.bounds
+        let bounds = CGRect(origin: .zero, size: canvasSize)
 
         return CGPoint(
             x: max(padding, min(bounds.width - padding, position.x)),
@@ -1171,7 +1176,7 @@ struct StickerPickerView: View {
         )
 
         if let iconAsset,
-           let icon = iconAsset.uiImage(size: side, tint: iconTint) {
+           let icon = iconAsset.uiImage(size: side, tint: iconTint, traitCollection: UITraitCollection(displayScale: displayScale)) {
             icon.draw(in: iconRect)
         } else if let iconSystemName,
                   let icon = UIImage(systemName: iconSystemName)?.withTintColor(iconTint, renderingMode: .alwaysOriginal) {
@@ -1236,7 +1241,7 @@ struct StickerPickerView: View {
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN (TAMAÑO FIJO)
         let sticker = StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .location,
             interactionData: StickerItem.StickerInteractionData(
                 username: nil,
@@ -1268,10 +1273,7 @@ struct StickerPickerView: View {
     private func createSelfieSticker() {
         let liveSelfieSticker = StickerItem(
             image: makeLiveSelfiePlaceholderImage(size: 120),
-            position: constrainPositionToBounds(CGPoint(
-                x: UIScreen.main.bounds.width / 2,
-                y: UIScreen.main.bounds.height / 2
-            )),
+            position: constrainPositionToBounds(defaultStickerCenter),
             type: .selfie,
             interactionData: StickerItem.StickerInteractionData(
                 caption: "selfie_live"
@@ -1358,7 +1360,7 @@ struct StickerPickerView: View {
         // ✅ CREAR STICKER CON LA IMAGEN GENERADA
         let sticker = StickerItem(
             image: stickerImage,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .selfie,
             interactionData: nil
         )
@@ -1510,7 +1512,7 @@ struct StickerPickerView: View {
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN
         let sticker = StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .mention,
             interactionData: StickerItem.StickerInteractionData(
                 username: username,
@@ -1566,7 +1568,7 @@ struct StickerPickerView: View {
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN
         let sticker = StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .hashtag,
             interactionData: StickerItem.StickerInteractionData(
                 username: nil,
@@ -1630,7 +1632,7 @@ struct StickerPickerView: View {
 
         let sticker = StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .link,
             interactionData: StickerItem.StickerInteractionData(
                 username: nil,
@@ -1703,7 +1705,7 @@ struct StickerPickerView: View {
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN (TAMAÑO FIJO )
         let sticker = StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .poll,
             interactionData: StickerItem.StickerInteractionData(
                 username: nil,
@@ -1745,7 +1747,7 @@ struct StickerPickerView: View {
 
         let sticker = StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .quiz,
             interactionData: StickerItem.StickerInteractionData(
                 quizQuestion: question,
@@ -1766,7 +1768,7 @@ struct StickerPickerView: View {
         // La vista previa en el editor muestra el marco Polaroid vacío (progress: 0)
         let sticker = StickerItem(
             image: image,   // ← imagen real → se encode a Base64 via extractContent
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .frame,
             interactionData: StickerItem.StickerInteractionData(
                 caption: nil,
@@ -1792,7 +1794,7 @@ struct StickerPickerView: View {
 
         let sticker = StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: 100), // Arriba por defecto
+            position: CGPoint(x: canvasSize.width / 2, y: 100), // Arriba por defecto
             type: .reveal,
             interactionData: StickerItem.StickerInteractionData(
                 revealType: "solid",
@@ -1856,7 +1858,7 @@ struct StickerPickerView: View {
             let sticker = StickerItem(
                 id: "audio_\(UUID().uuidString)",
                 image: stickerImage,
-                position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+                position: defaultStickerCenter,
                 scale: 1.0,
                 rotation: .zero,
                 gifURL: nil,
@@ -1908,7 +1910,7 @@ struct StickerPickerView: View {
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN
         let sticker = StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .question,
             interactionData: StickerItem.StickerInteractionData(
                 username: nil,
@@ -2005,7 +2007,7 @@ struct StickerPickerView: View {
 
         let sticker = StickerItem(
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             type: .countdown,
             interactionData: StickerItem.StickerInteractionData(
                 username: nil,
@@ -2040,7 +2042,7 @@ struct StickerPickerView: View {
         let sticker = StickerItem(
             id: UUID().uuidString,
             image: image,
-            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            position: defaultStickerCenter,
             scale: 1.0,
             rotation: .zero,
             gifURL: nil,

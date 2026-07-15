@@ -133,7 +133,7 @@ struct CaptionAndDetailsView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // 1. Immersive Background (Mosaic Blur)
                 SelectedMediaBlurView(mediaItems: selectedMediaItems)
@@ -147,7 +147,7 @@ struct CaptionAndDetailsView: View {
                         }) {
                             Image(systemName: "chevron.left")
                                 .font(.title2)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .padding(10)
                                 .momentsChromeGlass(in: Circle(), interactive: true)
                         }
@@ -156,7 +156,7 @@ struct CaptionAndDetailsView: View {
 
                         Text("creator.newMoment")
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
 
                         Spacer()
 
@@ -178,23 +178,23 @@ struct CaptionAndDetailsView: View {
                                         .frame(width: 100, height: 150)
                                         .contentShape(Rectangle())
                                         .scaleEffect(isPreviewingMedia ? 0.95 : 1.0)
-                                        .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
+                                        .onLongPressGesture(minimumDuration: 0.2, perform: {
+                                            // Action on complete
+                                        }, onPressingChanged: { isPressing in
                                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                                 isPreviewingMedia = isPressing
                                             }
-                                        }) {
-                                            // Action on complete
-                                        }
+                                        })
 
                                     // Helper hint
                                     if !isPreviewingMedia {
                                         Text("creator.media_preview.hint")
                                             .font(.system(size: 8, weight: .bold)) // Un poco más pequeño y bold para legibilidad
-                                            .foregroundColor(.white.opacity(0.7))
+                                            .foregroundStyle(.white.opacity(0.7))
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 3)
                                             .background(.ultraThinMaterial)
-                                            .cornerRadius(6)
+                                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                             .offset(y: 60) // Bajado de 50 a 60 para que tape menos la imagen
                                             .allowsHitTesting(false)
                                     }
@@ -204,13 +204,13 @@ struct CaptionAndDetailsView: View {
                                 ZStack(alignment: .topLeading) {
                                     if captionText.isEmpty {
                                         Text("creator.caption.placeholder")
-                                            .foregroundColor(.white.opacity(0.6))
+                                            .foregroundStyle(.white.opacity(0.6))
                                             .padding(.top, 8)
                                     }
 
                                     TextEditor(text: $captionText)
                                         .scrollContentBackground(.hidden)
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                         .frame(minHeight: 120) // Restored a bit of height
                                         .tint(.white)
                                         .focused($isCaptionFocused)
@@ -282,7 +282,7 @@ struct CaptionAndDetailsView: View {
                             VStack(spacing: 0) {
                                 Text("creator.interactions.title")
                                     .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .foregroundStyle(.white.opacity(0.6))
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.leading, 16)
                                     .padding(.bottom, 8)
@@ -315,7 +315,7 @@ struct CaptionAndDetailsView: View {
                             VStack(spacing: 0) {
                                 Text("creator.scheduling.title")
                                     .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .foregroundStyle(.white.opacity(0.6))
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.leading, 16)
                                     .padding(.bottom, 8)
@@ -331,7 +331,7 @@ struct CaptionAndDetailsView: View {
 
                                     HStack {
                                         Image(systemName: "clock")
-                                            .foregroundColor(.white.opacity(0.7))
+                                            .foregroundStyle(.white.opacity(0.7))
                                             .frame(width: 24)
 
                                         DatePicker(
@@ -340,15 +340,15 @@ struct CaptionAndDetailsView: View {
                                             in: Date()...,
                                             displayedComponents: [.date, .hourAndMinute]
                                         )
-                                        .colorScheme(.dark)
-                                        .accentColor(.pink)
+                                        .preferredColorScheme(.dark)
+                                        .tint(.pink)
                                         .labelsHidden()
 
                                         Spacer()
 
                                         Text(MomentsFormat.smartDate(from: scheduledDate, context: .mediumDateTime))
                                             .font(.subheadline)
-                                            .foregroundColor(.white.opacity(0.7))
+                                            .foregroundStyle(.white.opacity(0.7))
                                     }
                                     .padding(.vertical, 12)
                                     .padding(.horizontal, 16)
@@ -371,7 +371,7 @@ struct CaptionAndDetailsView: View {
 
                             Text("creator.publishing")
                                 .font(.headline)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                         }
                     }
 
@@ -383,7 +383,7 @@ struct CaptionAndDetailsView: View {
                             VStack(spacing: 24) {
                                 Text(NSLocalizedString("creator.uploading.success_fly", comment: "Successfully shared"))
                                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             }
                         }
                         .transition(.opacity)
@@ -401,7 +401,7 @@ struct CaptionAndDetailsView: View {
                                 Image(uiImage: item.image)
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
-                                    .cornerRadius(20)
+                                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                                     .padding()
                                     .shadow(radius: 20)
                             }
@@ -429,7 +429,7 @@ struct CaptionAndDetailsView: View {
                     .zIndex(200)
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
         }
         .sheet(isPresented: $showingUserSearch) {
             UserSearchView(selectedUsers: $taggedUsers)
@@ -773,14 +773,14 @@ struct CaptionAndDetailsView: View {
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 20))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
                 .frame(width: 32)
 
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 Spacer()
 
@@ -815,7 +815,7 @@ struct CaptionAndDetailsView: View {
                         } else {
                             Image(systemName: icon)
                                 .font(.system(size: 20))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                         }
                     }
                 }
@@ -823,19 +823,19 @@ struct CaptionAndDetailsView: View {
 
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 Spacer()
 
                 if let value = value {
                     Text(value)
                         .font(.system(size: 15))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white.opacity(0.3))
+                    .foregroundStyle(.white.opacity(0.3))
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 16)

@@ -70,11 +70,11 @@ struct NovaMemoryManagementView: View {
             VStack(spacing: 4) {
                 Text(NSLocalizedString("nova.memory.title", comment: "Nova's Memory"))
                     .font(.system(size: legacyPoppinsSize(22), weight: .bold))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
 
                 Text(NSLocalizedString("nova.memory.description", comment: "Manage what Nova knows about you"))
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(NovaColors.textSecondary)
+                    .foregroundStyle(NovaColors.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 64)
@@ -83,7 +83,7 @@ struct NovaMemoryManagementView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(NovaColors.textPrimary)
+                        .foregroundStyle(NovaColors.textPrimary)
                         .frame(width: 38, height: 38)
                         .background {
                             Color.clear
@@ -106,7 +106,7 @@ struct NovaMemoryManagementView: View {
 
             Text(NSLocalizedString("settings.loading", comment: "Loading..."))
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundColor(NovaColors.textSecondary)
+                .foregroundStyle(NovaColors.textSecondary)
         }
     }
 
@@ -114,7 +114,7 @@ struct NovaMemoryManagementView: View {
         VStack(spacing: 18) {
             Image(systemName: "brain.head.profile")
                 .font(.system(size: 34, weight: .medium))
-                .foregroundColor(NovaColors.textPrimary)
+                .foregroundStyle(NovaColors.textPrimary)
                 .frame(width: 72, height: 72)
                 .background {
                     Color.clear
@@ -124,12 +124,12 @@ struct NovaMemoryManagementView: View {
             VStack(spacing: 8) {
                 Text(NSLocalizedString("nova.memory.empty", comment: "Nova doesn't remember anything yet"))
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString("nova.memory.empty.subtitle", comment: "Talk to Nova to start building memory"))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(NovaColors.textSecondary)
+                    .foregroundStyle(NovaColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 34)
             }
@@ -177,7 +177,7 @@ struct NovaMemoryManagementView: View {
                 Text(NSLocalizedString("nova.memory.clearAll", comment: "Clear all memory"))
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
             }
-            .foregroundColor(.red)
+            .foregroundStyle(.red)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 13)
             .background {
@@ -216,7 +216,7 @@ private struct MemoryCategorySection: View {
             HStack(spacing: 9) {
                 Image(systemName: iconName)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
                     .frame(width: 28, height: 28)
                     .background {
                         Color.clear
@@ -226,11 +226,11 @@ private struct MemoryCategorySection: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                        .foregroundColor(NovaColors.textPrimary)
+                        .foregroundStyle(NovaColors.textPrimary)
 
                     Text("\(facts.count) \(facts.count == 1 ? localizedSingularItem : localizedPluralItem)")
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(NovaColors.textSecondary)
+                        .foregroundStyle(NovaColors.textSecondary)
                 }
 
                 Spacer()
@@ -286,7 +286,7 @@ private struct MemoryFactRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(fact.content)
                     .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -294,12 +294,12 @@ private struct MemoryFactRow: View {
                     if fact.importance >= 5 {
                         Image(systemName: "star.fill")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(.yellow)
+                            .foregroundStyle(.yellow)
                     }
 
                     Text(fact.timestamp.timeAgoDisplay())
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(NovaColors.textTertiary)
+                        .foregroundStyle(NovaColors.textTertiary)
                 }
             }
 
@@ -326,7 +326,7 @@ private struct MemoryFactRow: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(NovaColors.textPrimary)
+                    .foregroundStyle(NovaColors.textPrimary)
                     .frame(width: 34, height: 34)
                     .background {
                         Color.clear

@@ -86,7 +86,7 @@ struct ConversationSettingsView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
                 }
@@ -243,13 +243,13 @@ struct ConversationSettingsView: View {
                     .overlay(
                         Image(systemName: "person.fill")
                             .font(.system(size: 34))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
                     )
             }
 
             Text(otherParticipantDisplayName)
                 .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
 
             if let presence = onlineStatusService.presenceDisplay(
                 for: otherUserStatus,
@@ -262,12 +262,12 @@ struct ConversationSettingsView: View {
 
                     Text(presence.statusText)
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
 
                     if let lastSeenText = presence.supplementalText {
                         Text("• \(lastSeenText)")
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(adaptiveColors.tertiary)
+                            .foregroundStyle(adaptiveColors.tertiary)
                     }
                 }
             }
@@ -312,7 +312,7 @@ struct ConversationSettingsView: View {
                 Text(NSLocalizedString(labelKey, comment: ""))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
             }
-            .foregroundColor(adaptiveColors.primary)
+            .foregroundStyle(adaptiveColors.primary)
             .frame(width: 70)
         }
         .buttonStyle(.plain)
@@ -361,22 +361,22 @@ struct ConversationSettingsView: View {
                 HStack(spacing: 14) {
                     Image(systemName: "star")
                         .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
                         .frame(width: 24)
 
                     Text(NSLocalizedString("conversationSettings.starredMessages", comment: ""))
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
 
                     Spacer()
 
                     Text(starredMessagesCountLabel)
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundStyle(adaptiveColors.tertiary)
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundStyle(adaptiveColors.tertiary)
                 }
                 .padding(.vertical, 14)
                 .contentShape(Rectangle())
@@ -393,22 +393,22 @@ struct ConversationSettingsView: View {
                 HStack(spacing: 14) {
                     Image(systemName: "timer")
                         .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
                         .frame(width: 24)
 
                     Text(NSLocalizedString("conversationSettings.vanish.title", value: "Mensajes temporales", comment: ""))
                         .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
 
                     Spacer()
 
                     Text(vanishModeDetailLabel)
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundStyle(adaptiveColors.tertiary)
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundStyle(adaptiveColors.tertiary)
                 }
                 .padding(.vertical, 14)
                 .contentShape(Rectangle())
@@ -425,23 +425,23 @@ struct ConversationSettingsView: View {
                 HStack(spacing: 14) {
                     Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
                         .frame(width: 24)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("conversationSettings.preferences", comment: "Chat preferences"))
                             .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
                         Text(NSLocalizedString("conversationSettings.preferences.desc", comment: "Notifications, previews, privacy"))
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(adaptiveColors.tertiary)
+                            .foregroundStyle(adaptiveColors.tertiary)
                     }
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundStyle(adaptiveColors.tertiary)
                 }
                 .padding(.vertical, 14)
                 .contentShape(Rectangle())
@@ -458,28 +458,28 @@ struct ConversationSettingsView: View {
                 HStack(spacing: 14) {
                     Image(systemName: "folder")
                         .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
                         .frame(width: 24)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("conversationSettings.storage.mediaUsage", comment: "Media in this chat"))
                             .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
                         Text(NSLocalizedString("conversationSettings.storage.mediaUsage.desc", comment: "Cached photos and videos on this device"))
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(adaptiveColors.tertiary)
+                            .foregroundStyle(adaptiveColors.tertiary)
                     }
 
                     Spacer()
 
                     Text(formatBytes(conversationMediaBytes))
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
                         .monospacedDigit()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundStyle(adaptiveColors.tertiary)
                 }
                 .padding(.vertical, 14)
                 .contentShape(Rectangle())
@@ -496,12 +496,12 @@ struct ConversationSettingsView: View {
                     HStack(spacing: 14) {
                         Image(systemName: "trash")
                             .font(.system(size: 16, weight: .regular))
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                             .frame(width: 24)
 
                         Text(NSLocalizedString("conversationSettings.storage.clearMedia", comment: "Clear cached media"))
                             .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
 
                         Spacer()
                     }
@@ -535,7 +535,7 @@ struct ConversationSettingsView: View {
             
             Text("\(NSLocalizedString("conversationSettings.created", comment: "")): \(viewModel.conversationCreatedDate)  •  \(NSLocalizedString("conversationSettings.messages", comment: "")): \(viewModel.totalMessages) (\(sentCount) \(sentText), \(receivedCount) \(receivedText))")
                 .font(.system(size: legacyPoppinsSize(12)))
-                .foregroundColor(adaptiveColors.tertiary)
+                .foregroundStyle(adaptiveColors.tertiary)
                 .multilineTextAlignment(.center)
         }
         .padding(.vertical, 16)
@@ -616,10 +616,10 @@ struct ConversationSettingsView: View {
         VStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 30, weight: .light))
-                .foregroundColor(adaptiveColors.tertiary.opacity(0.6))
+                .foregroundStyle(adaptiveColors.tertiary.opacity(0.6))
             Text(NSLocalizedString(textKey, comment: ""))
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(adaptiveColors.tertiary)
+                .foregroundStyle(adaptiveColors.tertiary)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 16)
@@ -648,7 +648,7 @@ struct ConversationSettingsView: View {
     private func sectionHeader(_ key: LocalizedStringKey) -> some View {
         Text(key)
             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-            .foregroundColor(adaptiveColors.primary)
+            .foregroundStyle(adaptiveColors.primary)
     }
 
     private var dividerLine: some View {
@@ -683,22 +683,22 @@ struct ConversationSettingsNavigationRow: View {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
                     .frame(width: 22)
 
                 Text(titleKey)
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
 
                 Spacer()
 
                 Text(detail)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(adaptiveColors.tertiary)
+                    .foregroundStyle(adaptiveColors.tertiary)
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(adaptiveColors.tertiary)
+                    .foregroundStyle(adaptiveColors.tertiary)
             }
             .padding(.vertical, 10)
             .contentShape(Rectangle())
@@ -721,17 +721,17 @@ struct ChatInfoRow: View {
         HStack {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(adaptiveColors.secondary)
+                .foregroundStyle(adaptiveColors.secondary)
 
             Text(title)
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(adaptiveColors.secondary)
+                .foregroundStyle(adaptiveColors.secondary)
 
             Spacer()
 
             Text(value)
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
         }
     }
 }
@@ -1679,7 +1679,7 @@ struct ConversationStarredMessagesView: View {
                 }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
                         .frame(width: 38, height: 38)
                         .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                 }
@@ -1688,7 +1688,7 @@ struct ConversationStarredMessagesView: View {
 
                 Text(NSLocalizedString("conversationSettings.starredMessages", comment: ""))
                     .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
 
                 Spacer()
 
@@ -1703,10 +1703,10 @@ struct ConversationStarredMessagesView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "star.slash")
                         .font(.system(size: 36))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundStyle(adaptiveColors.tertiary)
                     Text(NSLocalizedString("conversationSettings.starredMessages.empty", comment: ""))
                         .font(.system(size: legacyPoppinsSize(15)))
-                        .foregroundColor(adaptiveColors.tertiary)
+                        .foregroundStyle(adaptiveColors.tertiary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                 }
@@ -1774,16 +1774,16 @@ private struct StarredMessageRow: View {
                     HStack {
                         Text(senderLabel)
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
                         Spacer()
                         Text(relativeDate)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(adaptiveColors.tertiary)
+                            .foregroundStyle(adaptiveColors.tertiary)
                     }
 
                     Text(previewText)
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                 }
@@ -1861,7 +1861,7 @@ private enum StarredMessagePreview {
             .overlay(
                 Image(systemName: systemName)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(color)
+                    .foregroundStyle(color)
             )
     }
 }
@@ -2041,12 +2041,10 @@ struct FullScreenMediaView: View {
         .offset(y: dragOffset)
         .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.84), value: dragOffset)
         .simultaneousGesture(dismissDragGesture)
-        .alert(isPresented: $showSaveResult) {
-            Alert(
-                title: Text("conversationSettings.mediaSave.title"),
-                message: Text(saveResultMessage),
-                dismissButton: .default(Text("common.ok"))
-            )
+        .alert("conversationSettings.mediaSave.title", isPresented: $showSaveResult) {
+            Button("common.ok") { }
+        } message: {
+            Text(saveResultMessage)
         }
         .onChange(of: selectedIndex) { _, _ in
             videoCurrentTime = 0
@@ -2149,7 +2147,7 @@ struct FullScreenMediaView: View {
                     .contentShape(Rectangle())
                 } else {
                     Text("conversationSettings.videoLoadError")
-                        .foregroundColor(primaryOverlayColor)
+                        .foregroundStyle(primaryOverlayColor)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -2191,7 +2189,7 @@ struct FullScreenMediaView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(authorName)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(primaryOverlayColor)
+                    .foregroundStyle(primaryOverlayColor)
                     .lineLimit(1)
 
                 if isEphemeralMedia, let expirationDate = ephemeralExpirationDate, ephemeralRemaining > 0 {
@@ -2206,12 +2204,12 @@ struct FullScreenMediaView: View {
                         )
                         .font(.system(size: 11, weight: .medium))
                     }
-                    .foregroundColor(ephemeralAccentColor)
+                    .foregroundStyle(ephemeralAccentColor)
                     .lineLimit(1)
                 } else {
                     Text(relativeTime)
                         .font(.system(size: 11, weight: .regular))
-                        .foregroundColor(secondaryOverlayColor)
+                        .foregroundStyle(secondaryOverlayColor)
                         .lineLimit(1)
                 }
             }
@@ -2235,7 +2233,7 @@ struct FullScreenMediaView: View {
         HStack(spacing: 10) {
             TextField(NSLocalizedString("conversationSettings.replyPlaceholder", comment: "Reply placeholder"), text: $replyText)
                 .font(.system(size: legacyPoppinsSize(15)))
-                .foregroundColor(primaryOverlayColor)
+                .foregroundStyle(primaryOverlayColor)
                 .focused($isReplyFocused)
                 .submitLabel(.send)
                 .onSubmit {
@@ -2254,7 +2252,7 @@ struct FullScreenMediaView: View {
                 } else {
                     Image(systemName: "paperplane.fill")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(canSendReply ? primaryOverlayColor : primaryOverlayColor.opacity(0.32))
+                        .foregroundStyle(canSendReply ? primaryOverlayColor : primaryOverlayColor.opacity(0.32))
                         .frame(width: 28, height: 28)
                 }
             }
@@ -2289,7 +2287,7 @@ struct FullScreenMediaView: View {
             } label: {
                 Image(systemName: isVideoPaused ? "play.fill" : "pause.fill")
                     .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(primaryOverlayColor)
+                    .foregroundStyle(primaryOverlayColor)
                     .frame(width: 64, height: 64)
                     .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                     .padding(60)
@@ -2308,7 +2306,7 @@ struct FullScreenMediaView: View {
                         } label: {
                             Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(primaryOverlayColor)
+                                .foregroundStyle(primaryOverlayColor)
                                 .frame(width: 40, height: 40)
                                 .contentShape(Rectangle())
                         }
@@ -2328,7 +2326,7 @@ struct FullScreenMediaView: View {
                         } label: {
                             Image(systemName: "arrow.up.left.and.arrow.down.right")
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(primaryOverlayColor)
+                                .foregroundStyle(primaryOverlayColor)
                                 .frame(width: 40, height: 40)
                                 .contentShape(Rectangle())
                         }
@@ -2390,7 +2388,7 @@ struct FullScreenMediaView: View {
                 .overlay(
                     Image(systemName: "person.fill")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.62))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.62))
                 )
         }
     }
@@ -2622,7 +2620,7 @@ struct ConversationChatPreferencesView: View {
             ToolbarItem(placement: .principal) {
                 Text(NSLocalizedString("conversationSettings.preferences", comment: "Chat preferences"))
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
             }
         }
         .confirmationDialog(
@@ -2644,12 +2642,12 @@ struct ConversationChatPreferencesView: View {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.system(size: 17, weight: .medium))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                     .frame(width: 28)
 
                 Text(NSLocalizedString(title, comment: ""))
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
 
                 Spacer()
             }
@@ -2662,7 +2660,7 @@ struct ConversationChatPreferencesView: View {
     private func sectionHeader(_ key: LocalizedStringKey) -> some View {
         Text(key)
             .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-            .foregroundColor(adaptiveColors.secondary)
+            .foregroundStyle(adaptiveColors.secondary)
     }
 
     private var dividerLine: some View {
@@ -2681,10 +2679,10 @@ struct ConversationChatPreferencesView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(NSLocalizedString(title, comment: ""))
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
                 Text(NSLocalizedString(desc, comment: ""))
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(adaptiveColors.tertiary)
+                    .foregroundStyle(adaptiveColors.tertiary)
             }
         }
         .tint(SettingsProfileColors.toggleTint)
@@ -2749,7 +2747,7 @@ struct ConversationVanishModeView: View {
                 
                 Text(descriptionText)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(adaptiveColors.tertiary)
+                    .foregroundStyle(adaptiveColors.tertiary)
                     .lineSpacing(4)
                     .padding(.horizontal, 16)
             }
@@ -2778,7 +2776,7 @@ struct ConversationVanishModeView: View {
             HStack {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(16), weight: isSelected ? .semibold : .medium))
-                    .foregroundColor(isSelected ? adaptiveColors.primary : adaptiveColors.secondary)
+                    .foregroundStyle(isSelected ? adaptiveColors.primary : adaptiveColors.secondary)
                 
                 Spacer()
                 

@@ -130,7 +130,7 @@ struct UserProfilePillTabs: View {
                                 Text(tab.localizedTitle)
                                     .font(.system(size: legacyPoppinsSize(12), weight: labelWeight(for: index, width: proxy.size.width)))
                             }
-                            .foregroundColor(labelColor(for: index, width: proxy.size.width))
+                            .foregroundStyle(labelColor(for: index, width: proxy.size.width))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .contentShape(Rectangle())
                         }
@@ -383,7 +383,7 @@ struct UserProfileView: View {
         }
         .environmentObject(heroCoordinator)
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .navigationDestination(item: $socialConnectionsRoute) { route in
             SocialConnectionsScreen(

@@ -27,7 +27,7 @@ struct SocialVideoPausedControls: View {
             Button(action: onToggleMute) {
                 Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
                     .background(Color.black.opacity(0.35))
                     .clipShape(Circle())
@@ -42,7 +42,7 @@ struct SocialVideoPausedControls: View {
             Button(action: onTogglePlay) {
                 Image(systemName: "play.fill")
                     .font(.system(size: 28, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
                     .background(Color.black.opacity(0.35))
                     .clipShape(Circle())

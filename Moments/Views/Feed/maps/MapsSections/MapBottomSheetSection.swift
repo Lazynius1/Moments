@@ -80,7 +80,7 @@ struct LocationBottomSheet: View {
 
                     Text(locationName)
                         .font(.system(size: legacyPoppinsSize(18), weight: .bold))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
                         .lineLimit(1)
 
                     Spacer()
@@ -93,7 +93,7 @@ struct LocationBottomSheet: View {
                 HStack(spacing: 10) {
                     Text(statsText)
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
                         .lineLimit(1)
 
                     Spacer()
@@ -133,7 +133,7 @@ struct LocationBottomSheet: View {
                 }) {
                     Image(systemName: mode.icon)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(viewMode == mode ? .white : adaptiveColors.tertiary)
+                        .foregroundStyle(viewMode == mode ? .white : adaptiveColors.tertiary)
                         .frame(width: 36, height: 36)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
@@ -191,7 +191,7 @@ struct LocationBottomSheet: View {
             if uniqueContributors.count > 3 {
                 Text("+\(uniqueContributors.count - 3)")
                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
                     .frame(width: 30, height: 30)
                     .background(
                         Circle()
@@ -299,11 +299,11 @@ struct LocationBottomSheet: View {
             VStack(spacing: 8) {
                 Text(NSLocalizedString("maps.bottomSheet.loading.moments", comment: "Loading moments message"))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
 
                 Text(NSLocalizedString("maps.bottomSheet.loading.filtering", comment: "Filtering by privacy message"))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
             }
         }
         .frame(height: 250)
@@ -343,11 +343,11 @@ struct LocationBottomSheet: View {
             VStack(spacing: 12) {
                 Text(NSLocalizedString("maps.bottomSheet.empty.title", comment: "No moments in this location"))
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
 
                 Text(NSLocalizedString("maps.bottomSheet.empty.subtitle", comment: "Be the first to share a moment here"))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
@@ -419,7 +419,7 @@ struct MapBottomSheetGridCell: View {
                             Spacer()
                             Image(systemName: "square.on.square")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .shadow(color: .black.opacity(0.45), radius: 2, x: 0, y: 1)
                                 .padding(6)
                         }
@@ -477,7 +477,7 @@ struct MapsVideoThumbnailView: View {
             // ✅ ICONO DE PLAY
             Image(systemName: "play.circle.fill")
                 .font(.system(size: size.width * 0.3))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 2)
 
             // ✅ DURACIÓN DEL VIDEO (si está disponible)
@@ -488,7 +488,7 @@ struct MapsVideoThumbnailView: View {
                         Spacer()
                         Text(formatVideoDuration(duration))
                             .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(
@@ -552,12 +552,12 @@ struct ModernLocationMomentRow: View {
                         VStack(alignment: .leading, spacing: 0) {
                             LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username, prefix: "@")
                                 .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .shadow(radius: 2)
 
                             Text(formatTimeAgo(moment.timestamp))
                                 .font(.system(size: legacyPoppinsSize(10)))
-                                .foregroundColor(.white.opacity(0.8))
+                                .foregroundStyle(.white.opacity(0.8))
                                 .shadow(radius: 1)
                         }
 
@@ -572,7 +572,7 @@ struct ModernLocationMomentRow: View {
                 if !moment.content.isEmpty {
                     Text(moment.content)
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(adaptiveColors.primary.opacity(0.9))
+                        .foregroundStyle(adaptiveColors.primary.opacity(0.9))
                         .lineLimit(2)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
@@ -609,7 +609,7 @@ struct ModernLocationMomentRow: View {
         if moment.mapHasVideoMedia {
             MapsVideoThumbnailView(
                 moment: moment,
-                size: CGSize(width: UIScreen.main.bounds.width - 40, height: 180),
+                size: CGSize(width: UIApplication.shared.activeWindowSize.width - 40, height: 180),
                 cornerRadius: 18,
                 colorScheme: colorScheme
             )
@@ -644,11 +644,11 @@ struct MomentUnavailableOverlay: View {
             VStack(spacing: compact ? 6 : 10) {
                 Image(systemName: "eye.slash.fill")
                     .font(.system(size: compact ? 18 : 24, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundStyle(.white.opacity(0.9))
 
                 Text(NSLocalizedString("echo.viewer.unavailable", comment: ""))
                     .font(.system(size: compact ? 10 : 13, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(compact ? 2 : nil)
                     .padding(.horizontal, compact ? 8 : 18)

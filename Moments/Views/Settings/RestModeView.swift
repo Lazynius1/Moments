@@ -23,11 +23,11 @@ struct RestModeView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(NSLocalizedString("userActivity.timeSpent.restMode.descTitle", value: "Momento de pausa", comment: "Rest mode desc title"))
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             
                         Text(NSLocalizedString("userActivity.timeSpent.restMode.descBody", value: "Silencia las notificaciones push de Moments durante las horas que elijas para evitar distracciones.", comment: "Rest mode desc body"))
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .lineSpacing(4)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -43,7 +43,7 @@ struct RestModeView: View {
                             Toggle(isOn: $isRestModeEnabled.animation(MotionPolicy.Spring.toggle)) {
                                 Text(NSLocalizedString("settings.notifications.schedule.enable", comment: "Enable rest mode"))
                                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                             }
                             .tint(SettingsProfileColors.toggleTint)
                             .padding(.vertical, 14)
@@ -103,7 +103,7 @@ struct RestModeView: View {
                                 Text(NSLocalizedString("settings.schedule.save", comment: "Save"))
                                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             }
-                            .foregroundColor(SettingsProfileColors.accentContrastingText(colorScheme))
+                            .foregroundStyle(SettingsProfileColors.accentContrastingText(colorScheme))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .background(

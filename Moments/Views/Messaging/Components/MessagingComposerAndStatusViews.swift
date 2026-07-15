@@ -13,7 +13,7 @@ struct MessageComposerView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 LinearGradient(
                     gradient: Gradient(colors: [Color(hex: "007AFF").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
@@ -32,11 +32,11 @@ struct MessageComposerView: View {
                             Text(user.username)
                                 .font(.title2)
                                 .fontWeight(.semibold)
-                                .foregroundColor(adaptiveColors.primary)
+                                .foregroundStyle(adaptiveColors.primary)
 
                             Text("messaging.writeMessageToStart")
                                 .font(.body)
-                                .foregroundColor(adaptiveColors.secondary)
+                                .foregroundStyle(adaptiveColors.secondary)
                                 .multilineTextAlignment(.center)
                         }
                         .padding(.top, 20)
@@ -47,7 +47,7 @@ struct MessageComposerView: View {
                     VStack(spacing: 16) {
                         TextField(NSLocalizedString("messaging.compose.placeholder", comment: "Message composer placeholder"), text: $messageText, axis: .vertical)
                             .font(.body)
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
                             .padding(16)
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
@@ -67,7 +67,7 @@ struct MessageComposerView: View {
                                 Text("messaging.sendMessage")
                             }
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(
@@ -108,21 +108,21 @@ struct OnlineStatusSelectorView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 24) {
                 VStack(spacing: 8) {
                     Text(NSLocalizedString("messaging.status.current", comment: "Current status"))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
 
                     HStack(spacing: 10) {
                         Image(systemName: "circle.fill")
                             .font(.system(size: 12))
-                            .foregroundColor(currentStatus.color)
+                            .foregroundStyle(currentStatus.color)
 
                         Text(currentStatus.displayName)
                             .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                            .foregroundColor(adaptiveColors.primary)
+                            .foregroundStyle(adaptiveColors.primary)
                     }
                 }
                 .padding(.top, 20)
@@ -136,19 +136,19 @@ struct OnlineStatusSelectorView: View {
                             HStack(spacing: 16) {
                                 Image(systemName: status.icon)
                                     .font(.system(size: 20))
-                                    .foregroundColor(status.color)
+                                    .foregroundStyle(status.color)
                                     .frame(width: 24)
 
                                 Text(status.displayName)
                                     .font(.system(size: legacyPoppinsSize(16)))
-                                    .foregroundColor(adaptiveColors.primary)
+                                    .foregroundStyle(adaptiveColors.primary)
 
                                 Spacer()
 
                                 if status == currentStatus {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 20))
-                                        .foregroundColor(adaptiveColors.accent)
+                                        .foregroundStyle(adaptiveColors.accent)
                                 }
                             }
                             .padding(.horizontal, 20)
@@ -177,7 +177,7 @@ struct OnlineStatusSelectorView: View {
 
                 Spacer(minLength: 20)
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)

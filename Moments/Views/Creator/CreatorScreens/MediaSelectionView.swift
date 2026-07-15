@@ -84,7 +84,7 @@ struct MediaSelectionView: View {
             }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(width: 40, height: 40)
                     .momentsChromeGlass(in: Circle(), interactive: true)
             }
@@ -93,7 +93,7 @@ struct MediaSelectionView: View {
 
             Text(NSLocalizedString("creator.newMoment", comment: ""))
                 .font(.system(size: 17, weight: .bold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
             Spacer()
 
@@ -132,7 +132,8 @@ struct MediaSelectionView: View {
                         Image(uiImage: thumbnail)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(width: UIScreen.main.bounds.width, height: 320)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 320)
                             .blur(radius: 30)
                             .opacity(0.6)
                             .overlay(Color.black.opacity(0.2))
@@ -143,7 +144,7 @@ struct MediaSelectionView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(height: 300)
-                            .cornerRadius(12)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                             .padding(.vertical, 10)
                     } else {
@@ -163,7 +164,7 @@ struct MediaSelectionView: View {
                                     Text(formatDuration(currentAsset.duration))
                                         .font(.caption.bold())
                                 }
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(.black.opacity(0.5))
@@ -179,7 +180,7 @@ struct MediaSelectionView: View {
                             Button(action: { toggleAssetSelection(currentAsset) }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.title3)
-                                    .foregroundColor(.white.opacity(0.8))
+                                    .foregroundStyle(.white.opacity(0.8))
                                     .padding(12)
                             }
                             Spacer()
@@ -246,11 +247,11 @@ struct MediaSelectionView: View {
                     HStack(spacing: 6) {
                         Text(selectedAlbum?.title ?? NSLocalizedString("creator.album.recents", comment: "Recents"))
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                         Image(systemName: "chevron.down")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5))
                             .rotationEffect(.degrees(showingAlbumPicker ? 180 : 0))
                     }
                     .padding(.horizontal, 14)
@@ -269,7 +270,7 @@ struct MediaSelectionView: View {
                         Text(NSLocalizedString("creator.camera", comment: ""))
                             .font(.system(size: 14, weight: .bold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .background(
@@ -328,7 +329,7 @@ struct MediaSelectionView: View {
 
                             Text("creator.gallery.loading")
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(50)
@@ -859,7 +860,7 @@ struct MediaSelectionView: View {
 
             Text("creator.gallery.permission")
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -867,11 +868,11 @@ struct MediaSelectionView: View {
             VStack(spacing: 12) {
                 Text("creator.permissions.instructions.title")
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 Text("creator.permissions.instructions.path")
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
+                    .foregroundStyle(colorScheme == .dark ? .gray : .gray.opacity(0.7))
                     .multilineTextAlignment(.center)
 
                 Button("creator.permissions.openSettings") {
@@ -880,7 +881,7 @@ struct MediaSelectionView: View {
                     }
                 }
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
                 .background(

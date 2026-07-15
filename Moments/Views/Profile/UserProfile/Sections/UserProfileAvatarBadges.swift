@@ -63,7 +63,7 @@ struct UserModernAvatarWithBadges: View {
 
                     Image(systemName: "crown.fill")
                         .font(.system(size: size * 0.13, weight: .bold))
-                        .foregroundColor(Color(hex: "FFD700"))
+                        .foregroundStyle(Color(hex: "FFD700"))
                 }
                 .offset(x: -size * 0.375, y: -size * 0.375)
                 .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
@@ -116,11 +116,11 @@ struct UserPlusBadgeInline: View {
         HStack(spacing: 4) {
             Image(systemName: "crown.fill")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
 
             Text("userProfile.plus")
                 .font(.system(size: legacyPoppinsSize(9), weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -147,7 +147,7 @@ struct UserSupportBadgeInline: View {
 
             Text(badge.name.uppercased())
                 .font(.system(size: legacyPoppinsSize(8), weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -176,7 +176,7 @@ struct UserSupporterLevelIndicator: View {
             ForEach(0..<levelStars, id: \.self) { _ in
                 Image(systemName: "star.fill")
                     .font(.system(size: 8))
-                    .foregroundColor(Color(hex: "FFD700"))
+                    .foregroundStyle(Color(hex: "FFD700"))
             }
         }
         .padding(.horizontal, 6)
@@ -225,7 +225,7 @@ struct UserModernRefreshIndicator: View {
 
             Text("userProfile.updating")
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundColor(UserProfileColors.textSecondary)
+                .foregroundStyle(UserProfileColors.textSecondary)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

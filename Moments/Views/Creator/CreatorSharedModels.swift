@@ -232,7 +232,7 @@ struct GlowSharePill: View {
                     }
                 }
             }
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(.horizontal, isSmall ? 14 : 20)
             .padding(.vertical, isSmall ? 8 : 10)
             .background(

@@ -19,15 +19,15 @@ struct DataExportView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "doc.zipper")
                             .font(.system(size: 50))
-                            .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                            .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                         
                         Text(NSLocalizedString("dataExport.title", comment: "Data export title"))
                             .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         
                         Text(NSLocalizedString("dataExport.subtitle", comment: "Data export subtitle"))
                             .font(.system(size: legacyPoppinsSize(16)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 20)
@@ -36,11 +36,11 @@ struct DataExportView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Image(systemName: "info.circle.fill")
-                                .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                                .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                             
                             Text(NSLocalizedString("dataExport.whatIncludes.title", comment: "What includes download title"))
                                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                         }
                         
                         VStack(spacing: 12) {
@@ -64,7 +64,7 @@ struct DataExportView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Text(NSLocalizedString("dataExport.options.title", comment: "Export options title"))
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         
                         VStack(spacing: 12) {
                             ExportOptionCard(
@@ -110,7 +110,7 @@ struct DataExportView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Text(NSLocalizedString("dataExport.format.title", comment: "Data format title"))
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         
                         HStack(spacing: 12) {
                             FormatButton(
@@ -139,11 +139,11 @@ struct DataExportView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(NSLocalizedString("dataExport.pin.title", comment: "Recovery PIN prompt title"))
                             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                         Text(NSLocalizedString("dataExport.pin.description", comment: "Recovery PIN prompt description"))
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
 
                         SecureField(
                             NSLocalizedString("dataExport.pin.placeholder", comment: "Recovery PIN placeholder"),
@@ -172,29 +172,29 @@ struct DataExportView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "shield.checkerboard")
-                                .foregroundColor(.orange)
+                                .foregroundStyle(.orange)
                             
                             Text(NSLocalizedString("dataExport.privacy.title", comment: "Privacy notice title"))
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
                             Text(NSLocalizedString("dataExport.privacy.bullet1", comment: "Privacy bullet 1"))
                                 .font(.system(size: legacyPoppinsSize(14)))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                             
                             Text(NSLocalizedString("dataExport.privacy.bullet2", comment: "Privacy bullet 2"))
                                 .font(.system(size: legacyPoppinsSize(14)))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                             
                             Text(NSLocalizedString("dataExport.privacy.bullet3", comment: "Privacy bullet 3"))
                                 .font(.system(size: legacyPoppinsSize(14)))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                             
                             Text(NSLocalizedString("dataExport.privacy.bullet4", comment: "Privacy bullet 4"))
                                 .font(.system(size: legacyPoppinsSize(14)))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                         }
                     }
                     .padding()
@@ -227,7 +227,7 @@ struct DataExportView: View {
                             Text(viewModel.isProcessing ? NSLocalizedString("dataExport.processing", comment: "Processing text") : NSLocalizedString("dataExport.requestDownload", comment: "Request download text"))
                                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         }
-                        .foregroundColor(
+                        .foregroundStyle(
                             viewModel.canRequestExport
                                 ? SettingsProfileColors.accentContrastingText(colorScheme)
                                 : .white
@@ -245,7 +245,7 @@ struct DataExportView: View {
                     if !viewModel.canRequestExport && viewModel.currentRequest == nil {
                         Text(String(format: NSLocalizedString("dataExport.alreadyRequested", comment: "Already requested message"), "\(viewModel.daysUntilNextRequest)"))
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                     }
@@ -289,18 +289,18 @@ struct DataIncludeRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                 .font(.system(size: 16))
                 .frame(width: 24)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Text(description)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             }
             
             Spacer()
@@ -322,39 +322,39 @@ struct ExportOptionCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: icon)
-                        .foregroundColor(isSelected ? SettingsProfileColors.accent(colorScheme) : .gray)
+                        .foregroundStyle(isSelected ? SettingsProfileColors.accent(colorScheme) : .gray)
                         .font(.system(size: 20))
                     
                     Text(title)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     Spacer()
                     
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                            .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                             .font(.system(size: 20))
                     } else {
                         Image(systemName: "circle")
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .font(.system(size: 20))
                     }
                 }
                 
                 Text(description)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .multilineTextAlignment(.leading)
                 
                 HStack {
                     Text("dataExport.estimatedSize")
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                     
                     Text(estimatedSize)
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                        .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                     
                     Spacer()
                 }
@@ -385,11 +385,11 @@ struct FormatButton: View {
             VStack(spacing: 8) {
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(isSelected ? SettingsProfileColors.accentContrastingText(colorScheme) : (colorScheme == .dark ? .white : .black))
+                    .foregroundStyle(isSelected ? SettingsProfileColors.accentContrastingText(colorScheme) : (colorScheme == .dark ? .white : .black))
 
                 Text(description)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(isSelected ? SettingsProfileColors.accentContrastingText(colorScheme).opacity(0.8) : .gray)
+                    .foregroundStyle(isSelected ? SettingsProfileColors.accentContrastingText(colorScheme).opacity(0.8) : .gray)
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
@@ -415,43 +415,43 @@ struct CurrentRequestSection: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "clock.fill")
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
                 
                                         Text(NSLocalizedString("dataExport.requestInProgress.title", comment: "Request in progress title"))
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
             }
             
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("dataExport.status")
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                     
                     Text(request.status.displayName)
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(request.status.color)
+                        .foregroundStyle(request.status.color)
                 }
                 
                 HStack {
                     Text("dataExport.requestedAt")
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                     
                     Text(MomentsFormat.smartDate(from: request.requestDate, context: .mediumDateTime))
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 
                 if let completionDate = request.estimatedCompletion {
                     HStack {
                         Text("dataExport.estimatedCompletion")
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                         
                         Text(MomentsFormat.smartDate(from: completionDate, context: .mediumDateTime))
                             .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                            .foregroundColor(.blue)
+                            .foregroundStyle(.blue)
                     }
                 }
             }
@@ -461,13 +461,13 @@ struct CurrentRequestSection: View {
                 HStack {
                                             Text(NSLocalizedString("dataExport.progress", comment: "Progress text"))
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                     
                     Spacer()
                     
                     Text("\(Int(request.progress * 100))%")
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                 }
                 
                 GeometryReader { geometry in
@@ -475,12 +475,12 @@ struct CurrentRequestSection: View {
                         Rectangle()
                             .fill(Color.gray.opacity(0.3))
                             .frame(height: 6)
-                            .cornerRadius(3)
+                            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
                         
                         Rectangle()
                             .fill(.blue)
                             .frame(width: geometry.size.width * request.progress, height: 6)
-                            .cornerRadius(3)
+                            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
                             .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: request.progress), value: request.progress)
                     }
                 }
@@ -504,7 +504,7 @@ struct CurrentRequestSection: View {
                                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                 Spacer()
                             }
-                            .foregroundColor(.blue)
+                            .foregroundStyle(.blue)
                         }
                     }
                 }

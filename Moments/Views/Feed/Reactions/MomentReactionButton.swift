@@ -119,10 +119,10 @@ struct EpicReactionButton: View {
                         showPickerWithAnimation()
                     }
                 }
-                .onLongPressGesture(minimumDuration: 0.4, pressing: { pressing in
-                    isPressed = pressing
-                }, perform: {
+                .onLongPressGesture(minimumDuration: 0.4, perform: {
                     showPickerWithAnimation()
+                }, onPressingChanged: { pressing in
+                    isPressed = pressing
                 })
                 
                 // ✨ Contador como Badge Interactivo (SIN BORDE)
@@ -130,7 +130,7 @@ struct EpicReactionButton: View {
                     Button(action: showReactionsList) {
                         Text(MomentsFormat.count(reactionCount, style: .socialMetric))
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(
@@ -457,11 +457,11 @@ struct FloatingReactionItemView: View {
             guard !MotionPolicy.reduceMotion else { return }
             isFloating = true
         }
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
                 isPressed = pressing
             }
-        }, perform: {})
+        })
     }
 }
 
@@ -630,14 +630,14 @@ struct ReactionsListSheet: View {
         VStack(alignment: .center, spacing: 2) {
             Text(NSLocalizedString("reactions.title", value: "Reacciones", comment: "Title for reactions sheet"))
                 .font(.system(size: legacyPoppinsSize(22), weight: .bold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
             
             Text(String(format: NSLocalizedString(
                 filteredReactionGroups.count == 1 ? "reactions.typeCount.single" : "reactions.typeCount",
                 comment: "Reaction type count"
             ), filteredReactionGroups.count))
                 .font(.system(size: legacyPoppinsSize(13)))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 20)
@@ -655,7 +655,7 @@ struct ReactionsListSheet: View {
             
             Text(NSLocalizedString("reactions.loading", comment: "Loading reactions"))
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(adaptiveColors.secondary)
+                .foregroundStyle(adaptiveColors.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -665,15 +665,15 @@ struct ReactionsListSheet: View {
         VStack(spacing: 16) {
             Image(systemName: "heart.slash")
                 .font(.system(size: 48))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
             
             Text(NSLocalizedString("reactions.empty.title", comment: "No reactions"))
                 .font(.system(size: legacyPoppinsSize(18), weight: .bold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
             
             Text(NSLocalizedString("reactions.empty.subtitle", comment: "Empty reactions subtitle"))
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -701,11 +701,11 @@ struct ReactionsListSheet: View {
             VStack(spacing: 8) {
                 Text(NSLocalizedString("reactions.search.noResults.title", comment: "No search results"))
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Text(NSLocalizedString("reactions.search.noResults.subtitle", comment: "No search results subtitle"))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                     .multilineTextAlignment(.center)
             }
         }
@@ -739,20 +739,20 @@ struct ReactionsListSheet: View {
                     
                     Text(group.type.filledIcon)
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(group.type.color)
+                        .foregroundStyle(group.type.color)
                 }
                 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(group.type.displayName)
                         .font(.system(size: legacyPoppinsSize(14), weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     Text(String(format: NSLocalizedString(
                         group.count == 1 ? "reactions.peopleCount.single" : "reactions.peopleCount",
                         comment: "People reaction count"
                     ), group.count))
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                 }
                 
                 Spacer()
@@ -769,7 +769,7 @@ struct ReactionsListSheet: View {
                         Spacer()
                         Text(String(format: NSLocalizedString("reactions.more", comment: "More reactions"), group.users.count - 10))
                             .font(.system(size: legacyPoppinsSize(11)))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
                             .background(
@@ -808,7 +808,7 @@ struct ReactionsListSheet: View {
                 } placeholder: {
                     Image(systemName: "person.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.6))
                 }
                 .frame(width: 36, height: 36)
                 .clipShape(Circle())
@@ -819,7 +819,7 @@ struct ReactionsListSheet: View {
                 HStack(spacing: 4) {
                     Text(userProfiles[userId]?.username ?? NSLocalizedString("messaging.user.default", comment: "Default user"))
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     if userProfiles[userId]?.isVerified == true {
                         VerifiedBadge(size: 12)
@@ -828,7 +828,7 @@ struct ReactionsListSheet: View {
                 
                 Text(String(format: NSLocalizedString("reactions.userReacted", comment: "User reacted with"), reactionType.displayName))
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
             }
             
             Spacer()
@@ -839,7 +839,7 @@ struct ReactionsListSheet: View {
             // Icono pequeño de la reacción
             Text(reactionType.filledIcon)
                 .font(.system(size: 16))
-                .foregroundColor(reactionType.color)
+                .foregroundStyle(reactionType.color)
         }
         .padding(12)
         .background(
@@ -923,7 +923,7 @@ struct ReactionsListSheet: View {
                         Text(followTitle(for: state))
                             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     }
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 12), interactive: state.isActionable)
@@ -1061,12 +1061,12 @@ struct ReactionsListSheet: View {
     private var searchBarView: some View {
         HStack {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
                 .font(.system(size: 16))
             
             TextField(NSLocalizedString("userListView.search.placeholder", comment: ""), text: $searchText)
                     .font(.system(size: legacyPoppinsSize(16)))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .textFieldStyle(PlainTextFieldStyle())
             
             if !searchText.isEmpty {
@@ -1074,7 +1074,7 @@ struct ReactionsListSheet: View {
                     searchText = ""
                 }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         .font(.system(size: 16))
                 }
             }

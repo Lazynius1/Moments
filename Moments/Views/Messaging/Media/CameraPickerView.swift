@@ -228,7 +228,7 @@ struct EnhancedCameraPickerView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .photosPicker(
             isPresented: $showPhotoPicker,
             selection: $selectedItems,
@@ -255,7 +255,7 @@ struct EnhancedCameraPickerView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(chromeForegroundColor)
+                        .foregroundStyle(chromeForegroundColor)
                         .frame(width: 42, height: 42)
                         .background {
                             Color.clear
@@ -289,7 +289,7 @@ struct EnhancedCameraPickerView: View {
                 Text(isEphemeralMode ? NSLocalizedString("camera.mode.ephemeral", comment: "Ephemeral mode") : NSLocalizedString("camera.mode.normal", comment: "Normal mode"))
                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
             }
-            .foregroundColor(isEphemeralMode ? .black : chromeForegroundColor)
+            .foregroundStyle(isEphemeralMode ? .black : chromeForegroundColor)
             .padding(.horizontal, 10)
             .frame(height: 42)
             .background {
@@ -313,7 +313,7 @@ struct EnhancedCameraPickerView: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(overlayForegroundColor)
+                .foregroundStyle(overlayForegroundColor)
                 .frame(width: 42, height: 42)
                 .background {
                     Color.clear
@@ -391,7 +391,7 @@ struct EnhancedCameraPickerView: View {
                     ForEach(CaptureMode.allCases, id: \.self) { mode in
                         Text(mode.title)
                             .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                            .foregroundColor(modeLabelColor(for: mode))
+                            .foregroundStyle(modeLabelColor(for: mode))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
@@ -434,7 +434,7 @@ struct EnhancedCameraPickerView: View {
                             .fill(Color.white.opacity(0.14))
                         Image(systemName: "photo.stack")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
             }
@@ -647,7 +647,7 @@ struct EnhancedCaptureButton: View {
                 if isRecording && captureMode == .video {
                     Text(formatTime(recordingTime))
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(
@@ -811,7 +811,7 @@ private struct CameraMediaPreviewOverlay: View {
                         Button(action: onClose) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(chromeForegroundColor)
+                                .foregroundStyle(chromeForegroundColor)
                                 .frame(width: 42, height: 42)
                                 .background {
                                     Color.clear
@@ -837,7 +837,7 @@ private struct CameraMediaPreviewOverlay: View {
                                 Text(NSLocalizedString("camera.preview.ephemeralBadge", comment: "Ephemeral preview badge"))
                                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                             }
-                            .foregroundColor(Color(hex: "FFCC33"))
+                            .foregroundStyle(Color(hex: "FFCC33"))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background {
@@ -858,7 +858,7 @@ private struct CameraMediaPreviewOverlay: View {
                                     Text(NSLocalizedString("camera.preview.retake", comment: "Retake media"))
                                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 }
-                                .foregroundColor(chromeForegroundColor)
+                                .foregroundStyle(chromeForegroundColor)
                                 .padding(.horizontal, 14)
                                 .frame(minWidth: 112)
                                 .frame(height: 42)
@@ -885,7 +885,7 @@ private struct CameraMediaPreviewOverlay: View {
                                     Text(NSLocalizedString("camera.preview.send", comment: "Send media"))
                                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 }
-                                .foregroundColor(preview.isEphemeral ? .black : chromeForegroundColor)
+                                .foregroundStyle(preview.isEphemeral ? .black : chromeForegroundColor)
                                 .padding(.horizontal, 14)
                                 .frame(minWidth: 112)
                                 .frame(height: 42)

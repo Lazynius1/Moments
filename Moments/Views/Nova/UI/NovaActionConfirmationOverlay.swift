@@ -30,12 +30,12 @@ struct NovaActionConfirmationOverlay: View {
             VStack(spacing: 16) {
                 VStack(spacing: 8) {
                     Text(action.title)
-                        .foregroundColor(primaryTextColor)
+                        .foregroundStyle(primaryTextColor)
                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .multilineTextAlignment(.center)
 
                     Text(NSLocalizedString("nova.confirm.subtitle", comment: ""))
-                        .foregroundColor(secondaryTextColor)
+                        .foregroundStyle(secondaryTextColor)
                         .font(.system(size: legacyPoppinsSize(14)))
                         .multilineTextAlignment(.center)
                 }
@@ -54,7 +54,7 @@ struct NovaActionConfirmationOverlay: View {
                 }
 
                 Text(action.detail)
-                    .foregroundColor(secondaryTextColor)
+                    .foregroundStyle(secondaryTextColor)
                     .font(.system(size: legacyPoppinsSize(14)))
                     .multilineTextAlignment(.center)
 
@@ -62,7 +62,7 @@ struct NovaActionConfirmationOverlay: View {
                     Button(action: onCancel) {
                         Text(NSLocalizedString("common.cancel", comment: "Cancel"))
                             .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
                             .background(Color.white.opacity(0.001))
@@ -75,7 +75,7 @@ struct NovaActionConfirmationOverlay: View {
                     Button(action: onConfirm) {
                         Text(NSLocalizedString("nova.confirm.approve", comment: ""))
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
                             .background(Color.white.opacity(0.001))

@@ -35,8 +35,8 @@ struct FeedOverlaysSection: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(
-                                    width: UIScreen.main.bounds.width - 32,
-                                    height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
+                                    width: UIApplication.shared.activeWindowSize.width - 32,
+                                    height: (UIApplication.shared.activeWindowSize.width - 32) / peekAspectRatio
                                 )
                                 .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)

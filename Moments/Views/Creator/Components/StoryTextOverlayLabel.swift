@@ -3,7 +3,7 @@ import UIKit
 
 struct StoryTextOverlayLabel: UIViewRepresentable {
     let configuration: StoryTextRenderConfiguration
-    var maxWidth: CGFloat = UIScreen.main.bounds.width - 80
+    let maxWidth: CGFloat
 
     func makeUIView(context: Context) -> StoryTextOverlayContainerView {
         StoryTextOverlayContainerView()
@@ -300,8 +300,11 @@ final class StoryTextOverlayContainerView: UIView {
         gradientLayer.isHidden = true
         echoReplicator.isHidden = true
         echoReplicator.addSublayer(echoTextLayer)
-        echoTextLayer.contentsScale = UIScreen.main.scale
+        echoTextLayer.contentsScale = traitCollection.displayScale
         echoTextLayer.isWrapped = true
+        registerForTraitChanges([UITraitDisplayScale.self]) { (view: StoryTextOverlayContainerView, _) in
+            view.echoTextLayer.contentsScale = view.traitCollection.displayScale
+        }
         glassEffectView.isHidden = true
         glassEffectView.isUserInteractionEnabled = false
         glassEffectView.layer.cornerRadius = 10
@@ -452,7 +455,7 @@ final class StoryTextOverlayContainerView: UIView {
         textLabel.layer.shadowOpacity = 0.55
         textLabel.layer.shadowOffset = .zero
         textLabel.layer.shouldRasterize = true
-        textLabel.layer.rasterizationScale = UIScreen.main.scale
+        textLabel.layer.rasterizationScale = traitCollection.displayScale
 
         applySparkleAccents(
             around: textLabel.frame,
@@ -701,7 +704,7 @@ final class StoryTextOverlayContainerView: UIView {
         gradientLayer.endPoint = points.end
 
         let mask = CATextLayer()
-        mask.contentsScale = UIScreen.main.scale
+        mask.contentsScale = traitCollection.displayScale
         mask.isWrapped = true
         mask.alignmentMode = textLayerAlignmentMode(for: alignment)
         mask.string = attributed
@@ -1009,7 +1012,7 @@ final class StoryTextOverlayContainerView: UIView {
 
         textLabel.transform = CGAffineTransform(scaleX: 1.08, y: 1.08)
         textLabel.layer.shouldRasterize = true
-        textLabel.layer.rasterizationScale = 0.35 * UIScreen.main.scale
+        textLabel.layer.rasterizationScale = 0.35 * traitCollection.displayScale
     }
 
     private func applyBoxedPlate(configuration: StoryTextRenderConfiguration, textFrame: CGRect) {

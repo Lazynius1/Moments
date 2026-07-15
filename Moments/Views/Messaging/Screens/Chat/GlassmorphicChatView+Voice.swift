@@ -490,8 +490,8 @@ extension GlassmorphicChatView {
             forName: UIScreen.capturedDidChangeNotification,
             object: nil,
             queue: .main
-        ) { _ in
-            if UIScreen.main.isCaptured {
+        ) { notification in
+            if (notification.object as? UIScreen)?.isCaptured == true {
                 viewModel.reportVanishScreenRecordingIfNeeded()
             }
         }

@@ -13,7 +13,7 @@ struct CustomListSelectorView: View {
     let userId: String
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
                 if isLoading {
                     VStack(spacing: 16) {
@@ -21,23 +21,23 @@ struct CustomListSelectorView: View {
                             .scaleEffect(1.2)
                         Text(NSLocalizedString("audience.loadingLists", comment: "Loading lists..."))
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if customLists.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "list.bullet.rectangle")
                             .font(.system(size: 48))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         
                         VStack(spacing: 8) {
                             Text(NSLocalizedString("audience.noCustomLists.title", comment: "No custom lists"))
                                 .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                             
                             Text(NSLocalizedString("audience.noCustomLists.description", comment: "Create your first custom list"))
                                 .font(.system(size: legacyPoppinsSize(14)))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
                         }
                         
@@ -50,7 +50,7 @@ struct CustomListSelectorView: View {
                                 Text(NSLocalizedString("audience.createFirstList", comment: "Create first list"))
                                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                             }
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 20)
                             .padding(.vertical, 12)
                             .background(Color.accentColor)
@@ -70,18 +70,18 @@ struct CustomListSelectorView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(list.name)
                                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                            .foregroundColor(.primary)
+                                            .foregroundStyle(.primary)
                                         
                                         Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), list.members.count))
                                             .font(.system(size: legacyPoppinsSize(13)))
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                     }
                                     
                                     Spacer()
                                     
                                     if selectedListId == list.id {
                                         Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(.accentColor)
+                                            .foregroundStyle(Color.accentColor)
                                             .font(.system(size: 20))
                                     }
                                 }

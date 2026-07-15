@@ -39,7 +39,7 @@ struct LiveVideoTimeLabel: View {
             Text(text)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .monospacedDigit()
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .if(displayMode == .standalone) { $0
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)

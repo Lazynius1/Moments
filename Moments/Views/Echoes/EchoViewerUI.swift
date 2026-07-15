@@ -154,10 +154,10 @@ struct EchoViewerUI: View {
             VStack(spacing: 16) {
                 Image(systemName: "eye.slash.fill")
                     .font(.system(size: 40))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
                 Text(NSLocalizedString("echo.viewer.unavailable", comment: ""))
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
@@ -179,11 +179,11 @@ struct EchoViewerUI: View {
                 VStack(spacing: 8) {
                     Text(NSLocalizedString("echo.viewer.waiting.title", comment: ""))
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                     
                     Text(NSLocalizedString("echo.viewer.waiting.subtitle", comment: ""))
                         .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                 }
@@ -558,7 +558,7 @@ struct EchoViewerUI: View {
             VStack(spacing: 18) {
                 Text(NSLocalizedString("echo.leave.locked", comment: ""))
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 4)
                 
@@ -567,7 +567,7 @@ struct EchoViewerUI: View {
                 }) {
                     Text(NSLocalizedString("echo.viewer.ok", comment: ""))
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 11)
                         .background(

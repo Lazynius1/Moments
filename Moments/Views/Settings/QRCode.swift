@@ -17,7 +17,7 @@ struct QRCodeView: View {
             VStack(spacing: 2) {
                 Text(NSLocalizedString("qrCode.title", comment: "QR code title"))
                     .font(.system(size: legacyPoppinsSize(20), weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.top, 20)
             }
             .frame(maxWidth: .infinity)
@@ -38,7 +38,7 @@ struct QRCodeView: View {
                 
                 Text("@\(targetUser?.username ?? viewModel.user?.username ?? "")")
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(ProfileColors.accent)
+                    .foregroundStyle(ProfileColors.accent)
             }
             .padding(30)
             .background(
@@ -59,7 +59,7 @@ struct QRCodeView: View {
                             Text(NSLocalizedString("qrCode.share", comment: "Share"))
                         }
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(ProfileColors.accent)
@@ -75,7 +75,7 @@ struct QRCodeView: View {
                     }) {
                         Image(systemName: "arrow.down.to.line")
                             .font(.system(size: 20))
-                            .foregroundColor(ProfileColors.textPrimary)
+                            .foregroundStyle(ProfileColors.textPrimary)
                             .frame(width: 50, height: 50)
                             .background(ProfileColors.materialBackground)
                             .clipShape(Circle())

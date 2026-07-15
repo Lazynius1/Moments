@@ -142,7 +142,7 @@ struct ContentTypeSelectionView: View {
             }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
                     .momentsChromeGlass(in: Circle(), interactive: true)
             }
@@ -189,7 +189,7 @@ struct ContentTypeSelectionView: View {
                                     .frame(width: 65, height: 65)
                                     .overlay(
                                         Image(systemName: "photo.stack.fill")
-                                            .foregroundColor(.black)
+                                            .foregroundStyle(.black)
                                     )
                             }
                         }
@@ -219,11 +219,11 @@ struct ContentTypeSelectionView: View {
         }
         .scaleEffect(shutterScale)
         .buttonStyle(PlainButtonStyle())
-        .onLongPressGesture(minimumDuration: 0.1, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: 0.1, perform: {}, onPressingChanged: { pressing in
             MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                 shutterScale = pressing ? 0.9 : 1.0
             }
-        }, perform: {})
+        })
     }
 
     private var dialSelector: some View {
@@ -247,7 +247,7 @@ struct ContentTypeSelectionView: View {
                     ForEach(dialModes, id: \.self) { mode in
                         Text(titleFor(mode))
                             .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                            .foregroundColor(dialLabelColor(for: mode))
+                            .foregroundStyle(dialLabelColor(for: mode))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }

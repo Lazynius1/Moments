@@ -13,7 +13,7 @@ struct AnimatedWeatherSticker: View {
             // ✅ TEMPERATURA
             Text(temperature)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.5), radius: 2, x: 1, y: 1)
 
             // ✅ SÍMBOLO ANIMADO
@@ -261,7 +261,7 @@ struct Lightning: View {
 
     var body: some View {
         Image(systemName: "bolt.fill")
-            .foregroundColor(.yellow)
+            .foregroundStyle(.yellow)
             .font(.system(size: 12))
             .offset(x: offsetX, y: offsetY)
             .opacity(opacityValue)

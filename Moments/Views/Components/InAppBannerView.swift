@@ -57,19 +57,19 @@ struct InAppBannerView: View {
                 if let headline = lines.headline {
                     Text(headline)
                         .font(.system(size: legacyPoppinsSize(14), weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
                 }
 
                 if let detail = lines.detail {
                     Text(detail)
                         .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 } else if isSystemModerationBanner(notification) {
                     Text(moderationBannerText(for: notification))
                         .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                        .foregroundColor(.secondary.opacity(0.92))
+                        .foregroundStyle(.secondary.opacity(0.92))
                         .lineLimit(2)
                 }
             }
@@ -210,7 +210,7 @@ struct InAppBannerView: View {
                         .font(.system(size: 16, weight: .semibold))
                 }
             }
-            .foregroundColor(isSystemModerationBanner(notification) ? .primary.opacity(0.85) : accentColor)
+            .foregroundStyle(isSystemModerationBanner(notification) ? .primary.opacity(0.85) : accentColor)
             .frame(width: 32, height: 32)
         }
     }
@@ -250,7 +250,7 @@ struct InAppBannerView: View {
                     .frame(width: 42, height: 42)
                 Image(systemName: "hourglass.circle.fill")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
             }
             .overlay(Circle().stroke(Color.orange.opacity(0.35), lineWidth: 1))
         }

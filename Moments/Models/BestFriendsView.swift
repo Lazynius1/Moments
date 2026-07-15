@@ -34,7 +34,7 @@ struct BestFriendsView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(width: 44, height: 44)
                 }
             }
@@ -48,12 +48,10 @@ struct BestFriendsView: View {
             visibleUserLimit = 30
             viewModel.searchUsersGlobally(query: searchText)
         }
-        .alert(isPresented: $viewModel.showError) {
-            Alert(
-                title: Text("Error"),
-                message: Text(viewModel.errorMessage ?? "Ocurrió un error desconocido"),
-                dismissButton: .default(Text("OK"))
-            )
+        .alert("Error", isPresented: $viewModel.showError) {
+            Button("OK") { }
+        } message: {
+            Text(viewModel.errorMessage ?? "Ocurrió un error desconocido")
         }
     }
 
@@ -62,16 +60,16 @@ struct BestFriendsView: View {
             Image(systemName: "person.2.slash")
                 .resizable()
                 .frame(width: 50, height: 50)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             
             VStack(spacing: 8) {
                 Text(NSLocalizedString("bestFriends.empty.title", comment: "No best friends"))
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                 
                 Text(NSLocalizedString("bestFriends.empty.description", comment: "Add friends from your following to mark them as best friends."))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             
@@ -140,13 +138,13 @@ struct BestFriendsView: View {
             // ✅ NUEVO: Campo de búsqueda debajo del título
             HStack {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.6))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.6))
                     .font(.system(size: 16, weight: .medium))
                 
                 TextField(NSLocalizedString("bestFriends.search.placeholder", comment: "Search lists..."), text: $searchText)
                     .textFieldStyle(PlainTextFieldStyle())
                     .font(.system(size: 16))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .focused($isSearchFieldFocused)
                 
                 if !searchText.isEmpty {
@@ -154,7 +152,7 @@ struct BestFriendsView: View {
                         searchText = ""
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.45))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.45))
                             .font(.system(size: 16))
                     }
                 }
@@ -206,9 +204,9 @@ struct BestFriendsView: View {
                         isSearchingMode {
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                             Text(String(format: NSLocalizedString("bestFriends.search.noResults", comment: "No results found for '%@'"), searchText))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .font(.system(size: legacyPoppinsSize(14)))
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -224,7 +222,7 @@ struct BestFriendsView: View {
     private func userSectionHeader(_ title: String) -> some View {
         Text(title.uppercased())
             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-            .foregroundColor(.gray.opacity(0.8))
+            .foregroundStyle(.gray.opacity(0.8))
             .padding(.leading, 4)
     }
 
@@ -268,14 +266,14 @@ struct SelectableBestFriendRow: View {
 
                 Text(user.username)
                     .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
 
                 Spacer()
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(
+                    .foregroundStyle(
                         isSelected
                         ? (colorScheme == .dark ? .white : .black)
                         : (colorScheme == .dark ? .white.opacity(0.32) : .black.opacity(0.28))
@@ -308,7 +306,7 @@ struct BestFriendRow: View {
             }) {
                 Text(NSLocalizedString("bestFriends.button.remove", comment: "Remove"))
                     .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.red.opacity(0.1))
@@ -339,7 +337,7 @@ struct ConnectionRow: View {
             }) {
                 Text(NSLocalizedString("bestFriends.button.add", comment: "Add"))
                     .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.blue.opacity(0.1))
@@ -372,7 +370,7 @@ struct FollowerRow: View {
             }) {
                 Text(NSLocalizedString("bestFriends.button.addGeneric", comment: "Add"))
                     .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.orange.opacity(0.1))

@@ -86,11 +86,11 @@ struct SmartLocationInputView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("stickerview.location.searchTitle")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(palette.primaryText)
+                            .foregroundStyle(palette.primaryText)
 
                         Text("stickerview.location.searchSubtitle")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(palette.secondaryText)
+                            .foregroundStyle(palette.secondaryText)
                     }
 
                     Spacer()
@@ -105,7 +105,7 @@ struct SmartLocationInputView: View {
                                 Text("stickerview.location.refresh")
                             }
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(palette.primaryText)
+                            .foregroundStyle(palette.primaryText)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
@@ -121,15 +121,15 @@ struct SmartLocationInputView: View {
                 HStack(spacing: 12) {
                     Image(systemName: isSearching ? "magnifyingglass" : (searchText.isEmpty ? "magnifyingglass" : "location.magnifyingglass"))
                         .font(.system(size: 16))
-                        .foregroundColor(searchText.isEmpty ? palette.searchIcon : palette.searchIconActive)
+                        .foregroundStyle(searchText.isEmpty ? palette.searchIcon : palette.searchIconActive)
                         .animation(.easeInOut(duration: 0.2), value: searchText)
 
                     TextField(NSLocalizedString("stickerview.location.searchPlaceholder", comment: "Location search placeholder"), text: $searchText)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
                         .focused($isTextFieldFocused)
                         .autocapitalization(.words)
-                        .disableAutocorrection(true)
+                        .autocorrectionDisabled(true)
                         .onChange(of: searchText) { _, newValue in
                             if newValue.isEmpty {
                                 searchResults = []
@@ -149,7 +149,7 @@ struct SmartLocationInputView: View {
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 16))
-                                .foregroundColor(palette.clearIcon)
+                                .foregroundStyle(palette.clearIcon)
                         }
                         .transition(MotionPolicy.Transition.enterPop)
                     }
@@ -264,25 +264,25 @@ struct SmartLocationInputView: View {
                 HStack(spacing: 12) {
                     Image(systemName: location.categoryIcon)
                         .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                         .frame(width: 20, alignment: .leading)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(location.displayName)
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(palette.primaryText)
+                            .foregroundStyle(palette.primaryText)
                             .lineLimit(1)
 
                         HStack(spacing: 8) {
                             Text(location.address)
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(palette.secondaryText)
+                                .foregroundStyle(palette.secondaryText)
                                 .lineLimit(1)
 
                             if !location.distanceString.isEmpty {
                                 Text("• \(location.distanceString)")
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(palette.tertiaryText)
+                                    .foregroundStyle(palette.tertiaryText)
                             }
                         }
                     }
@@ -291,7 +291,7 @@ struct SmartLocationInputView: View {
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(palette.tertiaryText)
+                        .foregroundStyle(palette.tertiaryText)
                 }
                 .padding(.vertical, 12)
             }
@@ -346,16 +346,16 @@ struct SmartLocationInputView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Image(systemName: "location.slash")
                     .font(.system(size: 40))
-                    .foregroundColor(palette.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("stickerview.nearbyPlacesError")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
 
                     Text("stickerview.locationPermissionError")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(palette.secondaryText)
+                        .foregroundStyle(palette.secondaryText)
                         .multilineTextAlignment(.leading)
                 }
             }
@@ -377,16 +377,16 @@ struct SmartLocationInputView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Image(systemName: "mappin.slash")
                     .font(.system(size: 40))
-                    .foregroundColor(palette.secondaryText)
+                    .foregroundStyle(palette.secondaryText)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("stickerview.noPlacesFound")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(palette.primaryText)
+                        .foregroundStyle(palette.primaryText)
 
                     Text(String(format: NSLocalizedString("stickerview.tryDifferentSearch", comment: "Try different search"), searchQuery))
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(palette.secondaryText)
+                        .foregroundStyle(palette.secondaryText)
                         .multilineTextAlignment(.leading)
                 }
             }

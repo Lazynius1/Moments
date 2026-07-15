@@ -101,7 +101,7 @@ struct ModernExploreDetailHeader: View {
                                 HStack(spacing: 4) {
                                     Text(displayUsername(for: moment))
                                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                        .foregroundColor(.primary)
+                                        .foregroundStyle(.primary)
                                         .lineLimit(1)
 
                                     VerifiedBadgeView(userId: authorId, size: 13)
@@ -111,11 +111,11 @@ struct ModernExploreDetailHeader: View {
 
                             Text("·")
                                 .font(.system(size: legacyPoppinsSize(10)))
-                                .foregroundColor(.secondary.opacity(0.7))
+                                .foregroundStyle(.secondary.opacity(0.7))
 
                             Text(moment.timestamp.timeAgoDisplay())
                                 .font(.system(size: legacyPoppinsSize(10)))
-                                .foregroundColor(.secondary.opacity(0.7))
+                                .foregroundStyle(.secondary.opacity(0.7))
                         }
 
                         if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -131,7 +131,7 @@ struct ModernExploreDetailHeader: View {
                                         .font(.system(size: legacyPoppinsSize(10)))
                                         .lineLimit(1)
                                 }
-                                .foregroundColor(.secondary.opacity(0.85))
+                                .foregroundStyle(.secondary.opacity(0.85))
                             }
                             .buttonStyle(.plain)
                         }

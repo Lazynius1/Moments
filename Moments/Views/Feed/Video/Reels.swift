@@ -185,11 +185,11 @@ struct ReelVideoView: View {
                     HStack(spacing: 10) {
                         Image(systemName: "bubble.left")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(chromeTertiaryColor)
+                            .foregroundStyle(chromeTertiaryColor)
 
                         Text(NSLocalizedString("comments.add.placeholder", comment: "Add comment placeholder"))
                             .font(.system(size: legacyPoppinsSize(15)))
-                            .foregroundColor(chromeTertiaryColor)
+                            .foregroundStyle(chromeTertiaryColor)
 
                         Spacer()
                     }
@@ -275,13 +275,13 @@ struct ReelVideoView: View {
                                     : NSLocalizedString("feed.reels.video.loading", comment: "Reels loading state")
                                 )
                                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .transition(.opacity)
                                 
                                 if playerManager.isBuffering {
                                     Text(NSLocalizedString("feed.reels.video.optimizing", comment: "Reels optimizing quality"))
                                         .font(.system(size: legacyPoppinsSize(12)))
-                                        .foregroundColor(.white.opacity(0.6))
+                                        .foregroundStyle(.white.opacity(0.6))
                                         .transition(.opacity)
                                 }
                             }
@@ -323,7 +323,7 @@ struct ReelVideoView: View {
                 if isDoubleTapAnimating {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 80, weight: .bold))
-                        .foregroundColor(.pink) // Color de la reacción "feel"
+                        .foregroundStyle(.pink) // Color de la reacción "feel"
                         .scaleEffect(isDoubleTapAnimating ? 1.5 : 0.1)
                         .opacity(isDoubleTapAnimating ? 0 : 1)
                         .animation(MotionPolicy.animation(MotionPolicy.Spring.delight, value: isDoubleTapAnimating), value: isDoubleTapAnimating)
@@ -341,7 +341,7 @@ struct ReelVideoView: View {
                             }) {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(chromePrimaryColor)
+                                    .foregroundStyle(chromePrimaryColor)
                                     .frame(width: 38, height: 38)
                                     .background(Color.white.opacity(0.001))
                                     .contentShape(Circle())
@@ -355,7 +355,7 @@ struct ReelVideoView: View {
                             }) {
                                 Image(systemName: playerManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                                     .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(chromePrimaryColor)
+                                    .foregroundStyle(chromePrimaryColor)
                                     .frame(width: 38, height: 38)
                                     .background(Color.white.opacity(0.001))
                                     .contentShape(Circle())
@@ -429,7 +429,7 @@ struct ReelVideoView: View {
                                             HStack(spacing: 6) {
                                                 Text(displayAuthorUsername)
                                                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                                    .foregroundColor(chromePrimaryColor)
+                                                    .foregroundStyle(chromePrimaryColor)
                                                     .lineLimit(1)
 
                                                 if video.moment.authorId == Auth.auth().currentUser?.uid {
@@ -444,7 +444,7 @@ struct ReelVideoView: View {
                                         HStack(spacing: 8) {
                                             Text(formatTimeAgo(video.moment.timestamp))
                                                 .font(.system(size: legacyPoppinsSize(12)))
-                                                .foregroundColor(chromeSecondaryColor)
+                                                .foregroundStyle(chromeSecondaryColor)
 
                                             if let location = video.moment.location, !location.isEmpty {
                                                 HStack(spacing: 4) {
@@ -454,7 +454,7 @@ struct ReelVideoView: View {
                                                         .lineLimit(1)
                                                 }
                                                 .font(.system(size: legacyPoppinsSize(12)))
-                                                .foregroundColor(chromeTertiaryColor)
+                                                .foregroundStyle(chromeTertiaryColor)
                                             }
                                         }
                                     }
@@ -939,7 +939,7 @@ struct EnhancedReelReactionButton: View {
                     // Heart icon with better styling
                     Image(systemName: hasReacted ? (currentReaction?.filledIcon ?? "heart.fill") : "heart")
                         .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(hasReacted ? (currentReaction?.color ?? .red) : .white)
+                        .foregroundStyle(hasReacted ? (currentReaction?.color ?? .red) : .white)
                         .scaleEffect(hasReacted ? 1.2 : 1.0)
                         .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: hasReacted), value: hasReacted)
                 }
@@ -949,7 +949,7 @@ struct EnhancedReelReactionButton: View {
             if reactionCount > 0 {
                 Text(MomentsFormat.count(reactionCount, style: .socialMetric))
                     .font(.system(size: legacyPoppinsSize(12), weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(
@@ -973,7 +973,7 @@ struct EnhancedReelReactionButton: View {
                         }) {
                             Image(systemName: reaction.filledIcon)
                                 .font(.system(size: 20, weight: .medium))
-                                .foregroundColor(reaction.color)
+                                .foregroundStyle(reaction.color)
                                 .frame(width: 44, height: 44)
                                 .background(
                                     Circle()
@@ -1104,7 +1104,7 @@ struct EnhancedReelActionButton: View {
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 24, weight: .medium))
-                            .foregroundColor(isActive ? activeColor : .white)
+                            .foregroundStyle(isActive ? activeColor : .white)
                             .scaleEffect(isActive ? 1.1 : 1.0)
                             .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isActive), value: isActive)
                     }
@@ -1121,7 +1121,7 @@ struct EnhancedReelActionButton: View {
             if let count = count, count > 0 {
                 Text(MomentsFormat.count(count, style: .socialMetric))
                     .font(.system(size: legacyPoppinsSize(12), weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(

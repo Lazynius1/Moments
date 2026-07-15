@@ -65,7 +65,7 @@ struct MessageRequestsView: View {
             if !messageRequestService.pendingRequests.isEmpty {
                 Text(String(format: NSLocalizedString("messageRequests.count", comment: "Request count"), messageRequestService.pendingRequests.count))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.clear.momentsChromeGlass(in: Capsule()))
@@ -123,15 +123,15 @@ struct MessageRequestsView: View {
         VStack(spacing: 10) {
             Image(systemName: "message")
                 .font(.system(size: 28, weight: .medium))
-                .foregroundColor(adaptiveColors.secondary.opacity(0.72))
+                .foregroundStyle(adaptiveColors.secondary.opacity(0.72))
 
             Text("messageRequests.empty.title")
                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
+                .foregroundStyle(adaptiveColors.primary)
 
             Text("messageRequests.empty.description")
                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                .foregroundColor(adaptiveColors.secondary)
+                .foregroundStyle(adaptiveColors.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 28)
         }
@@ -187,7 +187,7 @@ struct RequestListRow: View {
             Button(action: onAction) {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
                     .frame(width: 34, height: 34)
                     .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
             }
@@ -212,7 +212,7 @@ struct RequestListRow: View {
                 .frame(width: 56, height: 56)
                 .overlay(
                     Image(systemName: "person.fill")
-                        .foregroundColor(adaptiveColors.secondary)
+                        .foregroundStyle(adaptiveColors.secondary)
                 )
         }
     }
@@ -222,12 +222,12 @@ struct RequestListRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(request.senderUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name"))
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
+                    .foregroundStyle(adaptiveColors.primary)
                     .lineLimit(1)
 
                 Text(request.messagePreview)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
             }
@@ -235,7 +235,7 @@ struct RequestListRow: View {
 
             Text(timeAgoString(from: request.timestamp))
                 .font(.system(size: legacyPoppinsSize(12)))
-                .foregroundColor(adaptiveColors.secondary)
+                .foregroundStyle(adaptiveColors.secondary)
                 .lineLimit(1)
         }
     }

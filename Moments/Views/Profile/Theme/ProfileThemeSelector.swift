@@ -18,7 +18,7 @@ struct ProfileThemeSelector: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Fondo con el tema seleccionado
                 selectedTheme.backgroundGradient
@@ -29,11 +29,11 @@ struct ProfileThemeSelector: View {
                     VStack(spacing: 12) {
                         Text("Tema del Perfil")
                             .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         
                         Text("Personaliza el fondo de tu perfil")
                             .font(.system(size: legacyPoppinsSize(16)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 20)
@@ -79,7 +79,7 @@ struct ProfileThemeSelector: View {
                             Text(isUpdating ? "Guardando..." : "Guardar Tema")
                                 .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .background(
@@ -100,7 +100,7 @@ struct ProfileThemeSelector: View {
                         dismiss()
                     }
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
         }
@@ -143,13 +143,13 @@ struct ProfilePreviewCard: View {
                     .overlay(
                         Image(systemName: "person.fill")
                             .font(.system(size: 30))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.white.opacity(0.8))
                     )
                 
                 // Nombre simulado
                 Text("Tu Perfil")
                     .font(.system(size: legacyPoppinsSize(18), weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 
                 // Badge simulado
                 HStack(spacing: 8) {
@@ -158,7 +158,7 @@ struct ProfilePreviewCard: View {
                     
                     Text(theme.displayName)
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
@@ -205,7 +205,7 @@ struct ThemeCard: View {
                             if isSelected {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.system(size: 24))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .background(
                                         Circle()
                                             .fill(.black.opacity(0.3))
@@ -223,12 +223,12 @@ struct ThemeCard: View {
                         
                         Text(theme.displayName)
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                     
                     Text(theme.description)
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                     
@@ -236,7 +236,7 @@ struct ThemeCard: View {
                     if let price = theme.price {
                         Text(price)
                             .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                            .foregroundColor(.blue)
+                            .foregroundStyle(.blue)
                     }
                 }
             }

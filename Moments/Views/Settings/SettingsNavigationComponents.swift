@@ -29,7 +29,7 @@ struct SettingsNavigationBar: View {
             
             Text(title)
                 .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
             
             Spacer()
             

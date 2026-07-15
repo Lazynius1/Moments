@@ -206,7 +206,7 @@ struct ModernReactionButton: View {
             if reactionCount > 0 {
                 Text("\(reactionCount)")
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
             }
             
             // ✨ NUEVO: Reaction Picker con Scroll Horizontal
@@ -380,7 +380,7 @@ struct ReactionPickerView: View {
                                 
                                 Text(reaction.displayName)
                                     .font(.system(size: legacyPoppinsSize(10), weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .shadow(color: .black.opacity(0.5), radius: 1)
                             }
                         }
@@ -397,7 +397,7 @@ struct ReactionPickerView: View {
             Button(action: onClose) {
                 Text("Cerrar")
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
                     .padding(.horizontal, 24)
                     .padding(.vertical, 8)
                     .background(

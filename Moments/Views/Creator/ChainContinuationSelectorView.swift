@@ -10,7 +10,7 @@ struct CustomUserSelectorView: View {
     @State private var selectedUsersForCustom: [AppUser] = []
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             CustomAudienceSelector(selectedUsers: $selectedUsersForCustom) {
                 selectedUsers = selectedUsersForCustom.map { $0.id }
                 dismiss()
@@ -22,7 +22,7 @@ struct CustomUserSelectorView: View {
                     Button(NSLocalizedString("audience.actions.cancel", comment: "Cancel action")) {
                         dismiss()
                     }
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                 }
             }
         }
@@ -74,7 +74,7 @@ struct ChainContinuationSelectorView: View {
             if embeddedInFlow {
                 selectorBody
             } else {
-                NavigationView {
+                NavigationStack {
                     selectorBody
                 }
             }
@@ -91,7 +91,7 @@ struct ChainContinuationSelectorView: View {
                         .transition(flowTransition)
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .animation(.spring(response: 0.36, dampingFraction: 0.86), value: flowDestination)
             .onAppear {
                 loadCustomLists()
@@ -122,7 +122,7 @@ struct ChainContinuationSelectorView: View {
                             Button(action: { onBack?() }) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                     .frame(width: 40, height: 40)
                                     .momentsChromeGlass(in: Circle(), interactive: true)
                             }
@@ -133,10 +133,10 @@ struct ChainContinuationSelectorView: View {
                             VStack(spacing: 2) {
                                 Text(NSLocalizedString("storyChains.continuationAudience.navigationTitle", comment: ""))
                                     .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 Text(NSLocalizedString("storyChains.continuationAudience.subtitle", comment: ""))
                                     .font(.system(size: legacyPoppinsSize(13)))
-                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+                                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                             }
                             .multilineTextAlignment(.center)
                             
@@ -154,11 +154,11 @@ struct ChainContinuationSelectorView: View {
                         VStack(spacing: 8) {
                             Text(NSLocalizedString("storyChains.continuationAudience", comment: ""))
                                 .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                             
                             Text(NSLocalizedString("storyChains.visibilityInfo", comment: ""))
                                 .font(.system(size: legacyPoppinsSize(16)))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                                 .multilineTextAlignment(.center)
                         }
                         .padding(.horizontal, 20)
@@ -247,7 +247,7 @@ struct ChainContinuationSelectorView: View {
             HStack {
                 Text(NSLocalizedString("audience.predefined", comment: ""))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
             }
             .padding(.horizontal, 4)
@@ -291,12 +291,12 @@ struct ChainContinuationSelectorView: View {
             HStack {
                 Text(NSLocalizedString("audience.customLists", comment: ""))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
                 Button(action: { navigate(to: .manageLists) }) {
                     Text(NSLocalizedString("audience.manage", comment: ""))
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(Color(hex: "007AFF"))
+                        .foregroundStyle(Color(hex: "007AFF"))
                 }
             }
             .padding(.horizontal, 4)
@@ -306,7 +306,7 @@ struct ChainContinuationSelectorView: View {
                     ProgressView().scaleEffect(0.8)
                     Text(NSLocalizedString("audience.loadingLists", comment: ""))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                 }
                 .padding()
             } else if customLists.isEmpty {
@@ -318,12 +318,12 @@ struct ChainContinuationSelectorView: View {
                             VStack(spacing: 12) {
                                 Image(systemName: "plus")
                                     .font(.system(size: 20, weight: .semibold))
-                                    .foregroundColor(Color(hex: "007AFF"))
+                                    .foregroundStyle(Color(hex: "007AFF"))
                                     .frame(width: 48, height: 48)
                                     .momentsChromeGlass(in: Circle(), interactive: true)
                                 Text(NSLocalizedString("audience.create", comment: ""))
                                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                    .foregroundColor(Color(hex: "007AFF"))
+                                    .foregroundStyle(Color(hex: "007AFF"))
                             }
                             .frame(width: 100, height: 140)
                             .background(
@@ -358,7 +358,7 @@ struct ChainContinuationSelectorView: View {
             HStack {
                 Text(NSLocalizedString("audience.manualSelection", comment: ""))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
             }
             .padding(.horizontal, 4)
@@ -378,18 +378,18 @@ struct ChainContinuationSelectorView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(NSLocalizedString("audience.type.custom", comment: ""))
                             .font(.system(size: legacyPoppinsSize(16), weight: isCustomPeopleSelected ? .semibold : .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .opacity(isCustomPeopleSelected ? 1 : 0.82)
 
                         if selectedAudience == .custom && !customSelectedUsers.isEmpty {
                             Text(String(format: NSLocalizedString("audience.people.count", comment: ""), customSelectedUsers.count))
                                 .font(.system(size: legacyPoppinsSize(13)))
-                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.55))
+                                .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(0.55))
                                 .opacity(isCustomPeopleSelected ? 1 : 0.72)
                         } else {
                             Text(NSLocalizedString("audience.description.custom", comment: ""))
                                 .font(.system(size: legacyPoppinsSize(13)))
-                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.55))
+                                .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(0.55))
                                 .opacity(isCustomPeopleSelected ? 1 : 0.72)
                         }
                     }
@@ -399,7 +399,7 @@ struct ChainContinuationSelectorView: View {
                     if isCustomPeopleSelected {
                         Image(systemName: "checkmark")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .frame(width: 26, height: 26)
                             .background(
                                 Circle()
@@ -408,7 +408,7 @@ struct ChainContinuationSelectorView: View {
                     } else {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                             .frame(width: 26, height: 26)
                             .opacity(0.55)
                     }
@@ -432,11 +432,11 @@ struct ChainContinuationSelectorView: View {
             VStack(spacing: 4) {
                 Text(NSLocalizedString("audience.noCustomLists.title", comment: ""))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Text(NSLocalizedString("audience.noCustomLists.description", comment: ""))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                     .multilineTextAlignment(.center)
             }
             
@@ -444,12 +444,12 @@ struct ChainContinuationSelectorView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "plus")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(width: 30, height: 30)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                     Text(NSLocalizedString("audience.createFirstList", comment: ""))
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                 }
             }
             .padding(.top, 6)

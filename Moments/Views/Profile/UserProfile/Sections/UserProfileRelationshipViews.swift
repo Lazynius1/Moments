@@ -22,7 +22,7 @@ struct UserRelationshipChip: View {
                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                 .lineLimit(1)
         }
-        .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.68))
+        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.68))
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
         .momentsChromeGlass(in: Capsule(), interactive: false)
@@ -66,19 +66,19 @@ struct UserRelationshipManagementSheet: View {
                 VStack(spacing: 4) {
                     Text(String(format: NSLocalizedString("userProfile.relationship.sheet.title", comment: ""), username))
                         .font(.system(size: legacyPoppinsSize(22), weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .multilineTextAlignment(.center)
 
                     Text(NSLocalizedString("userProfile.relationship.sheet.subtitle", comment: ""))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.56))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.56))
                         .multilineTextAlignment(.center)
                 }
 
                 if !relationshipSummaryItems.isEmpty {
                     Text(relationshipSummaryItems.joined(separator: " · "))
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.46))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.46))
                         .lineLimit(1)
                 }
             }
@@ -139,7 +139,7 @@ struct UserRelationshipManagementSheet: View {
                             ? String(format: NSLocalizedString("userProfile.relationship.lists.count", comment: ""), customListCount)
                             : NSLocalizedString("userProfile.relationship.lists.empty", comment: ""))
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
                     }
 
                     Spacer()
@@ -155,11 +155,11 @@ struct UserRelationshipManagementSheet: View {
                         if customListCount > 0 {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.46) : .black.opacity(0.38))
+                                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.46) : .black.opacity(0.38))
                         }
                     }
                 }
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .padding(.vertical, 15)
                 .contentShape(Rectangle())
             }
@@ -175,7 +175,7 @@ struct UserRelationshipManagementSheet: View {
                     Image(systemName: "person.crop.circle.badge.minus")
                         .font(.system(size: 17, weight: .semibold))
                 }
-                .foregroundColor(.red)
+                .foregroundStyle(.red)
                 .padding(.vertical, 15)
                 .contentShape(Rectangle())
             }
@@ -198,10 +198,10 @@ struct UserRelationshipManagementSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(NSLocalizedString("userProfile.relationship.lists.title", comment: ""))
                         .font(.system(size: legacyPoppinsSize(18), weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     Text(NSLocalizedString("userProfile.relationship.lists.manage", comment: ""))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
                 }
 
                 Spacer()
@@ -217,7 +217,7 @@ struct UserRelationshipManagementSheet: View {
 
                     Text(NSLocalizedString("userProfile.relationship.lists.empty", comment: ""))
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -234,7 +234,7 @@ struct UserRelationshipManagementSheet: View {
                                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                                     Text(String(format: NSLocalizedString("audience.people.count", comment: ""), list.members.count))
                                         .font(.system(size: legacyPoppinsSize(12)))
-                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
+                                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
                                 }
 
                                 Spacer()
@@ -247,7 +247,7 @@ struct UserRelationshipManagementSheet: View {
                                         .font(.system(size: 17, weight: .semibold))
                                 }
                             }
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .padding(.vertical, 14)
                             .contentShape(Rectangle())
                         }
@@ -305,7 +305,7 @@ struct UserRelationshipManagementSheet: View {
             } else {
                 Image(systemName: "person.fill")
                     .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.58))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.58))
             }
         }
         .frame(width: 62, height: 62)
@@ -329,7 +329,7 @@ struct UserRelationshipManagementSheet: View {
                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
                         .lineLimit(2)
                 }
 
@@ -348,11 +348,11 @@ struct UserRelationshipManagementSheet: View {
                 } else if let systemIcon {
                     Image(systemName: systemIcon)
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(iconColor ?? (colorScheme == .dark ? .white : .black))
+                        .foregroundStyle(iconColor ?? (colorScheme == .dark ? .white : .black))
                         .frame(width: 24)
                 }
             }
-            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .foregroundStyle(colorScheme == .dark ? .white : .black)
             .padding(.vertical, 15)
             .contentShape(Rectangle())
         }

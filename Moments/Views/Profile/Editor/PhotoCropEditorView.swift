@@ -59,7 +59,7 @@ struct PhotoCropEditorView: View {
     private let outputSize: CGSize = CGSize(width: 400, height: 400) // ✅ COINCIDIR CON STORAGESERVICE
     
     private var cropFrameSide: CGFloat {
-        UIScreen.main.bounds.width
+        UIApplication.shared.activeWindowSize.width
     }
     
     private var cropSize: CGFloat {
@@ -121,7 +121,7 @@ struct PhotoCropEditorView: View {
             
             Text(NSLocalizedString("profileEditor.crop.loadingImage", comment: ""))
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
         }
     }
     
@@ -135,7 +135,7 @@ struct PhotoCropEditorView: View {
             }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .primary)
+                    .foregroundStyle(colorScheme == .dark ? .white : .primary)
                     .padding(10)
                     .background(.ultraThinMaterial)
                     .clipShape(Circle())
@@ -150,7 +150,7 @@ struct PhotoCropEditorView: View {
             
             Text(NSLocalizedString("profileEditor.crop.moveAndScale", comment: ""))
                 .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? .white : .primary)
+                .foregroundStyle(colorScheme == .dark ? .white : .primary)
                 .shadow(color: (colorScheme == .dark ? Color.black : Color.white).opacity(0.3), radius: 2, x: 0, y: 1)
             
             Spacer()
@@ -163,7 +163,7 @@ struct PhotoCropEditorView: View {
             }) {
                 Image(systemName: "checkmark")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(10)
                     .background(
                         Circle()
@@ -227,11 +227,11 @@ struct PhotoCropEditorView: View {
                                 }
                             },
                         
-                        MagnificationGesture()
+                        MagnifyGesture()
                             .onChanged { value in
                                 if !isProcessing {
                                     isZooming = true
-                                    let newScale = lastScale * value
+                                    let newScale = lastScale * value.magnification
                                     scale = max(getMinimumScale(for: image.size), min(newScale, 4.0))
                                 }
                             }
@@ -336,7 +336,7 @@ struct PhotoCropEditorView: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
                 }
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -473,7 +473,7 @@ struct PhotoCropEditorView: View {
                 
                 Text(NSLocalizedString("profileEditor.crop.processing", comment: ""))
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
             }
         }
     }
@@ -712,6 +712,7 @@ struct PhotoCropEditorView: View {
 // MARK: - Photo Grid Item (copiado de ProfileEditor)
 private struct PhotoGridItem: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.displayScale) private var displayScale
     let asset: PHAsset
     let isSelected: Bool
     let imageManager: PHImageManager
@@ -755,7 +756,7 @@ private struct PhotoGridItem: View {
                                     Spacer()
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 24))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                                         .background(Circle().fill(colorScheme == .dark ? .black : .white))
                                         .padding(8)
                                 }
@@ -781,8 +782,8 @@ private struct PhotoGridItem: View {
         options.isSynchronous = false
         
         let targetSize = CGSize(
-            width: itemSize * UIScreen.main.scale,
-            height: itemSize * UIScreen.main.scale
+            width: itemSize * displayScale,
+            height: itemSize * displayScale
         )
         
         imageManager.requestImage(
@@ -800,7 +801,7 @@ private struct PhotoGridItem: View {
 }
 
 private var gridItemSize: CGFloat {
-    let screenWidth = UIScreen.main.bounds.width
+    let screenWidth = UIApplication.shared.activeWindowSize.width
     let horizontalPadding: CGFloat = 12
     let totalSpacing: CGFloat = 12
     return floor((screenWidth - horizontalPadding - totalSpacing) / 4)

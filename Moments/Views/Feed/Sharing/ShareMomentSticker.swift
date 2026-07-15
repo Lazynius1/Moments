@@ -28,7 +28,7 @@ struct ShareMomentSticker: View {
                 if moment.videoUrl != nil {
                     Image(systemName: "play.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(14)
                         .background(.ultraThinMaterial)
                         .clipShape(Circle())
@@ -39,7 +39,7 @@ struct ShareMomentSticker: View {
                 if !moment.content.isEmpty && !renderClean {
                     Text(moment.content)
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(.ultraThinMaterial)
@@ -55,7 +55,7 @@ struct ShareMomentSticker: View {
                             Spacer()
                             Image(systemName: "square.on.square.fill")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .padding(6)
                                 .background(.ultraThinMaterial)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -93,13 +93,13 @@ struct ShareMomentSticker: View {
                         Image(systemName: "person.circle.fill")
                             .resizable()
                             .frame(width: 34, height: 34)
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                     }
                     
                     VStack(alignment: .leading, spacing: 0) {
                         LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
                             .font(.system(size: legacyPoppinsSize(13), weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                     
                     Spacer()

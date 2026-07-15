@@ -158,7 +158,7 @@ struct FeedView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar(.hidden, for: .navigationBar)
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 loadInitialData()
                 

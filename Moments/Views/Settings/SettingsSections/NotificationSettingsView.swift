@@ -21,7 +21,7 @@ struct NotificationSettingsView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             Text(NSLocalizedString("settings.notifications.schedule.title", comment: "Notification Schedule"))
                                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
 
                             notificationToggleRow(
                                 title: NSLocalizedString("settings.notifications.schedule.enable", comment: "Set schedule"),
@@ -39,7 +39,7 @@ struct NotificationSettingsView: View {
                                            displayedComponents: .hourAndMinute)
                                     .datePickerStyle(.compact)
                                     .font(.system(size: legacyPoppinsSize(14)))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .padding(.top, 2)
 
                                 DatePicker(NSLocalizedString("settings.notifications.schedule.end", comment: "End time"),
@@ -47,7 +47,7 @@ struct NotificationSettingsView: View {
                                            displayedComponents: .hourAndMinute)
                                     .datePickerStyle(.compact)
                                     .font(.system(size: legacyPoppinsSize(14)))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .padding(.top, 2)
 
                                 Button(action: {
@@ -91,7 +91,7 @@ struct NotificationSettingsView: View {
                                     .frame(maxWidth: .infinity)
                                     .padding()
                                     .background(Color(colorScheme == .dark ? .black : .white).opacity(0.2))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
                                             .stroke(SettingsProfileColors.accentStroke(colorScheme, opacity: 0.5), lineWidth: 1.5)
@@ -109,7 +109,7 @@ struct NotificationSettingsView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             Text(NSLocalizedString("settings.notifications.types.title", comment: "Notification Types"))
                                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
 
                             VStack(spacing: 0) {
                                 ForEach(Array(NotificationType.allCases.filter { $0 != .gentleReminder }.enumerated()), id: \.element.rawValue) { index, type in
@@ -141,7 +141,7 @@ struct NotificationSettingsView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             Text(NSLocalizedString("settings.notifications.advanced.title", comment: "Advanced Settings"))
                                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
 
                             VStack(spacing: 0) {
                                 notificationToggleRow(
@@ -165,12 +165,12 @@ struct NotificationSettingsView: View {
 
                             Text(NSLocalizedString("settings.notifications.oldPostsExplain", comment: "Old posts explanation"))
                                 .font(.caption)
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                                 .padding(.top, 4)
 
                             Text(NSLocalizedString("settings.notifications.gentleReminders.description", comment: "Gentle reminders description"))
                                 .font(.caption)
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                                 .padding(.top, 2)
                         }
                     }
@@ -182,10 +182,10 @@ struct NotificationSettingsView: View {
                     VStack {
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
+                                .foregroundStyle(.green)
                             Text(NSLocalizedString("settings.schedule.saved", comment: "Schedule saved"))
                                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
@@ -235,7 +235,7 @@ struct NotificationSettingsView: View {
         Toggle(title, isOn: isOn)
             .tint(SettingsProfileColors.toggleTint)
             .font(.system(size: legacyPoppinsSize(14)))
-            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .foregroundStyle(colorScheme == .dark ? .white : .black)
             .padding(.vertical, 10)
     }
 }

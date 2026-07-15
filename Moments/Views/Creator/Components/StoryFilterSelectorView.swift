@@ -28,7 +28,7 @@ struct FilterSelectorView: View {
 
             Text(selectedFilter.rawValue)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundColor(StoryEditorChromeColor.icon(colorScheme))
+                .foregroundStyle(StoryEditorChromeColor.icon(colorScheme))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .momentsChromeGlass(in: Capsule())
@@ -68,7 +68,7 @@ struct FilterItemView: View {
 
                 Text(type.rawValue)
                     .font(.system(size: 10, weight: isSelected ? .bold : .regular))
-                    .foregroundColor(isSelected ? .white : .white.opacity(0.8))
+                    .foregroundStyle(isSelected ? .white : .white.opacity(0.8))
             }
         }
         .onAppear {

@@ -102,11 +102,11 @@ struct ExpandableFeedSelector: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(selectedFeedType.title)
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                         
                         Text(selectedFeedType.description)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.gray.opacity(0.8))
+                            .foregroundStyle(.gray.opacity(0.8))
                     }
                     
                     Spacer()
@@ -114,7 +114,7 @@ struct ExpandableFeedSelector: View {
                     // Flecha de expansión
                     Image(systemName: "chevron.down")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.gray.opacity(0.6))
+                        .foregroundStyle(.gray.opacity(0.6))
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding(.horizontal, 16)
@@ -197,11 +197,11 @@ struct FeedOptionRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(feedType.title)
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(isSelected ? .white : .white.opacity(0.8))
+                        .foregroundStyle(isSelected ? .white : .white.opacity(0.8))
                     
                     Text(feedType.description)
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(.gray.opacity(isSelected ? 0.8 : 0.6))
+                        .foregroundStyle(.gray.opacity(isSelected ? 0.8 : 0.6))
                 }
                 
                 Spacer()
@@ -210,7 +210,7 @@ struct FeedOptionRow: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundStyle(Color(hex: "00A896"))
                 }
             }
             .padding(.horizontal, 12)
@@ -264,11 +264,11 @@ struct CompactFeedToggle: View {
                     
                     Text(selectedFeedType.title)
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                     
                     Image(systemName: "chevron.down")
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.gray.opacity(0.6))
+                        .foregroundStyle(.gray.opacity(0.6))
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding(.horizontal, 12)
@@ -310,7 +310,7 @@ struct CompactFeedToggle: View {
                                 Text(feedType.title)
                                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             }
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.white.opacity(0.8))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
                             .background(.ultraThinMaterial)
@@ -346,7 +346,7 @@ struct SegmentedFeedToggle: View {
                         Text(feedType.title)
                             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     }
-                    .foregroundColor(selectedFeedType == feedType ? .white : Color.primary.opacity(0.7))
+                    .foregroundStyle(selectedFeedType == feedType ? .white : Color.primary.opacity(0.7))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(
@@ -409,11 +409,11 @@ struct HeaderFeedChip: View {
                     
                     Text(selectedFeedType.title)
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                     
                     Image(systemName: "chevron.down")
                         .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundStyle(.white.opacity(0.7))
                         .rotationEffect(.degrees(showOptions ? 180 : 0))
                 }
                 .padding(.horizontal, 12)
@@ -446,7 +446,7 @@ struct HeaderFeedChip: View {
                                     
                                     Text(feedType.title)
                                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                                        .foregroundColor(.white.opacity(0.9))
+                                        .foregroundStyle(.white.opacity(0.9))
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 5)

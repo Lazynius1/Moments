@@ -39,7 +39,7 @@ struct HighlightNameCoverStep: View {
                 } label: {
                     Text(NSLocalizedString("highlightedStories.editCover", comment: ""))
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(ProfileColors.accent)
+                        .foregroundStyle(ProfileColors.accent)
                 }
                 .buttonStyle(.plain)
             }
@@ -50,10 +50,10 @@ struct HighlightNameCoverStep: View {
                 "",
                 text: $viewModel.title,
                 prompt: Text(NSLocalizedString("highlightedStories.defaultTitle", comment: ""))
-                    .foregroundColor(ProfileColors.textSecondary)
+                    .foregroundStyle(ProfileColors.textSecondary)
             )
             .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-            .foregroundColor(ProfileColors.textPrimary)
+            .foregroundStyle(ProfileColors.textPrimary)
             .multilineTextAlignment(.center)
             .focused($isTitleFocused)
             .submitLabel(.done)
@@ -93,7 +93,7 @@ struct HighlightNameCoverStep: View {
                     .overlay(
                         Image(systemName: "photo")
                             .font(.system(size: 30))
-                            .foregroundColor(.secondary.opacity(0.5))
+                            .foregroundStyle(.secondary.opacity(0.5))
                     )
             }
         }

@@ -28,7 +28,7 @@ struct AppealFormView: View {
     @StateObject private var appealService = AppealService.shared
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.clear.ignoresSafeArea()
                 
@@ -52,12 +52,10 @@ struct AppealFormView: View {
                 isVisible = true
             }
         }
-        .alert(isPresented: $showAlert) {
-            Alert(
-                title: Text(alertTitle),
-                message: Text(alertMessage),
-                dismissButton: .default(Text(NSLocalizedString("appeal.error.ok", comment: "OK button for error alerts")))
-            )
+        .alert(alertTitle, isPresented: $showAlert) {
+            Button(NSLocalizedString("appeal.error.ok", comment: "OK button for error alerts")) { }
+        } message: {
+            Text(alertMessage)
         }
     }
     
@@ -230,7 +228,7 @@ private struct AppealSheetHeader: View {
                 Button(action: dismiss) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .foregroundStyle(AuthColors.primary(colorScheme))
                         .frame(width: 38, height: 38)
                         .background {
                             Color.clear
@@ -249,7 +247,7 @@ private struct AppealSheetHeader: View {
                     } else {
                         Text(NSLocalizedString("appeal.submitButton", comment: "Submit appeal button"))
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(canSubmit ? AuthColors.primary(colorScheme) : AuthColors.secondary(colorScheme, opacity: 0.42))
+                            .foregroundStyle(canSubmit ? AuthColors.primary(colorScheme) : AuthColors.secondary(colorScheme, opacity: 0.42))
                             .frame(height: 38)
                             .padding(.horizontal, 14)
                     }
@@ -271,16 +269,16 @@ struct AppealFormHeader: View {
         VStack(spacing: 16) {
             Image(systemName: "scale.3d")
                 .font(.system(size: 38, weight: .medium))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
             
             VStack(spacing: 12) {
                 Text(NSLocalizedString("appeal.title", comment: "Appeal title"))
                     .font(.system(size: legacyPoppinsSize(26), weight: .bold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                 
                 Text(NSLocalizedString("appeal.subtitle", comment: "Appeal subtitle"))
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
@@ -302,15 +300,15 @@ struct AppealEmailField: View {
             HStack(spacing: 8) {
                 Image(systemName: "envelope.fill")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
                 Text(title)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
             }
             
             TextField(placeholder, text: $email)
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
                 .font(.system(size: 16))
                 .keyboardType(.emailAddress)
                 .autocapitalization(.none)
@@ -351,17 +349,17 @@ struct AppealMessageField: View {
             HStack(spacing: 8) {
                 Image(systemName: "text.bubble.fill")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
                 Text(title)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
                 Spacer()
                 
                 Text(String(format: NSLocalizedString("appeal.field.characterCount", comment: "Character count format"), characterCount))
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(characterCount < minimumLength ? .orange : characterCount > maximumLength ? .red : AuthColors.secondary(colorScheme, opacity: 0.62))
+                    .foregroundStyle(characterCount < minimumLength ? .orange : characterCount > maximumLength ? .red : AuthColors.secondary(colorScheme, opacity: 0.62))
             }
             
             ZStack(alignment: .topLeading) {
@@ -380,14 +378,14 @@ struct AppealMessageField: View {
                 
                 if message.isEmpty {
                     Text(placeholder)
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.48))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.48))
                         .font(.system(size: 16))
                         .padding(16)
                         .allowsHitTesting(false)
                 }
                 
                 TextEditor(text: $message)
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .font(.system(size: 16))
                     .padding(12)
                     .background(Color.clear)
@@ -405,11 +403,11 @@ struct AppealMessageField: View {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 12))
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                     
                     Text(error)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                 }
             }
         }
@@ -447,11 +445,11 @@ struct AppealOptionalField: View {
             HStack(spacing: 8) {
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.68))
                 
                 Text(title)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.68))
             }
             
             ZStack(alignment: .topLeading) {
@@ -470,14 +468,14 @@ struct AppealOptionalField: View {
                 
                 if text.isEmpty {
                     Text(placeholder)
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.46))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.46))
                         .font(.system(size: 14))
                         .padding(12)
                         .allowsHitTesting(false)
                 }
                 
                 TextEditor(text: $text)
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .font(.system(size: 14))
                     .padding(8)
                     .background(Color.clear)
@@ -503,16 +501,16 @@ struct AppealInfoCard: View {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(color)
+                    .foregroundStyle(color)
                 
                 Text(title)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
             }
             
             Text(content)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
@@ -538,11 +536,11 @@ struct AppealRequirements: View {
             HStack(spacing: 8) {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.blue.opacity(0.8))
+                    .foregroundStyle(.blue.opacity(0.8))
                 
                 Text(NSLocalizedString("appeal.requirements", comment: "Requirements title"))
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
             }
             
             VStack(alignment: .leading, spacing: 6) {
@@ -583,11 +581,11 @@ struct RequirementRow: View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(isCompleted ? .green : .orange)
+                .foregroundStyle(isCompleted ? .green : .orange)
             
             Text(text)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
             
             Spacer()
         }
@@ -608,7 +606,7 @@ struct AppealSuccessView: View {
             
             Image(systemName: "checkmark")
                 .font(.system(size: 42, weight: .bold))
-                .foregroundColor(.green)
+                .foregroundStyle(.green)
             .scaleEffect(isVisible ? 1.0 : 0.8)
             .opacity(isVisible ? 1.0 : 0.0)
             
@@ -616,12 +614,12 @@ struct AppealSuccessView: View {
                 VStack(spacing: 16) {
                     Text(NSLocalizedString("appeal.success.title", comment: "Appeal success title"))
                         .font(.system(size: legacyPoppinsSize(28), weight: .bold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .foregroundStyle(AuthColors.primary(colorScheme))
                         .multilineTextAlignment(.center)
                     
                     Text(result.message)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.74))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.74))
                         .multilineTextAlignment(.center)
                 }
                 
@@ -661,11 +659,11 @@ struct AppealSuccessView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "list.bullet.circle.fill")
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.green.opacity(0.8))
+                                .foregroundStyle(.green.opacity(0.8))
                             
                             Text(NSLocalizedString("appeal.nextSteps", comment: "Next steps label"))
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(AuthColors.primary(colorScheme))
+                                .foregroundStyle(AuthColors.primary(colorScheme))
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
@@ -673,11 +671,11 @@ struct AppealSuccessView: View {
                                 HStack(alignment: .top, spacing: 8) {
                                     Text("•")
                                         .font(.system(size: 14, weight: .medium))
-                                        .foregroundColor(.green.opacity(0.8))
+                                        .foregroundStyle(.green.opacity(0.8))
                                     
                                     Text(step)
                                         .font(.system(size: 14, weight: .medium))
-                                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.76))
+                                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.76))
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                             }
@@ -752,7 +750,7 @@ struct ModerationReviewRequestSheet: View {
     private let minimumLength = 25
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.clear.ignoresSafeArea()
 
@@ -780,12 +778,10 @@ struct ModerationReviewRequestSheet: View {
             }
             loadPreviewIfNeeded()
         }
-        .alert(isPresented: $showAlert) {
-            Alert(
-                title: Text(alertTitle),
-                message: Text(alertMessage),
-                dismissButton: .default(Text(NSLocalizedString("appeal.error.ok", comment: "OK button for error alerts")))
-            )
+        .alert(alertTitle, isPresented: $showAlert) {
+            Button(NSLocalizedString("appeal.error.ok", comment: "OK button for error alerts")) { }
+        } message: {
+            Text(alertMessage)
         }
     }
 
@@ -795,7 +791,7 @@ struct ModerationReviewRequestSheet: View {
                 Button(action: { isPresented = false }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .foregroundStyle(AuthColors.primary(colorScheme))
                         .frame(width: 38, height: 38)
                         .background {
                             Color.clear
@@ -812,7 +808,7 @@ struct ModerationReviewRequestSheet: View {
                     } else {
                         Text(NSLocalizedString("moderationReview.submit", comment: "Submit moderation review request"))
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(canSubmit ? AuthColors.primary(colorScheme) : AuthColors.secondary(colorScheme, opacity: 0.48))
+                            .foregroundStyle(canSubmit ? AuthColors.primary(colorScheme) : AuthColors.secondary(colorScheme, opacity: 0.48))
                     }
                 }
                 .disabled(!canSubmit)
@@ -821,12 +817,12 @@ struct ModerationReviewRequestSheet: View {
             VStack(spacing: 8) {
                 Text(NSLocalizedString("moderationReview.title", comment: "Moderation review title"))
                     .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString("moderationReview.subtitle", comment: "Moderation review subtitle"))
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.76))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.76))
                     .multilineTextAlignment(.center)
             }
         }
@@ -840,15 +836,15 @@ struct ModerationReviewRequestSheet: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(NSLocalizedString("moderationReview.previewTitle", comment: "Moderation review preview title"))
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.74))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.74))
 
                     Text(contentTypeTitle)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .foregroundStyle(AuthColors.primary(colorScheme))
 
                     Text(scopeDescription)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.74))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.74))
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -857,7 +853,7 @@ struct ModerationReviewRequestSheet: View {
 
             Text(NSLocalizedString("moderationReview.helper", comment: "Moderation review helper copy"))
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.78))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.78))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(20)
@@ -904,11 +900,11 @@ struct ModerationReviewRequestSheet: View {
             VStack(spacing: 10) {
                 Image(systemName: contentTypeIsStory ? "rectangle.stack.fill" : "square.stack.3d.up.fill")
                     .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
 
                 Text(contentTypeTitle)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 8)
@@ -950,15 +946,15 @@ struct ModerationReviewRequestSheet: View {
             VStack(spacing: 16) {
                 Image(systemName: "checkmark.shield.fill")
                     .font(.system(size: 52, weight: .semibold))
-                    .foregroundColor(.green.opacity(0.86))
+                    .foregroundStyle(.green.opacity(0.86))
 
                 Text(NSLocalizedString("moderationReview.success.title", comment: "Moderation review success title"))
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
 
                 Text(successMessage)
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.78))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.78))
                     .multilineTextAlignment(.center)
             }
             .padding(24)
@@ -970,7 +966,7 @@ struct ModerationReviewRequestSheet: View {
             Button(action: { isPresented = false }) {
                 Text(NSLocalizedString("appeal.understood", comment: "Understood button"))
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background {

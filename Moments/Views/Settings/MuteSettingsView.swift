@@ -17,7 +17,7 @@ struct MuteSettingsView: View {
                 ProgressView("Cargando configuración...")
                     .progressViewStyle(CircularProgressViewStyle())
                     .font(.system(size: legacyPoppinsSize(16)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             } else {
                 List {
                     // Muted Users Section
@@ -26,18 +26,18 @@ struct MuteSettingsView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("muteSettings.mutedAccounts.title", comment: "Muted accounts title"))
                                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 
                                 Text(NSLocalizedString("muteSettings.mutedAccounts.description", comment: "Muted accounts description"))
                                     .font(.system(size: legacyPoppinsSize(14)))
-                                    .foregroundColor(.gray)
+                                    .foregroundStyle(.gray)
                             }
                             
                             Spacer()
                             
                             Button(action: { showAddMutedUser = true }) {
                                 Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                                    .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                                     .font(.system(size: 24))
                             }
                         }
@@ -49,11 +49,11 @@ struct MuteSettingsView: View {
                                 VStack(spacing: 8) {
                                     Image(systemName: "person.slash")
                                         .font(.system(size: 30))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                     
                                     Text(NSLocalizedString("muteSettings.noMutedUsers", comment: "No muted users"))
                                         .font(.system(size: legacyPoppinsSize(14)))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                 }
                                 Spacer()
                             }
@@ -77,18 +77,18 @@ struct MuteSettingsView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("muteSettings.mutedWords.title", comment: "Muted words title"))
                                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 
                                 Text(NSLocalizedString("muteSettings.mutedWords.description", comment: "Muted words description"))
                                     .font(.system(size: legacyPoppinsSize(14)))
-                                    .foregroundColor(.gray)
+                                    .foregroundStyle(.gray)
                             }
                             
                             Spacer()
                             
                             Button(action: { showAddMutedWord = true }) {
                                 Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                                    .foregroundStyle(SettingsProfileColors.accent(colorScheme))
                                     .font(.system(size: 24))
                             }
                         }
@@ -100,11 +100,11 @@ struct MuteSettingsView: View {
                                 VStack(spacing: 8) {
                                     Image(systemName: "text.badge.xmark")
                                         .font(.system(size: 30))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                     
                                     Text(NSLocalizedString("muteSettings.noMutedWords", comment: "No muted words"))
                                         .font(.system(size: legacyPoppinsSize(14)))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                 }
                                 Spacer()
                             }
@@ -127,23 +127,23 @@ struct MuteSettingsView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             HStack {
                                 Image(systemName: "gear")
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .font(.system(size: 18))
                                 
                                 Text(NSLocalizedString("muteSettings.configuration.title", comment: "Mute configuration title"))
                                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                             }
                             
                             Toggle(isOn: $viewModel.muteNotifications) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(NSLocalizedString("muteSettings.notifications.title", comment: "Mute notifications title"))
                                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     
                                     Text(NSLocalizedString("muteSettings.notifications.description", comment: "Mute notifications description"))
                                         .font(.system(size: legacyPoppinsSize(13)))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                 }
                             }
                             .onChange(of: viewModel.muteNotifications) { _, _ in
@@ -154,11 +154,11 @@ struct MuteSettingsView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(NSLocalizedString("muteSettings.hideFromSearch.title", comment: "Hide from search title"))
                                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     
                                     Text(NSLocalizedString("muteSettings.hideFromSearch.description", comment: "Hide from search description"))
                                         .font(.system(size: legacyPoppinsSize(13)))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                 }
                             }
                             .onChange(of: viewModel.hideFromSearch) { _, _ in
@@ -219,7 +219,7 @@ struct MutedUserRow: View {
                     .frame(width: 40, height: 40)
                     .overlay(
                         Image(systemName: "person.fill")
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .font(.system(size: 16))
                     )
             }
@@ -227,12 +227,12 @@ struct MutedUserRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(user.username)")
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 if let bio = user.bio, !bio.isEmpty {
                     Text(bio)
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         .lineLimit(1)
                 }
             }
@@ -243,7 +243,7 @@ struct MutedUserRow: View {
                 showUnmuteAlert = true
             }
             .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-            .foregroundColor(SettingsProfileColors.accent(colorScheme))
+            .foregroundStyle(SettingsProfileColors.accent(colorScheme))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
@@ -272,19 +272,19 @@ struct MutedWordRow: View {
         HStack {
             HStack(spacing: 8) {
                 Image(systemName: "text.badge.xmark")
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .font(.system(size: 16))
                 
                 Text(word)
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
             }
             
             Spacer()
             
             Button(action: { showRemoveAlert = true }) {
                 Image(systemName: "minus.circle.fill")
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                     .font(.system(size: 20))
             }
         }
@@ -308,16 +308,16 @@ struct AddMutedUserView: View {
     @State private var isSearching = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
                 // Search Bar
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                     
                     TextField(NSLocalizedString("muteSettings.search.placeholder", comment: "Search users placeholder"), text: $searchText)
                         .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .onChange(of: searchText) { _, newValue in
                             if !newValue.isEmpty {
                                 searchUsers(query: newValue)
@@ -339,7 +339,7 @@ struct AddMutedUserView: View {
                 } else if searchResults.isEmpty && !searchText.isEmpty {
                     Text(NSLocalizedString("muteSettings.noUsersFound", comment: "No users found"))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         .padding()
                 } else {
                     List(searchResults) { user in
@@ -356,7 +356,7 @@ struct AddMutedUserView: View {
                                     .frame(width: 40, height: 40)
                                     .overlay(
                                         Image(systemName: "person.fill")
-                                            .foregroundColor(.gray)
+                                            .foregroundStyle(.gray)
                                             .font(.system(size: 16))
                                     )
                             }
@@ -364,12 +364,12 @@ struct AddMutedUserView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(user.username)")
                                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 
                                 if let bio = user.bio, !bio.isEmpty {
                                     Text(bio)
                                         .font(.system(size: legacyPoppinsSize(13)))
-                                        .foregroundColor(.gray)
+                                        .foregroundStyle(.gray)
                                         .lineLimit(1)
                                 }
                             }
@@ -386,7 +386,7 @@ struct AddMutedUserView: View {
                                 }
                             }
                             .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                            .foregroundColor(isMuted ? SettingsProfileColors.accent(colorScheme) : .red)
+                            .foregroundStyle(isMuted ? SettingsProfileColors.accent(colorScheme) : .red)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(
@@ -438,20 +438,20 @@ struct AddMutedWordView: View {
     @State private var newWord = ""
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(NSLocalizedString("muteSettings.addWord.title", comment: "Add word title"))
                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     Text(NSLocalizedString("muteSettings.addWord.description", comment: "Add word description"))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                     
                     TextField(NSLocalizedString("muteSettings.textField.placeholder", comment: "Text field placeholder"), text: $newWord)
                         .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 12)
@@ -470,7 +470,7 @@ struct AddMutedWordView: View {
                     }) {
                         Text(NSLocalizedString("muteSettings.add", comment: "Add button"))
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .background(

@@ -54,6 +54,7 @@ struct ModernMomentDetailView: View {
     @State private var storyRoute: StoryUserPresentationRoute?
     @State private var selectedLocationMoment: Moment? // ✅ Usar Item Binding para evitar race conditions en SwiftUI
     @State private var hasAppliedInitialScroll = false
+    @State private var containerSize: CGSize = .zero
     @Environment(\.profileDetailVideoPlaybackEnabled) private var profileDetailVideoPlaybackEnabled
     @Environment(\.profileGridHeroTransitionCoordinator) private var heroCoordinator
     
@@ -103,6 +104,13 @@ struct ModernMomentDetailView: View {
 
                 modernMomentsScrollView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear
+                                .onAppear { containerSize = proxy.size }
+                                .onChange(of: proxy.size) { _, newValue in containerSize = newValue }
+                        }
+                    )
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                     .gesture(profileDetailDismissDragGesture)
@@ -151,8 +159,8 @@ struct ModernMomentDetailView: View {
                             .resizable()
                             .scaledToFill()
                             .frame(
-                                width: UIScreen.main.bounds.width - 32,
-                                height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
+                                width: containerSize.width - 32,
+                                height: (containerSize.width - 32) / peekAspectRatio
                             )
                             .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                             .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
@@ -338,7 +346,7 @@ struct ModernMomentDetailView: View {
 
                 if value.translation.width > dismissThreshold || velocity > 300 {
                     withAnimation(.easeOut(duration: 0.3)) {
-                        dragOffset = UIScreen.main.bounds.width
+                        dragOffset = containerSize.width
                         backgroundOpacity = 0.0
                     }
 
@@ -496,8 +504,16 @@ struct ModernMomentDetailView: View {
     }
 
     // ✅ ScrollView principal MODIFICADO para conectar con el menú contextual
+    /// Altura de la ventana activa (vía window scene) como fallback antes de que el contenedor mida.
+    private func activeWindowHeight() -> CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first
+        return window?.bounds.height ?? 0
+    }
+
     private func modernMomentsScrollView() -> some View {
-        let screenHeight = UIScreen.main.bounds.height
+        let screenHeight = containerSize.height > 0 ? containerSize.height : activeWindowHeight()
         let feedCardHeight = screenHeight * 0.58
 
         return ScrollViewReader { proxy in

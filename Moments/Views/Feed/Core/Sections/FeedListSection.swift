@@ -44,7 +44,7 @@ struct FeedListSection: View {
         ScrollViewReader { proxy in
             ZStack {
                 ScrollView(.vertical, showsIndicators: false) {
-                    let screenHeight = UIScreen.main.bounds.height
+                    let screenHeight = UIApplication.shared.activeWindowSize.height
                     let headerHeight = feedHeaderHeight
                     let segmentedToggleHeight = feedSelectorHeight
                     let tabbarHeight = 50.0

@@ -67,11 +67,11 @@ struct CreatingProfileStatusView: View {
         VStack(spacing: 8) {
             Text(NSLocalizedString("creatingProfile.title", comment: "Creating your account"))
                 .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
             
             Text(viewModel.currentStepText)
                 .font(.system(size: 15, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.64))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.64))
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),
                     removal: .move(edge: .leading).combined(with: .opacity)

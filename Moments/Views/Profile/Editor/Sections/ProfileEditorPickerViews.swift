@@ -26,14 +26,14 @@ struct ProfileAlbumPickerView: View {
             HStack {
                 Text(NSLocalizedString("profileEditor.album.selectTitle", comment: ""))
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                 Spacer()
 
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title2)
-                        .foregroundColor(.gray.opacity(0.5))
+                        .foregroundStyle(.gray.opacity(0.5))
                 }
             }
             .padding(.horizontal, 20)
@@ -138,18 +138,18 @@ struct ProfileAlbumRowView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(album.title)
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                     Text(String(format: NSLocalizedString("profileEditor.album.photosCount", comment: ""), album.assetCount))
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 }
 
                 Spacer()
 
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundStyle(Color(hex: "00A896"))
                         .font(.title3)
                 }
             }
@@ -183,22 +183,22 @@ struct ProfileLibraryCropEntryView: View {
                         .tint(colorScheme == .dark ? .white : .black)
                     Text("profileEditor.loadingPhotos")
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.75) : .black.opacity(0.75))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.75) : .black.opacity(0.75))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if authorizationStatus == .denied || authorizationStatus == .restricted {
                 VStack(spacing: 16) {
                     Image(systemName: "photo.on.rectangle")
                         .font(.system(size: 36))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
 
                     Text("profileEditor.photosAccess.title")
                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                     Text("profileEditor.photosAccess.description")
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.6))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.6))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 28)
 
@@ -208,7 +208,7 @@ struct ProfileLibraryCropEntryView: View {
                         }
                     }
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
                     .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -218,13 +218,13 @@ struct ProfileLibraryCropEntryView: View {
                 VStack(spacing: 16) {
                     Text("profileEditor.photosAccess.title")
                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                     Button(NSLocalizedString("profileEditor.allowAccess", comment: "")) {
                         requestPermission()
                     }
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
                     .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))

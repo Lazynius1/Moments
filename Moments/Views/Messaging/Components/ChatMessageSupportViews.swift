@@ -44,11 +44,11 @@ struct GlassmorphicReplyBar: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(message.senderId == currentUserId ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
                         .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundColor(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
+                        .foregroundStyle(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
 
                     Text(message.preview)
                         .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundColor(adaptiveColors.replyBarText)
+                        .foregroundStyle(adaptiveColors.replyBarText)
                         .lineLimit(1)
                 }
 
@@ -66,7 +66,7 @@ struct GlassmorphicReplyBar: View {
                 Button(action: onCancel) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(adaptiveColors.replyBarSecondaryText)
+                        .foregroundStyle(adaptiveColors.replyBarSecondaryText)
                 }
             }
             .padding(.vertical, 6)
@@ -74,7 +74,7 @@ struct GlassmorphicReplyBar: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .background(adaptiveColors.replyBarBackground)
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
@@ -128,11 +128,11 @@ struct GlassmorphicReplyPreview: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(message.senderId == currentUserId ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
                             .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                            .foregroundColor(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
+                            .foregroundStyle(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
 
                         Text(message.preview)
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(adaptiveColors.messageTextColor.opacity(0.8))
+                            .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.8))
                             .lineLimit(1)
                     }
 
@@ -207,7 +207,7 @@ struct StackedReplyQuote: View {
                     .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                     .lineLimit(1)
             }
-            .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
+            .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.5))
             .padding(.horizontal, 6)
 
             quoteSnippet
@@ -231,7 +231,7 @@ struct StackedReplyQuote: View {
             }
             Text(repliedMessage.preview)
                 .font(.system(size: legacyPoppinsSize(12)))
-                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.65))
+                .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.65))
                 .lineLimit(1)
         }
         .padding(.vertical, 6)
@@ -301,12 +301,12 @@ struct EmbeddedReplyView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(repliedToSelf ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
                     .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                    .foregroundColor(titleColor)
+                    .foregroundStyle(titleColor)
                     .lineLimit(1)
 
                 Text(repliedMessage.preview)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(bodyColor)
+                    .foregroundStyle(bodyColor)
                     .lineLimit(2)
             }
 
@@ -359,7 +359,7 @@ struct ChatQuickReactionsBar: View {
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(MomentsChromeGlass.contentColor(for: colorScheme))
+                    .foregroundStyle(MomentsChromeGlass.contentColor(for: colorScheme))
                     .frame(width: 36, height: 36)
             }
             .buttonStyle(.plain)
@@ -435,7 +435,7 @@ struct MessageReactionChip: View {
                             .font(.system(size: emojiSize))
                         Text("\(entry.count)")
                             .font(.system(size: countSize, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.65))
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.65))
                     }
                 } else {
                     Text(entry.emoji)
@@ -769,19 +769,19 @@ struct MessageTimestamp: View {
         HStack(spacing: 4) {
             Text(formatTime(message.timestamp))
                 .font(.system(size: legacyPoppinsSize(11)))
-                .foregroundColor(adaptiveColors.timestampColor)
+                .foregroundStyle(adaptiveColors.timestampColor)
 
             if message.editedAt != nil {
                 Text("chat.edited")
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(adaptiveColors.timestampColor)
+                    .foregroundStyle(adaptiveColors.timestampColor)
             }
 
             if isCurrentUser {
                 if showSeenLabel && displayStatus == .read {
                     Text("chat.seen")
                         .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                        .foregroundColor(adaptiveColors.timestampColor.opacity(0.9))
+                        .foregroundStyle(adaptiveColors.timestampColor.opacity(0.9))
                 } else {
                     MessageStatusIcon(status: displayStatus)
                 }
@@ -808,7 +808,7 @@ struct MessageStatusIcon: View {
         case .pending:
             Image(systemName: "clock")
                 .font(.system(size: 10))
-                .foregroundColor(adaptiveColors.timestampColor.opacity(0.8))
+                .foregroundStyle(adaptiveColors.timestampColor.opacity(0.8))
         case .sending:
             ProgressView()
                 .scaleEffect(0.45)
@@ -816,30 +816,30 @@ struct MessageStatusIcon: View {
         case .sent:
             Image(systemName: "checkmark")
                 .font(.system(size: 10, weight: .medium))
-                .foregroundColor(adaptiveColors.timestampColor)
+                .foregroundStyle(adaptiveColors.timestampColor)
         case .delivered:
             HStack(spacing: -3) {
                 Image(systemName: "checkmark")
                 Image(systemName: "checkmark")
             }
             .font(.system(size: 10, weight: .medium))
-            .foregroundColor(adaptiveColors.timestampColor)
+            .foregroundStyle(adaptiveColors.timestampColor)
         case .read:
             HStack(spacing: -3) {
                 Image(systemName: "checkmark")
                 Image(systemName: "checkmark")
             }
             .font(.system(size: 10, weight: .medium))
-            .foregroundColor(adaptiveColors.userAccentColor)
+            .foregroundStyle(adaptiveColors.userAccentColor)
         case .failed:
             HStack(spacing: 2) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 8, weight: .medium))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
 
                 Text("chat.error")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
             }
         }
     }

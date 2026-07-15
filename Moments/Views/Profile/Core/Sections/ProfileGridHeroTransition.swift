@@ -1121,12 +1121,12 @@ struct ProfileGridHeroDetailLayer: View {
             VStack(spacing: 10) {
                 Text(NSLocalizedString("contextMenu.pinLimit.confirm.title", comment: "Pinned limit confirm title"))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString("contextMenu.pinLimit.confirm.message", comment: "Pinned limit confirm message"))
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.68))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.68))
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 18)
@@ -1143,7 +1143,7 @@ struct ProfileGridHeroDetailLayer: View {
             }) {
                 Text(NSLocalizedString("contextMenu.pinLimit.confirm", comment: "Confirm pin replacement"))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(Color(hex: "007AFF"))
+                    .foregroundStyle(Color(hex: "007AFF"))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
             }
@@ -1155,7 +1155,7 @@ struct ProfileGridHeroDetailLayer: View {
             }) {
                 Text(NSLocalizedString("contextMenu.pinLimit.cancel", comment: "Cancel pin replacement"))
                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
             }
@@ -1168,7 +1168,7 @@ struct ProfileGridHeroDetailLayer: View {
     private func profileToast(message: String) -> some View {
         Text(message)
             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .foregroundStyle(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
             .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -1219,7 +1219,7 @@ struct ProfileGridMenuRow: View {
 
                 Spacer(minLength: 12)
             }
-            .foregroundColor(isDestructive ? .red : (colorScheme == .dark ? .white : .black))
+            .foregroundStyle(isDestructive ? .red : (colorScheme == .dark ? .white : .black))
             .padding(.horizontal, 16)
             .padding(.vertical, 13)
             .contentShape(Rectangle())

@@ -233,18 +233,18 @@ private struct NovaAttachmentMenuPopoverCard: View {
                             .resizable()
                             .scaledToFit()
                             .frame(width: AttachmentIconMetrics.attachmentMenu, height: AttachmentIconMetrics.attachmentMenu)
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                     } else {
                         Image(systemName: systemImage ?? "questionmark")
                             .font(.system(size: 18, weight: .regular))
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                     }
                 }
                 .frame(width: 40, height: 40, alignment: .center)
 
                 Text(LocalizedStringKey(titleKey))
                     .font(.system(size: legacyPoppinsSize(17), weight: .medium))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
 
@@ -472,8 +472,8 @@ struct NovaAttachmentCameraSheet: View {
     }
 
     private var cameraPinchGesture: some Gesture {
-        MagnificationGesture()
-            .onChanged { magnification in
+        MagnifyGesture()
+            .onChanged { value in
                 if !isPinchActive {
                     pinchAnchorZoom = zoomLevel
                     isPinchActive = true
@@ -483,7 +483,7 @@ struct NovaAttachmentCameraSheet: View {
                 let maxZoom = cameraViewController?.maxDisplayZoomFactor ?? CameraViewController.photoModeMaxDisplayZoom
                 let target = CameraViewController.displayZoomFromPinch(
                     base: pinchAnchorZoom,
-                    magnification: magnification
+                    magnification: value.magnification
                 )
                 let clamped = min(max(target, minZoom), maxZoom)
                 zoomLevel = clamped
@@ -499,7 +499,7 @@ struct NovaAttachmentCameraSheet: View {
             if showsContinuousZoomLabel {
                 Text(cameraLensLabel(for: zoomLevel))
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(Capsule().fill(Color.black.opacity(0.45)))
@@ -518,7 +518,7 @@ struct NovaAttachmentCameraSheet: View {
                     } label: {
                         Text(cameraLensLabel(for: preset))
                             .font(.system(size: isSelected ? 15 : 13, weight: .semibold))
-                            .foregroundColor(isSelected ? Color(hex: "FFD60A") : .white.opacity(0.78))
+                            .foregroundStyle(isSelected ? Color(hex: "FFD60A") : .white.opacity(0.78))
                             .frame(minWidth: 40, minHeight: 44)
                             .background {
                                 if isSelected {
@@ -887,7 +887,7 @@ private struct NovaAttachmentPhotoCell: View {
                             .overlay {
                                 Text("1")
                                     .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             }
                             .padding(8)
                     }
@@ -909,7 +909,7 @@ private struct NovaAttachmentPermissionPrompt: View {
 
             Text(LocalizedStringKey(messageKey))
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(NovaColors.textSecondary)
+                .foregroundStyle(NovaColors.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
         }
@@ -979,7 +979,7 @@ private struct NovaStoryRoundButton: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(StoryEditorChromeColor.icon(colorScheme))
+                .foregroundStyle(StoryEditorChromeColor.icon(colorScheme))
                 .frame(width: size, height: size)
                 .momentsChromeGlass(in: Circle(), interactive: true)
                 .overlay(
@@ -1016,7 +1016,7 @@ private struct NovaStoryPillButton: View {
         Button(action: action) {
             Text(LocalizedStringKey(titleKey))
                 .font(.system(size: legacyPoppinsSize(14), weight: tint == nil ? .medium : .semibold))
-                .foregroundColor(tint == nil ? StoryEditorChromeColor.icon(colorScheme) : .white)
+                .foregroundStyle(tint == nil ? StoryEditorChromeColor.icon(colorScheme) : .white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .momentsChromeGlass(in: Capsule(), interactive: !disabled,

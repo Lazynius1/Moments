@@ -234,7 +234,7 @@ struct StoryShareRecipientsPanel: View {
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(Color.white.opacity(0.1)))
                 }
@@ -242,13 +242,13 @@ struct StoryShareRecipientsPanel: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(NSLocalizedString("share.story.title", comment: "Share story sheet title"))
                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     LiveUsernameContent(userId: story.authorId, fallbackUsername: story.username) { username in
                         Text(String(format: NSLocalizedString("share.story.by", comment: "Story by user"), username))
                     }
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -259,11 +259,11 @@ struct StoryShareRecipientsPanel: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .font(.system(size: 16))
 
                 TextField(NSLocalizedString("share.search.placeholder", comment: ""), text: $searchText)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .font(.system(size: legacyPoppinsSize(16)))
                     .textFieldStyle(PlainTextFieldStyle())
                     .autocorrectionDisabled()
@@ -327,7 +327,7 @@ struct StoryShareRecipientsPanel: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("share.search.globalResults")
                                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .padding(.top, 8)
 
                                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
@@ -633,7 +633,7 @@ struct StoryVisualContent: View {
                         .overlay(
                             Image(systemName: "photo")
                                 .font(.system(size: 28))
-                                .foregroundColor(.white.opacity(0.5))
+                                .foregroundStyle(.white.opacity(0.5))
                         )
                 }
             }

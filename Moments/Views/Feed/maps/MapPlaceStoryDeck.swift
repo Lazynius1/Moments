@@ -24,7 +24,7 @@ struct MapPlaceStoryDeckView: View {
                     story: story,
                     storyCount: stories.count,
                     storyIndex: currentIndex,
-                    screenSize: UIScreen.main.bounds.size,
+                    screenSize: UIApplication.shared.activeWindowSize,
                     storyViewModel: storyViewModel,
                     showingReportSheet: $showingReportSheet,
                     showingBlockConfirmation: $showingBlockConfirmation,

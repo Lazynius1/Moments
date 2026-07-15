@@ -209,7 +209,7 @@ struct ProfileGridHeroCard: View {
                     displayMode: .inline
                 )
             }
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .background(.black.opacity(0.45), in: Capsule())
@@ -227,13 +227,13 @@ struct ProfileGridHeroCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(moment.username)
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .lineLimit(1)
 
                 if let locationText {
                     Text(locationText)
                         .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundColor(secondaryTextColor)
+                        .foregroundStyle(secondaryTextColor)
                         .lineLimit(1)
                 }
             }
@@ -310,7 +310,7 @@ struct ProfileGridHeroCard: View {
             Color.black.opacity(0.08)
             Image(systemName: "play.circle.fill")
                 .font(.system(size: 36))
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundStyle(.white.opacity(0.9))
         }
     }
 
@@ -319,7 +319,7 @@ struct ProfileGridHeroCard: View {
             Color.black.opacity(0.06)
             Text(moment.content)
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
                 .multilineTextAlignment(.center)
                 .padding(20)
                 .lineLimit(6)

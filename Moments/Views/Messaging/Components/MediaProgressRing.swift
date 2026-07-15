@@ -58,7 +58,7 @@ struct MediaProgressRing: View {
             if size > 50 {
                 Text("\(Int(progress * 100))%")
                     .font(.system(size: legacyPoppinsSize(10), weight: .bold))
-                    .foregroundColor(labelColor)
+                    .foregroundStyle(labelColor)
             }
         }
         .shadow(color: shadowColor, radius: 4, x: 0, y: 1)

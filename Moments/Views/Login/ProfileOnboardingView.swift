@@ -128,7 +128,7 @@ struct ProfileOnboardingView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .onAppear {
             withAnimation(.easeOut(duration: 0.45)) {
@@ -157,12 +157,10 @@ struct ProfileOnboardingView: View {
         .onChange(of: profileImage) { _, _ in
             persistDraft()
         }
-        .alert(isPresented: $showAlert) {
-            Alert(
-                title: Text("login.error.title"),
-                message: Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown error")),
-                dismissButton: .default(Text("login.ok"))
-            )
+        .alert("login.error.title", isPresented: $showAlert) {
+            Button("login.ok") { }
+        } message: {
+            Text(errorMessage ?? NSLocalizedString("login.error.unknown", comment: "Unknown error"))
         }
         .sheet(isPresented: $showPrivacyPolicy) {
             PrivacyPolicyView()
@@ -182,7 +180,7 @@ struct ProfileOnboardingView: View {
             Button(action: primaryNavigationAction) {
                 Image(systemName: currentStep > 1 ? "chevron.left" : "xmark")
                     .font(.system(size: currentStep > 1 ? 17 : 16, weight: .semibold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .frame(width: 36, height: 36)
                     .background {
                         Color.clear
@@ -202,7 +200,7 @@ struct ProfileOnboardingView: View {
                 Button(action: context == .apple ? cancelAppleOnboarding : cancelEmailOnboarding) {
                     Image(systemName: "xmark")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .foregroundStyle(AuthColors.primary(colorScheme))
                         .frame(width: 36, height: 36)
                         .background {
                             Color.clear
@@ -276,7 +274,7 @@ struct ProfileOnboardingView: View {
 
                         Text("onboarding.apple.email.help")
                             .font(.footnote)
-                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                            .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.62))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -575,12 +573,12 @@ private struct OnboardingStepHeader: View {
             VStack(spacing: 8) {
                 Text(title)
                     .font(.system(size: titleFontSize).weight(.semibold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundStyle(AuthColors.primary(colorScheme))
                     .multilineTextAlignment(.center)
 
                 Text(subtitle)
                     .font(.subheadline.weight(.medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -648,12 +646,12 @@ private struct OnboardingQuestionField: View {
             if let prefix {
                 Text(prefix)
                     .font(.system(size: fontSize, weight: .semibold))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.5))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.5))
             }
 
             TextField(placeholder, text: $text)
                 .font(.system(size: fontSize, weight: .semibold))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
                 .keyboardType(keyboardType)
                 .textContentType(textContentType)
                 .textInputAutocapitalization(.never)
@@ -694,12 +692,12 @@ private struct OnboardingQuestionField: View {
         case .valid:
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.green.opacity(0.85))
+                .foregroundStyle(.green.opacity(0.85))
                 .transition(MotionPolicy.Transition.enterPop)
         case .invalid:
             Image(systemName: "xmark.circle.fill")
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.red.opacity(0.8))
+                .foregroundStyle(.red.opacity(0.8))
                 .transition(MotionPolicy.Transition.enterPop)
         }
     }
@@ -733,7 +731,7 @@ private struct OnboardingSecureQuestionField: View {
                 }
             }
             .font(.system(size: fontSize, weight: .semibold))
-            .foregroundColor(AuthColors.primary(colorScheme))
+            .foregroundStyle(AuthColors.primary(colorScheme))
             .textContentType(.newPassword)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
@@ -746,7 +744,7 @@ private struct OnboardingSecureQuestionField: View {
             } label: {
                 Image(systemName: isVisible ? "eye.slash" : "eye")
                     .font(.system(size: 17, weight: .medium))
-                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.6))
+                    .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.6))
             }
         }
         .padding(.horizontal, 20)
@@ -807,7 +805,7 @@ private struct OnboardingUsernameQuestion: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(error)
                         .font(.footnote.weight(.medium))
-                        .foregroundColor(.red.opacity(0.85))
+                        .foregroundStyle(.red.opacity(0.85))
 
                     if !usernameSuggestions.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -826,7 +824,7 @@ private struct OnboardingUsernameQuestion: View {
                                                 Color.clear
                                                     .liquidGlass(in: Capsule(), interactive: true)
                                             }
-                                            .foregroundColor(AuthColors.primary(colorScheme))
+                                            .foregroundStyle(AuthColors.primary(colorScheme))
                                     }
                                 }
                             }
@@ -942,7 +940,7 @@ private struct OnboardingPasswordQuestion: View {
 
             Text(passwordStrengthMessage())
                 .font(.caption.weight(.medium))
-                .foregroundColor(passwordStrengthTextColor())
+                .foregroundStyle(passwordStrengthTextColor())
         }
         .padding(.horizontal, 4)
     }
@@ -1027,7 +1025,7 @@ private struct OnboardingIdentityStep: View {
                 if let error = usernameError {
                     Text(error)
                         .font(.caption)
-                        .foregroundColor(.red.opacity(0.8))
+                        .foregroundStyle(.red.opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -1106,15 +1104,15 @@ private struct OnboardingProfilePreviewStep: View {
                 VStack(spacing: 6) {
                     Text("@\(username)")
                         .font(.system(size: usernameFontSize).weight(.semibold))
-                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .foregroundStyle(AuthColors.primary(colorScheme))
 
                     HStack(spacing: 6) {
                         Image(systemName: isAppleAccount ? "applelogo" : "envelope.fill")
                             .font(.caption.weight(.medium))
-                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                            .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.62))
                         Text(accountLabel)
                             .font(.subheadline.weight(.medium))
-                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.78))
+                            .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.78))
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
                     }
@@ -1124,7 +1122,7 @@ private struct OnboardingProfilePreviewStep: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("register.summary.interests")
                             .font(.footnote.weight(.semibold))
-                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
+                            .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.68))
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         EnhancedFlowLayout(spacing: 8) {
@@ -1137,7 +1135,7 @@ private struct OnboardingProfilePreviewStep: View {
                                         Color.clear
                                             .liquidGlass(in: Capsule())
                                     }
-                                    .foregroundColor(AuthColors.primary(colorScheme))
+                                    .foregroundStyle(AuthColors.primary(colorScheme))
                             }
                         }
                     }
@@ -1155,12 +1153,12 @@ private struct OnboardingProfilePreviewStep: View {
                     HStack(spacing: 4) {
                         Text("register.terms.accept")
                             .font(.subheadline.weight(.medium))
-                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.9))
+                            .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.9))
 
                         Button(action: { showPrivacyPolicy = true }) {
                             Text("register.terms.privacyPolicy")
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundColor(AuthColors.primary(colorScheme))
+                                .foregroundStyle(AuthColors.primary(colorScheme))
                                 .underline()
                         }
                     }
@@ -1170,7 +1168,7 @@ private struct OnboardingProfilePreviewStep: View {
                 if !isAppleAccount {
                     Text("register.verification.notice")
                         .font(.caption.weight(.medium))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.7))
                         .multilineTextAlignment(.center)
                 }
             }
@@ -1203,7 +1201,7 @@ private struct OnboardingProfilePreviewStep: View {
                 .overlay {
                     Image(systemName: "person.fill")
                         .font(.system(size: placeholderIconSize).weight(.medium))
-                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.42))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.42))
                 }
         }
     }
@@ -1216,11 +1214,11 @@ private struct OnboardingResumeBanner: View {
         HStack(spacing: 10) {
             Image(systemName: "arrow.counterclockwise.circle.fill")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(AuthColors.primary(colorScheme))
+                .foregroundStyle(AuthColors.primary(colorScheme))
 
             Text("onboarding.resume.banner")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.82))
+                .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.82))
                 .multilineTextAlignment(.leading)
 
             Spacer(minLength: 0)

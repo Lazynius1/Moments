@@ -51,7 +51,7 @@ struct StoryReplyMessageBubble: View {
                         : NSLocalizedString("stories.repliedTo", comment: "")
                 )
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundColor(adaptiveColors.replyBarSecondaryText)
+                .foregroundStyle(adaptiveColors.replyBarSecondaryText)
                 .multilineTextAlignment(isCurrentUser ? .trailing : .leading)
                 .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
 
@@ -152,7 +152,7 @@ struct StoryTextReplyContent: View {
 
             Text(cleanContent)
                 .font(.system(size: legacyPoppinsSize(15)))
-                .foregroundColor(adaptiveColors.messageTextColor)
+                .foregroundStyle(adaptiveColors.messageTextColor)
                 .multilineTextAlignment(isCurrentUser ? .trailing : .leading)
                 .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
         }
@@ -307,11 +307,11 @@ private struct StoryReplyUnavailableThumbnail: View {
             VStack(spacing: 5) {
                 Image(systemName: iconName)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundStyle(.white.opacity(0.9))
 
                 Text(LocalizedStringKey(reason.titleKey))
                     .font(.system(size: legacyPoppinsSize(9), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
@@ -361,7 +361,7 @@ struct StoryReplyThumbnailView: View {
                         .overlay(
                             Image(systemName: "photo")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(adaptiveColors.replyBarSecondaryText)
+                                .foregroundStyle(adaptiveColors.replyBarSecondaryText)
                         )
                 }
             }
@@ -375,7 +375,7 @@ struct StoryReplyThumbnailView: View {
                     .overlay(
                         Image(systemName: "play.fill")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .offset(x: 1)
                     )
             }
@@ -436,7 +436,7 @@ struct StoryReplyEphemeralTapCard: View {
                 VStack(spacing: 4) {
                     Text("stories.tapToView")
                         .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                     if let expirationDate, expirationDate > Date() {
                         Text(
@@ -446,7 +446,7 @@ struct StoryReplyEphemeralTapCard: View {
                             )
                         )
                         .font(.system(size: legacyPoppinsSize(10)))
-                        .foregroundColor(.white.opacity(0.75))
+                        .foregroundStyle(.white.opacity(0.75))
                     }
                 }
                 .padding(.horizontal, 8)
@@ -496,7 +496,7 @@ struct StoryReplyEphemeralImageCard: View {
                 if let expirationDate, expirationDate > Date() {
                     Text(storyReplyFormatTimeLeft(expirationDate.timeIntervalSince(Date())))
                         .font(.system(size: legacyPoppinsSize(9)))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
                         .background(Capsule().fill(Color.black.opacity(0.55)))
@@ -537,11 +537,11 @@ struct StoryReplyEphemeralExpiredCard: View {
             VStack(spacing: 6) {
                 Image(systemName: "clock.fill")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.white.opacity(0.85))
+                    .foregroundStyle(.white.opacity(0.85))
 
                 Text("stories.ephemeral.expired")
                     .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
             }
@@ -650,7 +650,7 @@ struct ClickableEphemeralImageContent: View {
                 if let expirationDate, expirationDate > Date() {
                     Text(storyReplyFormatTimeLeft(expirationDate.timeIntervalSince(Date())))
                         .font(.system(size: legacyPoppinsSize(10)))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(Color.black.opacity(0.6)))
@@ -695,7 +695,7 @@ struct FullScreenEphemeralImageView: View {
                     Button("common.close") {
                         dismiss()
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
 
                     Spacer()
@@ -703,7 +703,7 @@ struct FullScreenEphemeralImageView: View {
                     if timeLeft > 0 {
                         Text(String(format: NSLocalizedString("stories.expiresIn", comment: "Expires in"), formatTimeLeft(timeLeft)))
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.white.opacity(0.8))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(

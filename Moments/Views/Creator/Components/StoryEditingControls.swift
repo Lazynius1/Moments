@@ -20,7 +20,7 @@ struct EditingToolButton: View {
                 Text(title)
                     .font(.caption)
             }
-            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .foregroundStyle(colorScheme == .dark ? .white : .black)
         }
     }
 }
@@ -45,7 +45,7 @@ struct EditingToolIcon: View {
                         .font(.system(size: 20))
                 }
             }
-                .foregroundColor(StoryEditorChromeColor.icon(colorScheme))
+                .foregroundStyle(StoryEditorChromeColor.icon(colorScheme))
                 .frame(width: 44, height: 44)
                 .momentsChromeGlass(in: Circle(), interactive: true)
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.1 : 0.08), radius: 4, x: 0, y: 2)
@@ -63,22 +63,22 @@ struct OptionRow: View {
         Button(action: action) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 30)
 
                 Text(title)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 Spacer()
 
                 if let value = value {
                     Text(value)
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                         .font(.system(size: 14))
                 }
 
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
                     .font(.caption)
             }
             .padding()
@@ -96,11 +96,11 @@ struct ShareOptionToggle: View {
     var body: some View {
         HStack {
             Image(systemName: icon)
-                .foregroundColor(color)
+                .foregroundStyle(color)
                 .font(.title2)
 
             Text(platform)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
 
             Spacer()
 

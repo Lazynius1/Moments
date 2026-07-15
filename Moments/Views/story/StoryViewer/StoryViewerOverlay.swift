@@ -64,7 +64,7 @@ struct GlassmorphicProgressBar: View {
                 Rectangle()
                     .fill(Color.white.opacity(0.15))
                     .frame(height: 2.5)
-                    .cornerRadius(1.25)
+                    .clipShape(RoundedRectangle(cornerRadius: 1.25, style: .continuous))
 
                 // Progress with clamped value
                 Rectangle()
@@ -73,7 +73,7 @@ struct GlassmorphicProgressBar: View {
                         width: geometry.size.width * min(max(progress, 0.0), 1.0),
                         height: 2.5
                     )
-                    .cornerRadius(1.25)
+                    .clipShape(RoundedRectangle(cornerRadius: 1.25, style: .continuous))
                     .shadow(color: shadowColor, radius: 3, x: 0, y: 0)
                     .animation(
                         isActive ? .linear(duration: 0.1) : .none,
@@ -95,18 +95,18 @@ struct GlassmorphicActionButton: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .foregroundColor(isDestructive ? .red : .white)
+                    .foregroundStyle(isDestructive ? .red : .white)
                     .font(.system(size: 18))
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .foregroundColor(isDestructive ? .red : .white)
+                        .foregroundStyle(isDestructive ? .red : .white)
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
 
                     if let subtitle = subtitle {
                         Text(subtitle)
-                            .foregroundColor(Color.white.opacity(0.7))
+                            .foregroundStyle(Color.white.opacity(0.7))
                             .font(.system(size: legacyPoppinsSize(11)))
                     }
                 }
@@ -127,11 +127,11 @@ struct GlassmorphicSuccessMessage: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(Color(hex: "007AFF"))
+                .foregroundStyle(Color(hex: "007AFF"))
                 .font(.system(size: 20))
 
             Text(text)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
         }
         .padding(.horizontal, 20)
@@ -174,13 +174,13 @@ struct GlassmorphicStoryConfirmationDialog: View {
             VStack(spacing: 16) {
                 VStack(spacing: 8) {
                     Text(title)
-                        .foregroundColor(primaryTextColor)
+                        .foregroundStyle(primaryTextColor)
                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .multilineTextAlignment(.center)
 
                     if !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Text(message)
-                            .foregroundColor(secondaryTextColor)
+                            .foregroundStyle(secondaryTextColor)
                             .font(.system(size: legacyPoppinsSize(14)))
                             .multilineTextAlignment(.center)
                     }
@@ -190,7 +190,7 @@ struct GlassmorphicStoryConfirmationDialog: View {
                     Button(action: onCancel) {
                         Text(cancelTitle)
                             .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
                             .background(Color.white.opacity(0.001))
@@ -203,7 +203,7 @@ struct GlassmorphicStoryConfirmationDialog: View {
                     Button(action: onConfirm) {
                         Text(confirmTitle)
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(isDestructive ? .red : primaryTextColor)
+                            .foregroundStyle(isDestructive ? .red : primaryTextColor)
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
                             .background(Color.white.opacity(0.001))
@@ -418,12 +418,12 @@ struct GlassmorphicViewersSheet: View {
     private var viewersSearchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
                 .font(.system(size: 15, weight: .medium))
 
             TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: $viewerSearchText)
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(colorScheme == .dark ? .white : .black.opacity(0.88))
+                .foregroundStyle(colorScheme == .dark ? .white : .black.opacity(0.88))
                 .textFieldStyle(.plain)
 
             if !viewerSearchText.isEmpty {
@@ -431,7 +431,7 @@ struct GlassmorphicViewersSheet: View {
                     viewerSearchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                         .font(.system(size: 16))
                 }
                 .buttonStyle(.plain)
@@ -446,12 +446,12 @@ struct GlassmorphicViewersSheet: View {
     private var reactionsSearchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
                 .font(.system(size: 15, weight: .medium))
 
             TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: $reactionSearchText)
                 .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundColor(colorScheme == .dark ? .white : .black.opacity(0.88))
+                .foregroundStyle(colorScheme == .dark ? .white : .black.opacity(0.88))
                 .textFieldStyle(.plain)
 
             if !reactionSearchText.isEmpty {
@@ -459,7 +459,7 @@ struct GlassmorphicViewersSheet: View {
                     reactionSearchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                         .font(.system(size: 16))
                 }
                 .buttonStyle(.plain)
@@ -491,7 +491,7 @@ struct GlassmorphicViewersSheet: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(activityPrimaryText)
+                        .foregroundStyle(activityPrimaryText)
                         .frame(width: 40, height: 40)
                         .background(Color.white.opacity(0.001))
                         .momentsChromeGlass(in: Circle(), interactive: true)
@@ -504,7 +504,7 @@ struct GlassmorphicViewersSheet: View {
             VStack(spacing: 2) {
                 Text(NSLocalizedString("stories.activity.title", comment: "Activity Title"))
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(activityPrimaryText)
+                    .foregroundStyle(activityPrimaryText)
                     .multilineTextAlignment(.center)
             }
             .padding(.top, 2)
@@ -527,12 +527,12 @@ struct GlassmorphicViewersSheet: View {
                         .tint(activitySecondaryText)
                     Text(NSLocalizedString("stories.activity.audienceLoading", comment: "Loading audience"))
                         .font(.system(size: legacyPoppinsSize(13)))
-                        .foregroundColor(activitySecondaryText)
+                        .foregroundStyle(activitySecondaryText)
                 }
             } else if isEveryoneAudience {
                 Text(NSLocalizedString("audience.description.everyone", comment: "Everyone audience description"))
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(activitySecondaryText)
+                    .foregroundStyle(activitySecondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             } else if canOpenAudienceList {
                 Button {
@@ -568,12 +568,12 @@ struct GlassmorphicViewersSheet: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(audienceTitle)
                     .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                    .foregroundColor(activityPrimaryText)
+                    .foregroundStyle(activityPrimaryText)
                     .lineLimit(1)
 
                 Text(audienceSummarySubtitle)
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(activitySecondaryText)
+                    .foregroundStyle(activitySecondaryText)
                     .lineLimit(1)
             }
 
@@ -582,7 +582,7 @@ struct GlassmorphicViewersSheet: View {
             if showsChevron {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(activitySecondaryText)
+                    .foregroundStyle(activitySecondaryText)
             }
         }
         .contentShape(Rectangle())
@@ -732,7 +732,7 @@ private struct GlassmorphicAudienceMembersSheet: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(primaryTextColor)
+                            .foregroundStyle(primaryTextColor)
                             .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.001))
                             .momentsChromeGlass(in: Circle(), interactive: true)
@@ -744,7 +744,7 @@ private struct GlassmorphicAudienceMembersSheet: View {
 
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .lineLimit(1)
                     .padding(.horizontal, 56)
                     .padding(.top, 2)
@@ -801,14 +801,14 @@ private struct GlassmorphicAudienceMemberRow: View {
                     .overlay(
                         Image(systemName: "person.fill")
                             .font(.system(size: 16))
-                            .foregroundColor(primaryTextColor.opacity(0.7))
+                            .foregroundStyle(primaryTextColor.opacity(0.7))
                     )
             }
 
             HStack(spacing: 4) {
                 Text(user.username)
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .lineLimit(1)
 
                 if user.isVerified {
@@ -853,7 +853,7 @@ struct GlassmorphicTabSelector: View {
         }) {
             Text(tabs[index])
                 .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundColor(isSelected ? primaryTextColor : secondaryTextColor)
+                .foregroundStyle(isSelected ? primaryTextColor : secondaryTextColor)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
                 .overlay(alignment: .bottom) {
@@ -898,7 +898,7 @@ struct GlassmorphicViewerRow: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 20, height: 20)
-                        .foregroundColor(secondaryTextColor)
+                        .foregroundStyle(secondaryTextColor)
                 }
                 .frame(width: 48, height: 48)
             }
@@ -907,12 +907,12 @@ struct GlassmorphicViewerRow: View {
             HStack(spacing: 6) {
                 Text(viewer.username ?? "Usuario")
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
 
                 if let badgeText = viewer.rewatchBadgeText {
                     Text(badgeText)
                         .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                        .foregroundColor(primaryTextColor)
+                        .foregroundStyle(primaryTextColor)
                 }
             }
 
@@ -960,7 +960,7 @@ struct GlassmorphicReactionRow: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 20, height: 20)
-                        .foregroundColor(secondaryTextColor)
+                        .foregroundStyle(secondaryTextColor)
                 }
                 .frame(width: 48, height: 48)
             }
@@ -969,11 +969,11 @@ struct GlassmorphicReactionRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(username)
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
 
                 Text(timeAgo(from: reaction.timestamp))
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(secondaryTextColor)
+                    .foregroundStyle(secondaryTextColor)
             }
 
             Spacer()
@@ -1041,10 +1041,10 @@ struct GlassmorphicEmptyState: View {
         VStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 22, weight: .semibold))
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
 
             Text(message)
-                .foregroundColor(secondaryTextColor)
+                .foregroundStyle(secondaryTextColor)
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .multilineTextAlignment(.center)
 
@@ -1052,7 +1052,7 @@ struct GlassmorphicEmptyState: View {
                 Button(action: onClose) {
                     Text(NSLocalizedString("stories.close", comment: "Close"))
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(primaryTextColor)
+                        .foregroundStyle(primaryTextColor)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
                         .background(Color.white.opacity(0.001))

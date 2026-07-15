@@ -103,7 +103,7 @@ struct NotificationSummaryPopup: View {
                     
                     Text(NSLocalizedString("feed.summary.highlights", comment: "Novedades"))
                         .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                 }
                 .padding(.trailing, 4)
                 
@@ -133,7 +133,7 @@ struct NotificationSummaryPopup: View {
                 // Botón cerrar sutil
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.secondary.opacity(0.5))
+                    .foregroundStyle(.secondary.opacity(0.5))
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 12)
@@ -194,7 +194,7 @@ struct SummaryItemView: View {
             
             Text("\(count)")
                 .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
         }
     }
 }

@@ -331,7 +331,7 @@ struct ProfileChromeIconButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: resolvedIconSize, weight: .semibold))
-                .foregroundColor(resolvedForegroundColor)
+                .foregroundStyle(resolvedForegroundColor)
                 .frame(width: resolvedSize, height: resolvedSize)
                 .modifier(
                     ProfileChromeIconGlassModifier(
@@ -403,7 +403,7 @@ struct MomentsTabBarChromeBackground: View {
             .overlay(alignment: .top) {
                 Rectangle()
                     .frame(height: 0.5)
-                    .foregroundColor(
+                    .foregroundStyle(
                         colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)
                     )
             }

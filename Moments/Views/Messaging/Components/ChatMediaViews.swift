@@ -34,12 +34,12 @@ struct ChatMediaDownloadOverlay: View {
                         .frame(width: 46, height: 46)
                     Image(systemName: "arrow.down")
                         .font(.system(size: 21, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
 
                 Text(sizeLabel ?? NSLocalizedString("chat.media.download", comment: "Download media"))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.92))
+                    .foregroundStyle(.white.opacity(0.92))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
@@ -157,7 +157,7 @@ struct GlassmorphicImageMessage: View {
                     .overlay(
                         Image(systemName: "photo.fill")
                             .font(.system(size: 28))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                     )
             }
 
@@ -195,7 +195,7 @@ struct ChatVideoPlayBadge: View {
     var body: some View {
         Image(systemName: "play.fill")
             .font(.system(size: size, weight: .bold))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
             .padding(padding)
     }
@@ -349,7 +349,7 @@ struct NormalVideoPlayerView: View {
                             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                             .textCase(.uppercase)
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(
@@ -363,7 +363,7 @@ struct NormalVideoPlayerView: View {
                     Button(action: { isMuted.toggle() }) {
                         Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(width: 34, height: 34)
                             .background(.ultraThinMaterial)
                             .clipShape(Circle())
@@ -372,7 +372,7 @@ struct NormalVideoPlayerView: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(.ultraThinMaterial)
                             .clipShape(Circle())
@@ -398,9 +398,9 @@ struct NormalVideoPlayerView: View {
         .statusBar(hidden: false)
         .preferredColorScheme(.dark)
         .contentShape(Rectangle())
-        .onLongPressGesture(minimumDuration: .infinity, maximumDistance: .infinity, pressing: { pressing in
+        .onLongPressGesture(minimumDuration: .infinity, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
             isPaused = pressing
-        }, perform: {})
+        })
         .offset(y: dragOffset)
         .animation(.interactiveSpring(), value: dragOffset)
         .gesture(
@@ -449,7 +449,7 @@ struct FullScreenImageView: View {
                             .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                             .textCase(.uppercase)
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(.ultraThinMaterial)
@@ -460,7 +460,7 @@ struct FullScreenImageView: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(.ultraThinMaterial)
                             .clipShape(Circle())

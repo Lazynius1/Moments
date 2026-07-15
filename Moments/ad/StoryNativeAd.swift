@@ -124,7 +124,7 @@ private struct StoryAdVideoControlsOverlay: View {
                 Button(action: playback.togglePause) {
                     Image(systemName: playback.isPaused ? "play.fill" : "pause.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(width: 36, height: 36)
                         .background(Color.black.opacity(0.45))
                         .clipShape(Circle())
@@ -139,7 +139,7 @@ private struct StoryAdVideoControlsOverlay: View {
                 Button(action: playback.toggleMute) {
                     Image(systemName: playback.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(width: 36, height: 36)
                         .background(Color.black.opacity(0.45))
                         .clipShape(Circle())
@@ -225,21 +225,21 @@ private struct StoryAdTopChrome: View {
                                 .momentsChromeGlass(in: Circle())
 
                             Image(systemName: "megaphone.fill")
-                                .foregroundColor(.white.opacity(0.82))
+                                .foregroundStyle(.white.opacity(0.82))
                                 .font(.system(size: 16, weight: .medium))
                         }
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .lineLimit(1)
                             .shadow(color: Color.black.opacity(0.60), radius: 5, x: 0, y: 2)
 
                         HStack(spacing: 6) {
                             Text("Ad")
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .font(.system(size: legacyPoppinsSize(9), weight: .semibold))
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
@@ -247,7 +247,7 @@ private struct StoryAdTopChrome: View {
                                 .clipShape(Capsule())
 
                             Text(subtitle)
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundStyle(.white.opacity(0.7))
                                 .font(.system(size: legacyPoppinsSize(11)))
                                 .shadow(color: Color.black.opacity(0.55), radius: 4, x: 0, y: 2)
                         }
@@ -262,7 +262,7 @@ private struct StoryAdTopChrome: View {
 
                 Button(action: onClose) {
                     Image(systemName: "xmark")
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .font(.system(size: 16, weight: .medium))
                         .frame(width: 40, height: 40)
                         .storyGlassmorphic()
@@ -342,15 +342,15 @@ struct StoryNativeAdView: View {
                         VStack(spacing: 16) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 50))
-                                .foregroundColor(.red)
+                                .foregroundStyle(.red)
                             
                             Text("ad.story.errorLoading")
                                 .font(.headline)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                             
                             Text("ad.story.skippingSoon")
                                 .font(.caption)
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.gray)
                         }
                     }
                     .onAppear {
@@ -900,7 +900,7 @@ struct StoryAdLoadingView: View {
                             onNext()
                         }
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(Color.white.opacity(0.2))
@@ -934,12 +934,12 @@ struct StoryAdLoadingView: View {
                     VStack(spacing: 8) {
                         Text("ad.story.preparing")
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.3), radius: 5)
                         
                         Text("ad.story.preparingDescription")
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.white.opacity(0.8))
                             .shadow(color: .black.opacity(0.3), radius: 3)
                     }
                     
@@ -1179,13 +1179,13 @@ struct IntegratedStoryAdView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(nativeAd.headline ?? "")
                                 .font(.system(size: legacyPoppinsSize(22), weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .shadow(color: .black.opacity(0.5), radius: 4)
                             
                             if let body = nativeAd.body {
                                 Text(body)
                                     .font(.system(size: legacyPoppinsSize(15)))
-                                    .foregroundColor(.white.opacity(0.9))
+                                    .foregroundStyle(.white.opacity(0.9))
                                     .lineLimit(3)
                                     .shadow(color: .black.opacity(0.3), radius: 2)
                             }
@@ -1203,7 +1203,7 @@ struct IntegratedStoryAdView: View {
                                 Image(systemName: "arrow.right.circle.fill")
                                     .font(.system(size: 20))
                             }
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 40)
                             .padding(.vertical, 14)
                             .background(
@@ -1262,11 +1262,11 @@ struct IntegratedStoryAdView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(nativeAd.advertiser ?? "Anunciante")
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                         
                         Text("ad.common.sponsored")
                             .font(.system(size: legacyPoppinsSize(11)))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.7))
                     }
                     
                     Spacer()
@@ -1275,7 +1275,7 @@ struct IntegratedStoryAdView: View {
                     Button(action: onClose) {
                         Image(systemName: "xmark")
                             .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(8)
                             .background(.ultraThinMaterial)
                             .clipShape(Circle())

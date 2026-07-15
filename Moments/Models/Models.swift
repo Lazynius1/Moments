@@ -1408,7 +1408,12 @@ struct Story: Identifiable, Codable {
     }
 
     // ✅ FUNCIÓN: Convertir StickerData a StickerItem para la UI
+    @available(*, deprecated, message: "use convertStickersToStickerItems(traitCollection:) instead")
     func convertStickersToStickerItems() -> [StickerItem] {
+        convertStickersToStickerItems(traitCollection: .current)
+    }
+
+    func convertStickersToStickerItems(traitCollection: UITraitCollection) -> [StickerItem] {
         guard let stickers = stickers else { return [] }
 
         return stickers.compactMap { stickerData in
@@ -1477,9 +1482,9 @@ struct Story: Identifiable, Codable {
                 }
             case .time, .weather, .emoji, .sticker, .generic, .selfie, .questionResponse, .shareMoment, .frame, .quiz:
                 // ✅ INTENTAR DECODIFICAR IMAGEN BASE64
-                // Usar UIScreen.main.scale para restaurar el tamaño lógico (puntos) original
+                // Usar el displayScale del trait collection para restaurar el tamaño lógico (puntos) original
                 if let data = Data(base64Encoded: stickerData.content),
-                   let image = UIImage(data: data, scale: UIScreen.main.scale) {
+                   let image = UIImage(data: data, scale: traitCollection.displayScale) {
                     stickerImage = image
                 } else {
                     stickerImage = UIImage(systemName: "sticker") ?? UIImage()

@@ -115,7 +115,7 @@ struct StoryChainView: View {
                 .tint(primaryForeground)
 
             Text(NSLocalizedString("storyChains.loading", comment: "Loading chain"))
-                .foregroundColor(secondaryForeground)
+                .foregroundStyle(secondaryForeground)
                 .font(.system(size: legacyPoppinsSize(16)))
         }
     }
@@ -175,7 +175,7 @@ struct StoryChainView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(primaryForeground)
+                        .foregroundStyle(primaryForeground)
                         .frame(width: 38, height: 38)
                         .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                 }
@@ -184,10 +184,10 @@ struct StoryChainView: View {
                 VStack(spacing: 4) {
                     Text(NSLocalizedString("storyChains.chain", comment: "Chain"))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundColor(secondaryForeground)
+                        .foregroundStyle(secondaryForeground)
                     Text(chainTitle)
                         .font(.system(size: legacyPoppinsSize(24), weight: .semibold))
-                        .foregroundColor(primaryForeground)
+                        .foregroundStyle(primaryForeground)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
@@ -260,7 +260,7 @@ struct StoryChainView: View {
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .lineLimit(1)
         }
-        .foregroundColor(tint)
+        .foregroundStyle(tint)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: false))
@@ -371,7 +371,7 @@ struct StoryChainItemView: View {
                     // Número
                     Text("\(position)")
                         .font(.system(size: legacyPoppinsSize(16), weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                 }
                 
                 // Contenido de la historia
@@ -379,19 +379,19 @@ struct StoryChainItemView: View {
                     HStack {
                         Text(story.username)
                             .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                         
                         Spacer()
                         
                         Text(timeAgoString(from: story.timestamp))
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     
                     if let text = story.text, !text.isEmpty {
                         Text(text)
                             .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
                     
@@ -399,11 +399,11 @@ struct StoryChainItemView: View {
                     HStack(spacing: 4) {
                         Image(systemName: story.mediaItem.type == .video ? "video.fill" : "photo.fill")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         
                         Text(story.mediaItem.type == .video ? NSLocalizedString("storyChains.video", comment: "Video") : NSLocalizedString("storyChains.photo", comment: "Photo"))
                             .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 
@@ -413,7 +413,7 @@ struct StoryChainItemView: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title3)
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                 }
             }
             .padding(.horizontal, 16)
@@ -524,7 +524,7 @@ struct StoryChainGridItemView: View {
                         ZStack {
                             (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
                             Image(systemName: story.mediaItem.type == .video ? "video.fill" : "photo.fill")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         .clipped()
                     @unknown default:
@@ -535,7 +535,7 @@ struct StoryChainGridItemView: View {
                 ZStack {
                     (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
                     Image(systemName: story.mediaItem.type == .video ? "video.fill" : "photo.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
             
@@ -554,7 +554,7 @@ struct StoryChainGridItemView: View {
 
                     Text(story.username)
                         .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                        .foregroundColor(.white.opacity(0.96))
+                        .foregroundStyle(.white.opacity(0.96))
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .padding(.horizontal, 8)
@@ -602,7 +602,7 @@ struct StoryChainGridItemView: View {
 
                         Text("\(position)")
                             .font(.system(size: legacyPoppinsSize(13), weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
                 Spacer()

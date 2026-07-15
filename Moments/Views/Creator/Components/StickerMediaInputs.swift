@@ -9,18 +9,18 @@ struct SelfieCameraView: View {
     let onImageCaptured: (UIImage) -> Void
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
                 Spacer()
 
                 Text("stickerview.selfie")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 Text("stickerview.tapForFrontCamera")
                     .font(.body)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .padding()
 
@@ -40,7 +40,7 @@ struct SelfieCameraView: View {
 
                         Image(systemName: "camera.fill")
                             .font(.system(size: 40))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
                 .padding()
@@ -61,7 +61,7 @@ struct SelfieCameraView: View {
                     Button(NSLocalizedString("stickerview.cancel", comment: "Cancel")) {
                         dismiss()
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 }
             }
         }
@@ -187,12 +187,12 @@ struct AudioStickerRecordingView: View {
             VStack(spacing: 6) {
                 Text(formatDuration(duration))
                     .font(.system(size: 20, weight: .bold, design: .monospaced))
-                    .foregroundColor(isRecording ? .red : .primary)
+                    .foregroundStyle(isRecording ? .red : .primary)
                     .contentTransition(.numericText())
 
                 Text(statusLabel)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -207,7 +207,7 @@ struct AudioStickerRecordingView: View {
 
                             Image(systemName: "trash.fill")
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.red)
+                                .foregroundStyle(.red)
                         }
                     }
                 }
@@ -241,7 +241,7 @@ struct AudioStickerRecordingView: View {
 
                             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                         }
                     }
                     .contentTransition(.symbolEffect(.replace))
@@ -256,7 +256,7 @@ struct AudioStickerRecordingView: View {
                 }) {
                     Text(NSLocalizedString("stickerview.audio.add", comment: "Add to Story"))
                         .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(

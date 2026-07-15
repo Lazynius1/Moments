@@ -20,12 +20,12 @@ struct ModernEmptyFeedView: View {
             VStack(spacing: 8) {
                 Text(emptyTitle)
                     .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
-                    .foregroundColor(primaryText)
+                    .foregroundStyle(primaryText)
                     .multilineTextAlignment(.center)
 
                 Text(emptyDescription)
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(secondaryText)
+                    .foregroundStyle(secondaryText)
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -40,7 +40,7 @@ struct ModernEmptyFeedView: View {
                     Image(systemName: primaryActionIcon)
                         .font(.system(size: 14, weight: .semibold))
                 }
-                .foregroundColor(primaryText)
+                .foregroundStyle(primaryText)
                 .frame(height: 50)
                 .padding(.horizontal, 22)
                 .contentShape(Capsule())
@@ -65,7 +65,7 @@ struct ModernEmptyFeedView: View {
     private var iconView: some View {
         Image(systemName: feedType == .following ? "person.2" : "sparkles")
             .font(.system(size: 31, weight: .medium))
-            .foregroundColor(primaryText)
+            .foregroundStyle(primaryText)
             .frame(width: 76, height: 76)
             .background {
                 Color.clear

@@ -64,7 +64,7 @@ struct ProfileSavedContent: View {
 
     private var gridItemSize: CGFloat {
         // 20 + 20 outer padding, then 8 + 8 inner grid padding.
-        let availableWidth = UIScreen.main.bounds.width - 56
+        let availableWidth = UIApplication.shared.activeWindowSize.width - 56
         return max(88, (availableWidth - (gridSpacing * 2)) / 3)
     }
 
@@ -76,7 +76,7 @@ struct ProfileSavedContent: View {
                     .scaleEffect(1.2)
                 Text(NSLocalizedString("profile.saved.loading", comment: "Loading saved"))
                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                    .foregroundColor(ProfileColors.textSecondary)
+                    .foregroundStyle(ProfileColors.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 50)
@@ -96,7 +96,7 @@ struct ProfileSavedContent: View {
                             }) {
                                 Text(filter.title)
                                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                                    .foregroundColor(selectedFilter == filter ? ProfileColors.textPrimary : ProfileColors.textSecondary)
+                                    .foregroundStyle(selectedFilter == filter ? ProfileColors.textPrimary : ProfileColors.textSecondary)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
                                     .background(
@@ -122,7 +122,7 @@ struct ProfileSavedContent: View {
                                 .font(.system(size: 11, weight: .semibold))
                         }
                         .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                        .foregroundColor(ProfileColors.textPrimary)
+                        .foregroundStyle(ProfileColors.textPrimary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                         .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
@@ -141,10 +141,10 @@ struct ProfileSavedContent: View {
                     VStack(spacing: 8) {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                             .font(.system(size: 30))
-                            .foregroundColor(ProfileColors.textSecondary)
+                            .foregroundStyle(ProfileColors.textSecondary)
                         Text(NSLocalizedString("profile.saved.filtered.empty", comment: "No saved moments for selected filter"))
                             .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                            .foregroundColor(ProfileColors.textSecondary)
+                            .foregroundStyle(ProfileColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 28)
@@ -184,7 +184,7 @@ struct ProfileSavedContent: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(NSLocalizedString("profile.saved.recent", comment: "Recent saved moments section"))
                             .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                            .foregroundColor(ProfileColors.textPrimary)
+                            .foregroundStyle(ProfileColors.textPrimary)
                             .padding(.horizontal, 20)
 
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -439,7 +439,7 @@ struct ProfileSavedMomentThumbnail: View {
                             } else {
                                 Image(systemName: "video.fill")
                                     .font(.system(size: 14))
-                                    .foregroundColor(.white.opacity(0.5))
+                                    .foregroundStyle(.white.opacity(0.5))
                             }
                         }
                     )
@@ -461,7 +461,7 @@ struct ProfileSavedMomentThumbnail: View {
 
             Text(moment.content)
                 .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .lineLimit(4)
                 .padding(6)
@@ -482,7 +482,7 @@ struct ProfileSavedMomentThumbnail: View {
             VStack(spacing: 3) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.95))
+                    .foregroundStyle(.white.opacity(0.95))
 
                 Text(
                     NSLocalizedString(
@@ -491,7 +491,7 @@ struct ProfileSavedMomentThumbnail: View {
                     )
                 )
                     .font(.system(size: legacyPoppinsSize(9), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
@@ -502,7 +502,7 @@ struct ProfileSavedMomentThumbnail: View {
                     )
                 )
                     .font(.system(size: legacyPoppinsSize(8)))
-                    .foregroundColor(.white.opacity(0.84))
+                    .foregroundStyle(.white.opacity(0.84))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
             }

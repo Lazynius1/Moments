@@ -79,9 +79,9 @@ struct ChatCameraView: View {
                 .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                 .position(x: captureRect.midX, y: captureRect.midY)
                 .gesture(
-                    MagnificationGesture()
+                    MagnifyGesture()
                         .onChanged { value in
-                            let newZoom = lastZoomLevel * value
+                            let newZoom = lastZoomLevel * value.magnification
                             zoomLevel = min(max(newZoom, 1.0), 5.0)
                         }
                         .onEnded { _ in
@@ -200,10 +200,10 @@ struct ChatCameraView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text("chat.camera.header")
                     .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                    .foregroundColor(.white.opacity(0.65))
+                    .foregroundStyle(.white.opacity(0.65))
                 Text(otherUsername)
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .lineLimit(1)
             }
         }
@@ -223,7 +223,7 @@ struct ChatCameraView: View {
         Button(action: openTextMode) {
             Text("Aa")
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .foregroundColor(controlForegroundColor)
+                .foregroundStyle(controlForegroundColor)
                 .frame(width: 48, height: 48)
                 .background {
                     Color.clear
@@ -246,12 +246,12 @@ struct ChatCameraView: View {
 
                     Text(formatTime(recordingDuration))
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(Color.black.opacity(0.5))
-                .cornerRadius(20)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
         }
         .frame(height: 36)
@@ -288,7 +288,7 @@ struct ChatCameraView: View {
                         .fill(Color.white.opacity(0.14))
                     Image(systemName: "photo.stack")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
                 .frame(width: 48, height: 48)
             }
@@ -299,7 +299,7 @@ struct ChatCameraView: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(controlForegroundColor)
+                .foregroundStyle(controlForegroundColor)
                 .frame(width: size, height: size)
                 .background {
                     Color.clear

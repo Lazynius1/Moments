@@ -205,7 +205,7 @@ struct VideoControlsOverlay: View {
                 }) {
                     Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
                         .font(.system(size: 40))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .background(Color.black.opacity(0.3))
                         .clipShape(Circle())
                 }
@@ -216,7 +216,7 @@ struct VideoControlsOverlay: View {
                 Button(action: {}) {
                     Image(systemName: "gobackward")
                         .font(.system(size: 24))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding()
                         .background(Color.black.opacity(0.3))
                         .clipShape(Circle())

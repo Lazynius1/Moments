@@ -19,7 +19,7 @@ struct LoginActivityView: View {
                     }
                         .progressViewStyle(CircularProgressViewStyle())
                         .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.gray)
                 } else {
                     ScrollView {
                         VStack(spacing: 20) {
@@ -28,7 +28,7 @@ struct LoginActivityView: View {
                             VStack(alignment: .leading, spacing: 16) {
                                 Text("loginActivity.currentSession")
                                     .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 
                                 CurrentSessionCard(
                                     session: viewModel.currentSession,
@@ -43,7 +43,7 @@ struct LoginActivityView: View {
                                 HStack {
                                     Text("loginActivity.otherSessions")
                                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     
                                     Spacer()
                                     
@@ -51,18 +51,18 @@ struct LoginActivityView: View {
                                         viewModel.showLogoutAllAlert = true
                                     }
                                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                    .foregroundColor(.red)
+                                    .foregroundStyle(.red)
                                 }
                                 
                                 if viewModel.otherSessions.isEmpty {
                                     VStack(spacing: 12) {
                                         Image(systemName: "desktopcomputer.and.arrow.down")
                                             .font(.system(size: 40))
-                                            .foregroundColor(.gray)
+                                            .foregroundStyle(.gray)
                                         
                                         Text("loginActivity.noOtherSessions")
                                             .font(.system(size: legacyPoppinsSize(16)))
-                                            .foregroundColor(.gray)
+                                            .foregroundStyle(.gray)
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 40)
@@ -157,7 +157,7 @@ struct LoginActivityView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("loginActivity.description")
                 .font(.system(size: legacyPoppinsSize(13)))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
         }
         .padding(.horizontal)
     }
@@ -173,14 +173,14 @@ struct CurrentSessionCard: View {
             HStack {
                 Text("loginActivity.activeSession")
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 if session != nil {
                     Text("loginActivity.current")
                         .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                        .foregroundColor(.green)
+                        .foregroundStyle(.green)
                 }
             }
             
@@ -194,7 +194,7 @@ struct CurrentSessionCard: View {
             } else {
                 Text("loginActivity.noCurrentSession")
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
             }
         }
         .padding(.vertical, 8)
@@ -214,14 +214,14 @@ struct SessionCard: View {
             HStack {
                 Text(session.device)
                     .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
 
                 Spacer(minLength: 0)
 
                 Text(session.timestamp.timeAgoDisplay())
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
             }
             
             SessionDetails(session: session)
@@ -257,7 +257,7 @@ private struct SessionLogoutButton: View {
         Button(action: action) {
             Text("loginActivity.logoutSession")
                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                .foregroundColor(.red)
+                .foregroundStyle(.red)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
@@ -273,7 +273,7 @@ struct SessionSecurityHint: View {
         HStack(spacing: 0) {
             Text(text)
                 .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                .foregroundColor(color)
+                .foregroundStyle(color)
                 .lineLimit(2)
         }
         .padding(.top, 2)
@@ -298,24 +298,24 @@ struct SessionDetails: View {
             HStack(spacing: 4) {
                 Text(NSLocalizedString("loginActivity.session.location", value: "Ubicación", comment: "Location label"))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundColor(.secondary.opacity(0.95))
+                    .foregroundStyle(.secondary.opacity(0.95))
                 Text(visibleLocation)
                     .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
             HStack(spacing: 6) {
                 Text(visibleIP)
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Text("•")
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(.secondary.opacity(0.7))
+                    .foregroundStyle(.secondary.opacity(0.7))
                 Text(MomentsFormat.smartDate(from: session.timestamp, context: .mediumDateTime))
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
         }

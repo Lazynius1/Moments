@@ -245,7 +245,7 @@ struct ModernGiphyGridView: View {
                         AnimatedGIFView(url: url)
                             .frame(height: 120)
                             .clipped()
-                            .cornerRadius(12)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
@@ -262,7 +262,7 @@ struct ModernGiphyGridView: View {
                             .frame(height: 120)
                             .overlay(
                                 Image(systemName: "photo")
-                                    .foregroundColor(.white.opacity(0.5))
+                                    .foregroundStyle(.white.opacity(0.5))
                             )
                     }
                 }

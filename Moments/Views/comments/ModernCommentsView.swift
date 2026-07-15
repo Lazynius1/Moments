@@ -101,11 +101,11 @@ struct ModernCommentsView: View {
                         
                         Text("modernComments.disabled.title")
                             .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                         
                         Text("modernComments.disabled.description")
                             .font(.system(size: legacyPoppinsSize(14)))
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.gray)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
                     }
@@ -214,7 +214,7 @@ struct ModernCommentsView: View {
                 HStack(spacing: 8) {
                     Text("modernComments.title")
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                     if isLoading {
                         ProgressView()
@@ -223,7 +223,7 @@ struct ModernCommentsView: View {
                     } else if !filteredComments.isEmpty {
                         Text("\(totalCommentsCount)")
                             .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(
@@ -242,7 +242,7 @@ struct ModernCommentsView: View {
                         Text(String(format: NSLocalizedString("modernComments.postOf", comment: "Post of user"), username))
                     }
                     .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.gray)
 
                     VerifiedBadgeView(userId: moment.authorId, size: 10)
                 }
@@ -274,7 +274,7 @@ struct ModernCommentsView: View {
 
                         Image(systemName: "slider.horizontal.3")
                             .font(.system(size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                 }
             }
@@ -384,16 +384,16 @@ struct ModernCommentsView: View {
         HStack(spacing: 12) {
             Image(systemName: "arrowshape.turn.up.left.fill")
                 .font(.system(size: 14))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(String(format: NSLocalizedString("modernComments.replyingTo", comment: "Replying to user"), replyComment.username))
                     .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 
                 Text(String(replyComment.content.prefix(50)) + (replyComment.content.count > 50 ? "..." : ""))
                     .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundColor(.gray.opacity(0.6))
+                    .foregroundStyle(.gray.opacity(0.6))
                     .lineLimit(1)
             }
             
@@ -402,7 +402,7 @@ struct ModernCommentsView: View {
             Button(action: { replyToComment = nil }) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 16))
-                    .foregroundColor(.gray.opacity(0.6))
+                    .foregroundStyle(.gray.opacity(0.6))
             }
         }
         .padding(.horizontal, 20)
@@ -429,18 +429,18 @@ struct ModernCommentsView: View {
                             HStack {
                                 Image(systemName: "pencil")
                                     .font(.system(size: 12))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 
                                 Text("modernComments.editing")
                                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 
                                 Spacer()
                             }
                             
                             TextField("Editar comentario...", text: $editingCommentContent, axis: .vertical)
                                 .font(.system(size: legacyPoppinsSize(15)))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .lineLimit(1...4)
                                 .disabled(isLoading)
                                 .onChange(of: editingCommentContent) { _, newValue in
@@ -477,7 +477,7 @@ struct ModernCommentsView: View {
                                 } else {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                         .frame(width: 36, height: 36)
                                         .background(
                                             LinearGradient(
@@ -499,7 +499,7 @@ struct ModernCommentsView: View {
                             }) {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 14))
-                                    .foregroundColor(.gray)
+                                    .foregroundStyle(.gray)
                                     .frame(width: 36, height: 36)
                                     .background(.ultraThinMaterial)
                                     .clipShape(Circle())
@@ -531,7 +531,7 @@ struct ModernCommentsView: View {
                         
                         TextField(replyToComment != nil ? "Responder a \(replyToComment?.username ?? "")..." : "Añade un comentario...", text: $newComment, axis: .vertical)
                             .font(.system(size: legacyPoppinsSize(15)))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
                             .lineLimit(1...4)
@@ -582,7 +582,7 @@ struct ModernCommentsView: View {
                                 } else {
                                     Image(systemName: "paperplane.fill")
                                         .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                         .offset(x: -1, y: 1) // Ajuste visual
                                 }
                             }
@@ -1266,7 +1266,7 @@ private struct CommentMentionText: View {
                     } label: {
                         Text(segment.text)
                             .font(.system(size: legacyPoppinsSize(fontSize), weight: .semibold))
-                            .foregroundColor(mentionColor)
+                            .foregroundStyle(mentionColor)
                     }
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
@@ -1274,7 +1274,7 @@ private struct CommentMentionText: View {
                 } else {
                     Text(segment.text)
                         .font(.system(size: legacyPoppinsSize(fontSize)))
-                        .foregroundColor(baseColor)
+                        .foregroundStyle(baseColor)
                 }
             }
         }
@@ -1520,13 +1520,13 @@ struct EnhancedModernCommentRow: View {
                 if nestingLevel > 0 {
                     Image(systemName: "arrowshape.turn.up.left")
                         .font(.system(size: 10))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 
                 HStack(spacing: 3) {
                     Text(comment.username)
                         .font(.system(size: legacyPoppinsSize(nestingLevel == 0 ? 14 : 13), weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     // ✅ INSIGNIA DE VERIFICADO
                     VerifiedBadgeView(userId: comment.authorId, size: nestingLevel == 0 ? 12 : 10)
@@ -1541,24 +1541,24 @@ struct EnhancedModernCommentRow: View {
             if comment.isEditedFlag {
                 Text("modernComments.edited")
                     .font(.system(size: legacyPoppinsSize(10)))
-                    .foregroundColor(.gray.opacity(0.6))
+                    .foregroundStyle(.gray.opacity(0.6))
                     .italic()
             }
             
             Text("•")
                 .font(.system(size: legacyPoppinsSize(12)))
-                .foregroundColor(.gray.opacity(0.6))
+                .foregroundStyle(.gray.opacity(0.6))
             
             // ✅ Timestamp relativo
             HStack(spacing: 4) {
                 Text(timeAgo(from: comment.timestamp))
                     .font(.system(size: legacyPoppinsSize(nestingLevel == 0 ? 12 : 11)))
-                    .foregroundColor(.gray.opacity(0.6))
+                    .foregroundStyle(.gray.opacity(0.6))
                 
                 if comment.isPending == true {
                     Image(systemName: "clock")
                         .font(.system(size: 10))
-                        .foregroundColor(.gray.opacity(0.6))
+                        .foregroundStyle(.gray.opacity(0.6))
                 }
             }
             
@@ -1586,10 +1586,10 @@ struct EnhancedModernCommentRow: View {
                         HStack(spacing: 6) {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                             Text(NSLocalizedString("modernComments.mutedWord.placeholder", comment: "Muted word placeholder in comments"))
                                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .lineLimit(2)
                         }
 
@@ -1599,7 +1599,7 @@ struct EnhancedModernCommentRow: View {
                             }) {
                                 Text(NSLocalizedString("modernComments.mutedWord.reveal", comment: "Temporarily reveal muted word comment"))
                                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .black : .white)
+                                    .foregroundStyle(colorScheme == .dark ? .black : .white)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
                                     .background(colorScheme == .dark ? Color.white : Color.black, in: Capsule())
@@ -1617,7 +1617,7 @@ struct EnhancedModernCommentRow: View {
                 Button(action: { showFullContent.toggle() }) {
                     Text(showFullContent ? "Ver menos" : "Ver más")
                         .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
         }
@@ -1806,11 +1806,11 @@ struct ModernEmptyCommentsView: View {
             VStack(spacing: 8) {
                 Text("modernComments.empty.title")
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                 
                 Text("modernComments.empty.description")
                     .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundColor(.gray.opacity(0.7))
+                    .foregroundStyle(.gray.opacity(0.7))
                     .multilineTextAlignment(.center)
                 
                 Text("💭")
@@ -1844,18 +1844,18 @@ struct CommentActionButton: View {
             HStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 14))
-                    .foregroundColor(isActive ? activeColor : (colorScheme == .dark ? .white : .black))
+                    .foregroundStyle(isActive ? activeColor : (colorScheme == .dark ? .white : .black))
                 
                 if !text.isEmpty {
                     Text(text)
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(isActive ? activeColor : (colorScheme == .dark ? .white : .black))
+                        .foregroundStyle(isActive ? activeColor : (colorScheme == .dark ? .white : .black))
                 }
                 
                 if let count = count, count > 0 {
                     Text("\(count)")
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
             .padding(.horizontal, 8)

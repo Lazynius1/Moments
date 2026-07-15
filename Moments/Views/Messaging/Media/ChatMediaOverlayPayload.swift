@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 struct ChatMediaOverlayPayload {
     let textOverlayLive: Bool?
@@ -38,9 +39,14 @@ extension EnhancedMessage {
             }
     }
 
+    @available(*, deprecated, message: "use resolvedStickerItems(traitCollection:) instead")
     var resolvedStickerItems: [StickerItem] {
+        resolvedStickerItems(traitCollection: .current)
+    }
+
+    func resolvedStickerItems(traitCollection: UITraitCollection) -> [StickerItem] {
         guard let stickers, !stickers.isEmpty else { return [] }
-        return storyOverlayShim.convertStickersToStickerItems()
+        return storyOverlayShim.convertStickersToStickerItems(traitCollection: traitCollection)
     }
 
     private var storyOverlayShim: Story {

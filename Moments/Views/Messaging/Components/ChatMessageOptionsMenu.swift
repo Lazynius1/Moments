@@ -265,7 +265,7 @@ struct ChatMessageContextMenuOverlay: View {
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(primaryTextColor)
+                    .foregroundStyle(primaryTextColor)
                     .frame(width: 36, height: 36)
                     .background {
                         Color.clear
@@ -493,7 +493,7 @@ private struct ChatContextMenuRow: View {
                 Image(systemName: icon)
                     .font(.system(size: 16))
             }
-            .foregroundColor(isDestructive ? .red : primaryTextColor)
+            .foregroundStyle(isDestructive ? .red : primaryTextColor)
             .padding(.horizontal, 12)
             .frame(height: 36)
             .contentShape(Rectangle())
@@ -524,7 +524,7 @@ struct GlassActionButton: View {
                     .font(.system(size: legacyPoppinsSize(16)))
                 Spacer()
             }
-            .foregroundColor(isDestructive ? Color.red : MomentsChromeGlass.contentColor(for: colorScheme))
+            .foregroundStyle(isDestructive ? Color.red : MomentsChromeGlass.contentColor(for: colorScheme))
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .momentsChromeGlass(in: actionShape, interactive: true)

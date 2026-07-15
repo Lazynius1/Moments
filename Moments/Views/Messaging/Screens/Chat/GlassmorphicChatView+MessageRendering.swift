@@ -98,17 +98,17 @@ extension GlassmorphicChatView {
             if editingMessage != nil {
                 HStack {
                     Image(systemName: "pencil")
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
                     Text("chat.editing.title")
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundColor(adaptiveColors.primary)
+                        .foregroundStyle(adaptiveColors.primary)
                     Spacer()
                     Button(action: {
                         self.editingMessage = nil
                         self.messageText = ""
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(adaptiveColors.primary.opacity(0.6))
+                            .foregroundStyle(adaptiveColors.primary.opacity(0.6))
                     }
                 }
                 .padding(.horizontal, 16)

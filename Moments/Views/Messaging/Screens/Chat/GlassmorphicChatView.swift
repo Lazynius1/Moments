@@ -390,7 +390,6 @@ struct GlassmorphicChatView: View {
     var body: some View {
         chatViewWithOverlays
             .toolbar(isSearchVisible ? .hidden : .visible, for: .navigationBar)
-            .navigationBarHidden(isSearchVisible)
             .toolbar(.hidden, for: .tabBar)
     }
 
