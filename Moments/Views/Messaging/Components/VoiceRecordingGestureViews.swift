@@ -277,7 +277,10 @@ struct VoiceRecordingGestureButton: View {
     private let followOvershoot: CGFloat = 46
 
     private var showsRecordingOverlay: Bool {
-        phase == .recordingHeld || phase == .recordingLocked
+        // `GlassmorphicInputBar` cambia de contenedor al arrancar la grabación. SwiftUI puede
+        // recrear este botón durante esa transición y perder `phase`, pero la sesión real sigue
+        // viva en `isRecording`; el aura debe seguir a la sesión, no a la identidad efímera de la vista.
+        isRecording || phase == .recordingHeld || phase == .recordingLocked
     }
 
     var body: some View {
@@ -311,7 +314,7 @@ struct VoiceRecordingGestureButton: View {
         .accessibilityLabel(Text("chat.voice.record.accessibility"))
         .accessibilityHint(Text("chat.voice.record.holdHint"))
         .onChange(of: isRecording) { _, recording in
-            if !recording, interactionId == nil {
+            if !recording, !isLocked, activeInteractionId == nil {
                 resetLocalState()
             }
         }

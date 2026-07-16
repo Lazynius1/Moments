@@ -41,15 +41,20 @@ struct GlassmorphicInputBar: View {
     }
 
     var body: some View {
-        // Un solo contenedor coordina las superficies de glass de la barra.
-        // Cada control conserva su contenido dentro de su propio efecto.
+        // Mantener GlassEffectContainer estable durante el DragGesture del mic.
         if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 10) {
+            GlassEffectContainer(spacing: shouldCoordinateComposerGlass ? 10 : 0) {
                 inputRow
             }
         } else {
             inputRow
         }
+    }
+
+    private var shouldCoordinateComposerGlass: Bool {
+        !isRecordingVoice
+            && voiceRecordingDraft == nil
+            && !isPreparingVoiceRecordingPreview
     }
 
     private var inputRow: some View {

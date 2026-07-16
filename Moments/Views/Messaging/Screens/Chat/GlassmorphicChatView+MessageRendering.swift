@@ -119,26 +119,30 @@ extension GlassmorphicChatView {
     }
 
     var chatRootContent: some View {
-        ZStack {
-            ChatGlassmorphicBackground(adaptiveColors: adaptiveColors)
-            mainChatStack
-                .modifier(ChatBuzzShakeEffect(
-                    progress: buzzShakeProgress,
-                    amplitude: reduceMotion ? 0 : buzzShakeAmplitude
-                ))
+        GeometryReader { proxy in
+            let composerBottomInset = ChatComposerChromeMetrics.panelHomeGap
 
-            if let buzzToastText {
-                VStack {
-                    ChatBuzzToast(text: buzzToastText)
-                        .padding(.top, 10)
-                    Spacer()
+            ZStack {
+                adaptiveColors.chatBackground[0]
+                    .ignoresSafeArea()
+                ChatGlassmorphicBackground(adaptiveColors: adaptiveColors)
+                mainChatStack(composerBottomInset: composerBottomInset)
+                    .modifier(ChatBuzzShakeEffect(
+                        progress: buzzShakeProgress,
+                        amplitude: reduceMotion ? 0 : buzzShakeAmplitude
+                    ))
+
+                if let buzzToastText {
+                    VStack {
+                        ChatBuzzToast(text: buzzToastText)
+                            .padding(.top, 10)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 18)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(45)
                 }
-                .padding(.horizontal, 18)
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .zIndex(45)
-            }
 
-            GeometryReader { proxy in
                 ChatMessageContextMenuOverlay(
                     selection: $messageMenuSelection,
                     containerSize: proxy.size,
@@ -178,19 +182,43 @@ extension GlassmorphicChatView {
                         showingReactionEmojiPicker = true
                     }
                 )
+                .allowsHitTesting(messageMenuSelection != nil)
+                .zIndex(50)
             }
-            .allowsHitTesting(messageMenuSelection != nil)
-            .zIndex(50)
         }
+        .ignoresSafeArea(.container, edges: .bottom)
     }
 
-    var mainChatStack: some View {
+    func mainChatStack(composerBottomInset: CGFloat) -> some View {
         messagesListSection
-            .chatScrollEdgeEffect(hardBottomEdge: true)
             .environment(\.chatFailedMessageRetryAction, ChatFailedMessageRetryAction(
                 canRetry: { viewModel.canRetryMessage($0) },
                 retry: { viewModel.retryFailedMessage($0) }
             ))
+            .chatBottomScrollEdgeHidden()
+            .ignoresSafeArea(.container, edges: .bottom)
+            .overlay(alignment: .bottom) {
+                ChatBottomWallpaperEdgeFade(
+                    color: adaptiveColors.chatBackground[0],
+                    composerChromeHeight: max(lastComposerHeight, 0)
+                )
+            }
+            .chatBottomBarInset {
+                VStack(spacing: 0) {
+                    replyBarSection
+                        .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+                    inputBarSection
+                        .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+                }
+                .padding(.bottom, composerBottomInset)
+                .opacity(isSearchVisible ? 0 : 1)
+                .allowsHitTesting(!isSearchVisible)
+                .accessibilityHidden(isSearchVisible)
+                .chatComposerHeightReporting()
+                .onChatComposerHeightChange { height in
+                    handleComposerHeightChangeInList(height)
+                }
+            }
             .overlay(alignment: .bottomTrailing) {
                 ZStack(alignment: .bottomTrailing) {
                     if floatingNavigationState.isVisible {
@@ -209,8 +237,8 @@ extension GlassmorphicChatView {
                             onSearchNext: advanceSearchSelection,
                             onScrollToBottom: { scrollToBottomFromUserAction(animated: true) }
                         )
-                        .padding(.trailing, 14)
-                        .padding(.bottom, floatingNavigationBottomInset)
+                        .padding(.trailing, 8)
+                        .padding(.bottom, floatingNavigationBottomInset + 20)
                     }
 
                     VoiceRecordingFloatingControlHost(
@@ -226,27 +254,8 @@ extension GlassmorphicChatView {
                         onResume: resumeVoiceRecording
                     )
                     .padding(.trailing, 16)
-                    .padding(.bottom, max(lastComposerHeight, 0) + 40)
+                    .padding(.bottom, ChatComposerChromeMetrics.floatingControlBottomInset(composerChromeHeight: lastComposerHeight) + 20)
                     .zIndex(100)
-                }
-            }
-            .chatBottomBarInset {
-                VStack(spacing: 0) {
-                    replyBarSection
-                        .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
-                    inputBarSection
-                        .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
-                }
-                .opacity(isSearchVisible ? 0 : 1)
-                .allowsHitTesting(!isSearchVisible)
-                .accessibilityHidden(isSearchVisible)
-                .chatComposerHeightReporting()
-                .onChatComposerHeightChange { height in
-                    handleComposerHeightChangeInList(height)
-                }
-                .background {
-                    adaptiveColors.chatBackground[0]
-                        .ignoresSafeArea(edges: .bottom)
                 }
             }
     }

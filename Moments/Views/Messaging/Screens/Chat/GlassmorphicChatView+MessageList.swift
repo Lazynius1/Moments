@@ -269,7 +269,7 @@ extension GlassmorphicChatView {
                     loadOlderHistoryIfNeeded()
                 }
             },
-            composerBottomInset: max(lastComposerHeight, 0),
+            composerBottomInset: ChatComposerChromeMetrics.listBottomInset(composerChromeHeight: lastComposerHeight),
             isVanishGestureEnabled: hasCompletedInitialScroll && !isSearchVisible,
             isVanishModeActive: viewModel.vanishModeActive,
             onVanishPullReleased: { result in
@@ -294,6 +294,7 @@ extension GlassmorphicChatView {
             }
         )
         .ignoresSafeArea(.container, edges: .top)
+        .chatBottomScrollEdgeHidden()
     }
 
     func prefetchMediaForRows(_ rows: [ChatRenderRow]) {

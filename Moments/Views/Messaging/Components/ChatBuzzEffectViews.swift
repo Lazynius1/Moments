@@ -45,7 +45,6 @@ struct ChatBuzzToast: View {
         .foregroundStyle(colorScheme == .dark ? .white : .black)
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .momentsChromeGlass(in: shape, interactive: false)
         .clipShape(shape)
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.12), radius: 18, x: 0, y: 10)
         .accessibilityElement(children: .combine)
@@ -87,7 +86,6 @@ struct ChatBuzzTimelineEventRow: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .momentsChromeGlass(in: shape, interactive: false)
             .clipShape(shape)
             .overlay {
                 shape

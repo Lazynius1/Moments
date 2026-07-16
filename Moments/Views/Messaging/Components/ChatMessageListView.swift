@@ -323,6 +323,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
                     conversationLift: currentVanishLift
                 )
             }
+            applyComposerBottomContentInset(preservingBottomPin: true)
         }
     }
     var isVanishGestureEnabled = true {
@@ -494,7 +495,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .clear
+        updateCanvasBackgroundColor()
         configureCollectionView()
         configureDataSource()
         configureVanishGesture()
@@ -503,6 +504,9 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
+        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
+            updateCanvasBackgroundColor()
+        }
         guard isVanishPanActive, currentVanishLift > 0 else { return }
         let progress = ChatVanishSwipeMetrics.progress(lift: currentVanishLift)
         vanishPullOverlay.update(
@@ -512,6 +516,11 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             isDragging: true,
             colorScheme: traitCollection.userInterfaceStyle
         )
+    }
+
+    private func updateCanvasBackgroundColor() {
+        let isDark = traitCollection.userInterfaceStyle == .dark
+        view.backgroundColor = UIColor(hex: isDark ? "0B1215" : "FAF9F6")
     }
 
     private func configureVanishGesture() {
@@ -551,7 +560,11 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         if rowHeightCache?.syncWidth(collectionView.bounds.width) == true {
             rowHeightCache?.seedEstimates(for: lastAppliedRows, containerWidth: collectionView.bounds.width)
         }
-        updateBottomAnchorInset()
+        if #available(iOS 26.0, *) {
+            collectionView.bottomEdgeEffect.isHidden = true
+            collectionView.topEdgeEffect.style = .soft
+        }
+        applyComposerBottomContentInset(preservingBottomPin: false)
         reportContentExtentIfChanged()
         enforceNavigationTargetIfNeeded(context: "layout")
         guard needsDeferredInitialScroll,
@@ -628,10 +641,9 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         collectionView.prefetchDataSource = self
         collectionView.isPrefetchingEnabled = true
         collectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        // iOS 27 default hard → soft tipo 26. Bottom hard: escape bajo safeAreaBar del composer.
         if #available(iOS 26.0, *) {
             collectionView.topEdgeEffect.style = .soft
-            collectionView.bottomEdgeEffect.style = .hard
+            collectionView.bottomEdgeEffect.isHidden = true
         }
         view.addSubview(collectionView)
     }
@@ -1261,13 +1273,12 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             + scrollView.adjustedContentInset.bottom
     }
 
-    /// Anclaje inferior estilo chat: si el contenido no llena el viewport, se empuja hacia abajo
-    /// con un inset superior. Lista no invertida lo necesita.
+    /// Anclaje inferior: si el contenido no llena el viewport, se empuja con inset superior.
     private func updateBottomAnchorInset() {
         guard let collectionView else { return }
         let safeTop = collectionView.safeAreaInsets.top
-        let safeBottom = collectionView.safeAreaInsets.bottom
-        let available = collectionView.bounds.height - safeTop - safeBottom
+        let composerBottom = max(0, composerBottomInset)
+        let available = collectionView.bounds.height - safeTop - composerBottom
         guard available > 0 else { return }
         let contentHeight = collectionView.collectionViewLayout.collectionViewContentSize.height
         let extraTop = max(0, available - contentHeight)
@@ -1280,6 +1291,27 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         collectionView.contentInset.top = extraTop
         if wasPinned {
             ChatScrollDebug.log("updateBottomAnchorInset forcing bottom")
+            forceScrollToBottom(animated: false)
+        }
+    }
+
+    private func applyComposerBottomContentInset(preservingBottomPin: Bool) {
+        guard isViewLoaded, collectionView != nil else { return }
+        let desiredAdjustedBottom = max(0, composerBottomInset)
+        let bottom = max(0, desiredAdjustedBottom - collectionView.safeAreaInsets.bottom)
+        let bottomChanged = abs(collectionView.contentInset.bottom - bottom) > 0.5
+        guard bottomChanged else {
+            updateBottomAnchorInset()
+            return
+        }
+        let wasPinned = preservingBottomPin
+            && (isStrictlyAtBottom || currentIsAtBottom)
+            && scrollNavigationTargetRowId == nil
+            && !isRestoringPrependAnchor
+        collectionView.contentInset.bottom = bottom
+        collectionView.verticalScrollIndicatorInsets.bottom = bottom
+        updateBottomAnchorInset()
+        if wasPinned {
             forceScrollToBottom(animated: false)
         }
     }

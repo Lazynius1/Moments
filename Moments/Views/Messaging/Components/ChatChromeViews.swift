@@ -53,9 +53,6 @@ struct ChatToolbarIconGlassModifier: ViewModifier {
     }
 }
 
-/// Política Moments para scroll edge (iOS 26+).
-/// iOS 27 cambió el default automático a `.hard` (“bloque”); forzamos `.soft` tipo iOS 26.
-/// `hardBottomEdge`: escape si `.soft` + `safeAreaBar` falla en iOS 27 (bug beta conocido).
 struct ChatToolbarScrollEdgeModifier: ViewModifier {
     var hardBottomEdge = false
 
@@ -66,9 +63,7 @@ struct ChatToolbarScrollEdgeModifier: ViewModifier {
                     .scrollEdgeEffectStyle(.soft, for: .top)
                     .scrollEdgeEffectStyle(.hard, for: .bottom)
             } else {
-                content
-                    .scrollEdgeEffectStyle(.soft, for: .top)
-                    .scrollEdgeEffectStyle(.soft, for: .bottom)
+                content.scrollEdgeEffectStyle(.soft, for: .top)
             }
         } else {
             content
@@ -88,12 +83,10 @@ struct ChatToolbarScrollEdgeModifier: ViewModifier {
 }
 
 extension View {
-    /// Soft top + soft bottom (look iOS 26). Usa `hardBottomEdge: true` solo como escape bajo `safeAreaBar`.
     func momentsScrollEdgeChrome(hardBottomEdge: Bool = false) -> some View {
         modifier(ChatToolbarScrollEdgeModifier(hardBottomEdge: hardBottomEdge))
     }
 
-    /// Alias messaging. Por defecto soft en ambos bordes; `hardBottomEdge` solo si el soft inferior falla con el composer.
     func chatScrollEdgeEffect(hardBottomEdge: Bool = false) -> some View {
         momentsScrollEdgeChrome(hardBottomEdge: hardBottomEdge)
     }
@@ -104,24 +97,26 @@ extension View {
 
     @ViewBuilder
     func chatBottomBarInset<Content: View>(@ViewBuilder content: @escaping () -> Content) -> some View {
+        overlay(alignment: .bottom, content: content)
+    }
+
+    @ViewBuilder
+    func chatBottomScrollEdgeHidden() -> some View {
         if #available(iOS 26.0, *) {
-            self.safeAreaBar(edge: .bottom, spacing: 0, content: content)
+            scrollEdgeEffectHidden(true, for: .bottom)
         } else {
-            self.safeAreaInset(edge: .bottom, spacing: 0, content: content)
+            self
         }
     }
 
-    /// Swipe desde el borde izquierdo para volver a la lista (push/pop nativo).
     func chatInteractivePopEnabled() -> some View {
         background(NavigationInteractivePopEnabler())
     }
 
-    /// Alias para pantallas fuera del chat (Settings, Profile, Notifications, etc.).
     func navigationInteractivePopEnabled() -> some View {
         chatInteractivePopEnabled()
     }
 
-    /// Reporta la altura del composer (input + reply) para re-anclar scroll cuando crece.
     func chatComposerHeightReporting() -> some View {
         background {
             GeometryReader { geo in
@@ -132,6 +127,49 @@ extension View {
 
     func onChatComposerHeightChange(_ action: @escaping (CGFloat) -> Void) -> some View {
         onPreferenceChange(ChatComposerHeightKey.self, perform: action)
+    }
+}
+
+enum ChatComposerChromeMetrics {
+    static let panelHomeGap: CGFloat = 16
+    static let messageListGap: CGFloat = 11
+    static let fadeExtendAbovePanel: CGFloat = 20
+    static let fadeEdgeSize: CGFloat = 60
+    static let fadeAlphaSolid: CGFloat = 0.82
+    static let estimatedComposerChromeHeight: CGFloat = 68
+
+    static func listBottomInset(composerChromeHeight: CGFloat) -> CGFloat {
+        max(composerChromeHeight, estimatedComposerChromeHeight) + messageListGap
+    }
+
+    static func floatingControlBottomInset(composerChromeHeight: CGFloat) -> CGFloat {
+        max(composerChromeHeight, estimatedComposerChromeHeight) + 20
+    }
+}
+
+struct ChatBottomWallpaperEdgeFade: View {
+    let color: Color
+    var composerChromeHeight: CGFloat
+    var extendAbovePanel: CGFloat = ChatComposerChromeMetrics.fadeExtendAbovePanel
+    var edgeSize: CGFloat = ChatComposerChromeMetrics.fadeEdgeSize
+    var alpha: CGFloat = ChatComposerChromeMetrics.fadeAlphaSolid
+
+    var body: some View {
+        let chrome = max(composerChromeHeight, ChatComposerChromeMetrics.estimatedComposerChromeHeight)
+        let fadeHeight = chrome + extendAbovePanel + edgeSize
+
+        LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0),
+                .init(color: color.opacity(alpha * 0.4), location: 0.55),
+                .init(color: color.opacity(alpha), location: 1)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: fadeHeight)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

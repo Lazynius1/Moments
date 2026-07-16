@@ -91,7 +91,7 @@ struct GlassmorphicChatView: View {
     @State var listBottomSnapTask: Task<Void, Never>? = nil
     @State var pendingInitialScrollRoute = false
     @State var scrollContentExceedsViewport = false
-    @State var lastComposerHeight: CGFloat = 0
+    @State var lastComposerHeight: CGFloat = ChatComposerChromeMetrics.estimatedComposerChromeHeight
     @State var composerSnapTask: Task<Void, Never>?
     @State var pendingPinnedBottomSnap = false
     @State var pendingReplyScrollMessageId: String?
@@ -200,7 +200,7 @@ struct GlassmorphicChatView: View {
     }
 
     var floatingNavigationBottomInset: CGFloat {
-        max(lastComposerHeight, 0) + 20
+        ChatComposerChromeMetrics.floatingControlBottomInset(composerChromeHeight: lastComposerHeight)
     }
 
     var canSearchGoDown: Bool {
@@ -391,6 +391,7 @@ struct GlassmorphicChatView: View {
         chatViewWithOverlays
             .toolbar(isSearchVisible ? .hidden : .visible, for: .navigationBar)
             .toolbar(.hidden, for: .tabBar)
+            .background(adaptiveColors.chatBackground[0].ignoresSafeArea())
     }
 
     var clusterForReplyBinding: Binding<ClusterWrapper?> {
