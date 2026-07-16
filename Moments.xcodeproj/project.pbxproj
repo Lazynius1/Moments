@@ -62,7 +62,7 @@
 		36BDF4172ED7DD7B00683AB4 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			dstPath = "";
-			dstSubfolder = None;
+			dstSubfolder = PlugIns;
 			files = (
 				36A036E52F38B220002B2937 /* MomentsNotificationService.appex in Embed Foundation Extensions */,
 				36BDF4122ED7DD7B00683AB4 /* GlowsyWidgetExtensionExtension.appex in Embed Foundation Extensions */,
@@ -778,6 +778,7 @@
 				MARKETING_VERSION = 2.17;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.GlowsyWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -812,6 +813,7 @@
 				MARKETING_VERSION = 2.17;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.GlowsyWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

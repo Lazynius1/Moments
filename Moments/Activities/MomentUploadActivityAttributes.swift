@@ -28,10 +28,12 @@ public struct MomentUploadActivityAttributes: ActivityAttributes {
     public var momentId: String
     public var mediaType: String // "image", "video", o "mixed"
     public var mediaCount: Int
-    
-    public init(momentId: String, mediaType: String, mediaCount: Int) {
+    public var previewImageFileName: String? // nombre de fichero dentro del App Group, para mostrar miniatura real
+
+    public init(momentId: String, mediaType: String, mediaCount: Int, previewImageFileName: String? = nil) {
         self.momentId = momentId
         self.mediaType = mediaType
         self.mediaCount = mediaCount
+        self.previewImageFileName = previewImageFileName
     }
 }

@@ -203,7 +203,7 @@ struct MomentsWidgetEntryView: View {
     
     private var gradient: LinearGradient {
         LinearGradient(
-            colors: [Color.blue, Color.purple, Color.pink],
+            colors: [MomentsBrand.teal, MomentsBrand.blue],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -256,7 +256,7 @@ struct MomentsWidgetEntryView: View {
                 // Notificación flotante de Echoes/Tags si existen (Subtle)
                 if entry.unreadEchoes > 0 || entry.unreadTags > 0 {
                     Circle()
-                        .fill(entry.unreadEchoes > 0 ? Color.blue : Color.purple)
+                        .fill(entry.unreadEchoes > 0 ? MomentsBrand.blue : MomentsBrand.teal)
                         .frame(width: 10, height: 10)
                         .offset(x: 18, y: -18)
                         .shadow(radius: 1)
@@ -274,7 +274,7 @@ struct MomentsWidgetEntryView: View {
                 if entry.unreadEchoes > 0 {
                     Text(localizedString("widget.echoes.singular", comment: "Echo nearby"))
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.blue)
+                        .foregroundColor(MomentsBrand.blue)
                 } else {
                     Text(localizedString("widget.createStory.subtitle", comment: "Tap to create"))
                         .font(.system(size: 9, weight: .medium))
@@ -364,7 +364,7 @@ struct MomentsWidgetEntryView: View {
                     .padding(.vertical, 10)
                     .background(gradient)
                     .cornerRadius(12)
-                    .shadow(color: .blue.opacity(0.3), radius: 5, x: 0, y: 3)
+                    .shadow(color: MomentsBrand.blue.opacity(0.3), radius: 5, x: 0, y: 3)
                 }
             }
             

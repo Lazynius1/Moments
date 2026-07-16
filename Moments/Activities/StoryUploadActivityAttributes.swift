@@ -27,9 +27,11 @@ public struct StoryUploadActivityAttributes: ActivityAttributes {
     
     public var storyId: String
     public var mediaType: String // "image" o "video"
-    
-    public init(storyId: String, mediaType: String) {
+    public var previewImageFileName: String? // nombre de fichero dentro del App Group, para mostrar miniatura real
+
+    public init(storyId: String, mediaType: String, previewImageFileName: String? = nil) {
         self.storyId = storyId
         self.mediaType = mediaType
+        self.previewImageFileName = previewImageFileName
     }
 }

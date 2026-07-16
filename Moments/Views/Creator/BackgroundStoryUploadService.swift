@@ -2251,9 +2251,14 @@ extension BackgroundStoryUploadService {
     // MARK: - 📱 LIVE ACTIVITIES PARA DYNAMIC ISLAND
 
     private func startLiveActivity(for uploadingStory: UploadingStory) async {
+        let previewImageFileName = uploadingStory.thumbnailImage.flatMap {
+            LiveActivityThumbnailStore.save($0, id: uploadingStory.tempId)
+        }
+
         let attributes = StoryUploadActivityAttributes(
             storyId: uploadingStory.tempId,
-            mediaType: uploadingStory.mediaItem.type == .video ? "video" : "image"
+            mediaType: uploadingStory.mediaItem.type == .video ? "video" : "image",
+            previewImageFileName: previewImageFileName
         )
 
         let initialContentState = StoryUploadActivityAttributes.ContentState(
@@ -2339,6 +2344,7 @@ extension BackgroundStoryUploadService {
         Task {
             let finalContent = ActivityContent(state: finalState, staleDate: nil)
             await activity.end(finalContent, dismissalPolicy: .immediate)
+            LiveActivityThumbnailStore.remove(id: activity.attributes.storyId)
             liveActivity = nil
         }
     }
@@ -2349,6 +2355,7 @@ extension BackgroundStoryUploadService {
         // No necesitamos actualizar el estado aquí porque ya lo hicimos antes
         // Solo cerramos la Live Activity después de que se haya mostrado el emoji
         await activity.end(nil, dismissalPolicy: .immediate)
+        LiveActivityThumbnailStore.remove(id: activity.attributes.storyId)
         await MainActor.run {
             liveActivity = nil
         }

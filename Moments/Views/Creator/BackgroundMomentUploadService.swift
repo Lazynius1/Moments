@@ -1031,10 +1031,15 @@ class BackgroundMomentUploadService: ObservableObject {
             mediaType = "image"
         }
 
+        let previewImageFileName = uploadingMoment.thumbnailImage.flatMap {
+            LiveActivityThumbnailStore.save($0, id: uploadingMoment.tempId)
+        }
+
         let attributes = MomentUploadActivityAttributes(
             momentId: uploadingMoment.tempId,
             mediaType: mediaType,
-            mediaCount: uploadingMoment.mediaItems.count
+            mediaCount: uploadingMoment.mediaItems.count,
+            previewImageFileName: previewImageFileName
         )
 
         let initialContentState = MomentUploadActivityAttributes.ContentState(
@@ -1094,6 +1099,8 @@ class BackgroundMomentUploadService: ObservableObject {
 
         Task {
             await activity.end(nil, dismissalPolicy: .after(Date().addingTimeInterval(3)))
+            try? await Task.sleep(nanoseconds: 3_500_000_000)
+            LiveActivityThumbnailStore.remove(id: activity.attributes.momentId)
         }
 
         liveActivity = nil
@@ -1105,6 +1112,10 @@ class BackgroundMomentUploadService: ObservableObject {
         }
 
         await activity.end(nil, dismissalPolicy: .after(Date().addingTimeInterval(3)))
+        Task {
+            try? await Task.sleep(nanoseconds: 3_500_000_000)
+            LiveActivityThumbnailStore.remove(id: activity.attributes.momentId)
+        }
 
         await MainActor.run {
             liveActivity = nil
