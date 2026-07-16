@@ -83,7 +83,7 @@ enum MomentsGlassButtonTint {
     }
 }
 
-// MARK: - Chrome glass tokens (clear + canvas tint)
+// MARK: - Chrome glass tokens
 
 enum MomentsChromeGlass {
     static let defaultTintOpacity: CGFloat = 0.60
@@ -96,13 +96,21 @@ enum MomentsChromeGlass {
         colorScheme == .dark ? .white : MomentsGlassButtonTint.dark
     }
 
-    /// Fill detrás del `Glass.clear`. En iOS 27 el material difunde mejor, el dark glass
-    /// es más claro y el slider de sistema pelea con un underlay opaco → se atenúa.
+    /// Fill detrás de `Glass.clear` cuando se use ese estilo.
     static func underlayOpacity(forTintOpacity tintOpacity: CGFloat) -> CGFloat {
         if #available(iOS 27.0, *) {
             return tintOpacity * 0.42
         }
         return tintOpacity
+    }
+
+    @available(iOS 26.0, *)
+    static func chromeGlass(interactive: Bool, tint: Color) -> Glass {
+        var glass = Glass.regular.tint(tint)
+        if interactive {
+            glass = glass.interactive()
+        }
+        return glass
     }
 
     @available(iOS 26.0, *)
@@ -232,25 +240,13 @@ private struct MomentsChromeGlassModifier<S: Shape>: ViewModifier {
         tintOverride ?? MomentsChromeGlass.canvasTint(for: colorScheme, opacity: tintOpacity)
     }
 
-    private var underlayTint: Color {
-        if let tintOverride {
-            return tintOverride.opacity(MomentsChromeGlass.underlayOpacity(forTintOpacity: 1))
-        }
-        return MomentsChromeGlass.canvasTint(
-            for: colorScheme,
-            opacity: MomentsChromeGlass.underlayOpacity(forTintOpacity: tintOpacity)
-        )
-    }
-
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            // `.clear`: tint en Glass + underlay canvas (en iOS 27 el underlay es más suave).
             content
                 .glassEffect(
-                    MomentsChromeGlass.clearChromeGlass(interactive: interactive, tint: resolvedTint),
+                    MomentsChromeGlass.chromeGlass(interactive: interactive, tint: resolvedTint),
                     in: shape
                 )
-                .background(underlayTint, in: shape)
         } else {
             content
                 .background {

@@ -112,9 +112,9 @@ struct MomentRefreshGota: View {
         state.heldPull * 0.7
     }
 
-    // Tu moment glass (clear + canvas tint): morphea como líquido.
+    // Moment glass (regular + canvas tint).
     private var glass: Glass {
-        MomentsChromeGlass.clearChromeGlass(
+        MomentsChromeGlass.chromeGlass(
             interactive: false,
             tint: MomentsChromeGlass.canvasTint(for: colorScheme)
         )
