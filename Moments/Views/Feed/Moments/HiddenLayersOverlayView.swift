@@ -965,10 +965,12 @@ private struct HiddenLayerAudioTagView: View {
             didConfigureAudioSession = true
         }
 
-        configureAudioSession(forUserInitiatedPlayback: userInitiated)
-        try? session.setActive(true)
-
         Task {
+            // La sesión debe estar activa antes de crear el player.
+            let category: AVAudioSession.Category = userInitiated ? .playback : .ambient
+            let options: AVAudioSession.CategoryOptions = userInitiated ? [.mixWithOthers] : []
+            await MomentsAudioSession.activate(category: category, mode: .default, options: options)
+
             do {
                 let player: AVAudioPlayer
                 if url.scheme == "file" {
@@ -1016,13 +1018,24 @@ private struct HiddenLayerAudioTagView: View {
 
     private func resumePlayback(promoteToPlayback: Bool) {
         if let audioPlayer {
-            if promoteToPlayback {
-                configureAudioSession(forUserInitiatedPlayback: true)
-                try? AVAudioSession.sharedInstance().setActive(true)
+            guard promoteToPlayback else {
+                audioPlayer.play()
+                isPlaying = true
+                startProgressTimer()
+                return
             }
-            audioPlayer.play()
-            isPlaying = true
-            startProgressTimer()
+
+            // Subir a .playback (sonido aunque esté en silencio) antes de reanudar.
+            Task { @MainActor in
+                await MomentsAudioSession.activate(
+                    category: .playback,
+                    mode: .default,
+                    options: [.mixWithOthers]
+                )
+                audioPlayer.play()
+                isPlaying = true
+                startProgressTimer()
+            }
         } else {
             startPlayback(userInitiated: promoteToPlayback)
         }
@@ -1081,19 +1094,12 @@ private struct HiddenLayerAudioTagView: View {
 
     private func restoreAudioSessionIfNeeded() {
         guard didConfigureAudioSession else { return }
-        let session = AVAudioSession.sharedInstance()
-        if let previousAudioCategory, let previousAudioMode {
-            try? session.setCategory(previousAudioCategory, mode: previousAudioMode, options: previousAudioOptions)
-        }
-        try? session.setActive(false, options: [.notifyOthersOnDeactivation])
+        MomentsAudioSession.restore(
+            category: previousAudioCategory,
+            mode: previousAudioMode,
+            options: previousAudioOptions
+        )
         didConfigureAudioSession = false
-    }
-
-    private func configureAudioSession(forUserInitiatedPlayback: Bool) {
-        let session = AVAudioSession.sharedInstance()
-        let category: AVAudioSession.Category = forUserInitiatedPlayback ? .playback : .ambient
-        let options: AVAudioSession.CategoryOptions = forUserInitiatedPlayback ? [.mixWithOthers] : []
-        try? session.setCategory(category, mode: .default, options: options)
     }
 }
 

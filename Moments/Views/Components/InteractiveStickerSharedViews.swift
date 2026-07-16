@@ -1760,10 +1760,10 @@ struct InteractiveAudioStickerView: View {
             didConfigureAudioSession = true
         }
 
-        try? session.setCategory(.ambient, mode: .default, options: [])
-        try? session.setActive(true)
-
         Task {
+            // La sesión debe estar activa antes de crear el player.
+            await MomentsAudioSession.activate(category: .ambient, mode: .default)
+
             do {
                 let player: AVAudioPlayer
                 if url.scheme == "file" {
@@ -1864,11 +1864,11 @@ struct InteractiveAudioStickerView: View {
 
     private func restoreAudioSessionIfNeeded() {
         guard didConfigureAudioSession else { return }
-        let session = AVAudioSession.sharedInstance()
-        if let previousAudioCategory, let previousAudioMode {
-            try? session.setCategory(previousAudioCategory, mode: previousAudioMode, options: previousAudioOptions)
-        }
-        try? session.setActive(false, options: [.notifyOthersOnDeactivation])
+        MomentsAudioSession.restore(
+            category: previousAudioCategory,
+            mode: previousAudioMode,
+            options: previousAudioOptions
+        )
     }
 }
 

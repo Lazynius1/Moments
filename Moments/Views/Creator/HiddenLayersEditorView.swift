@@ -1558,26 +1558,30 @@ struct HiddenLayersEditorView: View {
 
         stopAudioPreview()
 
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default)
-            try session.setActive(true)
-
-            audioPlayer = try AVAudioPlayer(contentsOf: localAudioURL)
-            audioPlayer?.prepareToPlay()
-            audioPlayer?.play()
-            isPreviewPlaying = true
-            audioPlaybackProgress = 0
-
-            audioPlaybackTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-                guard let player = audioPlayer else { return }
-                audioPlaybackProgress = player.duration > 0 ? player.currentTime / player.duration : 0
-                if !player.isPlaying {
-                    stopAudioPreview()
-                }
+        Task { @MainActor in
+            // La sesión debe estar activa antes de crear el player.
+            guard await MomentsAudioSession.activate(category: .playback, mode: .default) else {
+                stopAudioPreview()
+                return
             }
-        } catch {
-            stopAudioPreview()
+
+            do {
+                audioPlayer = try AVAudioPlayer(contentsOf: localAudioURL)
+                audioPlayer?.prepareToPlay()
+                audioPlayer?.play()
+                isPreviewPlaying = true
+                audioPlaybackProgress = 0
+
+                audioPlaybackTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                    guard let player = audioPlayer else { return }
+                    audioPlaybackProgress = player.duration > 0 ? player.currentTime / player.duration : 0
+                    if !player.isPlaying {
+                        stopAudioPreview()
+                    }
+                }
+            } catch {
+                stopAudioPreview()
+            }
         }
     }
 
@@ -1588,7 +1592,7 @@ struct HiddenLayersEditorView: View {
         audioPlaybackProgress = 0
         audioPlaybackTimer?.invalidate()
         audioPlaybackTimer = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        MomentsAudioSession.deactivate()
     }
 
     private func clearAudio(for index: Int) {
@@ -1663,28 +1667,34 @@ private final class HiddenLayerAudioRecorder: NSObject, ObservableObject, AVAudi
     private var timer: Timer?
 
     func startRecording() {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
-        try? session.setActive(true)
+        Task { @MainActor [weak self] in
+            // La sesión debe estar activa antes de crear el recorder; si no, graba en vacío.
+            guard await MomentsAudioSession.activate(
+                category: .playAndRecord,
+                mode: .default,
+                options: [.defaultToSpeaker]
+            ) else { return }
+            guard let self else { return }
 
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("hidden_layer_audio_\(UUID().uuidString).m4a")
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 44_100,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-        ]
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("hidden_layer_audio_\(UUID().uuidString).m4a")
+            let settings: [String: Any] = [
+                AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                AVSampleRateKey: 44_100,
+                AVNumberOfChannelsKey: 1,
+                AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+            ]
 
-        recorder = try? AVAudioRecorder(url: url, settings: settings)
-        recorder?.delegate = self
-        recorder?.record(forDuration: 15)
-        startDate = Date()
-        isRecording = recorder?.isRecording == true
-        elapsedTime = 0
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            guard let self, let startDate = self.startDate else { return }
-            self.elapsedTime = min(Date().timeIntervalSince(startDate), 15)
+            self.recorder = try? AVAudioRecorder(url: url, settings: settings)
+            self.recorder?.delegate = self
+            self.recorder?.record(forDuration: 15)
+            self.startDate = Date()
+            self.isRecording = self.recorder?.isRecording == true
+            self.elapsedTime = 0
+            self.timer?.invalidate()
+            self.timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+                guard let self, let startDate = self.startDate else { return }
+                self.elapsedTime = min(Date().timeIntervalSince(startDate), 15)
+            }
         }
     }
 
@@ -1696,7 +1706,7 @@ private final class HiddenLayerAudioRecorder: NSObject, ObservableObject, AVAudi
         isRecording = false
         timer?.invalidate()
         timer = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        MomentsAudioSession.deactivate()
         let duration = min(Date().timeIntervalSince(startDate ?? Date()), 15)
         elapsedTime = duration
         return (url, duration)

@@ -2127,10 +2127,7 @@ struct StoryViewerScreen: View {
 
     // ✅ NUEVA FUNCIÓN: Limpiar sesión de audio
     private func cleanupAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        } catch {
-        }
+        MomentsAudioSession.deactivate()
     }
 
 

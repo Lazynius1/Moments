@@ -123,15 +123,12 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
     }
     
     private func setupAudioSession() {
-        // Run on background to avoid blocking main thread during UI creation
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                let session = AVAudioSession.sharedInstance()
-                try session.setCategory(.playback, mode: .moviePlayback, options: [.mixWithOthers])
-                try session.setActive(true)
-            } catch {
-                print("🎬 MomentsVideoPlayer: Audio Session Error: \(error.localizedDescription)")
-            }
+        Task {
+            await MomentsAudioSession.activate(
+                category: .playback,
+                mode: .moviePlayback,
+                options: [.mixWithOthers]
+            )
         }
     }
     

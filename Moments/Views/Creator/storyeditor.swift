@@ -469,7 +469,7 @@ struct StoryEditingView: View {
         selectedMediaItems.removeAll()
 
         // ✅ Pausar cualquier audio que esté reproduciéndose
-        try? AVAudioSession.sharedInstance().setActive(false)
+        MomentsAudioSession.deactivate()
 
     }
 

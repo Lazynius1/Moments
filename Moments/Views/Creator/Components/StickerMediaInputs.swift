@@ -346,27 +346,28 @@ struct AudioStickerRecordingView: View {
 
     private func startPlayback() {
         guard let data = recordedData else { return }
-        do {
-            let session = AVAudioSession.sharedInstance()
 
+        Task { @MainActor in
             // La preview del sheet debe sonar aunque el dispositivo esté en silencio.
-            try session.setCategory(.playback, mode: .default)
-            try session.setActive(true)
+            // La sesión debe estar activa antes de crear el player.
+            guard await MomentsAudioSession.activate(category: .playback, mode: .default) else { return }
 
-            audioPlayer = try AVAudioPlayer(data: data)
-            audioPlayer?.play()
-            isPlaying = true
+            do {
+                audioPlayer = try AVAudioPlayer(data: data)
+                audioPlayer?.play()
+                isPlaying = true
 
-            playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-                if let player = audioPlayer {
-                    playbackProgress = player.currentTime / max(player.duration, 0.001)
-                    if !player.isPlaying {
-                        stopPlayback()
+                playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                    if let player = audioPlayer {
+                        playbackProgress = player.currentTime / max(player.duration, 0.001)
+                        if !player.isPlaying {
+                            stopPlayback()
+                        }
                     }
                 }
+            } catch {
+                print("Failed to play: \(error)")
             }
-        } catch {
-            print("Failed to play: \(error)")
         }
     }
 
@@ -377,7 +378,7 @@ struct AudioStickerRecordingView: View {
         playbackProgress = 0
         playbackTimer?.invalidate()
         playbackTimer = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        MomentsAudioSession.deactivate()
     }
 
     private func stopEverything() {

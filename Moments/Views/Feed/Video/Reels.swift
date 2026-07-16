@@ -1313,11 +1313,12 @@ class ReelVideoPlayerManager: ObservableObject {
     }
     
     private func configureAudioSession() {
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playback, mode: .moviePlayback, options: [.mixWithOthers, .allowBluetoothHFP])
-            try audioSession.setActive(true)
-        } catch {
+        Task {
+            await MomentsAudioSession.activate(
+                category: .playback,
+                mode: .moviePlayback,
+                options: [.mixWithOthers, .allowBluetoothHFP]
+            )
         }
     }
     

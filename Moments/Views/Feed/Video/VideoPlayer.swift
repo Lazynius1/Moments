@@ -52,18 +52,8 @@ class GlobalVideoManager: ObservableObject {
         }
     }
 
-    private func configurePlaybackAudioSession() {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            if session.category != .playback {
-                try session.setCategory(.playback, mode: .moviePlayback, options: [])
-            }
-            try session.setActive(true)
-        } catch {
-            #if DEBUG
-            print("GlobalVideoManager: failed to configure playback audio session — \(error)")
-            #endif
-        }
+    private func configurePlaybackAudioSession() async {
+        await MomentsAudioSession.activate(category: .playback, mode: .moviePlayback)
     }
     
     func registerPlayer(_ playerId: String, manager: VideoPlayerManager) {
@@ -117,9 +107,12 @@ class GlobalVideoManager: ObservableObject {
     /// El usuario activó sonido en Reels u otro reproductor fuera del registro de feed.
     func enableSoundForSession() {
         userHasEnabledSoundInSession = true
-        configurePlaybackAudioSession()
-        for (_, playerManager) in allPlayers {
-            playerManager.setMuted(false, respectSilentMode: true)
+        // La sesión debe estar en .playback antes de desmutear, o el primer toque no suena.
+        Task { @MainActor in
+            await configurePlaybackAudioSession()
+            for (_, playerManager) in allPlayers {
+                playerManager.setMuted(false, respectSilentMode: true)
+            }
         }
     }
 
