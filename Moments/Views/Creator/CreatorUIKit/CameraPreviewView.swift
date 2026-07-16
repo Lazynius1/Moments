@@ -2,6 +2,7 @@ import SwiftUI
 import AVFoundation
 import AVKit
 import UIKit
+import CoreMedia
 
 struct CameraPreviewRepresentable: UIViewRepresentable {
     @Binding var cameraPosition: AVCaptureDevice.Position
@@ -9,22 +10,71 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
     @Binding var isRecording: Bool
     @Binding var zoomLevel: CGFloat
     @Binding var capturePhotoTrigger: Bool
+    @Binding var centerStageEnabled: Bool
+    @Binding var centerStageAvailable: Bool
+    /// Creator: máxima calidad. Chat: false (preset `.high`, sin maxPhotoDimensions).
+    var prefersMaximumCaptureQuality: Bool
+    /// Solo Creator: Center Stage cooperative + callbacks de UI.
+    var enablesCenterStageControls: Bool
     var deviceOrientation: UIDeviceOrientation
     let onImageCaptured: (UIImage) -> Void
     let onVideoCaptured: (URL) -> Void
 
+    init(
+        cameraPosition: Binding<AVCaptureDevice.Position>,
+        flashMode: Binding<AVCaptureDevice.FlashMode>,
+        isRecording: Binding<Bool>,
+        zoomLevel: Binding<CGFloat>,
+        capturePhotoTrigger: Binding<Bool>,
+        centerStageEnabled: Binding<Bool> = .constant(false),
+        centerStageAvailable: Binding<Bool> = .constant(false),
+        prefersMaximumCaptureQuality: Bool = false,
+        enablesCenterStageControls: Bool = false,
+        deviceOrientation: UIDeviceOrientation,
+        onImageCaptured: @escaping (UIImage) -> Void,
+        onVideoCaptured: @escaping (URL) -> Void
+    ) {
+        self._cameraPosition = cameraPosition
+        self._flashMode = flashMode
+        self._isRecording = isRecording
+        self._zoomLevel = zoomLevel
+        self._capturePhotoTrigger = capturePhotoTrigger
+        self._centerStageEnabled = centerStageEnabled
+        self._centerStageAvailable = centerStageAvailable
+        self.prefersMaximumCaptureQuality = prefersMaximumCaptureQuality
+        self.enablesCenterStageControls = enablesCenterStageControls
+        self.deviceOrientation = deviceOrientation
+        self.onImageCaptured = onImageCaptured
+        self.onVideoCaptured = onVideoCaptured
+    }
+
     func makeUIView(context: Context) -> CameraPreviewView {
-        let view = CameraPreviewView(frame: .zero)
+        let view = CameraPreviewView(
+            frame: .zero,
+            prefersMaximumCaptureQuality: prefersMaximumCaptureQuality,
+            enablesCenterStageControls: enablesCenterStageControls
+        )
         view.delegate = context.coordinator
+        bindCenterStageCallbacks(to: view)
         view.updateDeviceOrientation(deviceOrientation)
+        if enablesCenterStageControls {
+            view.updateCenterStageEnabled(centerStageEnabled)
+        }
         return view
     }
 
     func updateUIView(_ uiView: CameraPreviewView, context: Context) {
+        uiView.delegate = context.coordinator
+        uiView.prefersMaximumCaptureQuality = prefersMaximumCaptureQuality
+        uiView.enablesCenterStageControls = enablesCenterStageControls
+        bindCenterStageCallbacks(to: uiView)
         uiView.updateCameraPosition(cameraPosition)
         uiView.updateFlashMode(flashMode)
         uiView.updateZoom(zoomLevel)
         uiView.updateDeviceOrientation(deviceOrientation)
+        if enablesCenterStageControls {
+            uiView.updateCenterStageEnabled(centerStageEnabled)
+        }
 
         if capturePhotoTrigger {
             uiView.capturePhoto()
@@ -37,6 +87,28 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
             uiView.startRecording()
         } else if !isRecording && uiView.isCurrentlyRecording {
             uiView.stopRecording()
+        }
+    }
+
+    private func bindCenterStageCallbacks(to view: CameraPreviewView) {
+        guard enablesCenterStageControls else {
+            view.onCenterStageAvailabilityChange = nil
+            view.onCenterStageEnabledChangeFromSystem = nil
+            return
+        }
+        view.onCenterStageAvailabilityChange = { available in
+            DispatchQueue.main.async {
+                if centerStageAvailable != available {
+                    centerStageAvailable = available
+                }
+            }
+        }
+        view.onCenterStageEnabledChangeFromSystem = { enabled in
+            DispatchQueue.main.async {
+                if centerStageEnabled != enabled {
+                    centerStageEnabled = enabled
+                }
+            }
         }
     }
 
@@ -65,6 +137,10 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
 
 class CameraPreviewView: UIView {
     weak var delegate: CameraPreviewRepresentable.Coordinator?
+    var onCenterStageAvailabilityChange: ((Bool) -> Void)?
+    var onCenterStageEnabledChangeFromSystem: ((Bool) -> Void)?
+    var prefersMaximumCaptureQuality: Bool
+    var enablesCenterStageControls: Bool
 
     private var captureSession: AVCaptureSession?
     private var videoPreviewLayer: AVCaptureVideoPreviewLayer?
@@ -76,33 +152,44 @@ class CameraPreviewView: UIView {
     private var currentPosition: AVCaptureDevice.Position = .back
     private var currentFlashMode: AVCaptureDevice.FlashMode = .off
     private var currentZoom: CGFloat = 1.0
+    private var desiredCenterStageEnabled = true
     private var captureEventInteraction: AVCaptureEventInteraction?
     private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
     private var currentDeviceOrientation: UIDeviceOrientation = .portrait
+    private var isObservingCenterStageEnabled = false
+    private let centerStageEnabledKeyPath = "centerStageEnabled"
 
     var isCurrentlyRecording: Bool {
         return movieOutput?.isRecording ?? false
     }
 
-    override init(frame: CGRect) {
+    init(
+        frame: CGRect,
+        prefersMaximumCaptureQuality: Bool = false,
+        enablesCenterStageControls: Bool = false
+    ) {
+        self.prefersMaximumCaptureQuality = prefersMaximumCaptureQuality
+        self.enablesCenterStageControls = enablesCenterStageControls
         super.init(frame: frame)
         configureHardwareCaptureInteraction()
         setupCamera()
     }
 
     required init?(coder: NSCoder) {
+        self.prefersMaximumCaptureQuality = false
+        self.enablesCenterStageControls = false
         super.init(coder: coder)
         configureHardwareCaptureInteraction()
         setupCamera()
     }
 
+    deinit {
+        stopObservingCenterStageEnabled()
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         videoPreviewLayer?.frame = bounds
-    }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
     }
 
     private func configureHardwareCaptureInteraction() {
@@ -115,11 +202,8 @@ class CameraPreviewView: UIView {
     }
 
     private func setupCamera() {
-        // Request camera permission first
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-            guard granted else {
-                return
-            }
+            guard granted else { return }
 
             AVCaptureDevice.requestAccess(for: .audio) { _ in
                 DispatchQueue.global(qos: .userInitiated).async {
@@ -133,10 +217,9 @@ class CameraPreviewView: UIView {
         guard captureSession == nil else { return }
 
         let session = AVCaptureSession()
-        session.sessionPreset = .high
+        applySessionPreset(to: session)
 
-        // Setup camera input
-        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: currentPosition),
+        guard let camera = captureDevice(for: currentPosition),
               let input = try? AVCaptureDeviceInput(device: camera) else {
             return
         }
@@ -156,39 +239,87 @@ class CameraPreviewView: UIView {
             currentAudioInput = audioInput
         }
 
-        // Setup photo output
         let photoOutput = AVCapturePhotoOutput()
         if session.canAddOutput(photoOutput) {
             session.addOutput(photoOutput)
             self.photoOutput = photoOutput
         }
 
-        // Setup video output
         let movieOutput = AVCaptureMovieFileOutput()
         if session.canAddOutput(movieOutput) {
             session.addOutput(movieOutput)
 
-            // Configure video settings
-            if let connection = movieOutput.connection(with: .video) {
-                if connection.isVideoStabilizationSupported {
-                    connection.preferredVideoStabilizationMode = .auto
-                }
+            if let connection = movieOutput.connection(with: .video),
+               connection.isVideoStabilizationSupported {
+                connection.preferredVideoStabilizationMode = .auto
             }
 
             self.movieOutput = movieOutput
         }
 
+        if prefersMaximumCaptureQuality {
+            applyMaxPhotoDimensions(for: camera)
+        }
+
         self.captureSession = session
 
-        // ✅ UI setup en main thread
+        if enablesCenterStageControls {
+            applyCenterStageConfiguration(for: camera, position: currentPosition)
+            observeCenterStageEnabledChanges()
+        }
+
         DispatchQueue.main.async { [weak self] in
             self?.setupPreviewLayer()
 
-            // ✅ Heavy camera operation en background thread
             DispatchQueue.global(qos: .userInitiated).async {
                 session.startRunning()
             }
         }
+    }
+
+    /// iPhone 17+ Center Stage frontal = `.builtInUltraWideCamera`, no la wide normal.
+    private func captureDevice(for position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+        if position == .front, enablesCenterStageControls {
+            let discovery = AVCaptureDevice.DiscoverySession(
+                deviceTypes: [.builtInUltraWideCamera],
+                mediaType: .video,
+                position: .front
+            )
+            if let ultraWideFront = discovery.devices.first {
+                return ultraWideFront
+            }
+        }
+        return AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position)
+    }
+
+    private func applySessionPreset(to session: AVCaptureSession) {
+        guard prefersMaximumCaptureQuality else {
+            session.sessionPreset = .high
+            return
+        }
+        let preferred: [AVCaptureSession.Preset] = [
+            .hd4K3840x2160,
+            .photo,
+            .high
+        ]
+        for preset in preferred where session.canSetSessionPreset(preset) {
+            session.sessionPreset = preset
+            return
+        }
+        session.sessionPreset = .high
+    }
+
+    private func applyMaxPhotoDimensions(for camera: AVCaptureDevice) {
+        guard let photoOutput else { return }
+        let dimensions = Self.largestPhotoDimensions(in: camera.activeFormat.supportedMaxPhotoDimensions)
+        guard dimensions.width > 0, dimensions.height > 0 else { return }
+        photoOutput.maxPhotoDimensions = dimensions
+    }
+
+    private static func largestPhotoDimensions(in values: [CMVideoDimensions]) -> CMVideoDimensions {
+        values.max { lhs, rhs in
+            Int(lhs.width) * Int(lhs.height) < Int(rhs.width) * Int(rhs.height)
+        } ?? CMVideoDimensions(width: 0, height: 0)
     }
 
     private func setupPreviewLayer() {
@@ -220,15 +351,14 @@ class CameraPreviewView: UIView {
 
         session.beginConfiguration()
 
-        // Remove current input
         if let currentInput = currentCameraInput {
             session.removeInput(currentInput)
         }
 
-        // Add new input
-        guard let newCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
+        guard let newCamera = captureDevice(for: position),
               let newInput = try? AVCaptureDeviceInput(device: newCamera) else {
             session.commitConfiguration()
+            publishCenterStageAvailability(false)
             return
         }
 
@@ -236,6 +366,16 @@ class CameraPreviewView: UIView {
             session.addInput(newInput)
             currentCamera = newCamera
             currentCameraInput = newInput
+        }
+
+        applySessionPreset(to: session)
+        if prefersMaximumCaptureQuality {
+            applyMaxPhotoDimensions(for: newCamera)
+        }
+        if enablesCenterStageControls {
+            applyCenterStageConfiguration(for: newCamera, position: position)
+        } else {
+            publishCenterStageAvailability(false)
         }
 
         session.commitConfiguration()
@@ -248,9 +388,155 @@ class CameraPreviewView: UIView {
             self.configurePreviewConnection()
         }
 
-        // Reset zoom
         currentZoom = 1.0
         updateCameraZoom(1.0)
+    }
+
+    func updateCenterStageEnabled(_ enabled: Bool) {
+        desiredCenterStageEnabled = enabled
+        guard enablesCenterStageControls,
+              currentPosition == .front,
+              let camera = currentCamera,
+              camera.activeFormat.isCenterStageSupported else {
+            return
+        }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.setCenterStageEnabled(enabled)
+        }
+    }
+
+    private func applyCenterStageConfiguration(for camera: AVCaptureDevice, position: AVCaptureDevice.Position) {
+        guard enablesCenterStageControls else {
+            publishCenterStageAvailability(false)
+            return
+        }
+        guard position == .front else {
+            disableCenterStageIfNeeded()
+            publishCenterStageAvailability(false)
+            return
+        }
+
+        let hasCenterStageFormat = camera.formats.contains(where: \.isCenterStageSupported)
+        guard hasCenterStageFormat else {
+            disableCenterStageIfNeeded()
+            publishCenterStageAvailability(false)
+            return
+        }
+
+        preferCenterStageFormatIfNeeded(on: camera, session: captureSession)
+
+        let supported = camera.activeFormat.isCenterStageSupported
+        publishCenterStageAvailability(supported)
+        guard supported else {
+            disableCenterStageIfNeeded()
+            return
+        }
+
+        AVCaptureDevice.centerStageControlMode = .cooperative
+        setCenterStageEnabled(desiredCenterStageEnabled)
+    }
+
+    private func preferCenterStageFormatIfNeeded(on camera: AVCaptureDevice, session: AVCaptureSession?) {
+        let candidates = camera.formats.filter(\.isCenterStageSupported)
+        guard !candidates.isEmpty else { return }
+
+        let withThirtyFPS = candidates.filter { format in
+            format.videoSupportedFrameRateRanges.contains { $0.maxFrameRate >= 29.0 }
+        }
+        let pool = withThirtyFPS.isEmpty ? candidates : withThirtyFPS
+
+        guard let best = pool.max(by: { lhs, rhs in
+            let lhsDims = CMVideoFormatDescriptionGetDimensions(lhs.formatDescription)
+            let rhsDims = CMVideoFormatDescriptionGetDimensions(rhs.formatDescription)
+            return Int(lhsDims.width) * Int(lhsDims.height) < Int(rhsDims.width) * Int(rhsDims.height)
+        }) else {
+            return
+        }
+
+        if camera.activeFormat.isCenterStageSupported {
+            let activeDims = CMVideoFormatDescriptionGetDimensions(camera.activeFormat.formatDescription)
+            let bestDims = CMVideoFormatDescriptionGetDimensions(best.formatDescription)
+            if activeDims.width == bestDims.width, activeDims.height == bestDims.height {
+                return
+            }
+        }
+
+        if let session, session.canSetSessionPreset(.inputPriority) {
+            session.sessionPreset = .inputPriority
+        }
+
+        do {
+            try camera.lockForConfiguration()
+            camera.activeFormat = best
+            if let range = best.videoSupportedFrameRateRanges.first(where: { $0.maxFrameRate >= 30 }) {
+                let fps = min(30.0, range.maxFrameRate)
+                camera.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
+                camera.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
+            }
+            camera.unlockForConfiguration()
+            if prefersMaximumCaptureQuality {
+                applyMaxPhotoDimensions(for: camera)
+            }
+        } catch {
+        }
+    }
+
+    private func setCenterStageEnabled(_ enabled: Bool) {
+        if AVCaptureDevice.centerStageControlMode != .cooperative
+            && AVCaptureDevice.centerStageControlMode != .app {
+            AVCaptureDevice.centerStageControlMode = .cooperative
+        }
+        if AVCaptureDevice.isCenterStageEnabled != enabled {
+            AVCaptureDevice.isCenterStageEnabled = enabled
+        }
+    }
+
+    private func disableCenterStageIfNeeded() {
+        guard AVCaptureDevice.centerStageControlMode == .cooperative
+                || AVCaptureDevice.centerStageControlMode == .app else {
+            return
+        }
+        if AVCaptureDevice.isCenterStageEnabled {
+            AVCaptureDevice.isCenterStageEnabled = false
+        }
+    }
+
+    private func publishCenterStageAvailability(_ available: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            self?.onCenterStageAvailabilityChange?(available)
+        }
+    }
+
+    private func observeCenterStageEnabledChanges() {
+        guard enablesCenterStageControls, !isObservingCenterStageEnabled else { return }
+        // `isCenterStageEnabled` es class property: KVO clásico sobre el metatype.
+        AVCaptureDevice.self.addObserver(
+            self,
+            forKeyPath: centerStageEnabledKeyPath,
+            options: [.new],
+            context: nil
+        )
+        isObservingCenterStageEnabled = true
+    }
+
+    private func stopObservingCenterStageEnabled() {
+        guard isObservingCenterStageEnabled else { return }
+        AVCaptureDevice.self.removeObserver(self, forKeyPath: centerStageEnabledKeyPath)
+        isObservingCenterStageEnabled = false
+    }
+
+    override func observeValue(
+        forKeyPath keyPath: String?,
+        of object: Any?,
+        change: [NSKeyValueChangeKey: Any]?,
+        context: UnsafeMutableRawPointer?
+    ) {
+        guard keyPath == centerStageEnabledKeyPath else {
+            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
+            return
+        }
+        let enabled = AVCaptureDevice.isCenterStageEnabled
+        onCenterStageEnabledChangeFromSystem?(enabled)
     }
 
     private func configurePreviewConnection() {
@@ -297,20 +583,21 @@ class CameraPreviewView: UIView {
     func capturePhoto() {
         guard let photoOutput = photoOutput else { return }
 
-        // ✅ CONFIGURACIÓN SEGURA DE ALTA CALIDAD
         let settings = AVCapturePhotoSettings()
 
-        // ✅ VERIFICAR Y CONFIGURAR CALIDAD SEGÚN LOS LÍMITES DEL DISPOSITIVO
-        if #available(iOS 13.0, *) {
-            let maxQuality = photoOutput.maxPhotoQualityPrioritization
+        let maxQuality = photoOutput.maxPhotoQualityPrioritization
+        if maxQuality == .quality {
+            settings.photoQualityPrioritization = .quality
+        } else if maxQuality == .balanced {
+            settings.photoQualityPrioritization = .balanced
+        } else {
+            settings.photoQualityPrioritization = .speed
+        }
 
-            // Solo usar la calidad que el dispositivo permite
-            if maxQuality == .quality {
-                settings.photoQualityPrioritization = .quality
-            } else if maxQuality == .balanced {
-                settings.photoQualityPrioritization = .balanced
-            } else {
-                settings.photoQualityPrioritization = .speed
+        if prefersMaximumCaptureQuality {
+            let dims = photoOutput.maxPhotoDimensions
+            if dims.width > 0, dims.height > 0 {
+                settings.maxPhotoDimensions = dims
             }
         }
 
@@ -411,6 +698,7 @@ class CameraPreviewView: UIView {
         return UIImage(cgImage: croppedImage, scale: image.scale, orientation: .up)
     }
 }
+
 extension CameraPreviewView: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         guard let imageData = photo.fileDataRepresentation(),
@@ -418,7 +706,6 @@ extension CameraPreviewView: AVCapturePhotoCaptureDelegate {
             return
         }
 
-        // Correct orientation for front camera
         let correctedImage = correctImageOrientation(image)
         let normalizedImage = correctedImage.creatorNormalizedUp()
         let previewMatchedImage = cropImageToVisiblePreview(normalizedImage) ?? normalizedImage
@@ -430,14 +717,12 @@ extension CameraPreviewView: AVCapturePhotoCaptureDelegate {
 
     private func correctImageOrientation(_ image: UIImage) -> UIImage {
         if currentPosition == .front {
-            // Flip horizontally for front camera
             return UIImage(cgImage: image.cgImage!, scale: image.scale, orientation: .leftMirrored)
         }
         return image
     }
 }
 
-// MARK: - AVCaptureFileOutputRecordingDelegate
 extension CameraPreviewView: AVCaptureFileOutputRecordingDelegate {
     func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
     }

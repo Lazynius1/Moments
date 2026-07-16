@@ -4313,3 +4313,7 @@
 "savedMoments.noResults.title" = "No hi ha resultats";
 "comments.edit.placeholder" = "Editar comentari...";
 "audience.search.people.placeholder" = "Cercar persones...";
+
+// Creator camera (Center Stage)
+"creator.camera.centerStage.on" = "Center Stage activat";
+"creator.camera.centerStage.off" = "Center Stage desactivat";

@@ -30,6 +30,8 @@ struct StoryCameraView: View {
     @State private var zoomLevel: CGFloat = 1.0
     @State private var lastZoomLevel: CGFloat = 1.0
     @State private var capturePhotoTrigger = false
+    @State private var centerStageEnabled = true
+    @State private var centerStageAvailable = false
     @State private var lastGalleryImage: UIImage?
     @StateObject private var orientationManager = OrientationManager.shared
     @StateObject private var cameraKit = CameraKitController()
@@ -67,7 +69,7 @@ struct StoryCameraView: View {
                             previewView: cameraKit.previewView,
                             canvasSize: captureRect.size,
                             onViewportUpdate: { size in
-                                cameraKit.updateViewport(forCanvasSize: size)
+                            cameraKit.updateViewport(forCanvasSize: size)
                             }
                         )
                     } else {
@@ -77,6 +79,10 @@ struct StoryCameraView: View {
                             isRecording: $isRecording,
                             zoomLevel: $zoomLevel,
                             capturePhotoTrigger: $capturePhotoTrigger,
+                            centerStageEnabled: $centerStageEnabled,
+                            centerStageAvailable: $centerStageAvailable,
+                            prefersMaximumCaptureQuality: true,
+                            enablesCenterStageControls: true,
                             deviceOrientation: deviceOrientation,
                             onImageCaptured: { image in handleCapturedImage(image) },
                             onVideoCaptured: { videoURL in handleCapturedVideo(videoURL) }
@@ -181,7 +187,7 @@ struct StoryCameraView: View {
 
     private var topControlsOverlay: some View {
         VStack {
-            HStack {
+            HStack(spacing: 10) {
                 roundControlButton(systemImage: "xmark", action: {
                     showCreatorView = false
                 })
@@ -189,6 +195,27 @@ struct StoryCameraView: View {
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: rotationAngle), value: rotationAngle)
 
                 Spacer()
+
+                if cameraPosition == .front && centerStageAvailable {
+                    roundControlButton(
+                        systemImage: centerStageEnabled
+                            ? "person.fill.viewfinder"
+                            : "person.crop.rectangle",
+                        action: {
+                            centerStageEnabled.toggle()
+                        }
+                    )
+                    .rotationEffect(.degrees(rotationAngle))
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: rotationAngle), value: rotationAngle)
+                    .accessibilityLabel(
+                        NSLocalizedString(
+                            centerStageEnabled
+                                ? "creator.camera.centerStage.on"
+                                : "creator.camera.centerStage.off",
+                            comment: "Center Stage accessibility"
+                        )
+                    )
+                }
 
                 roundControlButton(systemImage: flashIcon, action: {
                     toggleFlash()
@@ -356,6 +383,12 @@ struct StoryCameraView: View {
             // Reset zoom when switching cameras
             zoomLevel = 1.0
             lastZoomLevel = 1.0
+            if cameraPosition == .back {
+                centerStageAvailable = false
+            } else {
+                // Default ON al entrar a frontal; la preview confirmará si el hardware lo soporta.
+                centerStageEnabled = true
+            }
         }
         if usingCameraKit {
             cameraKit.setCameraPosition(cameraPosition)
@@ -404,11 +437,8 @@ struct StoryCameraView: View {
     }
 
     private func setupAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .videoRecording, options: [])
-            try session.setActive(true)
-        } catch {
+        Task {
+            await MomentsAudioSession.activate(category: .playAndRecord, mode: .videoRecording)
         }
     }
 

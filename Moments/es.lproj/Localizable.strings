@@ -4344,3 +4344,7 @@
 "savedMoments.noResults.title" = "No hay resultados";
 "comments.edit.placeholder" = "Editar comentario...";
 "audience.search.people.placeholder" = "Buscar personas...";
+
+// Creator camera (Center Stage)
+"creator.camera.centerStage.on" = "Center Stage activado";
+"creator.camera.centerStage.off" = "Center Stage desactivado";
