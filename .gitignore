@@ -82,6 +82,12 @@ npm_cache/
 # Internal design notes and research docs (local only)
 docs/superpowers/plans/*.md
 docs/superpowers/specs/*.md
+docs/android-port-assessment.md
+docs/ios-27-roadmap.md
+docs/swiftui-27-modernization-plan.md
+
+# Local agent skills/config (not part of the app)
+.agents/
 
 # Camera Kit / secrets — do NOT commit real tokens
 Secrets.xcconfig
