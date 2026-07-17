@@ -145,24 +145,22 @@ struct StoryTextEditor: View {
                 HStack {
                     Button(action: { isPresented = false }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 36, height: 36)
-                            .momentsChromeGlass(in: Circle(), interactive: true)
+                            .font(.title2)
+                            .foregroundStyle(StoryEditorChromeColor.icon(colorScheme))
+                            .padding(12)
+                            .momentsChromeGlass(in: Circle(), style: .tinted)
                     }
-                    .buttonStyle(.plain)
                     Spacer()
                     Button(action: { isPresented = false }) {
                         Text(NSLocalizedString("storyTextEditor.done", comment: "Done"))
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(StoryEditorChromeColor.icon(colorScheme))
                             .padding(.horizontal, 14)
-                            .frame(height: 36)
-                            .momentsChromeGlass(in: Capsule(), interactive: true)
+                            .padding(.vertical, 8)
+                            .momentsChromeGlass(in: Capsule(), style: .tinted)
                     }
-                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 16)
                 .padding(.top, topBarTopPadding(proxy.safeAreaInsets.top))
             }
             .overlay(alignment: .bottom) {
@@ -310,7 +308,8 @@ struct StoryTextEditor: View {
     private func topBarTopPadding(_ safeAreaTop: CGFloat) -> CGFloat {
         let fallbackSafeTop = keyWindowSafeAreaInsets().top
         let resolvedSafeTop = max(safeAreaTop, fallbackSafeTop)
-        return resolvedSafeTop + 10
+        // Alineado con `topBarView` del editor: posición total ≈ max(76, safeTop + 16).
+        return max(76, resolvedSafeTop + 16)
     }
 
     private func keyWindowSafeAreaInsets() -> UIEdgeInsets {

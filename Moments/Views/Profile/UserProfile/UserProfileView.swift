@@ -90,6 +90,7 @@ struct UserProfilePillTabs: View {
                     .momentsChromeGlass(
                         in: Capsule(),
                         interactive: false,
+                        style: .tinted,
                         tint: ProfilePillTabPalette.trackTint(for: colorScheme)
                     )
                     .overlay(
@@ -103,6 +104,7 @@ struct UserProfilePillTabs: View {
                     .momentsChromeGlass(
                         in: Capsule(),
                         interactive: true,
+                        style: .tinted,
                         tint: ProfilePillTabPalette.selectedThumbTint(for: colorScheme)
                     )
                     .shadow(color: ProfilePillTabPalette.selectedShadowColor(for: colorScheme), radius: 7, x: 0, y: 2)
@@ -275,7 +277,8 @@ struct UserProfileFloatingTabBar: View {
                     .padding(.vertical, 9)
                     .momentsChromeGlass(
                         in: Capsule(),
-                        interactive: true
+                        interactive: true,
+                        style: .tinted
                     )
                 }
                 .buttonStyle(.plain)

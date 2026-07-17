@@ -243,7 +243,8 @@ struct StoryEditingView: View {
                                     activeEditorMode = isPresented ? .drawing : .idle
                                 }
                             ),
-                            drawingImage: $drawingImage
+                            drawingImage: $drawingImage,
+                            canvasRect: mediaCanvasRect
                         )
                         .zIndex(45)
                     }
@@ -712,7 +713,7 @@ struct StoryEditingView: View {
                             .foregroundStyle(chromeIconColor)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .momentsChromeGlass(in: Capsule())
+                            .momentsChromeGlass(in: Capsule(), style: .tinted)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -734,7 +735,7 @@ struct StoryEditingView: View {
                         .foregroundStyle(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
-                        .momentsChromeGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
                     }
                     .offset(y: chatPaletteTopOffset)
                 }
@@ -758,7 +759,7 @@ struct StoryEditingView: View {
                             .font(.title2)
                             .foregroundStyle(chromeIconColor)
                             .padding(12)
-                            .momentsChromeGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle(), style: .tinted)
                     }
                     Spacer()
                     if isFilterMode {
@@ -772,7 +773,7 @@ struct StoryEditingView: View {
                                 .foregroundStyle(chromeIconColor)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
-                                .momentsChromeGlass(in: Capsule())
+                                .momentsChromeGlass(in: Capsule(), style: .tinted)
                         }
                     } else {
                         if isChatSendMode && activeEditorMode == .idle && !isEditingReveal {
@@ -784,7 +785,7 @@ struct StoryEditingView: View {
                                 .font(.title2)
                                 .foregroundStyle(chromeIconColor)
                                 .padding(12)
-                                .momentsChromeGlass(in: Circle())
+                                .momentsChromeGlass(in: Circle(), style: .tinted)
                         }
                     }
                 }
@@ -806,7 +807,7 @@ struct StoryEditingView: View {
                         .foregroundStyle(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
-                        .momentsChromeGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
                     }
                     .offset(y: chatPaletteTopOffset)
                 } else if showsBackgroundPaletteButton {
@@ -826,7 +827,7 @@ struct StoryEditingView: View {
                         .foregroundStyle(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
-                        .momentsChromeGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
                     }
                     .offset(y: chatPaletteTopOffset)
                 }
@@ -952,7 +953,7 @@ struct StoryEditingView: View {
                         .font(.system(size: 20))
                         .foregroundStyle(isFilterMode ? .pink : chromeIconColor)
                         .frame(width: 44, height: 44)
-                        .momentsChromeGlass(in: Circle())
+                        .momentsChromeGlass(in: Circle(), style: .tinted)
                         .overlay(Circle().stroke(isFilterMode ? Color.pink : Color.clear, lineWidth: 1))
                 }
 
@@ -964,7 +965,7 @@ struct StoryEditingView: View {
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(chromeIconColor)
                             .frame(width: 44, height: 44)
-                            .momentsChromeGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle(), style: .tinted)
                     }
                 }
 
@@ -976,7 +977,7 @@ struct StoryEditingView: View {
                             .font(.system(size: 20))
                             .foregroundStyle(isCreatingChain ? .blue : chromeIconColor)
                             .frame(width: 44, height: 44)
-                            .momentsChromeGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle(), style: .tinted)
                             .overlay(Circle().stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1))
                     }
                 }
@@ -989,7 +990,7 @@ struct StoryEditingView: View {
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(chromeIconColor)
                             .frame(width: 44, height: 44)
-                            .momentsChromeGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle(), style: .tinted)
                     }
                     .simultaneousGesture(
                         LongPressGesture(minimumDuration: 0.45).onEnded { _ in
@@ -1124,7 +1125,7 @@ struct StoryEditingView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 14)
-                            .momentsChromeGlass(in: Capsule(), interactive: true)
+                            .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
                         } else if isContinuingChain {
                             HStack(spacing: 10) {
                                 Image(systemName: "link")
@@ -1148,7 +1149,7 @@ struct StoryEditingView: View {
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 14)
-                            .momentsChromeGlass(in: Capsule(), interactive: false)
+                            .momentsChromeGlass(in: Capsule(), interactive: false, style: .tinted)
                         } else if !isContinuingChain {
                             Button(action: {
                                 if !isLoadingUserSettings {
@@ -1178,7 +1179,7 @@ struct StoryEditingView: View {
                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 14)
-                                .momentsChromeGlass(in: Capsule(), interactive: true)
+                                .momentsChromeGlass(in: Capsule(), interactive: true, style: .native)
                             }
                             .frame(maxWidth: .infinity)
                         }
@@ -1207,7 +1208,7 @@ struct StoryEditingView: View {
                                 .foregroundStyle(chromeIconColor)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
-                                .momentsChromeGlass(in: Capsule())
+                                .momentsChromeGlass(in: Capsule(), style: .tinted)
 
                             Slider(value: $filterIntensity, in: 0...1.0)
                                 .tint(chromeIconColor)
@@ -1374,7 +1375,7 @@ struct StoryEditingView: View {
                 .padding(.leading, 10)
                 .padding(.trailing, 16)
                 .padding(.vertical, 9)
-                .momentsChromeGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
             }
             .disabled(isPublishing)
 
@@ -1534,7 +1535,7 @@ struct StoryEditingView: View {
                 .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .frame(width: 54, height: 48)
                 .opacity(isLoadingUserSettings ? 0.5 : 1.0)
-                .momentsChromeGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
             }
             .disabled(isPublishing || isLoadingUserSettings)
         } else {
@@ -3220,7 +3221,7 @@ private struct SkinToneBubble: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .momentsChromeGlass(in: Capsule(), interactive: true)
+        .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
         .clipShape(Capsule())
         .overlay(
             Capsule()

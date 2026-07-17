@@ -107,7 +107,7 @@ struct GlassmorphicInputBar: View {
         .padding(.trailing, 12)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, minHeight: 44)
-        .momentsChromeGlass(in: inputFieldShape, interactive: !isVanishModeActive)
+        .momentsChromeGlass(in: inputFieldShape, interactive: !isVanishModeActive, style: .native)
         .background {
             if isVanishModeActive {
                 inputFieldShape
@@ -189,7 +189,7 @@ struct GlassmorphicInputBar: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 44, height: 44)
-                .momentsChromeGlass(in: Circle(), interactive: true)
+                .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
         }
         .buttonStyle(.plain)
     }
@@ -337,7 +337,7 @@ struct VoiceRecordingFloatingControl: View {
             .foregroundStyle(mode == .resume ? accentTint : primaryTint)
             .frame(width: 44, height: controlHeight)
             .contentShape(Capsule())
-            .momentsChromeGlass(in: Capsule(), interactive: isInteractive)
+            .momentsChromeGlass(in: Capsule(), interactive: isInteractive, style: .native)
         }
         .buttonStyle(.plain)
         .disabled(!isInteractive)

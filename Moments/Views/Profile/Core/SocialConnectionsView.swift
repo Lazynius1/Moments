@@ -337,7 +337,7 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(
-                    Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
+                    Color.clear.momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
                 )
         }
         .buttonStyle(.plain)
@@ -362,7 +362,7 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(primaryTextColor)
                 .frame(width: 36, height: 36)
-                .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
+                .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true, style: .tinted))
         }
         .buttonStyle(.plain)
     }

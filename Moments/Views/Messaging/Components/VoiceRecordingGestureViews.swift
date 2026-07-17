@@ -295,7 +295,7 @@ struct VoiceRecordingGestureButton: View {
             }
             .frame(width: 44, height: 44)
             .contentShape(Circle())
-            .momentsChromeGlass(in: Circle(), interactive: glassInteractive)
+            .momentsChromeGlass(in: Circle(), interactive: glassInteractive, style: .native)
             .overlay {
                 if showsRecordingOverlay {
                     recordingOverlay

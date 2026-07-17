@@ -360,7 +360,7 @@ struct SocialVideoEditorView: View {
                     .frame(width: 40, height: 40)
                     .background {
                         Color.clear
-                            .momentsChromeGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                     }
                     .overlay(
                         Circle()
@@ -465,7 +465,7 @@ struct SocialVideoEditorView: View {
                         .frame(width: 68, height: 68)
                         .background {
                             Color.clear
-                                .momentsChromeGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                         }
                         .overlay(
                             Circle()

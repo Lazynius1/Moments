@@ -287,7 +287,7 @@ struct StoryCameraView: View {
                 .frame(width: 48, height: 48)
                 .background {
                     Color.clear
-                        .momentsChromeGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                 }
                 .overlay(
                     Circle()
@@ -322,7 +322,7 @@ struct StoryCameraView: View {
                 .clipShape(Circle())
                 .background {
                     Color.clear
-                        .momentsChromeGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                 }
                 .overlay(
                     Circle()
@@ -342,7 +342,7 @@ struct StoryCameraView: View {
                 .frame(width: 48, height: 48)
                 .background {
                     Color.clear
-                        .momentsChromeGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                 }
                 .overlay(
                     Circle()
@@ -359,7 +359,7 @@ struct StoryCameraView: View {
                 .frame(width: 42, height: 42)
                 .background {
                     Color.clear
-                        .momentsChromeGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                 }
                 .overlay(
                     Circle()

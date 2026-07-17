@@ -14,6 +14,7 @@ private enum StoryDrawingBrush {
 struct StoryDrawingEditorOverlay: View {
     @Binding var isPresented: Bool
     @Binding var drawingImage: UIImage?
+    let canvasRect: CGRect
 
     @State private var baseDrawing: UIImage?
     @State private var liveGlowImage: UIImage?
@@ -47,28 +48,28 @@ struct StoryDrawingEditorOverlay: View {
         MomentsChromeGlass.canvasTint(for: colorScheme)
     }
 
-    init(isPresented: Binding<Bool>, drawingImage: Binding<UIImage?>) {
+    init(isPresented: Binding<Bool>, drawingImage: Binding<UIImage?>, canvasRect: CGRect) {
         self._isPresented = isPresented
         self._drawingImage = drawingImage
+        self.canvasRect = canvasRect
         self._baseDrawing = State(initialValue: drawingImage.wrappedValue)
     }
 
     var body: some View {
         GeometryReader { proxy in
-            let canvasSize = proxy.size
-            let safeAreaTop = proxy.safeAreaInsets.top
-            let safeAreaBottom = proxy.safeAreaInsets.bottom
-            let captureRect = creatorMomentsCaptureRect(
-                in: proxy.size,
-                topInset: safeAreaTop,
-                bottomInset: safeAreaBottom
-            )
-            let canvasBottomGap = max(0, proxy.size.height - captureRect.maxY)
+            let windowInsets = keyWindowSafeAreaInsets()
+            let safeAreaTop = windowInsets.top
+            let safeAreaBottom = windowInsets.bottom
+            let captureRect = canvasRect
+            let canvasTopScreen = captureRect.minY + safeAreaTop
+            let canvasBottomScreen = captureRect.maxY + safeAreaTop
+            let canvasBottomGap = max(0, proxy.size.height - canvasBottomScreen)
             let chromeHeight: CGFloat = 92 // 40 (palette) + 8 (spacing) + 44 (toolbar)
-            let bottomPadding = max(8, (canvasBottomGap - chromeHeight) / 2)
+            let bottomPadding = max(safeAreaBottom + 44, (canvasBottomGap - chromeHeight) / 2)
 
-            let localTopExclude = max(0, (safeAreaTop + 60) - captureRect.minY)
-            let localBottomExclude = (proxy.size.height - (chromeHeight + bottomPadding)) - captureRect.minY
+            let topButtonsBottom = topBarTopPadding(safeAreaTop) + 52
+            let localTopExclude = max(0, topButtonsBottom - canvasTopScreen)
+            let localBottomExclude = (proxy.size.height - (chromeHeight + bottomPadding)) - canvasTopScreen
 
             ZStack {
                 // Constraints base drawing, PencilKit canvas, and glow preview inside the story captureRect
@@ -118,7 +119,7 @@ struct StoryDrawingEditorOverlay: View {
                     }
                 }
                 .frame(width: captureRect.width, height: captureRect.height)
-                .position(x: captureRect.midX, y: captureRect.midY)
+                .position(x: captureRect.midX, y: captureRect.midY + safeAreaTop)
                 .clipped()
 
                 // Left side size slider
@@ -138,49 +139,27 @@ struct StoryDrawingEditorOverlay: View {
             }
             .ignoresSafeArea()
             .overlay(alignment: .top) {
-                HStack {
-                    HStack(spacing: 10) {
-                        Button(action: { isPresented = false }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 36, height: 36)
-                                .momentsChromeGlass(in: Circle(), interactive: true, tint: chromeTintColor)
+                HStack(spacing: 10) {
+                    if #available(iOS 26.0, *) {
+                        GlassEffectContainer(spacing: 10) {
+                            topLeadingButtonsCluster
                         }
-                        .buttonStyle(.plain)
-
-                        Button(action: { undoToken += 1 }) {
-                            Image(systemName: "arrow.uturn.backward")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 36, height: 36)
-                                .momentsChromeGlass(in: Circle(), interactive: true, tint: chromeTintColor)
-                        }
-                        .buttonStyle(.plain)
-
-                        Button(action: { redoToken += 1 }) {
-                            Image(systemName: "arrow.uturn.forward")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 36, height: 36)
-                                .momentsChromeGlass(in: Circle(), interactive: true, tint: chromeTintColor)
-                        }
-                        .buttonStyle(.plain)
+                    } else {
+                        topLeadingButtonsCluster
                     }
 
                     Spacer()
 
                     Button(action: { exportToken += 1 }) {
                         Text(NSLocalizedString("storyTextEditor.done", comment: "Done"))
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(chromeIconColor)
                             .padding(.horizontal, 14)
-                            .frame(height: 36)
-                            .momentsChromeGlass(in: Capsule(), interactive: true, tint: chromeTintColor)
+                            .padding(.vertical, 8)
+                            .momentsChromeGlass(in: Capsule(), style: .tinted)
                     }
-                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 16)
                 .padding(.top, topBarTopPadding(safeAreaTop))
             }
             .overlay(alignment: .bottom) {
@@ -214,7 +193,7 @@ struct StoryDrawingEditorOverlay: View {
 
                     // 2. Brush Toolbar (aligned with text toolbar)
                     HStack(spacing: 0) {
-                        brushButton(icon: "pencil.tip", brushType: .pen)
+                        brushButton(icon: "paintbrush.pointed.fill", brushType: .pen)
                         toolbarDivider
                         brushButton(icon: "arrow.up.right", brushType: .arrow)
                         toolbarDivider
@@ -222,7 +201,7 @@ struct StoryDrawingEditorOverlay: View {
                         toolbarDivider
                         brushButton(icon: "pencil", brushType: .pencil)
                         toolbarDivider
-                        brushButton(icon: "lightbulb.fill", brushType: .glow)
+                        brushButton(icon: "sparkles", brushType: .glow)
                         toolbarDivider
                         brushButton(icon: "eraser", brushType: .eraser)
                     }
@@ -266,6 +245,34 @@ struct StoryDrawingEditorOverlay: View {
         Rectangle()
             .fill(chromeDividerColor)
             .frame(width: 1, height: 24)
+    }
+
+    private var topLeadingButtonsCluster: some View {
+        HStack(spacing: 10) {
+            Button(action: { isPresented = false }) {
+                Image(systemName: "xmark")
+                    .font(.title2)
+                    .foregroundStyle(chromeIconColor)
+                    .padding(12)
+                    .momentsChromeGlass(in: Circle(), style: .tinted)
+            }
+
+            Button(action: { undoToken += 1 }) {
+                Image(systemName: "arrow.uturn.backward")
+                    .font(.title2)
+                    .foregroundStyle(chromeIconColor)
+                    .padding(12)
+                    .momentsChromeGlass(in: Circle(), style: .tinted)
+            }
+
+            Button(action: { redoToken += 1 }) {
+                Image(systemName: "arrow.uturn.forward")
+                    .font(.title2)
+                    .foregroundStyle(chromeIconColor)
+                    .padding(12)
+                    .momentsChromeGlass(in: Circle(), style: .tinted)
+            }
+        }
     }
 
     private func brushButton(icon: String, brushType: StoryDrawingBrush) -> some View {
@@ -343,7 +350,7 @@ struct StoryDrawingEditorOverlay: View {
     private func topBarTopPadding(_ safeAreaTop: CGFloat) -> CGFloat {
         let fallbackSafeTop = keyWindowSafeAreaInsets().top
         let resolvedSafeTop = max(safeAreaTop, fallbackSafeTop)
-        return resolvedSafeTop + 10
+        return max(76, resolvedSafeTop + 16)
     }
 
     private func keyWindowSafeAreaInsets() -> UIEdgeInsets {
@@ -405,9 +412,115 @@ private struct StoryVerticalBrushSlider: View {
     }
 }
 
-private class MomentsPKCanvasView: PKCanvasView {
+private final class GlowTouchObserver: UIGestureRecognizer {
+    var onBegan: (() -> Void)?
+    var onMoved: ((CGPoint) -> Void)?
+    var onEnded: (() -> Void)?
+
+    override init(target: Any?, action: Selector?) {
+        super.init(target: target, action: action)
+        cancelsTouchesInView = false
+        delaysTouchesBegan = false
+        delaysTouchesEnded = false
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        onBegan?()
+        if let touch = touches.first, let view { onMoved?(touch.location(in: view)) }
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        if let touch = touches.first, let view { onMoved?(touch.location(in: view)) }
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
+        onEnded?()
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
+        onEnded?()
+    }
+}
+
+private class MomentsPKCanvasView: PKCanvasView, UIGestureRecognizerDelegate {
     var localTopExclude: CGFloat = 0
     var localBottomExclude: CGFloat = 999999
+
+    var liveGlowEnabled = false
+    var liveGlowColor: UIColor = .white
+    var liveGlowCoreWidth: CGFloat = 3
+    var liveGlowBlur: CGFloat = 6
+
+    private let liveGlowLayer = CAShapeLayer()
+    private var didConfigure = false
+    private var glowPoints: [CGPoint] = []
+
+    private func configureIfNeeded() {
+        guard !didConfigure else { return }
+        didConfigure = true
+        liveGlowLayer.fillColor = UIColor.clear.cgColor
+        liveGlowLayer.lineCap = .round
+        liveGlowLayer.lineJoin = .round
+        liveGlowLayer.shadowOffset = .zero
+        layer.addSublayer(liveGlowLayer)
+
+        let observer = GlowTouchObserver(target: nil, action: nil)
+        observer.delegate = self
+        observer.onBegan = { [weak self] in self?.glowPoints.removeAll() }
+        observer.onMoved = { [weak self] point in self?.appendGlowPoint(point) }
+        observer.onEnded = { [weak self] in self?.glowPoints.removeAll() }
+        addGestureRecognizer(observer)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        configureIfNeeded()
+        liveGlowLayer.frame = bounds
+    }
+
+    private func appendGlowPoint(_ point: CGPoint) {
+        guard liveGlowEnabled else { return }
+        glowPoints.append(point)
+        updateLiveGlow(path: Self.smoothPath(from: glowPoints))
+    }
+
+    private func updateLiveGlow(path: CGPath) {
+        configureIfNeeded()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        liveGlowLayer.path = path
+        liveGlowLayer.strokeColor = UIColor.white.cgColor
+        liveGlowLayer.lineWidth = liveGlowCoreWidth
+        liveGlowLayer.shadowColor = liveGlowColor.cgColor
+        liveGlowLayer.shadowRadius = liveGlowBlur
+        liveGlowLayer.shadowOpacity = 1
+        CATransaction.commit()
+    }
+
+    func clearLiveGlow() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        liveGlowLayer.path = nil
+        CATransaction.commit()
+    }
+
+    private static func smoothPath(from points: [CGPoint]) -> CGPath {
+        let path = UIBezierPath()
+        guard let first = points.first else { return path.cgPath }
+        path.move(to: first)
+        if points.count > 1 {
+            for i in 1..<points.count {
+                let mid = CGPoint(x: (points[i - 1].x + points[i].x) / 2, y: (points[i - 1].y + points[i].y) / 2)
+                path.addQuadCurve(to: mid, controlPoint: points[i - 1])
+            }
+            path.addLine(to: points[points.count - 1])
+        }
+        return path.cgPath
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        true
+    }
 
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         if point.y < localTopExclude {
@@ -443,23 +556,14 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
     }
 
     private enum GlowConfig {
-        // Neon: nearly-invisible PK stroke + intense colored glow via CGContext shadow.
         static let coreWidthMultiplier: CGFloat = 0.3
 
-        // Shadow pass 1: tight, intense inner glow
-        static let innerShadowBlur: CGFloat = 3
-        static let innerShadowAlpha: CGFloat = 1.0
-        static let innerStrokeWidthMultiplier: CGFloat = 0.9
+        static let shadowRadiusMultiplier: CGFloat = 0.35
+        static let shadowRadiusMinimum: CGFloat = 2
 
-        // Shadow pass 2: medium spread
-        static let midShadowBlur: CGFloat = 8
-        static let midShadowAlpha: CGFloat = 0.9
-        static let midStrokeWidthMultiplier: CGFloat = 0.8
-
-        // Shadow pass 3: wide ambient glow
-        static let outerShadowBlur: CGFloat = 18
-        static let outerShadowAlpha: CGFloat = 0.4
-        static let outerStrokeWidthMultiplier: CGFloat = 0.6
+        static func shadowRadius(for width: CGFloat) -> CGFloat {
+            max(shadowRadiusMinimum, width * shadowRadiusMultiplier)
+        }
     }
 
     func makeUIView(context: Context) -> PKCanvasView {
@@ -468,6 +572,7 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
         canvas.localBottomExclude = localBottomExclude
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
+        canvas.overrideUserInterfaceStyle = .light
         canvas.drawingPolicy = .anyInput
         canvas.alwaysBounceVertical = false
         canvas.alwaysBounceHorizontal = false
@@ -488,6 +593,10 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
         if let momentsCanvas = uiView as? MomentsPKCanvasView {
             momentsCanvas.localTopExclude = localTopExclude
             momentsCanvas.localBottomExclude = localBottomExclude
+            momentsCanvas.liveGlowEnabled = (brush == .glow)
+            momentsCanvas.liveGlowColor = color
+            momentsCanvas.liveGlowCoreWidth = brushWidth
+            momentsCanvas.liveGlowBlur = GlowConfig.shadowRadius(for: brushWidth)
         }
 
         if uiView.contentSize != uiView.bounds.size {
@@ -539,11 +648,22 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
         var currentWidth: CGFloat = 7
         fileprivate var strokeMetadata: [StrokeMetadata] = []
 
-        private var glowPreviewWorkItem: DispatchWorkItem?
+        private var isActivelyDrawing = false
+        private let glowRenderQueue = DispatchQueue(label: "com.moments.story.glowRender", qos: .userInteractive)
+        private var pendingBakeWorkItem: DispatchWorkItem?
 
         init(onLiveGlowPreview: @escaping (UIImage?) -> Void) {
             self.onLiveGlowPreview = onLiveGlowPreview
             super.init()
+        }
+
+        func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
+            isActivelyDrawing = true
+        }
+
+        func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
+            isActivelyDrawing = false
+            scheduleBake(from: canvasView)
         }
 
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
@@ -560,32 +680,48 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
                 strokeMetadata = Array(strokeMetadata.prefix(strokeCount))
             }
 
-            // WYSIWYG overlay preview (debounced).
-            glowPreviewWorkItem?.cancel()
-            let shouldRenderGlow = strokeMetadata.contains(where: { $0.brush == .glow })
-            let shouldRenderArrow = strokeMetadata.contains(where: { $0.brush == .arrow })
+            if !isActivelyDrawing {
+                scheduleBake(from: canvasView)
+            }
+        }
+
+        private func scheduleBake(from canvasView: PKCanvasView) {
+            pendingBakeWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                self?.bakeOverlay(from: canvasView)
+            }
+            pendingBakeWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02, execute: workItem)
+        }
+
+        private func bakeOverlay(from canvasView: PKCanvasView) {
+            let glowCanvas = canvasView as? MomentsPKCanvasView
+            let shouldRender = strokeMetadata.contains(where: { $0.brush == .glow || $0.brush == .arrow })
+            guard shouldRender else {
+                onLiveGlowPreview(nil)
+                glowCanvas?.clearLiveGlow()
+                return
+            }
+
             let drawingSnapshot = canvasView.drawing
             let boundsSnapshot = canvasView.bounds
             let metadataSnapshot = strokeMetadata
             let scaleSnapshot = canvasView.traitCollection.displayScale
 
-            let workItem = DispatchWorkItem { [onLiveGlowPreview] in
-                guard shouldRenderGlow || shouldRenderArrow else {
-                    onLiveGlowPreview(nil)
-                    return
-                }
-
+            glowRenderQueue.async { [onLiveGlowPreview, weak glowCanvas] in
                 let preview = StoryDrawingCanvasView.renderLiveOverlayImage(
                     from: drawingSnapshot,
                     bounds: boundsSnapshot,
                     strokeMetadata: metadataSnapshot,
                     scale: scaleSnapshot
                 )
-                onLiveGlowPreview(preview)
+                DispatchQueue.main.async {
+                    onLiveGlowPreview(preview)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        glowCanvas?.clearLiveGlow()
+                    }
+                }
             }
-
-            glowPreviewWorkItem = workItem
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.06, execute: workItem)
         }
     }
 
@@ -596,10 +732,9 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
         case .arrow:
             return PKInkingTool(.pen, color: color, width: max(3, brushWidth))
         case .glow:
-            // Nearly invisible on PK canvas – the glow overlay provides all visual feedback.
             return PKInkingTool(
                 .pen,
-                color: color.withAlphaComponent(0.08),
+                color: color.withAlphaComponent(0.02),
                 width: max(2, brushWidth * GlowConfig.coreWidthMultiplier)
             )
         case .marker:
@@ -689,47 +824,23 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
                     let bezier = strokeToBezierPath(stroke: stroke)
                     guard !bezier.cgPath.isEmpty else { continue }
 
-                    let glowColor = metadata.color
-                    let w = metadata.width
+                    let shapeLayer = CAShapeLayer()
+                    shapeLayer.anchorPoint = .zero
+                    shapeLayer.frame = CGRect(origin: .zero, size: bounds.size)
+                    shapeLayer.contentsScale = scale
+                    shapeLayer.path = bezier.cgPath
+                    shapeLayer.fillColor = UIColor.clear.cgColor
+                    shapeLayer.strokeColor = UIColor.white.cgColor
+                    shapeLayer.lineWidth = metadata.width
+                    shapeLayer.lineCap = .round
+                    shapeLayer.lineJoin = .round
+                    shapeLayer.shadowOffset = .zero
+                    shapeLayer.shadowColor = metadata.color.cgColor
+                    shapeLayer.shadowRadius = GlowConfig.shadowRadius(for: metadata.width)
+                    shapeLayer.shadowOpacity = 1
 
-                    let outerBlur = max(14, w * 3.0)
-                    let midBlur   = max(6,  w * 1.2)
-                    let coreBlur  = max(3,  w * 0.6)
-
-                    // -- Pass 1: Wide ambient glow --
                     ctx.saveGState()
-                    ctx.setBlendMode(.plusLighter)
-                    ctx.setShadow(offset: .zero, blur: outerBlur, color: glowColor.withAlphaComponent(0.45).cgColor)
-                    ctx.setStrokeColor(UIColor.clear.cgColor)
-                    ctx.setLineWidth(w)
-                    ctx.setLineCap(.round)
-                    ctx.setLineJoin(.round)
-                    ctx.addPath(bezier.cgPath)
-                    ctx.strokePath()
-                    ctx.restoreGState()
-
-                    // -- Pass 2: Medium glow --
-                    ctx.saveGState()
-                    ctx.setBlendMode(.plusLighter)
-                    ctx.setShadow(offset: .zero, blur: midBlur, color: glowColor.withAlphaComponent(0.65).cgColor)
-                    ctx.setStrokeColor(UIColor.clear.cgColor)
-                    ctx.setLineWidth(w)
-                    ctx.setLineCap(.round)
-                    ctx.setLineJoin(.round)
-                    ctx.addPath(bezier.cgPath)
-                    ctx.strokePath()
-                    ctx.restoreGState()
-
-                    // -- Pass 3: White core with colored shadow --
-                    ctx.saveGState()
-                    ctx.setBlendMode(.normal)
-                    ctx.setShadow(offset: .zero, blur: coreBlur, color: glowColor.cgColor)
-                    ctx.setStrokeColor(UIColor.white.cgColor)
-                    ctx.setLineWidth(w)
-                    ctx.setLineCap(.round)
-                    ctx.setLineJoin(.round)
-                    ctx.addPath(bezier.cgPath)
-                    ctx.strokePath()
+                    shapeLayer.render(in: ctx)
                     ctx.restoreGState()
                 } else if metadata.brush == .arrow {
                     drawArrowHead(for: stroke, metadata: metadata, in: ctx)

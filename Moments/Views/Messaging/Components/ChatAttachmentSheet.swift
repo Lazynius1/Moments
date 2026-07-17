@@ -273,7 +273,7 @@ struct ChatAttachmentPlusButton: View {
                 .rotationEffect(.degrees(isMenuOpen ? 45 : 0))
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
-                .momentsChromeGlass(in: Circle(), interactive: true)
+                .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
         }
         .buttonStyle(.plain)
         .frame(width: 44, height: 44)

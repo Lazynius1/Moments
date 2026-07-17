@@ -147,7 +147,7 @@ struct StoryVideoTrimEditorView: View {
                                     .frame(width: 42, height: 42)
                                     .background {
                                         Color.clear
-                                            .momentsChromeGlass(in: Circle(), interactive: true)
+                                            .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                                     }
                                     .overlay(
                                         Circle()
@@ -166,7 +166,7 @@ struct StoryVideoTrimEditorView: View {
                                     .frame(width: 42, height: 42)
                                     .background {
                                         Color.clear
-                                            .momentsChromeGlass(in: Circle(), interactive: true)
+                                            .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                                     }
                                     .overlay(
                                         Circle()
@@ -190,7 +190,7 @@ struct StoryVideoTrimEditorView: View {
                             .frame(width: 38, height: 38)
                             .background {
                                 Color.clear
-                                    .momentsChromeGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                             }
                             .overlay(
                                 Circle()
@@ -212,7 +212,7 @@ struct StoryVideoTrimEditorView: View {
                             .padding(.vertical, 6)
                             .background {
                                 Color.clear
-                                    .momentsChromeGlass(in: Capsule(), interactive: false)
+                                    .momentsChromeGlass(in: Capsule(), interactive: false, style: .tinted)
                             }
                             .overlay(
                                 Capsule()

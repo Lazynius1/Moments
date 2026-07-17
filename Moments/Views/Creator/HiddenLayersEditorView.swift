@@ -265,7 +265,7 @@ struct HiddenLayersEditorView: View {
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(primaryTextColor)
                     .padding(10)
-                    .momentsChromeGlass(in: Circle(), interactive: true)
+                    .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -288,7 +288,7 @@ struct HiddenLayersEditorView: View {
             .foregroundStyle(primaryTextColor)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .momentsChromeGlass(in: Capsule(), interactive: true)
+            .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
@@ -612,7 +612,7 @@ struct HiddenLayersEditorView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .frame(minWidth: 168)
-                    .momentsChromeGlass(in: Capsule(), interactive: canCreateLayer(of: selectedDockType))
+                    .momentsChromeGlass(in: Capsule(), interactive: canCreateLayer(of: selectedDockType), style: .tinted)
                     .opacity(canCreateLayer(of: selectedDockType) ? 1 : 0.48)
                 }
                 .buttonStyle(.plain)
@@ -661,7 +661,7 @@ struct HiddenLayersEditorView: View {
             ZStack {
                 Capsule()
                     .fill(Color.clear)
-                    .momentsChromeGlass(in: Capsule())
+                    .momentsChromeGlass(in: Capsule(), style: .tinted)
                     .overlay(
                         Capsule()
                             .stroke(previewStrokeColor, lineWidth: 0.75)
@@ -670,7 +670,7 @@ struct HiddenLayersEditorView: View {
                 Capsule()
                     .fill(Color.white.opacity(isDark ? 0.055 : 0.035))
                     .frame(width: segmentWidth, height: 34)
-                    .momentsChromeGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
                     .shadow(color: .black.opacity(isDark ? 0.24 : 0.08), radius: 7, x: 0, y: 2)
                     .offset(x: switcherPillOffset(for: proxy.size.width, activeType: activeType))
 
@@ -950,7 +950,7 @@ struct HiddenLayersEditorView: View {
                             Circle()
                                 .fill(Color.clear)
                                 .frame(width: 58, height: 58)
-                                .momentsChromeGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
 
                             if audioRecorder.isRecording {
                                 RoundedRectangle(cornerRadius: 4)
@@ -988,7 +988,7 @@ struct HiddenLayersEditorView: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(primaryTextColor)
                 .frame(width: 44, height: 44)
-                .momentsChromeGlass(in: Circle(), interactive: true)
+                .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
         }
     }
 
@@ -1758,7 +1758,7 @@ private struct HiddenLayerScheduleSheet: View {
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .momentsChromeGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
 
                 Button(NSLocalizedString("common.done", value: "Listo", comment: "Done")) {
                     onApply()
@@ -1767,7 +1767,7 @@ private struct HiddenLayerScheduleSheet: View {
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .momentsChromeGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
             }
         }
         .padding(.horizontal, 20)
@@ -1831,7 +1831,7 @@ private struct HiddenLayerTextCardPreview: View {
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, minHeight: 74)
                 .background(Color.clear)
-                .momentsChromeGlass(in: shape)
+                .momentsChromeGlass(in: shape, style: .tinted)
         } else {
             Text(text)
                 .font(font)

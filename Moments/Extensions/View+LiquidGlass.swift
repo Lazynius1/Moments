@@ -7,6 +7,17 @@ enum LiquidGlassVariant {
     case regular
 }
 
+// Intención del chrome glass: `tinted` mantiene el tint de canvas (legibilidad
+// sobre contenido/media). `native` usa `.regular` limpio para igualar el chrome
+// del sistema donde el glass se apoya sobre nuestro propio canvas. `nativeTinted`
+// es un punto intermedio: mismo `.regular` del sistema con un toque de tint sutil,
+// para sitios que quieren leer "de sistema" sin perder por completo la identidad.
+enum MomentsGlassStyle {
+    case tinted
+    case native
+    case nativeTinted
+}
+
 enum MomentsGlassControlMetrics {
     static let navigationControlSize: CGFloat = 40
     static let navigationChevronIconSize: CGFloat = 19
@@ -87,9 +98,17 @@ enum MomentsGlassButtonTint {
 
 enum MomentsChromeGlass {
     static let defaultTintOpacity: CGFloat = 0.60
+    // El canvas negro se lee más translúcido/débil que el blanco al mismo % de opacidad;
+    // se refuerza solo el default de dark para igualar la presencia visual del tint claro.
+    static let defaultDarkTintOpacity: CGFloat = 0.82
+    // Multiplicador sobre el tint ya resuelto (tintOverride o canvasTint) para `.nativeTinted`.
+    static let nativeTintedOpacityScale: CGFloat = 0.45
 
     static func canvasTint(for colorScheme: ColorScheme, opacity: CGFloat = defaultTintOpacity) -> Color {
-        MomentsGlassButtonTint.canvas(for: colorScheme).opacity(opacity)
+        let resolvedOpacity = (colorScheme == .dark && opacity == defaultTintOpacity)
+            ? defaultDarkTintOpacity
+            : opacity
+        return MomentsGlassButtonTint.canvas(for: colorScheme).opacity(resolvedOpacity)
     }
 
     static func contentColor(for colorScheme: ColorScheme) -> Color {
@@ -120,6 +139,12 @@ enum MomentsChromeGlass {
             glass = glass.interactive()
         }
         return glass
+    }
+
+    // `.regular` sin tint: look nativo del sistema.
+    @available(iOS 26.0, *)
+    static func nativeGlass(interactive: Bool) -> Glass {
+        interactive ? Glass.regular.interactive() : Glass.regular
     }
 }
 
@@ -214,6 +239,7 @@ extension View {
     func momentsChromeGlass<S: Shape>(
         in shape: S,
         interactive: Bool = true,
+        style: MomentsGlassStyle = .native,
         tintOpacity: CGFloat = MomentsChromeGlass.defaultTintOpacity,
         tint: Color? = nil
     ) -> some View {
@@ -221,6 +247,7 @@ extension View {
             MomentsChromeGlassModifier(
                 shape: shape,
                 interactive: interactive,
+                style: style,
                 tintOpacity: tintOpacity,
                 tintOverride: tint
             )
@@ -233,6 +260,7 @@ private struct MomentsChromeGlassModifier<S: Shape>: ViewModifier {
 
     let shape: S
     var interactive: Bool
+    var style: MomentsGlassStyle = .tinted
     var tintOpacity: CGFloat
     var tintOverride: Color?
 
@@ -242,15 +270,40 @@ private struct MomentsChromeGlassModifier<S: Shape>: ViewModifier {
 
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content
-                .glassEffect(
-                    MomentsChromeGlass.chromeGlass(interactive: interactive, tint: resolvedTint),
-                    in: shape
-                )
+            switch style {
+            case .tinted:
+                content
+                    .glassEffect(
+                        MomentsChromeGlass.chromeGlass(interactive: interactive, tint: resolvedTint),
+                        in: shape
+                    )
+            case .native:
+                content
+                    .glassEffect(
+                        MomentsChromeGlass.nativeGlass(interactive: interactive),
+                        in: shape
+                    )
+            case .nativeTinted:
+                content
+                    .glassEffect(
+                        MomentsChromeGlass.chromeGlass(
+                            interactive: interactive,
+                            tint: resolvedTint.opacity(MomentsChromeGlass.nativeTintedOpacityScale)
+                        ),
+                        in: shape
+                    )
+            }
         } else {
             content
                 .background {
-                    shape.fill(resolvedTint)
+                    switch style {
+                    case .tinted:
+                        shape.fill(resolvedTint)
+                    case .nativeTinted:
+                        shape.fill(resolvedTint.opacity(MomentsChromeGlass.nativeTintedOpacityScale))
+                    case .native:
+                        EmptyView()
+                    }
                 }
                 .background(.ultraThinMaterial)
                 .clipShape(shape)

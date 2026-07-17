@@ -16,6 +16,7 @@ struct ContentTypeSelectionView: View {
     @State private var isBreathing: Bool = false
     @State private var hasCameraPermission: Bool = false
     @State private var dialTransientOffset: CGFloat = 0
+    @State private var storyRingRotation: Double = 0
 
     private let dialModes: [CreatorView.ContentType] = [.moment, .story]
     private let dialControlWidth: CGFloat = 170
@@ -198,22 +199,7 @@ struct ContentTypeSelectionView: View {
                     .frame(width: 80, height: 80)
                     .matchedGeometryEffect(id: "momentSource", in: animation)
                 } else {
-                    Circle()
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [.purple, .pink, .orange],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 5
-                        )
-                        .frame(width: 80, height: 80)
-                        .overlay(
-                            Circle()
-                                .fill(Color.white.opacity(0.2))
-                                .frame(width: 70, height: 70)
-                        )
-                        .shadow(color: .purple.opacity(0.4), radius: 15, x: 0, y: 0)
+                    storyShutterButton
                 }
             }
         }
@@ -224,6 +210,44 @@ struct ContentTypeSelectionView: View {
                 shutterScale = pressing ? 0.9 : 1.0
             }
         })
+    }
+
+    private var storyRingGradient: AngularGradient {
+        AngularGradient(
+            gradient: Gradient(colors: [
+                .blue, .purple, .pink, .purple, .blue
+            ]),
+            center: .center
+        )
+    }
+
+    private var storyShutterButton: some View {
+        Circle()
+            .fill(.clear)
+            .frame(width: 88, height: 88)
+            .background {
+                StoryRingShape(lineWidth: 7)
+                    .fill(storyRingGradient)
+                    .frame(width: 81, height: 81)
+                    .rotationEffect(.degrees(storyRingRotation))
+            }
+            .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
+            .contentShape(Circle())
+            .scaleEffect(isBreathing ? 1.035 : 1.0)
+            .onAppear {
+                storyRingRotation = 0
+                withAnimation(.linear(duration: 9).repeatForever(autoreverses: false)) {
+                    storyRingRotation = 360
+                }
+            }
+    }
+
+    private struct StoryRingShape: Shape {
+        let lineWidth: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            Circle().path(in: rect).strokedPath(StrokeStyle(lineWidth: lineWidth))
+        }
     }
 
     private var dialSelector: some View {

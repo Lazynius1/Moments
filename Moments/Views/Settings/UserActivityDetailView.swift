@@ -1040,7 +1040,7 @@ struct ActivityInteractionDetailView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
-            Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
+            Color.clear.momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
         )
     }
 
