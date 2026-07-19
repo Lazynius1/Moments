@@ -49,6 +49,7 @@ struct GlassmorphicChatView: View {
     @State var pendingChatContext: PendingChatContext?
     @State var conversationIntroContext: PendingChatContext?
     @State var showEnhancedCamera = false
+    @StateObject var micGate = PermissionPrimerGate(.microphone)
     @State var pendingCameraReplyToMessageId: String?
     @State var viewOnceViewerPresentation: ViewOnceViewerPresentation?
     @State var activeAttachmentSheet: ChatAttachmentSheetKind?
@@ -270,6 +271,7 @@ struct GlassmorphicChatView: View {
                 }
             }
             .chatInteractivePopEnabled()
+        .permissionPrimerGate(micGate)
         .fullScreenCover(isPresented: $showEnhancedCamera) {
             ChatCameraView(
                 otherUserId: viewModel.conversation.otherParticipantId,

@@ -68,6 +68,7 @@ struct StoryViewerScreen: View {
     @State private var showMomentDetail: Bool = false
     @State private var targetMomentId: String? = nil
     @State private var targetMomentUserId: String? = nil
+    @StateObject private var photosSaveGate = PermissionPrimerGate(.photosSave)
     @State private var messageText: String = ""
     @State private var showReactions: Bool = false
     @State private var showStoryReactionEmojiPicker = false
@@ -485,6 +486,7 @@ struct StoryViewerScreen: View {
         .onChange(of: captureRect) { _, newValue in
             interactionCaptureRect = newValue
         }
+        .permissionPrimerGate(photosSaveGate)
         .sheet(isPresented: $showMomentDetail) {
             if let momentId = targetMomentId, let userId = targetMomentUserId {
                 MomentDetailFromNotificationView(
@@ -1016,7 +1018,9 @@ struct StoryViewerScreen: View {
             },
             onSave: {
                 dismissQuickActions(resume: false)
-                saveStoryToDevice()
+                photosSaveGate.requestAccess {
+                    saveStoryToDevice()
+                }
             },
             onDelete: {
                 dismissQuickActions(resume: false)

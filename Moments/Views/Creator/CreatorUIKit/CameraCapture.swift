@@ -2,13 +2,14 @@ import AVFoundation
 import SwiftUI
 
 struct CameraCapture: UIViewControllerRepresentable {
+    var mediaTypes: [String] = ["public.image", "public.movie"]
     let onCapture: (CreatorMedia) -> Void
     @Environment(\.dismiss) private var dismiss
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.sourceType = .camera
-        picker.mediaTypes = ["public.image", "public.movie"]
+        picker.mediaTypes = mediaTypes
         picker.delegate = context.coordinator
         picker.videoQuality = .typeHigh
         picker.videoMaximumDuration = 60

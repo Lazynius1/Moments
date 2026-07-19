@@ -10,6 +10,7 @@ struct DiscoverMapView: View {
     @Environment(\.dismiss) private var dismiss
 
     @StateObject private var locationManager = LocationUtilities.shared
+    @StateObject private var locationGate = LocationPermissionGate()
     @State private var mapPosition = MapCameraPosition.region(MapRegionStore.initialRegion())
     @State private var region = MapRegionStore.initialRegion()
 
@@ -241,10 +242,22 @@ struct DiscoverMapView: View {
         }
         .onAppear {
             isViewActive = true
-            locationManager.requestLocationPermission()
             loadFollowingIds()
-            bootstrapMapCenter()
+            switch locationManager.authorizationStatus {
+            case .authorizedWhenInUse, .authorizedAlways:
+                locationManager.requestLocationPermission()
+                bootstrapMapCenter()
+            case .notDetermined:
+                applyFallbackRegion(andSearch: true)
+                locationGate.requestAccess {
+                    locationManager.requestLocationPermission()
+                    bootstrapMapCenter()
+                }
+            default:
+                applyFallbackRegion(andSearch: true)
+            }
         }
+        .locationPermissionGate(locationGate)
         .onDisappear {
             isViewActive = false
             regionSearchTask?.cancel()

@@ -4,6 +4,7 @@ struct DailyLimitView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @StateObject private var timeSpentManager = TimeSpentManager.shared
+    @StateObject private var notificationGate = PermissionPrimerGate(.notifications)
     
     @State private var isLimitEnabled: Bool = false
     @State private var selectedHours: Int = 1
@@ -130,6 +131,7 @@ struct DailyLimitView: View {
         .onAppear {
             loadCurrentSettings()
         }
+        .permissionPrimerGate(notificationGate)
     }
     
     private func loadCurrentSettings() {
@@ -154,10 +156,7 @@ struct DailyLimitView: View {
             let totalSeconds = TimeInterval((selectedHours * 3600) + (selectedMinutes * 60))
             timeSpentManager.setDailyLimit(totalSeconds)
             
-            // Request Notification Permissions if needed
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-                // Handle permission explicitly if needed, but we already scheduled inside TimeSpentManager
-            }
+            notificationGate.requestAccess {}
         } else {
             timeSpentManager.setDailyLimit(nil)
         }

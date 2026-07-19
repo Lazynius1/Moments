@@ -405,6 +405,12 @@ struct NovaAttachmentCameraSheet: View {
     }
 
     var body: some View {
+        CameraAccessBoundary(onCancel: onBack) {
+            cameraContent
+        }
+    }
+
+    private var cameraContent: some View {
         GeometryReader { proxy in
             ZStack {
                 CameraView(
@@ -667,6 +673,7 @@ struct NovaAttachmentPhotoGridSheet: View {
     @State private var isLoading = true
     @State private var nativePickerItem: PhotosPickerItem?
     @State private var showNativePhotoPicker = false
+    @StateObject private var photosGate = PermissionPrimerGate(.photos)
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
     private let imageManager = PHImageManager.default()
@@ -724,6 +731,7 @@ struct NovaAttachmentPhotoGridSheet: View {
         .onAppear {
             requestPhotoLibraryAccess()
         }
+        .permissionPrimerGate(photosGate)
     }
 
     private var footerBar: some View {
@@ -769,11 +777,9 @@ struct NovaAttachmentPhotoGridSheet: View {
         authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
 
         if authorizationStatus == .notDetermined {
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-                DispatchQueue.main.async {
-                    authorizationStatus = status
-                    loadPhotosIfAllowed()
-                }
+            photosGate.requestAccess {
+                authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+                loadPhotosIfAllowed()
             }
         } else {
             loadPhotosIfAllowed()

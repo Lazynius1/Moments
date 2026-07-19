@@ -1883,6 +1883,7 @@ struct FullScreenMediaView: View {
     let onSendReply: (SharedMedia, String, @escaping (Result<Void, Error>) -> Void) -> Void
     @Environment(\.colorScheme) var colorScheme
     @FocusState private var isReplyFocused: Bool
+    @StateObject private var photosSaveGate = PermissionPrimerGate(.photosSave)
     @State private var replyText = ""
     @State private var isSendingReply = false
     @State private var showSaveResult = false
@@ -2050,6 +2051,7 @@ struct FullScreenMediaView: View {
         } message: {
             Text(saveResultMessage)
         }
+        .permissionPrimerGate(photosSaveGate)
         .onChange(of: selectedIndex) { _, _ in
             videoCurrentTime = 0
             videoDuration = 0
@@ -2226,7 +2228,7 @@ struct FullScreenMediaView: View {
                     systemName: "arrow.down",
                     foregroundColor: primaryOverlayColor,
                     preset: .toolbarAction,
-                    action: saveMedia
+                    action: { photosSaveGate.requestAccess { saveMedia() } }
                 )
                 .accessibilityLabel(Text("conversationSettings.mediaSave.action"))
             }

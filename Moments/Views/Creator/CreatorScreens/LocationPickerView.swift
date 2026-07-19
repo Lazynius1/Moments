@@ -27,6 +27,7 @@ struct LocationPickerView: View {
     @State private var locationError: String?
 
     @StateObject private var locationManager = LocationUtilities.shared
+    @StateObject private var locationGate = LocationPermissionGate()
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -220,6 +221,7 @@ struct LocationPickerView: View {
                 isRequestingLocation = false
             }
         }
+        .locationPermissionGate(locationGate)
     }
 
     private func searchLocation() {
@@ -342,11 +344,6 @@ struct LocationPickerView: View {
         locationError = nil
 
         switch locationManager.authorizationStatus {
-        case .notDetermined:
-            locationManager.requestLocationPermission()
-        case .denied, .restricted:
-            locationError = NSLocalizedString("creator.location.permissionDenied", comment: "")
-            isRequestingLocation = false
         case .authorizedWhenInUse, .authorizedAlways:
             if let currentLocation = locationManager.currentLocation {
                 let coordinate = currentLocation.coordinate
@@ -365,9 +362,12 @@ struct LocationPickerView: View {
                 // Si no hay ubicación actual, solicitar una nueva
                 locationManager.requestLocationPermission()
             }
-        @unknown default:
-            locationError = NSLocalizedString("creator.location.unknownPermissionState", comment: "")
+        default:
             isRequestingLocation = false
+            locationGate.requestAccess {
+                isRequestingLocation = true
+                locationManager.requestLocationPermission()
+            }
         }
     }
 

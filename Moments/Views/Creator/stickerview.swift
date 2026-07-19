@@ -41,6 +41,7 @@ struct StickerPickerView: View {
     @State private var giphyActiveQuery = ""
     @State private var giphyFetchTask: Task<Void, Never>?
     @State private var mode: PickerMode = .catalog
+    @StateObject private var cameraPermissionGate = CameraPermissionGate()
 
     private let giphyPageSize = 24
 
@@ -293,6 +294,7 @@ struct StickerPickerView: View {
                 loadTrendingStickers()
             }
         }
+        .cameraPermissionGate(cameraPermissionGate)
     }
 
     @ViewBuilder
@@ -906,7 +908,9 @@ struct StickerPickerView: View {
         case .time:
             createTimeSticker()
         case .selfie:
-            createSelfieSticker()
+            cameraPermissionGate.requestCameraAccess {
+                createSelfieSticker()
+            }
         case .hashtag:
             createHashtagPlaceholderSticker()
         case .poll:

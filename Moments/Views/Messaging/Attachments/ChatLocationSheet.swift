@@ -24,6 +24,7 @@ struct ChatLocationSheetContent: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var locationManager = LocationUtilities.shared
+    @StateObject private var locationGate = LocationPermissionGate()
 
     @State private var position: MapCameraPosition = .region(MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 41.3874, longitude: 2.1686),
@@ -98,7 +99,9 @@ struct ChatLocationSheetContent: View {
         ) {
             ForEach(LiveLocationDuration.allCases) { duration in
                 Button(NSLocalizedString(duration.localizedTitleKey, comment: "")) {
-                    onStartLive(duration)
+                    locationGate.requestAccess(level: .always) {
+                        onStartLive(duration)
+                    }
                 }
             }
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
@@ -106,9 +109,13 @@ struct ChatLocationSheetContent: View {
             Text(LocalizedStringKey("chat.location.livePermissionInfo"))
         }
         .onAppear {
-            locationManager.requestLocationPermission()
+            if locationManager.authorizationStatus == .authorizedWhenInUse
+                || locationManager.authorizationStatus == .authorizedAlways {
+                locationManager.requestLocationPermission()
+            }
             centerOnUserIfPossible()
         }
+        .locationPermissionGate(locationGate)
         .onChange(of: locationManager.currentLocation) { _, _ in
             centerOnUserIfPossible()
         }

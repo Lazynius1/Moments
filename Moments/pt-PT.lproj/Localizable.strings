@@ -5107,3 +5107,53 @@
 // Creator camera (Center Stage)
 "creator.camera.centerStage.on" = "Center Stage ativado";
 "creator.camera.centerStage.off" = "Center Stage desativado";
+
+// Permission primer (pre-permission screens)
+"permission.camera.primer.title" = "Ativa a tua câmara";
+"permission.camera.primer.subtitle" = "Permite o acesso à câmara para captar fotografias e vídeos para as tuas histórias, momentos e perfil.";
+"permission.camera.primer.benefit.capture" = "Tira fotografias e grava vídeos";
+"permission.camera.primer.benefit.private" = "Nada é guardado sem ti";
+"permission.camera.primer.allow" = "Permitir acesso à câmara";
+"permission.camera.primer.notNow" = "Agora não";
+"permission.camera.denied.title" = "O acesso à câmara está desativado";
+"permission.camera.denied.subtitle" = "Ativa a câmara nas Definições para continuares a captar fotografias e vídeos para as tuas histórias, momentos e perfil.";
+"permission.camera.denied.openSettings" = "Abrir Definições";
+
+// Permission primers — microfone / fotografias / localização / notificações
+"permission.microphone.primer.title" = "Ativa o teu microfone";
+"permission.microphone.primer.subtitle" = "Permite o acesso ao microfone para gravar áudio para as tuas histórias e mensagens de voz.";
+"permission.microphone.primer.allow" = "Permitir acesso ao microfone";
+"permission.microphone.primer.notNow" = "Agora não";
+"permission.microphone.denied.title" = "O acesso ao microfone está desativado";
+"permission.microphone.denied.subtitle" = "Ativa o microfone nas Definições para gravar áudio para as tuas histórias e mensagens de voz.";
+"permission.microphone.denied.openSettings" = "Abrir Definições";
+"permission.photos.primer.title" = "Acede às tuas fotografias";
+"permission.photos.primer.subtitle" = "Permite o acesso às fotografias para partilhar imagens nas tuas histórias, momentos e perfil.";
+"permission.photos.primer.allow" = "Permitir acesso às fotografias";
+"permission.photos.primer.notNow" = "Agora não";
+"permission.photos.denied.title" = "O acesso às fotografias está desativado";
+"permission.photos.denied.subtitle" = "Ativa o acesso às fotografias nas Definições para partilhar imagens nas tuas histórias, momentos e perfil.";
+"permission.photos.denied.openSettings" = "Abrir Definições";
+"permission.location.primer.title" = "Ativa a localização";
+"permission.location.primer.subtitle" = "Permite o acesso à localização para etiquetar as tuas publicações e mostrar conteúdo relevante nas proximidades.";
+"permission.location.primer.allow" = "Permitir acesso à localização";
+"permission.location.primer.notNow" = "Agora não";
+"permission.location.denied.title" = "O acesso à localização está desativado";
+"permission.location.denied.subtitle" = "Ativa a localização nas Definições para etiquetar as tuas publicações e mostrar conteúdo nas proximidades.";
+"permission.location.denied.openSettings" = "Abrir Definições";
+"permission.location.always.primer.title" = "Partilha localização em direto";
+"permission.location.always.primer.subtitle" = "Permite Sempre para que os amigos vejam a tua localização em direto mesmo com o Moments em segundo plano.";
+"permission.location.always.primer.allow" = "Permitir Sempre";
+"permission.location.always.primer.badge" = "Em direto";
+"permission.location.always.denied.title" = "A localização em segundo plano está desativada";
+"permission.location.always.denied.subtitle" = "Ativa Sempre nas Definições para a localização em direto atualizar com o Moments em segundo plano.";
+"permission.notifications.primer.title" = "Ativa as notificações";
+"permission.notifications.primer.subtitle" = "Recebe avisos sobre mensagens, reações e quando amigos publicam momentos.";
+"permission.notifications.primer.allow" = "Permitir notificações";
+"permission.notifications.primer.notNow" = "Agora não";
+"permission.notifications.denied.title" = "As notificações estão desativadas";
+"permission.notifications.denied.subtitle" = "Ativa as notificações nas Definições para não perderes mensagens, reações e novos momentos.";
+"permission.notifications.denied.openSettings" = "Abrir Definições";
+"permission.notifications.mock.now" = "agora";
+"permission.notifications.mock.sender" = "Alex";
+"permission.notifications.mock.body" = "enviou-te um momento ✨";

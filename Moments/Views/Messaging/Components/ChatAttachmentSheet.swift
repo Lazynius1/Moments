@@ -699,6 +699,7 @@ struct ChatAttachmentMediaGridSheet: View {
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
     @State private var isLoading = true
     @State private var isConfirming = false
+    @StateObject private var photosGate = PermissionPrimerGate(.photos)
     @State private var nativePickerItems: [PhotosPickerItem] = []
     @State private var showNativePhotoPicker = false
 
@@ -758,6 +759,7 @@ struct ChatAttachmentMediaGridSheet: View {
         .onAppear {
             requestPhotoLibraryAccess()
         }
+        .permissionPrimerGate(photosGate)
     }
 
     private var footerBar: some View {
@@ -842,11 +844,9 @@ struct ChatAttachmentMediaGridSheet: View {
         authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
 
         if authorizationStatus == .notDetermined {
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-                DispatchQueue.main.async {
-                    authorizationStatus = status
-                    loadMediaIfAllowed()
-                }
+            photosGate.requestAccess {
+                authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+                loadMediaIfAllowed()
             }
         } else {
             loadMediaIfAllowed()

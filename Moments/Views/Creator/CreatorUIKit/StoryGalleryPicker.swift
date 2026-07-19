@@ -16,25 +16,26 @@ struct StoryGalleryPicker: View {
     @State private var pendingLongVideoMedia: CreatorMedia?
     @State private var videoDuration: Double = 0
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
+    @StateObject private var photosGate = PermissionPrimerGate(.photos)
 
     var body: some View {
         Color.clear
             .onAppear {
-                checkPhotoLibraryPermission()
-
-                if authorizationStatus == .authorized || authorizationStatus == .limited || authorizationStatus == .notDetermined {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        showingMediaPicker = true
-                    }
-                }
+                resolvePhotoLibraryAccess()
             }
             .onChange(of: authorizationStatus) { _, newStatus in
                 if (newStatus == .authorized || newStatus == .limited) && !showingMediaPicker {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        showingMediaPicker = true
-                    }
+                    presentMediaPickerSoon()
                 }
             }
+            .onChange(of: photosGate.isPresenting) { _, presenting in
+                guard !presenting else { return }
+                authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+                if authorizationStatus != .authorized && authorizationStatus != .limited {
+                    dismiss()
+                }
+            }
+            .permissionPrimerGate(photosGate)
             .sheet(isPresented: $showingMediaPicker) {
                 StoryMediaPicker(
                     selectedImage: $selectedImage,
@@ -170,15 +171,27 @@ struct StoryGalleryPicker: View {
         }
     }
 
-    private func checkPhotoLibraryPermission() {
+    private func resolvePhotoLibraryAccess() {
         authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
 
-        if authorizationStatus == .notDetermined {
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-                DispatchQueue.main.async {
-                    authorizationStatus = status
+        switch authorizationStatus {
+        case .authorized, .limited:
+            presentMediaPickerSoon()
+        case .notDetermined:
+            photosGate.requestAccess {
+                authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+                if authorizationStatus == .authorized || authorizationStatus == .limited {
+                    presentMediaPickerSoon()
                 }
             }
+        default:
+            break
+        }
+    }
+
+    private func presentMediaPickerSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            showingMediaPicker = true
         }
     }
 

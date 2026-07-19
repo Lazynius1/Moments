@@ -10,13 +10,15 @@ import MapKit
 extension GlassmorphicChatView {
     // MARK: - Voice Recording Functions
     func startVoiceRecording(interactionId: UUID, startsLocked: Bool) {
-        if let currentId = voiceRecordingInteractionId, currentId != interactionId {
-            finishVoiceRecording(interactionId: currentId, action: .cancel)
-        }
+        micGate.requestAccess {
+            if let currentId = voiceRecordingInteractionId, currentId != interactionId {
+                finishVoiceRecording(interactionId: currentId, action: .cancel)
+            }
 
-        voiceRecordingDraft = nil
-        recordingTime = 0
-        beginVoiceRecordingSegment(interactionId: interactionId, startsLocked: startsLocked)
+            voiceRecordingDraft = nil
+            recordingTime = 0
+            beginVoiceRecordingSegment(interactionId: interactionId, startsLocked: startsLocked)
+        }
     }
 
     func resumeVoiceRecording() {

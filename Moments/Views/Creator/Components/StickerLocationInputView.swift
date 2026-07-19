@@ -15,6 +15,7 @@ struct SmartLocationInputView: View {
     @FocusState private var isTextFieldFocused: Bool
 
     @StateObject private var locationManager = LocationManager()
+    @StateObject private var locationGate = LocationPermissionGate()
 
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
@@ -229,7 +230,9 @@ struct SmartLocationInputView: View {
         }
         .onAppear {
             isTextFieldFocused = true
-            requestLocationAndSearch()
+            locationGate.requestAccess {
+                requestLocationAndSearch()
+            }
         }
         .onChange(of: locationManager.location) { _, newLocation in
             if let location = newLocation {
@@ -242,6 +245,7 @@ struct SmartLocationInputView: View {
                 requestLocationAndSearch()
             }
         }
+        .locationPermissionGate(locationGate)
         .onDisappear {
             // Limpiar memoria al cerrar la vista
             cleanupMemory()
@@ -637,12 +641,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
+        authorizationStatus = manager.authorizationStatus
     }
 
     func requestLocation() {
         switch authorizationStatus {
-        case .notDetermined:
-            manager.requestWhenInUseAuthorization()
         case .authorizedWhenInUse, .authorizedAlways:
             manager.requestLocation()
         default:

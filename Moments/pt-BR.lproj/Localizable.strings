@@ -4297,3 +4297,53 @@
 // Creator camera (Center Stage)
 "creator.camera.centerStage.on" = "Center Stage ativado";
 "creator.camera.centerStage.off" = "Center Stage desativado";
+
+// Permission primer (pre-permission screens)
+"permission.camera.primer.title" = "Ative sua câmera";
+"permission.camera.primer.subtitle" = "Permita o acesso à câmera para capturar fotos e vídeos para seus stories, moments e perfil.";
+"permission.camera.primer.benefit.capture" = "Tire fotos e grave vídeos";
+"permission.camera.primer.benefit.private" = "Nada é salvo sem você";
+"permission.camera.primer.allow" = "Permitir acesso à câmera";
+"permission.camera.primer.notNow" = "Agora não";
+"permission.camera.denied.title" = "O acesso à câmera está desativado";
+"permission.camera.denied.subtitle" = "Ative a câmera nos Ajustes para continuar capturando fotos e vídeos para seus stories, moments e perfil.";
+"permission.camera.denied.openSettings" = "Abrir Ajustes";
+
+// Permission primers — microfone / fotos / localização / notificações
+"permission.microphone.primer.title" = "Ative seu microfone";
+"permission.microphone.primer.subtitle" = "Permita o acesso ao microfone para gravar áudio para seus stories e mensagens de voz.";
+"permission.microphone.primer.allow" = "Permitir acesso ao microfone";
+"permission.microphone.primer.notNow" = "Agora não";
+"permission.microphone.denied.title" = "O acesso ao microfone está desativado";
+"permission.microphone.denied.subtitle" = "Ative o microfone nos Ajustes para gravar áudio para seus stories e mensagens de voz.";
+"permission.microphone.denied.openSettings" = "Abrir Ajustes";
+"permission.photos.primer.title" = "Acesse suas fotos";
+"permission.photos.primer.subtitle" = "Permita o acesso às fotos para compartilhar imagens em seus stories, moments e perfil.";
+"permission.photos.primer.allow" = "Permitir acesso às fotos";
+"permission.photos.primer.notNow" = "Agora não";
+"permission.photos.denied.title" = "O acesso às fotos está desativado";
+"permission.photos.denied.subtitle" = "Ative o acesso às fotos nos Ajustes para compartilhar imagens em seus stories, moments e perfil.";
+"permission.photos.denied.openSettings" = "Abrir Ajustes";
+"permission.location.primer.title" = "Ative a localização";
+"permission.location.primer.subtitle" = "Permita o acesso à localização para marcar seus posts e mostrar conteúdo relevante por perto.";
+"permission.location.primer.allow" = "Permitir acesso à localização";
+"permission.location.primer.notNow" = "Agora não";
+"permission.location.denied.title" = "O acesso à localização está desativado";
+"permission.location.denied.subtitle" = "Ative a localização nos Ajustes para marcar seus posts e mostrar conteúdo por perto.";
+"permission.location.denied.openSettings" = "Abrir Ajustes";
+"permission.location.always.primer.title" = "Compartilhe localização ao vivo";
+"permission.location.always.primer.subtitle" = "Permita Sempre para que amigos vejam sua localização ao vivo mesmo com o Moments em segundo plano.";
+"permission.location.always.primer.allow" = "Permitir Sempre";
+"permission.location.always.primer.badge" = "Ao vivo";
+"permission.location.always.denied.title" = "A localização em segundo plano está desativada";
+"permission.location.always.denied.subtitle" = "Ative Sempre nos Ajustes para a localização ao vivo atualizar com o Moments em segundo plano.";
+"permission.notifications.primer.title" = "Ative as notificações";
+"permission.notifications.primer.subtitle" = "Receba avisos sobre mensagens, reações e quando amigos publicam moments.";
+"permission.notifications.primer.allow" = "Permitir notificações";
+"permission.notifications.primer.notNow" = "Agora não";
+"permission.notifications.denied.title" = "As notificações estão desativadas";
+"permission.notifications.denied.subtitle" = "Ative as notificações nos Ajustes para não perder mensagens, reações e novos moments.";
+"permission.notifications.denied.openSettings" = "Abrir Ajustes";
+"permission.notifications.mock.now" = "agora";
+"permission.notifications.mock.sender" = "Alex";
+"permission.notifications.mock.body" = "enviou um momento para você ✨";

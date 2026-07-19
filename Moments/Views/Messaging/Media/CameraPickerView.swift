@@ -57,6 +57,7 @@ struct EnhancedCameraPickerView: View {
     @State private var pendingPreview: CapturedMediaPreview?
     @State private var isVideoRecording = false
     @StateObject private var orientationManager = OrientationManager.shared
+    @StateObject private var photosGate = PermissionPrimerGate(.photos)
 
     private var deviceOrientation: UIDeviceOrientation {
         orientationManager.orientation
@@ -247,6 +248,7 @@ struct EnhancedCameraPickerView: View {
         .onAppear {
             loadRecentGalleryPreview()
         }
+        .permissionPrimerGate(photosGate)
     }
 
     private var topBar: some View {
@@ -421,7 +423,10 @@ struct EnhancedCameraPickerView: View {
 
     private var galleryButton: some View {
         Button(action: {
-            showPhotoPicker = true
+            photosGate.requestAccess {
+                loadRecentGalleryPreview()
+                showPhotoPicker = true
+            }
         }) {
             Group {
                 if let recentGalleryPreview {
@@ -476,11 +481,6 @@ struct EnhancedCameraPickerView: View {
         switch currentStatus {
         case .authorized, .limited:
             fetchLatestPhotoPreview()
-        case .notDetermined:
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-                guard status == .authorized || status == .limited else { return }
-                fetchLatestPhotoPreview()
-            }
         default:
             recentGalleryPreview = nil
         }
@@ -1420,26 +1420,34 @@ class CameraViewController: UIViewController {
         AVCaptureDevice.requestAccess(for: .video) { granted in
             guard granted else { return }
 
-            AVCaptureDevice.requestAccess(for: .audio) { _ in
-                DispatchQueue.main.async {
-                    // .photo captura al aspecto nativo del sensor (a menudo 4:3), distinto
-                    // del que usa el preview en vivo — el recorte a 9:16 quedaba desalineado
-                    // entre lo que se ve y lo que se captura. .high (igual que en historias)
-                    // mantiene el mismo aspecto en preview y captura.
-                    self.captureSession.sessionPreset = .high
-                    self.setupCameraInput(position: .back)
-                    self.setupAudioInputIfAvailable()
-                    self.setupOutputs()
-                    self.setupPreviewLayer()
-                    if self.captureSession.supportsControls {
-                        self.captureSession.setControlsDelegate(self, queue: self.cameraControlQueue)
-                    }
-
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        self.captureSession.startRunning()
-                    }
+            if self.captureMode == .video {
+                AVCaptureDevice.requestAccess(for: .audio) { _ in
+                    DispatchQueue.main.async { self.finishCameraSetup() }
                 }
+            } else {
+                DispatchQueue.main.async { self.finishCameraSetup() }
             }
+        }
+    }
+
+    private func finishCameraSetup() {
+        // .photo captura al aspecto nativo del sensor (a menudo 4:3), distinto del
+        // que usa el preview en vivo — el recorte a 9:16 quedaba desalineado entre lo
+        // que se ve y lo que se captura. .high (igual que en historias) mantiene el
+        // mismo aspecto en preview y captura.
+        captureSession.sessionPreset = .high
+        setupCameraInput(position: .back)
+        if captureMode == .video {
+            setupAudioInputIfAvailable()
+        }
+        setupOutputs()
+        setupPreviewLayer()
+        if captureSession.supportsControls {
+            captureSession.setControlsDelegate(self, queue: cameraControlQueue)
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            self.captureSession.startRunning()
         }
     }
 

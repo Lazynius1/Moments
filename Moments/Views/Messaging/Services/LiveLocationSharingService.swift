@@ -138,10 +138,14 @@ final class LiveLocationSharingService: NSObject, ObservableObject {
     }
 
     private func beginTracking(expiresAt: Date) {
-        locationManager.requestAlwaysAuthorization()
-        locationManager.allowsBackgroundLocationUpdates = true
+        let status = locationManager.authorizationStatus
+        let hasAlways = status == .authorizedAlways
+
+        // Always is requested via LocationPermissionGate before startSession.
+        // If the user only granted While Using, keep foreground updates without prompting again.
+        locationManager.allowsBackgroundLocationUpdates = hasAlways
         locationManager.pausesLocationUpdatesAutomatically = false
-        locationManager.showsBackgroundLocationIndicator = true
+        locationManager.showsBackgroundLocationIndicator = hasAlways
         locationManager.startUpdatingLocation()
 
         scheduleExpiration(at: expiresAt)

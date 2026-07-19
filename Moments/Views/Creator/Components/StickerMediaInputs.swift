@@ -138,6 +138,7 @@ struct AudioStickerRecordingView: View {
     let onAdd: (Data, Double) -> Void
 
     @StateObject private var recorder = AudioRecordingManager.shared
+    @StateObject private var micGate = PermissionPrimerGate(.microphone)
     @State private var isRecording = false
     @State private var recordedData: Data?
     @State private var duration: Double = 0
@@ -281,6 +282,7 @@ struct AudioStickerRecordingView: View {
         .onDisappear {
             stopEverything()
         }
+        .permissionPrimerGate(micGate)
     }
 
     private var statusLabel: String {
@@ -297,7 +299,7 @@ struct AudioStickerRecordingView: View {
         if isRecording {
             stopRecording()
         } else {
-            startRecording()
+            micGate.requestAccess { startRecording() }
         }
     }
 

@@ -26,6 +26,7 @@ struct GridPhotoPickerView: View {
     @State private var photoAssets: [PHAsset] = []
     @State private var selectedAsset: PHAsset?
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
+    @StateObject private var photosGate = PermissionPrimerGate(.photos)
     @State private var isLoading = true
     @State private var selectedCategory: PhotoCategory = .recent
     
@@ -253,6 +254,7 @@ struct GridPhotoPickerView: View {
                 }
             )
         }
+        .permissionPrimerGate(photosGate)
     }
     
     // Funciones de carga auxiliares
@@ -433,13 +435,11 @@ struct GridPhotoPickerView: View {
     }
     
     private func requestPhotoLibraryPermission() {
-        PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-            DispatchQueue.main.async {
-                authorizationStatus = status
-                if status == .authorized || status == .limited {
-                    loadAvailableAlbums()
-                    loadPhotosForCategory(.recent)
-                }
+        photosGate.requestAccess {
+            authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+            if authorizationStatus == .authorized || authorizationStatus == .limited {
+                loadAvailableAlbums()
+                loadPhotosForCategory(.recent)
             }
         }
     }
@@ -932,13 +932,15 @@ struct ModernEditProfileView: View {
                 }
             }
             .fullScreenCover(isPresented: $isShowingCameraCapture) {
-                CameraCapture { media in
-                    guard media.type == .image else { return }
-                    let image = media.image
-                    currentProfileImage = image
-                    uploadCapturedProfileImage(image)
+                CameraAccessBoundary(onCancel: { isShowingCameraCapture = false }) {
+                    CameraCapture(mediaTypes: ["public.image"]) { media in
+                        guard media.type == .image else { return }
+                        let image = media.image
+                        currentProfileImage = image
+                        uploadCapturedProfileImage(image)
+                    }
+                    .ignoresSafeArea()
                 }
-                .ignoresSafeArea()
             }
             .sheet(isPresented: $isShowingInterestsPicker) {
                 interestsPickerSheet

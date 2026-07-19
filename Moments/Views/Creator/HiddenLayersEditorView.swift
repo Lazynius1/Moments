@@ -97,6 +97,7 @@ struct HiddenLayersEditorView: View {
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var showingImagePicker = false
     @StateObject private var audioRecorder = HiddenLayerAudioRecorder()
+    @StateObject private var micGate = PermissionPrimerGate(.microphone)
     @State private var audioPlayer: AVAudioPlayer?
     @State private var isPreviewPlaying = false
     @State private var audioPlaybackProgress: Double = 0
@@ -254,6 +255,7 @@ struct HiddenLayersEditorView: View {
                 selectedDockType = lastType
             }
         }
+        .permissionPrimerGate(micGate)
     }
 
     private var headerBar: some View {
@@ -943,7 +945,9 @@ struct HiddenLayersEditorView: View {
                             }
                         } else {
                             stopAudioPreview()
-                            audioRecorder.startRecording()
+                            micGate.requestAccess {
+                                audioRecorder.startRecording()
+                            }
                         }
                     } label: {
                         ZStack {

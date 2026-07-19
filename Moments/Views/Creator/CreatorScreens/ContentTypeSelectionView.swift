@@ -17,6 +17,7 @@ struct ContentTypeSelectionView: View {
     @State private var hasCameraPermission: Bool = false
     @State private var dialTransientOffset: CGFloat = 0
     @State private var storyRingRotation: Double = 0
+    @StateObject private var photosGate = PermissionPrimerGate(.photos)
 
     private let dialModes: [CreatorView.ContentType] = [.moment, .story]
     private let dialControlWidth: CGFloat = 170
@@ -48,6 +49,7 @@ struct ContentTypeSelectionView: View {
                 isBreathing = true
             }
         }
+        .permissionPrimerGate(photosGate)
     }
 
     private var backgroundLayer: some View {
@@ -369,16 +371,31 @@ struct ContentTypeSelectionView: View {
             case .moment:
                 currentFlow = .mediaSelection
             case .story:
-                NotificationCenter.default.post(name: NSNotification.Name("StopBackgroundCameraSession"), object: nil)
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    currentFlow = .storyCamera
-                }
+                enterStoryCameraFlow()
             }
         }
     }
 
+    private func enterStoryCameraFlow() {
+        NotificationCenter.default.post(name: NSNotification.Name("StopBackgroundCameraSession"), object: nil)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            currentFlow = .storyCamera
+        }
+    }
+
     private func loadRecentPhotos() {
+        switch PHPhotoLibrary.authorizationStatus(for: .readWrite) {
+        case .authorized, .limited:
+            fetchRecentPhotos()
+        case .notDetermined:
+            photosGate.requestAccess { fetchRecentPhotos() }
+        default:
+            break
+        }
+    }
+
+    private func fetchRecentPhotos() {
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         fetchOptions.fetchLimit = 4

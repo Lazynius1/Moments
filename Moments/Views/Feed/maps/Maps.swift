@@ -58,6 +58,7 @@ struct LocationMapView: View {
 
     @State private var locationPermissionGranted = false
     @StateObject private var locationManager = LocationUtilities.shared
+    @StateObject private var locationGate = LocationPermissionGate()
     @StateObject private var storyViewModel = StoryViewModel()
 
     @StateObject private var weatherService = WeatherService.shared
@@ -282,6 +283,7 @@ struct LocationMapView: View {
         .onReceive(locationManager.$authorizationStatus) { status in
             handleLocationPermissionChange(status)
         }
+        .locationPermissionGate(locationGate)
         // ✅ SHEETS SIN CAMBIOS
         .sheet(isPresented: $showingGallery) {
             ModernLocationGalleryView(
@@ -867,7 +869,7 @@ extension LocationMapView {
 
         switch currentStatus {
         case .notDetermined:
-            locationManager.requestLocationPermission()
+            locationGate.requestAccess { locationManager.requestLocationPermission() }
         case .denied, .restricted:
             locationPermissionGranted = false
             setupMapLocation()

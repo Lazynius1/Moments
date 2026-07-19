@@ -6,6 +6,7 @@ struct QRCodeView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = QRCodeViewModel()
+    @StateObject private var photosSaveGate = PermissionPrimerGate(.photosSave)
     @State private var showShareSheet = false
     @State private var qrImage: UIImage?
     var targetUser: AppUser? = nil
@@ -67,7 +68,8 @@ struct QRCodeView: View {
                     }
 
                     Button(action: {
-                        if let qrImage = qrImage {
+                        guard let qrImage = qrImage else { return }
+                        photosSaveGate.requestAccess {
                             UIImageWriteToSavedPhotosAlbum(qrImage, nil, nil, nil)
                             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                             impactFeedback.impactOccurred()
@@ -106,6 +108,7 @@ struct QRCodeView: View {
                 QRShareSheet(activityItems: [qrImage, URL(string: "https://glowsy.app/\(targetUser?.username ?? viewModel.user?.username ?? "")")!])
             }
         }
+        .permissionPrimerGate(photosSaveGate)
     }
     
     private func generateQRCode() {

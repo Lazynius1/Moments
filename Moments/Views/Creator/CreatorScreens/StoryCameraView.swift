@@ -51,6 +51,12 @@ struct StoryCameraView: View {
     }
 
     var body: some View {
+        CameraAccessBoundary(requiresMicrophone: true, onCancel: { currentFlow = .typeSelection }) {
+            cameraContent
+        }
+    }
+
+    private var cameraContent: some View {
         GeometryReader { proxy in
             let captureRect = creatorMomentsCaptureRect(in: proxy.size, topInset: proxy.safeAreaInsets.top, bottomInset: proxy.safeAreaInsets.bottom)
             // Separación extra respecto al LensReel (100pt de alto, con un UICollectionView de ancho completo

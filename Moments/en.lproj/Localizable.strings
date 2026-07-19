@@ -4327,3 +4327,56 @@
 // Creator camera (Center Stage)
 "creator.camera.centerStage.on" = "Center Stage on";
 "creator.camera.centerStage.off" = "Center Stage off";
+
+// Permission primer (pre-permission screens)
+"permission.camera.primer.title" = "Turn on your camera";
+"permission.camera.primer.subtitle" = "Allow camera to capture photos and videos for your stories, moments and profile.";
+"permission.camera.primer.benefit.capture" = "Snap photos and record video";
+"permission.camera.primer.benefit.private" = "Nothing is saved without you";
+"permission.camera.primer.allow" = "Allow camera access";
+"permission.camera.primer.notNow" = "Not now";
+"permission.camera.denied.title" = "Camera access is off";
+"permission.camera.denied.subtitle" = "Turn on the camera in Settings to keep capturing photos and videos for your stories, moments and profile.";
+"permission.camera.denied.openSettings" = "Open Settings";
+
+// Permission primers — microphone / photos / location / notifications
+"permission.microphone.primer.title" = "Turn on your microphone";
+"permission.microphone.primer.subtitle" = "Allow microphone to record audio for your stories and voice messages.";
+"permission.microphone.primer.allow" = "Allow microphone access";
+"permission.microphone.primer.notNow" = "Not now";
+"permission.microphone.denied.title" = "Microphone access is off";
+"permission.microphone.denied.subtitle" = "Turn on the microphone in Settings to record audio for your stories and voice messages.";
+"permission.microphone.denied.openSettings" = "Open Settings";
+
+"permission.photos.primer.title" = "Access your photos";
+"permission.photos.primer.subtitle" = "Allow photo library access to share photos in your stories, moments and profile.";
+"permission.photos.primer.allow" = "Allow photo access";
+"permission.photos.primer.notNow" = "Not now";
+"permission.photos.denied.title" = "Photo access is off";
+"permission.photos.denied.subtitle" = "Turn on photo access in Settings to share photos in your stories, moments and profile.";
+"permission.photos.denied.openSettings" = "Open Settings";
+
+"permission.location.primer.title" = "Turn on location";
+"permission.location.primer.subtitle" = "Allow location to tag your posts and show nearby relevant content.";
+"permission.location.primer.allow" = "Allow location access";
+"permission.location.primer.notNow" = "Not now";
+"permission.location.denied.title" = "Location access is off";
+"permission.location.denied.subtitle" = "Turn on location in Settings to tag your posts and show nearby relevant content.";
+"permission.location.denied.openSettings" = "Open Settings";
+"permission.location.always.primer.title" = "Share live location";
+"permission.location.always.primer.subtitle" = "Allow Always so friends can see your live location even when Moments is in the background.";
+"permission.location.always.primer.allow" = "Allow Always";
+"permission.location.always.primer.badge" = "Live";
+"permission.location.always.denied.title" = "Background location is off";
+"permission.location.always.denied.subtitle" = "Turn on Always in Settings so live location can update while Moments is in the background.";
+
+"permission.notifications.primer.title" = "Turn on notifications";
+"permission.notifications.primer.subtitle" = "Get notified about messages, reactions and when friends post moments.";
+"permission.notifications.primer.allow" = "Allow notifications";
+"permission.notifications.primer.notNow" = "Not now";
+"permission.notifications.denied.title" = "Notifications are off";
+"permission.notifications.denied.subtitle" = "Turn on notifications in Settings to keep up with messages, reactions and new moments.";
+"permission.notifications.denied.openSettings" = "Open Settings";
+"permission.notifications.mock.now" = "now";
+"permission.notifications.mock.sender" = "Alex";
+"permission.notifications.mock.body" = "sent you a moment ✨";

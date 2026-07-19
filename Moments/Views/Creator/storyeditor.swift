@@ -24,6 +24,7 @@ struct StoryEditingView: View {
     var chatRecipientUserId: String? = nil
     var onChatSend: ((Data, EnhancedCameraPickerView.MediaType, ChatMediaSendMode, ChatMediaOverlayPayload?) -> Void)? = nil
     @State private var chatSendMode: ChatMediaSendMode = .viewOnce
+    @StateObject private var photosSaveGate = PermissionPrimerGate(.photosSave)
 
     private var isChatSendMode: Bool { onChatSend != nil }
     @State private var alertMessage = ""
@@ -439,6 +440,7 @@ struct StoryEditingView: View {
         .alert(alertMessage, isPresented: $showAlert) {
             Button(NSLocalizedString("storyEditor.ok", comment: "OK")) { }
         }
+        .permissionPrimerGate(photosSaveGate)
         .onDisappear {
             // ✅ Limpiar video y audio cuando se cierra la vista
             cleanupVideoAndAudio()
@@ -780,7 +782,7 @@ struct StoryEditingView: View {
                             chatTopToolbarView()
                         }
 
-                        Button(action: { saveToGallery() }) {
+                        Button(action: { photosSaveGate.requestAccess { saveToGallery() } }) {
                             Image(systemName: "arrow.down.circle")
                                 .font(.title2)
                                 .foregroundStyle(chromeIconColor)

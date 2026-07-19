@@ -355,8 +355,11 @@ extension MomentsChatViewModel {
             return
         }
         guard let location = LocationUtilities.shared.currentLocation else {
-            // Sin ubicación todavía: solicitar permiso y avisar.
-            LocationUtilities.shared.requestLocationPermission()
+            // El sheet ya gatea el permiso; aquí solo pedimos un fix de ubicación si ya está autorizado.
+            let status = LocationUtilities.shared.authorizationStatus
+            if status == .authorizedWhenInUse || status == .authorizedAlways {
+                LocationUtilities.shared.requestLocationPermission()
+            }
             error = NSLocalizedString("chat.location.permissionNeeded", comment: "")
             return
         }

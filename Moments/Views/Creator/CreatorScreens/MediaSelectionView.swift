@@ -18,6 +18,7 @@ struct MediaSelectionView: View {
     @State private var isLoadingLibrary = true
     @State private var showingCamera = false
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
+    @StateObject private var photosGate = PermissionPrimerGate(.photos)
     @State private var showingVideoTooLongAlert = false
     @State private var rejectedVideoDuration: TimeInterval = 0
 
@@ -50,17 +51,20 @@ struct MediaSelectionView: View {
         .onAppear {
             requestPhotoLibraryAccess()
         }
+        .permissionPrimerGate(photosGate)
         .fullScreenCover(isPresented: $showingCamera) {
-            CameraCapture { media in
-                if media.type == .video,
-                   let duration = media.videoDuration,
-                   duration > CreatorMedia.maxMomentVideoDuration {
-                    rejectedVideoDuration = duration
-                    showingVideoTooLongAlert = true
-                    return
+            CameraAccessBoundary(requiresMicrophone: true, onCancel: { showingCamera = false }) {
+                CameraCapture { media in
+                    if media.type == .video,
+                       let duration = media.videoDuration,
+                       duration > CreatorMedia.maxMomentVideoDuration {
+                        rejectedVideoDuration = duration
+                        showingVideoTooLongAlert = true
+                        return
+                    }
+                    selectedMediaItems.append(media)
+                    currentFlow = .mediaEditing
                 }
-                selectedMediaItems.append(media)
-                currentFlow = .mediaEditing
             }
         }
         .alert("momentVideo.tooLong.title", isPresented: $showingVideoTooLongAlert) {
@@ -341,16 +345,10 @@ struct MediaSelectionView: View {
         authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
 
         if authorizationStatus == .notDetermined {
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-                DispatchQueue.main.async {
-                    authorizationStatus = status
-                    if status == .authorized || status == .limited {
-                        loadAvailableAlbums()
-                        loadMediaFromLibrary()
-                    } else {
-                        isLoadingLibrary = false
-                    }
-                }
+            photosGate.requestAccess {
+                authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+                loadAvailableAlbums()
+                loadMediaFromLibrary()
             }
         } else if authorizationStatus == .authorized || authorizationStatus == .limited {
             loadAvailableAlbums()

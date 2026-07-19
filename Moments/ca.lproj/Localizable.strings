@@ -4317,3 +4317,53 @@
 // Creator camera (Center Stage)
 "creator.camera.centerStage.on" = "Center Stage activat";
 "creator.camera.centerStage.off" = "Center Stage desactivat";
+
+// Permission primer (pre-permission screens)
+"permission.camera.primer.title" = "Activa la teva càmera";
+"permission.camera.primer.subtitle" = "Permet usar la càmera per capturar fotos i vídeos per a les teves històries, moments i perfil.";
+"permission.camera.primer.benefit.capture" = "Fes fotos i grava vídeos";
+"permission.camera.primer.benefit.private" = "Res es desa sense tu";
+"permission.camera.primer.allow" = "Permetre l’accés a la càmera";
+"permission.camera.primer.notNow" = "Ara no";
+"permission.camera.denied.title" = "L’accés a la càmera està desactivat";
+"permission.camera.denied.subtitle" = "Activa la càmera als Ajustos per continuar capturant fotos i vídeos per a les teves històries, moments i perfil.";
+"permission.camera.denied.openSettings" = "Obrir Ajustos";
+
+// Permission primers — micròfon / fotos / ubicació / notificacions
+"permission.microphone.primer.title" = "Activa el teu micròfon";
+"permission.microphone.primer.subtitle" = "Permet usar el micròfon per gravar àudio a les teves històries i missatges de veu.";
+"permission.microphone.primer.allow" = "Permetre l'accés al micròfon";
+"permission.microphone.primer.notNow" = "Ara no";
+"permission.microphone.denied.title" = "L'accés al micròfon està desactivat";
+"permission.microphone.denied.subtitle" = "Activa el micròfon als Ajustos per gravar àudio a les teves històries i missatges de veu.";
+"permission.microphone.denied.openSettings" = "Obrir Ajustos";
+"permission.photos.primer.title" = "Accedeix a les teves fotos";
+"permission.photos.primer.subtitle" = "Permet l'accés a les fotos per compartir imatges a les teves històries, moments i perfil.";
+"permission.photos.primer.allow" = "Permetre l'accés a les fotos";
+"permission.photos.primer.notNow" = "Ara no";
+"permission.photos.denied.title" = "L'accés a les fotos està desactivat";
+"permission.photos.denied.subtitle" = "Activa l'accés a les fotos als Ajustos per compartir imatges a les teves històries, moments i perfil.";
+"permission.photos.denied.openSettings" = "Obrir Ajustos";
+"permission.location.primer.title" = "Activa la ubicació";
+"permission.location.primer.subtitle" = "Permet usar la teva ubicació per etiquetar les teves publicacions i mostrar contingut proper.";
+"permission.location.primer.allow" = "Permetre l'accés a la ubicació";
+"permission.location.primer.notNow" = "Ara no";
+"permission.location.denied.title" = "L'accés a la ubicació està desactivat";
+"permission.location.denied.subtitle" = "Activa la ubicació als Ajustos per etiquetar les teves publicacions i mostrar contingut proper.";
+"permission.location.denied.openSettings" = "Obrir Ajustos";
+"permission.location.always.primer.title" = "Comparteix la ubicació en viu";
+"permission.location.always.primer.subtitle" = "Permet Sempre perquè els amics vegin la teva ubicació en viu encara que Moments estigui en segon pla.";
+"permission.location.always.primer.allow" = "Permetre Sempre";
+"permission.location.always.primer.badge" = "En viu";
+"permission.location.always.denied.title" = "La ubicació en segon pla està desactivada";
+"permission.location.always.denied.subtitle" = "Activa Sempre als Ajustos perquè la ubicació en viu s'actualitzi amb Moments en segon pla.";
+"permission.notifications.primer.title" = "Activa les notificacions";
+"permission.notifications.primer.subtitle" = "Rep avisos sobre missatges, reaccions i quan els amics publiquen moments.";
+"permission.notifications.primer.allow" = "Permetre les notificacions";
+"permission.notifications.primer.notNow" = "Ara no";
+"permission.notifications.denied.title" = "Les notificacions estan desactivades";
+"permission.notifications.denied.subtitle" = "Activa les notificacions als Ajustos per no perdre't missatges, reaccions i nous moments.";
+"permission.notifications.denied.openSettings" = "Obrir Ajustos";
+"permission.notifications.mock.now" = "ara";
+"permission.notifications.mock.sender" = "Alex";
+"permission.notifications.mock.body" = "t'ha enviat un moment ✨";

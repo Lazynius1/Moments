@@ -48,6 +48,12 @@ struct ChatCameraView: View {
     }
 
     var body: some View {
+        CameraAccessBoundary(requiresMicrophone: true, onCancel: { dismiss() }) {
+            cameraContent
+        }
+    }
+
+    private var cameraContent: some View {
         GeometryReader { proxy in
             let captureRect = creatorMomentsCaptureRect(
                 in: proxy.size,

@@ -162,6 +162,7 @@ struct ProfileAlbumRowView: View {
 }
 
 struct ProfileLibraryCropEntryView: View {
+    @StateObject private var photosGate = PermissionPrimerGate(.photos)
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
@@ -235,6 +236,7 @@ struct ProfileLibraryCropEntryView: View {
         .onAppear {
             loadInitialAsset()
         }
+        .permissionPrimerGate(photosGate)
     }
 
     private func loadInitialAsset() {
@@ -254,14 +256,12 @@ struct ProfileLibraryCropEntryView: View {
     }
 
     private func requestPermission() {
-        PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-            DispatchQueue.main.async {
-                authorizationStatus = status
-                if status == .authorized || status == .limited {
-                    fetchMostRecentAsset()
-                } else {
-                    isLoading = false
-                }
+        photosGate.requestAccess {
+            authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+            if authorizationStatus == .authorized || authorizationStatus == .limited {
+                fetchMostRecentAsset()
+            } else {
+                isLoading = false
             }
         }
     }

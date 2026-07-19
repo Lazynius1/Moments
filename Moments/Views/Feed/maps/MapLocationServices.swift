@@ -429,7 +429,6 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
 
         case .notDetermined:
-            requestLocationPermission()
             completion(nil)
 
         default:

@@ -31,6 +31,8 @@ struct FeedView: View {
     @ObservedObject private var badgeService = NotificationBadgeService.shared // ✅ NUEVO
     @StateObject private var navigationService = NotificationNavigationService.shared
     @StateObject private var networkMonitor = NetworkMonitor.shared // ✅ NUEVO: NetworkMonitor
+    @StateObject private var notificationGate = PermissionPrimerGate(.notifications)
+    @State private var didScheduleNotificationPrompt = false
     @State private var showNotifications = false
     @State private var showMessages = false
     @State private var showStories = false
@@ -157,6 +159,7 @@ struct FeedView: View {
 
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .permissionPrimerGate(notificationGate)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .navigationBar)
             .onAppear {
@@ -303,22 +306,23 @@ struct FeedView: View {
         selectedStoryRoute = StoryUserPresentationRoute(userId: userId)
     }
     
-    // ✅ Nuevo: Solicitud de permisos de notificaciones desde el Feed en primera carga
     private func requestNotificationPermissionIfNeeded() {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
-            if settings.authorizationStatus == .notDetermined {
-                // ✅ Solicitar permisos si no se han decidido
-                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-                    if granted {
-                        DispatchQueue.main.async {
+            let status = settings.authorizationStatus
+            DispatchQueue.main.async {
+                switch status {
+                case .authorized, .provisional, .ephemeral:
+                    UIApplication.shared.registerForRemoteNotifications()
+                case .notDetermined:
+                    guard !didScheduleNotificationPrompt else { return }
+                    didScheduleNotificationPrompt = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
+                        notificationGate.requestAccess {
                             UIApplication.shared.registerForRemoteNotifications()
                         }
                     }
-                }
-            } else if settings.authorizationStatus == .authorized {
-                // ✅ Si ya están otorgados, registrar para notificaciones remotas para obtener/refrescar token
-                DispatchQueue.main.async {
-                    UIApplication.shared.registerForRemoteNotifications()
+                default:
+                    break
                 }
             }
         }

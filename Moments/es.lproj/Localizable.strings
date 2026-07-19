@@ -4348,3 +4348,56 @@
 // Creator camera (Center Stage)
 "creator.camera.centerStage.on" = "Center Stage activado";
 "creator.camera.centerStage.off" = "Center Stage desactivado";
+
+// Permission primer (pantallas previas al permiso)
+"permission.camera.primer.title" = "Activa tu cámara";
+"permission.camera.primer.subtitle" = "Permite usar la cámara para capturar fotos y vídeos para tus historias, momentos y perfil.";
+"permission.camera.primer.benefit.capture" = "Haz fotos y graba vídeo";
+"permission.camera.primer.benefit.private" = "Nada se guarda sin ti";
+"permission.camera.primer.allow" = "Permitir la cámara";
+"permission.camera.primer.notNow" = "Ahora no";
+"permission.camera.denied.title" = "La cámara está desactivada";
+"permission.camera.denied.subtitle" = "Activa la cámara en Ajustes para seguir capturando fotos y vídeos para tus historias, momentos y perfil.";
+"permission.camera.denied.openSettings" = "Abrir Ajustes";
+
+// Permission primers — micrófono / galería / ubicación / notificaciones
+"permission.microphone.primer.title" = "Activa tu micrófono";
+"permission.microphone.primer.subtitle" = "Permite usar el micrófono para grabar audio en tus historias y mensajes de voz.";
+"permission.microphone.primer.allow" = "Permitir el micrófono";
+"permission.microphone.primer.notNow" = "Ahora no";
+"permission.microphone.denied.title" = "El micrófono está desactivado";
+"permission.microphone.denied.subtitle" = "Activa el micrófono en Ajustes para grabar audio en tus historias y mensajes de voz.";
+"permission.microphone.denied.openSettings" = "Abrir Ajustes";
+
+"permission.photos.primer.title" = "Accede a tus fotos";
+"permission.photos.primer.subtitle" = "Permite el acceso a tu galería para compartir fotos en tus historias, momentos y perfil.";
+"permission.photos.primer.allow" = "Permitir el acceso a fotos";
+"permission.photos.primer.notNow" = "Ahora no";
+"permission.photos.denied.title" = "El acceso a fotos está desactivado";
+"permission.photos.denied.subtitle" = "Activa el acceso a fotos en Ajustes para compartir fotos en tus historias, momentos y perfil.";
+"permission.photos.denied.openSettings" = "Abrir Ajustes";
+
+"permission.location.primer.title" = "Activa la ubicación";
+"permission.location.primer.subtitle" = "Permite usar tu ubicación para etiquetar tus publicaciones y mostrar contenido cercano.";
+"permission.location.primer.allow" = "Permitir la ubicación";
+"permission.location.primer.notNow" = "Ahora no";
+"permission.location.denied.title" = "La ubicación está desactivada";
+"permission.location.denied.subtitle" = "Activa la ubicación en Ajustes para etiquetar tus publicaciones y mostrar contenido cercano.";
+"permission.location.denied.openSettings" = "Abrir Ajustes";
+"permission.location.always.primer.title" = "Comparte ubicación en vivo";
+"permission.location.always.primer.subtitle" = "Permite Siempre para que tus amigos vean tu ubicación en vivo aunque Moments esté en segundo plano.";
+"permission.location.always.primer.allow" = "Permitir Siempre";
+"permission.location.always.primer.badge" = "En vivo";
+"permission.location.always.denied.title" = "La ubicación en segundo plano está desactivada";
+"permission.location.always.denied.subtitle" = "Activa Siempre en Ajustes para que la ubicación en vivo se actualice con Moments en segundo plano.";
+
+"permission.notifications.primer.title" = "Activa las notificaciones";
+"permission.notifications.primer.subtitle" = "Recibe avisos de mensajes, reacciones y cuando tus amigos publican momentos.";
+"permission.notifications.primer.allow" = "Permitir notificaciones";
+"permission.notifications.primer.notNow" = "Ahora no";
+"permission.notifications.denied.title" = "Las notificaciones están desactivadas";
+"permission.notifications.denied.subtitle" = "Activa las notificaciones en Ajustes para no perderte mensajes, reacciones y nuevos momentos.";
+"permission.notifications.denied.openSettings" = "Abrir Ajustes";
+"permission.notifications.mock.now" = "ahora";
+"permission.notifications.mock.sender" = "Alex";
+"permission.notifications.mock.body" = "te ha enviado un momento ✨";
