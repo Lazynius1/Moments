@@ -4367,3 +4367,6 @@
 "permission.notifications.mock.now" = "ara";
 "permission.notifications.mock.sender" = "Alex";
 "permission.notifications.mock.body" = "t'ha enviat un moment ✨";
+"permission.tracking.denied.title" = "El seguiment està desactivat";
+"permission.tracking.denied.subtitle" = "Activa el seguiment a Configuració › Privadesa › Seguiment per veure anuncis més rellevants.";
+"permission.tracking.denied.openSettings" = "Obre Configuració";

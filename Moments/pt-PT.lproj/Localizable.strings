@@ -5157,3 +5157,6 @@
 "permission.notifications.mock.now" = "agora";
 "permission.notifications.mock.sender" = "Alex";
 "permission.notifications.mock.body" = "enviou-te um momento ✨";
+"permission.tracking.denied.title" = "O rastreio está desativado";
+"permission.tracking.denied.subtitle" = "Ativa o rastreio em Definições › Privacidade › Rastreio para veres anúncios mais relevantes.";
+"permission.tracking.denied.openSettings" = "Abrir Definições";

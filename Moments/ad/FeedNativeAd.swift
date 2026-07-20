@@ -55,13 +55,16 @@ struct SmartNativeAdView: View {
             }
         }
         .fullScreenCover(isPresented: $showingPrivacyConsent) {
-            PrivacyConsentView(isPresented: $showingPrivacyConsent) {
-                // Callback: Usuario aceptó intro, iniciar flujo real
-                AdMobConfiguration.shared.startConsentFlow {
-                    nativeAdManager.loadAd()
+            TrackingPermissionView(stage: .primer) {
+                showingPrivacyConsent = false
+                // Pequeño retraso para permitir que el fullScreenCover se cierre
+                // antes de que UMP intente mostrar su propio diálogo
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    AdMobConfiguration.shared.startConsentFlow {
+                        nativeAdManager.loadAd()
+                    }
                 }
             }
-            .presentationBackground(.clear)
         }
     }
 

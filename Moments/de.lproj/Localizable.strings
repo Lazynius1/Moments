@@ -4347,3 +4347,6 @@
 "permission.notifications.mock.now" = "jetzt";
 "permission.notifications.mock.sender" = "Alex";
 "permission.notifications.mock.body" = "hat dir einen Moment gesendet ✨";
+"permission.tracking.denied.title" = "Tracking ist deaktiviert";
+"permission.tracking.denied.subtitle" = "Aktiviere das Tracking unter Einstellungen › Datenschutz › Tracking, um relevantere Werbung zu erhalten.";
+"permission.tracking.denied.openSettings" = "Einstellungen öffnen";

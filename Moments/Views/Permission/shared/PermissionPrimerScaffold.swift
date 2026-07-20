@@ -13,9 +13,9 @@ struct PermissionPrimerScaffold<Phone: View>: View {
     var title: String
     var description: String
     var primaryActionTitle: String
-    var secondaryActionTitle: String
+    var secondaryActionTitle: String? = nil
     var primaryAction: () -> Void
-    var secondaryAction: () -> Void
+    var secondaryAction: (() -> Void)? = nil
     @ViewBuilder var phone: () -> Phone
 
     @Environment(\.colorScheme) private var colorScheme
@@ -97,9 +97,11 @@ struct PermissionPrimerScaffold<Phone: View>: View {
             .tint(tint)
             .padding(.top, 10)
 
-            Button(secondaryActionTitle, action: secondaryAction)
-                .tint(.secondary)
-                .padding(.top, 5)
+            if let secondaryActionTitle, let secondaryAction {
+                Button(secondaryActionTitle, action: secondaryAction)
+                    .tint(.secondary)
+                    .padding(.top, 5)
+            }
         }
         .frame(maxWidth: 330)
         .padding(.bottom, 15)

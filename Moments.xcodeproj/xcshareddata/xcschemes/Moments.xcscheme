@@ -40,6 +40,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "36BDF3FB2ED7DD7800683AB4"
                BuildableName = "GlowsyWidgetExtensionExtension.appex"
+               BlueprintName = "GlowsyWidgetExtensionExtension"
                ReferencedContainer = "container:Moments.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -53,6 +54,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "36A036DD2F38B220002B2937"
                BuildableName = "MomentsNotificationService.appex"
+               BlueprintName = "MomentsNotificationService"
                ReferencedContainer = "container:Moments.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -82,6 +84,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "0D4FD1B82DB27BFE00CA6DB1"
             BuildableName = "Moments Social.app"
+            BlueprintName = "Moments Social"
             ReferencedContainer = "container:Moments.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

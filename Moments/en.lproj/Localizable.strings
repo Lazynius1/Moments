@@ -4380,3 +4380,9 @@
 "permission.notifications.mock.now" = "now";
 "permission.notifications.mock.sender" = "Alex";
 "permission.notifications.mock.body" = "sent you a moment ✨";
+
+// Tracking (ATT) primer — preview, not wired yet
+"permission.tracking.primer.notNow" = "Not now";
+"permission.tracking.denied.title" = "Tracking is off";
+"permission.tracking.denied.subtitle" = "Turn on tracking in Settings › Privacy › Tracking to get more relevant ads.";
+"permission.tracking.denied.openSettings" = "Open Settings";

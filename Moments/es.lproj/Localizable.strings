@@ -4401,3 +4401,9 @@
 "permission.notifications.mock.now" = "ahora";
 "permission.notifications.mock.sender" = "Alex";
 "permission.notifications.mock.body" = "te ha enviado un momento ✨";
+
+// Tracking (ATT) primer — preview, aún sin conectar
+"permission.tracking.primer.notNow" = "Ahora no";
+"permission.tracking.denied.title" = "El seguimiento está desactivado";
+"permission.tracking.denied.subtitle" = "Activa el seguimiento en Ajustes › Privacidad › Seguimiento para ver anuncios más relevantes.";
+"permission.tracking.denied.openSettings" = "Abrir Ajustes";
