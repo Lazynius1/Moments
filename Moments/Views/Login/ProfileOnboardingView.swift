@@ -20,6 +20,8 @@ struct ProfileOnboardingView: View {
     @State private var password = ""
     @State private var showPassword = false
     @State private var usernameError: String?
+    @State private var emailError: String?
+    @State private var emailChecking = false
     @State private var usernameSuggestions: [String] = []
     @State private var selectedInterests: [String] = []
     @State private var availableInterests: [String] = []
@@ -233,6 +235,8 @@ struct ProfileOnboardingView: View {
         case (.email, 2):
             OnboardingEmailQuestion(
                 email: $email,
+                emailError: $emailError,
+                emailChecking: $emailChecking,
                 onSubmit: submitIfPossible
             )
         case (.email, 3):
@@ -349,6 +353,7 @@ struct ProfileOnboardingView: View {
             return username.count >= 3 && usernameError == nil
         case (.email, 2):
             return AuthService.isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines))
+                && emailError == nil && !emailChecking
         case (.email, 3):
             return password.count >= 8
         case (.email, 4), (.apple, 2):
@@ -882,23 +887,68 @@ private struct OnboardingUsernameQuestion: View {
 
 private struct OnboardingEmailQuestion: View {
     @Binding var email: String
+    @Binding var emailError: String?
+    @Binding var emailChecking: Bool
     var onSubmit: () -> Void = {}
+
+    @State private var validationTask: Task<Void, Never>?
 
     private var validation: OnboardingFieldValidation {
         let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return .idle }
+        if emailChecking { return .checking }
+        if emailError != nil { return .invalid }
         return AuthService.isValidEmail(trimmed) ? .valid : .invalid
     }
 
     var body: some View {
-        OnboardingQuestionField(
-            placeholder: NSLocalizedString("register.email.placeholder", comment: ""),
-            text: $email,
-            keyboardType: .emailAddress,
-            textContentType: .emailAddress,
-            validation: validation,
-            onSubmit: onSubmit
-        )
+        VStack(alignment: .leading, spacing: 10) {
+            OnboardingQuestionField(
+                placeholder: NSLocalizedString("register.email.placeholder", comment: ""),
+                text: $email,
+                keyboardType: .emailAddress,
+                textContentType: .emailAddress,
+                validation: validation,
+                onSubmit: onSubmit
+            )
+
+            if let emailError {
+                Text(emailError)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.red.opacity(0.85))
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: emailError)
+        .onChange(of: email) { _, newValue in
+            scheduleEmailValidation(newValue)
+        }
+        .onDisappear { validationTask?.cancel() }
+    }
+
+    /// Avisa en este mismo paso si el correo ya tiene cuenta, en vez de dejar que
+    /// falle al final al pulsar "crear cuenta".
+    private func scheduleEmailValidation(_ value: String) {
+        validationTask?.cancel()
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, AuthService.isValidEmail(trimmed) else {
+            emailError = nil
+            emailChecking = false
+            return
+        }
+        emailError = nil
+        emailChecking = true
+        validationTask = Task {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            if Task.isCancelled { return }
+            let taken = await AuthService.isEmailAlreadyRegistered(trimmed)
+            if Task.isCancelled { return }
+            await MainActor.run {
+                emailChecking = false
+                emailError = taken
+                    ? NSLocalizedString("login.error.reason.emailInUse", comment: "Email already in use")
+                    : nil
+            }
+        }
     }
 }
 

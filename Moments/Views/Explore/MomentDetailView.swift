@@ -5,6 +5,7 @@ import Kingfisher
 import AVKit
 import AVFoundation
 import CoreLocation
+
 struct MomentDetailView: View {
     let moment: Moment
     @StateObject private var viewModel: MomentDetailViewModel

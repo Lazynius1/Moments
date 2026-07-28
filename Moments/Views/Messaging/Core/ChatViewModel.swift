@@ -1457,20 +1457,15 @@ class EnhancedChatViewModel: ObservableObject {
     func navigateToMessage(messageId: String) async -> Bool {
         guard !messageId.isEmpty else { return false }
         if messages.contains(where: { $0.id == messageId }) {
-            ChatScrollDebug.log("navigateToMessage: already in messages")
             return true
         }
         guard let conversationId = conversation.id else {
-            ChatScrollDebug.log("navigateToMessage: no conversationId")
             return false
         }
         guard requestedHighlightMessageIds.insert(messageId).inserted else {
-            ChatScrollDebug.log("navigateToMessage: deduped in-flight")
             return messages.contains(where: { $0.id == messageId })
         }
         defer { requestedHighlightMessageIds.remove(messageId) }
-
-        ChatScrollDebug.log("navigateToMessage: loading window for \(messageId)")
 
         let cutoff = effectiveDeletedAtCutoff()
         let radius = Self.navigationWindowRadius
@@ -1559,12 +1554,10 @@ class EnhancedChatViewModel: ObservableObject {
         }
 
         guard window.contains(where: { $0.id == messageId }) else {
-            ChatScrollDebug.log("navigateToMessage: window missing target (window=\(window.count))")
             return false
         }
         applyMessageNavigationWindow(window, anchorMessageId: messageId, reachedStartOfHistory: reachedStartOfHistory)
         let success = messages.contains(where: { $0.id == messageId })
-        ChatScrollDebug.log("navigateToMessage: applied window=\(window.count) success=\(success)")
         return success
     }
 

@@ -450,7 +450,6 @@ extension GlassmorphicChatView {
         unreadDividerMessageId = firstUnreadId
         unreadDividerCount = unreadIncomingMessageCount()
         unreadDividerInitialized = true
-        ChatScrollDebug.log("unread divider frozen id=\(firstUnreadId) count=\(unreadDividerCount)")
         reconfigureUnreadDividerRow(for: firstUnreadId)
     }
 

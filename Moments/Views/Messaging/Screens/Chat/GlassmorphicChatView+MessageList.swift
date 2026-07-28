@@ -115,7 +115,6 @@ extension GlassmorphicChatView {
             .onChange(of: viewModel.downloadProgress) { old, new in
                 let changed = changedProgressKeys(old, new)
                 if !changed.isEmpty {
-                    ChatScrollDebug.log("downloadProgress onChange changed=\(changed.count) pinned=\(isPinnedToBottom) loadingOlder=\(viewModel.isLoadingOlderHistory)")
                     if !viewModel.isLoadingOlderHistory {
                         chatListController.reconfigure(messageIds: changed)
                     }
@@ -265,7 +264,6 @@ extension GlassmorphicChatView {
             isAtBottom: $listIsAtBottom,
             onReachedTop: {
                 deferListStateUpdate {
-                    ChatScrollDebug.log("onReachedTop fired pinned=\(isPinnedToBottom) loadingOlder=\(viewModel.isLoadingOlderHistory) canLoadMore=\(viewModel.canLoadMore)")
                     loadOlderHistoryIfNeeded()
                 }
             },
@@ -283,7 +281,6 @@ extension GlassmorphicChatView {
                 }
             },
             onPrependFinished: {
-                ChatScrollDebug.log("onPrependFinished pinned=\(isPinnedToBottom) listAtBottom=\(listIsAtBottom)")
                 viewModel.endHistoryScrollRestoration()
             },
             onPrefetchRows: { rows in

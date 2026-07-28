@@ -83,8 +83,13 @@ npm_cache/
 docs/superpowers/plans/*.md
 docs/superpowers/specs/*.md
 docs/android-port-assessment.md
+docs/android-port-cloud-functions-inventory.md
+docs/android-port-ios-feature-map.md
 docs/ios-27-roadmap.md
 docs/swiftui-27-modernization-plan.md
+
+# graphify knowledge-graph output (regenerable, large — not for a public repo)
+graphify-out/
 
 # Local agent skills/config (not part of the app)
 .agents/

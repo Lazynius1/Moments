@@ -1315,6 +1315,10 @@ class EncryptionService: ObservableObject {
             }
             UserDefaults.standard.set(true, forKey: chatRecoveryMarkerPrefix + currentUserId)
             clearRecoveryAttemptState(for: currentUserId)
+            // Al cambiar de identidad, toda clave de conversación derivada con la anterior queda
+            // inservible: si no se tiran, getConversationKey seguiría devolviendo la cacheada y los
+            // mensajes se verían cifrados aun con la identidad ya correcta.
+            await purgeConversationKeys()
         } catch {
             registerFailedRecoveryAttempt(for: currentUserId)
             let updatedAttemptState = currentRecoveryAttemptState(for: currentUserId)
@@ -2887,6 +2891,60 @@ class EncryptionService: ObservableObject {
         }
     }
     
+    /// Tira todas las claves de conversación (memoria + keychain) para forzar que se vuelvan a
+    /// desenvolver desde `wrappedKeys` con la identidad vigente. Se usa tras restaurar identidad.
+    ///
+    /// Barre el keychain por prefijo en vez de limitarse a lo cacheado en memoria: tras reiniciar
+    /// la app la caché está vacía pero el keychain sigue guardando las claves inservibles.
+    func purgeConversationKeys() async {
+        conversationKeys.removeAll()
+
+        for task in preloadTasks.values {
+            task.cancel()
+        }
+        preloadTasks.removeAll()
+
+        let service = keyChainService
+        let prefix = conversationKeysPrefix
+
+        await withCheckedContinuation { continuation in
+            keyAccessQueue.async {
+                let query: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: service,
+                    kSecMatchLimit as String: kSecMatchLimitAll,
+                    kSecReturnAttributes as String: true
+                ]
+
+                var result: AnyObject?
+                let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+                guard status == errSecSuccess, let items = result as? [[String: Any]] else {
+                    continuation.resume()
+                    return
+                }
+
+                for item in items {
+                    guard
+                        let account = item[kSecAttrAccount as String] as? String,
+                        account.hasPrefix(prefix)
+                    else {
+                        continue
+                    }
+
+                    let deleteQuery: [String: Any] = [
+                        kSecClass as String: kSecClassGenericPassword,
+                        kSecAttrService as String: service,
+                        kSecAttrAccount as String: account
+                    ]
+                    SecItemDelete(deleteQuery as CFDictionary)
+                }
+
+                continuation.resume()
+            }
+        }
+    }
+
     // MARK: - LEGACY SUPPORT & CLEANUP
     func deleteUserKeys(for userId: String) async {
         userKeys.removeValue(forKey: userId)

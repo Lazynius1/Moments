@@ -570,15 +570,25 @@ extension GlassmorphicChatView {
                 case .single(let message):
                     let liveMessage = viewModel.messagesById[message.id] ?? message
                     if liveMessage.type == .chatNotice {
-                        ChatNoticeTimelineRow(
-                            noticeKey: liveMessage.content ?? "",
-                            actorUserId: liveMessage.senderId,
-                            currentUserId: viewModel.currentUserId,
-                            otherParticipantName: otherParticipantDisplayName,
-                            onChangeTimer: { showVanishTimerSheet = true },
-                            onTurnOn: { viewModel.toggleVanishMode() }
-                        )
-                        .id(rowId)
+                        // Avisos con `content` vacío/nil no pintan texto (ChatDisappearingNoticeRow
+                        // cae en su rama por defecto con un Text("")), pero el padding del
+                        // contenedor seguía reservando altura — dejaba huecos vacíos en el
+                        // timeline (visible sobre todo alrededor de mensajes view-once). Si no
+                        // hay nada que mostrar, no se compone la fila en absoluto.
+                        if let noticeKey = liveMessage.content, !noticeKey.isEmpty {
+                            ChatNoticeTimelineRow(
+                                noticeKey: noticeKey,
+                                actorUserId: liveMessage.senderId,
+                                currentUserId: viewModel.currentUserId,
+                                otherParticipantName: otherParticipantDisplayName,
+                                onChangeTimer: { showVanishTimerSheet = true },
+                                onTurnOn: { viewModel.toggleVanishMode() }
+                            )
+                            .id(rowId)
+                        } else {
+                            EmptyView()
+                                .id(rowId)
+                        }
                     } else {
                     let displayReactions = shouldRenderReactionChrome(rowId: rowId, messageIds: [liveMessage.id])
                         ? viewModel.displayReactions(for: liveMessage.id)
@@ -883,13 +893,11 @@ extension GlassmorphicChatView {
     /// El divisor desaparece al responder, no al llegar al fondo.
     func dismissUnreadDividerOnUserReply() {
         guard unreadDividerMessageId != nil || hasUnreadIncomingMessages() else { return }
-        ChatScrollDebug.log("unread divider dismissed — user replied")
         clearUnreadDividerAndMarkReadIfNeeded(sealsVanish: false)
     }
 
     /// Marca leído al salir del hilo (no depende de llegar al fondo).
     func markConversationReadOnExit(sealsVanish: Bool = false) {
-        ChatScrollDebug.log("markConversationReadOnExit sealsVanish=\(sealsVanish)")
         clearUnreadDividerAndMarkReadIfNeeded(sealsVanish: sealsVanish)
     }
 

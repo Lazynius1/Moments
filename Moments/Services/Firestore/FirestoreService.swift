@@ -816,6 +816,22 @@ class FirestoreService: ObservableObject {
         }
     }
 
+    /// True si `otherUserId` está en `users/{userId}/mutuals` (colección mantenida al follow mutuo).
+    func isMutualConnection(userId: String, otherUserId: String, completion: @escaping (Bool) -> Void) {
+        guard !userId.isEmpty, !otherUserId.isEmpty, userId != otherUserId else {
+            completion(false)
+            return
+        }
+        db.collection("users").document(userId).collection("mutuals").document(otherUserId)
+            .getDocument { snapshot, error in
+                if error != nil {
+                    completion(false)
+                    return
+                }
+                completion(snapshot?.exists == true)
+            }
+    }
+
     // MARK: - FUNCIÓN ISFOLLOWING CON CACHE (para UI normal)
     func isFollowingCached(currentUserId: String, targetUserId: String, completion: @escaping (Bool) -> Void) {
         let cacheKey = "\(currentUserId)_\(targetUserId)"
@@ -1722,9 +1738,4 @@ class FirestoreService: ObservableObject {
             return scheduledDate <= now
         }
     }
-}
-
-extension FirestoreService {
-
-    // ✅ NUEVA FUNCIÓN: addCommentReaction (similar a addReaction pero para comentarios)
 }

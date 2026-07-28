@@ -69,6 +69,26 @@ class AuthService: ObservableObject {
             .evaluate(with: email.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
+    /// ¿Hay ya una cuenta con este correo? Se consulta el índice `usernames`, donde
+    /// el alta guarda el email junto al userId. Permite avisar en el propio paso del
+    /// correo en vez de dejar que el registro falle al final, al pulsar "crear cuenta".
+    static func isEmailAlreadyRegistered(_ email: String) async -> Bool {
+        let clean = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return false }
+        do {
+            let snapshot = try await Firestore.firestore()
+                .collection("usernames")
+                .whereField("email", isEqualTo: clean)
+                .limit(to: 1)
+                .getDocuments()
+            return !snapshot.documents.isEmpty
+        } catch {
+            // Sin red o consulta rechazada: no bloquear el alta, ya lo resuelve
+            // `register(...)` con su recuperación de conflicto.
+            return false
+        }
+    }
+
     var backupEmailStatus: BackupEmailStatus {
         guard let email = currentFirebaseUser?.email?.trimmingCharacters(in: .whitespacesAndNewlines),
               !email.isEmpty else {

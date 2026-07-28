@@ -66,8 +66,13 @@ struct LocationPickerView: View {
                 // Map
                 Map(position: $position) {
                     if let selectedLocation = selectedLocation {
-                        Marker(locationName.isEmpty ? "Ubicación" : locationName, coordinate: selectedLocation)
-                            .tint(.blue)
+                        Marker(
+                            locationName.isEmpty
+                                ? NSLocalizedString("creator.location.selected", comment: "")
+                                : locationName,
+                            coordinate: selectedLocation
+                        )
+                        .tint(.blue)
                     }
                 }
                 .onMapCameraChange { context in
@@ -295,18 +300,18 @@ struct LocationPickerView: View {
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
 
-        // Búsqueda más específica para lugares útiles
+        // ≡ StickerLocationInputView — queries localizadas (no hardcode ES)
         let searchQueries = [
-            "restaurantes",
-            "cafés",
-            "tiendas",
-            "parques",
-            "museos",
-            "hoteles",
-            "farmacias",
-            "bancos",
-            "estaciones de metro",
-            "bibliotecas"
+            NSLocalizedString("stickerview.location.query.restaurants", comment: ""),
+            NSLocalizedString("stickerview.location.query.cafes", comment: ""),
+            NSLocalizedString("stickerview.location.query.shops", comment: ""),
+            NSLocalizedString("stickerview.location.query.parks", comment: ""),
+            NSLocalizedString("stickerview.location.query.museums", comment: ""),
+            NSLocalizedString("stickerview.location.query.hotels", comment: ""),
+            NSLocalizedString("stickerview.location.query.pharmacies", comment: ""),
+            NSLocalizedString("stickerview.location.query.banks", comment: ""),
+            NSLocalizedString("stickerview.location.query.metroStations", comment: ""),
+            NSLocalizedString("stickerview.location.query.libraries", comment: "")
         ]
 
         var allPlaces: [MKMapItem] = []
@@ -501,31 +506,35 @@ struct LocationRow: View {
     }
 
     private var categoryName: String {
-        guard let category = place.pointOfInterestCategory else { return "Lugar" }
-
-        switch category {
-        case .restaurant: return "Restaurante"
-        case .cafe: return "Café"
-        case .store: return "Tienda"
-        case .park: return "Parque"
-        case .museum: return "Museo"
-        case .hotel: return "Hotel"
-        case .pharmacy: return "Farmacia"
-        case .bank: return "Banco"
-        case .school: return "Escuela"
-        case .hospital: return "Hospital"
-        case .gasStation: return "Gasolinera"
-        case .airport: return "Aeropuerto"
-        case .beach: return "Playa"
-        case .theater: return "Teatro"
-        case .stadium: return "Estadio"
-        case .university: return "Universidad"
-        case .library: return "Biblioteca"
-        case .postOffice: return "Oficina de Correos"
-        case .police: return "Policía"
-        case .fireStation: return "Bomberos"
-        default: return "Lugar"
+        guard let category = place.pointOfInterestCategory else {
+            return NSLocalizedString("creator.location.category.place", comment: "")
         }
+
+        let key: String
+        switch category {
+        case .restaurant: key = "creator.location.category.restaurant"
+        case .cafe: key = "creator.location.category.cafe"
+        case .store: key = "creator.location.category.store"
+        case .park: key = "creator.location.category.park"
+        case .museum: key = "creator.location.category.museum"
+        case .hotel: key = "creator.location.category.hotel"
+        case .pharmacy: key = "creator.location.category.pharmacy"
+        case .bank: key = "creator.location.category.bank"
+        case .school: key = "creator.location.category.school"
+        case .hospital: key = "creator.location.category.hospital"
+        case .gasStation: key = "creator.location.category.gasStation"
+        case .airport: key = "creator.location.category.airport"
+        case .beach: key = "creator.location.category.beach"
+        case .theater: key = "creator.location.category.theater"
+        case .stadium: key = "creator.location.category.stadium"
+        case .university: key = "creator.location.category.university"
+        case .library: key = "creator.location.category.library"
+        case .postOffice: key = "creator.location.category.postOffice"
+        case .police: key = "creator.location.category.police"
+        case .fireStation: key = "creator.location.category.fireStation"
+        default: key = "creator.location.category.place"
+        }
+        return NSLocalizedString(key, comment: "")
     }
 
     var body: some View {
@@ -538,7 +547,7 @@ struct LocationRow: View {
                     .frame(width: 30)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(place.name ?? "Ubicación sin nombre")
+                    Text(place.name ?? NSLocalizedString("creator.location.unnamed", comment: ""))
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(adaptiveColors.primary)
 

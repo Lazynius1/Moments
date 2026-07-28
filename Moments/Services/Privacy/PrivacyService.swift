@@ -46,15 +46,13 @@ class PrivacyService {
                 self?.fetchPrivacySettings(userId: moment.authorId) { result in
                     switch result {
                     case .success(let settings):
-                        // Si el autor tiene perfil privado, verificar conexión mutua
+                        // Perfil privado: hace falta mutual real (`users/.../mutuals`)
                         if settings.isPrivate {
-                            self?.firestoreService.isFollowing(currentUserId: moment.authorId, targetUserId: viewerId) { authorFollowsBack in
-                                if authorFollowsBack {
-                                    completion(true)
-                                } else {
-                                    completion(false)
-                                }
-                            }
+                            self?.firestoreService.isMutualConnection(
+                                userId: viewerId,
+                                otherUserId: moment.authorId,
+                                completion: completion
+                            )
                         } else {
                             completion(true)
                         }
@@ -671,25 +669,7 @@ extension PrivacyService {
     
     // MARK: - Verificar conexión mutua
     func checkMutualConnection(user1: String, user2: String, completion: @escaping (Bool) -> Void) {
-        let group = DispatchGroup()
-        var user1FollowsUser2 = false
-        var user2FollowsUser1 = false
-        
-        group.enter()
-        firestoreService.isFollowing(currentUserId: user1, targetUserId: user2) { follows in
-            user1FollowsUser2 = follows
-            group.leave()
-        }
-        
-        group.enter()
-        firestoreService.isFollowing(currentUserId: user2, targetUserId: user1) { follows in
-            user2FollowsUser1 = follows
-            group.leave()
-        }
-        
-        group.notify(queue: .main) {
-            completion(user1FollowsUser2 && user2FollowsUser1)
-        }
+        firestoreService.isMutualConnection(userId: user1, otherUserId: user2, completion: completion)
     }
     
     // MARK: - Verificar si es mejor amigo

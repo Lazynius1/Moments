@@ -39,7 +39,6 @@ extension GlassmorphicChatView {
             return .bottom(animated: animated)
         case .firstUnread(let messageId):
             guard messageRowId(containingMessageId: messageId) != nil else {
-                ChatScrollDebug.log("timeline command firstUnread — row not ready for \(messageId)")
                 return nil
             }
             return .firstUnread(messageId: messageId, animated: animated)
@@ -49,7 +48,6 @@ extension GlassmorphicChatView {
     }
 
     func routeInitialScrollInList() {
-        ChatScrollDebug.log("routeInitialScrollInList completed=\(hasCompletedInitialScroll) pinned=\(isPinnedToBottom) pendingHighlight=\(pendingSearchHighlightId != nil) rows=\(viewModel.chatRenderRows.count)")
         guard !viewModel.chatRenderRows.isEmpty else { return }
 
         if let highlightId = pendingSearchHighlightId, !highlightId.isEmpty {
@@ -95,7 +93,6 @@ extension GlassmorphicChatView {
         didReapplyFrozenScrollPosition = true
 
         if pendingSearchHighlightId != nil {
-            ChatScrollDebug.log("routeInitialScrollInList skipped bottom snap — pending highlight")
             return
         }
 
@@ -103,14 +100,12 @@ extension GlassmorphicChatView {
         // (p.ej. tras la transición caché→live). Si el usuario está scrolleado arriba a
         // media conversación, no tocamos su posición: el prepend del controller la preserva.
         if isPinnedToBottom || shouldOpenAtBottom() {
-            ChatScrollDebug.log("routeInitialScrollInList issuing bottom command")
             chatListController.perform(.bottom(animated: false))
         }
     }
 
     func scrollToTargetInList(_ target: ChatScrollTarget, animated: Bool) {
         guard let command = timelineScrollCommand(for: target, animated: animated) else { return }
-        ChatScrollDebug.log("scrollToTargetInList target=\(String(describing: target)) animated=\(animated)")
         if target.pinsToBottom {
             pendingIncomingMessages = 0
         } else {
@@ -123,7 +118,6 @@ extension GlassmorphicChatView {
     /// Scroll al fondo tras el layout con reintentos.
     func scheduleInitialScrollToBottom() {
         guard pendingSearchHighlightId == nil else {
-            ChatScrollDebug.log("scheduleInitialScrollToBottom skipped — pending highlight")
             return
         }
         initialScrollTask?.cancel()
@@ -176,9 +170,7 @@ extension GlassmorphicChatView {
     }
 
     func scheduleListBottomSnap(reason: ListBottomSnapReason, animated: Bool? = nil) {
-        ChatScrollDebug.log("scheduleListBottomSnap reason=\(reason) pinned=\(isPinnedToBottom) pendingHighlight=\(pendingSearchHighlightId != nil)")
         if reason != .userRequested, pendingSearchHighlightId != nil {
-            ChatScrollDebug.log("scheduleListBottomSnap(\(reason)) blocked — pending highlight")
             return
         }
         if reason == .userRequested {
@@ -255,8 +247,6 @@ extension GlassmorphicChatView {
             listIsAtBottom = false
             didReapplyFrozenScrollPosition = true
             frozenInitialScrollTarget = .highlightedMessage(messageId: messageId)
-            ChatScrollDebug.log("single highlight nav messageId=\(messageId)")
-
             if !viewModel.messages.contains(where: { $0.id == messageId }) {
                 let loaded = await viewModel.navigateToMessage(messageId: messageId)
                 guard loaded, !Task.isCancelled else { return }
@@ -358,8 +348,6 @@ extension GlassmorphicChatView {
         composerSnapTask?.cancel()
         guard !messageId.isEmpty else { return }
 
-        ChatScrollDebug.log("scheduleSearchHighlightScroll → messageId=\(messageId)")
-
         isPinnedToBottom = false
         listIsAtBottom = false
         didReapplyFrozenScrollPosition = true
@@ -370,15 +358,10 @@ extension GlassmorphicChatView {
             defer { searchHighlightScrollTask = nil }
 
             let alreadyLoaded = viewModel.messages.contains(where: { $0.id == messageId })
-            ChatScrollDebug.log("message in viewModel: \(alreadyLoaded) (total=\(viewModel.messages.count))")
-
             if !alreadyLoaded {
-                ChatScrollDebug.log("navigateToMessage starting…")
                 let loaded = await viewModel.navigateToMessage(messageId: messageId)
-                ChatScrollDebug.log("navigateToMessage finished loaded=\(loaded) messages=\(viewModel.messages.count)")
                 if Task.isCancelled { return }
                 if !loaded {
-                    ChatScrollDebug.log("navigateToMessage FAILED — giving up")
                     pendingSearchHighlightId = nil
                     frozenInitialScrollTarget = nil
                     chatListController.clearNavigationTarget()
@@ -397,7 +380,6 @@ extension GlassmorphicChatView {
 
     func completeSearchHighlightScroll(to messageId: String) {
         let rowId = messageRowId(containingMessageId: messageId) ?? messageId
-        ChatScrollDebug.log("completeSearchHighlightScroll messageId=\(messageId) rowId=\(rowId)")
         // Sin animación: un apply de filas a mitad de la animación la cancela sin que llegue
         // scrollViewDidEndScrollingAnimation, dejando la cola de intents y el offset a medias.
         scrollToTargetInList(.highlightedMessage(messageId: messageId), animated: false)
@@ -410,7 +392,6 @@ extension GlassmorphicChatView {
     /// Salto a un mensaje desde fuera del hilo (p. ej. destacados en Conversation Settings).
     func handleJumpToMessageFromOutside(_ messageId: String) {
         guard !messageId.isEmpty else { return }
-        ChatScrollDebug.log("handleJumpToMessageFromOutside id=\(messageId)")
         pendingSearchHighlightId = messageId
         scheduleSearchHighlightScrollInList(to: messageId)
     }

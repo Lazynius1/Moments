@@ -383,6 +383,9 @@ private struct RestoreChatPINView: View {
 
             do {
                 try await EncryptionService.shared.restoreChatIdentity(pin: trimmedPIN)
+                // Los mensajes cacheados mientras la identidad no estaba disponible se guardaron
+                // en cifrado; hay que tirarlos para que se rebajen y se descifren con la buena.
+                MessageIngestService.shared.resetAfterIdentityRestore()
                 pin = ""
                 refreshAttemptState()
                 onSuccess()

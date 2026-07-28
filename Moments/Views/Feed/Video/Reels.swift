@@ -1606,12 +1606,3 @@ extension Array where Element == Moment {
     }
 }
 
-// MARK: - Preview Support
-#if DEBUG
-struct ReelsViewer_Previews: PreviewProvider {
-    static var previews: some View {
-        ReelsViewer(videos: [], startIndex: 0)
-            .preferredColorScheme(.dark)
-    }
-}
-#endif

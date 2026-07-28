@@ -587,7 +587,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         guard let attrs = collectionView.collectionViewLayout.layoutAttributesForItem(at: indexPath) else { return }
         let targetY = clampedOffsetY(toReveal: attrs.frame, at: .centeredVertically)
         guard abs(collectionView.contentOffset.y - targetY) > 40 else { return }
-        ChatScrollDebug.log("nav enforce (\(context)) offset \(Int(collectionView.contentOffset.y)) → \(Int(targetY))")
         isEnforcingNavTarget = true
         collectionView.contentOffset.y = targetY
         isEnforcingNavTarget = false
@@ -706,7 +705,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             newIds: newIds,
             changedRowIds: changedRowIds
         )
-        ChatScrollDebug.log("apply kind=\(normalizedKind) requested=\(transaction.kind) old=\(oldIds.count) new=\(newIds.count) changed=\(changedRowIds.count) wasBottom=\(wasAtBottom)")
         let prependAnchor = normalizedKind == .prependHistory
             ? (livePrependAnchor ?? captureTopVisibleAnchor())
             : nil
@@ -756,7 +754,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
                 guard let self else { return }
                 self.collectionView.layoutIfNeeded()
                 self.updateBottomAnchorInset()
-                ChatScrollDebug.log("prependHistory apply anchor=\(String(describing: prependAnchor?.rowId))")
                 if let prependAnchor {
                     self.restoreViewportAnchor(prependAnchor)
                 }
@@ -819,7 +816,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     func scrollToBottom(animated: Bool) {
         if scrollNavigationTargetRowId != nil {
-            ChatScrollDebug.log("scrollToBottom blocked — nav target=\(scrollNavigationTargetRowId!)")
             return
         }
         guard !orderedItemIds.isEmpty else { return }
@@ -835,7 +831,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     func forceScrollToBottom(animated: Bool, allowDuringNavigation: Bool = false) {
         if !allowDuringNavigation, scrollNavigationTargetRowId != nil {
-            ChatScrollDebug.log("forceScrollToBottom blocked — nav target=\(scrollNavigationTargetRowId!)")
             return
         }
         resetVanishPullState(animated: false)
@@ -960,7 +955,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         }
         let currentOffsetFromContentTop = attributes.frame.minY - collectionView.contentOffset.y
         let viewportDeltaY = currentOffsetFromContentTop - anchor.offsetFromContentTop
-        ChatScrollDebug.log("restoreViewportAnchor row=\(anchor.rowId) viewportDeltaY=\(Int(viewportDeltaY)) currentOffset=\(Int(collectionView.contentOffset.y))")
         guard abs(viewportDeltaY) > 0.5 else { return }
         let targetY = clampedContentOffsetY(collectionView.contentOffset.y + viewportDeltaY)
         collectionView.setContentOffset(
@@ -1046,14 +1040,12 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     func scrollToRow(id: String, at position: UICollectionView.ScrollPosition, animated: Bool) -> Bool {
         let resolvedId = resolvedRowId(forMessageId: id)
         guard let index = orderedItemIds.firstIndex(of: resolvedId) else {
-            ChatScrollDebug.log("scrollToRow pending — messageId=\(id) resolved=\(resolvedId) not in list (count=\(orderedItemIds.count))")
             pendingScrollToId = id
             pendingScrollPosition = position
             pendingScrollAnimated = animated
             return false
         }
         pendingScrollToId = nil
-        ChatScrollDebug.log("scrollToRow index=\(index) messageId=\(id) rowId=\(resolvedId) animated=\(animated)")
         forceScrollToRow(at: index, position: position, animated: animated)
         return true
     }
@@ -1141,7 +1133,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         if let navMessageId = scrollNavigationTargetRowId {
             let resolved = resolvedRowId(forMessageId: navMessageId)
             if let index = orderedItemIds.firstIndex(of: resolved) {
-                ChatScrollDebug.log("resolvePendingScroll nav → index=\(index) rowId=\(resolved)")
                 pendingScrollToId = nil
                 forceScrollToRow(at: index, position: .centeredVertically, animated: false)
                 return
@@ -1150,7 +1141,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         guard let messageId = pendingScrollToId else { return }
         let resolved = resolvedRowId(forMessageId: messageId)
         guard let index = orderedItemIds.firstIndex(of: resolved) else { return }
-        ChatScrollDebug.log("resolvePendingScroll pending → index=\(index) rowId=\(resolved)")
         pendingScrollToId = nil
         forceScrollToRow(at: index, position: pendingScrollPosition, animated: pendingScrollAnimated)
     }
@@ -1287,10 +1277,8 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         let wasPinned = (isStrictlyAtBottom || currentIsAtBottom)
             && scrollNavigationTargetRowId == nil
             && !shouldPreservePrependViewport
-        ChatScrollDebug.log("updateBottomAnchorInset extraTop=\(Int(extraTop)) wasPinned=\(wasPinned) preservePrepend=\(shouldPreservePrependViewport) offset=\(Int(collectionView.contentOffset.y))")
         collectionView.contentInset.top = extraTop
         if wasPinned {
-            ChatScrollDebug.log("updateBottomAnchorInset forcing bottom")
             forceScrollToBottom(animated: false)
         }
     }
@@ -1537,7 +1525,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         suppressHistoryLoadUntilNextUserScroll = false
         // El usuario toma el control: soltar el nav target para no pelear contra su gesto.
         if scrollNavigationTargetRowId != nil {
-            ChatScrollDebug.log("nav target released — user drag")
             scrollNavigationTargetRowId = nil
         }
     }

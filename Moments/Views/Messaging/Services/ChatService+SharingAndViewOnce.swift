@@ -102,14 +102,9 @@ extension ChatService {
             }
     }
 
-    /// Comprueba si dos usuarios se siguen mutuamente (requisito para abrir un chat normal sin solicitud).
+    /// Comprueba si dos usuarios son mutuos (`users/{uid}/mutuals/{other}`).
     func areMutualFollowers(user1Id: String, user2Id: String, completion: @escaping (Bool) -> Void) {
-        let firestoreService = FirestoreService()
-        firestoreService.isFollowing(currentUserId: user1Id, targetUserId: user2Id) { user1FollowsUser2 in
-            firestoreService.isFollowing(currentUserId: user2Id, targetUserId: user1Id) { user2FollowsUser1 in
-                completion(user1FollowsUser2 && user2FollowsUser1)
-            }
-        }
+        FirestoreService().isMutualConnection(userId: user1Id, otherUserId: user2Id, completion: completion)
     }
 
     /// Materializa una conversación borrador: si ya existe entre ambos usuarios devuelve su id;

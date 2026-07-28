@@ -153,26 +153,7 @@ class ContentVisibilityService {
     // MARK: - Métodos auxiliares
     
     private func checkMutualConnection(user1: String, user2: String, completion: @escaping (Bool) -> Void) {
-        let group = DispatchGroup()
-        var user1FollowsUser2 = false
-        var user2FollowsUser1 = false
-        
-        group.enter()
-        firestoreService.isFollowing(currentUserId: user1, targetUserId: user2) { follows in
-            user1FollowsUser2 = follows
-            group.leave()
-        }
-        
-        group.enter()
-        firestoreService.isFollowing(currentUserId: user2, targetUserId: user1) { follows in
-            user2FollowsUser1 = follows
-            group.leave()
-        }
-        
-        group.notify(queue: .main) {
-            let areMutualConnections = user1FollowsUser2 && user2FollowsUser1
-            completion(areMutualConnections)
-        }
+        firestoreService.isMutualConnection(userId: user1, otherUserId: user2, completion: completion)
     }
     
     // MARK: - Obtener configuración de visibilidad del usuario
