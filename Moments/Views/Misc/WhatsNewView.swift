@@ -8,54 +8,61 @@ struct WhatsNewView: View {
     private var features: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: .attachment(.voice),
-                title: NSLocalizedString("whatsNew.voice.title", comment: ""),
-                description: NSLocalizedString("whatsNew.voice.description", comment: "")
+                icon: .system("sparkles"),
+                title: NSLocalizedString("whatsNew.glass.title", comment: ""),
+                description: NSLocalizedString("whatsNew.glass.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("checkmark.message.fill"),
-                title: NSLocalizedString("whatsNew.reliable.title", comment: ""),
-                description: NSLocalizedString("whatsNew.reliable.description", comment: "")
+                icon: .system("hand.raised.fill"),
+                title: NSLocalizedString("whatsNew.permissions.title", comment: ""),
+                description: NSLocalizedString("whatsNew.permissions.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("magnifyingglass"),
-                title: NSLocalizedString("whatsNew.search.title", comment: ""),
-                description: NSLocalizedString("whatsNew.search.description", comment: "")
+                icon: .system("arrow.clockwise"),
+                title: NSLocalizedString("whatsNew.refresh.title", comment: ""),
+                description: NSLocalizedString("whatsNew.refresh.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .asset("NovaTabIcon"),
-                title: NSLocalizedString("whatsNew.nova.title", comment: ""),
-                description: NSLocalizedString("whatsNew.nova.description", comment: "")
+                icon: .system("square.grid.2x2.fill"),
+                title: NSLocalizedString("whatsNew.widget.title", comment: ""),
+                description: NSLocalizedString("whatsNew.widget.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("camera.fill"),
+                title: NSLocalizedString("whatsNew.camera.title", comment: ""),
+                description: NSLocalizedString("whatsNew.camera.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("bubble.left.and.bubble.right.fill"),
+                title: NSLocalizedString("whatsNew.composer.title", comment: ""),
+                description: NSLocalizedString("whatsNew.composer.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("line.3.horizontal.decrease.circle.fill"),
+                title: NSLocalizedString("whatsNew.activityFilters.title", comment: ""),
+                description: NSLocalizedString("whatsNew.activityFilters.description", comment: "")
             ),
             WhatsNewFeature(
                 icon: .system("lock.fill"),
-                title: NSLocalizedString("whatsNew.encryption.title", comment: ""),
-                description: NSLocalizedString("whatsNew.encryption.description", comment: "")
+                title: NSLocalizedString("whatsNew.encryptionFix.title", comment: ""),
+                description: NSLocalizedString("whatsNew.encryptionFix.description", comment: "")
+            )
+        ]
+    }
+
+    /// Aviso del desarrollador: no son funciones nuevas, así que va en su propio
+    /// bloque separado de la lista para que se lea como lo que es.
+    private var developerNote: [WhatsNewFeature] {
+        [
+            WhatsNewFeature(
+                icon: .system("pause.circle.fill"),
+                title: NSLocalizedString("whatsNew.note.pause.title", comment: ""),
+                description: NSLocalizedString("whatsNew.note.pause.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("slider.horizontal.3"),
-                title: NSLocalizedString("whatsNew.chatSettings.title", comment: ""),
-                description: NSLocalizedString("whatsNew.chatSettings.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("bell.slash.fill"),
-                title: NSLocalizedString("whatsNew.mute.title", comment: ""),
-                description: NSLocalizedString("whatsNew.mute.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("envelope.badge.fill"),
-                title: NSLocalizedString("whatsNew.requests.title", comment: ""),
-                description: NSLocalizedString("whatsNew.requests.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .attachment(.ephemeral),
-                title: NSLocalizedString("whatsNew.vanishReplies.title", comment: ""),
-                description: NSLocalizedString("whatsNew.vanishReplies.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("person.crop.circle.badge.checkmark"),
-                title: NSLocalizedString("whatsNew.signin.title", comment: ""),
-                description: NSLocalizedString("whatsNew.signin.description", comment: "")
+                icon: .system("books.vertical.fill"),
+                title: NSLocalizedString("whatsNew.note.scale.title", comment: ""),
+                description: NSLocalizedString("whatsNew.note.scale.description", comment: "")
             )
         ]
     }
@@ -73,6 +80,9 @@ struct WhatsNewView: View {
                                 WhatsNewFeatureRow(feature: feature, delay: Double(index) * 0.04)
                             }
                         }
+
+                        noteSection
+                            .padding(.top, 10)
 
                         footerButton
                             .padding(.top, 6)
@@ -116,6 +126,31 @@ struct WhatsNewView: View {
         .padding(.vertical, 10)
         .scaleEffect(appearAnimation ? 1 : 0.96)
         .opacity(appearAnimation ? 1 : 0)
+    }
+
+    private var noteSection: some View {
+        VStack(spacing: 12) {
+            Divider()
+                .opacity(0.4)
+                .padding(.horizontal, 4)
+
+            VStack(spacing: 10) {
+                ForEach(Array(developerNote.enumerated()), id: \.offset) { index, item in
+                    WhatsNewFeatureRow(
+                        feature: item,
+                        delay: Double(features.count + index) * 0.04
+                    )
+                }
+            }
+
+            Text(NSLocalizedString("whatsNew.note.closing", comment: ""))
+                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 8)
+                .padding(.top, 2)
+        }
     }
 
     private var footerButton: some View {

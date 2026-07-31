@@ -2832,8 +2832,8 @@
 /* Whats New v2.14 */
 /* Whats New v2.16 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Notas de voz reinventadas, mensajes que siempre llegan, búsqueda en tus chats, Nova AI conectada a la web y un chat más seguro y configurable.";
-"whatsNew.button" = "Explorar Moments 2.17";
+"whatsNew.subtitle" = "Cristal líquido en toda la app, permisos que se explican solos, desliza para actualizar y una cámara mejorada.";
+"whatsNew.button" = "Explorar Moments 2.18";
 
 
 
@@ -4325,26 +4325,6 @@
 "messaging.messages" = "Mensajes";
 
 // What's New 2.17
-"whatsNew.voice.title" = "Notas de voz nuevas";
-"whatsNew.voice.description" = "Graba por segmentos, recorta el audio y usa el nuevo gesto de grabación con control de velocidad.";
-"whatsNew.reliable.title" = "Mensajes que siempre llegan";
-"whatsNew.reliable.description" = "Envía sin conexión y reintenta cualquier mensaje fallido con un toque.";
-"whatsNew.search.title" = "Busca en tus chats";
-"whatsNew.search.description" = "Encuentra cualquier mensaje desde el buscador y salta directo a él, aunque sea de hace meses.";
-"whatsNew.nova.title" = "Nova AI conectada";
-"whatsNew.nova.description" = "Nova consulta la web en tiempo real para darte respuestas actuales y contrastadas.";
-"whatsNew.encryption.title" = "Cifrado reforzado";
-"whatsNew.encryption.description" = "Protección de claves de extremo a extremo mejorada para tus conversaciones.";
-"whatsNew.chatSettings.title" = "Ajustes de chat renovados";
-"whatsNew.chatSettings.description" = "Nuevo diseño con acciones rápidas y gestión de almacenamiento por conversación.";
-"whatsNew.mute.title" = "Silencia conversaciones";
-"whatsNew.mute.description" = "Silencia cada chat de forma individual cuando lo necesites.";
-"whatsNew.requests.title" = "Solicitudes integradas";
-"whatsNew.requests.description" = "Las solicitudes viven dentro del chat, con nuevos controles de privacidad.";
-"whatsNew.vanishReplies.title" = "Modo efímero ampliado";
-"whatsNew.vanishReplies.description" = "Responde a historias también en modo efímero.";
-"whatsNew.signin.title" = "Acceso renovado";
-"whatsNew.signin.description" = "Nueva bienvenida y registro progresivo, más fiable en todos los dispositivos.";
 
 "storyOverlay.toast.userNotFound" = "Usuario @%@ no encontrado";
 "storyOverlay.toast.hashtag" = "Ver publicaciones con #%@";
@@ -4430,3 +4410,27 @@
 "permission.tracking.denied.title" = "El seguimiento está desactivado";
 "permission.tracking.denied.subtitle" = "Activa el seguimiento en Ajustes › Privacidad › Seguimiento para ver anuncios más relevantes.";
 "permission.tracking.denied.openSettings" = "Abrir Ajustes";
+
+// MARK: - What's New 2.18
+
+"whatsNew.glass.title" = "Diseño de cristal líquido";
+"whatsNew.glass.description" = "Nuevos materiales translúcidos en pestañas, botones y tarjetas, al día con iOS 27.";
+"whatsNew.permissions.title" = "Permisos que se explican";
+"whatsNew.permissions.description" = "Antes de cada permiso te contamos para qué sirve, con una pantalla clara y animada.";
+"whatsNew.refresh.title" = "Desliza para actualizar";
+"whatsNew.refresh.description" = "Ya está en toda la app, con una gota de cristal líquido que responde a tu gesto.";
+"whatsNew.widget.title" = "Widget renovado";
+"whatsNew.widget.description" = "Rediseñado con la identidad de Moments y vistas previas reales de tu contenido.";
+"whatsNew.camera.title" = "Cámara mejorada";
+"whatsNew.camera.description" = "Encuadre centrado y captura a máxima calidad para tus fotos e historias.";
+"whatsNew.composer.title" = "Chat más fluido";
+"whatsNew.composer.description" = "El campo de escritura flota sobre el fondo del chat y responde mejor al tacto.";
+"whatsNew.activityFilters.title" = "Filtros en tu actividad";
+"whatsNew.activityFilters.description" = "Filtros plegables para encontrar antes lo que buscas en tu actividad.";
+"whatsNew.encryptionFix.title" = "Mensajes recuperados";
+"whatsNew.encryptionFix.description" = "Los mensajes que quedaban ilegibles tras restaurar tu PIN vuelven a descifrarse.";
+"whatsNew.note.pause.title" = "Pausa temporal en actualizaciones";
+"whatsNew.note.pause.description" = "Me voy a mudar un ratito al estudio de al lado. Voy a estar un tiempo sin lanzar parches por aquí porque estoy reescribiendo todo Moments para Android.";
+"whatsNew.note.scale.title" = "El tamaño del reto";
+"whatsNew.note.scale.description" = "Para que os hagáis una idea, el código actual de Moments equivale a 600 archivos y unas 250.000 líneas, lo que traducido al mundo literario viene a ser como escribir la saga completa de los 7 libros de Harry Potter de cero.";
+"whatsNew.note.closing" = "¡Nos vemos pronto con novedades épicas en ambas plataformas! ⚡🤖";

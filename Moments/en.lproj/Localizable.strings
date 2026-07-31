@@ -2809,8 +2809,8 @@
 
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Reinvented voice notes, messages that always arrive, search across your chats, Nova AI connected to the web, and a safer, more configurable chat.";
-"whatsNew.button" = "Explore Moments 2.17";
+"whatsNew.subtitle" = "Liquid glass across the app, permissions that explain themselves, pull to refresh and a better camera.";
+"whatsNew.button" = "Explore Moments 2.18";
 
 
 
@@ -4304,26 +4304,6 @@
 "messaging.messages" = "Messages";
 
 // What's New 2.17
-"whatsNew.voice.title" = "New voice notes";
-"whatsNew.voice.description" = "Record in segments, trim the audio, and use the new recording gesture with speed control.";
-"whatsNew.reliable.title" = "Messages that always arrive";
-"whatsNew.reliable.description" = "Send offline and retry any failed message with a tap.";
-"whatsNew.search.title" = "Search your chats";
-"whatsNew.search.description" = "Find any message from the search bar and jump straight to it, even months back.";
-"whatsNew.nova.title" = "Nova AI, connected";
-"whatsNew.nova.description" = "Nova searches the web in real time to give you current, well-sourced answers.";
-"whatsNew.encryption.title" = "Hardened encryption";
-"whatsNew.encryption.description" = "Improved end-to-end key protection for your conversations.";
-"whatsNew.chatSettings.title" = "Redesigned chat settings";
-"whatsNew.chatSettings.description" = "A new design with quick actions and per-conversation storage management.";
-"whatsNew.mute.title" = "Mute conversations";
-"whatsNew.mute.description" = "Mute each chat individually whenever you need to.";
-"whatsNew.requests.title" = "Integrated requests";
-"whatsNew.requests.description" = "Message requests live inside the chat, with new privacy controls.";
-"whatsNew.vanishReplies.title" = "Extended vanish mode";
-"whatsNew.vanishReplies.description" = "Reply to stories in vanish mode too.";
-"whatsNew.signin.title" = "Refreshed sign-in";
-"whatsNew.signin.description" = "A new welcome and progressive sign-up, more reliable on every device.";
 
 "storyOverlay.toast.userNotFound" = "User @%@ not found";
 "storyOverlay.toast.hashtag" = "View posts with #%@";
@@ -4409,3 +4389,27 @@
 "permission.tracking.denied.title" = "Tracking is off";
 "permission.tracking.denied.subtitle" = "Turn on tracking in Settings › Privacy › Tracking to get more relevant ads.";
 "permission.tracking.denied.openSettings" = "Open Settings";
+
+// MARK: - What's New 2.18
+
+"whatsNew.glass.title" = "Liquid glass design";
+"whatsNew.glass.description" = "New translucent materials on tabs, buttons and cards, in step with iOS 27.";
+"whatsNew.permissions.title" = "Permissions that explain themselves";
+"whatsNew.permissions.description" = "Before each permission we tell you what it's for, with a clear animated screen.";
+"whatsNew.refresh.title" = "Pull to refresh";
+"whatsNew.refresh.description" = "Now everywhere in the app, with a liquid glass drop that follows your gesture.";
+"whatsNew.widget.title" = "Redesigned widget";
+"whatsNew.widget.description" = "Rebuilt with the Moments identity and real previews of your content.";
+"whatsNew.camera.title" = "Better camera";
+"whatsNew.camera.description" = "Centre framing and top quality capture for your photos and stories.";
+"whatsNew.composer.title" = "Smoother chat";
+"whatsNew.composer.description" = "The text field floats above the chat background and responds better to touch.";
+"whatsNew.activityFilters.title" = "Filters in your activity";
+"whatsNew.activityFilters.description" = "Collapsible filters so you find what you're looking for sooner.";
+"whatsNew.encryptionFix.title" = "Recovered messages";
+"whatsNew.encryptionFix.description" = "Messages left unreadable after restoring your PIN are decrypted again.";
+"whatsNew.note.pause.title" = "A short break from updates";
+"whatsNew.note.pause.description" = "I'm moving to the studio next door for a while. You won't see patches here for a bit because I'm rewriting all of Moments for Android.";
+"whatsNew.note.scale.title" = "The size of the challenge";
+"whatsNew.note.scale.description" = "To give you an idea, the current Moments code is about 600 files and 250,000 lines, which in literary terms is like writing the complete seven book Harry Potter saga from scratch.";
+"whatsNew.note.closing" = "See you soon with epic news on both platforms! ⚡🤖";

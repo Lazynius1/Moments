@@ -1,7 +1,12 @@
 import AVFoundation
 
 // Centraliza AVAudioSession fuera del hilo principal: setCategory/setActive bloquean y
-// en el main thread congelan la UI. iOS 27 añade activate/deactivate asíncronos propios.
+// en el main thread congelan la UI.
+//
+// Se usa `setActive` en lugar de los `activate`/`deactivate` asíncronos de iOS 27: esos
+// símbolos no existen en SDKs anteriores, y `#available` solo comprueba en ejecución, así
+// que el archivo no compilaba con el Xcode estable. Como aquí ya se llama desde una tarea
+// aparte, que la API sea bloqueante da igual.
 enum MomentsAudioSession {
 
     // Desactiva la sesión sin bloquear al llamante. Nada depende del resultado, así que
@@ -9,15 +14,7 @@ enum MomentsAudioSession {
     static func deactivate() {
         Task.detached(priority: .utility) {
             let session = AVAudioSession.sharedInstance()
-            if #available(iOS 27.0, *) {
-                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                    session.deactivate(options: .notifyOthersOnDeactivation) { _, _ in
-                        continuation.resume()
-                    }
-                }
-            } else {
-                try? session.setActive(false, options: .notifyOthersOnDeactivation)
-            }
+            try? session.setActive(false, options: .notifyOthersOnDeactivation)
         }
     }
 
@@ -34,15 +31,7 @@ enum MomentsAudioSession {
                 try? session.setCategory(category, mode: mode, options: options)
             }
 
-            if #available(iOS 27.0, *) {
-                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                    session.deactivate(options: .notifyOthersOnDeactivation) { _, _ in
-                        continuation.resume()
-                    }
-                }
-            } else {
-                try? session.setActive(false, options: .notifyOthersOnDeactivation)
-            }
+            try? session.setActive(false, options: .notifyOthersOnDeactivation)
         }
     }
 
@@ -62,19 +51,11 @@ enum MomentsAudioSession {
                 return false
             }
 
-            if #available(iOS 27.0, *) {
-                return await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-                    session.activate(options: []) { activated, _ in
-                        continuation.resume(returning: activated)
-                    }
-                }
-            } else {
-                do {
-                    try session.setActive(true)
-                    return true
-                } catch {
-                    return false
-                }
+            do {
+                try session.setActive(true)
+                return true
+            } catch {
+                return false
             }
         }.value
     }

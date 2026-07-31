@@ -2821,8 +2821,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Notes de veu reinventades, missatges que sempre arriben, cerca als teus xats, Nova AI connectada a la web i un xat més segur i configurable.";
-"whatsNew.button" = "Explorar Moments 2.17";
+"whatsNew.subtitle" = "Vidre líquid a tota l'app, permisos que s'expliquen sols, llisca per actualitzar i una càmera millorada.";
+"whatsNew.button" = "Explorar Moments 2.18";
 
 
 
@@ -4294,26 +4294,6 @@
 "messaging.messages" = "Missatges";
 
 // What's New 2.17
-"whatsNew.voice.title" = "Notes de veu noves";
-"whatsNew.voice.description" = "Grava per segments, retalla l'àudio i fes servir el nou gest de gravació amb control de velocitat.";
-"whatsNew.reliable.title" = "Missatges que sempre arriben";
-"whatsNew.reliable.description" = "Envia sense connexió i reintenta qualsevol missatge fallit amb un toc.";
-"whatsNew.search.title" = "Cerca als teus xats";
-"whatsNew.search.description" = "Troba qualsevol missatge des del cercador i salta-hi directament, encara que sigui de fa mesos.";
-"whatsNew.nova.title" = "Nova AI connectada";
-"whatsNew.nova.description" = "Nova consulta la web en temps real per donar-te respostes actuals i contrastades.";
-"whatsNew.encryption.title" = "Xifratge reforçat";
-"whatsNew.encryption.description" = "Protecció de claus d'extrem a extrem millorada per a les teves converses.";
-"whatsNew.chatSettings.title" = "Ajustos de xat renovats";
-"whatsNew.chatSettings.description" = "Nou disseny amb accions ràpides i gestió d'emmagatzematge per conversa.";
-"whatsNew.mute.title" = "Silencia converses";
-"whatsNew.mute.description" = "Silencia cada xat de manera individual quan ho necessitis.";
-"whatsNew.requests.title" = "Sol·licituds integrades";
-"whatsNew.requests.description" = "Les sol·licituds viuen dins del xat, amb nous controls de privacitat.";
-"whatsNew.vanishReplies.title" = "Mode efímer ampliat";
-"whatsNew.vanishReplies.description" = "Respon a històries també en mode efímer.";
-"whatsNew.signin.title" = "Accés renovat";
-"whatsNew.signin.description" = "Nova benvinguda i registre progressiu, més fiable a tots els dispositius.";
 
 "storyOverlay.toast.userNotFound" = "Usuari @%@ no trobat";
 "storyOverlay.toast.hashtag" = "Veure publicacions amb #%@";
@@ -4393,3 +4373,27 @@
 "permission.tracking.denied.title" = "El seguiment està desactivat";
 "permission.tracking.denied.subtitle" = "Activa el seguiment a Configuració › Privadesa › Seguiment per veure anuncis més rellevants.";
 "permission.tracking.denied.openSettings" = "Obre Configuració";
+
+// MARK: - What's New 2.18
+
+"whatsNew.glass.title" = "Disseny de vidre líquid";
+"whatsNew.glass.description" = "Nous materials translúcids a pestanyes, botons i targetes, al dia amb iOS 27.";
+"whatsNew.permissions.title" = "Permisos que s'expliquen";
+"whatsNew.permissions.description" = "Abans de cada permís t'expliquem per a què serveix, amb una pantalla clara i animada.";
+"whatsNew.refresh.title" = "Llisca per actualitzar";
+"whatsNew.refresh.description" = "Ja és a tota l'app, amb una gota de vidre líquid que respon al teu gest.";
+"whatsNew.widget.title" = "Widget renovat";
+"whatsNew.widget.description" = "Redissenyat amb la identitat de Moments i vistes prèvies reals del teu contingut.";
+"whatsNew.camera.title" = "Càmera millorada";
+"whatsNew.camera.description" = "Enquadrament centrat i captura a màxima qualitat per a les teves fotos i històries.";
+"whatsNew.composer.title" = "Xat més fluid";
+"whatsNew.composer.description" = "El camp d'escriptura flota sobre el fons del xat i respon millor al tacte.";
+"whatsNew.activityFilters.title" = "Filtres a la teva activitat";
+"whatsNew.activityFilters.description" = "Filtres plegables per trobar abans el que busques a la teva activitat.";
+"whatsNew.encryptionFix.title" = "Missatges recuperats";
+"whatsNew.encryptionFix.description" = "Els missatges que quedaven il·legibles després de restaurar el PIN es tornen a desxifrar.";
+"whatsNew.note.pause.title" = "Pausa temporal en actualitzacions";
+"whatsNew.note.pause.description" = "Em mudo una mica a l'estudi del costat. Estaré un temps sense llançar pedaços per aquí perquè estic reescrivint tot Moments per a Android.";
+"whatsNew.note.scale.title" = "La mida del repte";
+"whatsNew.note.scale.description" = "Perquè us feu una idea, el codi actual de Moments equival a 600 fitxers i unes 250.000 línies, que traduït al món literari ve a ser com escriure la saga completa dels 7 llibres de Harry Potter des de zero.";
+"whatsNew.note.closing" = "Ens veiem aviat amb novetats èpiques a totes dues plataformes! ⚡🤖";
