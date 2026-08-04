@@ -517,6 +517,16 @@ func getCountdownComponents(targetAtMs: Double, now: Date) -> CountdownComponent
     )
 }
 
+/// Ancho del card = 4 timers + gaps + inset lateral (sin huecos laterales sobrantes).
+private enum CountdownCardLayout {
+    static let segmentSize: CGFloat = 52
+    static let segmentSpacing: CGFloat = 8
+    static let sideInset: CGFloat = 12
+    static let titleMaxChars = 48
+    static var timersWidth: CGFloat { (4 * segmentSize) + (3 * segmentSpacing) }
+    static var cardWidth: CGFloat { timersWidth + (2 * sideInset) }
+}
+
 private struct CountdownSegment: View {
     let value: String
     let label: String
@@ -528,7 +538,7 @@ private struct CountdownSegment: View {
             Text(value)
                 .font(.system(size: 26, weight: .black, design: .rounded))
                 .foregroundStyle(ink)
-                .frame(width: 52, height: 52)
+                .frame(width: CountdownCardLayout.segmentSize, height: CountdownCardLayout.segmentSize)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(boxBg)
@@ -537,12 +547,15 @@ private struct CountdownSegment: View {
                                 .stroke(ink.opacity(0.08), lineWidth: 0.5)
                         )
                 )
-            
+
             Text(label.uppercased())
                 .font(.system(size: 8, weight: .black, design: .rounded))
                 .tracking(0.5)
                 .foregroundStyle(ink.opacity(0.64))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
         }
+        .frame(width: CountdownCardLayout.segmentSize)
     }
 }
 
@@ -588,12 +601,17 @@ struct StickerCountdownCardView: View {
             if isEditingInline {
                 // headerInk is light (white) when isLight==false, dark when isLight==true
                 let fieldScheme: ColorScheme = isLight ? .light : .dark
-                TextField(NSLocalizedString("storyEditor.countdown.eventTitle", comment: "Countdown event title placeholder"), text: $title)
+                TextField(
+                    NSLocalizedString("storyEditor.countdown.eventTitle", comment: "Countdown event title placeholder"),
+                    text: $title,
+                    axis: .vertical
+                )
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(headerInk)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 12)
+                    .lineLimit(1...2)
+                    .padding(.horizontal, CountdownCardLayout.sideInset)
+                    .padding(.vertical, 10)
                     .frame(maxWidth: .infinity)
                     .environment(\.colorScheme, fieldScheme)
                     .background(
@@ -602,15 +620,20 @@ struct StickerCountdownCardView: View {
                             colorScheme: colorScheme
                         )
                     )
+                    .onChange(of: title) { _, newValue in
+                        let trimmed = String(newValue.prefix(CountdownCardLayout.titleMaxChars))
+                        if trimmed != newValue { title = trimmed }
+                    }
             } else {
                 Text(title.isEmpty ? NSLocalizedString("storyEditor.countdown.placeholder", comment: "Placeholder title") : title.uppercased())
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .tracking(0.5)
                     .foregroundStyle(headerInk)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 12)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, CountdownCardLayout.sideInset)
+                    .padding(.vertical, 10)
                     .frame(maxWidth: .infinity)
                     .background(
                         AnimatedMomentsCardStickerHeaderSurface(
@@ -634,15 +657,15 @@ struct StickerCountdownCardView: View {
                         ? Color.black.opacity(0.06)
                         : Color.white.opacity(0.15)
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: CountdownCardLayout.segmentSpacing) {
                         CountdownSegment(value: comps.days, label: NSLocalizedString("storyEditor.countdown.days", comment: ""), ink: ink, boxBg: boxBg)
                         CountdownSegment(value: comps.hours, label: NSLocalizedString("storyEditor.countdown.hours", comment: ""), ink: ink, boxBg: boxBg)
                         CountdownSegment(value: comps.minutes, label: NSLocalizedString("storyEditor.countdown.minutes", comment: ""), ink: ink, boxBg: boxBg)
                         CountdownSegment(value: comps.seconds, label: NSLocalizedString("storyEditor.countdown.seconds", comment: ""), ink: ink, boxBg: boxBg)
                     }
                 }
-                .padding(.horizontal, 22)
-                .padding(.vertical, 16)
+                .padding(.horizontal, CountdownCardLayout.sideInset)
+                .padding(.vertical, 14)
                 .background(Color.clear)
             }
             .buttonStyle(.plain)
@@ -661,10 +684,14 @@ struct StickerCountdownCardView: View {
                 .datePickerStyle(.compact)
                 .labelsHidden()
                 .tint(ink)
-                .padding(.bottom, 18)
+                .padding(.horizontal, CountdownCardLayout.sideInset)
+                .padding(.bottom, 14)
+                .frame(maxWidth: CountdownCardLayout.cardWidth)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        .frame(width: CountdownCardLayout.cardWidth)
+        .fixedSize(horizontal: true, vertical: true)
         .background(
             AnimatedMomentsCardStickerSurface(
                 styleVariant: styleVariant,

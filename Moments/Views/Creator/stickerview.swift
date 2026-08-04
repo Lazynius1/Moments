@@ -1055,7 +1055,10 @@ struct StickerPickerView: View {
     // MARK: - Sticker Creation Methods (exactamente iguales)
 
     private func createEmojiSticker(_ emoji: String) {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 200))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 200), format: format)
         let image = renderer.image { context in
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.alignment = .center
@@ -1073,7 +1076,7 @@ struct StickerPickerView: View {
             image: image,
             position: defaultStickerCenter,
             type: .emoji,
-            interactionData: nil
+            interactionData: StickerItem.StickerInteractionData(caption: emoji)
         )
         selectedStickers.append(sticker)
         dismiss()
@@ -1390,7 +1393,11 @@ struct StickerPickerView: View {
             newSize = CGSize(width: maxDimension * aspectRatio, height: maxDimension)
         }
 
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+        // scale 1: píxeles = points (paridad Android / Firestore content).
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
         return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }

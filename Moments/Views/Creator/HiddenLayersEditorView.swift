@@ -1653,7 +1653,7 @@ private func hiddenLayerTextUIFont(for textStyle: HiddenLayerTextStyle) -> UIFon
     case .serif:
         return .systemFont(ofSize: 18, weight: .semibold)
     case .handwritten:
-        return UIFont(name: "Caveat-Medium", size: 23) ?? .systemFont(ofSize: 23, weight: .medium)
+        return UIFont(name: "Caveat-Bold", size: 23) ?? .systemFont(ofSize: 23, weight: .bold)
     case .mono:
         return .monospacedSystemFont(ofSize: 16, weight: .semibold)
     case .bubble:
@@ -1797,7 +1797,7 @@ private struct HiddenLayerTextCardPreview: View {
         switch textStyle {
         case .clean: return .system(size: 17, weight: .semibold, design: .rounded)
         case .serif: return .system(size: 18, weight: .semibold, design: .serif)
-        case .handwritten: return .custom("Caveat-Medium", size: 23)
+        case .handwritten: return .custom("Caveat-Bold", size: 23)
         case .mono: return .system(size: 16, weight: .semibold, design: .monospaced)
         case .bubble: return .system(size: 18, weight: .black, design: .rounded)
         case .editorial: return .system(size: 20, weight: .bold, design: .serif)
@@ -1970,8 +1970,8 @@ private struct HiddenLayerPolaroidPreview: View {
         switch captionStyle ?? .handwritten {
         case .clean: return .system(size: 14, weight: .semibold, design: .rounded)
         case .mono: return .system(size: 13, weight: .semibold, design: .monospaced)
-        case .handwritten: return .custom("Caveat-Medium", size: 17)
-        default: return .custom("Caveat-Medium", size: 17)
+        case .handwritten: return .custom("Caveat-Bold", size: 17)
+        default: return .custom("Caveat-Bold", size: 17)
         }
     }
 
@@ -2098,8 +2098,8 @@ struct HiddenLayerRemotePolaroidPreview: View {
         switch captionStyle ?? .handwritten {
         case .clean: return .system(size: 14, weight: .semibold, design: .rounded)
         case .mono: return .system(size: 13, weight: .semibold, design: .monospaced)
-        case .handwritten: return .custom("Caveat-Medium", size: 17)
-        default: return .custom("Caveat-Medium", size: 17)
+        case .handwritten: return .custom("Caveat-Bold", size: 17)
+        default: return .custom("Caveat-Bold", size: 17)
         }
     }
 

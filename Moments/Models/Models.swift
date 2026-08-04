@@ -1480,17 +1480,31 @@ struct Story: Identifiable, Codable {
                 } else {
                     stickerImage = UIImage(systemName: "chart.bar") ?? UIImage()
                 }
-            case .time, .weather, .emoji, .sticker, .generic, .selfie, .questionResponse, .shareMoment, .frame, .quiz:
-                // ✅ INTENTAR DECODIFICAR IMAGEN BASE64
-                // Usar el displayScale del trait collection para restaurar el tamaño lógico (puntos) original
-                if let data = Data(base64Encoded: stickerData.content),
-                   let image = UIImage(data: data, scale: traitCollection.displayScale) {
+            case .emoji:
+                // Estándar chat/stories: glyph nativo del SO desde caption (Unicode).
+                // Base64 solo fallback de tamaño/legacy sin caption.
+                if let glyph = stickerData.caption.flatMap({ $0.isEmpty || $0.count > 8 ? nil : $0 })
+                    ?? (stickerData.content.count <= 8 ? stickerData.content : nil) {
+                    stickerImage = Self.createEmojiGlyphImage(glyph)
+                } else if let image = Self.stickerUIImage(fromBase64: stickerData.content, normalizeEmojiSide: 200) {
                     stickerImage = image
                 } else {
-                    stickerImage = UIImage(systemName: "sticker") ?? UIImage()
+                    stickerImage = Self.createAnimatedStickerSizePlaceholder(side: 200)
+                }
+            case .time, .weather, .sticker, .generic, .selfie, .questionResponse, .shareMoment, .frame, .quiz:
+                // scale 1: píxeles = points (Android bakea 1×; iOS export también a 1×).
+                if let image = Self.stickerUIImage(fromBase64: stickerData.content, normalizeEmojiSide: nil),
+                   max(image.size.width, image.size.height) >= 40 {
+                    stickerImage = image
+                } else if stickerData.isAnimated || stickerData.gifURL != nil ||
+                            (stickerData.content.hasPrefix("http") && stickerData.content.contains("giphy")) {
+                    // Sin Base64 de tamaño (GIF solo-URL): frame 180pt como iOS editor.
+                    stickerImage = Self.createAnimatedStickerSizePlaceholder(side: 180)
+                } else {
+                    stickerImage = Self.createAnimatedStickerSizePlaceholder(side: 180)
                 }
             default:
-                stickerImage = UIImage(systemName: "sticker") ?? UIImage()
+                stickerImage = Self.createAnimatedStickerSizePlaceholder(side: 180)
             }
 
             // Crear datos de interacción
@@ -1790,6 +1804,48 @@ struct Story: Identifiable, Codable {
         createEmojiSliderFallbackImage(prompt: prompt, emoji: emoji, value: 0.5)
     }
 
+    /// Decodifica Base64 de sticker. Contrato: píxeles ≈ points (scale 1).
+    /// `normalizeEmojiSide`: si el PNG viene de iOS @2x/@3x (~400–600px), baja a ~200pt.
+    private static func stickerUIImage(fromBase64 content: String, normalizeEmojiSide: CGFloat?) -> UIImage? {
+        guard !content.hasPrefix("http"),
+              !content.hasPrefix("sticker_"),
+              let data = Data(base64Encoded: content),
+              let base = UIImage(data: data, scale: 1) else { return nil }
+        let maxSide = max(base.size.width, base.size.height)
+        guard maxSide >= 8, let cgImage = base.cgImage else { return nil }
+        if let target = normalizeEmojiSide, maxSide > target * 1.5 {
+            let scale = maxSide / target
+            return UIImage(cgImage: cgImage, scale: scale, orientation: base.imageOrientation)
+        }
+        return base
+    }
+
+    /// Rasteriza emoji 200×200 1× con alpha (≡ Android `renderEmojiStickerBitmap`).
+    private static func createEmojiGlyphImage(_ emoji: String) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 200), format: format)
+        return renderer.image { _ in
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.alignment = .center
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 150),
+                .paragraphStyle: paragraphStyle
+            ]
+            (emoji as NSString).draw(in: CGRect(x: 0, y: 25, width: 200, height: 200), withAttributes: attributes)
+        }
+    }
+
+    /// Placeholder 1× para GIFs sin Base64 de tamaño.
+    private static func createAnimatedStickerSizePlaceholder(side: CGFloat) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format)
+        return renderer.image { _ in }
+    }
+
 }
 
 // Modelo para almacenar datos de stickers
@@ -2051,8 +2107,8 @@ struct StickerData: Codable {
 
     // ✅ FUNCIÓN extractContent ACTUALIZADA para incluir música y renderizar imágenes a Base64
     private static func extractContent(from sticker: StickerItem) -> String {
-        // Selfie stickers need alpha channel to avoid black corners after upload/render.
-        if sticker.type == .selfie, let pngData = sticker.image.pngData() {
+        // Selfie/emoji need alpha channel to avoid black corners/background after upload/render.
+        if sticker.type == .selfie || sticker.type == .emoji, let pngData = sticker.image.pngData() {
             return pngData.base64EncodedString()
         }
 
