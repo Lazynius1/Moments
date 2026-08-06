@@ -26,6 +26,11 @@ struct ConversationSettingsView: View {
     @State private var showingUserProfile = false
     @State private var showBlockConfirmationFromHeader = false
     @State private var showReportSheetFromHeader = false
+    @State private var isLargeHeader = false
+    @State private var headerTopInset: CGFloat = 0
+    @State private var scrollPhase: ScrollPhase = .idle
+    @State private var safeAreaTopValue: CGFloat = 0
+    @State private var lastHeaderScrollOffset: CGFloat = 0
 
     private enum SharedContentTab: Hashable {
         case media
@@ -42,11 +47,20 @@ struct ConversationSettingsView: View {
         return live.isEmpty ? fallback : live
     }
 
+    private var headerPresence: PresenceDisplay? {
+        onlineStatusService.presenceDisplay(
+            for: otherUserStatus,
+            lastSeen: otherUserLastSeen
+        )
+    }
+
+    private var toolbarForeground: Color {
+        isLargeHeader ? .white : adaptiveColors.primary
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                conversationHeader
-
                 settingsListSection
                     .padding(.horizontal, 16)
 
@@ -57,20 +71,97 @@ struct ConversationSettingsView: View {
                     .padding(.top, 8)
             }
             .padding(.bottom, 32)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                ConversationSettingsHeroHeader(
+                    isLargeHeader: $isLargeHeader,
+                    topInset: $headerTopInset,
+                    avatarURL: conversation.otherParticipantProfileImagePath,
+                    displayName: otherParticipantDisplayName,
+                    presence: headerPresence,
+                    notificationsEnabled: viewModel.notificationsEnabled,
+                    onProfile: {
+                        HapticManager.shared.lightImpact()
+                        showingUserProfile = true
+                    },
+                    onSearch: {
+                        HapticManager.shared.lightImpact()
+                        onSearchRequested?()
+                    },
+                    onMuteToggle: {
+                        HapticManager.shared.lightImpact()
+                        viewModel.notificationsEnabled.toggle()
+                        viewModel.toggleNotifications()
+                    }
+                )
+            }
         }
         .background {
             Color(hex: colorScheme == .dark ? "0B1215" : "FAF9F6")
                 .ignoresSafeArea()
         }
-        .navigationTitle("conversationSettings.title")
+        .onScrollGeometryChange(for: CGFloat.self) {
+            $0.contentInsets.top
+        } action: { _, newValue in
+            headerTopInset = newValue
+        }
+        .onScrollGeometryChange(for: CGFloat.self) {
+            $0.contentOffset.y + $0.contentInsets.top
+        } action: { _, newValue in
+            lastHeaderScrollOffset = newValue
+            // Expandir/colapsar también en decelerating (el rubber-band a veces no es solo .interacting).
+            guard scrollPhase == .interacting || scrollPhase == .decelerating else { return }
+            let shouldExpand = newValue < -22
+            let shouldCollapse = newValue > 28
+            let next: Bool
+            if isLargeHeader {
+                next = shouldCollapse ? false : true
+            } else {
+                next = shouldExpand ? true : false
+            }
+            guard next != isLargeHeader else { return }
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
+                isLargeHeader = next
+            }
+        }
+        .onScrollPhaseChange { _, newPhase in
+            scrollPhase = newPhase
+            guard newPhase == .idle else { return }
+            // No colapsar por el rebote del rubber-band tras expandir.
+            if isLargeHeader {
+                guard lastHeaderScrollOffset > 28 else { return }
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
+                    isLargeHeader = false
+                }
+            } else if lastHeaderScrollOffset < -18 {
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
+                    isLargeHeader = true
+                }
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) {
+            $0.safeAreaInsets.top
+        } action: { newValue in
+            safeAreaTopValue = newValue
+        }
+        // Solo en hero grande: extender bajo status bar. Compacto = layout original bajo la nav.
+        .safeAreaPadding(.top, isLargeHeader ? safeAreaTopValue : 0)
+        .ignoresSafeArea(.container, edges: isLargeHeader ? .top : [])
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .chatInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
-        .momentsScrollEdgeChrome()
+        .modifier(ConversationSettingsScrollEdgeModifier(isLargeHeader: isLargeHeader))
+        .modifier(ConversationSettingsCompactChromeModifier(isLargeHeader: isLargeHeader))
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                SettingsToolbarBackButton(action: { dismiss() })
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: toolbarForeground,
+                    preset: .navigationBack,
+                    standaloneGlass: false,
+                    action: { dismiss() }
+                )
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
@@ -88,7 +179,7 @@ struct ConversationSettingsView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(adaptiveColors.primary)
+                        .foregroundStyle(toolbarForeground)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
                 }
@@ -231,96 +322,7 @@ struct ConversationSettingsView: View {
         )
     }
 
-    // MARK: - Header
-    private var conversationHeader: some View {
-        VStack(spacing: 14) {
-            if let avatarUrl = conversation.otherParticipantProfileImagePath {
-                KFImage(URL(string: avatarUrl))
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 92, height: 92)
-                    .clipShape(Circle())
-            } else {
-                Color.clear
-                    .frame(width: 92, height: 92)
-                    .background(Color.clear.momentsChromeGlass(in: Circle()))
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 34))
-                            .foregroundStyle(adaptiveColors.primary)
-                    )
-            }
-
-            Text(otherParticipantDisplayName)
-                .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                .foregroundStyle(adaptiveColors.primary)
-
-            if let presence = onlineStatusService.presenceDisplay(
-                for: otherUserStatus,
-                lastSeen: otherUserLastSeen
-            ) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(presence.status.color)
-                        .frame(width: 8, height: 8)
-
-                    Text(presence.statusText)
-                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundStyle(adaptiveColors.secondary)
-
-                    if let lastSeenText = presence.supplementalText {
-                        Text("• \(lastSeenText)")
-                            .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundStyle(adaptiveColors.tertiary)
-                    }
-                }
-            }
-
-            quickActionsRow
-                .padding(.top, 10)
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 8)
-    }
-
-    // MARK: - Quick Actions Row (estilo Apple: Perfil / Buscar / Silenciar)
-    private var quickActionsRow: some View {
-        HStack(spacing: 40) {
-            quickActionButton(icon: "person", labelKey: "conversationSettings.quickAction.profile") {
-                HapticManager.shared.lightImpact()
-                showingUserProfile = true
-            }
-
-            quickActionButton(icon: "magnifyingglass", labelKey: "conversationSettings.quickAction.search") {
-                HapticManager.shared.lightImpact()
-                onSearchRequested?()
-            }
-
-            quickActionButton(
-                icon: viewModel.notificationsEnabled ? "bell" : "bell.slash",
-                labelKey: viewModel.notificationsEnabled ? "conversationSettings.quickAction.mute" : "conversationSettings.quickAction.unmute"
-            ) {
-                HapticManager.shared.lightImpact()
-                viewModel.notificationsEnabled.toggle()
-                viewModel.toggleNotifications()
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private func quickActionButton(icon: String, labelKey: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .semibold))
-                Text(NSLocalizedString(labelKey, comment: ""))
-                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-            }
-            .foregroundStyle(adaptiveColors.primary)
-            .frame(width: 70)
-        }
-        .buttonStyle(.momentsPressSubtle)
-    }
+    // MARK: - Header (ver ConversationSettingsHeroHeader)
 
     private func refreshOtherParticipantUsername() {
         let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2813,5 +2815,32 @@ struct ConversationVanishModeView: View {
             .fill(adaptiveColors.tertiary.opacity(colorScheme == .dark ? 0.16 : 0.12))
             .frame(height: 0.5)
             .padding(.leading, 16)
+    }
+}
+
+/// Oculta el scroll edge effect superior solo en hero grande.
+private struct ConversationSettingsScrollEdgeModifier: ViewModifier {
+    let isLargeHeader: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *), isLargeHeader {
+            content.scrollEdgeEffectHidden(true, for: .top)
+        } else {
+            content
+        }
+    }
+}
+
+/// Chrome de scroll edge Moments solo en estado compacto (layout original).
+private struct ConversationSettingsCompactChromeModifier: ViewModifier {
+    let isLargeHeader: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isLargeHeader {
+            content
+        } else {
+            content.momentsScrollEdgeChrome()
+        }
     }
 }
