@@ -954,6 +954,7 @@ struct ModernEditProfileView: View {
                 Text("profileEditor.deletePhoto.confirm")
             }
         }
+        .momentsFloatingTabBarHidden()
         .onAppear {
             loadUserData()
             loadInterests()

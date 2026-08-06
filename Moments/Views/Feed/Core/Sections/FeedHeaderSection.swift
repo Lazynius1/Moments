@@ -23,7 +23,7 @@ struct FeedRefreshIndicator: View {
 struct FeedHeaderBar: View {
     @Binding var showCreatorView: Bool
     @Binding var showNotifications: Bool
-    @Binding var showMessages: Bool
+    @Binding var showNova: Bool
     @Binding var showEchoHistory: Bool
     @Binding var showPendingEchoInvitation: Bool
     @Binding var selectedPendingEchoId: String
@@ -138,12 +138,18 @@ struct FeedHeaderBar: View {
                     }
                 )
 
-                ModernMessageButton(
-                    hasMessage: badgeService.unreadMessagesCount > 0,
-                    messageCount: badgeService.unreadMessagesCount,
-                    colorScheme: colorScheme,
-                    action: { showMessages = true }
-                )
+                // Nova (antes mensajes): Mensajes vive en la tab bar.
+                Button(action: { showNova = true }) {
+                    NovaBrandIcon(
+                        size: 22,
+                        color: colorScheme == .dark
+                            ? Color.white.opacity(0.9)
+                            : Color.black.opacity(0.8)
+                    )
+                    .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.momentsPressIcon)
+                .accessibilityLabel(NSLocalizedString("tabBar.nova", comment: "Nova"))
             }
             .padding(.trailing, 12)
         }

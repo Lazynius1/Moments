@@ -189,6 +189,7 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
             }
         }
         .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .navigationDestination(item: $selectedProfileTarget) { target in
             UserProfileView(userId: target.id)
                 .userProfileZoomDestination(userId: target.id, namespace: zoomNamespace)

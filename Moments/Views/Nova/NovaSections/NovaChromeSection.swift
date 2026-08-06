@@ -8,6 +8,7 @@ struct NovaHeader: View {
     @Binding var showSuggestedOptions: Bool
     @Binding var isShowingMemory: Bool
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) private var dismiss
 
     // ✨ ESTADOS PARA EASTER EGG
     @State private var logoTapCount = 0
@@ -22,6 +23,19 @@ struct NovaHeader: View {
 
     var body: some View {
         HStack {
+            Button(action: { dismiss() }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(NovaColors.textPrimary)
+                    .frame(width: 40, height: 40)
+                    .background {
+                        Color.clear
+                            .momentsChromeGlass(in: Circle(), interactive: true)
+                    }
+            }
+            .buttonStyle(.momentsPressIcon)
+            .accessibilityLabel(NSLocalizedString("common.back", comment: "Back"))
+
             Button(action: handleLogoTap) {
                 ZStack {
                     NovaBrandIcon(size: 22, color: NovaColors.textPrimary)

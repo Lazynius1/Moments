@@ -393,6 +393,7 @@ struct GlassmorphicChatView: View {
         chatViewWithOverlays
             .toolbar(isSearchVisible ? .hidden : .visible, for: .navigationBar)
             .toolbar(.hidden, for: .tabBar)
+            .momentsFloatingTabBarHidden()
             .background(adaptiveColors.chatBackground[0].ignoresSafeArea())
     }
 

@@ -3,7 +3,7 @@ import MapKit
 
 struct FeedPresentationModifier: ViewModifier {
     @Binding var showNotifications: Bool
-    @Binding var showMessages: Bool
+    @Binding var showNova: Bool
     @Binding var selectedStoryRoute: StoryUserPresentationRoute?
     @Binding var storyRingNavigationUserIds: [String]
     @Binding var showStories: Bool
@@ -23,7 +23,6 @@ struct FeedPresentationModifier: ViewModifier {
     @Binding var selectedProfileRoute: FeedProfileSheetRoute?
     @Binding var selectedUserId: String
     @Binding var showEchoHistory: Bool
-    @Binding var targetConversationId: String?
 
     let profileZoomNamespace: Namespace.ID
     let storyZoomNamespace: Namespace.ID
@@ -44,12 +43,8 @@ struct FeedPresentationModifier: ViewModifier {
                 .environmentObject(messagingViewModel)
                 .environmentObject(firestoreService)
             }
-            .navigationDestination(isPresented: $showMessages) {
-                MessagingView(targetConversationId: $targetConversationId, onDismiss: {
-                    showMessages = false
-                })
-                .environmentObject(messagingViewModel)
-                .environmentObject(firestoreService)
+            .navigationDestination(isPresented: $showNova) {
+                NovaView()
             }
             .fullScreenCover(item: $selectedStoryRoute) { route in
                 StoriesView(
@@ -151,7 +146,7 @@ struct FeedPresentationModifier: ViewModifier {
 extension View {
     func feedPresentations(
         showNotifications: Binding<Bool>,
-        showMessages: Binding<Bool>,
+        showNova: Binding<Bool>,
         selectedStoryRoute: Binding<StoryUserPresentationRoute?>,
         storyRingNavigationUserIds: Binding<[String]>,
         showStories: Binding<Bool>,
@@ -171,7 +166,6 @@ extension View {
         selectedProfileRoute: Binding<FeedProfileSheetRoute?>,
         selectedUserId: Binding<String>,
         showEchoHistory: Binding<Bool>,
-        targetConversationId: Binding<String?>,
         profileZoomNamespace: Namespace.ID,
         storyZoomNamespace: Namespace.ID,
         messagingViewModel: MessagingViewModel,
@@ -182,7 +176,7 @@ extension View {
         modifier(
             FeedPresentationModifier(
                 showNotifications: showNotifications,
-                showMessages: showMessages,
+                showNova: showNova,
                 selectedStoryRoute: selectedStoryRoute,
                 storyRingNavigationUserIds: storyRingNavigationUserIds,
                 showStories: showStories,
@@ -202,7 +196,6 @@ extension View {
                 selectedProfileRoute: selectedProfileRoute,
                 selectedUserId: selectedUserId,
                 showEchoHistory: showEchoHistory,
-                targetConversationId: targetConversationId,
                 profileZoomNamespace: profileZoomNamespace,
                 storyZoomNamespace: storyZoomNamespace,
                 messagingViewModel: messagingViewModel,

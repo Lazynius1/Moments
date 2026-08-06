@@ -39,6 +39,7 @@ struct MessageRequestsView: View {
         .navigationTitle("messageRequests.title")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(backgroundColor, for: .navigationBar)
+        .momentsFloatingTabBarHidden()
         .onAppear {
             if let userId = Auth.auth().currentUser?.uid {
                 messageRequestService.listenToPendingRequests(for: userId)

@@ -211,6 +211,7 @@ struct LocationMapView: View {
             .toolbar(.hidden, for: .navigationBar)
         }
         .momentZoomNavigationSurface(colorScheme: colorScheme)
+        .momentsFloatingTabBarHidden()
         .sheet(isPresented: $showingBottomSheet) {
             MapPlaceBottomSheet(
                 cluster: sheetCluster,

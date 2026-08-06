@@ -95,6 +95,7 @@ struct NotificationsView: View {
                 for: .navigationBar
             )
             .toolbar(.hidden, for: .tabBar)
+            .momentsFloatingTabBarHidden()
 
 
             if let pendingDeletion = viewModel.pendingDeletion {

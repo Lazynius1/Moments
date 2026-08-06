@@ -156,6 +156,7 @@ struct SettingsView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .momentsScrollEdgeChrome()
         .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .sheet(isPresented: $isShowingQRCode) {
             QRCodeView()
         }
@@ -167,6 +168,7 @@ struct SettingsView: View {
         }
         .navigationDestination(item: $route) { route in
             destinationView(for: route)
+                .momentsFloatingTabBarHidden()
         }
         .sheet(isPresented: $isShowingAdvancedAccountManagement) {
             AdvancedAccountManagementView()

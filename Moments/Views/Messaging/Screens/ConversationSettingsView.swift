@@ -95,6 +95,7 @@ struct ConversationSettingsView: View {
             }
         }
         .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .chatInteractivePopEnabled()
         .navigationDestination(isPresented: $viewModel.showSharedGallery) {
             sharedMediaGalleryDestination

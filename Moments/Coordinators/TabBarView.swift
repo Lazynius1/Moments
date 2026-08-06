@@ -21,7 +21,7 @@ private struct NovaTabGlyph: View {
 @available(iOS 26.0, *)
 enum AppTab: Hashable {
     case home
-    case nova
+    case messages
     case create
     case explore
     case profile
@@ -32,6 +32,8 @@ struct TabBarView: View {
     @StateObject private var exploreViewModel = ExploreViewModel()
     @StateObject private var navigationService = NotificationNavigationService.shared
     @StateObject private var firestoreService = FirestoreService.shared
+    @StateObject private var tabBarMinimize = TabBarMinimizeController()
+    @StateObject private var messagingViewModel = MessagingViewModel()
     @State private var selectedTab: Int = 0
     @State private var previousSelectedTab: Int = 0
     @State private var showCreatorView: Bool = false
@@ -42,38 +44,66 @@ struct TabBarView: View {
     @State private var pendingEchoId: String = ""
     @State private var echoInvitationRoute: EchoInvitationRoute?
     @State private var showEchoViewer: Bool = false
+    @State private var messagesTargetConversationId: String? = nil
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         ZStack {
             Group {
                 if shouldShowMainApp {
-                    if #available(iOS 26.0, *) {
-                        ModernTabView(
-                            selectedTab: $selectedTab,
-                            previousSelectedTab: $previousSelectedTab,
-                            showCreatorView: $showCreatorView,
-                            isCreatingStory: $isCreatingStory,
-                            openCreatorInStoryMode: $openCreatorInStoryMode,
-                            hasPreloadedExplore: $hasPreloadedExplore,
-                            showEchoInvitation: $showEchoInvitation,
-                            pendingEchoId: $pendingEchoId,
-                            showEchoViewer: $showEchoViewer,
-                            exploreViewModel: exploreViewModel,
-                            authService: authService,
-                            navigationService: navigationService,
-                            onEchoInvitationRoute: { echoId in
-                                echoInvitationRoute = EchoInvitationRoute(echoId: echoId)
-                            }
-                        )
-                        .overlay(alignment: .top) {
-                            InAppBannerView()
+                    Group {
+                        if #available(iOS 26.0, *) {
+                            ModernTabView(
+                                selectedTab: $selectedTab,
+                                previousSelectedTab: $previousSelectedTab,
+                                showCreatorView: $showCreatorView,
+                                isCreatingStory: $isCreatingStory,
+                                openCreatorInStoryMode: $openCreatorInStoryMode,
+                                hasPreloadedExplore: $hasPreloadedExplore,
+                                showEchoInvitation: $showEchoInvitation,
+                                pendingEchoId: $pendingEchoId,
+                                showEchoViewer: $showEchoViewer,
+                                messagesTargetConversationId: $messagesTargetConversationId,
+                                exploreViewModel: exploreViewModel,
+                                authService: authService,
+                                navigationService: navigationService,
+                                messagingViewModel: messagingViewModel,
+                                onEchoInvitationRoute: { echoId in
+                                    echoInvitationRoute = EchoInvitationRoute(echoId: echoId)
+                                }
+                            )
+                        } else {
+                            legacyTabView
                         }
-                    } else {
-                        legacyTabView
-                            .overlay(alignment: .top) {
-                                InAppBannerView()
-                            }
+                    }
+                    .environmentObject(tabBarMinimize)
+                    .environmentObject(messagingViewModel)
+                    .overlay(alignment: .top) {
+                        InAppBannerView()
+                    }
+                    .overlay {
+                        // VStack + ignoresSafeArea: ancla al borde físico, no al safe area.
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            MomentsFloatingTabBar(
+                                selectedTab: $selectedTab,
+                                showCreatorView: $showCreatorView,
+                                previousSelectedTab: $previousSelectedTab,
+                                minimize: tabBarMinimize
+                            )
+                        }
+                        .ignoresSafeArea(edges: .bottom)
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowMessages"))) { _ in
+                        selectedTab = 1
+                        tabBarMinimize.expand()
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToConversation"))) { notification in
+                        if let conversationId = notification.object as? String, !conversationId.isEmpty {
+                            messagesTargetConversationId = conversationId
+                        }
+                        selectedTab = 1
+                        tabBarMinimize.expand()
                     }
                 } else {
                     LoginView()
@@ -162,9 +192,11 @@ struct ModernTabView: View {
     @Binding var showEchoInvitation: Bool
     @Binding var pendingEchoId: String
     @Binding var showEchoViewer: Bool
+    @Binding var messagesTargetConversationId: String?
     @ObservedObject var exploreViewModel: ExploreViewModel
     @ObservedObject var authService: AuthService
     @ObservedObject var navigationService: NotificationNavigationService
+    @ObservedObject var messagingViewModel: MessagingViewModel
     var onEchoInvitationRoute: (String) -> Void = { _ in }
     @Environment(\.colorScheme) private var colorScheme
     // This struct owns modernTab so @available is not needed on a stored property
@@ -202,32 +234,37 @@ struct ModernTabView: View {
                     FeedView(showCreatorView: $showCreatorView)
                 }
                 .environmentObject(authService)
+                .hideNativeTabBar()
             }
-            Tab(NSLocalizedString("tabBar.nova", comment: ""), image: "NovaTabIcon", value: AppTab.nova) {
-                NovaView()
+            Tab(NSLocalizedString("messaging.title", comment: ""), systemImage: "paperplane", value: AppTab.messages) {
+                NavigationStack {
+                    MessagingView(targetConversationId: $messagesTargetConversationId)
+                }
+                .environmentObject(authService)
+                .environmentObject(messagingViewModel)
+                .hideNativeTabBar()
             }
             Tab("", systemImage: "camera.aperture", value: AppTab.create) {
                 Color.clear
+                    .hideNativeTabBar()
             }
-            // ✨ Native search tab: expands on tap, minimizes on scroll down with tab bar
-            Tab(value: AppTab.explore, role: .search) {
+            // Explore: custom floating bar (no native .search role chrome)
+            Tab(NSLocalizedString("tabBar.explore", comment: ""), systemImage: "magnifyingglass", value: AppTab.explore) {
                 ExploreView()
                     .environmentObject(exploreViewModel)
+                    .hideNativeTabBar()
             }
             Tab(NSLocalizedString("tabBar.profile", comment: ""), systemImage: "person", value: AppTab.profile) {
                 NavigationStack {
                     ProfileView(selectedTab: $selectedTab)
                 }
+                .hideNativeTabBar()
             }
         }
         .tabViewStyle(.automatic)
         .tint(.primary)
-        .tabBarMinimizeBehavior(.onScrollDown)
-        .toolbarBackground(.visible, for: .tabBar)
-        .toolbarBackground(
-            MomentsChromeGlass.canvasTint(for: colorScheme),
-            for: .tabBar
-        )
+        // Native tab bar hidden — MomentsFloatingTabBar en el overlay padre.
+        .toolbarVisibility(.hidden, for: .tabBar)
         .environmentObject(authService)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .fullScreenCover(isPresented: $showCreatorView) {
@@ -261,18 +298,18 @@ struct ModernTabView: View {
 
     private func appTabToInt(_ tab: AppTab) -> Int {
         switch tab {
-        case .home:    return 0
-        case .nova:    return 1
-        case .create:  return 2
-        case .explore: return 3
-        case .profile: return 4
+        case .home:     return 0
+        case .messages: return 1
+        case .create:   return 2
+        case .explore:  return 3
+        case .profile:  return 4
         }
     }
 
     private func intToAppTab(_ int: Int) -> AppTab {
         switch int {
         case 0: return .home
-        case 1: return .nova
+        case 1: return .messages
         case 2: return .create
         case 3: return .explore
         case 4: return .profile
@@ -283,7 +320,7 @@ struct ModernTabView: View {
     // MARK: - Legacy Tab View (iOS < 26)
     private var legacyTabView: some View {
         ZStack {
-            // Contenido principal que se extiende detrás del TabBar
+            // Contenido a pantalla completa; chrome = MomentsFloatingTabBar (overlay en TabBarView).
             ZStack {
                 switch selectedTab {
                 case 0:
@@ -291,7 +328,10 @@ struct ModernTabView: View {
                         FeedView(showCreatorView: $showCreatorView)
                     }
                 case 1:
-                    NovaView()
+                    NavigationStack {
+                        MessagingView(targetConversationId: $messagesTargetConversationId)
+                    }
+                    .environmentObject(messagingViewModel)
                 case 2:
                     Color.clear
                 case 3:
@@ -306,20 +346,6 @@ struct ModernTabView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            // TabBar según Human Interface Guidelines de Apple
-            // - Ubicada en el borde inferior
-            // - Translúcida
-            // - Misma altura en todas las orientaciones
-            VStack {
-                Spacer()
-                
-                CustomTabBar(selectedTab: $selectedTab, showCreatorView: $showCreatorView, previousSelectedTab: $previousSelectedTab)
-                    .frame(height: 49) // Altura estándar según HIG
-                    .background {
-                        MomentsTabBarChromeBackground()
-                    }
-            }
         }
         .environmentObject(authService)
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -469,14 +495,14 @@ struct CustomTabBar: View {
                 }
             }
             
-            // Tab 1: Nova
+            // Tab 1: Messages
             TabBarItem(
-                icon: "NovaTabIcon",
-                title: NSLocalizedString("tabBar.nova", comment: "Nova tab title"),
+                icon: "paperplane",
+                title: NSLocalizedString("messaging.title", comment: "Messages tab title"),
                 isSelected: selectedTab == 1,
                 activeColor: activeColor,
                 inactiveColor: inactiveColor,
-                usesSystemIcon: false
+                usesSystemIcon: true
             ) {
                 HapticManager.shared.selection()
                 selectedTab = 1

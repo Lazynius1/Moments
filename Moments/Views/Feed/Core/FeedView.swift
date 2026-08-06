@@ -34,7 +34,7 @@ struct FeedView: View {
     @StateObject private var notificationGate = PermissionPrimerGate(.notifications)
     @State private var didScheduleNotificationPrompt = false
     @State private var showNotifications = false
-    @State private var showMessages = false
+    @State private var showNova = false
     @State private var showStories = false
     @State private var selectedMoment: Moment?
     @State private var suspendedMomentForComments: Moment? = nil
@@ -77,7 +77,6 @@ struct FeedView: View {
     @State private var isPeeking = false
     @State private var peekIsProtected = false
     
-    @State private var targetConversationId: String? = nil
     @State private var targetMomentId: String? = nil
     @State private var showMomentDetail = false
     @State private var targetMomentUserId: String? = nil
@@ -199,12 +198,10 @@ struct FeedView: View {
             viewModel.shutdown()
         }
         .feedNotificationRouting(
-            showMessages: $showMessages,
             showNotifications: $showNotifications,
             showCreatorView: $showCreatorView,
             showExplore: $showExplore,
             showMomentDetail: $showMomentDetail,
-            targetConversationId: $targetConversationId,
             targetMomentId: $targetMomentId,
             targetMomentUserId: $targetMomentUserId,
             notificationSummaryService: notificationSummaryService,
@@ -259,7 +256,7 @@ struct FeedView: View {
         .environmentObject(firestoreService)
         .feedPresentations(
             showNotifications: $showNotifications,
-            showMessages: $showMessages,
+            showNova: $showNova,
             selectedStoryRoute: $selectedStoryRoute,
             storyRingNavigationUserIds: $storyRingNavigationUserIds,
             showStories: $showStories,
@@ -279,7 +276,6 @@ struct FeedView: View {
             selectedProfileRoute: $selectedProfileRoute,
             selectedUserId: $selectedUserId,
             showEchoHistory: $showEchoHistory,
-            targetConversationId: $targetConversationId,
             profileZoomNamespace: profileZoomNamespace,
             storyZoomNamespace: storyZoomNamespace,
             messagingViewModel: messagingViewModel,
@@ -428,7 +424,7 @@ struct FeedView: View {
             FeedHeaderBar(
                 showCreatorView: $showCreatorView,
                 showNotifications: $showNotifications,
-                showMessages: $showMessages,
+                showNova: $showNova,
                 showEchoHistory: $showEchoHistory,
                 showPendingEchoInvitation: $showPendingEchoInvitation,
                 selectedPendingEchoId: $selectedPendingEchoId,

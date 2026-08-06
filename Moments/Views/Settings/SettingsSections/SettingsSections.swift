@@ -199,7 +199,10 @@ struct SettingsRow: View {
     var body: some View {
         Group {
             if let destination = destination {
-                NavigationLink(destination: destination) {
+                NavigationLink {
+                    destination
+                        .momentsFloatingTabBarHidden()
+                } label: {
                     rowContent
                 }
                 .buttonStyle(.momentsPressSubtle)

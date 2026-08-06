@@ -388,6 +388,7 @@ struct UserProfileView: View {
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .navigationDestination(item: $socialConnectionsRoute) { route in
             SocialConnectionsScreen(
                 route: route,

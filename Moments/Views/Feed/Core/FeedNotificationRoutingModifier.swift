@@ -2,12 +2,10 @@ import SwiftUI
 import FirebaseAuth
 
 struct FeedNotificationRoutingModifier: ViewModifier {
-    @Binding var showMessages: Bool
     @Binding var showNotifications: Bool
     @Binding var showCreatorView: Bool
     @Binding var showExplore: Bool
     @Binding var showMomentDetail: Bool
-    @Binding var targetConversationId: String?
     @Binding var targetMomentId: String?
     @Binding var targetMomentUserId: String?
 
@@ -33,9 +31,7 @@ struct FeedNotificationRoutingModifier: ViewModifier {
                     )
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowMessages"))) { _ in
-                showMessages = true
-            }
+            // Mensajes: TabBarView escucha ShowMessages / NavigateToConversation → tab 1.
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowNotifications"))) { _ in
                 showNotifications = true
             }
@@ -56,8 +52,10 @@ struct FeedNotificationRoutingModifier: ViewModifier {
 
                 switch navigation {
                 case .conversation(let conversationId):
-                    targetConversationId = conversationId
-                    showMessages = true
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("NavigateToConversation"),
+                        object: conversationId
+                    )
                 case .moment(let momentId, let userId):
                     targetMomentId = momentId
                     targetMomentUserId = userId
@@ -99,12 +97,6 @@ struct FeedNotificationRoutingModifier: ViewModifier {
                 let authorId = (userInfo["authorId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
                 onOpenStory(storyId, authorId?.isEmpty == false ? authorId : nil)
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToConversation"))) { notification in
-                guard let conversationId = notification.object as? String,
-                      !conversationId.isEmpty else { return }
-                targetConversationId = conversationId
-                showMessages = true
-            }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToMoment"))) { notification in
                 guard let momentId = notification.object as? String,
                       !momentId.isEmpty else { return }
@@ -130,12 +122,10 @@ struct FeedNotificationRoutingModifier: ViewModifier {
 
 extension View {
     func feedNotificationRouting(
-        showMessages: Binding<Bool>,
         showNotifications: Binding<Bool>,
         showCreatorView: Binding<Bool>,
         showExplore: Binding<Bool>,
         showMomentDetail: Binding<Bool>,
-        targetConversationId: Binding<String?>,
         targetMomentId: Binding<String?>,
         targetMomentUserId: Binding<String?>,
         notificationSummaryService: NotificationSummaryService,
@@ -149,12 +139,10 @@ extension View {
     ) -> some View {
         modifier(
             FeedNotificationRoutingModifier(
-                showMessages: showMessages,
                 showNotifications: showNotifications,
                 showCreatorView: showCreatorView,
                 showExplore: showExplore,
                 showMomentDetail: showMomentDetail,
-                targetConversationId: targetConversationId,
                 targetMomentId: targetMomentId,
                 targetMomentUserId: targetMomentUserId,
                 notificationSummaryService: notificationSummaryService,

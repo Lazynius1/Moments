@@ -18,6 +18,7 @@ struct NovaView: View {
         .task {
             _ = await accessCoordinator.ensureAccess()
         }
+        .momentsFloatingTabBarHidden()
     }
 }
 

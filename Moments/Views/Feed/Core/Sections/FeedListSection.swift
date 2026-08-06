@@ -80,6 +80,7 @@ struct FeedListSection: View {
                         viewModel.syncMomentListeners(visibilityByMomentId: values)
                     }
                 }
+                .adoptForFloatingTabBar()
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 8)
                         .onChanged { value in
