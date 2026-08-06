@@ -13,14 +13,15 @@ enum FloatingTabProfileSegmentRenderer {
     @MainActor
     static func render(
         userId: String,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        forceRefresh: Bool = false
     ) async -> UIImage {
         guard !userId.isEmpty else {
             return personPlaceholder(colorScheme: colorScheme)
         }
 
         async let avatarTask = loadAvatar(userId: userId)
-        async let snapshotTask = loadSnapshot(userId: userId)
+        async let snapshotTask = loadSnapshot(userId: userId, forceRefresh: forceRefresh)
         let (avatar, snapshot) = await (avatarTask, snapshotTask)
 
         return compose(avatar: avatar, snapshot: snapshot, colorScheme: colorScheme)
@@ -47,14 +48,17 @@ enum FloatingTabProfileSegmentRenderer {
         }
     }
 
-    private static func loadSnapshot(userId: String) async -> StoryRingSnapshot {
+    private static func loadSnapshot(userId: String, forceRefresh: Bool) async -> StoryRingSnapshot {
+        if forceRefresh {
+            await StoryRingCacheService.shared.invalidate(viewerId: userId, authorId: userId)
+        }
         let privacy = PrivacyService()
         return await withCheckedContinuation { cont in
             StoryRingResolverService.shared.resolve(
                 viewerId: userId,
                 authorId: userId,
                 privacyService: privacy,
-                useCache: true
+                useCache: !forceRefresh
             ) { snapshot in
                 cont.resume(returning: snapshot)
             }

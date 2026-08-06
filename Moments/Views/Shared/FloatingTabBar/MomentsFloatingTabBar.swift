@@ -65,6 +65,10 @@ struct MomentsFloatingTabBar: View {
         .onAppear { refreshProfileSegmentImage() }
         .onChange(of: colorScheme) { _, _ in refreshProfileSegmentImage() }
         .onChange(of: currentUserId) { _, _ in refreshProfileSegmentImage() }
+        // El upload ya posta `StoryUploaded` (el feed lo usa); la tab bar no escuchaba.
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StoryUploaded"))) { _ in
+            refreshProfileSegmentImage(forceRefresh: true)
+        }
         .onDisappear {
             profileRenderTask?.cancel()
         }
@@ -102,14 +106,15 @@ struct MomentsFloatingTabBar: View {
         }
     }
 
-    private func refreshProfileSegmentImage() {
+    private func refreshProfileSegmentImage(forceRefresh: Bool = false) {
         let userId = currentUserId
         let scheme = colorScheme
         profileRenderTask?.cancel()
         profileRenderTask = Task { @MainActor in
             let image = await FloatingTabProfileSegmentRenderer.render(
                 userId: userId,
-                colorScheme: scheme
+                colorScheme: scheme,
+                forceRefresh: forceRefresh
             )
             guard !Task.isCancelled else { return }
             profileSegmentImage = image
