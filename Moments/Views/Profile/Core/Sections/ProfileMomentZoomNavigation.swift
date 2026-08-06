@@ -171,6 +171,7 @@ struct ProfileMomentZoomDetailDestination: View {
         .navigationBarBackButtonHidden(true)
         .navigationInteractivePopEnabled()
         .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .navigationTransition(.zoom(sourceID: destination.zoomSourceID, in: namespace))
     }
 }

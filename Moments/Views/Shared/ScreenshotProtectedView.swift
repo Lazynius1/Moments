@@ -16,15 +16,31 @@ struct ScreenshotProtectedView<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        if isProtected {
+        if !isProtected {
+            content()
+        } else if fillsContainer {
+            // El padre ya impone el frame (peek a pantalla completa, etc.).
             SecureContentRepresentable(
-                fillsContainer: fillsContainer,
+                fillsContainer: true,
                 cornerRadius: cornerRadius,
                 updateToken: updateToken,
                 content: content
             )
         } else {
+            // List/LazyVStack/grid: el UITextField NO mide bien la altura intrínseca
+            // (posts privados se solapaban). SwiftUI mide el contenido; el secure
+            // solo rellena ese frame. `fillsContainer` aquí es intencional.
             content()
+                .hidden()
+                .accessibilityHidden(true)
+                .overlay {
+                    SecureContentRepresentable(
+                        fillsContainer: true,
+                        cornerRadius: cornerRadius,
+                        updateToken: updateToken,
+                        content: content
+                    )
+                }
         }
     }
 }

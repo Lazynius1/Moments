@@ -278,29 +278,6 @@ struct UserModernPublicProfileView: View {
             .zIndex(10)
             }
             .coordinateSpace(name: "profileGridOverlay")
-            .navigationDestination(item: $socialConnectionsRoute) { route in
-                SocialConnectionsScreen(
-                    route: route,
-                    username: viewModel.userProfile?.username ?? "",
-                    availableTabs: SocialConnectionTab.tabs(
-                        for: viewModel.visibleConnectionTypes,
-                        includesVisits: false
-                    ),
-                    includesVisits: false,
-                    isOwnProfile: false,
-                    currentUser: viewModel.viewerProfile,
-                    inCommonUsers: viewModel.commonConnections,
-                    followers: viewModel.followers,
-                    following: viewModel.following,
-                    mutuals: viewModel.mutuals,
-                    suggestedUsers: viewModel.suggestedConnectionsForViewer,
-                    viewerInterests: viewModel.viewerInterests,
-                    visitTimestamps: [:],
-                    connectionVisibility: viewModel.visibleConnectionTypes,
-                    listViewModel: viewModel,
-                    profileZoomNamespace: gridZoomNamespace
-                )
-            }
             .sheet(isPresented: $showingReportSheet) {
                 ReportBottomSheet(
                     userId: viewModel.userId,
