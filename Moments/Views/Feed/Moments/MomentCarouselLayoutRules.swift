@@ -85,8 +85,8 @@ enum FeedMomentCardLayout {
     static let headerHorizontalPadding: CGFloat = 8
     /// Padding de la rail de acciones sobre el media.
     static let actionRowHorizontalPadding: CGFloat = 4
-    /// Padding del caption bajo el media.
-    static let captionHorizontalPadding: CGFloat = 8
+    /// Padding del caption bajo el media (alineado con el borde del media / action row).
+    static let captionHorizontalPadding: CGFloat = 4
     /// Radio suave compartido: feed, reels, canvas de stories y editor.
     static let mediaCornerRadius: CGFloat = 12
 

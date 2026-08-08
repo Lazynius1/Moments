@@ -7,6 +7,17 @@ enum MomentCaptionPresentationStyle {
     case detail
 }
 
+/// Normalización de caption para cards (feed/reels).
+enum MomentCaptionText {
+    /// Estilo IG: colapsa saltos a espacios para que hashtags fluyan en líneas suaves.
+    static func flowing(_ content: String) -> String {
+        content
+            .replacingOccurrences(of: #"\s*\n+\s*"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #" {2,}"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 struct MomentCaptionView: View {
     let moment: Moment
     let style: MomentCaptionPresentationStyle
@@ -20,6 +31,16 @@ struct MomentCaptionView: View {
         moment.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Feed/Reels: flujo continuo (IG). Detail: respeta saltos del autor.
+    private var cardContent: String {
+        switch style {
+        case .feed, .reels:
+            return MomentCaptionText.flowing(trimmedContent)
+        case .detail:
+            return trimmedContent
+        }
+    }
+
     private var maxCharacters: Int {
         switch style {
         case .feed: return 120
@@ -29,12 +50,13 @@ struct MomentCaptionView: View {
     }
 
     private var previewContent: String {
-        guard needsExpansion else { return trimmedContent }
-        return String(trimmedContent.prefix(maxCharacters)).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
+        guard needsExpansion else { return cardContent }
+        guard cardContent.count > maxCharacters else { return cardContent }
+        return String(cardContent.prefix(maxCharacters)).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
     }
 
     private var needsExpansion: Bool {
-        trimmedContent.count > maxCharacters || trimmedContent.filter { $0 == "\n" }.count > 1
+        cardContent.count > maxCharacters || trimmedContent.filter { $0 == "\n" }.count > 1
     }
 
     private var baseTextColor: Color {
@@ -58,8 +80,8 @@ struct MomentCaptionView: View {
         if !trimmedContent.isEmpty {
             if style == .reels {
                 ReelsCaptionBody(
-                    content: trimmedContent,
-                    needsMore: reelsNeedsMore(trimmedContent),
+                    content: cardContent,
+                    needsMore: reelsNeedsMore(cardContent),
                     isExpanded: isReelsCaptionExpanded,
                     baseTextColor: baseTextColor,
                     hashtagTextColor: hashtagTextColor,
