@@ -369,7 +369,7 @@ struct ModernPostCardView: View {
     }
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 3) {
             // Header del post con círculo de historia
             postHeaderView
                 .opacity(isImmersive ? 0 : 1)
@@ -647,7 +647,8 @@ struct ModernPostCardView: View {
             }
         }
         .padding(.horizontal, FeedMomentCardLayout.headerHorizontalPadding)
-        .padding(.vertical, 9)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
     private func handleAuthorAvatarTap(hasStory: Bool) {

@@ -458,18 +458,39 @@ struct UserProfileView: View {
         }
         .navigationDestination(item: $pendingChatContext) { context in
             let conversation = context.syntheticConversation(currentUserId: Auth.auth().currentUser?.uid ?? "")
-            GlassmorphicChatView(
-                conversation: conversation,
-                session: ChatSessionEngine.shared.session(for: conversation),
-                pendingChatContext: context,
-                onPendingChatAccepted: { _ in
-                    pendingChatContext = nil
-                },
-                onPendingChatDismissed: {
-                    pendingChatContext = nil
+            Group {
+                if chatAccessCoordinator.accessState == .available {
+                    GlassmorphicChatView(
+                        conversation: conversation,
+                        session: ChatSessionEngine.shared.session(for: conversation),
+                        pendingChatContext: context,
+                        onPendingChatAccepted: { _ in
+                            pendingChatContext = nil
+                        },
+                        onPendingChatDismissed: {
+                            pendingChatContext = nil
+                        }
+                    )
+                    .navigationTransition(.zoom(sourceID: "profile-message-chat", in: profileZoomNamespace))
+                } else {
+                    ChatRecoveryGateView(onCancel: {
+                        pendingChatContext = nil
+                    }) {
+                        GlassmorphicChatView(
+                            conversation: conversation,
+                            session: ChatSessionEngine.shared.session(for: conversation),
+                            pendingChatContext: context,
+                            onPendingChatAccepted: { _ in
+                                pendingChatContext = nil
+                            },
+                            onPendingChatDismissed: {
+                                pendingChatContext = nil
+                            }
+                        )
+                        .navigationTransition(.zoom(sourceID: "profile-message-chat", in: profileZoomNamespace))
+                    }
                 }
-            )
-            .navigationTransition(.zoom(sourceID: "profile-message-chat", in: profileZoomNamespace))
+            }
         }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.userId))

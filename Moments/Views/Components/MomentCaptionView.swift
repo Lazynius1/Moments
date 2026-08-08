@@ -140,6 +140,9 @@ struct MomentCaptionView: View {
                 .buttonStyle(.plain)
             }
         }
+        // Sin esto el Text usa solo su ideal width y el VStack del post (alignment .center)
+        // lo deja flotando con hueco grande a la izquierda — Android ya hace fillMaxWidth().
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
         .padding(.top, style == .detail ? 0 : 2)
         .sheet(isPresented: $showFullCaption) {
