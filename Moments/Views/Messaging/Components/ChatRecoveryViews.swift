@@ -55,7 +55,7 @@ struct ChatRecoveryGateView<Content: View>: View {
     }
 }
 
-private struct ChatRecoveryPalette {
+struct ChatRecoveryPalette {
     let colorScheme: ColorScheme
 
     var title: Color {
@@ -107,6 +107,7 @@ struct ChatRecoverySettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showChangePIN = false
+    @State private var showMigrate = false
     @State private var isRemovingLocalKey = false
     @State private var statusMessage: String?
 
@@ -122,6 +123,10 @@ struct ChatRecoverySettingsView: View {
                 Section {
                     Button(NSLocalizedString("chatRecovery.settings.changePin", comment: "Change recovery PIN")) {
                         showChangePIN = true
+                    }
+
+                    Button(NSLocalizedString("chatRecovery.settings.migrate", comment: "Move chats to another phone")) {
+                        showMigrate = true
                     }
 
                     Button(isRemovingLocalKey ? NSLocalizedString("chatRecovery.settings.removingLocalKey", comment: "Removing local key") : NSLocalizedString("chatRecovery.settings.forceRestore", comment: "Force restore on this device")) {
@@ -160,6 +165,10 @@ struct ChatRecoverySettingsView: View {
                 )
                 .presentationBackground(.clear)
                 .presentationDragIndicator(.hidden)
+            }
+            .sheet(isPresented: $showMigrate) {
+                ChatRecoveryMigrateSourceView()
+                    .presentationDetents([.large])
             }
         }
     }
@@ -301,10 +310,14 @@ private struct RestoreChatPINView: View {
 
     @State private var pin = ""
     @State private var isSubmitting = false
+    @State private var isWiping = false
     @State private var errorMessage: String?
     @State private var activeField: ChatRecoveryPINField.Kind = .primary
     @State private var attemptState = ChatRecoveryAttemptState()
     @State private var currentTime = Date()
+    @State private var showForgotConfirm = false
+    @State private var showMigrateTarget = false
+    @State private var showSavePINAfterMigrate = false
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -335,7 +348,23 @@ private struct RestoreChatPINView: View {
                 restore()
             }
             .buttonStyle(ChatRecoveryPrimaryButtonStyle())
-            .disabled(isSubmitting || attemptState.isLocked)
+            .disabled(isSubmitting || isWiping || attemptState.isLocked)
+
+            Button(NSLocalizedString("chatRecovery.restore.fromOtherDevice", comment: "Coming from another phone")) {
+                showMigrateTarget = true
+            }
+            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+            .foregroundStyle(palette.mutedAction)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .disabled(isSubmitting || isWiping)
+
+            Button(NSLocalizedString("chatRecovery.forgot.action", comment: "I forgot my PIN")) {
+                showForgotConfirm = true
+            }
+            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+            .foregroundStyle(palette.error.opacity(0.9))
+            .frame(maxWidth: .infinity, alignment: .center)
+            .disabled(isSubmitting || isWiping)
 
             if let onCancel {
                 Button(NSLocalizedString("chatRecovery.action.close", comment: "Close")) {
@@ -359,6 +388,39 @@ private struct RestoreChatPINView: View {
             if countdownRemaining == nil {
                 refreshAttemptState()
             }
+        }
+        .alert(
+            NSLocalizedString("chatRecovery.forgot.title", comment: "Forgot PIN title"),
+            isPresented: $showForgotConfirm
+        ) {
+            Button(NSLocalizedString("chatRecovery.action.close", comment: "Close"), role: .cancel) {}
+            Button(NSLocalizedString("chatRecovery.forgot.confirm", comment: "Continue and lose history"), role: .destructive) {
+                wipeRecovery()
+            }
+        } message: {
+            Text(NSLocalizedString("chatRecovery.forgot.message", comment: "Forgot PIN irreversible warning"))
+        }
+        .sheet(isPresented: $showMigrateTarget) {
+            ChatRecoveryMigrateTargetView(
+                onSuccess: {
+                    showMigrateTarget = false
+                    showSavePINAfterMigrate = true
+                    onSuccess()
+                },
+                onCancel: {
+                    showMigrateTarget = false
+                }
+            )
+            .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showSavePINAfterMigrate) {
+            ChatRecoverySavePINToVaultView(
+                onDone: {
+                    showSavePINAfterMigrate = false
+                }
+            )
+            .presentationBackground(.clear)
+            .presentationDragIndicator(.hidden)
         }
     }
 
@@ -396,6 +458,22 @@ private struct RestoreChatPINView: View {
         }
     }
 
+    private func wipeRecovery() {
+        isWiping = true
+        errorMessage = nil
+
+        Task {
+            defer { isWiping = false }
+
+            do {
+                try await EncryptionService.shared.resetRecoveryLosingHistory()
+                await ChatAccessCoordinator.shared.refreshAccess()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     private var visibleMessage: String? {
         if let countdownRemaining {
             return String(
@@ -408,7 +486,7 @@ private struct RestoreChatPINView: View {
     }
 
     private var primaryActionTitle: String {
-        if isSubmitting {
+        if isSubmitting || isWiping {
             return NSLocalizedString("chatRecovery.action.restoring", comment: "Restoring")
         }
 
@@ -440,7 +518,7 @@ private struct RestoreChatPINView: View {
     }
 }
 
-private struct ChatRecoveryFormContainer<FormContent: View, FooterContent: View>: View {
+struct ChatRecoveryFormContainer<FormContent: View, FooterContent: View>: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let title: String
@@ -606,7 +684,7 @@ private struct ChatRecoveryStatusView: View {
     }
 }
 
-private struct ChatRecoveryPrimaryButtonStyle: ButtonStyle {
+struct ChatRecoveryPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
@@ -630,7 +708,7 @@ private struct ChatRecoveryPrimaryButtonStyle: ButtonStyle {
     }
 }
 
-private struct ChatRecoveryPINField: View {
+struct ChatRecoveryPINField: View {
     @Environment(\.colorScheme) private var colorScheme
 
     enum Kind: Hashable {
@@ -772,10 +850,10 @@ private struct ChatRecoveryBackdrop: View {
     }
 }
 
-private func filteredPIN(_ text: String, length: Int) -> String {
+func filteredPIN(_ text: String, length: Int) -> String {
     String(text.filter(\.isNumber).prefix(length))
 }
 
-private func isValidPIN(_ pin: String, length: Int) -> Bool {
+func isValidPIN(_ pin: String, length: Int) -> Bool {
     pin.count == length && pin.allSatisfy(\.isNumber)
 }

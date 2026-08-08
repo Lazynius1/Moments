@@ -276,3 +276,25 @@ enum ChatAccessState: Equatable {
     case needsRestore
     case unavailable(String)
 }
+
+struct ChatRecoveryMigrationSession: Hashable {
+    let migrationId: String
+    let qrPayload: String
+    let expiresAt: Date
+}
+
+struct ChatRecoveryMigrationPayload: Codable, Hashable {
+    let v: Int
+    let uid: String
+    let keyId: String
+    let privateKey: String
+    let userKey: String?
+
+    init(v: Int = 1, uid: String, keyId: String, privateKey: String, userKey: String? = nil) {
+        self.v = v
+        self.uid = uid
+        self.keyId = keyId
+        self.privateKey = privateKey
+        self.userKey = userKey
+    }
+}

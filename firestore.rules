@@ -150,6 +150,33 @@ service cloud.firestore {
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
+    function isValidChatRecoveryMigration(data, migrationId) {
+      return data.keys().hasOnly([
+               'migrationId',
+               'keyId',
+               'scheme',
+               'wrappedPayload',
+               'createdAt',
+               'expiresAt',
+               'consumedAt'
+             ]) &&
+             data.keys().hasAll(['migrationId', 'keyId', 'scheme', 'wrappedPayload', 'expiresAt']) &&
+             data.migrationId == migrationId &&
+             data.migrationId is string &&
+             data.migrationId.size() >= 8 &&
+             data.migrationId.size() <= 64 &&
+             data.keyId is string &&
+             data.keyId.size() > 0 &&
+             data.keyId.size() <= 64 &&
+             data.scheme == 'aes-gcm-v1' &&
+             data.wrappedPayload is string &&
+             data.wrappedPayload.size() >= 40 &&
+             data.wrappedPayload.size() <= 8192 &&
+             data.expiresAt is timestamp &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('consumedAt' in data) || data.consumedAt == null);
+    }
+
     // ✅ NUEVA: Función para verificar si un usuario puede participar en conversaciones
     function canParticipateInConversations(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true);
@@ -365,6 +392,25 @@ service cloud.firestore {
               allow delete: if request.auth != null &&
                 request.auth.uid == userId &&
                 bundleId == "default" &&
+                get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true);
+            }
+
+            match /chatRecoveryMigrations/{migrationId} {
+              allow read: if request.auth != null &&
+                request.auth.uid == userId &&
+                get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true);
+              allow create: if request.auth != null &&
+                request.auth.uid == userId &&
+                get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true) &&
+                isValidChatRecoveryMigration(request.resource.data, migrationId);
+              allow update: if request.auth != null &&
+                request.auth.uid == userId &&
+                get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true) &&
+                resource.data.consumedAt == null &&
+                request.resource.data.diff(resource.data).affectedKeys().hasOnly(['consumedAt']) &&
+                request.resource.data.consumedAt is timestamp;
+              allow delete: if request.auth != null &&
+                request.auth.uid == userId &&
                 get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true);
             }
 

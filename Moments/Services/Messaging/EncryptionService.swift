@@ -175,6 +175,9 @@ enum EncryptionError: LocalizedError, Equatable {
     case versionMismatch(String)
     case concurrencyError
     case quotaExceeded
+    case migrationExpired
+    case migrationConsumed
+    case migrationInvalid
     
     var errorDescription: String? {
         switch self {
@@ -212,6 +215,12 @@ enum EncryptionError: LocalizedError, Equatable {
             return "Error de concurrencia en acceso a claves"
         case .quotaExceeded:
             return "Cuota de operaciones excedida"
+        case .migrationExpired:
+            return NSLocalizedString("chatRecovery.error.migrationExpired", comment: "Migration code expired")
+        case .migrationConsumed:
+            return NSLocalizedString("chatRecovery.error.migrationConsumed", comment: "Migration code already used")
+        case .migrationInvalid:
+            return NSLocalizedString("chatRecovery.error.migrationInvalid", comment: "Invalid migration code")
         }
     }
     
@@ -1134,6 +1143,9 @@ class EncryptionService: ObservableObject {
             if hasLocalIdentity && hasRecoveryBundle && !hasRecoveryMarker {
                 try deleteLocalChatIdentity(for: currentUserId)
                 UserDefaults.standard.set(true, forKey: markerKey)
+                if await tryRestoreFromDeviceVault(for: currentUserId) {
+                    return .available
+                }
                 return .needsRestore
             }
 
@@ -1147,6 +1159,9 @@ class EncryptionService: ObservableObject {
 
             if hasRecoveryBundle {
                 UserDefaults.standard.set(true, forKey: markerKey)
+                if await tryRestoreFromDeviceVault(for: currentUserId) {
+                    return .available
+                }
                 return .needsRestore
             }
 
@@ -1248,9 +1263,308 @@ class EncryptionService: ObservableObject {
         try await syncChatIdentityRecord(localIdentity.record, for: currentUserId)
         UserDefaults.standard.set(true, forKey: chatRecoveryMarkerPrefix + currentUserId)
         clearRecoveryAttemptState(for: currentUserId)
+        ChatRecoveryDeviceVault.savePIN(uid: currentUserId, pin: trimmedPIN)
     }
 
     func restoreChatIdentity(pin: String) async throws {
+        try await restoreChatIdentity(pin: pin, registerFailures: true, saveToVault: true)
+    }
+
+    /// Silent OS-vault restore. Wrong/stale vault PIN must not lock the user out.
+    @discardableResult
+    func tryRestoreFromDeviceVault(for userId: String? = Auth.auth().currentUser?.uid) async -> Bool {
+        guard let userId, let pin = ChatRecoveryDeviceVault.loadPIN(uid: userId) else {
+            return false
+        }
+
+        do {
+            try await restoreChatIdentity(pin: pin, registerFailures: false, saveToVault: false)
+            MessageIngestService.shared.resetAfterIdentityRestore()
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func saveRecoveryPINToDeviceVault(_ pin: String) async throws {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            throw EncryptionError.keyNotFound
+        }
+        let trimmedPIN = pin.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedPIN.count == 6, trimmedPIN.allSatisfy(\.isNumber) else {
+            throw EncryptionError.invalidPIN
+        }
+        guard await verifyRecoveryPIN(trimmedPIN) else {
+            throw EncryptionError.invalidPIN
+        }
+        ChatRecoveryDeviceVault.savePIN(uid: currentUserId, pin: trimmedPIN)
+    }
+
+    func clearRecoveryPINFromDeviceVault() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        ChatRecoveryDeviceVault.clear(uid: currentUserId)
+    }
+
+    /// Wipe local identity and force a new PIN. Old ciphertext stays unreadable.
+    func resetRecoveryLosingHistory() async throws {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            throw EncryptionError.keyNotFound
+        }
+
+        ChatRecoveryDeviceVault.clear(uid: currentUserId)
+        try? deleteLocalChatIdentity(for: currentUserId)
+        await deleteUserKeys(for: currentUserId)
+        UserDefaults.standard.removeObject(forKey: chatIdentityKeyIdPrefix + currentUserId)
+        UserDefaults.standard.removeObject(forKey: chatRecoveryMarkerPrefix + currentUserId)
+        clearRecoveryAttemptState(for: currentUserId)
+        await purgeConversationKeys()
+
+        try? await db.collection("users")
+            .document(currentUserId)
+            .collection("chatRecovery")
+            .document("default")
+            .delete()
+
+        _ = try await ensureChatIdentity()
+        MessageIngestService.shared.resetAfterIdentityRestore()
+    }
+
+    func beginDeviceMigration() async throws -> ChatRecoveryMigrationSession {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            throw EncryptionError.keyNotFound
+        }
+        guard hasLocalChatIdentity(for: currentUserId) else {
+            throw EncryptionError.keyNotFound
+        }
+
+        let keyTag = chatIdentityKeyPrefix + currentUserId
+        let privateKeyData = try retrieveDataFromKeychain(tag: keyTag)
+        let privateKey = try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: privateKeyData)
+        let publicKeyBase64 = privateKey.publicKey.rawRepresentation.base64EncodedString()
+        let keyId = try await resolveStableChatKeyId(for: currentUserId, publicKeyBase64: publicKeyBase64)
+
+        var userKeyBase64: String?
+        if let userKey = try? await getUserKey(for: currentUserId) {
+            let userKeyData = userKey.withUnsafeBytes { Data($0) }
+            userKeyBase64 = userKeyData.base64EncodedString()
+        }
+
+        let payload = ChatRecoveryMigrationPayload(
+            uid: currentUserId,
+            keyId: keyId,
+            privateKey: privateKeyData.base64EncodedString(),
+            userKey: userKeyBase64
+        )
+        let payloadData = try JSONEncoder().encode(payload)
+        let migrationKey = SymmetricKey(data: ChatRecoveryCrypto.randomBytes(count: 32))
+        let sealedBox = try AES.GCM.seal(payloadData, using: migrationKey)
+        guard let combined = sealedBox.combined else {
+            throw EncryptionError.encryptionFailed
+        }
+
+        let migrationId = UUID().uuidString
+        let expiresAt = Date().addingTimeInterval(10 * 60)
+        let migrationKeyData = migrationKey.withUnsafeBytes { Data($0) }
+        let qrPayload = "moments-migrate://v1?uid=\(currentUserId)&id=\(migrationId)&k=\(ChatRecoveryCrypto.base64URLEncoded(migrationKeyData))"
+
+        try await db.collection("users")
+            .document(currentUserId)
+            .collection("chatRecoveryMigrations")
+            .document(migrationId)
+            .setData([
+                "migrationId": migrationId,
+                "keyId": keyId,
+                "scheme": "aes-gcm-v1",
+                "wrappedPayload": combined.base64EncodedString(),
+                "createdAt": FieldValue.serverTimestamp(),
+                "expiresAt": Timestamp(date: expiresAt),
+                "consumedAt": NSNull()
+            ])
+
+        return ChatRecoveryMigrationSession(
+            migrationId: migrationId,
+            qrPayload: qrPayload,
+            expiresAt: expiresAt
+        )
+    }
+
+    func completeDeviceMigration(qrOrCode: String) async throws {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            throw EncryptionError.keyNotFound
+        }
+
+        guard let parsed = Self.parseMigrationPayload(qrOrCode) else {
+            throw EncryptionError.migrationInvalid
+        }
+        guard parsed.uid == currentUserId else {
+            throw EncryptionError.migrationInvalid
+        }
+        guard let migrationKeyData = ChatRecoveryCrypto.base64URLDecoded(parsed.keyBase64URL),
+              migrationKeyData.count == 32 else {
+            throw EncryptionError.migrationInvalid
+        }
+
+        let docRef = db.collection("users")
+            .document(currentUserId)
+            .collection("chatRecoveryMigrations")
+            .document(parsed.migrationId)
+
+        let snapshot = try await docRef.getDocument()
+        guard let data = snapshot.data(),
+              let wrappedPayloadB64 = data["wrappedPayload"] as? String,
+              let wrappedPayload = Data(base64Encoded: wrappedPayloadB64) else {
+            throw EncryptionError.migrationInvalid
+        }
+
+        if data["consumedAt"] is Timestamp {
+            throw EncryptionError.migrationConsumed
+        }
+
+        if let expiresAt = (data["expiresAt"] as? Timestamp)?.dateValue(),
+           expiresAt.timeIntervalSinceNow <= 0 {
+            throw EncryptionError.migrationExpired
+        }
+
+        let sealedBox: AES.GCM.SealedBox
+        let opened: Data
+        do {
+            sealedBox = try AES.GCM.SealedBox(combined: wrappedPayload)
+            opened = try AES.GCM.open(sealedBox, using: SymmetricKey(data: migrationKeyData))
+        } catch {
+            throw EncryptionError.migrationInvalid
+        }
+
+        let payload: ChatRecoveryMigrationPayload
+        do {
+            payload = try JSONDecoder().decode(ChatRecoveryMigrationPayload.self, from: opened)
+        } catch {
+            throw EncryptionError.migrationInvalid
+        }
+        guard payload.uid == currentUserId else {
+            throw EncryptionError.migrationInvalid
+        }
+
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            db.runTransaction({ transaction, errorPointer -> Any? in
+                let latest: DocumentSnapshot
+                do {
+                    latest = try transaction.getDocument(docRef)
+                } catch let error as NSError {
+                    errorPointer?.pointee = error
+                    return nil
+                }
+
+                guard let latestData = latest.data() else {
+                    errorPointer?.pointee = NSError(
+                        domain: "ChatRecoveryMigration",
+                        code: 1,
+                        userInfo: [NSLocalizedDescriptionKey: "invalid"]
+                    )
+                    return nil
+                }
+
+                if latestData["consumedAt"] is Timestamp {
+                    errorPointer?.pointee = NSError(
+                        domain: "ChatRecoveryMigration",
+                        code: 2,
+                        userInfo: [NSLocalizedDescriptionKey: "consumed"]
+                    )
+                    return nil
+                }
+
+                if let expiresAt = (latestData["expiresAt"] as? Timestamp)?.dateValue(),
+                   expiresAt.timeIntervalSinceNow <= 0 {
+                    errorPointer?.pointee = NSError(
+                        domain: "ChatRecoveryMigration",
+                        code: 3,
+                        userInfo: [NSLocalizedDescriptionKey: "expired"]
+                    )
+                    return nil
+                }
+
+                transaction.updateData(["consumedAt": FieldValue.serverTimestamp()], forDocument: docRef)
+                return true
+            }, completion: { _, error in
+                if let error {
+                    let nsError = error as NSError
+                    if nsError.domain == "ChatRecoveryMigration" {
+                        switch nsError.code {
+                        case 2:
+                            continuation.resume(throwing: EncryptionError.migrationConsumed)
+                        case 3:
+                            continuation.resume(throwing: EncryptionError.migrationExpired)
+                        default:
+                            continuation.resume(throwing: EncryptionError.migrationInvalid)
+                        }
+                    } else {
+                        continuation.resume(throwing: error)
+                    }
+                    return
+                }
+                continuation.resume(returning: ())
+            })
+        }
+
+        guard let privateKeyData = Data(base64Encoded: payload.privateKey) else {
+            throw EncryptionError.migrationInvalid
+        }
+        let privateKey = try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: privateKeyData)
+        let keyTag = chatIdentityKeyPrefix + currentUserId
+        try storeDataInKeychain(data: privateKey.rawRepresentation, tag: keyTag)
+
+        let publicKeyBase64 = privateKey.publicKey.rawRepresentation.base64EncodedString()
+        let restoredKeyId = try await resolveStableChatKeyId(
+            for: currentUserId,
+            publicKeyBase64: publicKeyBase64,
+            preferredKeyId: payload.keyId
+        )
+        let restoredRecord = ChatIdentityRecord(
+            keyId: restoredKeyId,
+            publicKeyBase64: publicKeyBase64
+        )
+        try await syncChatIdentityRecord(restoredRecord, for: currentUserId)
+
+        if let userKeyB64 = payload.userKey, let userKeyData = Data(base64Encoded: userKeyB64), userKeyData.count == 32 {
+            let restoredKey = SymmetricKey(data: userKeyData)
+            let userKeyTag = userKeysPrefix + currentUserId
+            try storeKeyInKeychain(key: restoredKey, tag: userKeyTag)
+            userKeys[currentUserId] = CachedKey(key: restoredKey)
+        }
+
+        UserDefaults.standard.set(true, forKey: chatRecoveryMarkerPrefix + currentUserId)
+        clearRecoveryAttemptState(for: currentUserId)
+        await purgeConversationKeys()
+        MessageIngestService.shared.resetAfterIdentityRestore()
+    }
+
+    private struct ParsedMigrationLink {
+        let uid: String
+        let migrationId: String
+        let keyBase64URL: String
+    }
+
+    private static func parseMigrationPayload(_ raw: String) -> ParsedMigrationLink? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed),
+              url.scheme == "moments-migrate",
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        let items = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).compactMap { item -> (String, String)? in
+            guard let value = item.value, !value.isEmpty else { return nil }
+            return (item.name, value)
+        })
+        guard let uid = items["uid"], let id = items["id"], let key = items["k"] else {
+            return nil
+        }
+        return ParsedMigrationLink(uid: uid, migrationId: id, keyBase64URL: key)
+    }
+
+    private func restoreChatIdentity(
+        pin: String,
+        registerFailures: Bool,
+        saveToVault: Bool
+    ) async throws {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             throw EncryptionError.keyNotFound
         }
@@ -1319,11 +1633,16 @@ class EncryptionService: ObservableObject {
             // inservible: si no se tiran, getConversationKey seguiría devolviendo la cacheada y los
             // mensajes se verían cifrados aun con la identidad ya correcta.
             await purgeConversationKeys()
+            if saveToVault {
+                ChatRecoveryDeviceVault.savePIN(uid: currentUserId, pin: trimmedPIN)
+            }
         } catch {
-            registerFailedRecoveryAttempt(for: currentUserId)
-            let updatedAttemptState = currentRecoveryAttemptState(for: currentUserId)
-            if updatedAttemptState.isLocked {
-                throw EncryptionError.recoveryLocked(updatedAttemptState.remainingLockout)
+            if registerFailures {
+                registerFailedRecoveryAttempt(for: currentUserId)
+                let updatedAttemptState = currentRecoveryAttemptState(for: currentUserId)
+                if updatedAttemptState.isLocked {
+                    throw EncryptionError.recoveryLocked(updatedAttemptState.remainingLockout)
+                }
             }
             throw EncryptionError.invalidPIN
         }
