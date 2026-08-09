@@ -30,7 +30,6 @@ struct FeedView: View {
     @StateObject private var notificationSummaryService = NotificationSummaryService.shared
     @ObservedObject private var badgeService = NotificationBadgeService.shared // ✅ NUEVO
     @StateObject private var navigationService = NotificationNavigationService.shared
-    @StateObject private var networkMonitor = NetworkMonitor.shared // ✅ NUEVO: NetworkMonitor
     @StateObject private var notificationGate = PermissionPrimerGate(.notifications)
     @State private var didScheduleNotificationPrompt = false
     @State private var showNotifications = false
@@ -123,7 +122,6 @@ struct FeedView: View {
             
                 .overlay(
                     VStack(spacing: 8) {
-                        SlowConnectionBanner(networkMonitor: networkMonitor)
                         if let errorMessage = viewModel.errorMessage {
                             AppErrorBanner(message: errorMessage) {
                                 forceRefresh()
@@ -133,7 +131,7 @@ struct FeedView: View {
                     }
                     .padding(.top, 60)
                     .frame(maxWidth: .infinity, alignment: .top)
-                    .allowsHitTesting(!networkMonitor.isConnected || networkMonitor.isSlowConnection)
+                    .allowsHitTesting(viewModel.errorMessage != nil)
                     , alignment: .top
                 )
             
