@@ -44,14 +44,14 @@
 "storyChains.chainTitlePlaceholder" = "Saisissez le titre de la chaîne";
 "storyChains.configurationTitle" = "Configuration de la chaîne";
 "storyChains.visibilityInfo" = "Les chaînes de stories sont visibles par tous les utilisateurs. Vous pouvez ici configurer qui peut continuer votre chaîne.";
-"storyChains.allowOthersToggle" = "Autoriser les autres à continuer cette chaîne ?";
+"storyChains.allowOthersToggle" = "Autoriser les autres à continuer cette chaîne?";
 "storyChains.allowOthersDescription" = "Si cette option est désactivée, vous seul pourrez ajouter des parties à cette chaîne.";
-"storyChains.continuationAudience" = "Qui peut continuer cette chaîne ?";
+"storyChains.continuationAudience" = "Qui peut continuer cette chaîne?";
 "storyChains.shareChain" = "Partager la chaîne";
 "storyChains.cancel" = "Annuler";
 "storyChains.continuing" = "Continuation : %@";
 "storyChains.continueStory" = "Continuer la story";
-"storyChains.continuationAudience.title" = "Qui peut continuer cette chaîne ?";
+"storyChains.continuationAudience.title" = "Qui peut continuer cette chaîne?";
 "storyChains.continuationAudience.navigationTitle" = "Audience de continuation";
 "storyChains.continuationAudience.subtitle" = "Choisissez qui peut la continuer";
 "storyChains.titleRequired.title" = "Titre manquant";
@@ -125,7 +125,7 @@
 "profile.defaultUsername" = "Utilisateur";
 "profile.bio.placeholder" = "Ajoutez une bio pour parler de vous.";
 "profile.editButton" = "Modifier le profil";
-"profile.avatarNote.placeholder" = "À quoi penses-tu ?";
+"profile.avatarNote.placeholder" = "À quoi penses-tu?";
 "profile.userList.visits" = "Visites";
 "profile.userList.admirers" = "Abonnés";
 "profile.userList.connections" = "Abonnements";
@@ -216,8 +216,8 @@
 "settings.privacy.privateAccount.subtitle" = "Seuls vos abonnés peuvent voir votre contenu";
 "settings.privacy.blockedAccounts.title" = "Comptes bloqués";
 "settings.logout.button" = "Se déconnecter";
-"settings.logout.alert.title" = "Se déconnecter ?";
-"settings.logout.alert.message" = "Voulez-vous vraiment vous déconnecter ?";
+"settings.logout.alert.title" = "Se déconnecter?";
+"settings.logout.alert.message" = "Voulez-vous vraiment vous déconnecter?";
 "settings.logout.alert.cancel" = "Annuler";
 "settings.logout.alert.confirm" = "Se déconnecter";
 
@@ -306,11 +306,11 @@
 
 
 /* FeedView */
-"feed.delete.confirm" = "Voulez-vous vraiment supprimer ce moment ? Cette action est irréversible.";
+"feed.delete.confirm" = "Voulez-vous vraiment supprimer ce moment? Cette action est irréversible.";
 "feed.uploading.more" = "+ %d more uploading...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "Traitement";
-"feed.uploading.published" = "Publié !";
+"feed.uploading.published" = "Publié!";
 "feed.uploading.retry" = "Réessayer";
 "feed.uploading.files" = "%d files";
 "feed.loadingMore" = "Chargement de plus de moments...";
@@ -330,7 +330,7 @@
 "nova.memory.empty" = "Nova ne se souvient encore de rien à votre sujet";
 "nova.memory.empty.subtitle" = "Parlez à Nova pour qu’elle commence à vous connaître et à se souvenir de choses.";
 "nova.memory.clearAll" = "Effacer toute la mémoire";
-"nova.memory.clearAll.confirm" = "Effacer toute la mémoire ?";
+"nova.memory.clearAll.confirm" = "Effacer toute la mémoire?";
 "nova.memory.clearAll.message" = "Nova oubliera tout ce qu’elle sait sur vous. Cette action est irréversible.";
 "nova.memory.section.preference" = "Préférences";
 "nova.memory.section.personal" = "Personnel";
@@ -363,7 +363,7 @@
 /* Feed Upload Status */
 "feed.uploading.newMoment" = "Nouveau moment";
 "feed.uploading.creating" = "Création du moment...";
-"feed.uploading.available" = "Votre moment est maintenant disponible !";
+"feed.uploading.available" = "Votre moment est maintenant disponible!";
 "feed.uploading.error" = "Erreur d’envoi";
 "feed.uploading.uploading" = "Envoi des fichiers...";
 "feed.uploading.initializing" = "Initialisation...";
@@ -457,7 +457,7 @@
 "stories.expiresIn" = "Expire dans %@";
 "stories.tapToViewComplete" = "Touchez pour voir en entier";
 "stories.close" = "Fermer";
-"stories.blockUser.confirm" = "Voulez-vous vraiment bloquer cet utilisateur ? Vous ne pourrez plus voir son contenu et toutes vos interactions seront supprimées.";
+"stories.blockUser.confirm" = "Voulez-vous vraiment bloquer cet utilisateur? Vous ne pourrez plus voir son contenu et toutes vos interactions seront supprimées.";
 "stories.sendMessagePlaceholder" = "Envoyer un message à %@";
 "stories.reactionSent" = "Réaction envoyée";
 "stories.savedImage" = "Image enregistrée";
@@ -467,7 +467,7 @@
 "stories.ephemeral.replyContent" = "📸 Ephemeral moment in reply to your story";
 
 /* Polls */
-"poll.thanks" = "Merci d’avoir voté !";
+"poll.thanks" = "Merci d’avoir voté!";
 "poll.votes" = "%d votes";
 "poll.vote" = "Voter au sondage";
 "poll.percentage" = "%d%%";
@@ -555,7 +555,7 @@
 
 /* Report */
 "report.title" = "Signaler %@";
-"report.reason" = "Pourquoi signalez-vous ce %@ ?";
+"report.reason" = "Pourquoi signalez-vous ce %@?";
 "report.details" = "Détails supplémentaires (facultatif)";
 "report.details.placeholder" = "Décrivez le problème (facultatif)...";
 "report.send" = "Envoyer le signalement";
@@ -566,7 +566,7 @@
 "appeal.title" = "Faire appel de la suspension";
 "appeal.subtitle" = "Parlez-nous de votre situation et nous examinerons votre dossier en détail";
 "appeal.requirements" = "Exigences";
-"appeal.sent.title" = "Appel envoyé !";
+"appeal.sent.title" = "Appel envoyé!";
 "appeal.nextSteps" = "Prochaines étapes :";
 "appeal.understood" = "Compris";
 
@@ -595,7 +595,7 @@
 "nova.startNewConversation" = "Commencez une nouvelle conversation et elle sera enregistrée automatiquement";
 "nova.newConversation" = "Nouvelle conversation";
 "nova.messages" = "messages";
-"nova.deleteConversation.confirm" = "Voulez-vous vraiment supprimer cette conversation ? Cette action est irréversible.";
+"nova.deleteConversation.confirm" = "Voulez-vous vraiment supprimer cette conversation? Cette action est irréversible.";
 "nova.hello" = "Bonjour,";
 "nova.user" = "Utilisateur";
 "nova.introduction" = "Je suis votre assistante personnelle intelligente. Je peux vous aider à explorer vos centres d’intérêt, suggérer des connexions ou répondre à toutes vos questions.";
@@ -614,15 +614,15 @@
 "nova.confirm.awaiting" = "En attente de votre confirmation…";
 "nova.confirm.subtitle" = "Nova ne fera cela que si vous l’approuvez.";
 "nova.confirm.approve" = "Confirmer";
-"nova.confirm.createMoment.title" = "Publier ce moment ?";
-"nova.confirm.rememberFact.title" = "Enregistrer ceci en mémoire ?";
-"nova.confirm.updatePreference.title" = "Mettre à jour cette préférence ?";
-"nova.confirm.sendFollowRequest.title" = "Envoyer une demande de suivi ?";
-"nova.confirm.updatePrivacySettings.title" = "Mettre à jour la confidentialité du profil ?";
-"nova.confirm.updateProfileBio.title" = "Mettre à jour la bio ?";
-"nova.confirm.updateProfileWebsite.title" = "Mettre à jour le site du profil ?";
-"nova.confirm.updateActiveHours.title" = "Mettre à jour les heures actives ?";
-"nova.confirm.updateNotificationPreferences.title" = "Mettre à jour les notifications ?";
+"nova.confirm.createMoment.title" = "Publier ce moment?";
+"nova.confirm.rememberFact.title" = "Enregistrer ceci en mémoire?";
+"nova.confirm.updatePreference.title" = "Mettre à jour cette préférence?";
+"nova.confirm.sendFollowRequest.title" = "Envoyer une demande de suivi?";
+"nova.confirm.updatePrivacySettings.title" = "Mettre à jour la confidentialité du profil?";
+"nova.confirm.updateProfileBio.title" = "Mettre à jour la bio?";
+"nova.confirm.updateProfileWebsite.title" = "Mettre à jour le site du profil?";
+"nova.confirm.updateActiveHours.title" = "Mettre à jour les heures actives?";
+"nova.confirm.updateNotificationPreferences.title" = "Mettre à jour les notifications?";
 "nova.confirm.clearField" = "Vider ce champ";
 "nova.confirm.field.privateAccount" = "Compte privé";
 "nova.confirm.field.showMutualConnections" = "Afficher les connexions mutuelles";
@@ -665,7 +665,7 @@
 "nova.suggestions.advice.prompt" = "Donne-moi des conseils utiles";
 
 /* Nova Smart Suggestions */
-"nova.smartSuggestions.viralContent" = "Comment créer du contenu viral ?";
+"nova.smartSuggestions.viralContent" = "Comment créer du contenu viral?";
 "nova.smartSuggestions.productiveDay" = "Organiser ma journée productive";
 "nova.smartSuggestions.socialProfile" = "Améliorer mon profil social";
 "nova.smartSuggestions.wellbeing" = "Conseils bien-être";
@@ -725,7 +725,7 @@
 "online" = "En ligne";
 "offline" = "Hors ligne";
 "settings.logout" = "Se déconnecter";
-"settings.logout.confirm" = "Voulez-vous vraiment vous déconnecter ?";
+"settings.logout.confirm" = "Voulez-vous vraiment vous déconnecter?";
 "settings.profile.username" = "Nom d’utilisateur";
 "settings.profile.email" = "Email";
 "settings.profile.phone" = "Phone";
@@ -799,8 +799,8 @@
 "login.apple.error.noToken" = "Impossible d’obtenir le token Apple";
 "login.apple.error.invalidToken" = "Token Apple invalide";
 "login.apple.error.generic" = "Impossible de se connecter avec Apple. Veuillez réessayer.";
-"login.forgotPassword" = "Mot de passe oublié ?";
-"login.noAccount" = "Vous n’avez pas de compte ?";
+"login.forgotPassword" = "Mot de passe oublié?";
+"login.noAccount" = "Vous n’avez pas de compte?";
 "login.register" = "S’inscrire";
 "login.usernameOrEmail" = "Nom d’utilisateur ou e-mail";
 "login.email" = "Email";
@@ -815,8 +815,8 @@
 "login.hero.title" = "Vos personnes, vos moments";
 "login.hero.subtitle" = "Connectez-vous pour partager, découvrir et suivre ce qui compte, sans le bruit autour.";
 "login.disclaimer.line1" = "Cette app a été créée par une seule personne, il peut donc encore y avoir quelques aspérités.";
-"login.disclaimer.line2.prefix" = "Si quelque chose semble étrange ou si vous avez besoin d’aide, vous pouvez me contacter via le profil de ";
-"login.disclaimer.line2.middle" = " ou ";
+"login.disclaimer.line2.prefix" = "Si quelque chose semble étrange ou si vous avez besoin d’aide, vous pouvez me contacter via le profil de";
+"login.disclaimer.line2.middle" = "ou";
 "login.disclaimer.line2.suffix" = ". Merci d’être là, et j’espère qu’elle vous plaira.";
 "login.verifyingAccount" = "Vérification du compte...";
 "login.checkingAccountStatus" = "Vérification de l’état du compte";
@@ -844,7 +844,7 @@
 "register.email.placeholder" = "votre@email.com";
 "register.password" = "Mot de passe";
 "register.password.requirement" = "Minimum 8 caractères";
-"register.error.usernameFormat" = "3 à 20 caractères, uniquement des lettres, des chiffres, _ ou .";
+"register.error.usernameFormat" = "3 à 20 caractères, uniquement des lettres, des chiffres, _ ou.";
 "register.profilePhoto.optional" = "Optionnel : ajoutez une photo de profil";
 "register.profilePhoto.add" = "Ajouter une photo";
 "register.interests.title" = "Choisissez vos centres d’intérêt";
@@ -865,14 +865,14 @@
 "register.interest.fitness" = "Fitness";
 "register.summary.title" = "Résumé du compte";
 "register.summary.interests" = "Centres d’intérêt :";
-"register.terms.accept" = "J’accepte la ";
+"register.terms.accept" = "J’accepte la";
 "register.terms.privacyPolicy" = "Politique de confidentialité";
 "register.verification.notice" = "Lorsque vous créerez votre compte, vous recevrez un e-mail de vérification";
 
 /* Register Social */
 "register.completeProfile.title" = "Complétez votre profil";
 "register.completeProfile.step1" = "Choisissez comment les autres vous verront";
-"register.completeProfile.step2" = "Qu’aimez-vous ? Dites-le-nous pour suggérer du contenu";
+"register.completeProfile.step2" = "Qu’aimez-vous? Dites-le-nous pour suggérer du contenu";
 "register.completeProfile.step3" = "Dernière étape avant d’entrer";
 "register.completeProfile.finish" = "Commencer maintenant";
 "register.completeProfile.appleAccount" = "Compte Apple";
@@ -908,9 +908,9 @@
 "chat.vanish.swipe.hint.off" = "Glissez vers le haut pour désactiver les messages éphémères";
 "chat.vanish.swipe.release" = "Relâchez pour activer les messages éphémères";
 "chat.vanish.swipe.release.off" = "Relâchez pour désactiver les messages éphémères";
-"chat.vanish.notice.enabled.prefix" = "Vous avez activé les messages éphémères. Les nouveaux messages et réactions disparaîtront ";
-"chat.vanish.notice.enabled.prefix.self" = "Vous avez activé les messages éphémères. Les nouveaux messages et réactions disparaîtront ";
-"chat.vanish.notice.enabled.prefix.other" = "%@ a activé les messages éphémères. Les nouveaux messages et réactions disparaîtront ";
+"chat.vanish.notice.enabled.prefix" = "Vous avez activé les messages éphémères. Les nouveaux messages et réactions disparaîtront";
+"chat.vanish.notice.enabled.prefix.self" = "Vous avez activé les messages éphémères. Les nouveaux messages et réactions disparaîtront";
+"chat.vanish.notice.enabled.prefix.other" = "%@ a activé les messages éphémères. Les nouveaux messages et réactions disparaîtront";
 "chat.vanish.notice.duration.onceSeen" = "une fois que tout le monde les aura vus";
 "chat.vanish.notice.duration.24h" = "24 heures après que tout le monde les aura vus";
 "chat.vanish.notice.duration.7d" = "7 jours après que tout le monde les aura vus";
@@ -1041,7 +1041,7 @@
 "chat.gallery.select" = "Sélectionner";
 "chat.gallery.title" = "Galerie";
 "chat.gallery.selectedCount" = "%d sélectionnés";
-"chat.gallery.deletePrompt" = "Supprimer les éléments sélectionnés ?";
+"chat.gallery.deletePrompt" = "Supprimer les éléments sélectionnés?";
 
 /* Messaging */
 "messaging.conversation.notFound" = "Conversation introuvable";
@@ -1080,17 +1080,17 @@
 "chat.camera.mode.allowReplay" = "Autoriser la relecture";
 "chat.camera.mode.keepInChat" = "Garder dans la discussion";
 "chat.camera.saved" = "Enregistré";
-"chat.preview.photo" = "📷 Photo";
-"chat.preview.video" = "🎥 Vidéo";
-"chat.preview.audio" = "🎵 Audio";
+"chat.preview.photo" = "Photo";
+"chat.preview.video" = "Vidéo";
+"chat.preview.audio" = "Audio";
 "chat.preview.gif" = "GIF";
 "chat.preview.sticker" = "Sticker";
-"chat.preview.location" = "📍 Lieu";
-"chat.preview.file" = "📎 Fichier";
-"chat.preview.ephemeral" = "📸 Moment éphémère";
-"chat.preview.sharedMoment" = "📷 Moment partagé";
-"chat.preview.viewOncePhoto" = "📷 Photo (voir une fois)";
-"chat.preview.viewOnceVideo" = "🎥 Vidéo (voir une fois)";
+"chat.preview.location" = "Lieu";
+"chat.preview.file" = "Fichier";
+"chat.preview.ephemeral" = "Moment éphémère";
+"chat.preview.sharedMoment" = "Moment partagé";
+"chat.preview.viewOncePhoto" = "Photo (voir une fois)";
+"chat.preview.viewOnceVideo" = "Vidéo (voir une fois)";
 "chat.preview.text" = "Nouveau message";
 "chat.status.sending" = "Envoi";
 "chat.status.sent" = "Envoyé";
@@ -1100,8 +1100,8 @@
 "chat.status.failed" = "Échec";
 "chat.notification.viewOncePrompt" = "📸 Vous a envoyé un message qui sera supprimé après affichage";
 "chat.preview.newConversation" = "Nouvelle conversation";
-"chat.preview.ephemeral_long" = "⏱️ Message temporaire";
-"chat.preview.image" = "📷 Image";
+"chat.preview.ephemeral_long" = "Message temporaire";
+"chat.preview.image" = "Image";
 
 /* New Conversation (Liquid Glass) */
 "messaging.new.cancel" = "Annuler";
@@ -1113,7 +1113,7 @@
 
 /* Message Requests */
 "messageRequests.request.title" = "Demande de message";
-"messageRequests.request.message" = "Que voulez-vous faire de cette demande ?";
+"messageRequests.request.message" = "Que voulez-vous faire de cette demande?";
 "messageRequests.accept" = "Accepter";
 "messageRequests.reject" = "Refuser";
 "messageRequests.blockUser" = "Bloquer l’utilisateur";
@@ -1151,7 +1151,7 @@
 "profileEditor.accessDenied.description" = "Allez dans Réglages > Confidentialité > Photos pour autoriser l’accès à votre bibliothèque.";
 "profileEditor.loadingProfile" = "Chargement du profil...";
 "profileEditor.error" = "Erreur";
-"profileEditor.deletePhoto.confirm" = "Voulez-vous vraiment supprimer votre photo de profil ?";
+"profileEditor.deletePhoto.confirm" = "Voulez-vous vraiment supprimer votre photo de profil?";
 "profileEditor.title" = "Modifier le profil";
 "profileEditor.change" = "Changer";
 "profileEditor.delete" = "Supprimer";
@@ -1271,7 +1271,7 @@
 "audience.list.searchresults" = "Résultats de recherche pour « %@ »";
 "audience.more" = "Plus";
 "audience.list.deleteMember.title" = "Retirer le membre";
-"audience.list.deleteMember.message" = "Retirer %@ de cette liste ?";
+"audience.list.deleteMember.message" = "Retirer %@ de cette liste?";
 "audience.picker.title" = "Ajouter des membres";
 "audience.picker.searchPlaceholder" = "Rechercher des personnes...";
 "audience.picker.initialTitle" = "Rechercher des personnes";
@@ -1308,10 +1308,10 @@
 "camera.mode.ephemeral" = "EPHEMERAL";
 "camera.mode.normal" = "FIXED";
 "camera.ephemeral.deleteOnView" = "Supprimé après consultation";
-"camera.ephemeral.onceOnly" = "Une seule fois !";
+"camera.ephemeral.onceOnly" = "Une seule fois!";
 
 /* Stories */
-"stories.blockUser.confirm" = "Voulez-vous vraiment bloquer cet utilisateur ? Vous ne pourrez plus voir ses stories ni son contenu.";
+"stories.blockUser.confirm" = "Voulez-vous vraiment bloquer cet utilisateur? Vous ne pourrez plus voir ses stories ni son contenu.";
 "stories.error.notAuthenticated" = "Utilisateur non authentifié";
 
 /* Register */
@@ -1362,7 +1362,7 @@
 "contentVisibility.postAudience.navigation" = "Audience du post";
 "contentVisibility.done" = "Terminé";
 "audience.deleteList.title" = "Supprimer la liste";
-"audience.deleteList.confirm" = "Voulez-vous vraiment supprimer la liste \"%@\" ? Cette action est irréversible.";
+"audience.deleteList.confirm" = "Voulez-vous vraiment supprimer la liste \"%@\"? Cette action est irréversible.";
 "audience.list.name" = "Nom de la liste";
 "audience.list.description" = "Description (facultatif)";
 "audience.customization" = "Personnalisation";
@@ -1466,7 +1466,7 @@
 "stickerview.link.urlPlaceholder" = "https://";
 "stickerview.link.titlePlaceholder" = "Texte affiché";
 "stickerview.poll.subtitleCompact" = "Une question et deux options. Pas de décoration en plus.";
-"stickerview.poll.placeholder" = "Laquelle préférez-vous ?";
+"stickerview.poll.placeholder" = "Laquelle préférez-vous?";
 "stickerview.poll.option1Placeholder" = "Première option";
 "stickerview.poll.option2Placeholder" = "Deuxième option";
 "stickerview.createCountdown" = "Créer un compte à rebours";
@@ -1478,7 +1478,7 @@
 "stickerview.emojiSlider.subtitle" = "Écrivez un court texte et choisissez un emoji";
 "stickerview.emojiSlider.promptPlaceholder" = "Posez une question";
 "stickerview.emojiSlider.customEmojiPlaceholder" = "Emoji personnalisé";
-"stickerview.emojiSlider.defaultPrompt" = "À quel point aimez-vous ça ?";
+"stickerview.emojiSlider.defaultPrompt" = "À quel point aimez-vous ça?";
 "stickerview.emojiSlider.voteCount" = "%d votes";
 "stickerview.emojiPicker.category.smileys" = "Visages";
 "stickerview.emojiPicker.category.people" = "Personnes";
@@ -1517,7 +1517,7 @@
 "momentDetail.delete.title" = "Supprimer le moment";
 "momentDetail.delete.cancel" = "Annuler";
 "momentDetail.delete.confirm" = "Supprimer";
-"momentDetail.delete.message" = "Voulez-vous vraiment supprimer ce moment ? Cette action est irréversible.";
+"momentDetail.delete.message" = "Voulez-vous vraiment supprimer ce moment? Cette action est irréversible.";
 "momentDetail.comments" = "Commentaires";
 "momentDetail.noComments.title" = "Pas encore de commentaires";
 "momentDetail.noComments.description" = "Soyez le premier à partager votre avis";
@@ -1580,13 +1580,13 @@
 "modernMomentDetail.delete.title" = "Supprimer le moment";
 "modernMomentDetail.delete.cancel" = "Annuler";
 "modernMomentDetail.delete.confirm" = "Supprimer";
-"modernMomentDetail.delete.message" = "Voulez-vous vraiment supprimer ce moment ? Cette action est irréversible.";
+"modernMomentDetail.delete.message" = "Voulez-vous vraiment supprimer ce moment? Cette action est irréversible.";
 
 /* Location Moment Detail */
 "locationMomentDetail.delete.title" = "Supprimer le moment";
 "locationMomentDetail.delete.cancel" = "Annuler";
 "locationMomentDetail.delete.confirm" = "Supprimer";
-"locationMomentDetail.delete.message" = "Voulez-vous vraiment supprimer ce moment ? Cette action est irréversible.";
+"locationMomentDetail.delete.message" = "Voulez-vous vraiment supprimer ce moment? Cette action est irréversible.";
 "locationMomentDetail.position" = "%d sur %d";
 "locationMomentDetail.photoCount" = "%d photo";
 "locationMomentDetail.comments" = "Commentaires";
@@ -1735,11 +1735,11 @@
 "settings.chatStorage.retention.forever" = "Toujours";
 "settings.chatStorage.clearMedia.action" = "Libérer les médias du chat";
 "settings.chatStorage.clearMedia.subtitle" = "Supprime les photos et vidéos mais conserve le texte des messages.";
-"settings.chatStorage.clearMedia.confirm" = "Libérer les médias du chat ? Le texte des messages restera sur cet appareil.";
+"settings.chatStorage.clearMedia.confirm" = "Libérer les médias du chat? Le texte des messages restera sur cet appareil.";
 "settings.chatStorage.clearMedia.done" = "Médias du chat supprimés. Ils seront retéléchargés à l'ouverture des conversations.";
 "settings.chatStorage.clearAll.action" = "Vider le cache du chat";
 "settings.chatStorage.clearAll.subtitle" = "Supprime tous les messages et médias en cache de cet appareil.";
-"settings.chatStorage.clearAll.confirm" = "Vider tout le cache du chat sur cet appareil ?";
+"settings.chatStorage.clearAll.confirm" = "Vider tout le cache du chat sur cet appareil?";
 "settings.chatStorage.clearAll.done" = "Cache du chat vidé.";
 "settings.sections.pushNotifications" = "Notifications push";
 "settings.sections.pushNotifications.subtitle" = "Posts, stories, commentaires";
@@ -1794,10 +1794,10 @@
 "savedMoments.count" = "%d moments";
 "savedMoments.inCollection" = "Enregistré dans votre collection";
 "savedMoments.remove.title" = "Retirer des enregistrements";
-"savedMoments.remove.message.user" = "Voulez-vous retirer le moment de %@ de vos enregistrements ?";
-"savedMoments.remove.message.generic" = "Voulez-vous retirer ce moment de vos enregistrements ?";
-"savedMoments.remove.message.restricted" = "Ce moment n’est plus disponible. Voulez-vous le retirer de votre collection ?";
-"savedMoments.remove.message.muted" = "Ce moment est masqué car ce compte est en sourdine. Voulez-vous le retirer de votre collection ?";
+"savedMoments.remove.message.user" = "Voulez-vous retirer le moment de %@ de vos enregistrements?";
+"savedMoments.remove.message.generic" = "Voulez-vous retirer ce moment de vos enregistrements?";
+"savedMoments.remove.message.restricted" = "Ce moment n’est plus disponible. Voulez-vous le retirer de votre collection?";
+"savedMoments.remove.message.muted" = "Ce moment est masqué car ce compte est en sourdine. Voulez-vous le retirer de votre collection?";
 "savedMoments.cancel" = "Annuler";
 "savedMoments.remove.confirm" = "Retirer";
 "savedMoments.saved" = "SAVED";
@@ -1910,7 +1910,7 @@
 "userProfile.followButton.requestPending" = "Demande envoyée";
 "userProfile.followButton.cancelRequest" = "Annuler la demande";
 "userProfile.sendMessage" = "Envoyer le message";
-"userProfile.unfollow.confirm.title" = "Ne plus suivre ?";
+"userProfile.unfollow.confirm.title" = "Ne plus suivre?";
 "userProfile.unfollow.confirm.message" = "Vous pourrez suivre ce profil à nouveau quand vous le voudrez.";
 "userProfile.unfollow.confirm.private.message" = "Ce profil est privé. Si vous ne le suivez plus, vous ne pourrez plus voir ses moments, stories ni ses highlights, sauf s'il vous accepte à nouveau.";
 "userProfile.unfollow.confirm.action" = "Ne plus suivre";
@@ -1933,8 +1933,8 @@
 "userProfile.relationship.lists.manage" = "Touchez une liste pour retirer ce profil.";
 "userProfile.relationship.lists.empty" = "Dans aucune liste personnalisée.";
 "userProfile.relationship.lists.count" = "Dans %d listes personnalisées.";
-"userProfile.relationship.lists.remove.title" = "Retirer %@ de %@ ?";
-"userProfile.relationship.lists.remove.title.fallback" = "Retirer de la liste ?";
+"userProfile.relationship.lists.remove.title" = "Retirer %@ de %@?";
+"userProfile.relationship.lists.remove.title.fallback" = "Retirer de la liste?";
 "userProfile.relationship.lists.remove.message" = "Ce profil ne fera plus partie de cette liste personnalisée.";
 "userProfile.relationship.lists.remove.action" = "Retirer de la liste";
 "userProfile.relationship.unfollow" = "Ne plus suivre";
@@ -1943,7 +1943,7 @@
 "modernComments.disabled.title" = "Commentaires désactivés";
 "modernComments.disabled.description" = "L’auteur a désactivé les commentaires sur ce moment";
 "modernComments.delete.title" = "Supprimer le commentaire";
-"modernComments.delete.message" = "Voulez-vous vraiment supprimer ce commentaire ? Cette action est irréversible.";
+"modernComments.delete.message" = "Voulez-vous vraiment supprimer ce commentaire? Cette action est irréversible.";
 
 /* Comments */
 "comments.title" = "Commentaires";
@@ -1987,7 +1987,7 @@
 "contextMenu.pinLimit.title" = "Limite d'épingles atteinte";
 "contextMenu.pinLimit.message" = "Vous ne pouvez avoir que 3 moments épinglés. Désépinglez-en un pour en épingler un autre.";
 "contextMenu.pinLimit.confirm.title" = "Limite de moments épinglés atteinte";
-"contextMenu.pinLimit.confirm.message" = "Épingler ce moment ? Vous ne pouvez en épingler que trois sur votre profil. Le plus ancien sera remplacé.";
+"contextMenu.pinLimit.confirm.message" = "Épingler ce moment? Vous ne pouvez en épingler que trois sur votre profil. Le plus ancien sera remplacé.";
 "contextMenu.pinLimit.confirm" = "Confirmer";
 "contextMenu.pinLimit.cancel" = "Annuler";
 "contextMenu.pinMoment.toast.pinned" = "Moment épinglé";
@@ -2023,7 +2023,7 @@
 
 /* ContextMenu Alerts */
 "contextMenu.delete.title" = "Supprimer le moment";
-"contextMenu.delete.message" = "Voulez-vous vraiment supprimer ce moment ? Cette action est irréversible.";
+"contextMenu.delete.message" = "Voulez-vous vraiment supprimer ce moment? Cette action est irréversible.";
 "contextMenu.delete.cancel" = "Annuler";
 "contextMenu.delete.confirm" = "Supprimer";
 
@@ -2036,37 +2036,37 @@
 "storyContextMenu.save.subtitle" = "Conserver sur votre appareil";
 "storyContextMenu.delete" = "Supprimer";
 "storyContextMenu.delete.subtitle" = "Supprimer la story";
-"storyContextMenu.delete.confirm.title" = "Supprimer cette story ?";
+"storyContextMenu.delete.confirm.title" = "Supprimer cette story?";
 "storyContextMenu.delete.confirm.message" = "Cette story ne sera plus disponible et personne ne pourra la voir.";
 "storyContextMenu.delete.confirm.action" = "Supprimer";
 "storyContextMenu.delete.confirm.cancel" = "Annuler";
 "storyContextMenu.delete.success" = "Story supprimée";
-"storyContextMenu.delete.confirm.title" = "Supprimer cette story ?";
+"storyContextMenu.delete.confirm.title" = "Supprimer cette story?";
 "storyContextMenu.delete.confirm.message" = "Cette story ne sera plus disponible et personne ne pourra la voir.";
 "storyContextMenu.delete.confirm.action" = "Supprimer";
 "storyContextMenu.delete.confirm.cancel" = "Annuler";
 "storyContextMenu.delete.success" = "Story supprimée";
-"storyContextMenu.delete.confirm.title" = "Supprimer cette story ?";
+"storyContextMenu.delete.confirm.title" = "Supprimer cette story?";
 "storyContextMenu.delete.confirm.message" = "Cette story ne sera plus disponible et personne ne pourra la voir.";
 "storyContextMenu.delete.confirm.action" = "Supprimer";
 "storyContextMenu.delete.confirm.cancel" = "Annuler";
 "storyContextMenu.delete.success" = "Story supprimée";
-"storyContextMenu.delete.confirm.title" = "Supprimer cette story ?";
+"storyContextMenu.delete.confirm.title" = "Supprimer cette story?";
 "storyContextMenu.delete.confirm.message" = "Cette story ne sera plus disponible et personne ne pourra la voir.";
 "storyContextMenu.delete.confirm.action" = "Supprimer";
 "storyContextMenu.delete.confirm.cancel" = "Annuler";
 "storyContextMenu.delete.success" = "Story supprimée";
-"storyContextMenu.delete.confirm.title" = "Supprimer cette story ?";
+"storyContextMenu.delete.confirm.title" = "Supprimer cette story?";
 "storyContextMenu.delete.confirm.message" = "Cette story ne sera plus disponible et personne ne pourra la voir.";
 "storyContextMenu.delete.confirm.action" = "Supprimer";
 "storyContextMenu.delete.confirm.cancel" = "Annuler";
 "storyContextMenu.delete.success" = "Story supprimée";
-"storyContextMenu.delete.confirm.title" = "Supprimer cette story ?";
+"storyContextMenu.delete.confirm.title" = "Supprimer cette story?";
 "storyContextMenu.delete.confirm.message" = "Cette story ne sera plus disponible et personne ne pourra la voir.";
 "storyContextMenu.delete.confirm.action" = "Supprimer";
 "storyContextMenu.delete.confirm.cancel" = "Annuler";
 "storyContextMenu.delete.success" = "Story supprimée";
-"storyContextMenu.delete.confirm.title" = "Supprimer cette story ?";
+"storyContextMenu.delete.confirm.title" = "Supprimer cette story?";
 "storyContextMenu.delete.confirm.message" = "Cette story ne sera plus disponible et personne ne pourra la voir.";
 "storyContextMenu.delete.confirm.action" = "Supprimer";
 "storyContextMenu.delete.confirm.cancel" = "Annuler";
@@ -2077,14 +2077,14 @@
 "storyContextMenu.report.subtitle" = "Contenu inapproprié";
 "storyContextMenu.unfollow" = "Ne plus suivre";
 "storyContextMenu.unfollow.success" = "Vous ne suivez plus cet utilisateur";
-"storyContextMenu.unfollow.confirm.title" = "Ne plus suivre %@ ?";
+"storyContextMenu.unfollow.confirm.title" = "Ne plus suivre %@?";
 "storyContextMenu.unfollow.confirm.message" = "Vous ne verrez plus ses posts privés dans votre fil si son compte est privé.";
 "storyContextMenu.unfollow.confirm.action" = "Ne plus suivre";
 "storyContextMenu.unfollow.confirm.cancel" = "Annuler";
 "storyContextMenu.mute" = "Mettre en sourdine";
 "storyContextMenu.mute.success" = "Compte mis en sourdine";
 "storyContextMenu.mute.successWithHint" = "Compte mis en sourdine. Vous pouvez le réactiver dans Réglages > Sourdine.";
-"storyContextMenu.mute.confirm.title" = "Mettre %@ en sourdine ?";
+"storyContextMenu.mute.confirm.title" = "Mettre %@ en sourdine?";
 "storyContextMenu.mute.confirm.message" = "Vous ne verrez plus ses posts ni ses stories. Vous pourrez réactiver cela dans Réglages > Sourdine.";
 "storyContextMenu.mute.confirm.action" = "Mettre en sourdine";
 "storyContextMenu.mute.confirm.cancel" = "Annuler";
@@ -2095,7 +2095,7 @@
 "storyContextMenu.scrollReactions" = "Faites défiler pour plus de réactions";
 "storyContextMenu.actionFailed" = "Impossible de terminer l’action";
 
-"bestFriends.optOut.confirm.title" = "Quitter les meilleurs amis de %@ ?";
+"bestFriends.optOut.confirm.title" = "Quitter les meilleurs amis de %@?";
 "bestFriends.optOut.confirm.message" = "Vous ne verrez plus les stories qu’il partage uniquement avec cette audience.";
 "bestFriends.optOut.confirm.action" = "Quitter";
 "bestFriends.optOut.confirm.cancel" = "Annuler";
@@ -2346,16 +2346,16 @@
 "muteSettings.textField.placeholder" = "Écrivez un mot ou une expression...";
 
 /* Mute Settings - Alerts and Search */
-"muteSettings.alert.activateUser.title" = "Réactiver l’utilisateur ?";
+"muteSettings.alert.activateUser.title" = "Réactiver l’utilisateur?";
 "muteSettings.alert.activateUser.message" = "Vous reverrez le contenu de %@";
-"muteSettings.alert.removeWord.title" = "Retirer le mot en sourdine ?";
+"muteSettings.alert.removeWord.title" = "Retirer le mot en sourdine?";
 "muteSettings.alert.removeWord.message" = "Vous reverrez le contenu contenant « %@ »";
 "muteSettings.search.placeholder" = "Rechercher des utilisateurs...";
 
 /* Data Export */
 "dataExport.title" = "Télécharger vos données";
 "dataExport.subtitle" = "Demandez une copie complète de toutes vos informations stockées dans Moments";
-"dataExport.whatIncludes.title" = "Que comprend le téléchargement ?";
+"dataExport.whatIncludes.title" = "Que comprend le téléchargement?";
 "dataExport.profileInfo.title" = "Informations du profil";
 "dataExport.profileInfo.description" = "Nom, e-mail, bio, centres d’intérêt";
 "dataExport.posts.title" = "Posts";
@@ -2799,7 +2799,7 @@
 "banner.verb.message" = "sent you a message";
 
 /* Whats New v2.14 */
-"whatsNew.title" = "Nouveautes sur Moments !";
+"whatsNew.title" = "Nouveautes sur Moments!";
 "whatsNew.subtitle" = "Verre liquide dans toute l'app, des autorisations qui s'expliquent, tirez pour actualiser et un meilleur appareil photo.";
 "whatsNew.button" = "Découvrir Moments 2.18";
 
@@ -2856,22 +2856,22 @@
 "support.view.features.crown.description" = "Montrez votre soutien au projet";
 "support.view.features.development.title" = "Soutenir le développement";
 "support.view.features.development.description" = "Permet de garder l’app gratuite pour tout le monde";
-"support.view.plus.alreadyActive.title" = "Vous avez déjà Moments Plus !";
+"support.view.plus.alreadyActive.title" = "Vous avez déjà Moments Plus!";
 "support.view.plus.alreadyActive.description" = "Merci de soutenir le projet";
 "support.view.plus.get.button" = "Obtenir Moments Plus - %@/mois";
 "support.view.badges.oneTime" = "Achat unique";
 "support.view.faq.title" = "Questions fréquentes";
-"support.view.faq.q1" = "Pourquoi des badges payants ?";
+"support.view.faq.q1" = "Pourquoi des badges payants?";
 "support.view.faq.a1" = "Les badges nous aident à garder Moments gratuit pour tout le monde. Ils sont optionnels et servent uniquement à montrer votre soutien.";
-"support.view.thanks.title" = "Merci !";
+"support.view.thanks.title" = "Merci!";
 "support.view.thanks.message" = "Votre soutien nous aide à garder Moments gratuit pour tout le monde.";
 "support.badgeCard.owned" = "OBTENU";
 
-"support.view.faq.q2" = "Les badges donnent-ils des avantages ?";
+"support.view.faq.q2" = "Les badges donnent-ils des avantages?";
 "support.view.faq.a2" = "Non. Les badges sont purement cosmétiques. Nous croyons à une expérience équitable pour tout le monde.";
-"support.view.faq.q3" = "Puis-je masquer mon badge ?";
+"support.view.faq.q3" = "Puis-je masquer mon badge?";
 "support.view.faq.a3" = "Oui, vous pouvez afficher ou masquer vos badges à tout moment depuis votre profil.";
-"support.view.faq.q4" = "Comment annuler mon abonnement ?";
+"support.view.faq.q4" = "Comment annuler mon abonnement?";
 "support.view.faq.a4" = "Vous pouvez l’annuler à tout moment depuis Réglages iOS > Votre nom > Abonnements, ou en utilisant le bouton « Gérer l’abonnement » ci-dessus.";
 
 "support.badgePurchase.available" = "Votre badge « %@ » est désormais disponible sur votre profil.";
@@ -2915,15 +2915,15 @@
 /* Echoes Invitation & Banners */
 "echo.invitation.sparkDetected" = "Echo détecté";
 "echo.invitation.participants" = "Participants";
-"echo.invitation.description" = "Plusieurs amis partagent des moments à cet endroit. Rejoignez-les pour créer un Echo ensemble !";
+"echo.invitation.description" = "Plusieurs amis partagent des moments à cet endroit. Rejoignez-les pour créer un Echo ensemble!";
 "echo.invitation.maybeLater" = "Peut-être plus tard";
 "echo.invitation.join" = "Rejoindre";
 "echo.invitation.unavailable" = "Cet Echo n’est plus disponible";
 "echo.invitation.error.decoding" = "Erreur lors du décodage de l’Echo";
 
 /* Echoes Notifications */
-"notifications.message.echo" = "est près de vous ! Créez un Echo";
-"banner.verb.echoSuggestion" = "est près de vous ! Créez un Echo";
+"notifications.message.echo" = "est près de vous! Créez un Echo";
+"banner.verb.echoSuggestion" = "est près de vous! Créez un Echo";
 "echo.viewer.unavailable" = "Ce moment n’est plus disponible";
 
 /* Interests */
@@ -3248,7 +3248,7 @@
 "userActivity.simple.recentlyDeleted.delete.single" = "Supprimer définitivement";
 "userActivity.simple.recentlyDeleted.delete.multiple" = "Delete permanently";
 "userActivity.simple.recentlyDeleted.confirm.restore.title" = "Restaurer le contenu";
-"userActivity.simple.recentlyDeleted.confirm.restore.message" = "Voulez-vous restaurer le contenu sélectionné ?";
+"userActivity.simple.recentlyDeleted.confirm.restore.message" = "Voulez-vous restaurer le contenu sélectionné?";
 "userActivity.simple.recentlyDeleted.confirm.delete.title" = "Supprimer définitivement";
 "userActivity.simple.recentlyDeleted.confirm.delete.message" = "Cela supprimera définitivement le contenu sélectionné.";
 "userActivity.simple.recentlyDeleted.success.restore" = "Contenu restauré";
@@ -3285,28 +3285,28 @@
 "userActivity.simple.reactions.delete.single" = "Delete reaction";
 "userActivity.simple.reactions.delete.multiple" = "Delete reactions";
 "userActivity.simple.reactions.confirm.delete.title" = "Supprimer les réactions";
-"userActivity.simple.reactions.confirm.delete.message" = "Voulez-vous supprimer les réactions sélectionnées ?";
+"userActivity.simple.reactions.confirm.delete.message" = "Voulez-vous supprimer les réactions sélectionnées?";
 "userActivity.simple.reactions.success.delete" = "Réactions supprimées";
 "userActivity.simple.tags.remove.single" = "Remove tag";
 "userActivity.simple.tags.remove.multiple" = "Remove tags";
 "userActivity.simple.tags.confirm.remove.title" = "Retirer les tags";
-"userActivity.simple.tags.confirm.remove.message" = "Voulez-vous retirer les tags sélectionnés ?";
+"userActivity.simple.tags.confirm.remove.message" = "Voulez-vous retirer les tags sélectionnés?";
 "userActivity.simple.tags.success.remove" = "Tags retirés";
 "userActivity.simple.comments.selectedCount" = "%d selected";
 "userActivity.simple.comments.delete.single" = "Delete comment";
 "userActivity.simple.comments.delete.multiple" = "Delete comments";
 "userActivity.simple.comments.confirm.delete.title" = "Supprimer les commentaires";
-"userActivity.simple.comments.confirm.delete.message" = "Voulez-vous supprimer les commentaires sélectionnés ?";
+"userActivity.simple.comments.confirm.delete.message" = "Voulez-vous supprimer les commentaires sélectionnés?";
 "userActivity.simple.comments.success.delete" = "Commentaires supprimés";
 "userActivity.simple.comments.yourComment" = "Your comment";
 "userActivity.simple.comments.momentNoContent" = "Moment without text";
 "userActivity.simple.comments.emptyComment" = "No text";
 "userActivity.event.archived.action.restore" = "Restaurer";
 "userActivity.event.archived.confirm.restore.title" = "Restaurer le contenu archivé";
-"userActivity.event.archived.confirm.restore.message" = "Voulez-vous restaurer le contenu archivé sélectionné ?";
+"userActivity.event.archived.confirm.restore.message" = "Voulez-vous restaurer le contenu archivé sélectionné?";
 "userActivity.event.archived.success.restore" = "Contenu archivé restauré";
 "userActivity.simple.stickers.confirm.delete.title" = "Supprimer les réponses";
-"userActivity.simple.stickers.confirm.delete.message" = "Voulez-vous supprimer les réponses sélectionnées ?";
+"userActivity.simple.stickers.confirm.delete.message" = "Voulez-vous supprimer les réponses sélectionnées?";
 "userActivity.simple.stickers.success.delete" = "Réponses supprimées";
 
 /* Your Activity - Error States */
@@ -3459,14 +3459,14 @@
 "chatRecovery.migrate.title" = "Transférer les chats vers un autre téléphone";
 "chatRecovery.migrate.subtitle" = "Sur le nouveau téléphone (même compte), appuyez sur « Je viens d’un autre téléphone » et scannez ce QR. Il expire dans 10 minutes et ne peut être utilisé qu’une seule fois.";
 "chatRecovery.migrate.expire" = "Expire dans %@";
-"chatRecovery.migrate.copyCode" = "Impossible de scanner ? Copier le lien";
+"chatRecovery.migrate.copyCode" = "Impossible de scanner? Copier le lien";
 "chatRecovery.migrate.codeCopied" = "Lien copié. Sur l’autre téléphone, utilisez « Coller le lien ».";
 "chatRecovery.migrate.enterCode" = "Scannez le QR affiché sur votre autre téléphone. Si vous y avez copié le lien, vous pouvez aussi le coller ici.";
 "chatRecovery.migrate.paste" = "Coller le lien du presse-papiers";
 "chatRecovery.migrate.clipboardEmpty" = "Le presse-papiers est vide. Copiez le lien sur l’autre téléphone ou scannez le QR.";
 "chatRecovery.migrate.scan" = "Scanner le QR";
 "chatRecovery.migrate.completing" = "Finalisation…";
-"chatRecovery.forgot.title" = "Vous avez oublié votre PIN ?";
+"chatRecovery.forgot.title" = "Vous avez oublié votre PIN?";
 "chatRecovery.forgot.message" = "Si vous continuez, vous perdrez l’accès à vos chats chiffrés et à la mémoire Nova de ce compte. Ils ne pourront pas être récupérés. Vous créerez ensuite un nouveau PIN.";
 "chatRecovery.forgot.confirm" = "Continuer et perdre l’accès";
 "chatRecovery.forgot.action" = "J’ai oublié mon PIN";
@@ -3650,7 +3650,7 @@
 "common.update" = "Update";
 "common.understood" = "Understood";
 "reels.delete.title" = "Supprimer le moment";
-"reels.delete.message" = "Voulez-vous vraiment supprimer ce moment ? Cette action est irréversible.";
+"reels.delete.message" = "Voulez-vous vraiment supprimer ce moment? Cette action est irréversible.";
 "creator.location.search" = "Rechercher un lieu...";
 "creator.location.permissionDenied" = "Autorisations de localisation refusées. Allez dans Réglages > Confidentialité > Localisation";
 "creator.location.unknownPermissionState" = "État d’autorisation inconnu";
@@ -3760,7 +3760,7 @@
 
 /* Passkeys */
 "common.success" = "Success!";
-"settings.security.passkey.success" = "Passkey créée avec succès ! Vous pouvez maintenant vous connecter rapidement et en toute sécurité avec Face ID.";
+"settings.security.passkey.success" = "Passkey créée avec succès! Vous pouvez maintenant vous connecter rapidement et en toute sécurité avec Face ID.";
 "settings.security.passkey.create" = "Créer une passkey";
 "login.passkey" = "Se connecter avec une clé d'accès";
 "login.passkey.error.generic" = "Aucune passkey sur cet appareil. Si c'est votre première fois, inscrivez-vous ci-dessous.";
@@ -3897,7 +3897,7 @@
 "settings.error.unknown" = "Une erreur inconnue s'est produite";
 "settings.error.notAuthenticated" = "Utilisateur non authentifié";
 "storyVideo.long.title" = "Vidéo longue pour story";
-"storyVideo.long.message" = "Cette vidéo dure %@. Voulez-vous la diviser automatiquement en %d parties de 60 secondes maximum ou choisir vous-même l'extrait ?";
+"storyVideo.long.message" = "Cette vidéo dure %@. Voulez-vous la diviser automatiquement en %d parties de 60 secondes maximum ou choisir vous-même l'extrait?";
 "storyVideo.long.tooLongForSplit" = "Cette vidéo dure %@. La division automatique est limitée à %@ (%d parties). Choisissez un extrait de 60 secondes pour continuer.";
 "storyVideo.long.revealHint" = "Lors de la division, les stickers apparaissent uniquement sur la première story. Reveal reste sur toutes les parties.";
 "storyVideo.long.edit" = "Modifier";
@@ -4013,7 +4013,7 @@
 "storyEditor.emojiPicker.travel" = "Voyages et lieux";
 "storyEditor.emojiPicker.objects" = "Objets";
 "storyEditor.emojiPicker.symbols" = "Symboles";
-"storyEditor.discardDraft.title" = "Supprimer le contenu multimédia ?";
+"storyEditor.discardDraft.title" = "Supprimer le contenu multimédia?";
 "storyEditor.discardDraft.message" = "Si tu quittes maintenant, tu perdras toutes les modifications effectuées.";
 "storyEditor.discardDraft.confirm" = "Supprimer";
 "storyEditor.discardDraft.cancel" = "Continuer l’édition";
@@ -4085,7 +4085,7 @@
 "errors.momentLoadFailed" = "Could not load the moment.";
 "report.user.title" = "Signaler le compte";
 "report.user.title.username" = "Signaler @%@";
-"report.user.subtitle" = "Pourquoi signalez-vous ce compte ?";
+"report.user.subtitle" = "Pourquoi signalez-vous ce compte?";
 "report.user.additionalDetails" = "Details supplementaires (optionnel)";
 "report.user.reason.inappropriate.title" = "Il publie du contenu qui ne devrait pas etre sur Moments";
 "report.user.reason.inappropriate.subtitle" = "Publications, stories ou contenu nuisible repete";
@@ -4130,17 +4130,17 @@
 "messaging.request.status.accepted" = "Acceptée";
 "messaging.request.status.rejected" = "Refusée";
 "messaging.request.status.blocked" = "Bloquée";
-"messaging.preview.image" = "📷 Image";
-"messaging.preview.video" = "🎥 Vidéo";
-"messaging.preview.audio" = "🎵 Audio";
-"messaging.preview.gif" = "🎞️ GIF";
-"messaging.preview.file" = "📎 Fichier";
-"messaging.preview.location" = "📍 Localisation";
-"messaging.preview.sticker" = "😊 Autocollant";
-"messaging.preview.ephemeral" = "📸 Moment éphémère";
-"messaging.preview.sharedMoment" = "📷 Moment partagé";
-"messaging.preview.viewOncePhoto" = "📷 Photo (vue unique)";
-"messaging.preview.viewOnceVideo" = "🎥 Vidéo (vue unique)";
+"messaging.preview.image" = "Image";
+"messaging.preview.video" = "Vidéo";
+"messaging.preview.audio" = "Audio";
+"messaging.preview.gif" = "GIF";
+"messaging.preview.file" = "Fichier";
+"messaging.preview.location" = "Localisation";
+"messaging.preview.sticker" = "Autocollant";
+"messaging.preview.ephemeral" = "Moment éphémère";
+"messaging.preview.sharedMoment" = "Moment partagé";
+"messaging.preview.viewOncePhoto" = "Photo (vue unique)";
+"messaging.preview.viewOnceVideo" = "Vidéo (vue unique)";
 "appeal.errors.invalidUserId" = "Identifiant utilisateur invalide";
 "appeal.errors.emptyMessage" = "Le message ne peut pas être vide";
 "appeal.errors.messageTooShort" = "Le message doit contenir au moins %2$d caractères. Actuellement %1$d.";
@@ -4256,11 +4256,11 @@
 "onboarding.apple.email.help" = "Nous avons besoin d'un e-mail pour finaliser votre compte.";
 "onboarding.apple.email.missing" = "Ajoutez un e-mail pour finaliser votre compte.";
 "welcome.createAccount" = "Créer un compte";
-"welcome.haveAccount" = "Vous avez déjà un compte ?";
+"welcome.haveAccount" = "Vous avez déjà un compte?";
 "welcome.logIn" = "Se connecter";
 "onboarding.email.title.username" = "Choisissez votre pseudo";
 "onboarding.email.subtitle.username" = "C'est ainsi que vos amis vous trouveront.";
-"onboarding.email.title.email" = "Quel est votre e-mail ?";
+"onboarding.email.title.email" = "Quel est votre e-mail?";
 "onboarding.email.subtitle.email" = "Pour vous connecter et récupérer votre compte.";
 "onboarding.email.title.password" = "Créez un mot de passe";
 "onboarding.email.subtitle.password" = "Au moins 8 caractères.";
@@ -4269,7 +4269,7 @@
 "conversationSettings.storage.mediaUsage" = "Médias dans cette conversation";
 "conversationSettings.storage.mediaUsage.desc" = "Photos et vidéos en cache sur cet appareil";
 "conversationSettings.storage.clearMedia" = "Vider le cache des médias";
-"conversationSettings.storage.clearMedia.title" = "Vider le cache des médias ?";
+"conversationSettings.storage.clearMedia.title" = "Vider le cache des médias?";
 "conversationSettings.storage.clearMedia.message" = "Les photos et vidéos seront retéléchargées au besoin.";
 "settings.chatStorage.manage.title" = "Gérer le stockage";
 "settings.chatStorage.manage.subtitle" = "Conversations utilisant le plus d'espace sur cet appareil.";
