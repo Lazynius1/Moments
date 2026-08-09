@@ -359,12 +359,16 @@ struct GlassmorphicChatView: View {
 
             // ✅ NUEVO: Sheet para mostrar historias del usuario
             .fullScreenCover(item: $storyRoute) { route in
-                switch route.presentation {
-                case .userStories(let userId):
-                    StoriesView(startWithUserId: .constant(userId))
-                case .sharedStory(let story):
-                    StoriesView(chainStories: [story], startAtIndex: 0)
+                // ≡ FeedPresentationModifier / MessagingView: inyectar FirestoreService o el fullScreenCover crashea.
+                Group {
+                    switch route.presentation {
+                    case .userStories(let userId):
+                        StoriesView(startWithUserId: .constant(userId))
+                    case .sharedStory(let story):
+                        StoriesView(chainStories: [story], startAtIndex: 0)
+                    }
                 }
+                .environmentObject(FirestoreService.shared)
             }
             // ✅ NUEVO: Sheet para navegación al detalle del momento
             .sheet(isPresented: $showingMomentDetail) {

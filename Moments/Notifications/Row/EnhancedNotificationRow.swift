@@ -102,6 +102,7 @@ struct EnhancedNotificationRow: View {
         )
         .fullScreenCover(isPresented: $showStories) {
             StoriesView(startWithUserId: .constant(group.notifications.first?.senderId ?? ""))
+                .environmentObject(FirestoreService.shared)
         }
         .confirmationDialog(
             NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),

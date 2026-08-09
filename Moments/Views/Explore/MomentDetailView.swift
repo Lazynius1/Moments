@@ -96,6 +96,7 @@ struct MomentDetailView: View {
         .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
         .fullScreenCover(isPresented: $showingStories) {
             StoriesView(startWithUserId: .constant(moment.authorId))
+                .environmentObject(FirestoreService.shared)
         }
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)

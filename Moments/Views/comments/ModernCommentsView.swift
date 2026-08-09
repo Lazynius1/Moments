@@ -441,19 +441,22 @@ struct ModernCommentsView: View {
                             TextField(NSLocalizedString("comments.edit.placeholder", comment: "Edit comment placeholder"), text: $editingCommentContent, axis: .vertical)
                                 .font(.system(size: legacyPoppinsSize(15)))
                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                .textFieldStyle(.plain)
                                 .lineLimit(1...4)
+                                .lineSpacing(0)
                                 .disabled(isLoading)
                                 .onChange(of: editingCommentContent) { _, newValue in
                                     activeEditingCommentMention = detectMentionToken(in: newValue)
                                     editingCommentMentions = sanitizedMentionEntities(editingCommentMentions, in: newValue)
                                 }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .frame(minHeight: 44)
                         .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20)
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
                                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
                         )
                         
@@ -509,7 +512,7 @@ struct ModernCommentsView: View {
                     }
                 } else {
                     // Modo comentario normal mejorado (Floating)
-                    HStack(spacing: 8) {
+                    HStack(alignment: .bottom, spacing: 8) {
                         // ✅ Avatar del usuario actual
                         if let currentUserId = Auth.auth().currentUser?.uid {
                             StoryRingAvatarView(
@@ -532,14 +535,18 @@ struct ModernCommentsView: View {
                         TextField(replyToComment != nil ? "Responder a \(replyToComment?.username ?? "")..." : "Añade un comentario...", text: $newComment, axis: .vertical)
                             .font(.system(size: legacyPoppinsSize(15)))
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            .textFieldStyle(.plain)
                             .lineLimit(1...4)
+                            .lineSpacing(0)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            // ≡ ChatInputViews: misma “gordura” en una línea.
+                            .frame(minHeight: 44)
                             .background(
-                                RoundedRectangle(cornerRadius: 25)
+                                RoundedRectangle(cornerRadius: 22, style: .continuous)
                                     .fill(.ultraThinMaterial)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 25)
+                                        RoundedRectangle(cornerRadius: 22, style: .continuous)
                                             .stroke(Color.white.opacity(0.15), lineWidth: 1)
                                     )
                             )
@@ -1194,58 +1201,9 @@ private struct CommentTextSegment: Identifiable {
     let isMention: Bool
 }
 
-private struct CommentWrappingLayout: Layout {
-    var horizontalSpacing: CGFloat = 0
-    var verticalSpacing: CGFloat = 2
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? .infinity
-        var currentX: CGFloat = 0
-        var currentY: CGFloat = 0
-        var lineHeight: CGFloat = 0
-        var measuredWidth: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if currentX > 0, currentX + size.width > maxWidth {
-                currentY += lineHeight + verticalSpacing
-                currentX = 0
-                lineHeight = 0
-            }
-
-            measuredWidth = max(measuredWidth, currentX + size.width)
-            currentX += size.width + horizontalSpacing
-            lineHeight = max(lineHeight, size.height)
-        }
-
-        return CGSize(width: min(measuredWidth, maxWidth), height: currentY + lineHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let maxWidth = bounds.width
-        var currentX: CGFloat = bounds.minX
-        var currentY: CGFloat = bounds.minY
-        var lineHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if currentX > bounds.minX, currentX + size.width > bounds.minX + maxWidth {
-                currentY += lineHeight + verticalSpacing
-                currentX = bounds.minX
-                lineHeight = 0
-            }
-
-            subview.place(
-                at: CGPoint(x: currentX, y: currentY),
-                proposal: ProposedViewSize(size)
-            )
-            currentX += size.width + horizontalSpacing
-            lineHeight = max(lineHeight, size.height)
-        }
-    }
-}
-
 private struct CommentMentionText: View {
+    private static let mentionURLScheme = "moments-mention"
+
     let segments: [CommentTextSegment]
     let fontSize: CGFloat
     let baseColor: Color
@@ -1254,31 +1212,46 @@ private struct CommentMentionText: View {
     let onMentionTap: (String) -> Void
 
     var body: some View {
-        CommentWrappingLayout {
-            ForEach(segments) { segment in
-                if segment.isMention {
-                    Button {
-                        if let userId = segment.userId {
-                            onMentionTap(userId)
-                        } else {
-                            onMentionTap(segment.text)
-                        }
-                    } label: {
-                        Text(segment.text)
-                            .font(.system(size: legacyPoppinsSize(fontSize), weight: .semibold))
-                            .foregroundStyle(mentionColor)
-                    }
-                    .buttonStyle(.plain)
-                    .contentShape(Rectangle())
-                    .disabled(isBlurred)
-                } else {
-                    Text(segment.text)
-                        .font(.system(size: legacyPoppinsSize(fontSize)))
-                        .foregroundStyle(baseColor)
+        // Text nativo: wrap, emoji y saltos de línea correctos.
+        // El Layout custom anterior partía cada palabra y dejaba el emoji solo en otra línea.
+        Text(attributedContent)
+            .font(.system(size: legacyPoppinsSize(fontSize)))
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .blur(radius: isBlurred ? 8 : 0)
+            .allowsHitTesting(!isBlurred)
+            .environment(\.openURL, OpenURLAction { url in
+                guard url.scheme == Self.mentionURLScheme else { return .systemAction }
+                let token = url.host?.removingPercentEncoding
+                    ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                        .removingPercentEncoding
+                    ?? ""
+                guard !token.isEmpty else { return .handled }
+                onMentionTap(token)
+                return .handled
+            })
+    }
+
+    private var attributedContent: AttributedString {
+        var result = AttributedString()
+        for segment in segments {
+            var chunk = AttributedString(segment.text)
+            chunk.font = .system(
+                size: legacyPoppinsSize(fontSize),
+                weight: segment.isMention ? .semibold : .regular
+            )
+            chunk.foregroundColor = segment.isMention ? mentionColor : baseColor
+            if segment.isMention {
+                let token = segment.userId ?? segment.text
+                if let encoded = token.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed),
+                   let url = URL(string: "\(Self.mentionURLScheme)://\(encoded)") {
+                    chunk.link = url
                 }
             }
+            result.append(chunk)
         }
-        .blur(radius: isBlurred ? 8 : 0)
+        return result
     }
 }
 
@@ -1628,12 +1601,16 @@ struct EnhancedModernCommentRow: View {
     }
 
     private var commentTextSegments: [CommentTextSegment] {
+        // Solo partir por menciones; el wrap lo hace Text (espacios, emoji, \n).
         var rawSegments: [(text: String, userId: String?, isMention: Bool)] = []
         var currentIndex = displayContent.startIndex
 
         for mentionRange in mentionRanges(in: displayContent) {
             if currentIndex < mentionRange.range.lowerBound {
-                rawSegments.append(contentsOf: splitPlainText(String(displayContent[currentIndex..<mentionRange.range.lowerBound])))
+                let plain = String(displayContent[currentIndex..<mentionRange.range.lowerBound])
+                if !plain.isEmpty {
+                    rawSegments.append((text: plain, userId: nil, isMention: false))
+                }
             }
 
             rawSegments.append((
@@ -1645,11 +1622,14 @@ struct EnhancedModernCommentRow: View {
         }
 
         if currentIndex < displayContent.endIndex {
-            rawSegments.append(contentsOf: splitPlainText(String(displayContent[currentIndex...])))
+            let plain = String(displayContent[currentIndex...])
+            if !plain.isEmpty {
+                rawSegments.append((text: plain, userId: nil, isMention: false))
+            }
         }
 
-        if rawSegments.isEmpty {
-            rawSegments = splitPlainText(displayContent)
+        if rawSegments.isEmpty, !displayContent.isEmpty {
+            rawSegments = [(text: displayContent, userId: nil, isMention: false)]
         }
 
         return rawSegments.enumerated().map { index, segment in
@@ -1660,29 +1640,6 @@ struct EnhancedModernCommentRow: View {
                 isMention: segment.isMention
             )
         }
-    }
-
-    private func splitPlainText(_ text: String) -> [(text: String, userId: String?, isMention: Bool)] {
-        var segments: [(text: String, userId: String?, isMention: Bool)] = []
-        var current = ""
-        var currentIsWhitespace: Bool?
-
-        for character in text {
-            let isWhitespace = character.isWhitespace
-            if let currentIsWhitespace, currentIsWhitespace != isWhitespace {
-                segments.append((text: current, userId: nil, isMention: false))
-                current = ""
-            }
-
-            current.append(character)
-            currentIsWhitespace = isWhitespace
-        }
-
-        if !current.isEmpty {
-            segments.append((text: current, userId: nil, isMention: false))
-        }
-
-        return segments
     }
 
     private func mentionRanges(in text: String) -> [(range: Range<String.Index>, userId: String?)] {

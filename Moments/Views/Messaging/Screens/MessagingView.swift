@@ -1370,7 +1370,9 @@ struct GlassmorphicConversationRow: View {
             refreshDraft()
         }
         .fullScreenCover(item: $storyRoute) { route in
+            // ≡ FeedPresentationModifier: StoriesView exige FirestoreService (+ Auth) en el environment.
             StoriesView(startWithUserId: .constant(route.id))
+                .environmentObject(FirestoreService.shared)
                 .ignoresSafeArea(.keyboard)
         }
     }

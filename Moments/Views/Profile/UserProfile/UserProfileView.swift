@@ -494,6 +494,7 @@ struct UserProfileView: View {
         }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.userId))
+                .environmentObject(FirestoreService.shared)
         }
         .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: socialConnectionsRoute), value: socialConnectionsRoute)
         .confirmationDialog(

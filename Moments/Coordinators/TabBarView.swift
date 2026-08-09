@@ -78,6 +78,7 @@ struct TabBarView: View {
                     }
                     .environmentObject(tabBarMinimize)
                     .environmentObject(messagingViewModel)
+                    .environmentObject(firestoreService)
                     .overlay(alignment: .top) {
                         InAppBannerView()
                     }
@@ -242,6 +243,7 @@ struct ModernTabView: View {
                 }
                 .environmentObject(authService)
                 .environmentObject(messagingViewModel)
+                .environmentObject(FirestoreService.shared)
                 .hideNativeTabBar()
             }
             Tab("", systemImage: "camera.aperture", value: AppTab.create) {
@@ -332,6 +334,7 @@ struct ModernTabView: View {
                         MessagingView(targetConversationId: $messagesTargetConversationId)
                     }
                     .environmentObject(messagingViewModel)
+                    .environmentObject(firestoreService)
                 case 2:
                     Color.clear
                 case 3:

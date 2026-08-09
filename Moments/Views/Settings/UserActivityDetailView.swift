@@ -166,6 +166,7 @@ struct ActivityInteractionDetailView: View {
             }
             .fullScreenCover(item: $storyRoute) { route in
                 StoriesView(startWithUserId: .constant(route.id))
+                    .environmentObject(FirestoreService.shared)
             }
             .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
             .fullScreenCover(item: selectedEchoPresentation) { ident in

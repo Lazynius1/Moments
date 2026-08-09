@@ -656,6 +656,7 @@ struct ReelVideoView: View {
         .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.id))
+                .environmentObject(firestoreService)
         }
         .alert("reels.delete.title", isPresented: $showDeleteAlert) {
             Button("common.delete", role: .destructive) {

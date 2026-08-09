@@ -91,6 +91,7 @@ struct NotificationGroupedFollowersOverlay: View {
         }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.id))
+                .environmentObject(FirestoreService.shared)
                 .ignoresSafeArea(.keyboard)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloseStoryViewer"))) { _ in

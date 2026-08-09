@@ -93,6 +93,7 @@ struct StoryChainView: View {
         }
         .fullScreenCover(isPresented: $showStoriesViewer) {
             StoriesView(chainStories: viewModel.stories, startAtIndex: selectedStoryIndex)
+                .environmentObject(FirestoreService.shared)
         }
     }
 
