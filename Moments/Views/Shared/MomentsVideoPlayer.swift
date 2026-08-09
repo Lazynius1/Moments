@@ -42,6 +42,10 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         controller.view.backgroundColor = .black
         controller.entersFullScreenWhenPlaybackBegins = false
         controller.exitsFullScreenWhenPlaybackEnds = true
+        // Evitar PiP / fullscreen del sistema (sale del ScreenshotProtectedView).
+        // Deployment target ≥ iOS 18.6.
+        controller.allowsPictureInPicturePlayback = false
+        controller.canStartPictureInPictureAutomaticallyFromInline = false
         
         context.coordinator.player = player
         context.coordinator.lastURL = url

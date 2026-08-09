@@ -1382,7 +1382,11 @@ class ReelVideoPlayerManager: ObservableObject {
         VideoPlaybackRecovery.recoverFromStall(
             player: player,
             isPlaying: isPlaying,
-            adaptive: adaptiveController
+            adaptive: adaptiveController,
+            onTierDowngrade: { [weak self] in
+                self?.isLoaded = false
+                self?.isBuffering = true
+            }
         ) { [weak self] newItem in
             guard let self else { return }
             self.playerItem = newItem

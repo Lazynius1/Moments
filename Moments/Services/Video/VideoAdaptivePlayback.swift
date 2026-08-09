@@ -108,10 +108,13 @@ final class VideoAdaptiveTierController {
 
 enum VideoPlaybackRecovery {
   /// Reintenta play o sustituye el item por un tier inferior.
+  /// `onTierDowngrade` se llama antes de reemplazar el item para que la UI
+  /// pueda volver a mostrar el poster (evitar flash negro).
     static func recoverFromStall(
         player: AVPlayer,
         isPlaying: Bool,
         adaptive: VideoAdaptiveTierController?,
+        onTierDowngrade: (() -> Void)? = nil,
         onReplaceItem: (AVPlayerItem) -> Void
     ) {
         guard isPlaying else { return }
@@ -119,6 +122,7 @@ enum VideoPlaybackRecovery {
 
         if let newItem = adaptive?.handleStall() {
             let resumeTime = player.currentTime()
+            onTierDowngrade?()
             onReplaceItem(newItem)
             player.replaceCurrentItem(with: newItem)
             player.seek(to: resumeTime, toleranceBefore: .positiveInfinity, toleranceAfter: .positiveInfinity) { _ in

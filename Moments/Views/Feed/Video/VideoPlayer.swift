@@ -857,7 +857,10 @@ class VideoPlayerManager: ObservableObject {
         VideoPlaybackRecovery.recoverFromStall(
             player: player,
             isPlaying: isPlaying,
-            adaptive: adaptiveController
+            adaptive: adaptiveController,
+            onTierDowngrade: { [weak self] in
+                self?.isReadyToPlay = false
+            }
         ) { [weak self] newItem in
             guard let self else { return }
             self.activeItem = newItem

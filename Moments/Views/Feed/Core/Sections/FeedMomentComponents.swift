@@ -1418,6 +1418,12 @@ struct CroppedVideoPlayer: View {
         profileDetailDirectVideoPlayback ? .alwaysWhenVisible : .feedVisibility
     }
 
+    /// URL del tier adaptativo (misma que prebuffer), no el `item.url` crudo.
+    private var playbackURLString: String {
+        VideoPlaybackSelector.shared.source(for: item, moment: currentMoment)?.playbackURL.absoluteString
+            ?? item.url
+    }
+
     /// Botón de silencio/volumen — se oculta cuando isImmersive (ReelsViewer abierto).
     private var muteToggleButton: some View {
         Button {
@@ -1483,7 +1489,7 @@ struct CroppedVideoPlayer: View {
                 CarouselMediaBackdropView(item: item)
 
                 ModernVideoPlayer(
-                    url: item.url,
+                    url: playbackURLString,
                     aspectRatio: resolvedItemAspectRatio,
                     videoId: videoConsumerId,
                     chromeStyle: .socialReels,
@@ -1515,7 +1521,7 @@ struct CroppedVideoPlayer: View {
                 // ✅ REELS en feed: player + poster hasta readyToPlay
                 ZStack {
                     ModernVideoPlayer(
-                        url: item.url,
+                        url: playbackURLString,
                         aspectRatio: aspectRatio,
                         videoId: videoConsumerId,
                         chromeStyle: .socialReels,
@@ -1598,7 +1604,7 @@ struct CroppedVideoPlayer: View {
                 // ✅ VIDEOS HORIZONTALES: Mantener diseño actual
                 ZStack {
                     ModernVideoPlayer(
-                        url: item.url,
+                        url: playbackURLString,
                         aspectRatio: feedDisplayRatio,
                         videoId: videoConsumerId,
                         chromeStyle: .socialReels,

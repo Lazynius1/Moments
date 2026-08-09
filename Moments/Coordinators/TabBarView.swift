@@ -464,6 +464,7 @@ struct CustomTabBar: View {
     @Binding var showCreatorView: Bool
     @Binding var previousSelectedTab: Int
     @Environment(\.colorScheme) var colorScheme
+    @ObservedObject private var badgeService = NotificationBadgeService.shared
     
     // Colores según HIG: activo usa el color del sistema, inactivo con opacidad
     private var activeColor: Color {
@@ -502,7 +503,9 @@ struct CustomTabBar: View {
                 isSelected: selectedTab == 1,
                 activeColor: activeColor,
                 inactiveColor: inactiveColor,
-                usesSystemIcon: true
+                usesSystemIcon: true,
+                forceFill: badgeService.unreadMessagesCount > 0,
+                showUnreadDot: badgeService.unreadMessagesCount > 0
             ) {
                 HapticManager.shared.selection()
                 selectedTab = 1
@@ -556,23 +559,33 @@ struct TabBarItem: View {
     let activeColor: Color
     let inactiveColor: Color
     let usesSystemIcon: Bool
+    var forceFill: Bool = false
+    var showUnreadDot: Bool = false
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
                 // Icono: tamaño estándar según HIG
-                Group {
-                    if usesSystemIcon {
-                        Image(systemName: icon)
-                            .symbolVariant(isSelected ? .fill : .none)
-                            .foregroundStyle(isSelected ? activeColor : inactiveColor)
-                            .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
-                    } else {
-                        NovaTabGlyph(
-                            size: 22,
-                            color: isSelected ? activeColor : inactiveColor
-                        )
+                ZStack(alignment: .bottomTrailing) {
+                    Group {
+                        if usesSystemIcon {
+                            Image(systemName: icon)
+                                .symbolVariant((isSelected || forceFill) ? .fill : .none)
+                                .foregroundStyle(isSelected ? activeColor : inactiveColor)
+                                .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
+                        } else {
+                            NovaTabGlyph(
+                                size: 22,
+                                color: isSelected ? activeColor : inactiveColor
+                            )
+                        }
+                    }
+                    if showUnreadDot {
+                        Circle()
+                            .fill(Color(red: 1, green: 59 / 255, blue: 48 / 255)) // #FF3B30
+                            .frame(width: 7, height: 7)
+                            .offset(x: 5, y: 3)
                     }
                 }
                 

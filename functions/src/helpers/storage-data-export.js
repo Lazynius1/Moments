@@ -806,36 +806,38 @@ async function transcodeMomentVideo({ userId, momentId, mediaItem }) {
     await downloadStorageObjectToFile({ bucket, objectName: sourceObjectName, destinationPath: inputPath });
 
     const videoVariants = {};
-    for (const spec of variantSpecs) {
-      const outputPath = `${tempBase}_${spec.key}.mp4`;
-      cleanupPaths.push(outputPath);
-      await runFfmpeg([
-        '-y',
-        '-i', inputPath,
-        '-vf', `scale=${spec.max}:${spec.max}:force_original_aspect_ratio=decrease,format=yuv420p`,
-        '-c:v', 'libx264',
-        '-preset', 'veryfast',
-        '-crf', spec.crf,
-        '-c:a', 'aac',
-        '-b:a', spec.key === 'low' ? '96k' : '128k',
-        '-movflags', '+faststart',
-        outputPath
-      ]);
+    await Promise.all(
+      variantSpecs.map(async (spec) => {
+        const outputPath = `${tempBase}_${spec.key}.mp4`;
+        cleanupPaths.push(outputPath);
+        await runFfmpeg([
+          '-y',
+          '-i', inputPath,
+          '-vf', `scale=${spec.max}:${spec.max}:force_original_aspect_ratio=decrease,format=yuv420p`,
+          '-c:v', 'libx264',
+          '-preset', 'veryfast',
+          '-crf', spec.crf,
+          '-c:a', 'aac',
+          '-b:a', spec.key === 'low' ? '96k' : '128k',
+          '-movflags', '+faststart',
+          outputPath
+        ]);
 
-      const objectName = `processed_videos/moments/${userId}/${momentId}/${mediaItem.id}_${spec.key}.mp4`;
-      videoVariants[spec.key] = await uploadStorageFile({
-        bucket,
-        localPath: outputPath,
-        objectName,
-        contentType: 'video/mp4',
-        extraMetadata: {
-          sourceMomentId: momentId,
-          sourceMediaItemId: mediaItem.id,
-          processedBy: 'processMomentVideos',
-          variant: spec.key
-        }
-      });
-    }
+        const objectName = `processed_videos/moments/${userId}/${momentId}/${mediaItem.id}_${spec.key}.mp4`;
+        videoVariants[spec.key] = await uploadStorageFile({
+          bucket,
+          localPath: outputPath,
+          objectName,
+          contentType: 'video/mp4',
+          extraMetadata: {
+            sourceMomentId: momentId,
+            sourceMediaItemId: mediaItem.id,
+            processedBy: 'processMomentVideos',
+            variant: spec.key
+          }
+        });
+      })
+    );
 
     const highPath = `${tempBase}_high.mp4`;
     const fileSize = fs.existsSync(highPath) ? fs.statSync(highPath).size : 0;

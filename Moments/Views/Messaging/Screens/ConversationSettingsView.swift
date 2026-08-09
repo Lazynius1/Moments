@@ -2072,6 +2072,10 @@ struct FullScreenMediaView: View {
         .onChange(of: showExpandedVideo) { _, isShown in
             if !isShown {
                 expandedVideoURL = nil
+            } else if isScreenshotProtectedMedia(currentMedia) {
+                // No permitir modal nativo fuera del entorno protegido.
+                showExpandedVideo = false
+                expandedVideoURL = nil
             }
         }
         .background(
@@ -2321,26 +2325,30 @@ struct FullScreenMediaView: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.momentsPressSubtle)
-                        
-                        Divider()
-                            .frame(height: 16)
-                            .background(primaryOverlayColor.opacity(0.2))
-                        
-                        Button {
-                            if let url = URL(string: currentMedia.originalUrl) {
-                                HapticManager.shared.lightImpact()
-                                isVideoPaused = true
-                                expandedVideoURL = url
-                                showExpandedVideo = true
+
+                        // Expand nativo (AVPlayerViewController) sale de ScreenshotProtectedView.
+                        // Solo media normal; protegida (vanish/ephemeral/no-save) se queda en el overlay seguro.
+                        if !isScreenshotProtectedMedia(currentMedia) {
+                            Divider()
+                                .frame(height: 16)
+                                .background(primaryOverlayColor.opacity(0.2))
+
+                            Button {
+                                if let url = URL(string: currentMedia.originalUrl) {
+                                    HapticManager.shared.lightImpact()
+                                    isVideoPaused = true
+                                    expandedVideoURL = url
+                                    showExpandedVideo = true
+                                }
+                            } label: {
+                                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(primaryOverlayColor)
+                                    .frame(width: 40, height: 40)
+                                    .contentShape(Rectangle())
                             }
-                        } label: {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(primaryOverlayColor)
-                                .frame(width: 40, height: 40)
-                                .contentShape(Rectangle())
+                            .buttonStyle(.momentsPressSubtle)
                         }
-                        .buttonStyle(.momentsPressSubtle)
                     }
                     .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                     .padding(12)
@@ -2515,9 +2523,15 @@ private struct NativeVideoPresenter: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
         if isPresented, let player = player, context.coordinator.playerController == nil {
+            // Defensa: no presentar modal nativo si el media actual es protegido.
+            // El botón expand ya se oculta; esto cubre races / estados residuales.
             let playerController = ModalVideoPlayerController()
             
             playerController.player = player
+            playerController.showsPlaybackControls = true
+            // Deployment target ≥ iOS 18.6.
+            playerController.allowsPictureInPicturePlayback = false
+            playerController.canStartPictureInPictureAutomaticallyFromInline = false
             playerController.onDismiss = {
                 DispatchQueue.main.async {
                     self.isPresented = false

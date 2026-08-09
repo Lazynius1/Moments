@@ -158,15 +158,10 @@ final class VideoPlaybackSelector {
             urls.append(value)
         }
 
+        // Siempre el tier elegido; low solo como fallback (nunca high si el tier es medium/low).
         append(primary)
-        if let variants {
+        if let variants, tier != .low {
             append(variants.url(for: .low))
-            if tier != .low {
-                append(variants.url(for: tier))
-            }
-            if tier == .high {
-                append(variants.url(for: .high))
-            }
         }
         return urls
     }
