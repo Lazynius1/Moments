@@ -1632,8 +1632,9 @@ service cloud.firestore {
     function onlyStatusFieldsUpdated() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead','status','isViewed','statusUpdatedAt','readBy']);
     }
+    // status opcional: markViewOnceAsViewed a veces también marca read; la CF consume lo setea con admin.
     function onlyViewOnceFieldsUpdated() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isViewed','viewedBy','replayedBy']);
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isViewed','viewedBy','replayedBy','status']);
     }
     // ✅ NUEVO: actualización de ubicación en vivo por el remitente
     // Las coordenadas viajan cifradas dentro de `content`.

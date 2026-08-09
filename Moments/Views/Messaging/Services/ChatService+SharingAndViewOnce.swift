@@ -465,11 +465,12 @@ extension ChatService {
                 return nil
             }
 
+            // firestore.rules `onlyViewOnceFieldsUpdated` → solo isViewed/viewedBy/replayedBy.
+            // `status` aquí provoca PERMISSION_DENIED y la CF replay falla (viewedBy vacío).
             guard var viewedBy = messageDocument.data()?["viewedBy"] as? [String] else {
                 transaction.updateData([
                     "viewedBy": [viewerId],
-                    "isViewed": true,
-                    "status": MessageStatus.read.rawValue
+                    "isViewed": true
                 ], forDocument: messageRef)
                 return nil
             }
@@ -478,8 +479,7 @@ extension ChatService {
                 viewedBy.append(viewerId)
                 transaction.updateData([
                     "viewedBy": viewedBy,
-                    "isViewed": true,
-                    "status": MessageStatus.read.rawValue
+                    "isViewed": true
                 ], forDocument: messageRef)
             }
 
