@@ -24,6 +24,16 @@ final class CachedMessage {
     var mediaHeight: Int?
     var latitude: Double?
     var longitude: Double?
+    /// Ubicación (fija + en vivo). Sin estos campos el snapshot local-first
+    /// reutiliza el cache y la bubble pierde el texto live / detenido / countdown.
+    var locationName: String?
+    var locationAddress: String?
+    var isLiveLocation: Bool?
+    var liveLocationExpiresAt: Date?
+    var liveLocationDuration: String?
+    var liveLocationStoppedAt: Date?
+    var liveLocationSessionId: String?
+    var locationUpdatedAt: Date?
     var timestamp: Date
     var statusString: String // Raw value of MessageStatus
     var isRead: Bool
@@ -67,6 +77,14 @@ final class CachedMessage {
          mediaHeight: Int? = nil,
          latitude: Double?,
          longitude: Double?,
+         locationName: String? = nil,
+         locationAddress: String? = nil,
+         isLiveLocation: Bool? = nil,
+         liveLocationExpiresAt: Date? = nil,
+         liveLocationDuration: String? = nil,
+         liveLocationStoppedAt: Date? = nil,
+         liveLocationSessionId: String? = nil,
+         locationUpdatedAt: Date? = nil,
          timestamp: Date,
          statusString: String,
          isRead: Bool,
@@ -109,6 +127,14 @@ final class CachedMessage {
         self.mediaHeight = mediaHeight
         self.latitude = latitude
         self.longitude = longitude
+        self.locationName = locationName
+        self.locationAddress = locationAddress
+        self.isLiveLocation = isLiveLocation
+        self.liveLocationExpiresAt = liveLocationExpiresAt
+        self.liveLocationDuration = liveLocationDuration
+        self.liveLocationStoppedAt = liveLocationStoppedAt
+        self.liveLocationSessionId = liveLocationSessionId
+        self.locationUpdatedAt = locationUpdatedAt
         self.timestamp = timestamp
         self.statusString = statusString
         self.isRead = isRead
@@ -182,6 +208,14 @@ extension CachedMessage {
             mediaHeight: message.mediaHeight,
             latitude: message.latitude,
             longitude: message.longitude,
+            locationName: message.locationName,
+            locationAddress: message.locationAddress,
+            isLiveLocation: message.isLiveLocation,
+            liveLocationExpiresAt: message.liveLocationExpiresAt,
+            liveLocationDuration: message.liveLocationDuration,
+            liveLocationStoppedAt: message.liveLocationStoppedAt,
+            liveLocationSessionId: message.liveLocationSessionId,
+            locationUpdatedAt: message.locationUpdatedAt,
             timestamp: message.timestamp,
             statusString: message.status.rawValue,
             isRead: message.isRead,
@@ -278,6 +312,14 @@ extension CachedMessage {
             mediaHeight: mediaHeight,
             latitude: latitude,
             longitude: longitude,
+            locationName: locationName,
+            locationAddress: locationAddress,
+            isLiveLocation: isLiveLocation,
+            liveLocationExpiresAt: liveLocationExpiresAt,
+            liveLocationDuration: liveLocationDuration,
+            liveLocationStoppedAt: liveLocationStoppedAt,
+            liveLocationSessionId: liveLocationSessionId,
+            locationUpdatedAt: locationUpdatedAt,
             timestamp: timestamp,
             status: status,
             isRead: isRead,

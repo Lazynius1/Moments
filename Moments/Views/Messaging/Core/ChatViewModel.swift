@@ -1789,6 +1789,31 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
+    /// Optimistic stop: nueva instancia + buffers + commit, para que la lista
+    /// reconfigure la bubble (texto detenido / sin botón stop) al momento.
+    func markLiveLocationStoppedLocally(messageId: String, at date: Date = Date()) {
+        let replace: (EnhancedMessage) -> EnhancedMessage = { $0.withLiveLocationStoppedAt(date) }
+
+        if let index = messages.firstIndex(where: { $0.id == messageId }) {
+            messages[index] = replace(messages[index])
+        }
+        if let index = realTimeMessages.firstIndex(where: { $0.id == messageId }) {
+            realTimeMessages[index] = replace(realTimeMessages[index])
+        }
+        if let index = historicalMessages.firstIndex(where: { $0.id == messageId }) {
+            historicalMessages[index] = replace(historicalMessages[index])
+        }
+
+        if let conversationId = conversation.id,
+           let updated = messages.first(where: { $0.id == messageId })
+            ?? realTimeMessages.first(where: { $0.id == messageId })
+            ?? historicalMessages.first(where: { $0.id == messageId }) {
+            LocalPersistenceService.shared.saveMessages([updated], conversationId: conversationId, sync: false)
+        }
+
+        commitMessagesPresentation(messages)
+    }
+
     /// `true` mientras la conversación es solo un borrador local sin documento en Firestore.
     var isDraftConversation: Bool {
         (conversation.id ?? "").isEmpty

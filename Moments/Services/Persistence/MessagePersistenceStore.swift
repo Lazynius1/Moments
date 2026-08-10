@@ -245,6 +245,14 @@ actor MessagePersistenceStore {
         existing.mediaHeight = new.mediaHeight
         existing.latitude = new.latitude
         existing.longitude = new.longitude
+        existing.locationName = new.locationName
+        existing.locationAddress = new.locationAddress
+        existing.isLiveLocation = new.isLiveLocation
+        existing.liveLocationExpiresAt = new.liveLocationExpiresAt
+        existing.liveLocationDuration = new.liveLocationDuration
+        existing.liveLocationStoppedAt = new.liveLocationStoppedAt
+        existing.liveLocationSessionId = new.liveLocationSessionId
+        existing.locationUpdatedAt = new.locationUpdatedAt
         existing.statusString = new.statusString
         existing.isRead = existing.isRead || new.isRead
         existing.editedAt = new.editedAt

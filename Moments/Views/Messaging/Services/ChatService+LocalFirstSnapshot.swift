@@ -118,6 +118,32 @@ extension ChatService {
 
         if data["content"] != nil, remoteEditedAt != nil { return true }
 
+        // Ubicación en vivo: el cache antiguo no tenía estos campos; sin rehidratar,
+        // la bubble se queda como ubicación fija hasta reiniciar / forzar hydrate.
+        let remoteIsLive = data["isLiveLocation"] as? Bool
+        if remoteIsLive != cached.isLiveLocation { return true }
+
+        let remoteLiveExpiresAt = (data["liveLocationExpiresAt"] as? Timestamp)?.dateValue()
+        if remoteLiveExpiresAt != cached.liveLocationExpiresAt { return true }
+
+        let remoteLiveStoppedAt = (data["liveLocationStoppedAt"] as? Timestamp)?.dateValue()
+        if remoteLiveStoppedAt != cached.liveLocationStoppedAt { return true }
+
+        let remoteLiveDuration = data["liveLocationDuration"] as? String
+        if remoteLiveDuration != cached.liveLocationDuration { return true }
+
+        let remoteLiveSessionId = data["liveLocationSessionId"] as? String
+        if remoteLiveSessionId != cached.liveLocationSessionId { return true }
+
+        let remoteLocationUpdatedAt = (data["locationUpdatedAt"] as? Timestamp)?.dateValue()
+        if remoteLocationUpdatedAt != cached.locationUpdatedAt { return true }
+
+        let remoteLocationName = data["locationName"] as? String
+        if remoteLocationName != cached.locationName { return true }
+
+        let remoteLocationAddress = data["locationAddress"] as? String
+        if remoteLocationAddress != cached.locationAddress { return true }
+
         return false
     }
 

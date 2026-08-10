@@ -1578,6 +1578,65 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         )
     }
 
+    /// Copia con `liveLocationStoppedAt` nuevo: hace falta instancia distinta para que
+    /// el diff de la lista (visualSignature) detecte el cambio y reconfigure la celda.
+    func withLiveLocationStoppedAt(_ stoppedAt: Date?) -> EnhancedMessage {
+        EnhancedMessage(
+            id: id,
+            conversationId: conversationId,
+            senderId: senderId,
+            type: type,
+            content: content,
+            mediaUrl: mediaUrl,
+            thumbnailUrl: thumbnailUrl,
+            mediaObjectPath: mediaObjectPath,
+            thumbnailObjectPath: thumbnailObjectPath,
+            mediaEncryption: mediaEncryption,
+            thumbnailEncryption: thumbnailEncryption,
+            duration: duration,
+            audioWaveform: audioWaveform,
+            fileName: fileName,
+            fileSize: fileSize,
+            mediaWidth: mediaWidth,
+            mediaHeight: mediaHeight,
+            latitude: latitude,
+            longitude: longitude,
+            locationName: locationName,
+            locationAddress: locationAddress,
+            isLiveLocation: isLiveLocation,
+            liveLocationExpiresAt: liveLocationExpiresAt,
+            liveLocationDuration: liveLocationDuration,
+            liveLocationStoppedAt: stoppedAt,
+            liveLocationSessionId: liveLocationSessionId,
+            locationUpdatedAt: locationUpdatedAt,
+            timestamp: timestamp,
+            status: status,
+            isRead: isRead,
+            isDeleted: isDeleted,
+            deletedAt: deletedAt,
+            editedAt: editedAt,
+            reactions: reactions,
+            replyTo: replyTo,
+            expirationDate: expirationDate,
+            isViewed: isViewed,
+            storyReplyData: storyReplyData,
+            sharedMomentData: sharedMomentData,
+            sharedStoryData: sharedStoryData,
+            mediaBatchId: mediaBatchId,
+            textOverlayLive: textOverlayLive,
+            textOverlays: textOverlays,
+            stickers: stickers,
+            drawingData: drawingData,
+            viewedBy: viewedBy,
+            readBy: readBy,
+            starredBy: starredBy,
+            isForwarded: isForwarded,
+            isVanishModeMessage: isVanishModeMessage,
+            vanishedFor: vanishedFor,
+            vanishExpiresAt: vanishExpiresAt
+        )
+    }
+
     var isExpired: Bool {
         guard let expirationDate = expirationDate else { return false }
         return Date() > expirationDate

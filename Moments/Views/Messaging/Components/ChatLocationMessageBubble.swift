@@ -272,31 +272,11 @@ struct ChatLocationMessageBubble: View {
 // MARK: - Detalle fullscreen
 
 private enum ChatLocationMapMetrics {
-    static var displayCornerRadius: CGFloat {
-        let width = UIApplication.shared.activeWindowSize.width
-        if width >= 430 { return 62 }
-        if width >= 428 { return 53.33 }
-        if width >= 402 { return 62 }
-        if width >= 393 { return 55 }
-        if width >= 390 { return 47.33 }
-        if width >= 375 { return 39 }
-        return 24
-    }
+    /// Hueco para la atribución legal de Apple Maps encima del dock (MapKit / WWDC23).
+    static let mapLegalInsetSpacing: CGFloat = 12
 
-    static var bottomCardTopCornerRadius: CGFloat { 28 }
-
-    /// Espacio entre la tarjeta y la atribución legal de Apple Maps (recomendación MapKit / WWDC23).
-    static let mapLegalInsetSpacing: CGFloat = 18
-
-    static var bottomCardShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            topLeadingRadius: bottomCardTopCornerRadius,
-            bottomLeadingRadius: displayCornerRadius,
-            bottomTrailingRadius: displayCornerRadius,
-            topTrailingRadius: bottomCardTopCornerRadius,
-            style: .continuous
-        )
-    }
+    /// Altura visual del dock tipo Find My (cápsula fija, sin detents).
+    static let dockCapsuleHeight: CGFloat = 72
 }
 
 struct ChatLocationDetailView: View {
@@ -350,6 +330,14 @@ struct ChatLocationDetailView: View {
 
     private var markerTint: Color { isLive && isLiveActive ? .green : .red }
 
+    private var chromeInk: Color {
+        colorScheme == .dark ? .white : Color(hex: "0B1215")
+    }
+
+    private var chromeSecondary: Color {
+        colorScheme == .dark ? .white.opacity(0.65) : Color(hex: "0B1215").opacity(0.55)
+    }
+
     var body: some View {
         ZStack {
             Map(position: $position) {
@@ -363,8 +351,8 @@ struct ChatLocationDetailView: View {
             .mapStyle(mapStyleIsHybrid ? .hybrid : .standard)
             .ignoresSafeArea()
             .safeAreaInset(edge: .bottom, spacing: ChatLocationMapMetrics.mapLegalInsetSpacing) {
-                bottomCard
-                    .ignoresSafeArea(edges: .bottom)
+                // Dock cápsula (Find My): no full-bleed → atribución Apple Maps visible a los lados/arriba.
+                bottomDock
             }
 
             VStack(spacing: 0) {
@@ -418,95 +406,118 @@ struct ChatLocationDetailView: View {
         .padding(.horizontal, 16)
     }
 
-    // MARK: - Tarjeta inferior
+    // MARK: - Dock inferior (cápsula + acciones icono/texto)
 
-    private var bottomCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                AttachmentIconView(
-                    icon: isLive ? .liveLocation : .location,
-                    preset: .locationDetailCard,
-                    tintColor: markerTint
-                )
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(titleText)
-                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                        .lineLimit(isLive ? 2 : 1)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if let subtitle = subtitleText {
-                        Text(subtitle)
-                            .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55))
-                            .lineLimit(2)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
+    private var bottomDock: some View {
+        VStack(spacing: 10) {
+            locationInfoCapsule
 
-            HStack(spacing: 10) {
-                actionButton(
+            HStack(spacing: 0) {
+                dockAction(
                     titleKey: "chat.location.directions",
                     systemImage: "arrow.triangle.turn.up.right.diamond.fill",
                     tint: accentColor
                 ) { openInMaps(directions: true) }
 
-                actionButton(
+                dockAction(
                     titleKey: "chat.location.openInMaps",
                     systemImage: "map.fill",
-                    tint: nil
+                    tint: chromeInk
                 ) { openInMaps(directions: false) }
-            }
 
-            if canStopLive {
-                actionButton(
-                    titleKey: "chat.location.stopSharing",
-                    systemImage: "stop.circle.fill",
-                    tint: accentColorRed
-                ) { stopLiveSharing() }
+                if canStopLive {
+                    dockStopAction
+                }
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 10)
+            .frame(minHeight: ChatLocationMapMetrics.dockCapsuleHeight)
+            .momentsChromeGlass(in: Capsule(), interactive: false)
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 18)
-        .padding(.bottom, 18)
+        .padding(.horizontal, 20)
         .safeAreaPadding(.bottom, 6)
-        .frame(maxWidth: .infinity)
-        .momentsChromeGlass(in: ChatLocationMapMetrics.bottomCardShape, interactive: false)
     }
 
-    private var actionButtonStrokeColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
+    /// Misma columna que el resto del dock; icono = círculo rojo + stop.
+    private var dockStopAction: some View {
+        Button(action: stopLiveSharing) {
+            VStack(spacing: 5) {
+                ZStack {
+                    Circle()
+                        .fill(accentColorRed)
+                        .frame(width: 28, height: 28)
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                .frame(height: 28)
+
+                Text(LocalizedStringKey("chat.location.stopSharing"))
+                    .font(.system(size: legacyPoppinsSize(10), weight: .medium))
+                    .foregroundStyle(chromeSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(LocalizedStringKey("chat.location.stopSharing")))
     }
 
-    private func actionButton(
+    private var locationInfoCapsule: some View {
+        HStack(spacing: 10) {
+            AttachmentIconView(
+                icon: isLive ? .liveLocation : .location,
+                preset: .locationDetailCard,
+                tintColor: markerTint
+            )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleText)
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                    .foregroundStyle(chromeInk)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                if let subtitle = subtitleText {
+                    Text(subtitle)
+                        .font(.system(size: legacyPoppinsSize(11)))
+                        .foregroundStyle(chromeSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .momentsChromeGlass(in: Capsule(), interactive: false)
+    }
+
+    private func dockAction(
         titleKey: String,
         systemImage: String,
-        tint: Color?,
+        tint: Color,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            VStack(spacing: 5) {
                 Image(systemName: systemImage)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(height: 24)
                 Text(LocalizedStringKey(titleKey))
-                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                    .font(.system(size: legacyPoppinsSize(10), weight: .medium))
+                    .foregroundStyle(chromeSecondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.65)
+                    .multilineTextAlignment(.center)
             }
-            .foregroundStyle(tint == nil ? (colorScheme == .dark ? .white : .black) : .white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .momentsChromeGlass(
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous),
-                interactive: true,
-                tint: tint.map { $0.opacity(0.92) }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(actionButtonStrokeColor, lineWidth: 1)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Text(LocalizedStringKey(titleKey)))
     }
 
     private var titleText: String {

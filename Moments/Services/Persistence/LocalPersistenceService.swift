@@ -2075,6 +2075,14 @@ final class LocalPersistenceService: ObservableObject {
         existing.mediaHeight = new.mediaHeight
         existing.latitude = new.latitude
         existing.longitude = new.longitude
+        existing.locationName = new.locationName
+        existing.locationAddress = new.locationAddress
+        existing.isLiveLocation = new.isLiveLocation
+        existing.liveLocationExpiresAt = new.liveLocationExpiresAt
+        existing.liveLocationDuration = new.liveLocationDuration
+        existing.liveLocationStoppedAt = new.liveLocationStoppedAt
+        existing.liveLocationSessionId = new.liveLocationSessionId
+        existing.locationUpdatedAt = new.locationUpdatedAt
         existing.statusString = new.statusString
         // Una vez leído, permanece leído: re-cachear un mensaje (re-sync del listener) no debe
         // des-marcarlo. Sin esto, los mensajes ya leídos reaparecían como no leídos al reentrar.

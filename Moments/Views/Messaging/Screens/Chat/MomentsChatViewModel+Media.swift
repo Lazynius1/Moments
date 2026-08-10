@@ -426,10 +426,6 @@ extension MomentsChatViewModel {
             messageId: messageId,
             conversationId: conversationId
         )
-        if let index = messages.firstIndex(where: { $0.id == messageId }) {
-            messages[index].liveLocationStoppedAt = Date()
-            updateGroupedMessages()
-            objectWillChange.send()
-        }
+        markLiveLocationStoppedLocally(messageId: messageId)
     }
 }
