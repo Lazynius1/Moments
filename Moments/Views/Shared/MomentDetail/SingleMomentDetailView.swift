@@ -244,7 +244,8 @@ struct SingleMomentDetailView: View {
                         profileZoomNamespace: profileZoomNamespace,
                         onPeek: { imageURL, ratio, isPressing in
                             handlePeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing)
-                        }
+                        },
+                        reelsVideos: [moment].videoMoments
                     )
                     .equatable()
                     .environmentObject(firestoreService)

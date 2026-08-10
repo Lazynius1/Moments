@@ -20,10 +20,11 @@ struct LiveVideoTimeLabel: View {
     let totalDuration: Double?
     var displayMode: DisplayMode = .standalone
 
-    @ObservedObject private var manager = GlobalVideoManager.shared
+    @ObservedObject private var clock = LivePlaybackClock.shared
 
     var body: some View {
-        let currentSeconds = manager.livePlaybackSeconds[consumerId] ?? 0
+        let _ = clock.revision
+        let currentSeconds = clock.seconds(for: consumerId)
         let hasStarted     = currentSeconds > 0.05
 
         let text: String? = {

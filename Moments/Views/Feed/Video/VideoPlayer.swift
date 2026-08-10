@@ -2,12 +2,38 @@
 import SwiftUI
 import AVFoundation
 
+/// Reloj de tiempo de reproducción aislado: evita que `livePlaybackSeconds`
+/// invalide todas las celdas del feed que observan `GlobalVideoManager`.
+final class LivePlaybackClock: ObservableObject {
+    static let shared = LivePlaybackClock()
+
+    @Published private(set) var revision: UInt64 = 0
+    private(set) var secondsById: [String: Double] = [:]
+    private var lastPublishAt: CFTimeInterval = 0
+    private let minPublishInterval: CFTimeInterval = 0.25
+
+    private init() {}
+
+    func seconds(for consumerId: String) -> Double {
+        secondsById[consumerId] ?? 0
+    }
+
+    func tick(consumerId: String, seconds: Double) {
+        secondsById[consumerId] = seconds
+        let now = CACurrentMediaTime()
+        guard now - lastPublishAt >= minPublishInterval else { return }
+        lastPublishAt = now
+        revision &+= 1
+    }
+}
+
 // ✅ NUEVO: Video Manager global para controlar todos los videos
 class GlobalVideoManager: ObservableObject {
     static let shared = GlobalVideoManager()
     
     @Published private(set) var activeVideoId: String?
-    @Published private(set) var livePlaybackSeconds: [String: Double] = [:]
+    /// No @Published: el tick de progreso no debe re-renderizar el feed entero.
+    private(set) var livePlaybackSeconds: [String: Double] = [:]
     private var allPlayers: [String: VideoPlayerManager] = [:]
     private var playbackPositionsByMomentId: [String: Double] = [:]
     private var preservedPlayerConsumerIds: Set<String> = []
@@ -86,7 +112,9 @@ class GlobalVideoManager: ObservableObject {
         }
         
         // ✅ REPRODUCIR el nuevo video
-        activeVideoId = playerId
+        if activeVideoId != playerId {
+            activeVideoId = playerId
+        }
         allPlayers[playerId]?.resumeVideo()
     }
     
@@ -146,8 +174,8 @@ class GlobalVideoManager: ObservableObject {
     func setPlaybackPosition(seconds: Double, forMomentId momentId: String) {
         guard seconds.isFinite, seconds >= 0 else { return }
         playbackPositionsByMomentId[momentId] = seconds
-        // Publicar cambio para que LiveVideoTimeLabel actualice en tiempo real.
         livePlaybackSeconds[momentId] = seconds
+        LivePlaybackClock.shared.tick(consumerId: momentId, seconds: seconds)
     }
 
     func playbackPosition(forMomentId momentId: String) -> Double {
@@ -262,7 +290,6 @@ struct ModernVideoPlayer: View {
     private var usesSocialChrome: Bool { chromeStyle == .socialReels }
     
     @StateObject private var playerManager = VideoPlayerManager()
-    @StateObject private var globalManager = GlobalVideoManager.shared
     @State private var showControls = false
     @State private var showMuteButton = true
     @State private var progress: Double = 0
@@ -272,10 +299,12 @@ struct ModernVideoPlayer: View {
     @State private var setupRetries = 0
     @State private var setupGeneration = 0
     @State private var hasLoadError = false
-    @ObservedObject private var visibilityCoordinator = FeedVisibilityCoordinator.shared
+    /// Cancela activaciones pendientes si el usuario sigue scrolleando.
+    @State private var activationGeneration = 0
     
     private let maxSetupRetries = 2
     private let setupTimeoutSeconds: Double = 4.0
+    private var globalManager: GlobalVideoManager { GlobalVideoManager.shared }
     
     init(
         url: String,
@@ -366,13 +395,24 @@ struct ModernVideoPlayer: View {
             }
         }
         .onAppear {
-            setupPlayer()
-            globalManager.registerPlayer(videoId, manager: playerManager)
             isVisible = true
-            applyActivationMode(activeId: visibilityCoordinator.activeVideoMomentId)
+            // En feed: no montar AVPlayer en el mismo gesto del scroll.
+            // Solo preparamos al activarse (o en detalle con alwaysWhenVisible).
+            if activationMode == .alwaysWhenVisible {
+                Task { @MainActor in
+                    await Task.yield()
+                    guard isVisible else { return }
+                    preparePlayerIfNeeded()
+                    applyActivationMode(activeId: FeedVisibilityCoordinator.shared.activeVideoMomentId)
+                }
+            } else {
+                // Si ya somos el activo al aparecer (p. ej. scroll lento), activar con debounce.
+                applyActivationMode(activeId: FeedVisibilityCoordinator.shared.activeVideoMomentId)
+            }
         }
         .onDisappear {
             isVisible = false
+            activationGeneration += 1
             let isCurrent = globalManager.isRegisteredPlayer(videoId, manager: playerManager)
             if isCurrent {
                 globalManager.pauseVideo(videoId)
@@ -385,7 +425,7 @@ struct ModernVideoPlayer: View {
             setupRetries = 0
             setupGeneration += 1
         }
-        .onChange(of: visibilityCoordinator.activeVideoMomentId) { _, activeId in
+        .onReceive(FeedVisibilityCoordinator.shared.$activeVideoMomentId) { activeId in
             applyActivationMode(activeId: activeId)
         }
         .onTapGesture {
@@ -608,10 +648,21 @@ struct ModernVideoPlayer: View {
         setupRetries = 0
         hasSetupPlayer = false
         playerManager.cleanup()
-        setupPlayer()
+        preparePlayerIfNeeded()
         if isVisible {
-            applyActivationMode(activeId: visibilityCoordinator.activeVideoMomentId)
+            applyActivationMode(activeId: FeedVisibilityCoordinator.shared.activeVideoMomentId)
         }
+    }
+
+    private func preparePlayerIfNeeded() {
+        guard !hasSetupPlayer else {
+            if !globalManager.isRegisteredPlayer(videoId, manager: playerManager) {
+                globalManager.registerPlayer(videoId, manager: playerManager)
+            }
+            return
+        }
+        setupPlayer()
+        globalManager.registerPlayer(videoId, manager: playerManager)
     }
 
     private func applyActivationMode(activeId: String?) {
@@ -620,12 +671,14 @@ struct ModernVideoPlayer: View {
             updatePlaybackForVisibility(activeId: activeId)
         case .alwaysWhenVisible:
             guard isVisible else { return }
+            preparePlayerIfNeeded()
             globalManager.playVideo(videoId)
         }
     }
     
     // ✅ NUEVO: Toggle playback que usa el manager global
     private func togglePlayback() {
+        preparePlayerIfNeeded()
         if playerManager.isPlaying {
             // Pausar este video
             globalManager.pauseVideo(videoId)
@@ -637,8 +690,21 @@ struct ModernVideoPlayer: View {
     
     private func updatePlaybackForVisibility(activeId: String?) {
         guard isVisible else { return }
+        activationGeneration += 1
+        let generation = activationGeneration
+
         if GlobalVideoManager.visibilityMatches(activeMomentId: activeId, videoConsumerId: videoId) {
-            globalManager.playVideo(videoId)
+            // Debounce: el primer AVPlayer/decoder no debe pelear con el gesto de scroll.
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 90_000_000)
+                guard generation == activationGeneration, isVisible else { return }
+                guard GlobalVideoManager.visibilityMatches(
+                    activeMomentId: FeedVisibilityCoordinator.shared.activeVideoMomentId,
+                    videoConsumerId: videoId
+                ) else { return }
+                preparePlayerIfNeeded()
+                globalManager.playVideo(videoId)
+            }
         } else {
             globalManager.pauseVideo(videoId)
         }

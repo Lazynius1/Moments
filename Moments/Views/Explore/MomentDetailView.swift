@@ -334,6 +334,7 @@ struct MomentDetailView: View {
                 showTags: $showTags, // ✅ PASAR binding
                 aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
                 currentMoment: moment,
+                reelsVideos: [moment].videoMoments,
                 isImmersive: $isImmersive // ✅ NUEVO
             )
             .carouselImmersivePeekGesture(

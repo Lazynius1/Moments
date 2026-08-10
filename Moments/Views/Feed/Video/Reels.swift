@@ -14,6 +14,7 @@ struct ReelsViewer: View {
     let startIndex: Int
     let initialStartSeconds: Double
     @State private var currentIndex: Int = 0
+    @State private var scrollPosition: Int?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     
@@ -21,7 +22,9 @@ struct ReelsViewer: View {
         self.videos = videos
         self.startIndex = startIndex
         self.initialStartSeconds = initialStartSeconds
-        self._currentIndex = State(initialValue: startIndex)
+        let safeStart = videos.isEmpty ? 0 : min(max(0, startIndex), videos.count - 1)
+        self._currentIndex = State(initialValue: safeStart)
+        self._scrollPosition = State(initialValue: safeStart)
     }
     
     var body: some View {
@@ -31,60 +34,49 @@ struct ReelsViewer: View {
                 .ignoresSafeArea(.all)
             
             if !videos.isEmpty {
-                TabView(selection: $currentIndex) {
-                    ForEach(Array(videos.enumerated()), id: \.offset) { index, video in
-                        Group {
-                            if abs(index - currentIndex) <= 1 {
-                                ReelVideoView(
-                                    video: video,
-                                    isCurrentVideo: currentIndex == index,
-                                    startAtSeconds: index == startIndex ? initialStartSeconds : 0,
-                                    onClose: {
-                                        dismiss()
-                                    }
-                                )
-                            } else {
-                                Color.black
-                            }
+                ScrollView(.vertical) {
+                    LazyVStack(spacing: 0) {
+                        // id por índice de sesión (lista congelada) — evita recrear páginas al swipe
+                        ForEach(Array(videos.enumerated()), id: \.offset) { index, video in
+                            ReelsPagerPage(
+                                index: index,
+                                video: video,
+                                currentIndex: currentIndex,
+                                startIndex: startIndex,
+                                initialStartSeconds: initialStartSeconds,
+                                onClose: { dismiss() }
+                            )
+                            .id(index)
                         }
-                        .tag(index)
                     }
+                    .scrollTargetLayout()
                 }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .never))
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: $scrollPosition)
+                .scrollIndicators(.hidden)
                 .ignoresSafeArea(.container, edges: .all)
-                .gesture(
+                .simultaneousGesture(
                     DragGesture(minimumDistance: 30)
                         .onEnded { value in
-                            let haptic = UIImpactFeedbackGenerator(style: .light)
-                            
-                            if value.translation.height > 50 {
-                                haptic.impactOccurred()
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    if currentIndex > 0 {
-                                        currentIndex -= 1
-                                    }
-                                }
-                            } else if value.translation.height < -50 {
-                                haptic.impactOccurred()
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    if currentIndex < videos.count - 1 {
-                                        currentIndex += 1
-                                    }
-                                }
-                            } else if abs(value.translation.width) > 100 {
-                                // Swipe horizontal para cerrar
-                                haptic.impactOccurred()
-                                dismiss()
+                            guard abs(value.translation.width) > 100,
+                                  abs(value.translation.width) > abs(value.translation.height) else {
+                                return
                             }
+
+                            HapticManager.shared.lightImpact()
+                            dismiss()
                         }
                 )
                 .onAppear {
-                    // ✅ INSTANT PLAYBACK: Precargar los primeros videos al abrir
-                     preloadUpcomingVideos(from: currentIndex)
+                    scrollPosition = currentIndex
+                    preloadUpcomingVideos(from: currentIndex)
+                }
+                .onChange(of: scrollPosition) { _, newIndex in
+                    guard let newIndex, newIndex != currentIndex else { return }
+                    guard videos.indices.contains(newIndex) else { return }
+                    currentIndex = newIndex
                 }
                 .onChange(of: currentIndex) { _, newIndex in
-                    // ✅ INSTANT PLAYBACK: Precargar dinámicamente al scrollear
                     preloadUpcomingVideos(from: newIndex)
                 }
                 .onDisappear {
@@ -93,7 +85,7 @@ struct ReelsViewer: View {
             }
         }
         .preferredColorScheme(.dark)
-        .statusBarHidden()
+        // Status bar visible: el chrome top se ancla bajo el safe area.
     }
     
     // ✅ INSTANT PLAYBACK: Lógica de preloading para Reels
@@ -117,6 +109,47 @@ struct ReelsViewer: View {
     }
 }
 
+private struct ReelsPagerPage: View {
+    let index: Int
+    let video: VideoMoment
+    let currentIndex: Int
+    let startIndex: Int
+    let initialStartSeconds: Double
+    let onClose: () -> Void
+
+    var body: some View {
+        Group {
+            if abs(index - currentIndex) <= 1 {
+                ReelVideoView(
+                    video: video,
+                    isCurrentVideo: currentIndex == index,
+                    startAtSeconds: index == startIndex ? initialStartSeconds : 0,
+                    onClose: onClose
+                )
+            } else {
+                // Páginas lejanas: poster (nunca negro vacío al pasar rápido).
+                ReelsPosterPage(video: video)
+            }
+        }
+        .containerRelativeFrame(.vertical)
+    }
+}
+
+private struct ReelsPosterPage: View {
+    let video: VideoMoment
+
+    var body: some View {
+        ZStack {
+            Color.black
+            VideoPosterOverlay(
+                posterURLString: video.posterURLString,
+                isReadyToPlay: false,
+                contentMode: .fit
+            )
+        }
+    }
+}
+
 struct ReelVideoView: View {
     let video: VideoMoment
     let isCurrentVideo: Bool
@@ -129,9 +162,9 @@ struct ReelVideoView: View {
     @State private var commentCount: Int = 0
     @State private var isDoubleTapAnimating = false
     @State private var showContextMenu = false
-    @State private var showShareSheet = false
     @State private var showReportSheet = false
     @State private var showDeleteAlert = false
+    @State private var isSaved: Bool = false
     @State private var profileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
     @State private var hasStory = false
@@ -172,16 +205,28 @@ struct ReelVideoView: View {
     }
 
     private var bottomBarHeight: CGFloat {
-        68
+        46
     }
 
-    /// GeometryReader bajo `ignoresSafeArea` suele dar bottom = 0; leemos el inset real del window.
-    private var systemSafeBottomInset: CGFloat {
+    private var progressLineHeight: CGFloat {
+        2.5
+    }
+
+    /// GeometryReader bajo `ignoresSafeArea` suele dar insets = 0; leemos los reales del window.
+    private var keyWindowSafeAreaInsets: UIEdgeInsets {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .first { $0.isKeyWindow }?
-            .safeAreaInsets.bottom ?? 0
+            .safeAreaInsets ?? .zero
+    }
+
+    private var systemSafeTopInset: CGFloat {
+        keyWindowSafeAreaInsets.top
+    }
+
+    private var systemSafeBottomInset: CGFloat {
+        keyWindowSafeAreaInsets.bottom
     }
 
     @ViewBuilder
@@ -202,8 +247,8 @@ struct ReelVideoView: View {
 
                         Spacer()
                     }
-                    .padding(.horizontal, 18)
-                    .frame(height: 46)
+                    .padding(.horizontal, 16)
+                    .frame(height: 40)
                     .background(
                         Capsule()
                             .fill(colorScheme == .dark ? .white.opacity(0.06) : .black.opacity(0.06))
@@ -217,98 +262,53 @@ struct ReelVideoView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 14)
-        .padding(.bottom, 2)
-        .frame(height: bottomBarHeight)
+        .padding(.top, 6)
+        .padding(.bottom, 0)
+        .frame(maxWidth: .infinity, minHeight: bottomBarHeight, alignment: .bottom)
         .background(bottomBarBackgroundColor)
     }
     
     var body: some View {
         GeometryReader { geometry in
-            let safeTop = geometry.safeAreaInsets.top
+            // Con ScrollView + ignoresSafeArea, geometry.safeAreaInsets suele ser 0.
+            let safeTop = max(geometry.safeAreaInsets.top, systemSafeTopInset)
+            let bottomInset = max(geometry.safeAreaInsets.bottom, systemSafeBottomInset)
+            // Baja el input hacia el home indicator (sigue usable).
+            let chromeBottomPadding = max(2, bottomInset - 12)
+            // Caption acaba justo donde empieza la línea de progreso.
+            let bottomChromeClearance = progressLineHeight + bottomBarHeight + chromeBottomPadding
 
             ZStack {
                 // Video Player completamente fullscreen sin controles nativos
-                if let player = playerManager.player {
-                    VideoPlayerRepresentable(
-                        player: player,
-                        videoGravity: .resizeAspect,
-                        showControls: .constant(false), // Siempre oculto
-                        progress: $playerManager.progress,
-                        isBuffering: $playerManager.isBuffering
+                ZStack {
+                    if let player = playerManager.player {
+                        VideoPlayerRepresentable(
+                            player: player,
+                            videoGravity: .resizeAspect,
+                            showControls: .constant(false), // Siempre oculto
+                            progress: $playerManager.progress,
+                            isBuffering: $playerManager.isBuffering
+                        )
+                        .aspectRatio(contentMode: videoContentMode)  // ✅ Dinámico según orientación
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .background(Color.black)
+                        .clipped()
+                        .ignoresSafeArea(.all)
+                    } else {
+                        Color.black
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .ignoresSafeArea(.all)
+                    }
+
+                    // Poster hasta readyToPlay (también en el reel adyacente al swipe).
+                    VideoPosterOverlay(
+                        posterURLString: video.posterURLString,
+                        isReadyToPlay: playerManager.isLoaded && playerManager.player != nil,
+                        contentMode: videoContentMode
                     )
-                    .aspectRatio(contentMode: videoContentMode)  // ✅ Dinámico según orientación
                     .frame(width: geometry.size.width, height: geometry.size.height)
-                    .background(Color.black)
                     .clipped()
                     .ignoresSafeArea(.all)
-                } else {
-                    // Loading state mejorado y más rápido
-                    ZStack {
-                        // Background con blur sutil
-                        Rectangle()
-                            .fill(.black)
-                        
-                        VStack(spacing: 24) {
-                            // Loading animation más elegante
-                            ZStack {
-                                // Círculo exterior
-                                Circle()
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 2)
-                                    .frame(width: 50, height: 50)
-                                
-                                // Círculo animado
-                                Circle()
-                                    .trim(from: 0, to: 0.8)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Color.white, Color.white.opacity(0.3)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        style: StrokeStyle(lineWidth: 2, lineCap: .round)
-                                    )
-                                    .frame(width: 50, height: 50)
-                                    .rotationEffect(.degrees(playerManager.isBuffering ? 360 : 0))
-                                    .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: playerManager.isBuffering)
-                            }
-                            .onAppear {
-                                playerManager.isBuffering = true
-                            }
-                            
-                            VStack(spacing: 8) {
-                                Text(
-                                    playerManager.isLoaded
-                                    ? NSLocalizedString("feed.reels.video.starting", comment: "Reels starting state")
-                                    : NSLocalizedString("feed.reels.video.loading", comment: "Reels loading state")
-                                )
-                                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                    .foregroundStyle(.white)
-                                    .transition(.opacity)
-                                
-                                if playerManager.isBuffering {
-                                    Text(NSLocalizedString("feed.reels.video.optimizing", comment: "Reels optimizing quality"))
-                                        .font(.system(size: legacyPoppinsSize(12)))
-                                        .foregroundStyle(.white.opacity(0.6))
-                                        .transition(.opacity)
-                                }
-                            }
-                        }
-                        
-                        // Opcional: Mostrar imagen del momento si existe mientras carga el video
-                        if let imagePath = video.moment.imagePath, !imagePath.isEmpty {
-                            AsyncImage(url: URL(string: imagePath)) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .opacity(0.2)
-                                    .blur(radius: 3)
-                            } placeholder: {
-                                Rectangle()
-                                    .fill(Color.black.opacity(0.1))
-                            }
-                        }
-                    }
                 }
                 
                 // Capa invisible para capturar gestos de reproducción y likes en el fondo,
@@ -336,49 +336,72 @@ struct ReelVideoView: View {
                         .opacity(isDoubleTapAnimating ? 0 : 1)
                         .animation(MotionPolicy.animation(MotionPolicy.Spring.delight, value: isDoubleTapAnimating), value: isDoubleTapAnimating)
                 }
+
+                // Al pausar: mute (pequeño) + play centrado con glass native.
+                if playerManager.player != nil, !playerManager.isPlaying, !isDraggingProgress {
+                    VStack(spacing: 14) {
+                        Button(action: {
+                            HapticManager.shared.lightImpact()
+                            playerManager.toggleMute()
+                        }) {
+                            Image(systemName: playerManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(chromePrimaryColor)
+                                .frame(width: 28, height: 28)
+                                .background(Color.white.opacity(0.001))
+                                .contentShape(Circle())
+                                .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
+                        }
+                        .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
+                        .accessibilityLabel(
+                            playerManager.isMuted
+                            ? NSLocalizedString("feed.video.unmute", comment: "Unmute video")
+                            : NSLocalizedString("feed.video.mute", comment: "Mute video")
+                        )
+
+                        Button(action: {
+                            HapticManager.shared.lightImpact()
+                            playerManager.play()
+                        }) {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundStyle(chromePrimaryColor)
+                                .offset(x: 1) // Óptico: el triángulo play se ve centrado
+                                .frame(width: 64, height: 64)
+                                .background(Color.white.opacity(0.001))
+                                .contentShape(Circle())
+                                .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
+                        }
+                        .buttonStyle(.momentsPress(scale: 0.92, haptic: .none))
+                        .accessibilityLabel(NSLocalizedString("feed.video.play", comment: "Play video"))
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                    .zIndex(40)
+                }
                 
                 // Sin controles visuales - solo play/pause silencioso
                 VStack(spacing: 0) {
                     HStack {
                         Spacer()
 
-                        VStack(spacing: 10) {
-                            Button(action: {
-                                HapticManager.shared.mediumImpact()
-                                onClose()
-                            }) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(chromePrimaryColor)
-                                    .frame(width: 38, height: 38)
-                                    .background(Color.white.opacity(0.001))
-                                    .contentShape(Circle())
-                                    .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
-                            }
-                            .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
-
-                            Button(action: {
-                                HapticManager.shared.lightImpact()
-                                playerManager.toggleMute()
-                            }) {
-                                Image(systemName: playerManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(chromePrimaryColor)
-                                    .frame(width: 38, height: 38)
-                                    .background(Color.white.opacity(0.001))
-                                    .contentShape(Circle())
-                                    .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
-                            }
-                            .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
-                            .accessibilityLabel(
-                                playerManager.isMuted
-                                ? NSLocalizedString("feed.video.unmute", comment: "Unmute video")
-                                : NSLocalizedString("feed.video.mute", comment: "Mute video")
-                            )
+                        Button(action: {
+                            HapticManager.shared.mediumImpact()
+                            onClose()
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(chromePrimaryColor)
+                                .frame(width: 34, height: 34)
+                                .background(Color.white.opacity(0.001))
+                                .contentShape(Circle())
+                                .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
                         }
+                        .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, max(4, safeTop + 2))
+                    // Bajo la status bar (safe area), con un pequeño respiro.
+                    .padding(.top, safeTop + 8)
 
                     Spacer()
 
@@ -478,13 +501,14 @@ struct ReelVideoView: View {
                                 .padding(.leading, -12)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.bottom, bottomChromeClearance + 6)
 
-                            VStack(spacing: 18) {
+                            VStack(spacing: 12) {
                                 EpicReactionButton(
                                     moment: video.moment,
                                     showCount: video.moment.authorId == Auth.auth().currentUser?.uid || !video.moment.hideLikeCounts,
-                                    size: 56,
-                                    emojiSize: 28,
+                                    size: 44,
+                                    emojiSize: 22,
                                     pickerXOffset: -110
                                 )
                                 .environmentObject(firestoreService)
@@ -501,21 +525,15 @@ struct ReelVideoView: View {
                                     )
                                 }
 
-                                let aud = video.moment.audience?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-                                let isEveryone = aud.isEmpty || aud == "everyone"
-                                if video.moment.allowSharing && isEveryone {
-                                    EnhancedReelActionButton(
-                                        icon: AttachmentIcon.share.rawValue,
-                                        count: nil,
-                                        isActive: false,
-                                        activeColor: .green,
-                                        action: {
-                                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                                showShareSheet = true
-                                            }
-                                        }
-                                    )
-                                }
+                                EnhancedReelActionButton(
+                                    icon: AttachmentIcon.bookmark.rawValue,
+                                    count: nil,
+                                    isActive: isSaved,
+                                    activeColor: .yellow,
+                                    action: {
+                                        toggleSave()
+                                    }
+                                )
 
                                 EnhancedReelActionButton(
                                     icon: "ellipsis",
@@ -529,17 +547,107 @@ struct ReelVideoView: View {
                                     }
                                 )
                             }
-                            .padding(.bottom, 6)
+                            .padding(.bottom, bottomChromeClearance + 18)
                         }
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 22)
                         .animation(.spring(response: 0.38, dampingFraction: 0.85), value: isReelCaptionExpanded)
                     }
                 }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .ignoresSafeArea(.container, edges: .all)
+            .overlay(alignment: .bottom) {
+                // Contenido por encima del home indicator; fondo Moments hasta el borde.
+                // Se oculta con el context menu para que nunca quede por encima del sheet.
+                if !showContextMenu {
+                    // Progress arriba del todo (donde acaba el VStack de caption); input abajo.
+                    VStack(spacing: 0) {
+                        if playerManager.duration > 0 {
+                            let barHeight: CGFloat = isDraggingProgress ? 6 : progressLineHeight
+                            let thumbSize: CGFloat = 12
 
+                            ZStack(alignment: .topLeading) {
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.24))
+                                    .frame(height: barHeight)
 
+                                Rectangle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color(hex: "4158D0"), Color(hex: "C850C0")],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: max(0, geometry.size.width * playerManager.progress), height: barHeight)
 
-                // Context Menu Overlay
+                                if isDraggingProgress {
+                                    Circle()
+                                        .fill(Color.white)
+                                        .frame(width: thumbSize, height: thumbSize)
+                                        .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
+                                        .offset(
+                                            x: (geometry.size.width * playerManager.progress) - (thumbSize / 2),
+                                            y: (barHeight - thumbSize) / 2
+                                        )
+                                        .transition(MotionPolicy.Transition.enterPop)
+                                }
+
+                                Rectangle()
+                                    .fill(Color.clear)
+                                    .frame(height: 28)
+                                    .contentShape(Rectangle())
+                                    .gesture(
+                                        DragGesture(minimumDistance: 0)
+                                            .onChanged { value in
+                                                if !isDraggingProgress {
+                                                    let haptic = UIImpactFeedbackGenerator(style: .light)
+                                                    haptic.impactOccurred()
+
+                                                    wasPlayingBeforeDrag = playerManager.isPlaying
+                                                    playerManager.pause()
+
+                                                    withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                                                        isDraggingProgress = true
+                                                    }
+                                                }
+                                                let stableTouchX = value.startLocation.x + value.translation.width
+                                                let newProgress = max(0, min(1, stableTouchX / geometry.size.width))
+                                                playerManager.updateProgress(to: newProgress)
+                                                playerManager.seekToProgress(newProgress)
+                                            }
+                                            .onEnded { value in
+                                                withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                                    isDraggingProgress = false
+                                                }
+                                                let stableTouchX = value.startLocation.x + value.translation.width
+                                                let finalProgress = max(0, min(1, stableTouchX / geometry.size.width))
+                                                playerManager.seekToProgress(finalProgress, precise: true)
+
+                                                if wasPlayingBeforeDrag {
+                                                    playerManager.play()
+                                                }
+                                            }
+                                    )
+                            }
+                            .frame(
+                                width: geometry.size.width,
+                                height: isDraggingProgress ? 6 : progressLineHeight,
+                                alignment: .top
+                            )
+                            .zIndex(1)
+                        }
+
+                        reelCommentBar
+                            .zIndex(0)
+                    }
+                    .padding(.bottom, chromeBottomPadding)
+                    .background(bottomBarBackgroundColor)
+                    .ignoresSafeArea(.container, edges: .bottom)
+                }
+            }
+            // Context menu SIEMPRE por encima del chrome inferior (overlay posterior + clearance).
+            .overlay {
                 if showContextMenu {
                     ModernContextMenuOverlay(
                         moment: video.moment,
@@ -561,111 +669,16 @@ struct ReelVideoView: View {
                     .zIndex(1000)
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showContextMenu)
                 }
-                
-                // Share Sheet
-                if showShareSheet {
-                    ModernShareBottomSheet(moment: video.moment, isPresented: $showShareSheet)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .move(edge: .bottom).combined(with: .opacity)
-                        ))
-                        .zIndex(1001)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showShareSheet)
-                }
-            }
-            .frame(width: geometry.size.width, height: geometry.size.height)
-            .ignoresSafeArea(.container, edges: .all)
-            .overlay(alignment: .bottom) {
-                let bottomInset = max(geometry.safeAreaInsets.bottom, systemSafeBottomInset)
-                // Contenido por encima del home indicator; fondo Moments hasta el borde.
-                VStack(spacing: -6) {
-                    if playerManager.duration > 0 {
-                        let barHeight: CGFloat = isDraggingProgress ? 6 : 2.5
-                        let thumbSize: CGFloat = 12
-
-                            ZStack(alignment: .leading) {
-                                // Background track
-                                Rectangle()
-                                    .fill(Color.white.opacity(0.24))
-                                    .frame(height: barHeight)
-
-                                // Active progress with brand gradient
-                                Rectangle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color(hex: "4158D0"), Color(hex: "C850C0")],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .frame(width: max(0, geometry.size.width * playerManager.progress), height: barHeight)
-
-                                // Thumb (Circle dot) - displayed when dragging/holding
-                                if isDraggingProgress {
-                                    Circle()
-                                        .fill(Color.white)
-                                        .frame(width: thumbSize, height: thumbSize)
-                                        .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
-                                        .offset(x: (geometry.size.width * playerManager.progress) - (thumbSize / 2))
-                                        .transition(MotionPolicy.Transition.enterPop)
-                                }
-
-                                // Interactive touch area (larger height for comfortable scrubbing)
-                                Rectangle()
-                                    .fill(Color.clear)
-                                    .frame(height: 30)
-                                    .contentShape(Rectangle())
-                                    .gesture(
-                                        DragGesture(minimumDistance: 0)
-                                            .onChanged { value in
-                                                if !isDraggingProgress {
-                                                    let haptic = UIImpactFeedbackGenerator(style: .light)
-                                                    haptic.impactOccurred()
-
-                                                    // Guardar estado de reproducción y pausar
-                                                    wasPlayingBeforeDrag = playerManager.isPlaying
-                                                    playerManager.pause()
-
-                                                    withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                                                        isDraggingProgress = true
-                                                    }
-                                                }
-                                                let stableTouchX = value.startLocation.x + value.translation.width
-                                                let newProgress = max(0, min(1, stableTouchX / geometry.size.width))
-                                                playerManager.updateProgress(to: newProgress)
-                                                playerManager.seekToProgress(newProgress)
-                                            }
-                                            .onEnded { value in
-                                                withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                                    isDraggingProgress = false
-                                                }
-                                                let stableTouchX = value.startLocation.x + value.translation.width
-                                                let finalProgress = max(0, min(1, stableTouchX / geometry.size.width))
-                                                playerManager.seekToProgress(finalProgress, precise: true)
-
-                                                // Reanudar reproducción si estaba reproduciendo
-                                                if wasPlayingBeforeDrag {
-                                                    playerManager.play()
-                                                }
-                                            }
-                                    )
-                            }
-                            .frame(width: geometry.size.width, height: 12)
-                            .zIndex(1)
-                    }
-
-                    reelCommentBar
-                        .zIndex(0)
-                }
-                .padding(.bottom, bottomInset + 6)
-                .background(bottomBarBackgroundColor)
-                .ignoresSafeArea(.container, edges: .bottom)
             }
         }
         /*.sheet(isPresented: $showReportSheet) {
             ReportBottomSheet(moment: video.moment)
         }*/
-        .userProfileNavigationDestination(item: $profileRoute, namespace: profileZoomNamespace)
+        .fullScreenCover(item: $profileRoute) { route in
+            NavigationStack {
+                UserProfileView(userId: route.userId)
+            }
+        }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.id))
                 .environmentObject(firestoreService)
@@ -686,12 +699,18 @@ struct ReelVideoView: View {
                 refreshAuthorUsername()
                 preloadNextVideos()
             }
+            checkIfSaved()
+        }
+        .onChange(of: firestoreService.savedMomentIds) { _, ids in
+            guard let momentId = video.moment.id else { return }
+            isSaved = ids.contains(momentId)
         }
         .onChange(of: isCurrentVideo) { _, isActive in
             if isActive {
                 setupVideo()
                 loadVideoData()
                 refreshAuthorUsername()
+                checkIfSaved()
             } else {
                 // Pausar inmediatamente cuando no está activo
                 playerManager.pause()
@@ -861,28 +880,41 @@ struct ReelVideoView: View {
                 }
             }
     }
-    
-    
-    private func shareVideo() {
-        guard let momentId = video.moment.id else { return }
-        let aud = video.moment.audience?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-        let isEveryone = aud.isEmpty || aud == "everyone"
-        guard video.moment.allowSharing && isEveryone else { return }
-        let shareText = "¡Mira este video en Moments!"
-        var components = URLComponents(string: "https://momentsapp.app/moment/\(momentId)")
-        if !video.moment.authorId.isEmpty {
-            components?.queryItems = [URLQueryItem(name: "a", value: video.moment.authorId)]
+
+    private func checkIfSaved() {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let momentId = video.moment.id else { return }
+
+        if firestoreService.hasLoadedSavedMoments(for: userId) {
+            isSaved = firestoreService.savedMomentIds.contains(momentId)
+            return
         }
-        let shareURL = components?.url
-        
-        let activityViewController = UIActivityViewController(
-            activityItems: ([shareText] as [Any]) + ([shareURL].compactMap { $0 } as [Any]),
-            applicationActivities: nil
-        )
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first {
-            window.rootViewController?.present(activityViewController, animated: true)
+
+        firestoreService.checkIfSaved(userId: userId, momentId: momentId) { result in
+            if case .success(let saved) = result {
+                DispatchQueue.main.async {
+                    self.isSaved = saved
+                }
+            }
+        }
+    }
+
+    private func toggleSave() {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let momentId = video.moment.id else { return }
+
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+            isSaved.toggle()
+        }
+
+        firestoreService.toggleSaveMoment(userId: userId, momentId: momentId) { error in
+            if error != nil {
+                DispatchQueue.main.async {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+                        self.isSaved.toggle()
+                    }
+                }
+            }
         }
     }
     
@@ -1086,7 +1118,7 @@ struct EnhancedReelActionButton: View {
     @State private var isPressed = false
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             Button(action: {
                 let haptic = UIImpactFeedbackGenerator(style: .medium)
                 haptic.impactOccurred()
@@ -1105,27 +1137,27 @@ struct EnhancedReelActionButton: View {
             }) {
                 ZStack {
                     Color.clear
-                        .frame(width: 56, height: 56)
+                        .frame(width: 44, height: 44)
                         .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
                         .scaleEffect(isPressed ? 0.95 : 1.0)
                     
                     // Icon with better styling
                     if let customIcon = AttachmentIcon(rawValue: icon) {
                         AttachmentIconView(icon: customIcon, preset: .reelsSidebar, tintColor: isActive ? activeColor : .white)
-                            .scaleEffect(isActive ? 1.1 : 1.0)
+                            .scaleEffect(isActive ? 1.05 : 0.92)
                             .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isActive), value: isActive)
                     } else {
                         Image(systemName: icon)
-                            .font(.system(size: 24, weight: .medium))
+                            .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(isActive ? activeColor : .white)
-                            .scaleEffect(isActive ? 1.1 : 1.0)
+                            .scaleEffect(isActive ? 1.05 : 1.0)
                             .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isActive), value: isActive)
                     }
 
                     if isActive {
                         Circle()
-                            .stroke(activeColor.opacity(0.55), lineWidth: 1.8)
-                            .frame(width: 56, height: 56)
+                            .stroke(activeColor.opacity(0.55), lineWidth: 1.5)
+                            .frame(width: 44, height: 44)
                     }
                 }
             }
@@ -1236,7 +1268,12 @@ class ReelVideoPlayerManager: ObservableObject {
             VideoPlaybackSelector.shared.configure(playerItem: playerItem, tier: tier)
         }
 
-        pooledPlayer.replaceCurrentItem(with: playerItem)
+        // Nunca asociar un item que ya esté en otro player (crash AVFoundation).
+        if pooledPlayer.currentItem === playerItem {
+            // Ya montado en este player (p.ej. re-setup).
+        } else {
+            pooledPlayer.replaceCurrentItem(with: playerItem)
+        }
         pooledPlayer.automaticallyWaitsToMinimizeStalling = false
         pooledPlayer.allowsExternalPlayback = false
         player = pooledPlayer
@@ -1591,7 +1628,8 @@ struct ShimmerEffect: View {
 
 // Data models and extensions (existing ones enhanced)
 struct VideoMoment: Identifiable {
-    let id = UUID()
+    /// Estable (≡ Android): no usar UUID — regenerar la cola no debe romper el ForEach del pager.
+    let id: String
     let moment: Moment
     let videoUrl: String
 
@@ -1606,10 +1644,26 @@ struct VideoMoment: Identifiable {
         return videoUrl.isEmpty ? [] : [videoUrl]
     }
 
+    /// Poster para placeholders del pager / carga (thumbnail → imagePath).
+    var posterURLString: String? {
+        if let thumb = moment.thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !thumb.isEmpty {
+            return thumb
+        }
+        if let imagePath = moment.imagePath?.trimmingCharacters(in: .whitespacesAndNewlines), !imagePath.isEmpty {
+            return imagePath
+        }
+        return nil
+    }
+
     init(moment: Moment) {
         self.moment = moment
         let resolved = moment.previewVideoURLString ?? moment.videoUrl ?? ""
         self.videoUrl = resolved
+        if let momentId = moment.id, !momentId.isEmpty {
+            self.id = momentId
+        } else {
+            self.id = "url:\(resolved)"
+        }
     }
 }
 
@@ -1622,4 +1676,3 @@ extension Array where Element == Moment {
         }
     }
 }
-

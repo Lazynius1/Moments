@@ -59,12 +59,15 @@ struct FeedListSection: View {
                                 FeedPostSkeletonView(colorScheme: colorScheme)
                             }
                         } else {
+                            // Sesión Reels del feed (no VideoMomentsIndex compartido con perfil/explore).
+                            let feedReelsVideos = viewModel.moments.videoMoments
                             ForEach(Array(viewModel.moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                                 feedMomentRow(
                                     index: index,
                                     moment: moment,
                                     availableHeight: availableHeight,
-                                    rowSpacing: max(15, screenHeight * 0.02)
+                                    rowSpacing: max(15, screenHeight * 0.02),
+                                    reelsVideos: feedReelsVideos
                                 )
                             }
                         }
@@ -136,10 +139,16 @@ struct FeedListSection: View {
         index: Int,
         moment: Moment,
         availableHeight: CGFloat,
-        rowSpacing: CGFloat
+        rowSpacing: CGFloat,
+        reelsVideos: [VideoMoment]
     ) -> some View {
         VStack(spacing: rowSpacing) {
-            feedMomentCard(moment: moment, availableHeight: availableHeight, index: index)
+            feedMomentCard(
+                moment: moment,
+                availableHeight: availableHeight,
+                index: index,
+                reelsVideos: reelsVideos
+            )
 
             let adInterval = selectedFeedType == .forYou ? 3 : 5
             if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
@@ -149,7 +158,12 @@ struct FeedListSection: View {
     }
 
     @ViewBuilder
-    private func feedMomentCard(moment: Moment, availableHeight: CGFloat, index: Int) -> some View {
+    private func feedMomentCard(
+        moment: Moment,
+        availableHeight: CGFloat,
+        index: Int,
+        reelsVideos: [VideoMoment]
+    ) -> some View {
         let isProtected = (moment.audience?.lowercased() ?? "") != "everyone"
 
         ScreenshotProtectedView(isProtected: isProtected) {
@@ -167,7 +181,8 @@ struct FeedListSection: View {
                 profileZoomNamespace: profileZoomNamespace,
                 onPeek: { imageURL, ratio, isPressing in
                     handleFeedPeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing, moment: moment)
-                }
+                },
+                reelsVideos: reelsVideos
             )
             .equatable()
             .onAppear { prefetchUpcomingMoments(from: index) }

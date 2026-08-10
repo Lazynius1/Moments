@@ -186,6 +186,11 @@ struct FeedView: View {
                         unreadMessages: badgeService.unreadMessagesCount
                     )
                 }
+
+                // Precalentar pipeline de vídeo fuera del primer scroll a un reel.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    FeedVideoPipelineWarmer.prewarmIfNeeded()
+                }
             }
         .onDisappear {
             // Liberar recursos al salir del feed para evitar fugas y trabajo en background.
@@ -587,6 +592,7 @@ struct FeedView: View {
         if !videoURLs.isEmpty {
             VideoPreloader.shared.preloadAssets(urls: videoURLs)
         }
+        FeedVideoPipelineWarmer.prewarmIfNeeded()
     }
 }
 

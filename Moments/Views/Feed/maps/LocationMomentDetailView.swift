@@ -382,6 +382,7 @@ struct LocationMomentDetailView: View {
     private func locationMomentsScrollView() -> some View {
         let screenHeight = UIApplication.shared.activeWindowSize.height
         let feedCardHeight = screenHeight * 0.58
+        let locationReelsVideos = moments.videoMoments
 
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
@@ -427,7 +428,8 @@ struct LocationMomentDetailView: View {
                                         isPressing: isPressing,
                                         moment: moment
                                     )
-                                }
+                                },
+                                reelsVideos: locationReelsVideos
                             )
                             .equatable()
                             .environmentObject(firestoreService)
@@ -833,6 +835,7 @@ struct LocationMomentCard: View {
                     showTags: $showTags, // ✅ PASAR binding
                     aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
                     currentMoment: moment,
+                    reelsVideos: [moment].videoMoments,
                     isImmersive: $isImmersive // ✅ NUEVO
                 )
                 .carouselImmersivePeekGesture(

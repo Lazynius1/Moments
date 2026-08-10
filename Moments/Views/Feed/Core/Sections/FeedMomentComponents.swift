@@ -196,6 +196,8 @@ struct ModernPostCardView: View {
     var onAuthorAvatarTap: ((String, Bool) -> Void)? = nil
     var profileZoomNamespace: Namespace.ID? = nil
     var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK: (imageURL, realRatio, isPressing)
+    /// Sesión Reels de esta superficie (feed / perfil / explore…). Evita mezclar con `VideoMomentsIndex.shared`.
+    var reelsVideos: [VideoMoment]? = nil
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(FeedViewModel.self) private var feedViewModel
     @State private var currentImageIndex = 0
@@ -232,7 +234,8 @@ struct ModernPostCardView: View {
          onOpenUserProfile: ((String) -> Void)? = nil,
          onAuthorAvatarTap: ((String, Bool) -> Void)? = nil,
          profileZoomNamespace: Namespace.ID? = nil,
-         onPeek: ((String, CGFloat, Bool) -> Void)? = nil) {
+         onPeek: ((String, CGFloat, Bool) -> Void)? = nil,
+         reelsVideos: [VideoMoment]? = nil) {
 
         self.moment = moment
         self.availableHeight = availableHeight
@@ -247,6 +250,7 @@ struct ModernPostCardView: View {
         self.onAuthorAvatarTap = onAuthorAvatarTap
         self.profileZoomNamespace = profileZoomNamespace
         self.onPeek = onPeek
+        self.reelsVideos = reelsVideos
         _commentCount = State(initialValue: moment.commentCount)
 
         // ✅ CRÍTICO: Inicialización estática con metadatos SIEMPRE
@@ -385,6 +389,7 @@ struct ModernPostCardView: View {
                         aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
                         currentMoment: moment,
                         onTagTap: onTagTap,
+                        reelsVideos: reelsVideos,
                         isImmersive: $isImmersive
                     )
                     .frame(height: cardHeight)
@@ -1102,10 +1107,17 @@ struct MediaItemView: View {
     var allowsVideoPlayback: Bool = true
     @Binding var isImmersive: Bool
 
-    @State private var showReelsViewer = false
+    @State private var reelsSession: ReelsSessionPresentation? = nil
     @State private var isVisible = false
     @State private var loadedAspectRatio: CGFloat? = nil
     @ObservedObject private var videoIndex = VideoMomentsIndex.shared
+
+    private struct ReelsSessionPresentation: Identifiable {
+        let id = UUID()
+        let videos: [VideoMoment]
+        let startIndex: Int
+        let startSeconds: Double
+    }
 
     private var resolvedItemAspectRatio: CGFloat {
         if let loadedAspectRatio, loadedAspectRatio.isFinite, loadedAspectRatio > 0 {
@@ -1236,7 +1248,7 @@ struct MediaItemView: View {
                 isVisible = false
             }
         }
-        .fullScreenCover(isPresented: $showReelsViewer, onDismiss: {
+        .fullScreenCover(item: $reelsSession, onDismiss: {
             MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                 isImmersive = false
             }
@@ -1244,11 +1256,11 @@ struct MediaItemView: View {
             GlobalVideoManager.shared.completeReelsFeedHandoff(for: currentMoment, mediaItem: handoffMedia)
             // Reanudar el vídeo del feed que estaba activo antes de abrir Reels.
             GlobalVideoManager.shared.playVideo(feedVideoConsumerId)
-        }) {
+        }) { session in
             ReelsViewer(
-                videos: resolvedReelsVideos,
-                startIndex: resolvedReelsStartIndex,
-                initialStartSeconds: currentPlaybackStartSeconds
+                videos: session.videos,
+                startIndex: session.startIndex,
+                initialStartSeconds: session.startSeconds
             )
             .environmentObject(FirestoreService.shared)
         }
@@ -1275,6 +1287,11 @@ struct MediaItemView: View {
     }
 
     private func openReelsViewer() {
+        // Congelar la cola al abrir: el feed puede regenerar `videoMoments` mientras swipas.
+        let sessionVideos = resolvedReelsVideos
+        guard !sessionVideos.isEmpty else { return }
+        let start = resolvedReelsStartIndex
+        let safeStart = min(max(0, start), sessionVideos.count - 1)
         // Pausar todos los reproductores del feed para evitar doble reproducción
         // (audio/decoders duplicados) mientras Reels está en primer plano.
         let handoffMedia: MediaItem? = prefersUnifiedCarouselFrame ? item : nil
@@ -1283,7 +1300,11 @@ struct MediaItemView: View {
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
             isImmersive = true
         }
-        showReelsViewer = true
+        reelsSession = ReelsSessionPresentation(
+            videos: sessionVideos,
+            startIndex: safeStart,
+            startSeconds: currentPlaybackStartSeconds
+        )
     }
 
     private var currentPlaybackStartSeconds: Double {
@@ -1404,7 +1425,9 @@ struct CroppedVideoPlayer: View {
 
     @Environment(\.profileDetailDirectVideoPlayback) private var profileDetailDirectVideoPlayback
     @State private var isVisible = false
-    @ObservedObject private var globalManager = GlobalVideoManager.shared
+    /// Solo la preferencia de mute de sesión — no observar `GlobalVideoManager` entero
+    /// (activeVideoId / ticks de progreso re-renderizaban todas las celdas y cortaban el scroll).
+    @State private var soundEnabledInSession = GlobalVideoManager.shared.userHasEnabledSoundInSession
 
     private var videoConsumerId: String {
         if prefersUnifiedCarouselFrame {
@@ -1427,10 +1450,9 @@ struct CroppedVideoPlayer: View {
     /// Botón de silencio/volumen — se oculta cuando isImmersive (ReelsViewer abierto).
     private var muteToggleButton: some View {
         Button {
-            globalManager.toggleMute(videoConsumerId)
+            GlobalVideoManager.shared.toggleMute(videoConsumerId)
         } label: {
-            // userHasEnabledSoundInSession es @Published → el botón se actualiza reactivamente.
-            let isMuted = !globalManager.userHasEnabledSoundInSession
+            let isMuted = !soundEnabledInSession
             Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
@@ -1440,7 +1462,7 @@ struct CroppedVideoPlayer: View {
         .buttonStyle(.momentsPressIcon)
         .accessibilityLabel(
             NSLocalizedString(
-                globalManager.userHasEnabledSoundInSession
+                soundEnabledInSession
                     ? "feed.a11y.mute"
                     : "feed.a11y.unmute",
                 comment: "Mute or unmute video"
@@ -1659,6 +1681,9 @@ struct CroppedVideoPlayer: View {
         }
         .onDisappear {
             isVisible = false
+        }
+        .onReceive(GlobalVideoManager.shared.$userHasEnabledSoundInSession) { enabled in
+            soundEnabledInSession = enabled
         }
     }
 
@@ -1897,5 +1922,12 @@ extension ModernPostCardView: Equatable {
         lhs.moment == rhs.moment
             && lhs.colorScheme == rhs.colorScheme
             && abs(lhs.availableHeight - rhs.availableHeight) < 1
+            && reelsVideosFingerprint(lhs.reelsVideos) == reelsVideosFingerprint(rhs.reelsVideos)
+    }
+
+    /// Evita que `.equatable()` deje una cola Reels obsoleta al crecer el feed.
+    private static func reelsVideosFingerprint(_ videos: [VideoMoment]?) -> String {
+        guard let videos else { return "" }
+        return videos.map(\.id).joined(separator: "|")
     }
 }

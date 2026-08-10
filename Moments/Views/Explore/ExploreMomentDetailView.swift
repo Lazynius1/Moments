@@ -260,6 +260,7 @@ struct ExploreMomentDetailView: View {
     private func exploreMomentsScrollView() -> some View {
         let screenHeight = UIApplication.shared.activeWindowSize.height
         let feedCardHeight = screenHeight * 0.58
+        let exploreReelsVideos = moments.videoMoments
 
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
@@ -304,7 +305,8 @@ struct ExploreMomentDetailView: View {
                                         isPressing: isPressing,
                                         moment: moment
                                     )
-                                }
+                                },
+                                reelsVideos: exploreReelsVideos
                             )
                             .equatable()
                             .environmentObject(firestoreService)

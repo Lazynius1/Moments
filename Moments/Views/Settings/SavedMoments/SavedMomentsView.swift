@@ -965,7 +965,9 @@ struct ModernSavedMomentsDetailView: View {
 
     // ✅ ScrollView principal para momentos guardados
     private func modernSavedMomentsScrollView(geometry: GeometryProxy, safeAreaBottom: CGFloat, topContentInset: CGFloat) -> some View {
-        ScrollViewReader { proxy in
+        let savedReelsVideos = moments.videoMoments
+
+        return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 40) {
                     Color.clear
@@ -978,6 +980,7 @@ struct ModernSavedMomentsDetailView: View {
                             ModernSavedDetailMomentCard(
                                 moment: moment,
                                 availableHeight: geometry.size.height - 200,
+                                reelsVideos: savedReelsVideos,
                                 onComment: {
                                     commentsRoute = SavedMomentCommentsRoute(moment: moment)
                                 },
@@ -1130,6 +1133,7 @@ struct ModernSavedDetailHeader: View {
 struct ModernSavedDetailMomentCard: View {
     let moment: Moment
     let availableHeight: CGFloat
+    var reelsVideos: [VideoMoment]? = nil
     let onComment: () -> Void
     let onHashtagTap: (String) -> Void
     let onRemove: () -> Void
@@ -1225,6 +1229,7 @@ struct ModernSavedDetailMomentCard: View {
                         showTags: $showTags,
                         aspectRatio: detectedAspectRatio,
                         currentMoment: moment,
+                        reelsVideos: reelsVideos,
                         isImmersive: $isImmersive // ✅ NUEVO
                     )
                     .carouselImmersivePeekGesture(

@@ -1380,7 +1380,8 @@ struct GlassmorphicConversationRow: View {
     @ViewBuilder
     private var conversationAvatar: some View {
         if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
-            Button(action: onOpenProfile) {
+            // ≡ IG: sin historia → abrir conversación (no perfil)
+            Button(action: onTap) {
                 ProfileUnavailableAvatar(size: 56)
                     .userProfileZoomSource(
                         userId: conversation.otherParticipantId,
@@ -1398,15 +1399,11 @@ struct GlassmorphicConversationRow: View {
                 hapticsEnabled: true,
                 profileZoomNamespace: profileZoomNamespace
             ) { hasStory in
-                guard !isOtherParticipantBlockedByCurrentUser else {
-                    onOpenProfile()
-                    return
-                }
-
-                if hasStory {
+                if hasStory && !isOtherParticipantBlockedByCurrentUser {
                     storyRoute = MessagingStoryRoute(id: conversation.otherParticipantId)
                 } else {
-                    onOpenProfile()
+                    // ≡ IG: sin historia (o bloqueado) → abrir el chat
+                    onTap()
                 }
             }
         }
@@ -1464,7 +1461,8 @@ struct GlassmorphicConversationRow: View {
         }
 
         if listInteraction == nil {
-            Button(action: onOpenProfile) {
+            // ≡ IG: tap en nombre abre el chat (el avatar con historia abre story)
+            Button(action: onTap) {
                 label
             }
             .buttonStyle(PlainButtonStyle())

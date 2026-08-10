@@ -429,7 +429,8 @@ struct ModernMomentDetailView: View {
     private func detailMomentRow(
         index: Int,
         moment: Moment,
-        feedCardHeight: CGFloat
+        feedCardHeight: CGFloat,
+        reelsVideos: [VideoMoment]
     ) -> some View {
         let isProtected = (moment.audience?.lowercased() ?? "") != "everyone"
 
@@ -465,7 +466,8 @@ struct ModernMomentDetailView: View {
                 profileZoomNamespace: profileZoomNamespace,
                 onPeek: { imageURL, ratio, isPressing in
                     handleDetailPeek(moment: moment, imageURL: imageURL, ratio: ratio, isPressing: isPressing)
-                }
+                },
+                reelsVideos: reelsVideos
             )
             .equatable()
             .environmentObject(firestoreService)
@@ -515,6 +517,7 @@ struct ModernMomentDetailView: View {
     private func modernMomentsScrollView() -> some View {
         let screenHeight = containerSize.height > 0 ? containerSize.height : activeWindowHeight()
         let feedCardHeight = screenHeight * 0.58
+        let profileReelsVideos = moments.videoMoments
 
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
@@ -523,7 +526,8 @@ struct ModernMomentDetailView: View {
                         detailMomentRow(
                             index: index,
                             moment: moment,
-                            feedCardHeight: feedCardHeight
+                            feedCardHeight: feedCardHeight,
+                            reelsVideos: profileReelsVideos
                         )
                     }
                 }
