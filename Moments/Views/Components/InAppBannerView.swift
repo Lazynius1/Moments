@@ -30,7 +30,7 @@ struct InAppBannerView: View {
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
-                .padding(.top, 10)
+                .padding(.top, 8)
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
@@ -44,6 +44,7 @@ struct InAppBannerView: View {
         }
     }
 
+    /// Look tipo SToasts: cápsula más compacta + wash de accent; misma posición top y mismos gestos.
     private func compactBanner(for notification: Notification) -> some View {
         let isSystem = isSystemBanner(notification)
         let accentColor = isSystem ? Color.orange : colorFor(notification.type)
@@ -53,22 +54,22 @@ struct InAppBannerView: View {
         return HStack(spacing: 12) {
             bannerAvatar(for: notification, isSystem: isSystem)
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 if let headline = lines.headline {
                     Text(headline)
-                        .font(.system(size: legacyPoppinsSize(14), weight: .bold))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                 }
 
                 if let detail = lines.detail {
                     Text(detail)
-                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 } else if isSystemModerationBanner(notification) {
                     Text(moderationBannerText(for: notification))
-                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundStyle(.secondary.opacity(0.92))
                         .lineLimit(2)
                 }
@@ -79,26 +80,29 @@ struct InAppBannerView: View {
             bannerTrailingIcon(for: notification, isSystem: isSystem, accentColor: accentColor)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .frame(maxWidth: 310, alignment: .leading)
+        .frame(minHeight: 56)
+        .padding(.vertical, 4)
         .contentShape(Capsule())
-        .momentsChromeGlass(in: Capsule())
-        .overlay(
+        .background {
             Capsule()
-                .stroke(
+                .fill(
                     LinearGradient(
                         colors: [
-                            accentColor.opacity(0.6),
-                            accentColor.opacity(0.1),
-                            accentColor.opacity(0.6)
+                            accentColor.opacity(0.18),
+                            accentColor.opacity(0.08),
+                            Color.clear
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1.5
+                    )
                 )
-                .blur(radius: 0.5)
-        )
-        .padding(.horizontal, 12)
+        }
+        .momentsChromeGlass(in: Capsule(), style: .native)
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 6)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
         .offset(y: dragOffset.height)
         .gesture(dismissDragGesture)
         .highPriorityGesture(messageLongPressGesture(for: notification))
@@ -183,7 +187,7 @@ struct InAppBannerView: View {
             systemBannerAvatar(for: notification)
         } else {
             AsyncProfileImageView(userId: notification.senderId)
-                .frame(width: 42, height: 42)
+                .frame(width: 34, height: 34)
                 .clipShape(Circle())
                 .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
         }
@@ -195,10 +199,10 @@ struct InAppBannerView: View {
             KFImage(url)
                 .resizable()
                 .scaledToFill()
-                .frame(width: 36, height: 36)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(width: 30, height: 30)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .stroke(accentColor.opacity(0.3), lineWidth: 1)
                 )
         } else {
@@ -207,11 +211,11 @@ struct InAppBannerView: View {
                     AttachmentIconView(icon: .tagged, preset: .inAppBanner, tintColor: accentColor)
                 } else {
                     Image(systemName: isSystemTimeLimitBanner(notification) ? "clock.fill" : (isSystemModerationBanner(notification) ? "exclamationmark.shield.fill" : notification.type.systemIconName))
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                 }
             }
             .foregroundStyle(isSystemModerationBanner(notification) ? .primary.opacity(0.85) : accentColor)
-            .frame(width: 32, height: 32)
+            .frame(width: 28, height: 28)
         }
     }
 
@@ -233,11 +237,11 @@ struct InAppBannerView: View {
             ZStack {
                 Circle()
                     .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
-                    .frame(width: 42, height: 42)
+                    .frame(width: 34, height: 34)
                 Image(colorScheme == .dark ? "SplashLogoLight" : "SplashLogoDark")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 24, height: 24)
+                    .frame(width: 20, height: 20)
             }
             .overlay(
                 Circle()
@@ -247,9 +251,9 @@ struct InAppBannerView: View {
             ZStack {
                 Circle()
                     .fill(Color.orange.opacity(0.16))
-                    .frame(width: 42, height: 42)
+                    .frame(width: 34, height: 34)
                 Image(systemName: "hourglass.circle.fill")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.orange)
             }
             .overlay(Circle().stroke(Color.orange.opacity(0.35), lineWidth: 1))

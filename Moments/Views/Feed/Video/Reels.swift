@@ -175,6 +175,15 @@ struct ReelVideoView: View {
         68
     }
 
+    /// GeometryReader bajo `ignoresSafeArea` suele dar bottom = 0; leemos el inset real del window.
+    private var systemSafeBottomInset: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }?
+            .safeAreaInsets.bottom ?? 0
+    }
+
     @ViewBuilder
     private var reelCommentBar: some View {
         HStack {
@@ -217,7 +226,6 @@ struct ReelVideoView: View {
     var body: some View {
         GeometryReader { geometry in
             let safeTop = geometry.safeAreaInsets.top
-            let safeBottom = geometry.safeAreaInsets.bottom
 
             ZStack {
                 // Video Player completamente fullscreen sin controles nativos
@@ -345,7 +353,7 @@ struct ReelVideoView: View {
                                     .frame(width: 38, height: 38)
                                     .background(Color.white.opacity(0.001))
                                     .contentShape(Circle())
-                                    .momentsChromeGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
                             }
                             .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
 
@@ -359,7 +367,7 @@ struct ReelVideoView: View {
                                     .frame(width: 38, height: 38)
                                     .background(Color.white.opacity(0.001))
                                     .contentShape(Circle())
-                                    .momentsChromeGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
                             }
                             .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
                             .accessibilityLabel(
@@ -568,6 +576,8 @@ struct ReelVideoView: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
             .ignoresSafeArea(.container, edges: .all)
             .overlay(alignment: .bottom) {
+                let bottomInset = max(geometry.safeAreaInsets.bottom, systemSafeBottomInset)
+                // Contenido por encima del home indicator; fondo Moments hasta el borde.
                 VStack(spacing: -6) {
                     if playerManager.duration > 0 {
                         let barHeight: CGFloat = isDraggingProgress ? 6 : 2.5
@@ -647,6 +657,8 @@ struct ReelVideoView: View {
                     reelCommentBar
                         .zIndex(0)
                 }
+                .padding(.bottom, bottomInset + 6)
+                .background(bottomBarBackgroundColor)
                 .ignoresSafeArea(.container, edges: .bottom)
             }
         }
@@ -1094,7 +1106,7 @@ struct EnhancedReelActionButton: View {
                 ZStack {
                     Color.clear
                         .frame(width: 56, height: 56)
-                        .momentsChromeGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
                         .scaleEffect(isPressed ? 0.95 : 1.0)
                     
                     // Icon with better styling
