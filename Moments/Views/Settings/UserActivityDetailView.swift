@@ -279,6 +279,7 @@ struct ActivityInteractionDetailView: View {
         .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
         .momentsScrollEdgeChrome()
+        .momentsFloatingTabBarHidden()
         .toolbar {
             if !suppressInlineNavigationTitle {
                 ToolbarItem(placement: .navigationBarLeading) {

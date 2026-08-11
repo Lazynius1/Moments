@@ -117,5 +117,7 @@ private struct SettingsSubsectionNavigationChromeModifier: ViewModifier {
             .toolbarBackground(.hidden, for: .navigationBar)
             // iOS 27 default hard → soft tipo 26 bajo la toolbar transparente.
             .momentsScrollEdgeChrome()
+            // Subsecciones (Tu actividad, etc.): no devolver la floating tab bar al hacer push.
+            .momentsFloatingTabBarHidden()
     }
 }

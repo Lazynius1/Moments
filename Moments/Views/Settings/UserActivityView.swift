@@ -115,22 +115,25 @@ struct UserActivityView: View {
 
     @ViewBuilder
     private func activityDestination(for category: ActivityInteractionCategory) -> some View {
-        switch category {
-        case .archived:
-            ArchivedActivityView()
-        case .recentlyDeleted:
-            RecentlyDeletedActivityView()
-        case .storiesArchive:
-            ArchivedActivityView(initialKind: .stories)
-        case .timeSpent:
-            TimeSpentDetailsView()
-        case .searches:
-            SearchHistoryActivityView()
-        case .accountHistory:
-            AccountHistoryActivityView()
-        default:
-            ActivityInteractionDetailView(category: category)
+        Group {
+            switch category {
+            case .archived:
+                ArchivedActivityView()
+            case .recentlyDeleted:
+                RecentlyDeletedActivityView()
+            case .storiesArchive:
+                ArchivedActivityView(initialKind: .stories)
+            case .timeSpent:
+                TimeSpentDetailsView()
+            case .searches:
+                SearchHistoryActivityView()
+            case .accountHistory:
+                AccountHistoryActivityView()
+            default:
+                ActivityInteractionDetailView(category: category)
+            }
         }
+        .momentsFloatingTabBarHidden()
     }
 }
 

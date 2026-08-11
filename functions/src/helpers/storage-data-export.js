@@ -786,17 +786,109 @@ async function uploadStorageFile({ bucket, localPath, objectName, contentType, e
   return firebaseStorageDownloadUrl(bucket.name, objectName, token);
 }
 
+/** Firebase download URLs llevan token por objeto: las playlists HLS deben usar URLs absolutas. */
+function rewriteHlsPlaylistLines(playlistText, resolveUri) {
+  return playlistText
+    .split(/\r?\n/)
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return line;
+      return resolveUri(trimmed) || line;
+    })
+    .join('\n');
+}
+
+/**
+ * Parte un MP4 (GOP cerrado) en HLS VOD sin re-encode.
+ * Sube segmentos + playlist reescrita con download URLs de Firebase.
+ */
+async function packageVariantAsHls({
+  bucket,
+  mp4Path,
+  hlsDir,
+  storagePrefix,
+  mediaItemId,
+  momentId,
+  variantKey,
+  extraMetadata = {}
+}) {
+  fs.mkdirSync(hlsDir, { recursive: true });
+  const playlistPath = path.join(hlsDir, 'index.m3u8');
+  const segmentPattern = path.join(hlsDir, 'seg_%03d.ts');
+
+  await runFfmpeg([
+    '-y',
+    '-i', mp4Path,
+    '-c', 'copy',
+    '-bsf:v', 'h264_mp4toannexb',
+    '-f', 'hls',
+    '-hls_time', '2',
+    '-hls_playlist_type', 'vod',
+    '-hls_segment_filename', segmentPattern,
+    playlistPath
+  ]);
+
+  const segmentFiles = fs.readdirSync(hlsDir).filter((name) => name.endsWith('.ts')).sort();
+  const uriToUrl = {};
+
+  await Promise.all(
+    segmentFiles.map(async (name) => {
+      const objectName = `${storagePrefix}/${name}`;
+      const url = await uploadStorageFile({
+        bucket,
+        localPath: path.join(hlsDir, name),
+        objectName,
+        contentType: 'video/mp2t',
+        extraMetadata: {
+          ...extraMetadata,
+          sourceMomentId: momentId,
+          sourceMediaItemId: mediaItemId,
+          processedBy: 'processMomentVideos',
+          variant: variantKey,
+          hls: 'segment'
+        }
+      });
+      uriToUrl[name] = url;
+    })
+  );
+
+  const rewritten = rewriteHlsPlaylistLines(
+    fs.readFileSync(playlistPath, 'utf8'),
+    (uri) => uriToUrl[path.basename(uri)]
+  );
+  fs.writeFileSync(playlistPath, rewritten);
+
+  const playlistUrl = await uploadStorageFile({
+    bucket,
+    localPath: playlistPath,
+    objectName: `${storagePrefix}/index.m3u8`,
+    contentType: 'application/vnd.apple.mpegurl',
+    extraMetadata: {
+      ...extraMetadata,
+      sourceMomentId: momentId,
+      sourceMediaItemId: mediaItemId,
+      processedBy: 'processMomentVideos',
+      variant: variantKey,
+      hls: 'media-playlist'
+    }
+  });
+
+  return playlistUrl;
+}
+
 async function transcodeMomentVideo({ userId, momentId, mediaItem }) {
   const bucket = admin.storage().bucket();
   const tempBase = path.join(os.tmpdir(), `moment_video_${momentId}_${mediaItem.id}_${Date.now()}`);
   const inputPath = `${tempBase}_input`;
+  const hlsRoot = `${tempBase}_hls`;
   const sourceUrl = mediaItem.originalVideoUrl || mediaItem.url;
+  // 3 renditions para ABR en HLS; solo subimos el MP4 high como fallback / url canónica.
   const variantSpecs = [
-    { key: 'low', max: 640, crf: '28' },
-    { key: 'medium', max: 960, crf: '25' },
-    { key: 'high', max: 1280, crf: '23' }
+    { key: 'low', max: 640, crf: '28', bandwidth: 800000, uploadMp4: false },
+    { key: 'medium', max: 960, crf: '25', bandwidth: 2500000, uploadMp4: false },
+    { key: 'high', max: 1280, crf: '23', bandwidth: 5000000, uploadMp4: true }
   ];
-  const cleanupPaths = [inputPath];
+  const cleanupPaths = [inputPath, hlsRoot];
 
   try {
     const sourceObjectName = userOwnedVideoObjectNameFromFirebaseUrl(sourceUrl, userId);
@@ -804,12 +896,16 @@ async function transcodeMomentVideo({ userId, momentId, mediaItem }) {
       throw new Error('Video source must be a Firebase Storage upload owned by this user');
     }
     await downloadStorageObjectToFile({ bucket, objectName: sourceObjectName, destinationPath: inputPath });
+    fs.mkdirSync(hlsRoot, { recursive: true });
 
     const videoVariants = {};
+    const hlsVariantPlaylists = {};
+
     await Promise.all(
       variantSpecs.map(async (spec) => {
         const outputPath = `${tempBase}_${spec.key}.mp4`;
         cleanupPaths.push(outputPath);
+        // GOP fijo (~2s @ 24fps) para poder segmentar con -c copy.
         await runFfmpeg([
           '-y',
           '-i', inputPath,
@@ -817,34 +913,80 @@ async function transcodeMomentVideo({ userId, momentId, mediaItem }) {
           '-c:v', 'libx264',
           '-preset', 'veryfast',
           '-crf', spec.crf,
+          '-g', '48',
+          '-keyint_min', '48',
+          '-sc_threshold', '0',
           '-c:a', 'aac',
           '-b:a', spec.key === 'low' ? '96k' : '128k',
           '-movflags', '+faststart',
           outputPath
         ]);
 
-        const objectName = `processed_videos/moments/${userId}/${momentId}/${mediaItem.id}_${spec.key}.mp4`;
-        videoVariants[spec.key] = await uploadStorageFile({
+        if (spec.uploadMp4) {
+          const objectName = `processed_videos/moments/${userId}/${momentId}/${mediaItem.id}_${spec.key}.mp4`;
+          videoVariants[spec.key] = await uploadStorageFile({
+            bucket,
+            localPath: outputPath,
+            objectName,
+            contentType: 'video/mp4',
+            extraMetadata: {
+              sourceMomentId: momentId,
+              sourceMediaItemId: mediaItem.id,
+              processedBy: 'processMomentVideos',
+              variant: spec.key
+            }
+          });
+        }
+
+        const variantHlsDir = path.join(hlsRoot, spec.key);
+        const storagePrefix = `processed_videos/moments/${userId}/${momentId}/${mediaItem.id}/hls/${spec.key}`;
+        hlsVariantPlaylists[spec.key] = await packageVariantAsHls({
           bucket,
-          localPath: outputPath,
-          objectName,
-          contentType: 'video/mp4',
-          extraMetadata: {
-            sourceMomentId: momentId,
-            sourceMediaItemId: mediaItem.id,
-            processedBy: 'processMomentVideos',
-            variant: spec.key
-          }
+          mp4Path: outputPath,
+          hlsDir: variantHlsDir,
+          storagePrefix,
+          mediaItemId: mediaItem.id,
+          momentId,
+          variantKey: spec.key
         });
       })
     );
 
+    const masterLines = ['#EXTM3U'];
+    for (const spec of variantSpecs) {
+      const playlistUrl = hlsVariantPlaylists[spec.key];
+      if (!playlistUrl) continue;
+      masterLines.push(`#EXT-X-STREAM-INF:BANDWIDTH=${spec.bandwidth},NAME="${spec.key}"`);
+      masterLines.push(playlistUrl);
+    }
+    masterLines.push('');
+
+    const masterPath = path.join(hlsRoot, 'master.m3u8');
+    fs.writeFileSync(masterPath, masterLines.join('\n'));
+    const hlsMasterUrl = await uploadStorageFile({
+      bucket,
+      localPath: masterPath,
+      objectName: `processed_videos/moments/${userId}/${momentId}/${mediaItem.id}/hls/master.m3u8`,
+      contentType: 'application/vnd.apple.mpegurl',
+      extraMetadata: {
+        sourceMomentId: momentId,
+        sourceMediaItemId: mediaItem.id,
+        processedBy: 'processMomentVideos',
+        hls: 'master'
+      }
+    });
+
     const highPath = `${tempBase}_high.mp4`;
     const fileSize = fs.existsSync(highPath) ? fs.statSync(highPath).size : 0;
+    if (!videoVariants.high) {
+      throw new Error('High MP4 fallback upload missing after transcode');
+    }
     return {
       url: videoVariants.high,
       fileSize,
-      videoVariants
+      // Solo high en Firestore: ABR va por HLS; MP4 = fallback / url.
+      videoVariants: { high: videoVariants.high },
+      hlsMasterUrl
     };
   } finally {
     for (const filePath of cleanupPaths) {

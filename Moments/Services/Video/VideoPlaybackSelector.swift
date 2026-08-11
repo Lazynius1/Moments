@@ -41,9 +41,26 @@ struct VideoPlaybackSource: Equatable {
     let playbackURL: URL
     let tier: VideoPlaybackTier?
     let preheatURLStrings: [String]
+    /// Master HLS: ABR nativo del player. Si falla, usar `fallbackMp4URL`.
+    let isHLS: Bool
+    let fallbackMp4URL: URL?
+
+    init(
+        playbackURL: URL,
+        tier: VideoPlaybackTier?,
+        preheatURLStrings: [String],
+        isHLS: Bool = false,
+        fallbackMp4URL: URL? = nil
+    ) {
+        self.playbackURL = playbackURL
+        self.tier = tier
+        self.preheatURLStrings = preheatURLStrings
+        self.isHLS = isHLS
+        self.fallbackMp4URL = fallbackMp4URL
+    }
 }
 
-// MARK: - Selector (manual ABR: low / medium / high MP4)
+// MARK: - Selector (HLS master si existe; si no, ABR manual low/medium/high MP4)
 
 final class VideoPlaybackSelector {
     static let shared = VideoPlaybackSelector()
@@ -58,14 +75,29 @@ final class VideoPlaybackSelector {
 
         let tier = recommendedTier()
         let tierURLString = item.videoVariants?.url(for: tier) ?? fallbackURL.absoluteString
-        guard let playbackURL = URL(string: normalizedURLString(tierURLString) ?? tierURLString) else {
-            return nil
+        let mp4URL = URL(string: normalizedURLString(tierURLString) ?? tierURLString)
+
+        if let hlsRaw = item.hlsMasterUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !hlsRaw.isEmpty,
+           let hlsURL = URL(string: normalizedURLString(hlsRaw) ?? hlsRaw) {
+            return VideoPlaybackSource(
+                playbackURL: hlsURL,
+                tier: tier,
+                // Prefetch del master: AVPlayer solo baja los primeros segmentos.
+                preheatURLStrings: [hlsURL.absoluteString],
+                isHLS: true,
+                fallbackMp4URL: mp4URL
+            )
         }
+
+        guard let playbackURL = mp4URL else { return nil }
 
         return VideoPlaybackSource(
             playbackURL: playbackURL,
             tier: tier,
-            preheatURLStrings: preheatStrings(variants: item.videoVariants, primary: tierURLString, tier: tier)
+            preheatURLStrings: preheatStrings(variants: item.videoVariants, primary: tierURLString, tier: tier),
+            isHLS: false,
+            fallbackMp4URL: nil
         )
     }
 

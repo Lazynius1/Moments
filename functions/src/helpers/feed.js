@@ -544,6 +544,7 @@ function serializeMediaItem(item) {
     videoProcessingStatus: item.videoProcessingStatus || null,
     originalVideoUrl: item.originalVideoUrl || null,
     videoVariants: item.videoVariants || null,
+    hlsMasterUrl: item.hlsMasterUrl || null,
     tags: Array.isArray(item.tags) ? item.tags : null,
     moderationState: item.moderationState || null,
     moderationReason: item.moderationReason || null,

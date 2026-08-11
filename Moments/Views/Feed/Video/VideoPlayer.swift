@@ -299,6 +299,8 @@ struct ModernVideoPlayer: View {
     @State private var setupRetries = 0
     @State private var setupGeneration = 0
     @State private var hasLoadError = false
+    /// Si HLS no arranca a tiempo, reintentar con el MP4 del tier.
+    @State private var preferMp4Fallback = false
     /// Cancela activaciones pendientes si el usuario sigue scrolleando.
     @State private var activationGeneration = 0
     
@@ -423,6 +425,7 @@ struct ModernVideoPlayer: View {
             hasSetupPlayer = false
             hasLoadError = false
             setupRetries = 0
+            preferMp4Fallback = false
             setupGeneration += 1
         }
         .onReceive(FeedVisibilityCoordinator.shared.$activeVideoMomentId) { activeId in
@@ -592,7 +595,11 @@ struct ModernVideoPlayer: View {
     }
 
     private func resolvedPlaybackURL() -> URL? {
-        resolvedPlaybackSource()?.playbackURL
+        let source = resolvedPlaybackSource()
+        if preferMp4Fallback, let mp4 = source?.fallbackMp4URL {
+            return mp4
+        }
+        return source?.playbackURL
     }
 
     private func resolvedPlaybackSource() -> VideoPlaybackSource? {
@@ -631,6 +638,17 @@ struct ModernVideoPlayer: View {
             if status == .readyToPlay || hasStartedPlayback {
                 return
             }
+
+            let source = resolvedPlaybackSource()
+            if !preferMp4Fallback,
+               source?.isHLS == true,
+               source?.fallbackMp4URL != nil {
+                preferMp4Fallback = true
+                hasSetupPlayer = false
+                playerManager.cleanup()
+                setupPlayer()
+                return
+            }
             
             if setupRetries < maxSetupRetries {
                 setupRetries += 1
@@ -646,6 +664,7 @@ struct ModernVideoPlayer: View {
     private func forceReloadPlayer() {
         hasLoadError = false
         setupRetries = 0
+        preferMp4Fallback = false
         hasSetupPlayer = false
         playerManager.cleanup()
         preparePlayerIfNeeded()

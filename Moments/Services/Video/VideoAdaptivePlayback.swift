@@ -24,14 +24,14 @@ extension VideoPlaybackSelector {
     func playbackURL(for item: MediaItem, moment: Moment?, tier: VideoPlaybackTier) -> URL? {
         guard item.type == .video else { return nil }
 
-        let fallback = source(for: item, moment: moment)?.playbackURL
-        let tierString = item.videoVariants?.url(for: tier)
-            ?? fallback?.absoluteString
+        // MP4 por tier (downgrade manual). HLS se resuelve vía `source(for:)`.
+        let mp4Fallback = item.videoVariants?.url(for: tier)
             ?? item.url
-        guard let url = URL(string: normalizedURLString(tierString) ?? tierString) else {
-            return fallback
+        if let url = URL(string: normalizedURLString(mp4Fallback) ?? mp4Fallback) {
+            return url
         }
-        return url
+        return source(for: item, moment: moment)?.fallbackMp4URL
+            ?? source(for: item, moment: moment)?.playbackURL
     }
 
     /// Ajustes estándar del feed aplicables a cualquier `AVPlayerItem` social.
@@ -49,7 +49,9 @@ extension VideoPlaybackSelector {
         tier: VideoPlaybackTier? = nil
     ) -> AVPlayerItem? {
         let resolvedTier = tier ?? recommendedTier()
-        guard let url = playbackURL(for: item, moment: moment, tier: resolvedTier) else { return nil }
+        let url = source(for: item, moment: moment)?.playbackURL
+            ?? playbackURL(for: item, moment: moment, tier: resolvedTier)
+        guard let url else { return nil }
         let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
         configure(playerItem: playerItem, tier: resolvedTier)
         return playerItem
@@ -69,6 +71,11 @@ final class VideoAdaptiveTierController {
 
     var hasVariants: Bool {
         guard let mediaItem else { return false }
+        // Con HLS el ABR es nativo; no forzar switch a MP4 por stall.
+        if let hls = mediaItem.hlsMasterUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !hls.isEmpty {
+            return false
+        }
         let variants = mediaItem.videoVariants
         return variants?.low != nil || variants?.medium != nil || variants?.high != nil
     }

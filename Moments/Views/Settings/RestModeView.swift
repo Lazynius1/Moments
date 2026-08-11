@@ -127,6 +127,7 @@ struct RestModeView: View {
         .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
         .momentsScrollEdgeChrome()
+        .momentsFloatingTabBarHidden()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })

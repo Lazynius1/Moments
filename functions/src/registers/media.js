@@ -364,6 +364,7 @@ const processMomentVideos = onDocumentCreated(
           ...updatedItems[index],
           url: processed.url,
           videoVariants: processed.videoVariants || null,
+          hlsMasterUrl: processed.hlsMasterUrl || null,
           originalVideoUrl: originalDeleted ? null : originalVideoUrl,
           videoFileSize: processed.fileSize,
           videoProcessingStatus: 'ready',

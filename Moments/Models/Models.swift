@@ -330,6 +330,8 @@ struct MediaItem: Identifiable, Codable {
     let videoProcessingStatus: VideoProcessingStatus?
     let originalVideoUrl: String?
     let videoVariants: VideoVariants?
+    /// Master playlist HLS (ABR nativo). Preferido sobre MP4 cuando existe.
+    let hlsMasterUrl: String?
     let tags: [PhotoTag]? // ✅ Etiquetas espaciales para esta imagen
     let moderationState: ModerationState?
     let moderationReason: String?
@@ -354,6 +356,7 @@ struct MediaItem: Identifiable, Codable {
         case videoProcessingStatus
         case originalVideoUrl
         case videoVariants
+        case hlsMasterUrl
         case tags
         case moderationState
         case moderationReason
@@ -417,6 +420,7 @@ struct MediaItem: Identifiable, Codable {
         videoProcessingStatus: VideoProcessingStatus? = nil,
         originalVideoUrl: String? = nil,
         videoVariants: VideoVariants? = nil,
+        hlsMasterUrl: String? = nil,
         tags: [PhotoTag]? = nil,
         moderationState: ModerationState? = nil,
         moderationReason: String? = nil,
@@ -435,6 +439,7 @@ struct MediaItem: Identifiable, Codable {
         self.videoProcessingStatus = videoProcessingStatus
         self.originalVideoUrl = originalVideoUrl
         self.videoVariants = videoVariants
+        self.hlsMasterUrl = hlsMasterUrl
         self.tags = tags
         self.moderationState = moderationState
         self.moderationReason = moderationReason
@@ -456,6 +461,7 @@ struct MediaItem: Identifiable, Codable {
         self.videoProcessingStatus = try container.decodeIfPresent(VideoProcessingStatus.self, forKey: .videoProcessingStatus)
         self.originalVideoUrl = try container.decodeIfPresent(String.self, forKey: .originalVideoUrl)
         self.videoVariants = try container.decodeIfPresent(VideoVariants.self, forKey: .videoVariants)
+        self.hlsMasterUrl = try container.decodeIfPresent(String.self, forKey: .hlsMasterUrl)
         self.tags = try container.decodeIfPresent([PhotoTag].self, forKey: .tags)
         self.moderationState = try container.decodeIfPresent(ModerationState.self, forKey: .moderationState)
         self.moderationReason = try container.decodeIfPresent(String.self, forKey: .moderationReason)
@@ -485,6 +491,7 @@ struct MediaItem: Identifiable, Codable {
         try container.encodeIfPresent(videoProcessingStatus, forKey: .videoProcessingStatus)
         try container.encodeIfPresent(originalVideoUrl, forKey: .originalVideoUrl)
         try container.encodeIfPresent(videoVariants, forKey: .videoVariants)
+        try container.encodeIfPresent(hlsMasterUrl, forKey: .hlsMasterUrl)
         try container.encodeIfPresent(tags, forKey: .tags)
         try container.encodeIfPresent(moderationState, forKey: .moderationState)
         try container.encodeIfPresent(moderationReason, forKey: .moderationReason)
