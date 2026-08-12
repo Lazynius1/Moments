@@ -9,10 +9,6 @@ function maxProb(values) {
   return values.reduce((max, value) => Math.max(max, readProb(value)), 0);
 }
 
-function includesAny(haystack, needles) {
-  return needles.some((needle) => haystack.includes(needle));
-}
-
 function sightenginePayloadToSignals(payload) {
   const nudity = payload?.nudity || {};
   const scam = payload?.scam || {};
@@ -31,6 +27,7 @@ function sightenginePayloadToSignals(payload) {
   ]);
   const femaleSwimwear = maxProb([classes.bikini, classes.swimwear_one_piece]);
   const femaleLingerie = readProb(classes.lingerie);
+  const casualBottoms = maxProb([classes.miniskirt, classes.minishort]);
 
   const hasFemaleFashionContext = femaleSwimwear >= 0.55 || femaleLingerie >= 0.55;
   const explicitFemaleIntimateExposure = hasFemaleFashionContext
@@ -40,6 +37,8 @@ function sightenginePayloadToSignals(payload) {
     )
     : Math.max(readProb(nudity.sexual_display), readProb(classes.visibly_undressed));
 
+  // Clothing / mild fashion cues are NOT risk signals. Risk suggestive = sexualized pose/focus
+  // or clear suggestive/very_suggestive scores from the provider.
   return createEmptySignals({
     explicitSexualActivity: readProb(nudity.sexual_activity),
     explicitSexualDisplay: readProb(nudity.sexual_display),
@@ -47,17 +46,14 @@ function sightenginePayloadToSignals(payload) {
     suggestive: maxProb([
       nudity.very_suggestive,
       nudity.suggestive,
-      nudity.mildly_suggestive,
       classes.suggestive_pose,
-      classes.suggestive_focus,
-      classes.miniskirt,
-      classes.minishort,
-      classes.other
+      classes.suggestive_focus
     ]),
     allowedMaleUnderwear: maleUnderwear,
     allowedMaleChest: maleChest,
     allowedFemaleSwimwear: femaleSwimwear,
     allowedFemaleLingerie: femaleLingerie,
+    allowedCasualBottoms: casualBottoms,
     femaleCleavageRevealing: readProb(cleavageCategories.revealing),
     femaleCleavageVeryRevealing: readProb(cleavageCategories.very_revealing),
     impliedNudity: maxProb([nudity.erotica, nudity.sexting, nudity.sextoy, classes.sextoy]),

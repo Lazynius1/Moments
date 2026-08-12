@@ -16,25 +16,27 @@ function includesAny(text, needles) {
 
 function rekognitionLabelsToSignals(labels = []) {
   const signals = createEmptySignals({ provider: 'rekognition', raw: labels });
+  let revealingClothes = 0;
 
   for (const label of labels) {
     const text = labelText(label);
     const confidence = readConfidence(label);
     const name = String(label?.Name || '').toLowerCase();
 
-    if (includesAny(text, ['male swimwear or underwear', 'swimwear or underwear']) && includesAny(name, ['male'])) {
+    // Check female before male: the substring "male" also appears inside "female".
+    if (name.includes('female swimwear') || (text.includes('female swimwear or underwear'))) {
+      signals.allowedFemaleSwimwear = Math.max(signals.allowedFemaleSwimwear, confidence);
+      signals.allowedFemaleLingerie = Math.max(signals.allowedFemaleLingerie, confidence * 0.85);
+      continue;
+    }
+
+    if (name.includes('male swimwear') || (text.includes('male swimwear or underwear'))) {
       signals.allowedMaleUnderwear = Math.max(signals.allowedMaleUnderwear, confidence);
       continue;
     }
 
     if (includesAny(text, ['barechested male', 'exposed male nipple'])) {
       signals.allowedMaleChest = Math.max(signals.allowedMaleChest, confidence);
-      continue;
-    }
-
-    if (includesAny(text, ['female swimwear or underwear', 'swimwear or underwear']) && includesAny(name, ['female'])) {
-      signals.allowedFemaleSwimwear = Math.max(signals.allowedFemaleSwimwear, confidence);
-      signals.allowedFemaleLingerie = Math.max(signals.allowedFemaleLingerie, confidence * 0.85);
       continue;
     }
 
@@ -64,11 +66,18 @@ function rekognitionLabelsToSignals(labels = []) {
     }
 
     if (includesAny(text, ['implied nudity', 'partial nudity', 'obstructed intimate parts', 'non-explicit nudity'])) {
+      // Non-explicit / bare chest parents often include this parent name; only keep as risk
+      // when we do not already have a Moments-allowed body/clothing context.
       signals.impliedNudity = Math.max(signals.impliedNudity, confidence);
       continue;
     }
 
-    if (includesAny(text, ['suggestive', 'revealing clothes'])) {
+    if (includesAny(text, ['revealing clothes'])) {
+      revealingClothes = Math.max(revealingClothes, confidence);
+      continue;
+    }
+
+    if (includesAny(text, ['suggestive'])) {
       signals.suggestive = Math.max(signals.suggestive, confidence);
       continue;
     }
@@ -82,6 +91,29 @@ function rekognitionLabelsToSignals(labels = []) {
       signals.hate = Math.max(signals.hate, confidence);
       continue;
     }
+  }
+
+  const hasAllowedSocialContext = Math.max(
+    signals.allowedMaleUnderwear,
+    signals.allowedMaleChest,
+    signals.allowedFemaleSwimwear,
+    signals.allowedFemaleLingerie,
+    signals.allowedCasualBottoms
+  ) >= 0.55;
+
+  if (revealingClothes > 0) {
+    if (hasAllowedSocialContext) {
+      // Fashion/leisure clothing near an allow context is not warning-grade suggestive.
+      signals.allowedCasualBottoms = Math.max(signals.allowedCasualBottoms, revealingClothes);
+    } else {
+      signals.suggestive = Math.max(signals.suggestive, revealingClothes);
+    }
+  }
+
+  // Bare chest / swimwear often arrive under Non-Explicit Nudity parent; do not keep
+  // clothing-context implied nudity as a risk when allow context is strong.
+  if (hasAllowedSocialContext) {
+    signals.impliedNudity = Math.min(signals.impliedNudity, 0.45);
   }
 
   return signals;
