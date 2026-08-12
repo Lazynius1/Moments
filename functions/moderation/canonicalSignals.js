@@ -8,6 +8,7 @@ function createEmptySignals(extra = {}) {
     allowedMaleChest: 0,
     allowedFemaleSwimwear: 0,
     allowedFemaleLingerie: 0,
+    allowedCasualBottoms: 0,
     femaleCleavageRevealing: 0,
     femaleCleavageVeryRevealing: 0,
     impliedNudity: 0,
@@ -42,7 +43,8 @@ function strongestAllowedContext(signals) {
     signals.allowedMaleUnderwear,
     signals.allowedMaleChest,
     signals.allowedFemaleSwimwear,
-    signals.allowedFemaleLingerie
+    signals.allowedFemaleLingerie,
+    signals.allowedCasualBottoms || 0
   );
 }
 

@@ -26,7 +26,10 @@ const DEFAULT_POLICY = {
   contextOverride: {
     minAllowedContext: 0.55,
     maxExplicitActivityForOverride: 0.20,
-    maxExplicitDisplayForOverride: 0.93
+    maxExplicitDisplayForOverride: 0.93,
+    // Cap risk signals below warning when Moments-allowed social context is present.
+    socialSuggestiveCap: 0.70,
+    socialImpliedNudityCap: 0.70
   }
 };
 
@@ -95,7 +98,21 @@ function policyFromFirestoreSettings(settings) {
   return applyModeMultiplier(policy, settings.moderationMode || 'balanced');
 }
 
-function applyInstagramContextOverride(signals, policy) {
+function hasLowExplicitRisk(signals, policy) {
+  return signals.explicitSexualActivity < policy.contextOverride.maxExplicitActivityForOverride
+    && signals.explicitFemaleIntimateExposure < policy.delete.explicitFemaleIntimateExposure;
+}
+
+function dampenSocialRisk(adjusted, policy) {
+  const override = policy.contextOverride;
+  adjusted.suggestive = Math.min(adjusted.suggestive, override.socialSuggestiveCap);
+  adjusted.impliedNudity = Math.min(
+    adjusted.impliedNudity,
+    Math.min(override.socialImpliedNudityCap, policy.warning.impliedNudity - 0.01)
+  );
+}
+
+function applyMomentsContextOverride(signals, policy) {
   const adjusted = { ...signals };
   const allowedContext = strongestAllowedContext(signals);
   const override = policy.contextOverride;
@@ -103,34 +120,40 @@ function applyInstagramContextOverride(signals, policy) {
   if (allowedContext < override.minAllowedContext) {
     return adjusted;
   }
-  if (signals.explicitSexualActivity >= override.maxExplicitActivityForOverride) {
-    return adjusted;
-  }
-  if (signals.explicitFemaleIntimateExposure >= policy.delete.explicitFemaleIntimateExposure) {
+  if (!hasLowExplicitRisk(signals, policy)) {
     return adjusted;
   }
 
   if (signals.allowedMaleUnderwear >= override.minAllowedContext
       && signals.explicitSexualDisplay < override.maxExplicitDisplayForOverride) {
     adjusted.explicitSexualDisplay = Math.min(adjusted.explicitSexualDisplay, 0.35);
-    adjusted.impliedNudity = Math.min(adjusted.impliedNudity, policy.warning.impliedNudity - 0.01);
+    dampenSocialRisk(adjusted, policy);
   }
 
-  if (signals.allowedMaleChest >= override.minAllowedContext
-      && signals.explicitSexualActivity < override.maxExplicitActivityForOverride) {
-    adjusted.impliedNudity = Math.min(adjusted.impliedNudity, policy.warning.impliedNudity - 0.01);
+  if (signals.allowedMaleChest >= override.minAllowedContext) {
+    dampenSocialRisk(adjusted, policy);
   }
 
-  if (signals.allowedFemaleSwimwear >= override.minAllowedContext
-      && signals.explicitFemaleIntimateExposure < policy.warning.explicitSexualDisplay) {
+  if (signals.allowedFemaleSwimwear >= override.minAllowedContext) {
     adjusted.explicitSexualDisplay = Math.min(adjusted.explicitSexualDisplay, 0.45);
+    dampenSocialRisk(adjusted, policy);
+  }
+
+  if (signals.allowedFemaleLingerie >= override.minAllowedContext) {
+    adjusted.explicitSexualDisplay = Math.min(adjusted.explicitSexualDisplay, 0.55);
+    // Lingerie is allowed fashion, but keep a slightly higher suggestive ceiling than beachwear.
+    adjusted.suggestive = Math.min(adjusted.suggestive, 0.78);
     adjusted.impliedNudity = Math.min(adjusted.impliedNudity, policy.warning.impliedNudity - 0.01);
   }
 
-  if (signals.allowedFemaleLingerie >= override.minAllowedContext
-      && signals.explicitFemaleIntimateExposure < policy.warning.explicitSexualDisplay) {
-    adjusted.explicitSexualDisplay = Math.min(adjusted.explicitSexualDisplay, 0.55);
-    adjusted.impliedNudity = Math.min(adjusted.impliedNudity, policy.warning.impliedNudity);
+  if ((signals.allowedCasualBottoms || 0) >= override.minAllowedContext) {
+    // Shorts/skirts in social photos: approve unless explicit risk already blocked override.
+    dampenSocialRisk(adjusted, policy);
+  }
+
+  // Outdoor leisure + any allow context further confirms social-normal content.
+  if (signals.outdoorLeisureContext >= 0.40 && allowedContext >= override.minAllowedContext) {
+    dampenSocialRisk(adjusted, policy);
   }
 
   return adjusted;
@@ -138,13 +161,13 @@ function applyInstagramContextOverride(signals, policy) {
 
 function evaluateModerationPolicy(signals, policyInput = DEFAULT_POLICY, meta = {}) {
   const policy = policyInput || DEFAULT_POLICY;
-  const adjusted = applyInstagramContextOverride(signals, policy);
+  const adjusted = applyMomentsContextOverride(signals, policy);
   const visualScore = maxSignal(adjusted);
   const provider = meta.provider || adjusted.provider || 'canonical';
   const details = {
     provider,
     canonicalSignals: adjusted,
-    policyVersion: 'instagram-aligned-v1',
+    policyVersion: 'moments-aligned-v1',
     ...(meta.details || {})
   };
 
@@ -220,10 +243,11 @@ function evaluateModerationPolicy(signals, policyInput = DEFAULT_POLICY, meta = 
     );
   }
 
-  if (adjusted.femaleCleavageVeryRevealing >= policy.warning.femaleCleavageVeryRevealing) {
+  if (adjusted.femaleCleavageVeryRevealing >= policy.warning.femaleCleavageVeryRevealing
+      && adjusted.allowedFemaleSwimwear < policy.contextOverride.minAllowedContext) {
     return warningModerationDecision(
       'Contenido sugerente detectado para revisión',
-      'adult',
+      'racy',
       { provider, visualScore, combinedScore: visualScore, details }
     );
   }
@@ -231,7 +255,7 @@ function evaluateModerationPolicy(signals, policyInput = DEFAULT_POLICY, meta = 
   if (adjusted.suggestive >= policy.warning.suggestive) {
     return warningModerationDecision(
       'Contenido sugerente detectado para revisión',
-      'adult',
+      'racy',
       { provider, visualScore, combinedScore: visualScore, details }
     );
   }
@@ -239,17 +263,18 @@ function evaluateModerationPolicy(signals, policyInput = DEFAULT_POLICY, meta = 
   if (adjusted.impliedNudity >= policy.warning.impliedNudity) {
     return warningModerationDecision(
       'Contenido sugerente detectado para revisión',
-      'adult',
+      'racy',
       { provider, visualScore, combinedScore: visualScore, details }
     );
   }
 
   if (adjusted.allowedFemaleSwimwear >= policy.contextOverride.minAllowedContext
       && adjusted.indoorContext >= 0.55
-      && adjusted.suggestive >= 0.70) {
+      && adjusted.suggestive >= 0.70
+      && adjusted.suggestive >= policy.warning.suggestive) {
     return warningModerationDecision(
       'Contenido sugerente detectado para revisión',
-      'adult',
+      'racy',
       { provider, visualScore, combinedScore: visualScore, details }
     );
   }
@@ -273,6 +298,6 @@ function evaluateModerationPolicy(signals, policyInput = DEFAULT_POLICY, meta = 
 module.exports = {
   DEFAULT_POLICY,
   policyFromFirestoreSettings,
-  applyInstagramContextOverride,
+  applyMomentsContextOverride,
   evaluateModerationPolicy
 };
