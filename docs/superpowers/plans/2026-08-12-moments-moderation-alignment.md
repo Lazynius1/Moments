@@ -16,26 +16,18 @@
 
 ---
 
-## Task 1: Unit tests for social-normal allow + explicit delete
+## Task 1: Adapters + canonical signals
 
-- [ ] Add `functions/moderation/__tests__/policy.moments.test.js`
-- [ ] Cover: minishort outdoor approve; male chest approve; bikini beach approve; sexual_activity delete; rename exports
-- [ ] Add `npm test` script using `node --test`
+- [x] Update `canonicalSignals.js` with `allowedCasualBottoms`
+- [x] Update `sightengine.js` mapping
+- [x] Update `rekognition.js` mapping
 
-## Task 2: Adapters + canonical signals
+## Task 2: Policy Moments override + categories
 
-- [ ] Update `canonicalSignals.js` with `allowedCasualBottoms`
-- [ ] Update `sightengine.js` mapping
-- [ ] Update `rekognition.js` mapping
+- [x] Rename Instagram → Moments
+- [x] Dampen suggestive in allowed social contexts
+- [x] Use `racy` for remaining suggestive warnings
 
-## Task 3: Policy Moments override + categories
+## Task 3: Ship
 
-- [ ] Rename Instagram → Moments
-- [ ] Dampen suggestive in allowed social contexts
-- [ ] Use `racy` for remaining suggestive warnings
-- [ ] Export rename; keep backward-compat alias if needed (prefer clean rename)
-
-## Task 4: Verify + ship
-
-- [ ] `npm test` in functions
-- [ ] Commit, push, PR
+- [x] Commit, push, PR (sin suite de tests a petición del producto)
