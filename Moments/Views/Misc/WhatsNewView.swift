@@ -8,44 +8,44 @@ struct WhatsNewView: View {
     private var features: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: .system("sparkles"),
-                title: NSLocalizedString("whatsNew.glass.title", comment: ""),
-                description: NSLocalizedString("whatsNew.glass.description", comment: "")
+                icon: .system("dock.rectangle"),
+                title: NSLocalizedString("whatsNew.floatingTabBar.title", comment: ""),
+                description: NSLocalizedString("whatsNew.floatingTabBar.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("hand.raised.fill"),
-                title: NSLocalizedString("whatsNew.permissions.title", comment: ""),
-                description: NSLocalizedString("whatsNew.permissions.description", comment: "")
+                icon: .system("key.viewfinder"),
+                title: NSLocalizedString("whatsNew.chatRecovery.title", comment: ""),
+                description: NSLocalizedString("whatsNew.chatRecovery.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("arrow.clockwise"),
-                title: NSLocalizedString("whatsNew.refresh.title", comment: ""),
-                description: NSLocalizedString("whatsNew.refresh.description", comment: "")
+                icon: .system("play.rectangle.on.rectangle"),
+                title: NSLocalizedString("whatsNew.hlsVideo.title", comment: ""),
+                description: NSLocalizedString("whatsNew.hlsVideo.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("square.grid.2x2.fill"),
-                title: NSLocalizedString("whatsNew.widget.title", comment: ""),
-                description: NSLocalizedString("whatsNew.widget.description", comment: "")
+                icon: .system("film.stack"),
+                title: NSLocalizedString("whatsNew.reels.title", comment: ""),
+                description: NSLocalizedString("whatsNew.reels.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("camera.fill"),
-                title: NSLocalizedString("whatsNew.camera.title", comment: ""),
-                description: NSLocalizedString("whatsNew.camera.description", comment: "")
+                icon: .system("person.crop.circle.badge.checkmark"),
+                title: NSLocalizedString("whatsNew.conversationSettings.title", comment: ""),
+                description: NSLocalizedString("whatsNew.conversationSettings.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("bubble.left.and.bubble.right.fill"),
-                title: NSLocalizedString("whatsNew.composer.title", comment: ""),
-                description: NSLocalizedString("whatsNew.composer.description", comment: "")
+                icon: .system("lock.shield"),
+                title: NSLocalizedString("whatsNew.messageRequests.title", comment: ""),
+                description: NSLocalizedString("whatsNew.messageRequests.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("line.3.horizontal.decrease.circle.fill"),
-                title: NSLocalizedString("whatsNew.activityFilters.title", comment: ""),
-                description: NSLocalizedString("whatsNew.activityFilters.description", comment: "")
+                icon: .system("location.fill"),
+                title: NSLocalizedString("whatsNew.liveLocation.title", comment: ""),
+                description: NSLocalizedString("whatsNew.liveLocation.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("lock.fill"),
-                title: NSLocalizedString("whatsNew.encryptionFix.title", comment: ""),
-                description: NSLocalizedString("whatsNew.encryptionFix.description", comment: "")
+                icon: .system("eye.slash.fill"),
+                title: NSLocalizedString("whatsNew.viewOnce.title", comment: ""),
+                description: NSLocalizedString("whatsNew.viewOnce.description", comment: "")
             )
         ]
     }
@@ -55,14 +55,9 @@ struct WhatsNewView: View {
     private var developerNote: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: .system("pause.circle.fill"),
-                title: NSLocalizedString("whatsNew.note.pause.title", comment: ""),
-                description: NSLocalizedString("whatsNew.note.pause.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("books.vertical.fill"),
-                title: NSLocalizedString("whatsNew.note.scale.title", comment: ""),
-                description: NSLocalizedString("whatsNew.note.scale.description", comment: "")
+                icon: .system("iphone.and.arrow.forward"),
+                title: NSLocalizedString("whatsNew.note.android.title", comment: ""),
+                description: NSLocalizedString("whatsNew.note.android.description", comment: "")
             )
         ]
     }

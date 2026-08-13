@@ -2821,8 +2821,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Vidre líquid a tota l'app, permisos que s'expliquen sols, llisca per actualitzar i una càmera millorada.";
-"whatsNew.button" = "Explorar Moments 2.18";
+"whatsNew.subtitle" = "Barra de pestanyes flotant, recuperació del xat, vídeo adaptatiu i Reels més fluids.";
+"whatsNew.button" = "Explorar Moments 2.19";
 
 
 
@@ -3475,6 +3475,11 @@
 "chatRecovery.vault.savedHint" = "El desem al clauer del teu iPhone perquè no te’l demanem en reinstal·lar.";
 "chatRecovery.vault.saveTitle" = "Desar el PIN en aquest telèfon";
 "chatRecovery.vault.saveSubtitle" = "Introdueix el PIN un cop perquè aquest dispositiu pugui restaurar els xats i Nova sense teclejar-lo la propera vegada.";
+"chatRecovery.icloudPrompt.title" = "Sincronitza el PIN amb iCloud";
+"chatRecovery.icloudPrompt.message" = "Per restaurar el xat en reinstal·lar amb el mateix Apple ID, canvia el PIN de recuperació. Pots usar el mateix.";
+"chatRecovery.icloudPrompt.action" = "Actualitzar PIN";
+"chatRecovery.icloudPrompt.dismiss" = "Ara no";
+"chatRecovery.icloudPrompt.sheetSubtitle" = "Introdueix el PIN actual (pots repetir el mateix). El guardarem a iCloud Keychain per restaurar el xat sense teclejar-lo en reinstal·lar.";
 "chatRecovery.restore.fromOtherDevice" = "Vinc d’un altre telèfon";
 "chatRecovery.migrate.title" = "Passar els xats a un altre mòbil";
 "chatRecovery.migrate.subtitle" = "Al telèfon nou (mateix compte), toca «Vinc d’un altre telèfon» i escaneja aquest QR. Caduca en 10 minuts i només serveix un cop.";
@@ -4400,24 +4405,22 @@
 
 // MARK: - What's New 2.18
 
-"whatsNew.glass.title" = "Disseny de vidre líquid";
-"whatsNew.glass.description" = "Nous materials translúcids a pestanyes, botons i targetes, al dia amb iOS 27.";
-"whatsNew.permissions.title" = "Permisos que s'expliquen";
-"whatsNew.permissions.description" = "Abans de cada permís t'expliquem per a què serveix, amb una pantalla clara i animada.";
-"whatsNew.refresh.title" = "Llisca per actualitzar";
-"whatsNew.refresh.description" = "Ja és a tota l'app, amb una gota de vidre líquid que respon al teu gest.";
-"whatsNew.widget.title" = "Widget renovat";
-"whatsNew.widget.description" = "Redissenyat amb la identitat de Moments i vistes prèvies reals del teu contingut.";
-"whatsNew.camera.title" = "Càmera millorada";
-"whatsNew.camera.description" = "Enquadrament centrat i captura a màxima qualitat per a les teves fotos i històries.";
-"whatsNew.composer.title" = "Xat més fluid";
-"whatsNew.composer.description" = "El camp d'escriptura flota sobre el fons del xat i respon millor al tacte.";
-"whatsNew.activityFilters.title" = "Filtres a la teva activitat";
-"whatsNew.activityFilters.description" = "Filtres plegables per trobar abans el que busques a la teva activitat.";
-"whatsNew.encryptionFix.title" = "Missatges recuperats";
-"whatsNew.encryptionFix.description" = "Els missatges que quedaven il·legibles després de restaurar el PIN es tornen a desxifrar.";
-"whatsNew.note.pause.title" = "Pausa temporal en actualitzacions";
-"whatsNew.note.pause.description" = "Em mudo una mica a l'estudi del costat. Estaré un temps sense llançar pedaços per aquí perquè estic reescrivint tot Moments per a Android.";
-"whatsNew.note.scale.title" = "La mida del repte";
-"whatsNew.note.scale.description" = "Perquè us feu una idea, el codi actual de Moments equival a 600 fitxers i unes 250.000 línies, que traduït al món literari ve a ser com escriure la saga completa dels 7 llibres de Harry Potter des de zero.";
-"whatsNew.note.closing" = "Ens veiem aviat amb novetats èpiques a totes dues plataformes! ⚡🤖";
+"whatsNew.floatingTabBar.title" = "Barra de pestanyes flotant";
+"whatsNew.floatingTabBar.description" = "Nova barra de pestanyes flotant amb vidre líquid. Nova i Messages han canviat de lloc.";
+"whatsNew.chatRecovery.title" = "Recuperació del xat";
+"whatsNew.chatRecovery.description" = "Caixa forta al Keychain amb restauració automàtica, migració QR i avís per sincronitzar el PIN amb iCloud Keychain.";
+"whatsNew.hlsVideo.title" = "Vídeo adaptatiu";
+"whatsNew.hlsVideo.description" = "Reproducció HLS que s'ajusta a la teva connexió al feed, Reels i la resta de vídeos.";
+"whatsNew.reels.title" = "Reels més fluids";
+"whatsNew.reels.description" = "Desplaçament més suau i chrome immersiu polit per veure Reels amb més comoditat.";
+"whatsNew.conversationSettings.title" = "Ajustos de conversa";
+"whatsNew.conversationSettings.description" = "Capçalera hero renovada amb accessos ràpids a galeria, enllaços i emmagatzematge.";
+"whatsNew.messageRequests.title" = "Sol·licituds protegides";
+"whatsNew.messageRequests.description" = "Les sol·licituds de missatge des de perfils queden darrere del teu PIN de xat.";
+"whatsNew.liveLocation.title" = "Ubicació en viu";
+"whatsNew.liveLocation.description" = "Bombolla d'ubicació en temps real i mapa del xat més fiables i polits.";
+"whatsNew.viewOnce.title" = "View-once corregit";
+"whatsNew.viewOnce.description" = "Les fotos d'un sol visionat marquen vist correctament per consumir la media.";
+"whatsNew.note.android.title" = "Android en marxa";
+"whatsNew.note.android.description" = "Moments per a Android ja corre en mòbil i tauleta. La paritat amb iOS avança en paral·lel.";
+"whatsNew.note.closing" = "Gràcies per continuar amb nosaltres en aquest camí! ⚡🤖";

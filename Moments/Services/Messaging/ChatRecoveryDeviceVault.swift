@@ -49,6 +49,28 @@ enum ChatRecoveryDeviceVault {
         deleteExisting(account: accountPrefix + uid)
     }
 
+    enum PINSyncState {
+        case none
+        case deviceOnly
+        case iCloud
+    }
+
+    static func pinSyncState(uid: String) -> PINSyncState {
+        guard !uid.isEmpty else { return .none }
+        let account = accountPrefix + uid
+        if loadPIN(account: account, synchronizable: true) != nil {
+            return .iCloud
+        }
+        if loadPIN(account: account, synchronizable: false) != nil {
+            return .deviceOnly
+        }
+        return .none
+    }
+
+    static func hasSynchronizedPIN(uid: String) -> Bool {
+        pinSyncState(uid: uid) == .iCloud
+    }
+
     private static func loadPIN(account: String, synchronizable: Bool) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

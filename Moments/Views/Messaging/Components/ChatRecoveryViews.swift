@@ -15,7 +15,7 @@ struct ChatRecoveryGateView<Content: View>: View {
         Group {
             switch resolvedAccessState {
             case .available:
-                content()
+                ChatRecoverySecureSurface(content: content)
             case .needsPinSetup:
                 CreateChatPINView(
                     onSuccess: reloadState,
@@ -52,6 +52,136 @@ struct ChatRecoveryGateView<Content: View>: View {
         Task {
             await accessCoordinator.refreshAccess()
         }
+    }
+}
+
+/// Contenido cifrado (chat, Nova, etc.) con avisos compartidos de recuperación.
+struct ChatRecoverySecureSurface<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .safeAreaInset(edge: .top, spacing: 0) {
+                ChatRecoveryICloudSyncPromptBanner()
+            }
+    }
+}
+
+struct ChatRecoveryICloudSyncPromptBanner: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    @State private var isVisible = false
+    @State private var showChangePIN = false
+    @State private var refreshToken = UUID()
+
+    var body: some View {
+        Group {
+            if isVisible {
+                bannerContent
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.42, dampingFraction: 0.86), value: isVisible)
+        .task(id: refreshToken) {
+            await refreshVisibility()
+        }
+        .sheet(isPresented: $showChangePIN, onDismiss: {
+            refreshToken = UUID()
+        }) {
+            CreateChatPINView(
+                isChangeFlow: true,
+                changeSubtitleKey: "chatRecovery.icloudPrompt.sheetSubtitle",
+                onSuccess: {
+                    showChangePIN = false
+                    isVisible = false
+                },
+                onCancel: {
+                    showChangePIN = false
+                }
+            )
+            .presentationBackground(.clear)
+            .presentationDragIndicator(.hidden)
+        }
+    }
+
+    private var bannerContent: some View {
+        let palette = ChatRecoveryPalette(colorScheme: colorScheme)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "icloud.and.arrow.up")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(palette.title)
+                    .frame(width: 34, height: 34)
+                    .background {
+                        Color.clear
+                            .momentsChromeGlass(in: Circle())
+                    }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(NSLocalizedString("chatRecovery.icloudPrompt.title", comment: "iCloud Keychain PIN sync title"))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                        .foregroundStyle(palette.title)
+
+                    Text(NSLocalizedString("chatRecovery.icloudPrompt.message", comment: "iCloud Keychain PIN sync message"))
+                        .font(.system(size: legacyPoppinsSize(13)))
+                        .foregroundStyle(palette.body)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    showChangePIN = true
+                } label: {
+                    Text(NSLocalizedString("chatRecovery.icloudPrompt.action", comment: "Update recovery PIN"))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+                        .foregroundStyle(.black.opacity(0.88))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.92))
+                        }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    EncryptionService.shared.snoozeICloudKeychainPINRefreshPrompt()
+                    isVisible = false
+                } label: {
+                    Text(NSLocalizedString("chatRecovery.icloudPrompt.dismiss", comment: "Not now"))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
+                        .foregroundStyle(palette.mutedAction)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(14)
+        .background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(colorScheme == .dark ? Color.black.opacity(0.42) : Color.white.opacity(0.82))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(.ultraThinMaterial.opacity(colorScheme == .dark ? 0.9 : 0.72))
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(
+                            colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08),
+                            lineWidth: 1
+                        )
+                }
+        }
+    }
+
+    @MainActor
+    private func refreshVisibility() async {
+        isVisible = await EncryptionService.shared.shouldPromptICloudKeychainPINRefresh()
     }
 }
 
@@ -194,6 +324,7 @@ private struct CreateChatPINView: View {
     @Environment(\.colorScheme) private var colorScheme
     private let pinLength = 6
     let isChangeFlow: Bool
+    let changeSubtitleKey: String?
     let onSuccess: () -> Void
     let onCancel: (() -> Void)?
 
@@ -205,20 +336,23 @@ private struct CreateChatPINView: View {
 
     init(
         isChangeFlow: Bool = false,
+        changeSubtitleKey: String? = nil,
         onSuccess: @escaping () -> Void,
         onCancel: (() -> Void)? = nil
     ) {
         self.isChangeFlow = isChangeFlow
+        self.changeSubtitleKey = changeSubtitleKey
         self.onSuccess = onSuccess
         self.onCancel = onCancel
     }
 
     var body: some View {
         let palette = ChatRecoveryPalette(colorScheme: colorScheme)
+        let subtitle = resolvedSubtitle
 
         ChatRecoveryFormContainer(
             title: isChangeFlow ? NSLocalizedString("chatRecovery.create.changeTitle", comment: "Change chat recovery PIN") : NSLocalizedString("chatRecovery.create.title", comment: "Set up your chat recovery PIN"),
-            subtitle: NSLocalizedString("chatRecovery.create.subtitle", comment: "Create recovery PIN subtitle")
+            subtitle: subtitle
         ) {
             ChatRecoveryPINField(
                 title: NSLocalizedString("chatRecovery.field.createPin", comment: "Create PIN"),
@@ -268,6 +402,13 @@ private struct CreateChatPINView: View {
                 activeField = .confirmation
             }
         }
+    }
+
+    private var resolvedSubtitle: String {
+        if isChangeFlow, let changeSubtitleKey {
+            return NSLocalizedString(changeSubtitleKey, comment: "Change recovery PIN subtitle")
+        }
+        return NSLocalizedString("chatRecovery.create.subtitle", comment: "Create recovery PIN subtitle")
     }
 
     private func submit() {

@@ -2800,8 +2800,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Neu in Moments!";
-"whatsNew.subtitle" = "Flüssiges Glas in der ganzen App, Berechtigungen, die sich selbst erklären, Ziehen zum Aktualisieren und eine bessere Kamera.";
-"whatsNew.button" = "Moments 2.18 entdecken";
+"whatsNew.subtitle" = "Schwebende Tab-Leiste, Chat-Wiederherstellung, adaptives Video und flüssigere Reels.";
+"whatsNew.button" = "Moments 2.19 entdecken";
 
 
 
@@ -3455,6 +3455,11 @@
 "chatRecovery.vault.savedHint" = "Wir speichern sie im iPhone-Schlüsselbund, damit du sie nach einer Neuinstallation nicht eingeben musst.";
 "chatRecovery.vault.saveTitle" = "PIN auf diesem Gerät speichern";
 "chatRecovery.vault.saveSubtitle" = "Gib deine Wiederherstellungs-PIN einmal ein, damit dieses Gerät Chats und Nova beim nächsten Mal ohne Eingabe wiederherstellen kann.";
+"chatRecovery.icloudPrompt.title" = "PIN mit iCloud synchronisieren";
+"chatRecovery.icloudPrompt.message" = "Damit der Chat nach einer Neuinstallation mit derselben Apple-ID wiederhergestellt wird, aktualisiere deine Wiederherstellungs-PIN. Du kannst dieselbe verwenden.";
+"chatRecovery.icloudPrompt.action" = "PIN aktualisieren";
+"chatRecovery.icloudPrompt.dismiss" = "Nicht jetzt";
+"chatRecovery.icloudPrompt.sheetSubtitle" = "Gib deine aktuelle PIN ein (du kannst dieselbe wiederholen). Wir speichern sie in iCloud Keychain, damit der Chat nach der Neuinstallation ohne Eingabe wiederhergestellt wird.";
 "chatRecovery.restore.fromOtherDevice" = "Ich komme von einem anderen Handy";
 "chatRecovery.migrate.title" = "Chats auf ein anderes Gerät übertragen";
 "chatRecovery.migrate.subtitle" = "Tippe auf dem neuen Handy (gleiches Konto) auf „Ich komme von einem anderen Handy“ und scanne diesen QR. Er läuft in 10 Minuten ab und kann nur einmal verwendet werden.";
@@ -4380,24 +4385,22 @@
 
 // MARK: - What's New 2.18
 
-"whatsNew.glass.title" = "Design aus flüssigem Glas";
-"whatsNew.glass.description" = "Neue transluzente Materialien für Tabs, Buttons und Karten, passend zu iOS 27.";
-"whatsNew.permissions.title" = "Berechtigungen, die sich erklären";
-"whatsNew.permissions.description" = "Vor jeder Berechtigung erklären wir dir, wofür sie da ist, mit einem klaren animierten Bildschirm.";
-"whatsNew.refresh.title" = "Ziehen zum Aktualisieren";
-"whatsNew.refresh.description" = "Jetzt in der ganzen App, mit einem Tropfen aus flüssigem Glas, der deiner Geste folgt.";
-"whatsNew.widget.title" = "Neu gestaltetes Widget";
-"whatsNew.widget.description" = "Neu aufgebaut mit der Identität von Moments und echten Vorschauen deiner Inhalte.";
-"whatsNew.camera.title" = "Bessere Kamera";
-"whatsNew.camera.description" = "Zentrierter Bildausschnitt und Aufnahmen in höchster Qualität für Fotos und Storys.";
-"whatsNew.composer.title" = "Flüssigerer Chat";
-"whatsNew.composer.description" = "Das Textfeld schwebt über dem Chat-Hintergrund und reagiert besser auf Berührungen.";
-"whatsNew.activityFilters.title" = "Filter in deiner Aktivität";
-"whatsNew.activityFilters.description" = "Einklappbare Filter, damit du schneller findest, was du suchst.";
-"whatsNew.encryptionFix.title" = "Wiederhergestellte Nachrichten";
-"whatsNew.encryptionFix.description" = "Nachrichten, die nach dem Wiederherstellen deiner PIN unlesbar blieben, werden wieder entschlüsselt.";
-"whatsNew.note.pause.title" = "Kurze Pause bei den Updates";
-"whatsNew.note.pause.description" = "Ich ziehe für eine Weile ins Studio nebenan. Hier wird es eine Zeit lang keine Patches geben, weil ich ganz Moments für Android neu schreibe.";
-"whatsNew.note.scale.title" = "Die Größe der Aufgabe";
-"whatsNew.note.scale.description" = "Damit ihr eine Vorstellung bekommt: Der aktuelle Code von Moments umfasst rund 600 Dateien und etwa 250.000 Zeilen, literarisch übersetzt also so viel, wie die komplette Harry-Potter-Saga aus sieben Bänden von Grund auf zu schreiben.";
-"whatsNew.note.closing" = "Bis bald mit epischen Neuigkeiten auf beiden Plattformen! ⚡🤖";
+"whatsNew.floatingTabBar.title" = "Schwebende Tab-Leiste";
+"whatsNew.floatingTabBar.description" = "Neue schwebende Tab-Leiste mit flüssigem Glas. Nova und Nachrichten haben die Plätze getauscht.";
+"whatsNew.chatRecovery.title" = "Chat-Wiederherstellung";
+"whatsNew.chatRecovery.description" = "Keychain-Tresor mit automatischer Wiederherstellung, QR-Migration und Hinweis zur Synchronisation deiner PIN mit iCloud Keychain.";
+"whatsNew.hlsVideo.title" = "Adaptives Video";
+"whatsNew.hlsVideo.description" = "HLS-Wiedergabe, die sich an deine Verbindung im Feed, bei Reels und überall anpasst.";
+"whatsNew.reels.title" = "Flüssigere Reels";
+"whatsNew.reels.description" = "Sanfteres Scrollen und poliertes immersives Chrome für ein besseres Reels-Erlebnis.";
+"whatsNew.conversationSettings.title" = "Unterhaltungseinstellungen";
+"whatsNew.conversationSettings.description" = "Neu gestalteter Hero-Header mit Schnellzugriff auf Galerie, Links und Speicher.";
+"whatsNew.messageRequests.title" = "Geschützte Anfragen";
+"whatsNew.messageRequests.description" = "Nachrichtenanfragen aus Profilen liegen jetzt hinter deiner Chat-PIN.";
+"whatsNew.liveLocation.title" = "Live-Standort";
+"whatsNew.liveLocation.description" = "Echtzeit-Standortblase und Chat-Karte sind zuverlässiger und polierter.";
+"whatsNew.viewOnce.title" = "View-once behoben";
+"whatsNew.viewOnce.description" = "Einmal-Fotos werden korrekt als angesehen markiert, damit die Medien verbraucht werden können.";
+"whatsNew.note.android.title" = "Android läuft";
+"whatsNew.note.android.description" = "Moments für Android läuft bereits auf Handy und Tablet. Die Parität mit iOS schreitet parallel voran.";
+"whatsNew.note.closing" = "Danke, dass ihr uns auf diesem Weg begleitet! ⚡🤖";

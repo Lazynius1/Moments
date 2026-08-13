@@ -2800,8 +2800,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novidades no Moments!";
-"whatsNew.subtitle" = "Vidro líquido em todo o app, permissões que se explicam, puxe para atualizar e uma câmera melhorada.";
-"whatsNew.button" = "Explorar o Moments 2.18";
+"whatsNew.subtitle" = "Barra de abas flutuante, recuperação do chat, vídeo adaptativo e Reels mais fluidos.";
+"whatsNew.button" = "Explorar o Moments 2.19";
 
 
 
@@ -3455,6 +3455,11 @@
 "chatRecovery.vault.savedHint" = "Guardamos no chaveiro do seu iPhone para não pedirmos de novo ao reinstalar.";
 "chatRecovery.vault.saveTitle" = "Salvar PIN neste telefone";
 "chatRecovery.vault.saveSubtitle" = "Digite seu PIN uma vez para que este dispositivo possa restaurar chats e a Nova sem digitar na próxima vez.";
+"chatRecovery.icloudPrompt.title" = "Sincronize seu PIN com o iCloud";
+"chatRecovery.icloudPrompt.message" = "Para restaurar o chat após reinstalar com o mesmo Apple ID, atualize seu PIN de recuperação. Você pode usar o mesmo.";
+"chatRecovery.icloudPrompt.action" = "Atualizar PIN";
+"chatRecovery.icloudPrompt.dismiss" = "Agora não";
+"chatRecovery.icloudPrompt.sheetSubtitle" = "Digite seu PIN atual (você pode repetir o mesmo). Vamos salvá-lo no iCloud Keychain para restaurar o chat sem digitar após reinstalar.";
 "chatRecovery.restore.fromOtherDevice" = "Estou vindo de outro telefone";
 "chatRecovery.migrate.title" = "Passar chats para outro celular";
 "chatRecovery.migrate.subtitle" = "No telefone novo (mesma conta), toque em «Estou vindo de outro telefone» e escaneie este QR. Expira em 10 minutos e só pode ser usado uma vez.";
@@ -4380,24 +4385,22 @@
 
 // MARK: - What's New 2.18
 
-"whatsNew.glass.title" = "Design de vidro líquido";
-"whatsNew.glass.description" = "Novos materiais translúcidos em abas, botões e cartões, em sintonia com o iOS 27.";
-"whatsNew.permissions.title" = "Permissões que se explicam";
-"whatsNew.permissions.description" = "Antes de cada permissão a gente conta para que serve, com uma tela clara e animada.";
-"whatsNew.refresh.title" = "Puxe para atualizar";
-"whatsNew.refresh.description" = "Agora em todo o app, com uma gota de vidro líquido que acompanha o seu gesto.";
-"whatsNew.widget.title" = "Widget renovado";
-"whatsNew.widget.description" = "Redesenhado com a identidade do Moments e prévias reais do seu conteúdo.";
-"whatsNew.camera.title" = "Câmera melhorada";
-"whatsNew.camera.description" = "Enquadramento centralizado e captura em qualidade máxima para fotos e stories.";
-"whatsNew.composer.title" = "Chat mais fluido";
-"whatsNew.composer.description" = "O campo de escrita flutua sobre o fundo do chat e responde melhor ao toque.";
-"whatsNew.activityFilters.title" = "Filtros na sua atividade";
-"whatsNew.activityFilters.description" = "Filtros recolhíveis para achar antes o que você procura.";
-"whatsNew.encryptionFix.title" = "Mensagens recuperadas";
-"whatsNew.encryptionFix.description" = "As mensagens que ficavam ilegíveis depois de restaurar seu PIN voltam a ser descriptografadas.";
-"whatsNew.note.pause.title" = "Uma pausa nas atualizações";
-"whatsNew.note.pause.description" = "Vou me mudar um tempinho para o estúdio ao lado. Vou ficar um tempo sem lançar correções por aqui porque estou reescrevendo todo o Moments para Android.";
-"whatsNew.note.scale.title" = "O tamanho do desafio";
-"whatsNew.note.scale.description" = "Para vocês terem uma ideia, o código atual do Moments equivale a cerca de 600 arquivos e 250.000 linhas, o que traduzido para o mundo literário é como escrever a saga completa dos 7 livros de Harry Potter do zero.";
-"whatsNew.note.closing" = "Até logo com novidades épicas nas duas plataformas! ⚡🤖";
+"whatsNew.floatingTabBar.title" = "Barra de abas flutuante";
+"whatsNew.floatingTabBar.description" = "Nova barra de abas flutuante com vidro líquido. Nova e Mensagens trocaram de lugar.";
+"whatsNew.chatRecovery.title" = "Recuperação do chat";
+"whatsNew.chatRecovery.description" = "Cofre no Keychain com restauração automática, migração QR e aviso para sincronizar seu PIN com o iCloud Keychain.";
+"whatsNew.hlsVideo.title" = "Vídeo adaptativo";
+"whatsNew.hlsVideo.description" = "Reprodução HLS que se ajusta à sua conexão no feed, Reels e no resto do app.";
+"whatsNew.reels.title" = "Reels mais fluidos";
+"whatsNew.reels.description" = "Rolagem mais suave e chrome imersivo polido para ver Reels com mais conforto.";
+"whatsNew.conversationSettings.title" = "Ajustes da conversa";
+"whatsNew.conversationSettings.description" = "Cabeçalho hero renovado com acesso rápido a galeria, links e armazenamento.";
+"whatsNew.messageRequests.title" = "Solicitações protegidas";
+"whatsNew.messageRequests.description" = "Solicitações de mensagem a partir de perfis ficam atrás do seu PIN do chat.";
+"whatsNew.liveLocation.title" = "Localização ao vivo";
+"whatsNew.liveLocation.description" = "Bolha de localização em tempo real e mapa do chat mais confiáveis e polidos.";
+"whatsNew.viewOnce.title" = "View-once corrigido";
+"whatsNew.viewOnce.description" = "Fotos de visualização única marcam como visto corretamente para consumir a mídia.";
+"whatsNew.note.android.title" = "Android a todo vapor";
+"whatsNew.note.android.description" = "O Moments para Android já roda em celular e tablet. A paridade com iOS avança em paralelo.";
+"whatsNew.note.closing" = "Obrigado por continuar conosco nessa jornada! ⚡🤖";

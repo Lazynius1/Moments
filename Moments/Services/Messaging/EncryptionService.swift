@@ -567,6 +567,7 @@ class EncryptionService: ObservableObject {
     private let chatIdentityKeyPrefix = "chat_identity_private_v1_"
     private let chatIdentityKeyIdPrefix = "chat_identity_key_id_v1_"
     private let chatRecoveryMarkerPrefix = "chat_recovery_marker_v1_"
+    private let chatRecoveryICloudPromptSnoozePrefix = "chatRecoveryICloudPromptSnooze_v1_"
     private let chatRecoveryAttemptsPrefix = "chat_recovery_attempts_v1_"
     private let chatRecoveryLockoutPrefix = "chat_recovery_lockout_v1_"
     private let chatRecoveryMaxAttempts = 5
@@ -1185,6 +1186,31 @@ class EncryptionService: ObservableObject {
             .document("default")
             .getDocument()
         return snapshot.exists
+    }
+
+    /// Existing users may have a recovery PIN that never synced to iCloud Keychain.
+    /// Re-saving the PIN (even the same digits) writes a synchronizable Keychain item.
+    func shouldPromptICloudKeychainPINRefresh(for userId: String? = Auth.auth().currentUser?.uid) async -> Bool {
+        guard let userId else { return false }
+
+        if let snoozeUntil = UserDefaults.standard.object(
+            forKey: chatRecoveryICloudPromptSnoozePrefix + userId
+        ) as? Date, snoozeUntil > Date() {
+            return false
+        }
+
+        guard hasLocalChatIdentity(for: userId) else { return false }
+        guard (try? await hasChatRecoveryBundle(for: userId)) == true else { return false }
+        return !ChatRecoveryDeviceVault.hasSynchronizedPIN(uid: userId)
+    }
+
+    func snoozeICloudKeychainPINRefreshPrompt(
+        for userId: String? = Auth.auth().currentUser?.uid,
+        days: Int = 7
+    ) {
+        guard let userId else { return }
+        let snoozeUntil = Calendar.current.date(byAdding: .day, value: days, to: Date()) ?? Date()
+        UserDefaults.standard.set(snoozeUntil, forKey: chatRecoveryICloudPromptSnoozePrefix + userId)
     }
 
     func chatRecoveryAttemptState(for userId: String? = Auth.auth().currentUser?.uid) -> ChatRecoveryAttemptState {
