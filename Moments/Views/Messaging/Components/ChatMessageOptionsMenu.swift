@@ -785,9 +785,8 @@ struct ChatMessageContextMenuOverlay: View {
             : reactionsBarEstimatedWidth
         let centerX = clampedCenterX(scaled.midX, itemWidth: max(reactionPanelWidth, menuEstimatedWidth))
 
-        // Telegram iOS (`ContextControllerExtractedPresentationNode`): reubica el
-        // contenido extraído para que reacciones + mensaje + acciones formen un
-        // bloque visible. El rail queda arriba y las acciones debajo del mensaje.
+        // Reubica el mensaje elevado para que reacciones + mensaje + acciones
+        // formen un bloque visible. El rail queda arriba y las acciones debajo.
         let minimumMessageTop = layoutTopMargin + reactionPanelHeight + stackGap
         let maximumMessageTop = containerSize.height
             - layoutBottomMargin
