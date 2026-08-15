@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 // MARK: - Selection + frame tracking
 
@@ -9,77 +8,10 @@ struct ChatMessageMenuSelection: Equatable {
     let anchorFrame: CGRect
     let anchorCornerRadius: CGFloat
     let isOutgoing: Bool
-    let liftedImage: UIImage?
     var clusterMessages: [EnhancedMessage]? = nil
 
     static func == (lhs: ChatMessageMenuSelection, rhs: ChatMessageMenuSelection) -> Bool {
         lhs.rowId == rhs.rowId
-    }
-}
-
-struct ChatMessageLiftSnapshot {
-    let frame: CGRect
-    let cornerRadius: CGFloat
-    let image: UIImage?
-}
-
-@MainActor
-private final class ChatMessageSnapshotSource: ObservableObject {
-    weak var anchorView: UIView?
-
-    func snapshot(cornerRadius: CGFloat, fallbackFrame: CGRect) -> ChatMessageLiftSnapshot {
-        guard let anchorView,
-              let window = anchorView.window,
-              anchorView.bounds.width > 0,
-              anchorView.bounds.height > 0
-        else {
-            return ChatMessageLiftSnapshot(frame: fallbackFrame, cornerRadius: cornerRadius, image: nil)
-        }
-
-        let frame = anchorView.convert(anchorView.bounds, to: window)
-        let format = UIGraphicsImageRendererFormat.preferred()
-        format.opaque = false
-        let image: UIImage
-        if let cell = anchorView.ancestor(of: UICollectionViewCell.self) {
-            let cropRect = anchorView.convert(anchorView.bounds, to: cell.contentView)
-            image = UIGraphicsImageRenderer(size: cropRect.size, format: format).image { context in
-                context.cgContext.translateBy(x: -cropRect.minX, y: -cropRect.minY)
-                cell.contentView.layer.render(in: context.cgContext)
-            }
-        } else {
-            image = UIGraphicsImageRenderer(size: frame.size, format: format).image { context in
-                context.cgContext.translateBy(x: -frame.minX, y: -frame.minY)
-                window.layer.render(in: context.cgContext)
-            }
-        }
-        return ChatMessageLiftSnapshot(frame: frame, cornerRadius: cornerRadius, image: image)
-    }
-}
-
-private extension UIView {
-    func ancestor<T: UIView>(of type: T.Type) -> T? {
-        var candidate = superview
-        while let view = candidate {
-            if let match = view as? T { return match }
-            candidate = view.superview
-        }
-        return nil
-    }
-}
-
-private struct ChatMessageSnapshotAnchor: UIViewRepresentable {
-    let source: ChatMessageSnapshotSource
-
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: .zero)
-        view.backgroundColor = .clear
-        view.isUserInteractionEnabled = false
-        source.anchorView = view
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {
-        source.anchorView = uiView
     }
 }
 
@@ -159,15 +91,14 @@ struct ChatMessageBubbleChrome<Content: View>: View {
     let cornerRadius: CGFloat
     let colorScheme: ColorScheme
     var isFlashing: Bool = false
-    let onLongPress: ((ChatMessageLiftSnapshot) -> Void)?
+    let onLongPress: ((CGRect, CGFloat) -> Void)?
     @ViewBuilder let content: () -> Content
 
     @State private var isPressing = false
     @State private var bubbleFrame: CGRect = .zero
-    @StateObject private var snapshotSource = ChatMessageSnapshotSource()
 
     private var selectionScale: CGFloat {
-        if isFlashing { return ChatBubbleAnchorMetrics.highlightScale }
+        if isMenuSelected || isFlashing { return ChatBubbleAnchorMetrics.highlightScale }
         if isPressing { return ChatBubbleAnchorMetrics.pressScale }
         return 1
     }
@@ -194,17 +125,13 @@ struct ChatMessageBubbleChrome<Content: View>: View {
             .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isFlashing), value: isFlashing)
             .animation(.easeOut(duration: 0.12), value: isPressing)
             .zIndex(isMenuSelected || isFlashing ? 1 : 0)
-            .opacity(isMenuSelected ? 0 : 1)
             .background {
-                ZStack {
-                    ChatMessageSnapshotAnchor(source: snapshotSource)
-                    GeometryReader { geometry in
-                        Color.clear
-                            .preference(
-                                key: ChatBubbleGlobalFramePreference.self,
-                                value: geometry.frame(in: .global)
-                            )
-                    }
+                GeometryReader { geometry in
+                    Color.clear
+                        .preference(
+                            key: ChatBubbleGlobalFramePreference.self,
+                            value: geometry.frame(in: .global)
+                        )
                 }
             }
             .onPreferenceChange(ChatBubbleGlobalFramePreference.self) { newFrame in
@@ -215,10 +142,11 @@ struct ChatMessageBubbleChrome<Content: View>: View {
                 isPressing: $isPressing,
                 onLongPress: {
                     guard let onLongPress else { return }
-                    isPressing = false
-                    DispatchQueue.main.async {
-                        onLongPress(snapshotSource.snapshot(cornerRadius: cornerRadius, fallbackFrame: bubbleFrame))
-                    }
+                    // bubbleFrame (GeometryReader en .global) no resuelve de forma fiable dentro de
+                    // una celda UIHostingConfiguration y suele quedar en .zero — se pasa igualmente:
+                    // el caller resuelve el frame real vía UIKit (chatListController.frameInWindow)
+                    // y usa este valor solo como último fallback si esa consulta fallara.
+                    onLongPress(bubbleFrame, cornerRadius)
                 }
             ))
     }
@@ -241,23 +169,8 @@ private struct ChatBubbleLongPressModifier: ViewModifier {
 // MARK: - Overlay
 
 private struct ChatMessageMenuLayout {
-    let messageOffsetY: CGFloat
     let reactionsCenter: CGPoint
     let menuCenter: CGPoint
-    let reactionsAreAbove: Bool
-}
-
-private struct ChatReactionEmojiFramePreference: PreferenceKey {
-    static var defaultValue: [String: CGRect] = [:]
-
-    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
-    }
-}
-
-private struct ChatSkinToneSelection {
-    let baseEmoji: String
-    let anchorKey: String
 }
 
 struct ChatMessageContextMenuOverlay: View {
@@ -285,17 +198,12 @@ struct ChatMessageContextMenuOverlay: View {
     private let menuCornerRadius: CGFloat = ChatAttachmentSheetMetrics.cornerRadius
     private let stackGap: CGFloat = 10
     private let reactionsBarHeight: CGFloat = 54
-    private let expandedReactionsHeight: CGFloat = 232
     private let horizontalInset: CGFloat = 16
 
     private let reactionsBarEstimatedWidth: CGFloat = 300
     private let menuEstimatedWidth: CGFloat = 240
 
     @StateObject private var emojiUsageTracker = EmojiUsageTracker()
-    @State private var isPresented = false
-    @State private var areReactionsExpanded = false
-    @State private var skinToneSelection: ChatSkinToneSelection?
-    @State private var reactionEmojiFrames: [String: CGRect] = [:]
 
     private var primaryTextColor: Color {
         MomentsChromeGlass.contentColor(for: colorScheme)
@@ -314,350 +222,82 @@ struct ChatMessageContextMenuOverlay: View {
                 )
                 let layout = menuLayout(for: selection, rowCount: rowCount)
 
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .overlay(Color.black.opacity(colorScheme == .dark ? 0.32 : 0.18))
-                    .opacity(isPresented ? 1 : 0)
-                    .ignoresSafeArea()
-
                 Color.clear
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture { dismissMenu() }
                     .accessibilityHidden(true)
 
-                liftedMessage(for: selection, layout: layout)
-
-                reactionsRail(for: selection, isAboveMessage: layout.reactionsAreAbove)
+                reactionsBar(for: selection.message)
                     .fixedSize()
                     .position(layout.reactionsCenter)
-                    .scaleEffect(
-                        isPresented ? 1 : 0.82,
-                        anchor: layout.reactionsAreAbove ? .bottom : .top
-                    )
-                    .opacity(isPresented ? 1 : 0)
+                    .transition(.opacity)
 
                 actionsMenu(for: selection.message, isCurrentUser: selection.message.senderId == currentUserId)
                     .fixedSize(horizontal: true, vertical: true)
                     .position(layout.menuCenter)
-                    .scaleEffect(isPresented ? 1 : 0.92, anchor: layout.menuCenter.y >= localAnchorFrame(selection.anchorFrame).midY ? .top : .bottom)
-                    .opacity(isPresented && !areReactionsExpanded ? 1 : 0)
-                    .allowsHitTesting(!areReactionsExpanded)
+                    .transition(.opacity)
             }
         }
-        .onChange(of: selection?.rowId) { _, rowId in
-            guard rowId != nil else {
-                isPresented = false
-                return
-            }
-            isPresented = false
-            areReactionsExpanded = false
-            skinToneSelection = nil
-            DispatchQueue.main.async {
-                withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.42, dampingFraction: 0.86)) {
-                    isPresented = true
-                }
-            }
-        }
+        .animation(.easeOut(duration: 0.18), value: selection?.rowId)
     }
 
     @ViewBuilder
-    private func liftedMessage(
-        for selection: ChatMessageMenuSelection,
-        layout: ChatMessageMenuLayout
-    ) -> some View {
-        let anchor = localAnchorFrame(selection.anchorFrame)
-        if let image = selection.liftedImage {
-            Image(uiImage: image)
-                .resizable()
-                .frame(width: anchor.width, height: anchor.height)
-                .scaleEffect(isPresented ? 1.035 : 0.97, anchor: selection.isOutgoing ? .bottomTrailing : .bottomLeading)
-                .position(x: anchor.midX, y: anchor.midY + layout.messageOffsetY)
-                .shadow(color: .black.opacity(isPresented ? 0.22 : 0), radius: 18, x: 0, y: 10)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
-    }
-
-    @ViewBuilder
-    private func reactionsRail(for selection: ChatMessageMenuSelection, isAboveMessage: Bool) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                ForEach(emojiUsageTracker.orderedEmojis(from: EmojiReactionDefaults.chat), id: \.self) { emoji in
-                    reactionButton(
-                        emoji,
-                        for: selection.message,
-                        size: 28,
-                        anchorKey: "quick:\(emoji)"
-                    )
-                }
-
+    private func reactionsBar(for message: EnhancedMessage) -> some View {
+        HStack(spacing: 12) {
+            ForEach(emojiUsageTracker.orderedEmojis(from: EmojiReactionDefaults.chat), id: \.self) { emoji in
                 Button {
-                    HapticManager.shared.lightImpact()
-                    skinToneSelection = nil
-                    withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.4, dampingFraction: 0.86)) {
-                        areReactionsExpanded.toggle()
-                    }
+                    HapticManager.shared.mediumImpact()
+                    dismissMenu()
+                    onReaction(message, emoji)
                 } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(primaryTextColor)
-                        .rotationEffect(.degrees(areReactionsExpanded ? 180 : 0))
-                        .frame(width: 36, height: 36)
-                        .background {
-                            Color.clear
-                                .momentsChromeGlass(in: Circle(), interactive: true)
-                        }
-                        .overlay(
-                        Circle()
-                            .stroke(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08), lineWidth: 1)
-                    )
+                    Text(emoji)
+                        .font(.system(size: 28))
                 }
                 .buttonStyle(.plain)
             }
-            .frame(height: 46)
-            .padding(.horizontal, 10)
 
-            if areReactionsExpanded {
-                Divider()
-                    .opacity(0.4)
-                    .padding(.horizontal, 12)
-
-                ScrollView(.vertical) {
-                    LazyVGrid(
-                        columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 7),
-                        spacing: 7
-                    ) {
-                        ForEach(inlineReactionEmojis, id: \.self) { emoji in
-                            reactionButton(
-                                emoji,
-                                for: selection.message,
-                                size: 27,
-                                anchorKey: "grid:\(emoji)"
-                            )
-                                .frame(height: 36)
-                        }
+            Button {
+                HapticManager.shared.lightImpact()
+                let targetMessage = message
+                dismissMenu()
+                onMoreReactions(targetMessage)
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(primaryTextColor)
+                    .frame(width: 36, height: 36)
+                    .background {
+                        Color.clear
+                            .momentsChromeGlass(in: Circle(), interactive: true)
                     }
-                    .padding(10)
-                }
-                .scrollIndicators(.hidden)
-                .frame(height: expandedReactionsHeight - 47)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .frame(width: areReactionsExpanded ? min(containerSize.width - 24, 350) : nil)
-        .momentsChromeGlass(
-            in: RoundedRectangle(cornerRadius: 23, style: .continuous),
-            interactive: true
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
-        .coordinateSpace(name: "chatReactionRail")
-        .onPreferenceChange(ChatReactionEmojiFramePreference.self) { frames in
-            reactionEmojiFrames = frames
-        }
-        .overlay(
-            alignment: reactionConnectorAlignment(
-                isOutgoing: selection.isOutgoing,
-                isAboveMessage: isAboveMessage
-            )
-        ) {
-            ChatReactionRailConnector(
-                pointsDown: isAboveMessage,
-                bendsTrailing: !selection.isOutgoing,
-                colorScheme: colorScheme
-            )
-            .offset(
-                x: selection.isOutgoing ? -23 : 23,
-                y: isAboveMessage ? 20 : -20
-            )
-            .allowsHitTesting(false)
-        }
-        .overlay {
-            skinToneOverlay(
-                for: selection.message,
-                isAboveMessage: isAboveMessage
-            )
-        }
-    }
-
-    private var inlineReactionEmojis: [String] {
-        let recent = emojiUsageTracker.recentlyUsed(limit: 12)
-        let pickerEmojis = EmojiPickerView.emojiCategories.flatMap { $0.emojis }
-        var seen = Set<String>()
-        return (recent + EmojiReactionDefaults.chat + pickerEmojis)
-            .filter { seen.insert($0).inserted }
-    }
-
-    private func reactionButton(
-        _ emoji: String,
-        for message: EnhancedMessage,
-        size: CGFloat,
-        anchorKey: String
-    ) -> some View {
-        Text(emoji)
-            .font(.system(size: size))
-            .frame(minWidth: 30, minHeight: 34)
-            .contentShape(Rectangle())
-            .background {
-                GeometryReader { geometry in
-                    Color.clear.preference(
-                        key: ChatReactionEmojiFramePreference.self,
-                        value: [anchorKey: geometry.frame(in: .named("chatReactionRail"))]
+                    .overlay(
+                        Circle()
+                            .stroke(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08), lineWidth: 1)
                     )
-                }
             }
-            .gesture(
-                LongPressGesture(minimumDuration: 0.3, maximumDistance: 18)
-                    .exclusively(before: TapGesture())
-                    .onEnded { result in
-                        switch result {
-                        case .first:
-                            let base = emojiWithoutSkinTone(emoji)
-                            if supportsSkinTone(base) {
-                                HapticManager.shared.mediumImpact()
-                                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-                                    areReactionsExpanded = true
-                                    skinToneSelection = ChatSkinToneSelection(
-                                        baseEmoji: base,
-                                        anchorKey: anchorKey
-                                    )
-                                }
-                            } else {
-                                selectReaction(emoji, for: message)
-                            }
-                        case .second:
-                            selectReaction(emoji, for: message)
-                        }
-                    }
-            )
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { selectReaction(emoji, for: message) }
-    }
-
-    private func selectReaction(_ emoji: String, for message: EnhancedMessage) {
-        HapticManager.shared.mediumImpact()
-        emojiUsageTracker.increment(emoji)
-        skinToneSelection = nil
-        dismissMenu { onReaction(message, emoji) }
-    }
-
-    @ViewBuilder
-    private func skinToneOverlay(for message: EnhancedMessage, isAboveMessage: Bool) -> some View {
-        GeometryReader { geometry in
-            if let toneSelection = skinToneSelection,
-               let anchor = reactionEmojiFrames[toneSelection.anchorKey] {
-                let bubbleWidth: CGFloat = 264
-                let bubbleHeight: CGFloat = 54
-                let halfWidth = bubbleWidth / 2
-                let centerX = min(
-                    max(anchor.midX, halfWidth + 4),
-                    max(halfWidth + 4, geometry.size.width - halfWidth - 4)
-                )
-                let belowY = anchor.maxY + 8 + bubbleHeight / 2
-                let aboveY = anchor.minY - 8 - bubbleHeight / 2
-                let preferredY = isAboveMessage ? belowY : aboveY
-                let alternateY = isAboveMessage ? aboveY : belowY
-                let fitsPreferred = preferredY - bubbleHeight / 2 >= 4
-                    && preferredY + bubbleHeight / 2 <= geometry.size.height - 4
-                let unclampedY = fitsPreferred ? preferredY : alternateY
-                let centerY = min(
-                    max(unclampedY, bubbleHeight / 2 + 4),
-                    max(bubbleHeight / 2 + 4, geometry.size.height - bubbleHeight / 2 - 4)
-                )
-
-                HStack(spacing: 2) {
-                    ForEach(skinToneVariants(for: toneSelection.baseEmoji), id: \.self) { variant in
-                        Button {
-                            selectReaction(variant, for: message)
-                        } label: {
-                            Text(variant)
-                                .font(.system(size: 28))
-                                .frame(width: 40, height: 42)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 6)
-                .momentsChromeGlass(
-                    in: RoundedRectangle(cornerRadius: 19, style: .continuous),
-                    interactive: true
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.18), radius: 18, y: 8)
-                .position(x: centerX, y: centerY)
-                .transition(.scale(scale: 0.72, anchor: isAboveMessage ? .top : .bottom).combined(with: .opacity))
-                .zIndex(20)
-            }
+            .buttonStyle(.plain)
         }
-        .allowsHitTesting(skinToneSelection != nil)
-    }
-
-    private func skinToneVariants(for baseEmoji: String) -> [String] {
-        ["", "🏻", "🏼", "🏽", "🏾", "🏿"].map { baseEmoji + $0 }
-    }
-
-    private func emojiWithoutSkinTone(_ emoji: String) -> String {
-        String(emoji.unicodeScalars.filter { scalar in
-            !(0x1F3FB...0x1F3FF).contains(Int(scalar.value))
-        })
-    }
-
-    private func supportsSkinTone(_ emoji: String) -> Bool {
-        guard let value = emoji.unicodeScalars.first.map({ Int($0.value) }) else { return false }
-        switch value {
-        case 0x1F442...0x1F44F,
-             0x1F450,
-             0x1F466...0x1F487,
-             0x1F48F...0x1F490,
-             0x1F645...0x1F64F,
-             0x1F6A3,
-             0x1F6B4...0x1F6B6,
-             0x1F90C, 0x1F90F,
-             0x1F918...0x1F91F,
-             0x1F926,
-             0x1F930...0x1F93E,
-             0x1F977,
-             0x1F9B5...0x1F9B6,
-             0x1F9C1...0x1F9C2,
-             0x1F9D1...0x1F9FF,
-             0x270A...0x270D:
-            return true
-        default:
-            return false
-        }
-    }
-
-    private func reactionConnectorAlignment(isOutgoing: Bool, isAboveMessage: Bool) -> Alignment {
-        switch (isOutgoing, isAboveMessage) {
-        case (true, true): return .bottomTrailing
-        case (true, false): return .topTrailing
-        case (false, true): return .bottomLeading
-        case (false, false): return .topLeading
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .momentsChromeGlass(in: Capsule(), interactive: true)
+        .clipShape(Capsule())
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
     }
 
     @ViewBuilder
     private func actionsMenu(for message: EnhancedMessage, isCurrentUser: Bool) -> some View {
         VStack(spacing: 0) {
             if !message.isDeleted {
-                if showsMessageInfo(for: message, isCurrentUser: isCurrentUser) {
-                    messageInfo(for: message)
-
-                    Divider()
-                        .opacity(0.55)
-                        .padding(.horizontal, 8)
-                }
-
                 ChatContextMenuRow(title: "chat.action.reply", icon: "arrowshape.turn.up.left", primaryTextColor: primaryTextColor) {
-                    dismissMenu { onReply(message) }
+                    dismissMenu()
+                    onReply(message)
                 }
 
                 if ChatMessagePolicy.canForward(message, currentUserId: currentUserId, forwardingPreferences: forwardingPreferences) {
                     ChatContextMenuRow(title: "chat.action.forward", icon: "arrowshape.turn.up.right", primaryTextColor: primaryTextColor) {
-                        dismissMenu { onForward(message) }
+                        dismissMenu()
+                        onForward(message)
                     }
                 }
 
@@ -668,31 +308,36 @@ struct ChatMessageContextMenuOverlay: View {
                         icon: isStarred ? "star.slash" : "star",
                         primaryTextColor: primaryTextColor
                     ) {
-                        dismissMenu { onToggleStar(message) }
+                        dismissMenu()
+                        onToggleStar(message)
                     }
                 }
 
 
                 if ChatMessagePolicy.canEdit(message, userId: currentUserId) {
                     ChatContextMenuRow(title: "chat.action.edit", icon: "pencil", primaryTextColor: primaryTextColor) {
-                        dismissMenu { onEdit(message) }
+                        dismissMenu()
+                        onEdit(message)
                     }
                 }
 
                 if ChatMessagePolicy.canCopy(message, currentUserId: currentUserId, forwardingPreferences: forwardingPreferences) {
                     ChatContextMenuRow(title: "chat.action.copy", icon: "doc.on.doc", primaryTextColor: primaryTextColor) {
-                        dismissMenu { onCopy(message) }
+                        dismissMenu()
+                        onCopy(message)
                     }
                 }
 
 
                 ChatContextMenuRow(title: "chat.action.deleteForMe", icon: "trash", isDestructive: true, primaryTextColor: primaryTextColor) {
-                    dismissMenu { onDeleteForMe(message) }
+                    dismissMenu()
+                    onDeleteForMe(message)
                 }
 
                 if isCurrentUser && !message.isRead && isWithinDeleteLimit(message.timestamp) {
                     ChatContextMenuRow(title: "chat.action.deleteForEveryone", icon: "trash.fill", isDestructive: true, primaryTextColor: primaryTextColor) {
-                        dismissMenu { onDeleteForEveryone(message) }
+                        dismissMenu()
+                        onDeleteForEveryone(message)
                     }
                 }
             }
@@ -703,43 +348,6 @@ struct ChatMessageContextMenuOverlay: View {
         .momentsChromeGlass(in: menuCardShape, interactive: true)
         .clipShape(menuCardShape)
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
-    }
-
-    @ViewBuilder
-    private func messageInfo(for message: EnhancedMessage) -> some View {
-        let receiptTime = readReceiptTime(for: message)
-        HStack(spacing: 10) {
-            if let receiptTime {
-                MessageStatusIcon(status: .read)
-
-                Text("\(MessageStatus.read.displayName) \(receiptTime.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(primaryTextColor)
-            }
-
-            Spacer(minLength: 10)
-
-            if message.editedAt != nil {
-                Text("chat.edited")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(primaryTextColor.opacity(0.52))
-            }
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 36)
-        .accessibilityElement(children: .combine)
-    }
-
-    private func readReceiptTime(for message: EnhancedMessage) -> Date? {
-        message.readAtBy?
-            .filter { $0.key != message.senderId }
-            .map(\.value)
-            .max()
-    }
-
-    private func showsMessageInfo(for message: EnhancedMessage, isCurrentUser: Bool) -> Bool {
-        guard isCurrentUser else { return false }
-        return readReceiptTime(for: message) != nil
     }
 
     private func localAnchorFrame(_ globalFrame: CGRect) -> CGRect {
@@ -774,44 +382,64 @@ struct ChatMessageContextMenuOverlay: View {
 
     private func menuLayout(for selection: ChatMessageMenuSelection, rowCount: Int) -> ChatMessageMenuLayout {
         let scaled = scaledAnchorFrame(for: selection.anchorFrame)
-        let includesMessageInfo = showsMessageInfo(
-            for: selection.message,
-            isCurrentUser: selection.message.senderId == currentUserId
-        )
-        let menuHeight = menuPanelHeight(rowCount: rowCount, includesMessageInfo: includesMessageInfo)
-        let reactionPanelHeight = areReactionsExpanded ? expandedReactionsHeight : reactionsBarHeight
-        let reactionPanelWidth = areReactionsExpanded
-            ? min(containerSize.width - 24, 350)
-            : reactionsBarEstimatedWidth
-        let centerX = clampedCenterX(scaled.midX, itemWidth: max(reactionPanelWidth, menuEstimatedWidth))
+        let menuHeight = menuPanelHeight(rowCount: rowCount)
+        let centerX = clampedCenterX(scaled.midX, itemWidth: max(reactionsBarEstimatedWidth, menuEstimatedWidth))
 
-        // Telegram iOS (`ContextControllerExtractedPresentationNode`): reubica el
-        // contenido extraído para que reacciones + mensaje + acciones formen un
-        // bloque visible. El rail queda arriba y las acciones debajo del mensaje.
-        let minimumMessageTop = layoutTopMargin + reactionPanelHeight + stackGap
-        let maximumMessageTop = containerSize.height
-            - layoutBottomMargin
-            - menuHeight
-            - stackGap
-            - scaled.height
-        let targetMessageTop: CGFloat
-        if maximumMessageTop >= minimumMessageTop {
-            targetMessageTop = min(max(scaled.minY, minimumMessageTop), maximumMessageTop)
+        let spaceAbove = scaled.minY - layoutTopMargin
+        let spaceBelow = containerSize.height - layoutBottomMargin - scaled.maxY
+
+        let reactionsAbove = spaceAbove >= reactionsBarHeight + stackGap
+        let reactionsBelow = !reactionsAbove && spaceBelow >= reactionsBarHeight + stackGap
+
+        let reactionsCenterY: CGFloat
+        if reactionsAbove {
+            reactionsCenterY = max(
+                layoutTopMargin + reactionsBarHeight / 2,
+                scaled.minY - stackGap - reactionsBarHeight / 2
+            )
+        } else if reactionsBelow {
+            reactionsCenterY = min(
+                containerSize.height - layoutBottomMargin - reactionsBarHeight / 2,
+                scaled.maxY + stackGap + reactionsBarHeight / 2
+            )
         } else {
-            // Menú excepcionalmente alto: prioriza que su inicio quede accesible;
-            // el propio panel conserva su clamp dentro del viewport.
-            targetMessageTop = minimumMessageTop
+            reactionsCenterY = min(
+                containerSize.height - layoutBottomMargin - reactionsBarHeight / 2,
+                scaled.maxY + stackGap + reactionsBarHeight / 2
+            )
         }
-        let messageOffsetY = targetMessageTop - scaled.minY
-        let shiftedMessage = scaled.offsetBy(dx: 0, dy: messageOffsetY)
-        let reactionsCenterY = shiftedMessage.minY - stackGap - reactionPanelHeight / 2
-        let menuCenterY = shiftedMessage.maxY + stackGap + menuHeight / 2
+
+        let menuBelowPreferred = spaceBelow >= menuHeight + stackGap + (reactionsBelow ? reactionsBarHeight + stackGap : 0)
+        let menuAbovePreferred = spaceAbove >= menuHeight + stackGap + (reactionsAbove ? reactionsBarHeight + stackGap : 0)
+        let menuBelow: Bool
+        if menuBelowPreferred { menuBelow = true }
+        else if menuAbovePreferred { menuBelow = false }
+        else { menuBelow = spaceBelow >= spaceAbove }
+
+        let menuCenterY: CGFloat
+        if menuBelow {
+            var anchorMaxY = scaled.maxY
+            if reactionsBelow {
+                anchorMaxY += stackGap + reactionsBarHeight
+            }
+            menuCenterY = min(
+                containerSize.height - layoutBottomMargin - menuHeight / 2,
+                anchorMaxY + stackGap + menuHeight / 2
+            )
+        } else {
+            var anchorMinY = scaled.minY
+            if reactionsAbove {
+                anchorMinY -= stackGap + reactionsBarHeight
+            }
+            menuCenterY = max(
+                layoutTopMargin + menuHeight / 2,
+                anchorMinY - stackGap - menuHeight / 2
+            )
+        }
 
         return ChatMessageMenuLayout(
-            messageOffsetY: messageOffsetY,
             reactionsCenter: CGPoint(x: centerX, y: reactionsCenterY),
-            menuCenter: CGPoint(x: clampedCenterX(scaled.midX, itemWidth: menuEstimatedWidth), y: menuCenterY),
-            reactionsAreAbove: true
+            menuCenter: CGPoint(x: clampedCenterX(scaled.midX, itemWidth: menuEstimatedWidth), y: menuCenterY)
         )
     }
 
@@ -823,9 +451,8 @@ struct ChatMessageContextMenuOverlay: View {
         return min(max(centerX, minCenterX), maxCenterX)
     }
 
-    private func menuPanelHeight(rowCount: Int, includesMessageInfo: Bool) -> CGFloat {
-        let infoHeight: CGFloat = includesMessageInfo ? 37 : 0
-        return CGFloat(rowCount) * menuRowHeight + 16 + infoHeight
+    private func menuPanelHeight(rowCount: Int) -> CGFloat {
+        CGFloat(rowCount) * menuRowHeight + 16
     }
 
     private func visibleMenuRowsCount(for message: EnhancedMessage, isCurrentUser: Bool) -> Int {
@@ -843,41 +470,8 @@ struct ChatMessageContextMenuOverlay: View {
         Date().timeIntervalSince(timestamp) < 7200
     }
 
-    private func dismissMenu(then action: (() -> Void)? = nil) {
-        withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .easeOut(duration: 0.18)) {
-            isPresented = false
-        }
-        let delay = UIAccessibility.isReduceMotionEnabled ? 0 : 0.17
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            selection = nil
-            action?()
-        }
-    }
-}
-
-private struct ChatReactionRailConnector: View {
-    let pointsDown: Bool
-    let bendsTrailing: Bool
-    let colorScheme: ColorScheme
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(.ultraThinMaterial)
-                .frame(width: 16, height: 16)
-                .position(x: 12, y: pointsDown ? 8 : 20)
-
-            Circle()
-                .fill(.ultraThinMaterial)
-                .frame(width: 8, height: 8)
-                .position(
-                    x: bendsTrailing ? 21 : 3,
-                    y: pointsDown ? 22 : 6
-                )
-        }
-        .frame(width: 24, height: 28)
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.28 : 0.16), radius: 15)
-        .accessibilityHidden(true)
+    private func dismissMenu() {
+        selection = nil
     }
 }
 
