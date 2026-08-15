@@ -35,6 +35,8 @@ struct ModernCommentsView: View {
     @State private var replyToComment: Comment? = nil
     @State private var showDeleteAlert = false
     @State private var commentToDelete: Comment? = nil
+    /// nestingLevel 0…max; no se puede responder desde el nivel máximo.
+    private let maxCommentNestingLevel = 4
     @State private var expandedComments: Set<String> = []
     @State private var sortOption: CommentSortOption = .newest
     @State private var storyRoute: StoryUserPresentationRoute?
@@ -311,10 +313,13 @@ struct ModernCommentsView: View {
                                 toggleLike(comment)
                             },
                             onReply: { comment in
+                                guard canReply(to: comment) else { return }
                                 replyToComment = comment
                             },
-                            nestedComments: getNestedComments(for: comment.id ?? ""),
-                            isExpanded: expandedComments.contains(comment.id ?? ""),
+                            nestedCommentsProvider: { parentId in
+                                getNestedComments(for: parentId)
+                            },
+                            isCommentExpanded: { expandedComments.contains($0) },
                             onToggleExpand: { commentId in
                                 if expandedComments.contains(commentId) {
                                     expandedComments.remove(commentId)
@@ -363,7 +368,8 @@ struct ModernCommentsView: View {
                             maskedCommentIds: mutedWordMaskedCommentIds,
                             temporarilyRevealedCommentIds: temporarilyRevealedCommentIds,
                             onRevealTemporarily: revealMutedCommentTemporarily,
-                            nestingLevel: 0 // ✅ Comenzar en nivel 0
+                            nestingLevel: 0,
+                            maxNestingLevel: maxCommentNestingLevel
                         )
                         .environmentObject(firestoreService)
                     }
@@ -725,9 +731,33 @@ struct ModernCommentsView: View {
     
     // ✅ Función auxiliar para obtener comentarios anidados
     private func getNestedComments(for parentId: String) -> [Comment] {
+        guard !parentId.isEmpty else { return [] }
         return filteredComments
             .filter { $0.parentCommentId == parentId }
             .sorted { $0.timestamp < $1.timestamp }
+    }
+
+    /// Profundidad del comentario en el hilo (0 = raíz).
+    private func nestingDepth(of commentId: String) -> Int {
+        var depth = 0
+        var currentId: String? = commentId
+        var visited = Set<String>()
+        while let id = currentId, !id.isEmpty, !visited.contains(id) {
+            visited.insert(id)
+            guard let comment = comments.first(where: { $0.id == id }),
+                  let parentId = comment.parentCommentId,
+                  !parentId.isEmpty else {
+                break
+            }
+            depth += 1
+            currentId = parentId
+        }
+        return depth
+    }
+
+    private func canReply(to comment: Comment) -> Bool {
+        guard let id = comment.id, !id.isEmpty else { return false }
+        return nestingDepth(of: id) < maxCommentNestingLevel
     }
 
     private func setupMuteSettingsListener() {
@@ -967,6 +997,10 @@ struct ModernCommentsView: View {
     // MARK: - Tu función addComment corregida
     private func addComment(content: String, parentCommentId: String?, mentions: [CommentMentionEntity]) {
         guard let userId = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
+        if let parentCommentId, !parentCommentId.isEmpty,
+           nestingDepth(of: parentCommentId) >= maxCommentNestingLevel {
+            return
+        }
         
         // ✅ OPTIMISTIC UPDATE: Add a temporary pending comment
         let currentUser = authService.currentUser
@@ -1263,15 +1297,16 @@ struct EnhancedModernCommentRow: View {
     let onDelete: (Comment) -> Void
     let onLike: (Comment) -> Void
     let onReply: (Comment) -> Void
-    let nestedComments: [Comment]
-    let isExpanded: Bool
+    let nestedCommentsProvider: (String) -> [Comment]
+    let isCommentExpanded: (String) -> Bool
     let onToggleExpand: (String) -> Void
     let onAvatarTap: (String, Bool) -> Void
     let onMentionTap: (String) -> Void
     let maskedCommentIds: Set<String>
     let temporarilyRevealedCommentIds: Set<String>
     let onRevealTemporarily: (String) -> Void
-    let nestingLevel: Int // ✅ NUEVO: Nivel de anidación
+    let nestingLevel: Int
+    var maxNestingLevel: Int = 4
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) var colorScheme
     @State private var showFullContent = false
@@ -1286,9 +1321,20 @@ struct EnhancedModernCommentRow: View {
         }
         return comment.content
     }
-    
-    // ✅ Máximo nivel de anidación (evita anidación infinita)
-    private var maxNestingLevel: Int { 4 }
+
+    private var nestedComments: [Comment] {
+        nestedCommentsProvider(comment.id ?? "")
+    }
+
+    private var isExpanded: Bool {
+        guard let id = comment.id, !id.isEmpty else { return false }
+        return isCommentExpanded(id)
+    }
+
+    /// Cada nivel expande solo sus hijos directos.
+    private var shouldShowNestedComments: Bool {
+        !nestedComments.isEmpty && nestingLevel < maxNestingLevel && isExpanded
+    }
     
     // ✅ Indentación visual basada en nivel
     private var indentationWidth: CGFloat {
@@ -1349,8 +1395,8 @@ struct EnhancedModernCommentRow: View {
                     .padding(.leading, shouldShowConnectorLine ? 0 : indentationWidth)
             }
             
-            // ✅ Comentarios anidados con límite de profundidad
-            if !nestedComments.isEmpty && isExpanded && nestingLevel < maxNestingLevel {
+            // Hijos directos solo si este nivel está expandido.
+            if shouldShowNestedComments {
                 LazyVStack(spacing: 8) {
                     ForEach(nestedComments) { nestedComment in
                         EnhancedModernCommentRow(
@@ -1360,15 +1406,16 @@ struct EnhancedModernCommentRow: View {
                             onDelete: onDelete,
                             onLike: onLike,
                             onReply: onReply,
-                            nestedComments: [], // ✅ Evitar anidación infinita
-                            isExpanded: false,
+                            nestedCommentsProvider: nestedCommentsProvider,
+                            isCommentExpanded: isCommentExpanded,
                             onToggleExpand: onToggleExpand,
                             onAvatarTap: onAvatarTap,
                             onMentionTap: onMentionTap,
                             maskedCommentIds: maskedCommentIds,
                             temporarilyRevealedCommentIds: temporarilyRevealedCommentIds,
                             onRevealTemporarily: onRevealTemporarily,
-                            nestingLevel: nestingLevel + 1 // ✅ Incrementar nivel
+                            nestingLevel: nestingLevel + 1,
+                            maxNestingLevel: maxNestingLevel
                         )
                         .environmentObject(firestoreService)
                         .transition(.asymmetric(
@@ -1377,41 +1424,6 @@ struct EnhancedModernCommentRow: View {
                         ))
                     }
                 }
-                .padding(.top, 8)
-            }
-            
-            // ✅ Mostrar indicador si hay más niveles
-            if nestingLevel >= maxNestingLevel && !nestedComments.isEmpty {
-                Button(action: {
-                    // Navegar a vista detallada del hilo
-                }) {
-                    HStack {
-                        Image(systemName: "arrow.turn.down.right")
-                            .font(.system(size: 12))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.blue, Color.purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                        
-                        Text(String(format: NSLocalizedString("modernComments.viewMoreReplies", comment: "View more replies"), nestedComments.count))
-                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.blue, Color.purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.05))
-                    .clipShape(Capsule())
-                }
-                .padding(.leading, indentationWidth + 50)
                 .padding(.top, 8)
             }
         }
@@ -1682,7 +1694,7 @@ struct EnhancedModernCommentRow: View {
                     onLike(comment)
                 }
                 
-                // ✅ Reply button (solo para niveles bajos)
+                // ✅ Reply button (solo hasta el máximo)
                 if nestingLevel < maxNestingLevel {
                     CommentActionButton(
                         icon: "arrowshape.turn.up.left",
@@ -1696,8 +1708,8 @@ struct EnhancedModernCommentRow: View {
                 }
             }
             
-            // ✅ Botón de expandir respuestas (solo para comentarios principales)
-            if !nestedComments.isEmpty && nestingLevel == 0 {
+            // Cada nivel con respuestas directas tiene su propio expand.
+            if !nestedComments.isEmpty && nestingLevel < maxNestingLevel {
                 CommentActionButton(
                     icon: isExpanded ? "chevron.up" : "chevron.down",
                     text: "\(nestedComments.count) respuesta\(nestedComments.count == 1 ? "" : "s")",

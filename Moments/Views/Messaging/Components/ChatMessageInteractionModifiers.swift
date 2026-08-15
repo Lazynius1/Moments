@@ -369,7 +369,7 @@ extension View {
         isPressing: Binding<Bool>? = nil,
         onLongPress: @escaping () -> Void
     ) -> some View {
-        onLongPressGesture(minimumDuration: 0.42, maximumDistance: 18, perform: {
+        onLongPressGesture(minimumDuration: 0.32, maximumDistance: 18, perform: {
             HapticManager.shared.heavyImpact()
             onLongPress()
         }, onPressingChanged: { pressing in

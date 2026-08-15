@@ -24,7 +24,7 @@ struct GlassmorphicMessageRow: View {
     let onOpenMedia: (EnhancedMessage) -> Void
     let onStopLiveLocation: ((String) -> Void)?
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
-    let onLongPress: ((CGRect, CGFloat) -> Void)?
+    let onLongPress: ((ChatMessageLiftSnapshot) -> Void)?
     var onViewOnceOpen: ((EnhancedMessage, Bool) -> Void)? = nil
     var viewOnceZoomNamespace: Namespace.ID? = nil
     let progress: Double?
