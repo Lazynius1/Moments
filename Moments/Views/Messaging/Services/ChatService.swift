@@ -2065,6 +2065,7 @@ class ChatService: ObservableObject {
                     if finalEnabled {
                         messageUpdate["isRead"] = true
                         messageUpdate["status"] = MessageStatus.read.rawValue
+                        messageUpdate["readAtBy.\(readerId)"] = FieldValue.serverTimestamp()
                     }
 
                     batch.updateData(messageUpdate, forDocument: messageRef)

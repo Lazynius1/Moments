@@ -178,6 +178,9 @@ extension ChatService {
         if let readBy = data["readBy"] as? [String] {
             message.readBy = readBy
         }
+        if let readAtBy = data["readAtBy"] as? [String: Timestamp] {
+            message.readAtBy = readAtBy.mapValues { $0.dateValue() }
+        }
         if let starredBy = data["starredBy"] as? [String] {
             message.starredBy = starredBy
         }

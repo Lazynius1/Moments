@@ -1177,6 +1177,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     @Published var replayConsumedInCurrentChatSession: Bool = false
     /// Lectores registrados aunque el destinatario tenga read receipts desactivados (solo vanish/timer).
     var readBy: [String]?
+    /// Hora real de lectura por usuario. Solo se escribe si ese usuario comparte acuses.
+    var readAtBy: [String: Date]?
     var starredBy: [String]?
     var isForwarded: Bool?
     /// Dimensiones originales de GIF/sticker (p. ej. Giphy `fixed_height`).
@@ -1198,6 +1200,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case allowReplay
         case replayedBy
         case readBy
+        case readAtBy
         case starredBy, isForwarded
         case isVanishModeMessage
         case vanishedFor
@@ -1314,6 +1317,11 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.allowReplay = try container.decodeIfPresent(Bool.self, forKey: .allowReplay)
         self.replayedBy = try container.decodeIfPresent([String].self, forKey: .replayedBy)
         self.readBy = try container.decodeIfPresent([String].self, forKey: .readBy)
+        if let values = try container.decodeIfPresent([String: Timestamp].self, forKey: .readAtBy) {
+            self.readAtBy = values.mapValues { $0.dateValue() }
+        } else {
+            self.readAtBy = nil
+        }
         self.starredBy = try container.decodeIfPresent([String].self, forKey: .starredBy)
         self.isForwarded = try container.decodeIfPresent(Bool.self, forKey: .isForwarded)
         self.isVanishModeMessage = try container.decodeIfPresent(Bool.self, forKey: .isVanishModeMessage)
@@ -1397,6 +1405,9 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encodeIfPresent(allowReplay, forKey: .allowReplay)
         try container.encodeIfPresent(replayedBy, forKey: .replayedBy)
         try container.encodeIfPresent(readBy, forKey: .readBy)
+        if let readAtBy {
+            try container.encode(readAtBy.mapValues { Timestamp(date: $0) }, forKey: .readAtBy)
+        }
         try container.encodeIfPresent(starredBy, forKey: .starredBy)
         try container.encodeIfPresent(isForwarded, forKey: .isForwarded)
         try container.encodeIfPresent(isVanishModeMessage, forKey: .isVanishModeMessage)
@@ -1457,6 +1468,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          drawingData: Data? = nil,
          viewedBy: [String]? = nil,
          readBy: [String]? = nil,
+         readAtBy: [String: Date]? = nil,
          starredBy: [String]? = nil,
          isForwarded: Bool? = nil,
          isVanishModeMessage: Bool? = nil,
@@ -1510,6 +1522,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.drawingData = drawingData
         self.viewedBy = viewedBy
         self.readBy = readBy
+        self.readAtBy = readAtBy
         self.starredBy = starredBy
         self.isForwarded = isForwarded
         self.isVanishModeMessage = isVanishModeMessage
@@ -1570,6 +1583,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             drawingData: drawingData,
             viewedBy: viewedBy,
             readBy: readBy,
+            readAtBy: readAtBy,
             starredBy: starredBy,
             isForwarded: isForwarded,
             isVanishModeMessage: isVanishModeMessage,
@@ -1629,6 +1643,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             drawingData: drawingData,
             viewedBy: viewedBy,
             readBy: readBy,
+            readAtBy: readAtBy,
             starredBy: starredBy,
             isForwarded: isForwarded,
             isVanishModeMessage: isVanishModeMessage,

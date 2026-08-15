@@ -140,7 +140,12 @@ struct ModernActionButtons: View {
                 .buttonStyle(.momentsPress(scale: 0.9, haptic: .light))
             }
             .padding(6)
-            .momentsChromeGlass(in: Capsule())
+            // Glass como fondo: si el efecto envuelve el HStack, clipa el picker
+            // de reacciones (sale de la cápsula) y no se puede tocar ni hacer scroll.
+            .background {
+                Color.clear
+                    .momentsChromeGlass(in: Capsule(), interactive: false)
+            }
             .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
             .opacity(isImmersive ? 0 : 1)
             .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isImmersive), value: isImmersive)

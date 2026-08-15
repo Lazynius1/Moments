@@ -1323,6 +1323,7 @@ service cloud.firestore {
              message.keys().hasOnly([
                'id', 'conversationId', 'senderId', 'type', 'status', 'isRead', 'isDeleted', 'isViewed',
                'isViewOnce', 'viewedBy', 'allowReplay', 'replayedBy', 'statusUpdatedAt',
+               'readBy', 'readAtBy',
                'content', 'mediaUrl', 'thumbnailUrl', 'mediaObjectPath', 'thumbnailObjectPath',
                'mediaEncryption', 'thumbnailEncryption', 'duration', 'audioWaveform', 'fileName', 'fileSize',
                'mediaWidth', 'mediaHeight', 'latitude', 'longitude', 'locationName', 'locationAddress',
@@ -1347,6 +1348,8 @@ service cloud.firestore {
              (!('viewedBy' in message) || message.viewedBy is list) &&
              (!('allowReplay' in message) || message.allowReplay is bool) &&
              (!('replayedBy' in message) || message.replayedBy is list) &&
+             (!('readBy' in message) || message.readBy is list) &&
+             (!('readAtBy' in message) || message.readAtBy is map) &&
              (!('statusUpdatedAt' in message) || message.statusUpdatedAt is timestamp) &&
              (!('textOverlayLive' in message) || message.textOverlayLive is bool) &&
              (!('textOverlays' in message) || message.textOverlays is list) &&
@@ -1630,7 +1633,7 @@ service cloud.firestore {
   }
 
     function onlyStatusFieldsUpdated() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead','status','isViewed','statusUpdatedAt','readBy']);
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead','status','isViewed','statusUpdatedAt','readBy','readAtBy']);
     }
     // status opcional: markViewOnceAsViewed a veces también marca read; la CF consume lo setea con admin.
     function onlyViewOnceFieldsUpdated() {
@@ -1694,7 +1697,7 @@ service cloud.firestore {
           'timestamp', 'readStatus', 'lastReadAt',
           'encryptionKey', 'encryptionKeyCreatedAt', 'encryptionVersion', 'conversationKeyVersion',
           'sharedEncryptionKey', 'keyMetadata',
-          'wrappedKeys', 'forwardingPreferences', 'buzzPreferences',
+          'wrappedKeys', 'readReceiptPreferences', 'forwardingPreferences', 'buzzPreferences',
           'vanishModeActive', 'vanishModeEnabledBy', 'vanishModeEnabledAt', 'vanishMessageTimer',
           'vanishSettingsNoticeMessageId', 'vanishDisabledNoticeMessageId',
           'mutedByUserIds', 'mutedByTimestamps'
@@ -1751,6 +1754,13 @@ service cloud.firestore {
              )
            )
           )
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['readReceiptPreferences'])
+           || (request.resource.data.readReceiptPreferences is map
+               && (!('readReceiptPreferences' in resource.data)
+                   || request.resource.data.readReceiptPreferences.diff(resource.data.readReceiptPreferences).affectedKeys().hasOnly([request.auth.uid]))
+               && (!(request.auth.uid in request.resource.data.readReceiptPreferences)
+                   || request.resource.data.readReceiptPreferences[request.auth.uid] is bool)))
           &&
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['forwardingPreferences'])
            || (request.resource.data.forwardingPreferences is map

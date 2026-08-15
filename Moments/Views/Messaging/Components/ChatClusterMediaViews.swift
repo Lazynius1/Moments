@@ -92,7 +92,7 @@ struct GlassmorphicClusterRow: View {
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onOpenCluster: ([EnhancedMessage]) -> Void
-    let onLongPress: (EnhancedMessage, CGRect, CGFloat) -> Void
+    let onLongPress: (EnhancedMessage, ChatMessageLiftSnapshot) -> Void
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let onReply: ([EnhancedMessage]) -> Void
     let onReplyTap: ((String) -> Void)?
@@ -266,7 +266,7 @@ struct MediaGridBubble: View {
     let onReaction: (EnhancedMessage, String) -> Void
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onOpenCluster: ([EnhancedMessage]) -> Void
-    let onLongPress: (EnhancedMessage, CGRect, CGFloat) -> Void
+    let onLongPress: (EnhancedMessage, ChatMessageLiftSnapshot) -> Void
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     var isMenuSelected: Bool = false
     var isBubbleFlashing: Bool = false
@@ -313,8 +313,8 @@ struct MediaGridBubble: View {
                     cornerRadius: ChatBubbleAnchorMetrics.clusterCornerRadius,
                     colorScheme: colorScheme,
                     isFlashing: isBubbleFlashing,
-                    onLongPress: { frame, radius in
-                        onLongPress(activeMessages.first ?? frontMessage, frame, radius)
+                    onLongPress: { snapshot in
+                        onLongPress(activeMessages.first ?? frontMessage, snapshot)
                     }
                 ) {
                     let grid = ZStack {

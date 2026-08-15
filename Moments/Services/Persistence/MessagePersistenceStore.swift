@@ -268,6 +268,8 @@ actor MessagePersistenceStore {
         existing.stickersData = new.stickersData
         existing.drawingData = new.drawingData
         existing.viewedBy = new.viewedBy
+        existing.readBy = new.readBy
+        existing.readAtByData = new.readAtByData
         existing.isVanishModeMessage = new.isVanishModeMessage
         existing.vanishedFor = Array(Set(existing.vanishedFor + new.vanishedFor))
         existing.vanishExpiresAt = new.vanishExpiresAt ?? existing.vanishExpiresAt

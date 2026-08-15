@@ -52,6 +52,8 @@ final class CachedMessage {
     var stickersData: Data?
     var drawingData: Data?
     var viewedBy: [String]?
+    var readBy: [String]?
+    var readAtByData: Data?
     var lastSyncedAt: Date
     var isVanishModeMessage: Bool
     var vanishedFor: [String]
@@ -103,6 +105,8 @@ final class CachedMessage {
          stickersData: Data? = nil,
          drawingData: Data? = nil,
          viewedBy: [String]?,
+         readBy: [String]? = nil,
+         readAtByData: Data? = nil,
          lastSyncedAt: Date = Date(),
          isVanishModeMessage: Bool = false,
          vanishedFor: [String] = [],
@@ -153,6 +157,8 @@ final class CachedMessage {
         self.stickersData = stickersData
         self.drawingData = drawingData
         self.viewedBy = viewedBy
+        self.readBy = readBy
+        self.readAtByData = readAtByData
         self.lastSyncedAt = lastSyncedAt
         self.isVanishModeMessage = isVanishModeMessage
         self.vanishedFor = vanishedFor
@@ -186,6 +192,7 @@ extension CachedMessage {
         let mediaEncryptionData = try? encoder.encode(message.mediaEncryption)
         let thumbnailEncryptionData = try? encoder.encode(message.thumbnailEncryption)
         let audioWaveformData = try? encoder.encode(message.audioWaveform)
+        let readAtByData = try? encoder.encode(message.readAtBy)
         
         return CachedMessage(
             id: message.id,
@@ -234,6 +241,8 @@ extension CachedMessage {
             stickersData: stickersData,
             drawingData: message.drawingData,
             viewedBy: message.viewedBy,
+            readBy: message.readBy,
+            readAtByData: readAtByData,
             lastSyncedAt: Date(),
             isVanishModeMessage: message.isVanishModeMessage == true,
             vanishedFor: message.vanishedFor ?? [],
@@ -291,6 +300,11 @@ extension CachedMessage {
             guard let data = audioWaveformData else { return nil }
             return try? decoder.decode([Float].self, from: data)
         }()
+
+        let readAtBy: [String: Date]? = {
+            guard let data = readAtByData else { return nil }
+            return try? decoder.decode([String: Date].self, from: data)
+        }()
         
         return EnhancedMessage(
             id: id,
@@ -339,6 +353,8 @@ extension CachedMessage {
             stickers: stickers,
             drawingData: drawingData,
             viewedBy: viewedBy,
+            readBy: readBy,
+            readAtBy: readAtBy,
             isVanishModeMessage: isVanishModeMessage ? true : nil,
             vanishedFor: vanishedFor.isEmpty ? nil : vanishedFor,
             vanishExpiresAt: vanishExpiresAt

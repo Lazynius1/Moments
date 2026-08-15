@@ -25,14 +25,13 @@ struct EpicReactionButton: View {
     @State private var hasReacted: Bool = false
     @State private var reactionListener: ListenerRegistration?
     
-    // ✨ Estados para animaciones épicas
+    // ✨ Estados para animaciones
     @State private var isPressed = false
-    @State private var showParticles = false
     @State private var pulseScale: CGFloat = 1.0
     @State private var rotationAngle: Double = 0
     @State private var showRipple = false
     @State private var showReactionsSheet = false
-    @State private var explosionTask: Task<Void, Never>?
+    @State private var successAnimationTask: Task<Void, Never>?
     
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) private var colorScheme
@@ -75,38 +74,38 @@ struct EpicReactionButton: View {
                             x: 0, y: hasReacted ? 4 : 2
                         )
                     
-                    // ✨ Emoji
-                    Text(hasReacted ? (currentReaction?.filledIcon ?? "❤️") : "♡")
-                        .font(.system(size: emojiSize, weight: .heavy))
-                        .foregroundStyle(
-                            hasReacted ? 
-                            LinearGradient(
-                                colors: [currentReaction?.color ?? .red, currentReaction?.color.opacity(0.7) ?? .pink],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ) :
-                            LinearGradient(
-                                colors: [
-                                    colorScheme == .dark ? .white : Color(hex: "0B1215"),
-                                    colorScheme == .dark ? .white.opacity(0.8) : Color(hex: "0B1215").opacity(0.8)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .scaleEffect(pulseScale)
-                        .rotationEffect(.degrees(rotationAngle))
-                    
-                    // ✨ Partículas
-                    if showParticles {
-                        ForEach(0..<6, id: \.self) { index in
-                            ParticleView(
-                                color: currentReaction?.color ?? .white,
-                                angle: Double(index) * 60,
-                                show: $showParticles
-                            )
+                    // Vacío: SF Symbol. Reaccionado: emoji con gradiente.
+                    Group {
+                        if hasReacted, let icon = currentReaction?.filledIcon {
+                            Text(icon)
+                                .font(.system(size: emojiSize, weight: .heavy))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [
+                                            currentReaction?.color ?? .red,
+                                            currentReaction?.color.opacity(0.7) ?? .pink
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                        } else {
+                            Image(systemName: "heart")
+                                .font(.system(size: emojiSize * 0.92, weight: .medium))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [
+                                            colorScheme == .dark ? .white : Color(hex: "0B1215"),
+                                            colorScheme == .dark ? .white.opacity(0.8) : Color(hex: "0B1215").opacity(0.8)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
                         }
                     }
+                    .scaleEffect(pulseScale)
+                    .rotationEffect(.degrees(rotationAngle))
                 }
                 .contentShape(Circle())
                 .scaleEffect(isPressed ? 0.85 : (hasReacted ? 1.15 : 1.0))
@@ -162,6 +161,8 @@ struct EpicReactionButton: View {
             }
         }
         .frame(width: size, height: size)
+        // Por encima de comentarios/guardar mientras el picker está abierto.
+        .zIndex(showReactionPicker ? 50 : 0)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(reactionAccessibilityLabel)
         .accessibilityHint(Text("feed.reaction.accessibilityHint"))
@@ -171,7 +172,7 @@ struct EpicReactionButton: View {
         }
         .onDisappear {
             reactionListener?.remove()
-            explosionTask?.cancel()
+            successAnimationTask?.cancel()
         }
         .onChange(of: hasReacted) { _, _ in
             if hasReacted {
@@ -274,8 +275,6 @@ struct EpicReactionButton: View {
         }
         
         // ✅ OPTIMISTIC UPDATE: Update local state immediately (No delay)
-        self.triggerExplosionAnimation()
-        
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
             self.hasReacted = true
             self.currentReaction = reactionType
@@ -302,28 +301,9 @@ struct EpicReactionButton: View {
         removeReactionFromFirebase()
     }
     
-    private func triggerExplosionAnimation() {
-        explosionTask?.cancel()
-        explosionTask = Task { @MainActor in
-            MotionPolicy.withOptionalAnimation(.easeOut(duration: 0.8)) {
-                showParticles = true
-            }
-            try? await Task.sleep(nanoseconds: 800_000_000)
-            guard !Task.isCancelled else { return }
-            showParticles = false
-
-            MotionPolicy.withOptionalAnimation(.easeOut(duration: 0.6)) {
-                showRipple = true
-            }
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            guard !Task.isCancelled else { return }
-            showRipple = false
-        }
-    }
-    
     private func triggerSuccessAnimation() {
-        explosionTask?.cancel()
-        explosionTask = Task { @MainActor in
+        successAnimationTask?.cancel()
+        successAnimationTask = Task { @MainActor in
             MotionPolicy.withOptionalAnimation(.easeInOut(duration: 0.15)) {
                 pulseScale = 1.2
             }
@@ -392,41 +372,6 @@ struct EpicReactionButton: View {
     }
 }
 
-// ✨ ÉPICAS PARTÍCULAS EXPLOSIVAS (mantener igual)
-struct ParticleView: View {
-    let color: Color
-    let angle: Double
-    @Binding var show: Bool
-    @State private var offset: CGFloat = 0
-    @State private var opacity: Double = 1
-    @State private var scale: CGFloat = 1
-    
-    var body: some View {
-        Circle()
-            .fill(color)
-            .frame(width: 6, height: 6)
-            .scaleEffect(scale)
-            .opacity(opacity)
-            .offset(
-                x: cos(angle * .pi / 180) * offset,
-                y: sin(angle * .pi / 180) * offset
-            )
-            .onChange(of: show) { _, showing in
-                if showing {
-                    withAnimation(.easeOut(duration: 0.8)) {
-                        offset = 30
-                        opacity = 0
-                        scale = 0.3
-                    }
-                } else {
-                    offset = 0
-                    opacity = 1
-                    scale = 1
-                }
-            }
-    }
-}
-
 // ✨ FLOATING REACTION ITEM VIEW con animación Bubble Float y escala táctil
 struct FloatingReactionItemView: View {
     let reaction: ReactionType
@@ -434,7 +379,6 @@ struct FloatingReactionItemView: View {
     let action: () -> Void
     
     @State private var isFloating = false
-    @State private var isPressed = false
     
     var body: some View {
         Button(action: {
@@ -444,7 +388,6 @@ struct FloatingReactionItemView: View {
             Text(reaction.filledIcon)
                 .font(.system(size: 32))
                 .shadow(color: .black.opacity(0.18), radius: 3, x: 0, y: 3)
-                .scaleEffect(isPressed ? 0.82 : 1.0)
                 .offset(y: isFloating ? -4 : 4)
                 .animation(
                     .easeInOut(duration: 1.4 + Double(index) * 0.08)
@@ -452,16 +395,13 @@ struct FloatingReactionItemView: View {
                     value: isFloating
                 )
         }
+        // Solo buttonStyle: un LongPress(minDuration: 0) bloqueaba el scroll
+        // horizontal del picker y a veces el tap.
         .buttonStyle(.momentsPress(scale: 0.82, haptic: .none))
         .onAppear {
             guard !MotionPolicy.reduceMotion else { return }
             isFloating = true
         }
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, perform: {}, onPressingChanged: { pressing in
-            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
-                isPressed = pressing
-            }
-        })
     }
 }
 
@@ -498,7 +438,8 @@ struct EpicReactionPickerView: View {
             .padding(.vertical, 12)
         }
         .scrollClipDisabled()
-        .momentsChromeGlass(in: Capsule(), interactive: true)
+        // interactive: false — el glass interactivo se pelea con el ScrollView horizontal.
+        .momentsChromeGlass(in: Capsule(), interactive: false)
         .clipShape(Capsule())
         .frame(width: 280)
         .shadow(

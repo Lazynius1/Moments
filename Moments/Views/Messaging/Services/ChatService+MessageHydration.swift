@@ -259,6 +259,7 @@ extension ChatService {
             drawingData: data["drawingData"] as? Data,
             viewedBy: data["viewedBy"] as? [String],
             readBy: data["readBy"] as? [String],
+            readAtBy: (data["readAtBy"] as? [String: Timestamp])?.mapValues { $0.dateValue() },
             starredBy: data["starredBy"] as? [String],
             isForwarded: data["isForwarded"] as? Bool,
             isVanishModeMessage: data["isVanishModeMessage"] as? Bool,

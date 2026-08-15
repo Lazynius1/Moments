@@ -67,13 +67,21 @@ fileprivate struct FloatingTabBarScrollViewModifier: ViewModifier {
             .safeAreaPadding(.bottom, 50)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(.rect)
+            // minDistance > 0 + solo vertical: un DragGesture(0) se come taps y
+            // el scroll horizontal del picker de reacciones del feed.
             .simultaneousGesture(
-                DragGesture(minimumDistance: 0, coordinateSpace: .scrollView)
-                    .updating($isDragging) { _, out, _ in
-                        out = true
+                DragGesture(minimumDistance: 12, coordinateSpace: .scrollView)
+                    .updating($isDragging) { value, out, _ in
+                        let vertical = abs(value.translation.height)
+                        let horizontal = abs(value.translation.width)
+                        out = vertical >= horizontal
                     }
                     .onEnded { value in
                         guard scrollPhase != .idle else { return }
+                        let vertical = abs(value.translation.height)
+                        let horizontal = abs(value.translation.width)
+                        guard vertical >= horizontal else { return }
+
                         let velocity = -value.velocity.height / 5
                         let resultOffset = scrollOffset + velocity
                         let rawProgress = (resultOffset - shiftOffset) / distance

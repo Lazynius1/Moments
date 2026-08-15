@@ -1664,6 +1664,7 @@ private extension EnhancedMessage {
         hasher.combine(stableDictionarySignature(sharedStoryData))
         hasher.combine(stableArraySignature(viewedBy))
         hasher.combine(stableArraySignature(readBy))
+        hasher.combine(stableDateDictionarySignature(readAtBy))
         hasher.combine(stableArraySignature(starredBy))
         hasher.combine(stableArraySignature(vanishedFor))
         return hasher.finalize()
@@ -1672,6 +1673,15 @@ private extension EnhancedMessage {
     private func stableArraySignature(_ values: [String]?) -> Int {
         var hasher = Hasher()
         (values ?? []).sorted().forEach { hasher.combine($0) }
+        return hasher.finalize()
+    }
+
+    private func stableDateDictionarySignature(_ values: [String: Date]?) -> Int {
+        var hasher = Hasher()
+        (values ?? [:]).sorted(by: { $0.key < $1.key }).forEach { key, value in
+            hasher.combine(key)
+            hasher.combine(value.timeIntervalSinceReferenceDate)
+        }
         return hasher.finalize()
     }
 

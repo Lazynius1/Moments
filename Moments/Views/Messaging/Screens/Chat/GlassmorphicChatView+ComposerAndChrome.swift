@@ -642,14 +642,17 @@ extension GlassmorphicChatView {
                     onHydrateMedia: { message in
                         viewModel.hydrateMediaIfNeeded(for: message)
                     },
-                    onLongPress: { frame, cornerRadius in
-                        let resolvedFrame = chatListController.frameInWindow(forRowId: rowId) ?? frame
+                    onLongPress: { snapshot in
+                        let resolvedFrame = snapshot.frame.width > 0
+                            ? snapshot.frame
+                            : (chatListController.frameInWindow(forRowId: rowId) ?? snapshot.frame)
                         presentMessageOptions(
                             liveMessage,
                             rowId: rowId,
                             cluster: nil,
                             anchorFrame: resolvedFrame,
-                            anchorCornerRadius: cornerRadius
+                            anchorCornerRadius: snapshot.cornerRadius,
+                            liftedImage: snapshot.image
                         )
                     },
                     onViewOnceOpen: { targetMessage, isReplaySession in
@@ -698,14 +701,17 @@ extension GlassmorphicChatView {
                             messageIds: ids
                         )
                     },
-                    onLongPress: { message, frame, cornerRadius in
-                        let resolvedFrame = chatListController.frameInWindow(forRowId: rowId) ?? frame
+                    onLongPress: { message, snapshot in
+                        let resolvedFrame = snapshot.frame.width > 0
+                            ? snapshot.frame
+                            : (chatListController.frameInWindow(forRowId: rowId) ?? snapshot.frame)
                         presentMessageOptions(
                             message,
                             rowId: rowId,
                             cluster: liveCluster.count > 1 ? liveCluster : nil,
                             anchorFrame: resolvedFrame,
-                            anchorCornerRadius: cornerRadius
+                            anchorCornerRadius: snapshot.cornerRadius,
+                            liftedImage: snapshot.image
                         )
                     },
                     onHydrateMedia: { message in
@@ -841,7 +847,8 @@ extension GlassmorphicChatView {
         rowId: String,
         cluster: [EnhancedMessage]?,
         anchorFrame: CGRect,
-        anchorCornerRadius: CGFloat
+        anchorCornerRadius: CGFloat,
+        liftedImage: UIImage?
     ) {
         guard anchorFrame.width > 0, anchorFrame.height > 0 else { return }
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
@@ -851,6 +858,7 @@ extension GlassmorphicChatView {
                 anchorFrame: anchorFrame,
                 anchorCornerRadius: anchorCornerRadius,
                 isOutgoing: message.senderId == viewModel.currentUserId,
+                liftedImage: liftedImage,
                 clusterMessages: cluster
             )
         }
