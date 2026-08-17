@@ -107,7 +107,9 @@ extension GlassmorphicChatView {
             .onChange(of: searchQuery) { _, _ in chatListController.reconfigureVisible() }
             .onChange(of: currentSearchMatchIndex) { _, _ in chatListController.reconfigureVisible() }
             .onChange(of: flashingMessageIds) { _, _ in chatListController.reconfigureVisible() }
-            .onChange(of: messageMenuSelection) { _, _ in chatListController.reconfigureVisible() }
+            .onChange(of: messageMenuSelection?.rowId) { oldRowId, newRowId in
+                chatListController.reconfigureVisible(exceptRowId: newRowId ?? oldRowId)
+            }
             .onChange(of: viewModel.uploadProgress) { old, new in
                 let changed = changedProgressKeys(old, new)
                 if !changed.isEmpty { chatListController.reconfigure(messageIds: changed) }

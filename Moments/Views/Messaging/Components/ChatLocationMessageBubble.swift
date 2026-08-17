@@ -52,7 +52,6 @@ struct ChatLocationMessageBubble: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var snapshot: UIImage?
-    @State private var showDetail = false
     @State private var now = Date()
 
     private var canStopLive: Bool {
@@ -72,15 +71,10 @@ struct ChatLocationMessageBubble: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                showDetail = true
-            } label: {
-                VStack(spacing: 0) {
-                    mapThumbnail
-                    infoBar
-                }
+            VStack(spacing: 0) {
+                mapThumbnail
+                infoBar
             }
-            .buttonStyle(.plain)
 
             if canStopLive {
                 stopLiveButton
@@ -98,23 +92,6 @@ struct ChatLocationMessageBubble: View {
         .onChange(of: message.latitude) { _, _ in
             snapshot = nil
             loadSnapshot()
-        }
-        .fullScreenCover(isPresented: $showDetail) {
-            if let coordinate {
-                ChatLocationDetailView(
-                    coordinate: coordinate,
-                    locationName: message.locationName,
-                    locationAddress: message.locationAddress,
-                    isLive: isLive,
-                    isLiveActive: isLiveActive,
-                    expiresAt: message.liveLocationExpiresAt,
-                    canStopLive: canStopLive,
-                    senderId: message.senderId,
-                    accentColor: accentColor,
-                    accentColorRed: accentColorRed,
-                    onStopLive: onStopLive
-                )
-            }
         }
         .task(id: isLiveActive) {
             // Solo refresca el reloj mientras la ubicación en vivo está activa.

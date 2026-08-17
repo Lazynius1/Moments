@@ -1443,7 +1443,6 @@ struct SharedDMUnavailablePreviewCard: View {
 struct SharedMomentMessageBubble: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
-    let onTap: () -> Void
     
     private let privacyService = PrivacyService.shared
     @State private var canViewMoment: Bool? = nil
@@ -1457,14 +1456,11 @@ struct SharedMomentMessageBubble: View {
                     .padding(.vertical, 4)
             } else if canViewMoment == true, let sharedMomentData = message.sharedMomentData {
                 // Tarjeta con preview si tiene acceso
-                Button(action: onTap) {
-                    MomentBubbleContent(
-                        content: nil,
-                        sharedMomentData: sharedMomentData,
-                        isCurrentUser: isCurrentUser
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
+                MomentBubbleContent(
+                    content: nil,
+                    sharedMomentData: sharedMomentData,
+                    isCurrentUser: isCurrentUser
+                )
             } else {
                 BlockedMomentBubble(sharedMomentData: message.sharedMomentData)
                     .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)

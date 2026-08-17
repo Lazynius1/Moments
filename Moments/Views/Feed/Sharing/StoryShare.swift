@@ -442,7 +442,6 @@ struct StoryShareRecipientsPanel: View {
 struct SharedStoryMessageBubble: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
-    let onTap: () -> Void
 
     @State private var canViewStory: Bool?
     @State private var denialReason: SharedStoryAccessDenialReason?
@@ -458,10 +457,7 @@ struct SharedStoryMessageBubble: View {
                     )
                     .padding(.vertical, 4)
             } else if canViewStory == true, let sharedStoryData = message.sharedStoryData {
-                Button(action: onTap) {
-                    StoryBubbleContent(sharedStoryData: sharedStoryData, isCurrentUser: isCurrentUser)
-                }
-                .buttonStyle(PlainButtonStyle())
+                StoryBubbleContent(sharedStoryData: sharedStoryData, isCurrentUser: isCurrentUser)
             } else {
                 BlockedStoryBubble(
                     reason: denialReason ?? .restricted,

@@ -313,6 +313,7 @@ struct MediaGridBubble: View {
                     cornerRadius: ChatBubbleAnchorMetrics.clusterCornerRadius,
                     colorScheme: colorScheme,
                     isFlashing: isBubbleFlashing,
+                    onTap: { onOpenCluster(activeMessages) },
                     onLongPress: { snapshot in
                         onLongPress(activeMessages.first ?? frontMessage, snapshot)
                     }
@@ -332,9 +333,6 @@ struct MediaGridBubble: View {
                     .contentShape(Rectangle())
                     .onAppear {
                         activeMessages.forEach { onHydrateMedia?($0) }
-                    }
-                    .onTapGesture {
-                        onOpenCluster(activeMessages)
                     }
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(String(

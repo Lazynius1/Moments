@@ -118,21 +118,13 @@ struct ChatEphemeralMessageContent: View {
                     layout: layout,
                     previewImageURL: previewImageURL,
                     expirationDate: message.expirationDate
-                ) {
-                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
-                        showContent = true
-                    }
-                    onHydrateMedia?(message)
-                    markAsViewedIfNeeded()
-                }
+                )
             } else if let url = resolvedMediaURL {
                 ChatEphemeralImageCard(
                     layout: layout,
                     imageUrl: url,
                     expirationDate: message.expirationDate
-                ) {
-                    onOpenMedia?(message)
-                }
+                )
             } else if message.isMediaPendingResolution {
                 ChatEphemeralResolvingCard(layout: layout)
             } else {
@@ -143,19 +135,17 @@ struct ChatEphemeralMessageContent: View {
             showContent = message.isViewed
             onHydrateMedia?(message)
         }
+        .onChange(of: message.isViewed) { _, viewed in
+            guard viewed else { return }
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+                showContent = true
+            }
+        }
     }
 
     private func isEphemeralValid() -> Bool {
         guard let expirationDate = message.expirationDate else { return true }
         return Date() < expirationDate
-    }
-
-    private func markAsViewedIfNeeded() {
-        guard !message.isViewed else { return }
-        ChatService().markEphemeralAsViewed(
-            conversationId: message.conversationId,
-            messageId: message.id
-        ) { _ in }
     }
 }
 
@@ -163,7 +153,6 @@ struct ChatEphemeralTapCard: View {
     let layout: ChatEphemeralLayout
     let previewImageURL: String?
     let expirationDate: Date?
-    let onTap: () -> Void
 
     var body: some View {
         ZStack {
@@ -214,7 +203,6 @@ struct ChatEphemeralTapCard: View {
                 .stroke(ChatEphemeralPalette.accentBorder, lineWidth: 1.5)
         )
         .contentShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
-        .onTapGesture(perform: onTap)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(LocalizedStringKey("chat.viewOnce.media")))
         .accessibilityHint(Text(LocalizedStringKey("chat.viewOnce.tapToView")))
@@ -244,7 +232,6 @@ struct ChatEphemeralImageCard: View {
     let layout: ChatEphemeralLayout
     let imageUrl: URL
     let expirationDate: Date?
-    let onTap: () -> Void
 
     var body: some View {
         KFImage(imageUrl)
@@ -275,7 +262,6 @@ struct ChatEphemeralImageCard: View {
                     .stroke(ChatEphemeralPalette.accent.opacity(0.45), lineWidth: 1)
             )
             .contentShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
-            .onTapGesture(perform: onTap)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(LocalizedStringKey("chat.viewOnce.photo")))
             .accessibilityHint(Text(LocalizedStringKey("chat.viewOnce.tapToView")))

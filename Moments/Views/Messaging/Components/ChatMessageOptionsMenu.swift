@@ -9,7 +9,7 @@ struct ChatMessageMenuSelection: Equatable {
     let anchorFrame: CGRect
     let anchorCornerRadius: CGFloat
     let isOutgoing: Bool
-    let liftedImage: UIImage?
+    let extractSource: ChatMessageExtractSource
     var clusterMessages: [EnhancedMessage]? = nil
 
     static func == (lhs: ChatMessageMenuSelection, rhs: ChatMessageMenuSelection) -> Bool {
@@ -20,73 +20,178 @@ struct ChatMessageMenuSelection: Equatable {
 struct ChatMessageLiftSnapshot {
     let frame: CGRect
     let cornerRadius: CGFloat
-    let image: UIImage?
+    let extractSource: ChatMessageExtractSource
 }
 
+/// Hueco en la celda + la vista viva de la burbuja, para elevar el original sin bitmap.
 @MainActor
-private final class ChatMessageSnapshotSource: ObservableObject {
-    weak var anchorView: UIView?
+final class ChatMessageExtractSource {
+    fileprivate weak var slotView: ChatExtractSlotView?
+    fileprivate var allowsExtract = true
 
-    func snapshot(cornerRadius: CGFloat, fallbackFrame: CGRect) -> ChatMessageLiftSnapshot {
-        guard let anchorView,
-              let window = anchorView.window,
-              anchorView.bounds.width > 0,
-              anchorView.bounds.height > 0
-        else {
-            return ChatMessageLiftSnapshot(frame: fallbackFrame, cornerRadius: cornerRadius, image: nil)
+    func windowFrame(fallback: CGRect) -> CGRect {
+        guard let slotView, let window = slotView.window, slotView.bounds.width > 0, slotView.bounds.height > 0 else {
+            return fallback
         }
+        return slotView.convert(slotView.bounds, to: window)
+    }
 
-        let frame = anchorView.convert(anchorView.bounds, to: window)
-        let format = UIGraphicsImageRendererFormat.preferred()
-        format.opaque = false
-        let image: UIImage
-        if let cell = anchorView.ancestor(of: UICollectionViewCell.self) {
-            let cropRect = anchorView.convert(anchorView.bounds, to: cell.contentView)
-            image = UIGraphicsImageRenderer(size: cropRect.size, format: format).image { context in
-                context.cgContext.translateBy(x: -cropRect.minX, y: -cropRect.minY)
-                cell.contentView.layer.render(in: context.cgContext)
-            }
-        } else {
-            image = UIGraphicsImageRenderer(size: frame.size, format: format).image { context in
-                context.cgContext.translateBy(x: -frame.minX, y: -frame.minY)
-                window.layer.render(in: context.cgContext)
-            }
-        }
-        return ChatMessageLiftSnapshot(frame: frame, cornerRadius: cornerRadius, image: image)
+    func prepareForExtract() {
+        allowsExtract = true
+    }
+
+    fileprivate func take(into overlay: UIView) {
+        guard allowsExtract else { return }
+        slotView?.take(into: overlay)
+    }
+
+    func putBack() {
+        allowsExtract = false
+        slotView?.putBack()
     }
 }
 
-private extension UIView {
-    func ancestor<T: UIView>(of type: T.Type) -> T? {
-        var candidate = superview
-        while let view = candidate {
-            if let match = view as? T { return match }
-            candidate = view.superview
+private final class ChatExtractSlotView: UIView {
+    var hostedView: UIView?
+    private var isExtracted = false
+    private var restoredUserInteraction = true
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if !isExtracted {
+            hostedView?.frame = bounds
         }
-        return nil
+    }
+
+    func take(into overlay: UIView) {
+        guard let hostedView, hostedView.superview !== overlay else { return }
+        isExtracted = true
+        restoredUserInteraction = hostedView.isUserInteractionEnabled
+        hostedView.isUserInteractionEnabled = false
+        hostedView.translatesAutoresizingMaskIntoConstraints = true
+        overlay.addSubview(hostedView)
+        hostedView.frame = overlay.bounds
+        hostedView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    }
+
+    func putBack() {
+        guard let hostedView, isExtracted else { return }
+        hostedView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        addSubview(hostedView)
+        hostedView.frame = bounds
+        hostedView.isUserInteractionEnabled = restoredUserInteraction
+        isExtracted = false
     }
 }
 
-private struct ChatMessageSnapshotAnchor: UIViewRepresentable {
-    let source: ChatMessageSnapshotSource
+private struct ChatExtractableContent<Content: View>: UIViewRepresentable {
+    let source: ChatMessageExtractSource
+    let content: Content
 
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: .zero)
+    init(source: ChatMessageExtractSource, @ViewBuilder content: () -> Content) {
+        self.source = source
+        self.content = content()
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(content: content)
+    }
+
+    func makeUIView(context: Context) -> ChatExtractSlotView {
+        let slot = ChatExtractSlotView()
+        slot.backgroundColor = .clear
+        slot.isUserInteractionEnabled = true
+        let hosted = context.coordinator.hostingController.view!
+        hosted.backgroundColor = .clear
+        hosted.insetsLayoutMarginsFromSafeArea = false
+        hosted.translatesAutoresizingMaskIntoConstraints = true
+        hosted.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        slot.hostedView = hosted
+        slot.addSubview(hosted)
+        hosted.frame = slot.bounds
+        source.slotView = slot
+        return slot
+    }
+
+    func updateUIView(_ slot: ChatExtractSlotView, context: Context) {
+        context.coordinator.hostingController.rootView = content
+        source.slotView = slot
+        if slot.hostedView == nil {
+            slot.hostedView = context.coordinator.hostingController.view
+        }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: ChatExtractSlotView, context: Context) -> CGSize? {
+        let target = CGSize(
+            width: proposal.width ?? UIView.layoutFittingExpandedSize.width,
+            height: proposal.height ?? .greatestFiniteMagnitude
+        )
+        return context.coordinator.hostingController.sizeThatFits(in: target)
+    }
+
+    final class Coordinator {
+        let hostingController: UIHostingController<Content>
+
+        init(content: Content) {
+            let host = UIHostingController(rootView: content)
+            host.view.backgroundColor = .clear
+            host.safeAreaRegions = []
+            host.sizingOptions = [.intrinsicContentSize]
+            hostingController = host
+        }
+    }
+}
+
+private struct ChatExtractedLiftView: UIViewRepresentable {
+    let source: ChatMessageExtractSource
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(source: source)
+    }
+
+    func makeUIView(context: Context) -> ChatExtractOverlayHostView {
+        let view = ChatExtractOverlayHostView()
         view.backgroundColor = .clear
         view.isUserInteractionEnabled = false
-        source.anchorView = view
+        view.clipsToBounds = false
+        view.source = source
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
-        source.anchorView = uiView
+    func updateUIView(_ uiView: ChatExtractOverlayHostView, context: Context) {
+        context.coordinator.source = source
+        uiView.source = source
+        if uiView.bounds.width > 0, uiView.bounds.height > 0 {
+            source.take(into: uiView)
+        }
+    }
+
+    static func dismantleUIView(_ uiView: ChatExtractOverlayHostView, coordinator: Coordinator) {
+        coordinator.source.putBack()
+    }
+
+    final class Coordinator {
+        var source: ChatMessageExtractSource
+        init(source: ChatMessageExtractSource) {
+            self.source = source
+        }
+    }
+}
+
+private final class ChatExtractOverlayHostView: UIView {
+    var source: ChatMessageExtractSource?
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard bounds.width > 0, bounds.height > 0, let source else { return }
+        source.take(into: self)
     }
 }
 
 enum ChatBubbleAnchorMetrics {
     /// Escala al abrir menú o durante highlight (reacción, jump, reply).
-    static let menuSelectionScale: CGFloat = 1.03
-    static let highlightScale: CGFloat = menuSelectionScale
+    static let menuSelectionScale: CGFloat = 1.07
+    static let highlightScale: CGFloat = 1.03
     static let highlightDuration: TimeInterval = 1.5
     static let pressScale: CGFloat = 0.97
 
@@ -159,12 +264,13 @@ struct ChatMessageBubbleChrome<Content: View>: View {
     let cornerRadius: CGFloat
     let colorScheme: ColorScheme
     var isFlashing: Bool = false
+    var onTap: (() -> Void)? = nil
     let onLongPress: ((ChatMessageLiftSnapshot) -> Void)?
     @ViewBuilder let content: () -> Content
 
     @State private var isPressing = false
     @State private var bubbleFrame: CGRect = .zero
-    @StateObject private var snapshotSource = ChatMessageSnapshotSource()
+    @State private var extractSource = ChatMessageExtractSource()
 
     private var selectionScale: CGFloat {
         if isFlashing { return ChatBubbleAnchorMetrics.highlightScale }
@@ -177,61 +283,72 @@ struct ChatMessageBubbleChrome<Content: View>: View {
     }
 
     var body: some View {
-        content()
-            .environment(\.chatMessageBubbleCornerRadius, cornerRadius)
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(highlightTintColor)
-                    .opacity(isFlashing ? 1 : 0)
-                    .allowsHitTesting(false)
-                    .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isFlashing), value: isFlashing)
-            }
-            .scaleEffect(
-                selectionScale,
-                anchor: isOutgoing ? .bottomTrailing : .bottomLeading
-            )
-            .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isMenuSelected), value: isMenuSelected)
-            .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isFlashing), value: isFlashing)
-            .animation(.easeOut(duration: 0.12), value: isPressing)
-            .zIndex(isMenuSelected || isFlashing ? 1 : 0)
-            .opacity(isMenuSelected ? 0 : 1)
-            .background {
-                ZStack {
-                    ChatMessageSnapshotAnchor(source: snapshotSource)
-                    GeometryReader { geometry in
-                        Color.clear
-                            .preference(
-                                key: ChatBubbleGlobalFramePreference.self,
-                                value: geometry.frame(in: .global)
+        ChatExtractableContent(source: extractSource) {
+            content()
+                .environment(\.chatMessageBubbleCornerRadius, cornerRadius)
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(highlightTintColor)
+                        .opacity(isFlashing ? 1 : 0)
+                        .allowsHitTesting(false)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isFlashing), value: isFlashing)
+                }
+                .modifier(ChatBubblePressClassifierModifier(
+                    isEnabled: onLongPress != nil || onTap != nil,
+                    isPressing: $isPressing,
+                    onTap: onTap,
+                    onLongPress: {
+                        guard let onLongPress else { return }
+                        isPressing = false
+                        DispatchQueue.main.async {
+                            extractSource.prepareForExtract()
+                            onLongPress(
+                                ChatMessageLiftSnapshot(
+                                    frame: extractSource.windowFrame(fallback: bubbleFrame),
+                                    cornerRadius: cornerRadius,
+                                    extractSource: extractSource
+                                )
                             )
+                        }
                     }
-                }
+                ))
+        }
+        .scaleEffect(
+            selectionScale,
+            anchor: isOutgoing ? .bottomTrailing : .bottomLeading
+        )
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isMenuSelected), value: isMenuSelected)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isFlashing), value: isFlashing)
+        .animation(.easeOut(duration: 0.12), value: isPressing)
+        .zIndex(isMenuSelected || isFlashing ? 1 : 0)
+        .background {
+            GeometryReader { geometry in
+                Color.clear
+                    .preference(
+                        key: ChatBubbleGlobalFramePreference.self,
+                        value: geometry.frame(in: .global)
+                    )
             }
-            .onPreferenceChange(ChatBubbleGlobalFramePreference.self) { newFrame in
-                bubbleFrame = newFrame
-            }
-            .modifier(ChatBubbleLongPressModifier(
-                isEnabled: onLongPress != nil,
-                isPressing: $isPressing,
-                onLongPress: {
-                    guard let onLongPress else { return }
-                    isPressing = false
-                    DispatchQueue.main.async {
-                        onLongPress(snapshotSource.snapshot(cornerRadius: cornerRadius, fallbackFrame: bubbleFrame))
-                    }
-                }
-            ))
+        }
+        .onPreferenceChange(ChatBubbleGlobalFramePreference.self) { newFrame in
+            bubbleFrame = newFrame
+        }
     }
 }
 
-private struct ChatBubbleLongPressModifier: ViewModifier {
+private struct ChatBubblePressClassifierModifier: ViewModifier {
     let isEnabled: Bool
     @Binding var isPressing: Bool
+    let onTap: (() -> Void)?
     let onLongPress: () -> Void
 
     func body(content: Content) -> some View {
         if isEnabled {
-            content.chatMessageLongPress(isPressing: $isPressing, onLongPress: onLongPress)
+            content.chatMessagePressClassifier(
+                isPressing: $isPressing,
+                onTap: onTap,
+                onLongPress: onLongPress
+            )
         } else {
             content
         }
@@ -280,6 +397,7 @@ struct ChatMessageContextMenuOverlay: View {
     let onToggleStar: (EnhancedMessage) -> Void
     let onReaction: (EnhancedMessage, String) -> Void
     let onMoreReactions: (EnhancedMessage) -> Void
+    var onOpenMessage: ((EnhancedMessage, [EnhancedMessage]?) -> Void)? = nil
 
     private let menuRowHeight: CGFloat = 36
     private let menuCornerRadius: CGFloat = ChatAttachmentSheetMetrics.cornerRadius
@@ -290,9 +408,12 @@ struct ChatMessageContextMenuOverlay: View {
 
     private let reactionsBarEstimatedWidth: CGFloat = 300
     private let menuEstimatedWidth: CGFloat = 240
+    /// Lift extra cuando hay hueco (el mensaje no solo se escala, también se eleva).
+    private let extraMessageLift: CGFloat = 18
 
     @StateObject private var emojiUsageTracker = EmojiUsageTracker()
     @State private var isPresented = false
+    @State private var dismissGeneration = 0
     @State private var areReactionsExpanded = false
     @State private var skinToneSelection: ChatSkinToneSelection?
     @State private var reactionEmojiFrames: [String: CGRect] = [:]
@@ -305,6 +426,16 @@ struct ChatMessageContextMenuOverlay: View {
         RoundedRectangle(cornerRadius: menuCornerRadius, style: .continuous)
     }
 
+    /// Spring de entrada: viaje + escala con damping alto (~0.42s).
+    private var presentationAnimation: Animation? {
+        UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.42, dampingFraction: 0.84)
+    }
+
+    /// Put-back: easeInOut corto para devolver el mensaje a su sitio sin rebote.
+    private var dismissalAnimation: Animation? {
+        UIAccessibility.isReduceMotionEnabled ? nil : .easeInOut(duration: 0.26)
+    }
+
     var body: some View {
         ZStack {
             if let selection {
@@ -313,6 +444,16 @@ struct ChatMessageContextMenuOverlay: View {
                     isCurrentUser: selection.message.senderId == currentUserId
                 )
                 let layout = menuLayout(for: selection, rowCount: rowCount)
+                let anchor = localAnchorFrame(selection.anchorFrame)
+                let presentedOffsetY = isPresented ? layout.messageOffsetY : 0
+                let restReactionsCenter = CGPoint(
+                    x: layout.reactionsCenter.x,
+                    y: layout.reactionsCenter.y - layout.messageOffsetY
+                )
+                let restMenuCenter = CGPoint(
+                    x: layout.menuCenter.x,
+                    y: layout.menuCenter.y - layout.messageOffsetY
+                )
 
                 Rectangle()
                     .fill(.ultraThinMaterial)
@@ -326,23 +467,26 @@ struct ChatMessageContextMenuOverlay: View {
                     .onTapGesture { dismissMenu() }
                     .accessibilityHidden(true)
 
-                liftedMessage(for: selection, layout: layout)
+                liftedMessage(for: selection, presentedOffsetY: presentedOffsetY)
 
                 reactionsRail(for: selection, isAboveMessage: layout.reactionsAreAbove)
                     .fixedSize()
-                    .position(layout.reactionsCenter)
+                    .position(isPresented ? layout.reactionsCenter : restReactionsCenter)
                     .scaleEffect(
-                        isPresented ? 1 : 0.82,
+                        isPresented ? 1 : 0.86,
                         anchor: layout.reactionsAreAbove ? .bottom : .top
                     )
                     .opacity(isPresented ? 1 : 0)
 
                 actionsMenu(for: selection.message, isCurrentUser: selection.message.senderId == currentUserId)
                     .fixedSize(horizontal: true, vertical: true)
-                    .position(layout.menuCenter)
-                    .scaleEffect(isPresented ? 1 : 0.92, anchor: layout.menuCenter.y >= localAnchorFrame(selection.anchorFrame).midY ? .top : .bottom)
+                    .position(isPresented ? layout.menuCenter : restMenuCenter)
+                    .scaleEffect(
+                        isPresented ? 1 : 0.92,
+                        anchor: layout.menuCenter.y >= anchor.midY ? .top : .bottom
+                    )
                     .opacity(isPresented && !areReactionsExpanded ? 1 : 0)
-                    .allowsHitTesting(!areReactionsExpanded)
+                    .allowsHitTesting(isPresented && !areReactionsExpanded)
             }
         }
         .onChange(of: selection?.rowId) { _, rowId in
@@ -350,11 +494,12 @@ struct ChatMessageContextMenuOverlay: View {
                 isPresented = false
                 return
             }
+            dismissGeneration += 1
             isPresented = false
             areReactionsExpanded = false
             skinToneSelection = nil
             DispatchQueue.main.async {
-                withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.42, dampingFraction: 0.86)) {
+                withAnimation(presentationAnimation) {
                     isPresented = true
                 }
             }
@@ -364,19 +509,37 @@ struct ChatMessageContextMenuOverlay: View {
     @ViewBuilder
     private func liftedMessage(
         for selection: ChatMessageMenuSelection,
-        layout: ChatMessageMenuLayout
+        presentedOffsetY: CGFloat
     ) -> some View {
         let anchor = localAnchorFrame(selection.anchorFrame)
-        if let image = selection.liftedImage {
-            Image(uiImage: image)
-                .resizable()
-                .frame(width: anchor.width, height: anchor.height)
-                .scaleEffect(isPresented ? 1.035 : 0.97, anchor: selection.isOutgoing ? .bottomTrailing : .bottomLeading)
-                .position(x: anchor.midX, y: anchor.midY + layout.messageOffsetY)
-                .shadow(color: .black.opacity(isPresented ? 0.22 : 0), radius: 18, x: 0, y: 10)
+        ZStack {
+            ChatExtractedLiftView(source: selection.extractSource)
                 .allowsHitTesting(false)
-                .accessibilityHidden(true)
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    let message = selection.message
+                    let cluster = selection.clusterMessages
+                    if onOpenMessage != nil {
+                        dismissMenu { onOpenMessage?(message, cluster) }
+                    } else {
+                        dismissMenu()
+                    }
+                }
         }
+        .frame(width: anchor.width, height: anchor.height)
+        .scaleEffect(
+            isPresented ? ChatBubbleAnchorMetrics.menuSelectionScale : 1,
+            anchor: selection.isOutgoing ? .bottomTrailing : .bottomLeading
+        )
+        .position(x: anchor.midX, y: anchor.midY + presentedOffsetY)
+        .shadow(
+            color: .black.opacity(isPresented ? 0.28 : 0),
+            radius: isPresented ? 28 : 0,
+            x: 0,
+            y: isPresented ? 14 : 0
+        )
+        .accessibilityAddTraits(.isButton)
     }
 
     @ViewBuilder
@@ -795,7 +958,8 @@ struct ChatMessageContextMenuOverlay: View {
             - scaled.height
         let targetMessageTop: CGFloat
         if maximumMessageTop >= minimumMessageTop {
-            targetMessageTop = min(max(scaled.minY, minimumMessageTop), maximumMessageTop)
+            let preferredTop = scaled.minY - extraMessageLift
+            targetMessageTop = min(max(preferredTop, minimumMessageTop), maximumMessageTop)
         } else {
             // Menú excepcionalmente alto: prioriza que su inicio quede accesible;
             // el propio panel conserva su clamp dentro del viewport.
@@ -843,11 +1007,16 @@ struct ChatMessageContextMenuOverlay: View {
     }
 
     private func dismissMenu(then action: (() -> Void)? = nil) {
-        withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .easeOut(duration: 0.18)) {
+        dismissGeneration += 1
+        let generation = dismissGeneration
+        withAnimation(dismissalAnimation) {
             isPresented = false
         }
-        let delay = UIAccessibility.isReduceMotionEnabled ? 0 : 0.17
+
+        let delay = UIAccessibility.isReduceMotionEnabled ? 0 : 0.26
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            guard generation == dismissGeneration else { return }
+            selection?.extractSource.putBack()
             selection = nil
             action?()
         }
@@ -891,12 +1060,13 @@ private struct ChatContextMenuRow: View {
 
     var body: some View {
         MomentRowButton(feedback: .menu, action: action) {
-            HStack {
-                Text(title)
-                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                Spacer()
+            HStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.system(size: 16))
+                    .frame(width: 18)
+                Text(title)
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                Spacer(minLength: 0)
             }
             .foregroundStyle(isDestructive ? .red : primaryTextColor)
             .padding(.horizontal, 12)

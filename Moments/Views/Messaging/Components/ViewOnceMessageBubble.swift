@@ -10,7 +10,6 @@ struct ViewOnceMessageBubble: View {
     let isCurrentUser: Bool
     let otherParticipantName: String
     let progress: Double? // ✅ New: Real-time upload progress
-    var onOpenViewer: ((Bool) -> Void)? = nil
     var zoomNamespace: Namespace.ID? = nil
     var zoomSourceID: String? = nil
     @Environment(\.colorScheme) var colorScheme
@@ -61,18 +60,14 @@ struct ViewOnceMessageBubble: View {
 
                     ViewOnceReplayBubble(
                         message: message,
-                        adaptiveColors: adaptiveColors,
-                        onTap: { openReplay() }
+                        adaptiveColors: adaptiveColors
                     )
                     .opacity(effectiveViewed && replayAvailable ? 1 : 0)
                     .allowsHitTesting(effectiveViewed && replayAvailable)
 
                     ViewOnceUnreadBubble(
                         message: message,
-                        adaptiveColors: adaptiveColors,
-                        onTap: {
-                            openViewOnceMessage()
-                        }
+                        adaptiveColors: adaptiveColors
                     )
                     .opacity(effectiveViewed ? 0 : 1)
                     .allowsHitTesting(!effectiveViewed)
@@ -80,22 +75,6 @@ struct ViewOnceMessageBubble: View {
             }
         }
         .modifier(ViewOnceZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID))
-    }
-
-    private func openViewOnceMessage() {
-        // ✅ Solo se puede abrir si NO ha sido visto
-        guard !effectiveViewed else {
-            return
-        }
-
-        onOpenViewer?(false)
-    }
-
-    private func openReplay() {
-        guard replayAvailable else {
-            return
-        }
-        onOpenViewer?(true)
     }
 }
 
@@ -182,22 +161,18 @@ private func viewOnceTypeText(for message: EnhancedMessage) -> String {
 struct ViewOnceUnreadBubble: View {
     let message: EnhancedMessage
     let adaptiveColors: AdaptiveColors
-    let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            ViewOncePillBubble(
-                adaptiveColors: adaptiveColors,
-                glyph: AnyView(
-                    Image(systemName: message.type == .viewOnceVideo ? "play.fill" : "camera.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(adaptiveColors.messageTextColor)
-                ),
-                label: viewOnceTypeText(for: message),
-                showsUnreadDot: true
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
+        ViewOncePillBubble(
+            adaptiveColors: adaptiveColors,
+            glyph: AnyView(
+                Image(systemName: message.type == .viewOnceVideo ? "play.fill" : "camera.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(adaptiveColors.messageTextColor)
+            ),
+            label: viewOnceTypeText(for: message),
+            showsUnreadDot: true
+        )
     }
 }
 
@@ -205,21 +180,17 @@ struct ViewOnceUnreadBubble: View {
 struct ViewOnceReplayBubble: View {
     let message: EnhancedMessage
     let adaptiveColors: AdaptiveColors
-    let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            ViewOncePillBubble(
-                adaptiveColors: adaptiveColors,
-                glyph: AnyView(
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(adaptiveColors.messageTextColor)
-                ),
-                label: NSLocalizedString("chat.viewOnce.tapToReplay", comment: "Tap to replay")
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
+        ViewOncePillBubble(
+            adaptiveColors: adaptiveColors,
+            glyph: AnyView(
+                Image(systemName: "arrow.counterclockwise")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(adaptiveColors.messageTextColor)
+            ),
+            label: NSLocalizedString("chat.viewOnce.tapToReplay", comment: "Tap to replay")
+        )
     }
 }
 

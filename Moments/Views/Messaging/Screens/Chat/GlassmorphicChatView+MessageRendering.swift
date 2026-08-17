@@ -180,6 +180,9 @@ extension GlassmorphicChatView {
                     onMoreReactions: { message in
                         reactionPickerMessage = message
                         showingReactionEmojiPicker = true
+                    },
+                    onOpenMessage: { message, cluster in
+                        openChatMessageBody(message, cluster: cluster)
                     }
                 )
                 .allowsHitTesting(messageMenuSelection != nil)

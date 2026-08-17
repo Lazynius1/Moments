@@ -159,6 +159,7 @@ struct GlassmorphicChatView: View {
     @State var reactionMessageOverlay: EnhancedMessage? = nil
     @State var selectedChatMedia: SharedMedia?
     @State var selectedChatMediaItems: [SharedMedia] = []
+    @State var locationDetailMessage: EnhancedMessage?
 
     var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -571,6 +572,30 @@ struct GlassmorphicChatView: View {
         chatViewWithLifecycleObservers
             .fullScreenCover(item: $selectedChatMedia) { media in
                 selectedChatMediaCover(media: media)
+            }
+            .fullScreenCover(isPresented: Binding(
+                get: { locationDetailMessage != nil },
+                set: { if !$0 { locationDetailMessage = nil } }
+            )) {
+                if let message = locationDetailMessage,
+                   let lat = message.latitude,
+                   let lng = message.longitude {
+                    ChatLocationDetailView(
+                        coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lng),
+                        locationName: message.locationName,
+                        locationAddress: message.locationAddress,
+                        isLive: message.isLiveLocationMessage,
+                        isLiveActive: message.isLiveLocationActive,
+                        expiresAt: message.liveLocationExpiresAt,
+                        canStopLive: message.senderId == viewModel.currentUserId
+                            && message.isLiveLocationMessage
+                            && message.isLiveLocationActive,
+                        senderId: message.senderId,
+                        accentColor: adaptiveColors.userAccentColor,
+                        accentColorRed: adaptiveColors.accentColorRed,
+                        onStopLive: { viewModel.stopLiveLocation(messageId: message.id) }
+                    )
+                }
             }
             .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
             .overlay {

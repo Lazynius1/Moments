@@ -109,8 +109,8 @@ final class ChatMessageListController: ObservableObject {
         viewController?.scrollNavigationTargetRowId = nil
     }
 
-    func reconfigureVisible() {
-        viewController?.reconfigureVisible()
+    func reconfigureVisible(exceptRowId: String? = nil) {
+        viewController?.reconfigureVisible(exceptRowId: exceptRowId)
     }
 
     func reconfigure(messageIds: [String]) {
@@ -359,6 +359,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     private var messageIdToRowId: [String: String] = [:]
     private var pendingReconfigureRowIds: Set<String> = []
     private var reconfigureAllVisiblePending = false
+    private var reconfigureExcludedRowId: String?
     private var needsDeferredInitialScroll = false
     private var lastAppliedRows: [ChatRenderRow] = []
     private var isRestoringPrependAnchor = false
@@ -1185,8 +1186,9 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         messageIdToRowId = index
     }
 
-    func reconfigureVisible() {
+    func reconfigureVisible(exceptRowId: String? = nil) {
         reconfigureAllVisiblePending = true
+        reconfigureExcludedRowId = exceptRowId
         scheduleReconfigureFlush()
     }
 
@@ -1212,17 +1214,23 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         let visibleIds = Set(collectionView.indexPathsForVisibleItems.compactMap { dataSource.itemIdentifier(for: $0) })
         guard !visibleIds.isEmpty else {
             reconfigureAllVisiblePending = false
+            reconfigureExcludedRowId = nil
             pendingReconfigureRowIds.removeAll()
             return
         }
 
         let targetIds: [String]
         if reconfigureAllVisiblePending {
-            targetIds = Array(visibleIds)
+            if let excluded = reconfigureExcludedRowId {
+                targetIds = visibleIds.filter { $0 != excluded }
+            } else {
+                targetIds = Array(visibleIds)
+            }
         } else {
             targetIds = Array(pendingReconfigureRowIds.intersection(visibleIds))
         }
         reconfigureAllVisiblePending = false
+        reconfigureExcludedRowId = nil
         pendingReconfigureRowIds.removeAll()
         guard !targetIds.isEmpty else { return }
 

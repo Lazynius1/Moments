@@ -364,16 +364,157 @@ extension View {
         )
     }
 
+    /// Long press 0.32s; si suelta antes, es tap. El tap de ese mismo pulso no dispara si ya hubo menú.
+    func chatMessagePressClassifier(
+        isPressing: Binding<Bool>? = nil,
+        onTap: (() -> Void)? = nil,
+        onLongPress: @escaping () -> Void
+    ) -> some View {
+        modifier(
+            ChatMessagePressClassifierModifier(
+                isPressing: isPressing,
+                onTap: onTap,
+                onLongPress: onLongPress
+            )
+        )
+    }
+
     /// Long press tolerante a micro-movimientos (más fácil en clusters/media).
     func chatMessageLongPress(
         isPressing: Binding<Bool>? = nil,
         onLongPress: @escaping () -> Void
     ) -> some View {
-        onLongPressGesture(minimumDuration: 0.32, maximumDistance: 18, perform: {
-            HapticManager.shared.heavyImpact()
-            onLongPress()
-        }, onPressingChanged: { pressing in
-            isPressing?.wrappedValue = pressing
-        })
+        chatMessagePressClassifier(isPressing: isPressing, onTap: nil, onLongPress: onLongPress)
+    }
+}
+
+private struct ChatMessagePressClassifierModifier: ViewModifier {
+    var isPressing: Binding<Bool>?
+    let onTap: (() -> Void)?
+    let onLongPress: () -> Void
+    @State private var suppressNextTap = false
+
+    func body(content: Content) -> some View {
+        content
+            .onLongPressGesture(minimumDuration: 0.32, maximumDistance: 18, perform: {
+                suppressNextTap = true
+                HapticManager.shared.heavyImpact()
+                onLongPress()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    suppressNextTap = false
+                }
+            }, onPressingChanged: { pressing in
+                isPressing?.wrappedValue = pressing
+            })
+            .modifier(ChatMessagePressTapModifier(
+                isEnabled: onTap != nil,
+                suppressNextTap: $suppressNextTap,
+                onTap: onTap
+            ))
+    }
+}
+
+/// El tap solo se instala si hay `onTap`; si no, los enlaces/spoilers del texto siguen recibiendo el gesto.
+private struct ChatMessagePressTapModifier: ViewModifier {
+    let isEnabled: Bool
+    @Binding var suppressNextTap: Bool
+    let onTap: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.onTapGesture {
+                guard !suppressNextTap else {
+                    suppressNextTap = false
+                    return
+                }
+                onTap?()
+            }
+        } else {
+            content
+        }
+    }
+}
+
+/// Apertura del cuerpo del mensaje (tap corto o tap sobre la burbuja elevada).
+enum ChatMessageBodyOpen {
+    static func viewOnceReplayAvailable(message: EnhancedMessage, currentUserId: String) -> Bool {
+        message.allowReplay == true
+            && message.replayAvailableInCurrentChatSession
+            && !message.replayConsumedInCurrentChatSession
+            && !message.hasBeenReplayedBy(userId: currentUserId)
+    }
+
+    static func viewOnceEffectiveViewed(message: EnhancedMessage) -> Bool {
+        message.isViewed || message.replayAvailableInCurrentChatSession
+    }
+
+    static func isOpenable(_ message: EnhancedMessage, isCurrentUser: Bool, currentUserId: String) -> Bool {
+        guard !message.isDeleted else { return false }
+        switch message.type {
+        case .image, .video, .location, .sharedMoment, .sharedStory, .ephemeral:
+            return true
+        case .viewOnceImage, .viewOnceVideo:
+            guard !isCurrentUser else { return false }
+            if viewOnceEffectiveViewed(message: message) {
+                return viewOnceReplayAvailable(message: message, currentUserId: currentUserId)
+            }
+            return true
+        default:
+            return false
+        }
+    }
+
+    @MainActor
+    static func open(
+        _ message: EnhancedMessage,
+        isCurrentUser: Bool,
+        currentUserId: String,
+        cluster: [EnhancedMessage]? = nil,
+        onOpenMedia: (EnhancedMessage) -> Void,
+        onOpenCluster: (([EnhancedMessage]) -> Void)? = nil,
+        onMomentNavigation: ((EnhancedMessage) -> Void)?,
+        onStoryNavigation: ((EnhancedMessage) -> Void)?,
+        onViewOnceOpen: ((EnhancedMessage, Bool) -> Void)?,
+        onOpenLocation: ((EnhancedMessage) -> Void)?,
+        onHydrateMedia: ((EnhancedMessage) -> Void)?,
+        onMessageViewed: ((String) -> Void)?
+    ) {
+        if let cluster, cluster.count > 1 {
+            onOpenCluster?(cluster)
+            return
+        }
+        guard !message.isDeleted else { return }
+        switch message.type {
+        case .image, .video:
+            onOpenMedia(message)
+        case .location:
+            onOpenLocation?(message)
+        case .sharedMoment:
+            onMomentNavigation?(message)
+        case .sharedStory:
+            onStoryNavigation?(message)
+        case .viewOnceImage, .viewOnceVideo:
+            guard !isCurrentUser else { return }
+            let viewed = viewOnceEffectiveViewed(message: message)
+            if viewed {
+                guard viewOnceReplayAvailable(message: message, currentUserId: currentUserId) else { return }
+                onViewOnceOpen?(message, true)
+            } else {
+                onViewOnceOpen?(message, false)
+            }
+        case .ephemeral:
+            if !message.isViewed {
+                onHydrateMedia?(message)
+                onMessageViewed?(message.id)
+                ChatService().markEphemeralAsViewed(
+                    conversationId: message.conversationId,
+                    messageId: message.id
+                ) { _ in }
+            } else {
+                onOpenMedia(message)
+            }
+        default:
+            break
+        }
     }
 }

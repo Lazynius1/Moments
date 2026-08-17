@@ -26,6 +26,7 @@ struct GlassmorphicMessageRow: View {
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let onLongPress: ((ChatMessageLiftSnapshot) -> Void)?
     var onViewOnceOpen: ((EnhancedMessage, Bool) -> Void)? = nil
+    var onOpenLocation: ((EnhancedMessage) -> Void)? = nil
     var viewOnceZoomNamespace: Namespace.ID? = nil
     let progress: Double?
     var downloadProgress: Double? = nil
@@ -179,7 +180,7 @@ struct GlassmorphicMessageRow: View {
         let isVanishProtected = message.isVanishModeMessage == true
         let bubble = GlassmorphicMessageBubble(
             message: message,
-            reactions: isMenuSelected ? nil : resolvedReactions,
+            reactions: resolvedReactions,
             onReaction: onReaction,
             repliedMessage: repliedMessage,
             otherParticipantId: otherParticipantId,
@@ -213,6 +214,11 @@ struct GlassmorphicMessageRow: View {
                 cornerRadius: cornerRadius,
                 colorScheme: colorScheme,
                 isFlashing: isBubbleFlashing,
+                onTap: ChatMessageBodyOpen.isOpenable(
+                    message,
+                    isCurrentUser: isCurrentUser,
+                    currentUserId: Auth.auth().currentUser?.uid ?? ""
+                ) ? { openMessageBody() } : nil,
                 onLongPress: onLongPress
             ) {
                 if isVanishProtected {
@@ -225,9 +231,22 @@ struct GlassmorphicMessageRow: View {
             }
         }
     }
-}
 
-// MARK: - Componente para Mensajes Eliminados
+    private func openMessageBody() {
+        ChatMessageBodyOpen.open(
+            message,
+            isCurrentUser: isCurrentUser,
+            currentUserId: Auth.auth().currentUser?.uid ?? "",
+            onOpenMedia: onOpenMedia,
+            onMomentNavigation: onMomentNavigation,
+            onStoryNavigation: onStoryNavigation,
+            onViewOnceOpen: onViewOnceOpen,
+            onOpenLocation: onOpenLocation,
+            onHydrateMedia: onHydrateMedia,
+            onMessageViewed: onMessageViewed
+        )
+    }
+}
 struct DeletedMessageBubble: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
@@ -377,12 +396,6 @@ struct GlassmorphicMessageBubble: View {
         )
     }
 
-    private var viewOnceOpenHandler: ((Bool) -> Void)? {
-        guard let handler = self.onViewOnceOpen else { return nil }
-        let targetMessage = self.message
-        return { (isReplaySession: Bool) in handler(targetMessage, isReplaySession) }
-    }
-
     var body: some View {
         Group {
             if message.isDeleted {
@@ -396,7 +409,6 @@ struct GlassmorphicMessageBubble: View {
                             isCurrentUser: isCurrentUser,
                             otherParticipantName: otherParticipantName,
                             progress: progress,
-                            onOpenViewer: viewOnceOpenHandler,
                             zoomNamespace: viewOnceZoomNamespace,
                             zoomSourceID: "view-once-\(message.id)"
                         )
@@ -447,10 +459,7 @@ struct GlassmorphicMessageBubble: View {
                                 downloadProgress: downloadProgress,
                                 downloadSizeLabel: message.formattedDownloadSize,
                                 downsamplingSize: CGSize(width: 208, height: 272),
-                                progress: progress,
-                                onTap: {
-                                    onOpenMedia(message)
-                                }
+                                progress: progress
                             )
                             .frame(width: 208, height: 272)
                             .clipShape(mediaBubbleShape(cornerRadius: 16))
@@ -491,10 +500,7 @@ struct GlassmorphicMessageBubble: View {
                                 downloadProgress: downloadProgress,
                                 downloadSizeLabel: message.formattedDownloadSize,
                                 downsamplingSize: CGSize(width: 208, height: 272),
-                                progress: progress,
-                                onTap: {
-                                    onOpenMedia(message)
-                                }
+                                progress: progress
                             )
                             .frame(width: 208, height: 272)
                             .clipShape(mediaBubbleShape(cornerRadius: 16))
@@ -528,10 +534,7 @@ struct GlassmorphicMessageBubble: View {
                         attachBubbleBadges(
                             to: SharedMomentMessageBubble(
                                 message: message,
-                                isCurrentUser: isCurrentUser,
-                                onTap: {
-                                    onMomentNavigation?(message)
-                                }
+                                isCurrentUser: isCurrentUser
                             )
                         )
 
@@ -539,10 +542,7 @@ struct GlassmorphicMessageBubble: View {
                         attachBubbleBadges(
                             to: SharedStoryMessageBubble(
                                 message: message,
-                                isCurrentUser: isCurrentUser,
-                                onTap: {
-                                    onStoryNavigation?(message)
-                                }
+                                isCurrentUser: isCurrentUser
                             )
                         )
 

@@ -652,11 +652,14 @@ extension GlassmorphicChatView {
                             cluster: nil,
                             anchorFrame: resolvedFrame,
                             anchorCornerRadius: snapshot.cornerRadius,
-                            liftedImage: snapshot.image
+                            extractSource: snapshot.extractSource
                         )
                     },
                     onViewOnceOpen: { targetMessage, isReplaySession in
                         presentViewOnceViewer(message: targetMessage, isReplaySession: isReplaySession)
+                    },
+                    onOpenLocation: { message in
+                        locationDetailMessage = message
                     },
                     viewOnceZoomNamespace: viewOnceZoomNamespace,
                     progress: viewModel.uploadProgress[liveMessage.id],
@@ -711,7 +714,7 @@ extension GlassmorphicChatView {
                             cluster: liveCluster.count > 1 ? liveCluster : nil,
                             anchorFrame: resolvedFrame,
                             anchorCornerRadius: snapshot.cornerRadius,
-                            liftedImage: snapshot.image
+                            extractSource: snapshot.extractSource
                         )
                     },
                     onHydrateMedia: { message in
@@ -799,7 +802,7 @@ extension GlassmorphicChatView {
     }
 
     func shouldRenderReactionChrome(rowId: String, messageIds: [String]) -> Bool {
-        messageMenuSelection?.rowId != rowId
+        true
     }
 
     func isBubbleFlashing(_ messageId: String) -> Bool {
@@ -842,26 +845,72 @@ extension GlassmorphicChatView {
         HapticManager.shared.lightImpact()
     }
 
+    func openChatMessageBody(_ message: EnhancedMessage, cluster: [EnhancedMessage]? = nil) {
+        let isCurrentUser = message.senderId == viewModel.currentUserId
+        ChatMessageBodyOpen.open(
+            message,
+            isCurrentUser: isCurrentUser,
+            currentUserId: viewModel.currentUserId,
+            cluster: cluster,
+            onOpenMedia: { opened in
+                if opened.needsDownloadForPlayback {
+                    viewModel.openMediaForViewing(opened) { _ in }
+                    return
+                }
+                guard let media = sharedMedia(from: opened) else { return }
+                selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: opened)
+                selectedChatMedia = media
+            },
+            onOpenCluster: { clusterMessages in
+                let ids = clusterMessages.map(\.id)
+                guard let anchorId = ids.first else { return }
+                clusterGallerySelection = ClusterGallerySelection(
+                    anchorMessageId: anchorId,
+                    messageIds: ids
+                )
+            },
+            onMomentNavigation: { opened in
+                handleMomentNavigationFromChat(message: opened)
+            },
+            onStoryNavigation: { opened in
+                handleStoryNavigationFromChat(message: opened)
+            },
+            onViewOnceOpen: { opened, isReplaySession in
+                presentViewOnceViewer(message: opened, isReplaySession: isReplaySession)
+            },
+            onOpenLocation: { opened in
+                locationDetailMessage = opened
+            },
+            onHydrateMedia: { opened in
+                viewModel.hydrateMediaIfNeeded(for: opened)
+            },
+            onMessageViewed: { messageId in
+                if let index = viewModel.messageIndexById[messageId] {
+                    viewModel.messages[index].isViewed = true
+                }
+            }
+        )
+    }
+
     func presentMessageOptions(
         _ message: EnhancedMessage,
         rowId: String,
         cluster: [EnhancedMessage]?,
         anchorFrame: CGRect,
         anchorCornerRadius: CGFloat,
-        liftedImage: UIImage?
+        extractSource: ChatMessageExtractSource
     ) {
         guard anchorFrame.width > 0, anchorFrame.height > 0 else { return }
-        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
-            messageMenuSelection = ChatMessageMenuSelection(
-                rowId: rowId,
-                message: message,
-                anchorFrame: anchorFrame,
-                anchorCornerRadius: anchorCornerRadius,
-                isOutgoing: message.senderId == viewModel.currentUserId,
-                liftedImage: liftedImage,
-                clusterMessages: cluster
-            )
-        }
+        // El overlay anima el lift; asignar con spring aquí pelea con el put-back.
+        messageMenuSelection = ChatMessageMenuSelection(
+            rowId: rowId,
+            message: message,
+            anchorFrame: anchorFrame,
+            anchorCornerRadius: anchorCornerRadius,
+            isOutgoing: message.senderId == viewModel.currentUserId,
+            extractSource: extractSource,
+            clusterMessages: cluster
+        )
     }
 
     func restoreScrollUIState() {

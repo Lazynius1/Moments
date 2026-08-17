@@ -109,7 +109,6 @@ struct GlassmorphicImageMessage: View {
     var downloadSizeLabel: String? = nil
     var downsamplingSize: CGSize? = nil
     let progress: Double?
-    let onTap: () -> Void
 
     private var blurredPreviewURL: URL? {
         if isAwaitingManualDownload,
@@ -179,7 +178,6 @@ struct GlassmorphicImageMessage: View {
         )
         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
         .contentShape(RoundedRectangle(cornerRadius: 16))
-        .onTapGesture(perform: onTap)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(NSLocalizedString("chat.a11y.photo", comment: "Photo message")))
         .accessibilityHint(Text(NSLocalizedString("chat.a11y.openMedia", comment: "Tap to open media")))
@@ -212,7 +210,6 @@ struct GlassmorphicVideoMessage: View {
     var downloadSizeLabel: String? = nil
     var downsamplingSize: CGSize? = nil
     let progress: Double?
-    let onTap: () -> Void
 
     private var blurredPreviewURL: URL? {
         if isAwaitingManualDownload,
@@ -295,7 +292,6 @@ struct GlassmorphicVideoMessage: View {
         )
         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
         .contentShape(RoundedRectangle(cornerRadius: 16))
-        .onTapGesture(perform: onTap)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(NSLocalizedString("chat.a11y.video", comment: "Video message")))
         .accessibilityHint(Text(NSLocalizedString("chat.a11y.openMedia", comment: "Tap to open media")))
