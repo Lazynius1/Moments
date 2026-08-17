@@ -75,6 +75,7 @@ struct FeedView: View {
     @State private var peekAspectRatio: CGFloat = 1.0
     @State private var isPeeking = false
     @State private var peekIsProtected = false
+    @State private var storyRingPreviewSelection: FeedStoryRingPreviewSelection?
     
     @State private var targetMomentId: String? = nil
     @State private var showMomentDetail = false
@@ -153,6 +154,18 @@ struct FeedView: View {
                 badgeService: badgeService,
                 colorScheme: colorScheme
             )
+
+            FeedStoryRingPreviewOverlay(
+                selection: $storyRingPreviewSelection,
+                colorScheme: colorScheme,
+                onOpenStory: openStoryViewer,
+                onOpenProfile: openUserProfile,
+                onMuted: { userId in
+                    storyRingCoordinator.removeMutedUser(userId)
+                }
+            )
+            .ignoresSafeArea()
+            .zIndex(1600)
 
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -438,7 +451,13 @@ struct FeedView: View {
                 colorScheme: colorScheme,
                 pendingEchoes: pendingEchoes,
                 storyZoomNamespace: storyZoomNamespace,
-                onOpenStory: openStoryViewer
+                onOpenStory: openStoryViewer,
+                onPreviewStory: { userId, frame in
+                    storyRingPreviewSelection = FeedStoryRingPreviewSelection(
+                        userId: userId,
+                        anchorFrame: frame
+                    )
+                }
             )
             .offset(y: isFeedHeaderHidden ? -(feedHeaderHeight + 20) : 0)
             .opacity(isFeedHeaderHidden ? 0 : 1)

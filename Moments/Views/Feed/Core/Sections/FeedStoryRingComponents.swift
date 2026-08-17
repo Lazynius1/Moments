@@ -25,6 +25,103 @@ private struct FeedStoryRingAvatar<Avatar: View>: View {
     }
 }
 
+/// Frame en coordenadas de ventana, leído en el momento del long-press (no un `@State` que se queda en `.zero`).
+private final class FeedStoryCircleAnchorCapture {
+    var globalFrame: CGRect = .zero
+    weak var view: UIView?
+
+    var resolvedFrame: CGRect {
+        if let view {
+            let converted = view.convert(view.bounds, to: view.window)
+            if converted.width > 1, converted.height > 1 {
+                return converted
+            }
+        }
+        return globalFrame
+    }
+}
+
+private struct FeedStoryCircleAnchorProbe: UIViewRepresentable {
+    let capture: FeedStoryCircleAnchorCapture
+
+    func makeUIView(context: Context) -> HostView {
+        let view = HostView()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        view.capture = capture
+        capture.view = view
+        return view
+    }
+
+    func updateUIView(_ uiView: HostView, context: Context) {
+        uiView.capture = capture
+        capture.view = uiView
+    }
+
+    final class HostView: UIView {
+        weak var capture: FeedStoryCircleAnchorCapture?
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            capture?.view = self
+            if let window, bounds.width > 1, bounds.height > 1 {
+                capture?.globalFrame = convert(bounds, to: window)
+            }
+        }
+    }
+}
+
+/// Tap vs long-press without `Button`, so the tray scroll doesn't swallow the hold.
+private struct FeedStoryCirclePressModifier: ViewModifier {
+    @Binding var isPressing: Bool
+    let onTap: () -> Void
+    let onLongPress: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if let onLongPress {
+            content.chatMessagePressClassifier(
+                isPressing: $isPressing,
+                onTap: onTap,
+                onLongPress: onLongPress
+            )
+        } else {
+            content.onTapGesture(perform: onTap)
+        }
+    }
+}
+
+/// El `ScrollView` del anillo retrasa los toques (`delaysContentTouches`) y el long-press nunca arranca.
+struct FeedStoryRingScrollTouchFix: UIViewRepresentable {
+    func makeUIView(context: Context) -> HostView {
+        HostView()
+    }
+
+    func updateUIView(_ uiView: HostView, context: Context) {}
+
+    final class HostView: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            apply()
+        }
+
+        override func didMoveToSuperview() {
+            super.didMoveToSuperview()
+            apply()
+        }
+
+        private func apply() {
+            var node: UIView? = self
+            while let current = node {
+                if let scrollView = current as? UIScrollView {
+                    scrollView.delaysContentTouches = false
+                    return
+                }
+                node = current.superview
+            }
+        }
+    }
+}
+
 struct RealStoryCircle: View {
     let userId: String
     let fallbackUsername: String
@@ -37,41 +134,56 @@ struct RealStoryCircle: View {
     let colorScheme: ColorScheme
     var zoomNamespace: Namespace.ID? = nil
     var zoomSourceID: String? = nil
+    var onLongPress: ((CGRect) -> Void)? = nil
     let action: () -> Void
 
     private let avatarSize = StoryRingLayout.feedHeaderAvatarSize
     private let lineWidth = StoryRingLayout.feedHeaderLineWidth
 
+    @State private var isPressing = false
+    @State private var anchorCapture = FeedStoryCircleAnchorCapture()
+
     var body: some View {
         VStack(spacing: 3) {
-            Button(action: action) {
-                FeedStoryRingAvatar(
-                    avatarSize: avatarSize,
+            FeedStoryRingAvatar(
+                avatarSize: avatarSize,
+                lineWidth: lineWidth,
+                avatar: { AsyncProfileImageView(userId: userId) },
+                ring: StorySegmentedRing(
+                    storyCount: storyCount,
+                    hasStory: hasStory,
+                    hasUnseenStory: hasUnseenStory,
+                    storyViewedStatus: storyViewedStatus,
+                    storyAudiences: storyAudiences,
+                    isOwnStory: isOwnStory,
+                    colorScheme: colorScheme,
+                    ringSize: StoryRingLayout.ringStrokeDiameter(
+                        avatarSize: avatarSize,
+                        lineWidth: lineWidth
+                    ),
                     lineWidth: lineWidth,
-                    avatar: { AsyncProfileImageView(userId: userId) },
-                    ring: StorySegmentedRing(
-                        storyCount: storyCount,
-                        hasStory: hasStory,
-                        hasUnseenStory: hasUnseenStory,
-                        storyViewedStatus: storyViewedStatus,
-                        storyAudiences: storyAudiences,
-                        isOwnStory: isOwnStory,
-                        colorScheme: colorScheme,
-                        ringSize: StoryRingLayout.ringStrokeDiameter(
-                            avatarSize: avatarSize,
-                            lineWidth: lineWidth
-                        ),
-                        lineWidth: lineWidth,
-                        hapticsEnabled: true
-                    )
+                    hapticsEnabled: true
                 )
-            }
-            .buttonStyle(.momentsPress(scale: 0.94, haptic: .none))
+            )
             .modifier(HighlightZoomSourceModifier(
                 namespace: zoomNamespace,
                 sourceID: zoomSourceID,
                 size: StoryRingLayout.outerFrameSize(avatarSize: avatarSize, lineWidth: lineWidth)
             ))
+            .scaleEffect(isPressing ? 0.94 : 1)
+            .opacity(isPressing ? 0.88 : 1)
+            .animation(.easeOut(duration: 0.12), value: isPressing)
+            .contentShape(Circle())
+            .modifier(FeedStoryCirclePressModifier(
+                isPressing: $isPressing,
+                onTap: action,
+                onLongPress: onLongPress.map { callback in
+                    { [anchorCapture] in
+                        callback(anchorCapture.resolvedFrame)
+                    }
+                }
+            ))
+            .accessibilityAddTraits(.isButton)
 
             LiveUsernameContent(userId: userId, fallbackUsername: fallbackUsername) { username in
                 Text(username)
@@ -84,6 +196,18 @@ struct RealStoryCircle: View {
             }
         }
         .frame(width: 64)
+        .background {
+            ZStack {
+                FeedStoryCircleAnchorProbe(capture: anchorCapture)
+                GeometryReader { geometry in
+                    Color.clear
+                        .onAppear { anchorCapture.globalFrame = geometry.frame(in: .global) }
+                        .onChange(of: geometry.frame(in: .global)) { _, newValue in
+                            anchorCapture.globalFrame = newValue
+                        }
+                }
+            }
+        }
     }
 }
 

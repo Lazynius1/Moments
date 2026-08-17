@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import CoreMedia
 
 // MARK: - ✅ STICKER DE CLIMA ANIMADO
 struct AnimatedWeatherSticker: View {
@@ -532,6 +533,8 @@ class KeyboardIgnoringHostingController<Content: View>: UIHostingController<Cont
 // Diseñado específicamente para el visor de historias, manejando el ciclo de vida y loop correctamente.
 struct StickerVideoPlayer: UIViewRepresentable {
     let url: URL
+    var isMuted: Bool = true
+    var onDuration: ((TimeInterval) -> Void)? = nil
 
     func makeUIView(context: Context) -> StickerPlayerUIView {
         let view = StickerPlayerUIView(frame: .zero)
@@ -539,8 +542,8 @@ struct StickerVideoPlayer: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: StickerPlayerUIView, context: Context) {
-        // Asegurar que se reproduzca al actualizar si la URL cambió o la vista se recargó
-        uiView.play(url: url)
+        uiView.onDuration = onDuration
+        uiView.play(url: url, isMuted: isMuted)
     }
 
     class StickerPlayerUIView: UIView {
@@ -548,6 +551,8 @@ struct StickerVideoPlayer: UIViewRepresentable {
         private var player: AVPlayer?
         private var playerItem: AVPlayerItem?
         private var loopObserver: NSObjectProtocol?
+        private var reportedDurationURL: URL?
+        var onDuration: ((TimeInterval) -> Void)?
 
         override init(frame: CGRect) {
             super.init(frame: frame)
@@ -569,9 +574,10 @@ struct StickerVideoPlayer: UIViewRepresentable {
             playerLayer.frame = bounds
         }
 
-        func play(url: URL) {
+        func play(url: URL, isMuted: Bool) {
             // Evitar recrear si es la misma URL
             if let currentUrl = (player?.currentItem?.asset as? AVURLAsset)?.url, currentUrl == url {
+                player?.isMuted = isMuted
                 if player?.timeControlStatus != .playing {
                     player?.play()
                 }
@@ -587,13 +593,14 @@ struct StickerVideoPlayer: UIViewRepresentable {
             playerItem = item
 
             let newPlayer = AVPlayer(playerItem: item)
-            newPlayer.isMuted = true // ✅ Muteado por defecto para evitar conflictos de audio
+            newPlayer.isMuted = isMuted
             newPlayer.automaticallyWaitsToMinimizeStalling = false // Intentar reproducir ASAP
 
             player = newPlayer
             playerLayer.player = newPlayer
 
             newPlayer.play()
+            loadDuration(from: item, url: url)
 
             // ✅ Loop Infinito Robust
             loopObserver = NotificationCenter.default.addObserver(
@@ -603,6 +610,32 @@ struct StickerVideoPlayer: UIViewRepresentable {
             ) { [weak newPlayer] _ in
                 newPlayer?.seek(to: .zero)
                 newPlayer?.play()
+            }
+        }
+
+        private func emitDuration(_ seconds: TimeInterval, for url: URL) {
+            guard reportedDurationURL != url else { return }
+            reportedDurationURL = url
+            DispatchQueue.main.async { [weak self] in
+                self?.onDuration?(seconds)
+            }
+        }
+
+        private func loadDuration(from item: AVPlayerItem, url: URL) {
+            let immediate = item.duration
+            if immediate.isNumeric {
+                let seconds = CMTimeGetSeconds(immediate)
+                if seconds.isFinite, seconds > 0 {
+                    emitDuration(seconds, for: url)
+                    return
+                }
+            }
+            Task { [weak self] in
+                guard let asset = item.asset as? AVURLAsset else { return }
+                guard let duration = try? await asset.load(.duration) else { return }
+                let seconds = CMTimeGetSeconds(duration)
+                guard seconds.isFinite, seconds > 0 else { return }
+                self?.emitDuration(seconds, for: url)
             }
         }
 

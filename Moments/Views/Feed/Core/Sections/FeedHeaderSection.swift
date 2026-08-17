@@ -37,6 +37,7 @@ struct FeedHeaderBar: View {
     let pendingEchoes: [Echo]
     let storyZoomNamespace: Namespace.ID
     let onOpenStory: (String) -> Void
+    let onPreviewStory: (String, CGRect) -> Void
 
     var body: some View {
         HStack(spacing: 8) {
@@ -78,7 +79,11 @@ struct FeedHeaderBar: View {
                                 isOwnStory: false,
                                 colorScheme: colorScheme,
                                 zoomNamespace: storyZoomNamespace,
-                                zoomSourceID: "story-ring-\(storyUser.userId)"
+                                zoomSourceID: "story-ring-\(storyUser.userId)",
+                                onLongPress: { frame in
+                                    guard !storyUser.userId.isEmpty else { return }
+                                    onPreviewStory(storyUser.userId, frame)
+                                }
                             ) {
                                 guard !storyUser.userId.isEmpty else { return }
                                 onOpenStory(storyUser.userId)
@@ -99,6 +104,7 @@ struct FeedHeaderBar: View {
                     }
                     .padding(.leading, 12)
                     .padding(.trailing, 4)
+                    .background(FeedStoryRingScrollTouchFix())
                 }
             }
 

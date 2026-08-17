@@ -39,6 +39,10 @@ final class FeedStoryRingCoordinator: ObservableObject {
         cachedStoriesTimestamp = Date()
     }
 
+    func removeMutedUser(_ userId: String) {
+        storyUsers.removeAll { $0.userId == userId }
+    }
+
     func prefetchTopStoryUsers(excluding currentUserId: String?, firestoreService: FirestoreService = .shared) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
             guard let self else { return }
