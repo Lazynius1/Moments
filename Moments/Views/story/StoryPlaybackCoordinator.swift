@@ -35,8 +35,13 @@ final class StoryPlaybackCoordinator: ObservableObject {
         }
     }
 
-    func prepareStory(_ story: Story, onImageComplete: @escaping () -> Void) {
-        progress = 0.0
+    func prepareStory(_ story: Story, initialElapsed: TimeInterval = 0, onImageComplete: @escaping () -> Void) {
+        let duration = story.duration > 0 ? story.duration : defaultStoryDuration
+        if initialElapsed > 0, duration > 0 {
+            progress = min(max(initialElapsed / duration, 0.0), 0.99)
+        } else {
+            progress = 0.0
+        }
         isPaused = false
         currentStoryId = story.id
 

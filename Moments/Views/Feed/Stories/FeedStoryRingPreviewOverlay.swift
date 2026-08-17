@@ -13,7 +13,7 @@ struct FeedStoryRingPreviewOverlay: View {
     @Binding var selection: FeedStoryRingPreviewSelection?
 
     let colorScheme: ColorScheme
-    let onOpenStory: (String) -> Void
+    let onOpenStory: (String, String?, TimeInterval) -> Void
     let onOpenProfile: (String) -> Void
     let onMuted: (String) -> Void
 
@@ -43,6 +43,8 @@ struct FeedStoryRingPreviewOverlay: View {
     @State private var successMessage: String?
     @State private var resolvedUsername = ""
     @State private var soundEnabledInSession = GlobalVideoManager.shared.userHasEnabledSoundInSession
+    @State private var previewSegmentStartedAt: Date?
+    @State private var previewElapsedBeforePause: TimeInterval = 0
 
     @Environment(\.displayScale) private var displayScale
 
@@ -138,18 +140,21 @@ struct FeedStoryRingPreviewOverlay: View {
             }
             .onChange(of: selection?.userId) { _, userId in
                 guard let userId else {
+                    GlobalVideoManager.shared.endPlaybackHold()
                     isPresented = false
                     resetPreviewPlayback()
                     showMuteConfirmation = false
                     successMessage = nil
                     return
                 }
+                GlobalVideoManager.shared.beginPlaybackHold()
                 dismissGeneration += 1
                 isPresented = false
                 showMuteConfirmation = false
                 successMessage = nil
                 resetPreviewPlayback()
                 loadPreview(for: userId)
+                preparePreviewAudioIfNeeded()
                 DispatchQueue.main.async {
                     withAnimation(presentationAnimation) {
                         isPresented = true
@@ -158,8 +163,10 @@ struct FeedStoryRingPreviewOverlay: View {
             }
             .onChange(of: showMuteConfirmation) { _, isShowing in
                 if isShowing {
+                    pausePreviewSegmentClock()
                     advanceGeneration += 1
                 } else if selection != nil, isPresented {
+                    resumePreviewSegmentClock()
                     scheduleAdvance()
                 }
             }
@@ -178,7 +185,7 @@ struct FeedStoryRingPreviewOverlay: View {
     @ViewBuilder
     private func previewCard(size: CGSize, userId: String) -> some View {
         Button {
-            dismissOverlay { onOpenStory(userId) }
+            openCurrentPreviewStory(userId: userId)
         } label: {
             ZStack {
                 if previewStory == nil {
@@ -211,6 +218,7 @@ struct FeedStoryRingPreviewOverlay: View {
                                     DispatchQueue.main.async {
                                         isPreviewVideoReady = true
                                         resolvedVideoDuration = seconds
+                                        markPreviewSegmentStart()
                                         scheduleAdvance(videoDuration: seconds)
                                     }
                                 }
@@ -448,6 +456,7 @@ struct FeedStoryRingPreviewOverlay: View {
             previewStory = nil
             previewStickers = []
             advanceGeneration += 1
+            resetPreviewSegmentClock()
             return
         }
         previewIndex = min(previewIndex, previewStories.count - 1)
@@ -455,6 +464,7 @@ struct FeedStoryRingPreviewOverlay: View {
         previewStickers = resolvedPreviewStickers(for: previewStories[previewIndex])
         resolvedVideoDuration = nil
         isPreviewVideoReady = false
+        beginPreviewSegmentClockIfNeeded()
         scheduleAdvance()
     }
 
@@ -494,6 +504,7 @@ struct FeedStoryRingPreviewOverlay: View {
         previewStickers = resolvedPreviewStickers(for: previewStories[previewIndex])
         resolvedVideoDuration = nil
         isPreviewVideoReady = false
+        beginPreviewSegmentClockIfNeeded()
         scheduleAdvance()
     }
 
@@ -507,11 +518,54 @@ struct FeedStoryRingPreviewOverlay: View {
         previewStickers = []
         resolvedVideoDuration = nil
         isPreviewVideoReady = false
+        resetPreviewSegmentClock()
+    }
+
+    private func openCurrentPreviewStory(userId: String) {
+        let storyId = previewStory?.id
+        let elapsed = currentPreviewElapsed()
+        dismissOverlay { onOpenStory(userId, storyId, elapsed) }
+    }
+
+    private func beginPreviewSegmentClockIfNeeded() {
+        guard previewStory?.mediaItem.type != .video else {
+            resetPreviewSegmentClock()
+            return
+        }
+        markPreviewSegmentStart()
+    }
+
+    private func markPreviewSegmentStart() {
+        previewElapsedBeforePause = 0
+        previewSegmentStartedAt = Date()
+    }
+
+    private func resetPreviewSegmentClock() {
+        previewElapsedBeforePause = 0
+        previewSegmentStartedAt = nil
+    }
+
+    private func pausePreviewSegmentClock() {
+        previewElapsedBeforePause = currentPreviewElapsed()
+        previewSegmentStartedAt = nil
+    }
+
+    private func resumePreviewSegmentClock() {
+        guard previewSegmentStartedAt == nil else { return }
+        previewSegmentStartedAt = Date()
+    }
+
+    private func currentPreviewElapsed() -> TimeInterval {
+        var elapsed = previewElapsedBeforePause
+        if let startedAt = previewSegmentStartedAt {
+            elapsed += Date().timeIntervalSince(startedAt)
+        }
+        return max(0, elapsed)
     }
 
     private func preparePreviewAudioIfNeeded() {
         guard soundEnabledInSession else { return }
-        GlobalVideoManager.shared.pauseAllVideos()
+        StoryAudioSession.activate()
         Task {
             await MomentsAudioSession.activate(category: .playback, mode: .moviePlayback)
         }

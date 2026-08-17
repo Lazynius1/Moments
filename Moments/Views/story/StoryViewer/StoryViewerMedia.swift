@@ -42,6 +42,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     let isHorizontalVideo: Bool
     let videoGravity: AVLayerVideoGravity
     let shouldLoop: Bool
+    var initialSeek: TimeInterval = 0
     let onProgressUpdate: (Double) -> Void
     let onVideoComplete: () -> Void
 
@@ -73,6 +74,8 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         context.coordinator.onProgressUpdate = onProgressUpdate
         context.coordinator.onVideoComplete = onVideoComplete
         context.coordinator.currentURL = url // ✅ Track initial URL
+        context.coordinator.pendingSeek = initialSeek
+        context.coordinator.didApplySeek = false
 
         // ✅ CONFIGURAR OBSERVERS PARA PROGRESO
         context.coordinator.setupObservers()
@@ -118,6 +121,8 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             if let item = newPlayer.currentItem {
                 context.coordinator.observeReadyToPlay(for: item)
             }
+            context.coordinator.pendingSeek = initialSeek
+            context.coordinator.didApplySeek = false
 
             // 4. CONFIGURE GRAVITY
             context.coordinator.configureVideoGravity(for: uiViewController)
@@ -135,6 +140,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             // ✅ Solo reproducir si no está reproduciéndose
             if let player = uiViewController.player, player.currentItem != nil {
                 player.isMuted = isMutedExternally
+                context.coordinator.applyPendingSeekIfNeeded()
                 player.play()
             }
         } else if !isPlaying && playerIsPlaying {
@@ -156,6 +162,8 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         var onProgressUpdate: ((Double) -> Void)?
         var onVideoComplete: (() -> Void)?
         var currentURL: URL? // ✅ Track the intended URL
+        var pendingSeek: TimeInterval = 0
+        var didApplySeek = false
 
         var completionObserver: NSObjectProtocol? // ✅ Track observer for cleanup
         private var statusObserver: NSKeyValueObservation?
@@ -177,6 +185,9 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             statusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
                 DispatchQueue.main.async {
                     self?.setReadyToPlay(item.status == .readyToPlay)
+                    if item.status == .readyToPlay {
+                        self?.applyPendingSeekIfNeeded()
+                    }
                 }
             }
         }
@@ -184,6 +195,14 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         // 🎯 CONFIGURAR GRAVITY SEGÚN ORIENTACIÓN DEL VIDEO
         func configureVideoGravity(for controller: AVPlayerViewController) {
             controller.videoGravity = parent.videoGravity
+        }
+
+        func applyPendingSeekIfNeeded() {
+            guard !didApplySeek, pendingSeek > 0.05, let player else { return }
+            guard player.currentItem?.status == .readyToPlay else { return }
+            didApplySeek = true
+            let time = CMTime(seconds: pendingSeek, preferredTimescale: 600)
+            player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
         }
 
         func cleanupObservers() {

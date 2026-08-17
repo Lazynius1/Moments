@@ -49,7 +49,9 @@ struct FeedPresentationModifier: ViewModifier {
             .fullScreenCover(item: $selectedStoryRoute) { route in
                 StoriesView(
                     startAtUserId: route.userId,
-                    ringNavigationUserIds: storyRingNavigationUserIds
+                    ringNavigationUserIds: storyRingNavigationUserIds,
+                    startStoryId: route.startStoryId,
+                    startElapsed: route.startElapsed
                 )
                     .environmentObject(firestoreService)
                     .ignoresSafeArea(.keyboard)

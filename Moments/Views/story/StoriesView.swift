@@ -50,6 +50,9 @@ struct StoriesView: View {
     @State private var pendingUnseenResolveUserId: String?
     @State private var loadingTimeoutWorkItem: DispatchWorkItem?
     @State private var loadingOverlayState: StoryLoadingOverlayState = .loading
+    @State private var handoffStoryId: String = ""
+    @State private var handoffElapsed: TimeInterval = 0
+    @State private var didConsumeHandoffIndex = false
     private let loadingTimeout: TimeInterval = 3.0
 
     init(ringNavigationUserIds: [String] = []) {
@@ -77,11 +80,18 @@ struct StoriesView: View {
     }
 
     /// Carga todo el ring y empieza en `userId` (feed). Permite Deck Pass entre usuarios.
-    init(startAtUserId: String, ringNavigationUserIds: [String] = []) {
+    init(
+        startAtUserId: String,
+        ringNavigationUserIds: [String] = [],
+        startStoryId: String? = nil,
+        startElapsed: TimeInterval = 0
+    ) {
         self._startWithUserId = .constant(nil)
         self.shouldIncludeConnections = true
         self._initialTargetUserId = State(initialValue: startAtUserId)
         self._lockedRingNavigationUserIds = State(initialValue: ringNavigationUserIds.filter { !$0.isEmpty })
+        self._handoffStoryId = State(initialValue: startStoryId ?? "")
+        self._handoffElapsed = State(initialValue: startElapsed)
     }
 
     var body: some View {
@@ -303,7 +313,8 @@ struct StoriesView: View {
                     },
                     onProfileTap: {},
                     isDeckPageActive: isDeckPageActive,
-                    highlightTitle: highlightTitle
+                    highlightTitle: highlightTitle,
+                    initialElapsed: story.id == handoffStoryId ? handoffElapsed : 0
                 )
             } else {
                 Color.clear
@@ -750,6 +761,14 @@ struct StoriesView: View {
     }
 
     private func getFirstUnseenStoryIndexAsync(for stories: [Story], userId: String, completion: @escaping (Int) -> Void) {
+        if !didConsumeHandoffIndex,
+           !handoffStoryId.isEmpty,
+           let handoffIndex = stories.firstIndex(where: { $0.id == handoffStoryId }) {
+            didConsumeHandoffIndex = true
+            completion(handoffIndex)
+            return
+        }
+
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             completion(0)
             return

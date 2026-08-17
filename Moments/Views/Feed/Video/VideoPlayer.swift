@@ -32,6 +32,8 @@ class GlobalVideoManager: ObservableObject {
     static let shared = GlobalVideoManager()
     
     @Published private(set) var activeVideoId: String?
+    /// Overlay encima del feed: los posts no deben seguir sonando ni reanudarse por visibilidad.
+    @Published private(set) var isPlaybackHeld: Bool = false
     /// No @Published: el tick de progreso no debe re-renderizar el feed entero.
     private(set) var livePlaybackSeconds: [String: Double] = [:]
     private var allPlayers: [String: VideoPlayerManager] = [:]
@@ -106,6 +108,7 @@ class GlobalVideoManager: ObservableObject {
     }
     
     func playVideo(_ playerId: String) {
+        guard !isPlaybackHeld else { return }
         // ✅ PAUSAR todos los otros videos primero
         if let currentActive = activeVideoId, currentActive != playerId {
             allPlayers[currentActive]?.pauseVideo()
@@ -130,6 +133,17 @@ class GlobalVideoManager: ObservableObject {
         for (_, manager) in allPlayers {
             manager.pauseVideo()
         }
+    }
+
+    /// Overlay u otra UI encima del feed: pausa el post activo y evita que la visibilidad lo reanude.
+    func beginPlaybackHold() {
+        isPlaybackHeld = true
+        pauseAllVideos()
+    }
+
+    func endPlaybackHold() {
+        guard isPlaybackHeld else { return }
+        isPlaybackHeld = false
     }
     
     /// El usuario activó sonido en Reels u otro reproductor fuera del registro de feed.
@@ -431,6 +445,11 @@ struct ModernVideoPlayer: View {
         .onReceive(FeedVisibilityCoordinator.shared.$activeVideoMomentId) { activeId in
             applyActivationMode(activeId: activeId)
         }
+        .onReceive(globalManager.$isPlaybackHeld) { held in
+            if !held {
+                applyActivationMode(activeId: FeedVisibilityCoordinator.shared.activeVideoMomentId)
+            }
+        }
         .onTapGesture {
             if allowsPauseInteraction {
                 handleTap()
@@ -685,6 +704,10 @@ struct ModernVideoPlayer: View {
     }
 
     private func applyActivationMode(activeId: String?) {
+        if globalManager.isPlaybackHeld {
+            globalManager.pauseVideo(videoId)
+            return
+        }
         switch activationMode {
         case .feedVisibility:
             updatePlaybackForVisibility(activeId: activeId)

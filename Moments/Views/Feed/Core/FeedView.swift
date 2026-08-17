@@ -158,7 +158,9 @@ struct FeedView: View {
             FeedStoryRingPreviewOverlay(
                 selection: $storyRingPreviewSelection,
                 colorScheme: colorScheme,
-                onOpenStory: openStoryViewer,
+                onOpenStory: { userId, storyId, elapsed in
+                    openStoryViewer(for: userId, startStoryId: storyId, startElapsed: elapsed)
+                },
                 onOpenProfile: openUserProfile,
                 onMuted: { userId in
                     storyRingCoordinator.removeMutedUser(userId)
@@ -313,9 +315,17 @@ struct FeedView: View {
     }
 
     private func openStoryViewer(for userId: String) {
+        openStoryViewer(for: userId, startStoryId: nil, startElapsed: 0)
+    }
+
+    private func openStoryViewer(for userId: String, startStoryId: String?, startElapsed: TimeInterval) {
         guard !userId.isEmpty else { return }
         syncStoryRingNavigationOrder()
-        selectedStoryRoute = StoryUserPresentationRoute(userId: userId)
+        selectedStoryRoute = StoryUserPresentationRoute(
+            userId: userId,
+            startStoryId: startStoryId,
+            startElapsed: startElapsed
+        )
     }
     
     private func requestNotificationPermissionIfNeeded() {

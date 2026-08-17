@@ -1,3 +1,5 @@
+import Foundation
+
 struct FeedProfileSheetRoute: Identifiable, Equatable, Hashable {
     let userId: String
 
@@ -16,6 +18,14 @@ struct FeedEchoInvitationRoute: Identifiable {
 
 struct StoryUserPresentationRoute: Identifiable, Equatable {
     let userId: String
+    let startStoryId: String?
+    let startElapsed: TimeInterval
 
     var id: String { userId }
+
+    init(userId: String, startStoryId: String? = nil, startElapsed: TimeInterval = 0) {
+        self.userId = userId
+        self.startStoryId = startStoryId
+        self.startElapsed = startElapsed
+    }
 }

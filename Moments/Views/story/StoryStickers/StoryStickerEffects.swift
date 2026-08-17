@@ -575,9 +575,16 @@ struct StickerVideoPlayer: UIViewRepresentable {
         }
 
         func play(url: URL, isMuted: Bool) {
+            if !isMuted {
+                // Misma sesión que el visor: .playback ignora el switch de silencio.
+                // Hay que encolarla antes de play(); si no, el primer arranque queda mudo.
+                StoryAudioSession.activate()
+            }
+
             // Evitar recrear si es la misma URL
             if let currentUrl = (player?.currentItem?.asset as? AVURLAsset)?.url, currentUrl == url {
                 player?.isMuted = isMuted
+                player?.volume = isMuted ? 0 : 1
                 if player?.timeControlStatus != .playing {
                     player?.play()
                 }
@@ -594,6 +601,7 @@ struct StickerVideoPlayer: UIViewRepresentable {
 
             let newPlayer = AVPlayer(playerItem: item)
             newPlayer.isMuted = isMuted
+            newPlayer.volume = isMuted ? 0 : 1
             newPlayer.automaticallyWaitsToMinimizeStalling = false // Intentar reproducir ASAP
 
             player = newPlayer

@@ -28,6 +28,7 @@ struct StoryViewerScreen: View {
     let onProfileTap: () -> Void
     var isDeckPageActive: Bool
     var highlightTitle: String?
+    var initialElapsed: TimeInterval
 
     init(
         story: Story,
@@ -45,7 +46,8 @@ struct StoryViewerScreen: View {
         onClose: @escaping () -> Void,
         onProfileTap: @escaping () -> Void,
         isDeckPageActive: Bool = true,
-        highlightTitle: String? = nil
+        highlightTitle: String? = nil,
+        initialElapsed: TimeInterval = 0
     ) {
         self.story = story
         self.storyCount = storyCount
@@ -63,11 +65,13 @@ struct StoryViewerScreen: View {
         self.onProfileTap = onProfileTap
         self.isDeckPageActive = isDeckPageActive
         self.highlightTitle = highlightTitle
+        self.initialElapsed = initialElapsed
     }
 
     @State private var showMomentDetail: Bool = false
     @State private var targetMomentId: String? = nil
     @State private var targetMomentUserId: String? = nil
+    @State private var didApplyInitialElapsed = false
     @StateObject private var photosSaveGate = PermissionPrimerGate(.photosSave)
     @State private var messageText: String = ""
     @State private var showReactions: Bool = false
@@ -1308,6 +1312,7 @@ struct StoryViewerScreen: View {
                                 isHorizontalVideo: StoryViewerScreen.isHorizontalAspectRatio(story.aspectRatio),
                                 videoGravity: presentationMode.videoGravity,
                                 shouldLoop: false,
+                                initialSeek: didApplyInitialElapsed ? 0 : initialElapsed,
                                 onProgressUpdate: { newProgress in
                                     playbackCoordinator.updateVideoProgress(newProgress, for: story)
                                 },
@@ -2097,7 +2102,9 @@ struct StoryViewerScreen: View {
     // MARK: - Story Playback
 
     private func prepareAndStartStory() {
-        playbackCoordinator.prepareStory(story, onImageComplete: onNext)
+        let elapsed = didApplyInitialElapsed ? 0 : initialElapsed
+        didApplyInitialElapsed = true
+        playbackCoordinator.prepareStory(story, initialElapsed: elapsed, onImageComplete: onNext)
         loadAuthorInteractionSettings()
 
         guard isDeckPageActive else {
