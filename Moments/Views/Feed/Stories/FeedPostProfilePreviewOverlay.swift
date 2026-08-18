@@ -4,6 +4,7 @@ import Kingfisher
 
 struct FeedPostProfilePreviewSelection: Equatable {
     let userId: String
+    let momentId: String
     let anchorFrame: CGRect
 }
 
@@ -13,6 +14,8 @@ struct FeedPostProfilePreviewOverlay: View {
     let colorScheme: ColorScheme
     let messagingViewModel: MessagingViewModel
     let onOpenProfile: (String) -> Void
+    /// `false` al empezar a cerrar, para devolver el post al feed como el put-back del chat.
+    var onPresentedChange: (Bool) -> Void = { _ in }
 
     private let cardCornerRadius: CGFloat = 26
     private let horizontalInset: CGFloat = 16
@@ -116,6 +119,7 @@ struct FeedPostProfilePreviewOverlay: View {
             .onChange(of: selection?.userId) { _, userId in
                 guard userId != nil else {
                     GlobalVideoManager.shared.endPlaybackHold()
+                    onPresentedChange(false)
                     isPresented = false
                     showUnfollowConfirmation = false
                     unfollowViewModel = nil
@@ -242,6 +246,7 @@ struct FeedPostProfilePreviewOverlay: View {
         let generation = dismissGeneration
         showUnfollowConfirmation = false
         unfollowViewModel = nil
+        onPresentedChange(false)
         withAnimation(dismissalAnimation) {
             isPresented = false
         }
@@ -456,11 +461,16 @@ private struct FeedPostProfilePreviewCard: View {
 
     @ViewBuilder
     private func gridCell(_ moment: Moment) -> some View {
-        FeedPostProfilePreviewMomentThumb(
-            moment: moment,
-            size: gridCellSize,
-            displayScale: displayScale
-        )
+        ScreenshotProtectedView(
+            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+        ) {
+            FeedPostProfilePreviewMomentThumb(
+                moment: moment,
+                size: gridCellSize,
+                displayScale: displayScale
+            )
+        }
+        .frame(width: gridCellSize, height: gridCellSize)
     }
 
     @ViewBuilder

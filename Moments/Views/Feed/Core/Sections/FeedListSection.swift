@@ -38,7 +38,8 @@ struct FeedListSection: View {
     let onForceRefresh: () -> Void
     let onManualRefresh: (String) async -> Void
     let onOpenUserProfile: (String) -> Void
-    let onAuthorAvatarLongPress: (String, CGRect) -> Void
+    let onAuthorAvatarLongPress: (String, String, CGRect) -> Void
+    var hiddenMomentId: String? = nil
     let profileZoomNamespace: Namespace.ID
 
     var body: some View {
@@ -144,11 +145,20 @@ struct FeedListSection: View {
         reelsVideos: [VideoMoment]
     ) -> some View {
         VStack(spacing: rowSpacing) {
+            let isHiddenForPreview = !(hiddenMomentId ?? "").isEmpty && moment.id == hiddenMomentId
             feedMomentCard(
                 moment: moment,
                 availableHeight: availableHeight,
                 index: index,
                 reelsVideos: reelsVideos
+            )
+            .opacity(isHiddenForPreview ? 0 : 1)
+            .allowsHitTesting(!isHiddenForPreview)
+            .animation(
+                hiddenMomentId == nil
+                    ? (UIAccessibility.isReduceMotionEnabled ? nil : .easeInOut(duration: 0.26))
+                    : (UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.42, dampingFraction: 0.84)),
+                value: isHiddenForPreview
             )
 
             let adInterval = selectedFeedType == .forYou ? 3 : 5
@@ -179,7 +189,9 @@ struct FeedListSection: View {
                 onContextMenu: handleFeedContextMenu,
                 onTagTap: onOpenUserProfile,
                 onOpenUserProfile: onOpenUserProfile,
-                onAuthorAvatarLongPress: onAuthorAvatarLongPress,
+                onAuthorAvatarLongPress: { userId, frame in
+                    onAuthorAvatarLongPress(userId, moment.id ?? "", frame)
+                },
                 profileZoomNamespace: profileZoomNamespace,
                 onPeek: { imageURL, ratio, isPressing in
                     handleFeedPeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing, moment: moment)

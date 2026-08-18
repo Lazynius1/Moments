@@ -187,6 +187,11 @@ struct FeedStoryRingPreviewOverlay: View {
         Button {
             openCurrentPreviewStory(userId: userId)
         } label: {
+            ScreenshotProtectedView(
+                isProtected: (previewStory?.audience?.lowercased() ?? "") != "everyone",
+                fillsContainer: true,
+                cornerRadius: previewCornerRadius
+            ) {
             ZStack {
                 if previewStory == nil {
                     ProgressView()
@@ -260,6 +265,7 @@ struct FeedStoryRingPreviewOverlay: View {
                         .allowsHitTesting(false)
                     }
                 }
+            }
             }
             .id("\(previewStory?.id ?? "empty")-\(previewCycle)")
             .frame(width: size.width, height: size.height)
