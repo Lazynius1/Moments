@@ -37,14 +37,58 @@ struct MomentsFloatingTabBar: View {
     }
 
     private var tabImages: [UIImage] {
-        [
-            UIImage(systemName: "house.fill", withConfiguration: symbolConfig) ?? UIImage(),
+        if #available(iOS 26.0, *) {
+            return [
+                UIImage(systemName: "house.fill", withConfiguration: symbolConfig) ?? UIImage(),
+                messagesTabImage,
+                UIImage(systemName: "camera.aperture", withConfiguration: symbolConfig) ?? UIImage(),
+                UIImage(systemName: "magnifyingglass", withConfiguration: symbolConfig) ?? UIImage(),
+                profileSegmentImage
+                    ?? FloatingTabProfileSegmentRenderer.personPlaceholder(colorScheme: colorScheme),
+            ]
+        }
+
+        return [
+            tintedTabImage(named: "house.fill"),
             messagesTabImage,
-            UIImage(systemName: "camera.aperture", withConfiguration: symbolConfig) ?? UIImage(),
-            UIImage(systemName: "magnifyingglass", withConfiguration: symbolConfig) ?? UIImage(),
+            tintedTabImage(named: "camera.aperture"),
+            tintedTabImage(named: "magnifyingglass"),
             profileSegmentImage
                 ?? FloatingTabProfileSegmentRenderer.personPlaceholder(colorScheme: colorScheme),
         ]
+    }
+
+    private func tintedTabImage(named name: String) -> UIImage {
+        let image = UIImage(systemName: name, withConfiguration: symbolConfig) ?? UIImage()
+        let tint = colorScheme == .dark ? UIColor.white : UIColor(Color(hex: "0B1215"))
+        return image.withTintColor(tint, renderingMode: .alwaysOriginal)
+    }
+
+    private var selectedTabTintColor: UIColor {
+        if #available(iOS 26.0, *) {
+            return UIColor(Color.gray.opacity(0.25))
+        }
+        return colorScheme == .dark
+            ? UIColor.white.withAlphaComponent(0.18)
+            : UIColor.black.withAlphaComponent(0.12)
+    }
+
+    private var tabAccessibilityLabels: [String] {
+        [
+            NSLocalizedString("tabBar.home", comment: "Home tab title"),
+            NSLocalizedString("messaging.title", comment: "Messages tab title"),
+            NSLocalizedString("creator.title", comment: "Create tab title"),
+            NSLocalizedString("tabBar.explore", comment: "Explore tab title"),
+            NSLocalizedString("tabBar.profile", comment: "Profile tab title"),
+        ]
+    }
+
+    private var preservedTabImageIndices: Set<Int> {
+        var indices: Set<Int> = [4] // El avatar/ring mantiene sus colores propios.
+        if badgeService.unreadMessagesCount > 0 {
+            indices.insert(1) // Mantiene el punto rojo de mensajes no leídos.
+        }
+        return indices
     }
 
     /// Puntito estilo Instagram (7pt) abajo-trailing — lejos de la punta del paperplane.
@@ -73,12 +117,29 @@ struct MomentsFloatingTabBar: View {
     }
 
     var body: some View {
-        MomentsFloatingSegmentedTabBar(
-            selection: tabSelection,
-            images: tabImages,
-            onInteraction: { minimize.expand() },
-            onReselect: { handleReselect($0) }
-        )
+        Group {
+            if #available(iOS 26.0, *) {
+                MomentsFloatingSegmentedTabBar(
+                    selection: tabSelection,
+                    images: tabImages,
+                    selectedTintColor: selectedTabTintColor,
+                    accessibilityLabels: tabAccessibilityLabels,
+                    preservesImageColors: preservedTabImageIndices,
+                    onInteraction: { minimize.expand() },
+                    onReselect: { handleReselect($0) }
+                )
+            } else {
+                MomentsFloatingSwiftUITabBar(
+                    selection: tabSelection,
+                    images: tabImages,
+                    selectedTintColor: selectedTabTintColor,
+                    accessibilityLabels: tabAccessibilityLabels,
+                    preservesImageColors: preservedTabImageIndices,
+                    onInteraction: { minimize.expand() },
+                    onReselect: { handleReselect($0) }
+                )
+            }
+        }
         .frame(height: 54)
         .padding(4)
         .background {
@@ -153,5 +214,69 @@ struct MomentsFloatingTabBar: View {
             guard !Task.isCancelled else { return }
             profileSegmentImage = image
         }
+    }
+}
+
+/// Tabbar nativa SwiftUI para iOS 18.x. Evita el chrome interno de
+/// UISegmentedControl, que en iOS 18 vuelve a dibujar una segunda cápsula.
+private struct MomentsFloatingSwiftUITabBar: View {
+    @Binding var selection: Int
+    let images: [UIImage]
+    let selectedTintColor: UIColor
+    let accessibilityLabels: [String]
+    let preservesImageColors: Set<Int>
+    let onInteraction: () -> Void
+    let onReselect: (Int) -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(images.indices, id: \.self) { index in
+                let image: UIImage = images[index]
+                let imageSize: CGFloat = index == 4 ? 42 : 23
+                Button {
+                    onInteraction()
+                    if selection == index {
+                        onReselect(index)
+                    } else {
+                        selection = index
+                    }
+                } label: {
+                    ZStack {
+                        if selection == index {
+                            Capsule()
+                                .fill(Color(uiColor: selectedTintColor))
+                                .padding(.vertical, 3)
+                        }
+
+                        if preservesImageColors.contains(index) {
+                            Image(uiImage: image)
+                                .renderingMode(.original)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: imageSize, height: imageSize)
+                        } else {
+                            Image(uiImage: image)
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: imageSize, height: imageSize)
+                                .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    Text(verbatim: accessibilityLabels.indices.contains(index)
+                        ? accessibilityLabels[index]
+                        : "Tab \(index + 1)")
+                )
+                .accessibilityAddTraits(selection == index ? [.isSelected] : [])
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

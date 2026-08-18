@@ -2809,8 +2809,8 @@
 
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Floating tab bar, chat recovery, adaptive video and smoother Reels.";
-"whatsNew.button" = "Explore Moments 2.19";
+"whatsNew.subtitle" = "Profile and story previews, more reliable comments and a new chat menu.";
+"whatsNew.button" = "Explore Moments 2.20";
 
 
 
@@ -4419,7 +4419,25 @@
 "permission.tracking.denied.subtitle" = "Turn on tracking in Settings › Privacy › Tracking to get more relevant ads.";
 "permission.tracking.denied.openSettings" = "Open Settings";
 
-// MARK: - What's New 2.18
+// MARK: - What's New 2.20
+
+"whatsNew.section220.title" = "Moments 2.20";
+"whatsNew.section219.title" = "Moments 2.19";
+
+"whatsNew.profilePreview.title" = "Profile preview";
+"whatsNew.profilePreview.description" = "Long-press a post avatar or username to see a profile preview.";
+"whatsNew.storyPreview.title" = "Story preview";
+"whatsNew.storyPreview.description" = "Long-press a story ring to see a preview. Tap to open it full screen and pick up right where you left off.";
+"whatsNew.feedToggle.title" = "Feed toggle";
+"whatsNew.feedToggle.description" = "On launch, the Moments wordmark morphs into Following and Discover.";
+"whatsNew.nestedComments.title" = "Nested comments";
+"whatsNew.nestedComments.description" = "Fixed a bug where comments sometimes failed to appear.";
+"whatsNew.chatGestures.title" = "Tap in chat";
+"whatsNew.chatGestures.description" = "Tap a photo or video to open it right away.";
+"whatsNew.chatLongPress.title" = "Long-press in chat";
+"whatsNew.chatLongPress.description" = "New context menu: the message lifts, you can see if it was read, and with the menu open a tap opens that photo, video or location.";
+
+// MARK: - What's New 2.19
 
 "whatsNew.floatingTabBar.title" = "Floating tab bar";
 "whatsNew.floatingTabBar.description" = "A new floating tab bar with liquid glass. Nova and Messages have swapped places.";

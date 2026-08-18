@@ -2801,8 +2801,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novidades no Moments!";
-"whatsNew.subtitle" = "Barra de abas flutuante, recuperação do chat, vídeo adaptativo e Reels mais fluidos.";
-"whatsNew.button" = "Explorar o Moments 2.19";
+"whatsNew.subtitle" = "Preview de perfil e stories, comentários mais confiáveis e um menu novo no chat.";
+"whatsNew.button" = "Explorar o Moments 2.20";
 
 
 
@@ -4384,7 +4384,25 @@
 "permission.tracking.denied.subtitle" = "Ative o rastreamento em Ajustes › Privacidade › Rastreamento para ver anúncios mais relevantes.";
 "permission.tracking.denied.openSettings" = "Abrir Ajustes";
 
-// MARK: - What's New 2.18
+// MARK: - What's New 2.20
+
+"whatsNew.section220.title" = "Moments 2.20";
+"whatsNew.section219.title" = "Moments 2.19";
+
+"whatsNew.profilePreview.title" = "Preview de perfil";
+"whatsNew.profilePreview.description" = "Toque e segure o avatar ou o nome em um post para ver uma prévia do perfil.";
+"whatsNew.storyPreview.title" = "Preview de stories";
+"whatsNew.storyPreview.description" = "Toque e segure o anel para ver uma prévia. Ao tocar, abre em tela cheia e retoma exatamente de onde você parou.";
+"whatsNew.feedToggle.title" = "Seletor do feed";
+"whatsNew.feedToggle.description" = "Ao abrir o Moments, o wordmark se transforma em Following e Discover.";
+"whatsNew.nestedComments.title" = "Comentários aninhados";
+"whatsNew.nestedComments.description" = "Corrigido um erro em que, às vezes, os comentários não apareciam.";
+"whatsNew.chatGestures.title" = "Toque no chat";
+"whatsNew.chatGestures.description" = "Toque em uma foto ou vídeo para abrir na hora.";
+"whatsNew.chatLongPress.title" = "Toque e segure no chat";
+"whatsNew.chatLongPress.description" = "Novo menu contextual: a mensagem se eleva, você vê se foi lida e, com o menu aberto, um toque abre aquela foto, vídeo ou localização.";
+
+// MARK: - What's New 2.19
 
 "whatsNew.floatingTabBar.title" = "Barra de abas flutuante";
 "whatsNew.floatingTabBar.description" = "Nova barra de abas flutuante com vidro líquido. Nova e Mensagens trocaram de lugar.";

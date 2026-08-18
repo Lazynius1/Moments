@@ -2822,8 +2822,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Barra de pestanyes flotant, recuperació del xat, vídeo adaptatiu i Reels més fluids.";
-"whatsNew.button" = "Explorar Moments 2.19";
+"whatsNew.subtitle" = "Preview de perfil i històries, comentaris més fiables i un menú nou al xat.";
+"whatsNew.button" = "Explorar Moments 2.20";
 
 
 
@@ -4404,7 +4404,25 @@
 "permission.tracking.denied.subtitle" = "Activa el seguiment a Configuració › Privadesa › Seguiment per veure anuncis més rellevants.";
 "permission.tracking.denied.openSettings" = "Obre Configuració";
 
-// MARK: - What's New 2.18
+// MARK: - What's New 2.20
+
+"whatsNew.section220.title" = "Moments 2.20";
+"whatsNew.section219.title" = "Moments 2.19";
+
+"whatsNew.profilePreview.title" = "Preview de perfil";
+"whatsNew.profilePreview.description" = "Mantén premut l'avatar o el nom d'un post per veure una previsualització del perfil.";
+"whatsNew.storyPreview.title" = "Preview d'històries";
+"whatsNew.storyPreview.description" = "Mantén premut l'anell per veure una previsualització. En tocar, s'obre a pantalla completa i reprèn just on ho vas deixar.";
+"whatsNew.feedToggle.title" = "Selector del feed";
+"whatsNew.feedToggle.description" = "En obrir Moments, el wordmark es transforma en Following i Discover.";
+"whatsNew.nestedComments.title" = "Comentaris imbricats";
+"whatsNew.nestedComments.description" = "Corregit un error pel qual, de vegades, els comentaris no es mostraven.";
+"whatsNew.chatGestures.title" = "Toca al xat";
+"whatsNew.chatGestures.description" = "Toca una foto o un vídeo per obrir-lo al moment.";
+"whatsNew.chatLongPress.title" = "Mantén premut al xat";
+"whatsNew.chatLongPress.description" = "Nou menú contextual: el missatge s'eleva, veus si s'ha llegit i, amb el menú obert, un toc obre aquella foto, vídeo o ubicació.";
+
+// MARK: - What's New 2.19
 
 "whatsNew.floatingTabBar.title" = "Barra de pestanyes flotant";
 "whatsNew.floatingTabBar.description" = "Nova barra de pestanyes flotant amb vidre líquid. Nova i Messages han canviat de lloc.";

@@ -767,14 +767,18 @@ struct LoginDisclaimerView: View {
                 .foregroundStyle(primaryText.opacity(0.42))
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
 
             (
                 Text(NSLocalizedString("login.disclaimer.line2.prefix", comment: "Login disclaimer prefix"))
                     .foregroundStyle(primaryText.opacity(0.42))
+                + Text(verbatim: " ")
                 + Text("lazynius")
                     .foregroundStyle(primaryText.opacity(0.78))
+                + Text(verbatim: " ")
                 + Text(NSLocalizedString("login.disclaimer.line2.middle", comment: "Login disclaimer middle"))
                     .foregroundStyle(primaryText.opacity(0.42))
+                + Text(verbatim: " ")
                 + Text("Moments")
                     .foregroundStyle(primaryText.opacity(0.78))
                 + Text(NSLocalizedString("login.disclaimer.line2.suffix", comment: "Login disclaimer suffix"))
@@ -783,6 +787,10 @@ struct LoginDisclaimerView: View {
             .font(.caption.weight(.medium))
             .multilineTextAlignment(.center)
             .lineSpacing(2)
+            .frame(maxWidth: .infinity)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 4)
+            .layoutPriority(1)
         }
         .frame(maxWidth: .infinity)
     }

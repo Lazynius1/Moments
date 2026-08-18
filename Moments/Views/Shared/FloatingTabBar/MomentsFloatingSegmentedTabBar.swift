@@ -5,13 +5,16 @@ import UIKit
 struct MomentsFloatingSegmentedTabBar: UIViewRepresentable {
     @Binding var selection: Int
     var images: [UIImage]
+    var selectedTintColor: UIColor
+    var accessibilityLabels: [String]
+    var preservesImageColors: Set<Int>
     var onInteraction: () -> Void
     var onReselect: (Int) -> Void
 
     func makeUIView(context: Context) -> MomentsFloatingSegmentedControl {
         let control = MomentsFloatingSegmentedControl(items: images)
         control.selectedSegmentIndex = clampedSelection
-        control.selectedSegmentTintColor = UIColor(Color.gray.opacity(0.25))
+        control.selectedSegmentTintColor = selectedTintColor
         control.addTarget(
             context.coordinator,
             action: #selector(Coordinator.valueChanged(_:)),
@@ -20,7 +23,8 @@ struct MomentsFloatingSegmentedTabBar: UIViewRepresentable {
         control.onTouchBegan = onInteraction
         control.onReselect = onReselect
 
-        // Quitar fondos internos para que se vea el glass Moments.
+        // Este control solo se conserva para iOS 26+, donde el chrome nativo
+        // sigue siendo el comportamiento visual esperado.
         DispatchQueue.main.async {
             for subview in control.subviews {
                 if subview is UIImageView && subview != control.subviews.last {
@@ -36,6 +40,7 @@ struct MomentsFloatingSegmentedTabBar: UIViewRepresentable {
         context.coordinator.parent = self
         uiView.onTouchBegan = onInteraction
         uiView.onReselect = onReselect
+        uiView.selectedSegmentTintColor = selectedTintColor
 
         let index = clampedSelection
         if uiView.selectedSegmentIndex != index {

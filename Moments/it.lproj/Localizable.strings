@@ -2801,8 +2801,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novita su Moments!";
-"whatsNew.subtitle" = "Barra delle schede flottante, recupero chat, video adattivo e Reels più fluidi.";
-"whatsNew.button" = "Esplora Moments 2.19";
+"whatsNew.subtitle" = "Anteprima di profilo e storie, commenti più affidabili e un nuovo menu in chat.";
+"whatsNew.button" = "Esplora Moments 2.20";
 
 
 
@@ -4384,7 +4384,25 @@
 "permission.tracking.denied.subtitle" = "Attiva il tracciamento in Impostazioni › Privacy › Tracciamento per vedere annunci più pertinenti.";
 "permission.tracking.denied.openSettings" = "Apri Impostazioni";
 
-// MARK: - What's New 2.18
+// MARK: - What's New 2.20
+
+"whatsNew.section220.title" = "Moments 2.20";
+"whatsNew.section219.title" = "Moments 2.19";
+
+"whatsNew.profilePreview.title" = "Anteprima profilo";
+"whatsNew.profilePreview.description" = "Tieni premuto l'avatar o il nome in un post per vedere un'anteprima del profilo.";
+"whatsNew.storyPreview.title" = "Anteprima storie";
+"whatsNew.storyPreview.description" = "Tieni premuto l'anello per vedere un'anteprima. Un tocco la apre a schermo intero e riprende esattamente da dove hai lasciato.";
+"whatsNew.feedToggle.title" = "Selettore del feed";
+"whatsNew.feedToggle.description" = "All'apertura, il wordmark di Moments si trasforma in Following e Discover.";
+"whatsNew.nestedComments.title" = "Commenti nidificati";
+"whatsNew.nestedComments.description" = "Corretto un errore per cui a volte i commenti non venivano mostrati.";
+"whatsNew.chatGestures.title" = "Tocca in chat";
+"whatsNew.chatGestures.description" = "Tocca una foto o un video per aprirlo subito.";
+"whatsNew.chatLongPress.title" = "Tieni premuto in chat";
+"whatsNew.chatLongPress.description" = "Nuovo menu contestuale: il messaggio si solleva, vedi se è stato letto e, con il menu aperto, un tocco apre quella foto, video o posizione.";
+
+// MARK: - What's New 2.19
 
 "whatsNew.floatingTabBar.title" = "Barra delle schede flottante";
 "whatsNew.floatingTabBar.description" = "Nuova barra delle schede flottante in vetro liquido. Nova e Messaggi hanno scambiato posto.";

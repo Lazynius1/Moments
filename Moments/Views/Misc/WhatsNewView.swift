@@ -5,7 +5,32 @@ struct WhatsNewView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var appearAnimation = false
 
-    private var features: [WhatsNewFeature] {
+    private var features220: [WhatsNewFeature] {
+        [
+            WhatsNewFeature(
+                icon: .system("person.crop.rectangle"),
+                title: NSLocalizedString("whatsNew.profilePreview.title", comment: ""),
+                description: NSLocalizedString("whatsNew.profilePreview.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .storyRing,
+                title: NSLocalizedString("whatsNew.storyPreview.title", comment: ""),
+                description: NSLocalizedString("whatsNew.storyPreview.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("bubble.left.and.bubble.right"),
+                title: NSLocalizedString("whatsNew.nestedComments.title", comment: ""),
+                description: NSLocalizedString("whatsNew.nestedComments.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("hand.point.up.left"),
+                title: NSLocalizedString("whatsNew.chatLongPress.title", comment: ""),
+                description: NSLocalizedString("whatsNew.chatLongPress.description", comment: "")
+            ),
+        ]
+    }
+
+    private var features219: [WhatsNewFeature] {
         [
             WhatsNewFeature(
                 icon: .system("dock.rectangle"),
@@ -46,7 +71,20 @@ struct WhatsNewView: View {
                 icon: .system("eye.slash.fill"),
                 title: NSLocalizedString("whatsNew.viewOnce.title", comment: ""),
                 description: NSLocalizedString("whatsNew.viewOnce.description", comment: "")
-            )
+            ),
+        ]
+    }
+
+    private var sections: [WhatsNewSection] {
+        [
+            WhatsNewSection(
+                title: NSLocalizedString("whatsNew.section220.title", comment: ""),
+                features: features220
+            ),
+            WhatsNewSection(
+                title: NSLocalizedString("whatsNew.section219.title", comment: ""),
+                features: features219
+            ),
         ]
     }
 
@@ -70,9 +108,24 @@ struct WhatsNewView: View {
                         header
                             .padding(.top, 22)
 
-                        VStack(spacing: 10) {
-                            ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
-                                WhatsNewFeatureRow(feature: feature, delay: Double(index) * 0.04)
+                        VStack(spacing: 18) {
+                            ForEach(Array(sections.enumerated()), id: \.offset) { sectionIndex, section in
+                                VStack(alignment: .leading, spacing: 10) {
+                                    if !section.title.isEmpty {
+                                        Text(section.title)
+                                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+                                            .foregroundStyle(.secondary)
+                                            .textCase(.uppercase)
+                                            .tracking(0.6)
+                                            .padding(.horizontal, 4)
+                                            .padding(.top, sectionIndex == 0 ? 0 : 4)
+                                    }
+
+                                    ForEach(Array(section.features.enumerated()), id: \.offset) { featureIndex, feature in
+                                        let rowIndex = sections.prefix(sectionIndex).reduce(0) { $0 + $1.features.count } + featureIndex
+                                        WhatsNewFeatureRow(feature: feature, delay: Double(rowIndex) * 0.04)
+                                    }
+                                }
                             }
                         }
 
@@ -133,7 +186,7 @@ struct WhatsNewView: View {
                 ForEach(Array(developerNote.enumerated()), id: \.offset) { index, item in
                     WhatsNewFeatureRow(
                         feature: item,
-                        delay: Double(features.count + index) * 0.04
+                        delay: Double(sections.reduce(0) { $0 + $1.features.count } + index) * 0.04
                     )
                 }
             }
@@ -170,6 +223,11 @@ struct WhatsNewView: View {
     }
 }
 
+private struct WhatsNewSection {
+    let title: String
+    let features: [WhatsNewFeature]
+}
+
 private struct WhatsNewFeature {
     let icon: WhatsNewFeatureIcon
     let title: String
@@ -186,6 +244,7 @@ private enum WhatsNewFeatureIcon {
 private struct WhatsNewFeatureRow: View {
     let feature: WhatsNewFeature
     let delay: Double
+    @Environment(\.colorScheme) private var colorScheme
     @State private var appear = false
 
     var body: some View {
@@ -239,7 +298,7 @@ private struct WhatsNewFeatureRow: View {
                     storyViewedStatus: [false, false, false],
                     storyAudiences: [nil, nil, nil],
                     isOwnStory: false,
-                    colorScheme: .dark,
+                    colorScheme: colorScheme,
                     ringSize: 26,
                     lineWidth: 2.4,
                     hapticsEnabled: false

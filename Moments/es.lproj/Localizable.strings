@@ -2832,8 +2832,8 @@
 /* Whats New v2.14 */
 /* Whats New v2.16 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Tab bar flotante, recuperación de chat, vídeo adaptativo y Reels más fluidos.";
-"whatsNew.button" = "Explorar Moments 2.19";
+"whatsNew.subtitle" = "Preview de perfil e historias, comentarios más fiables y un menú nuevo en el chat.";
+"whatsNew.button" = "Explorar Moments 2.20";
 
 
 
@@ -4440,7 +4440,25 @@
 "permission.tracking.denied.subtitle" = "Activa el seguimiento en Ajustes › Privacidad › Seguimiento para ver anuncios más relevantes.";
 "permission.tracking.denied.openSettings" = "Abrir Ajustes";
 
-// MARK: - What's New 2.18
+// MARK: - What's New 2.20
+
+"whatsNew.section220.title" = "Moments 2.20";
+"whatsNew.section219.title" = "Moments 2.19";
+
+"whatsNew.profilePreview.title" = "Preview de perfil";
+"whatsNew.profilePreview.description" = "Mantén pulsado el avatar o el nombre en un post para ver una previsualización del perfil.";
+"whatsNew.storyPreview.title" = "Preview de historias";
+"whatsNew.storyPreview.description" = "Mantén pulsado el anillo para ver una previsualización. Al tocar, se abre a pantalla completa y retoma justo donde lo dejaste.";
+"whatsNew.feedToggle.title" = "Selector del feed";
+"whatsNew.feedToggle.description" = "Al abrir Moments, el wordmark se transforma en Following y Discover.";
+"whatsNew.nestedComments.title" = "Comentarios anidados";
+"whatsNew.nestedComments.description" = "Corregido un fallo por el que, a veces, los comentarios no se mostraban.";
+"whatsNew.chatGestures.title" = "Toca en el chat";
+"whatsNew.chatGestures.description" = "Toca una foto o un vídeo para abrirlo al momento.";
+"whatsNew.chatLongPress.title" = "Mantén pulsado en el chat";
+"whatsNew.chatLongPress.description" = "Nuevo menú contextual: el mensaje se eleva, ves si se ha leído y, con el menú abierto, un toque abre esa foto, vídeo o ubicación.";
+
+// MARK: - What's New 2.19
 
 "whatsNew.floatingTabBar.title" = "Tab bar flotante";
 "whatsNew.floatingTabBar.description" = "Nueva barra de pestañas flotante con cristal líquido. Nova y Messages intercambiados de sitio.";

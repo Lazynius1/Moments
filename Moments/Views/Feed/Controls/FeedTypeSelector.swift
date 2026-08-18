@@ -171,23 +171,93 @@ private struct NativeFeedSegments: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ZStack(alignment: selectedFeedType == .following ? .leading : .trailing) {
-            // Destino invisible del morph: conserva su dirección sin añadir
-            // una segunda capa de color sobre la selección nativa.
-            Capsule()
-                .fill(Color.clear)
-                .frame(width: 84, height: 32)
-                .matchedGeometryEffect(id: "background", in: namespace)
-                .allowsHitTesting(false)
+        Group {
+            if #available(iOS 26.0, *) {
+            ZStack(alignment: selectedFeedType == .following ? .leading : .trailing) {
+                Capsule()
+                    .fill(Color.clear)
+                    .frame(width: 84, height: 32)
+                    .matchedGeometryEffect(id: "background", in: namespace)
+                    .allowsHitTesting(false)
 
-            FeedNativeSegmentedControl(
-                selectedFeedType: $selectedFeedType,
-                colorScheme: colorScheme
-            )
-            .frame(width: 168, height: 32)
+                FeedNativeSegmentedControl(
+                    selectedFeedType: $selectedFeedType,
+                    colorScheme: colorScheme
+                )
+                .frame(width: 168, height: 32)
+            }
+            } else {
+                HStack(spacing: 4) {
+                    ForEach(FeedType.allCases, id: \.self) { feedType in
+                        FeedSegmentButton(
+                            feedType: feedType,
+                            isSelected: selectedFeedType == feedType,
+                            colorScheme: colorScheme,
+                            namespace: namespace
+                        ) {
+                            guard selectedFeedType != feedType else { return }
+                            withAnimation(MotionPolicy.reduceMotion ? nil : MotionPolicy.Spring.toggle) {
+                                selectedFeedType = feedType
+                            }
+                            HapticManager.shared.selection()
+                        }
+                    }
+                }
+                .frame(width: 168, height: 32)
+            }
         }
         .frame(width: 168, height: 32)
         .animation(MotionPolicy.reduceMotion ? nil : MotionPolicy.Spring.toggle, value: selectedFeedType)
+    }
+}
+
+private struct FeedSegmentButton: View {
+    let feedType: FeedType
+    let isSelected: Bool
+    let colorScheme: ColorScheme
+    let namespace: Namespace.ID
+    let action: () -> Void
+
+    private var labelColor: Color {
+        colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.78)
+    }
+
+    private var selectedLabelColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var selectedBackground: AnyShapeStyle {
+        if colorScheme == .dark {
+            return AnyShapeStyle(feedHighlightGradient.opacity(0.68))
+        }
+        return AnyShapeStyle(Color.black.opacity(0.12))
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: feedType.icon)
+                    .symbolRenderingMode(.monochrome)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(feedType.title)
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(isSelected ? selectedLabelColor : labelColor)
+            .frame(maxWidth: .infinity, minHeight: 32)
+            .padding(.horizontal, 9)
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(selectedBackground)
+                        .matchedGeometryEffect(id: "background", in: namespace)
+                }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 

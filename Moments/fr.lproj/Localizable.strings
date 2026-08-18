@@ -2801,8 +2801,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Nouveautes sur Moments!";
-"whatsNew.subtitle" = "Barre d'onglets flottante, récupération du chat, vidéo adaptative et Reels plus fluides.";
-"whatsNew.button" = "Découvrir Moments 2.19";
+"whatsNew.subtitle" = "Aperçus de profil et de stories, commentaires plus fiables et un nouveau menu dans le chat.";
+"whatsNew.button" = "Découvrir Moments 2.20";
 
 
 
@@ -4384,7 +4384,25 @@
 "permission.tracking.denied.subtitle" = "Active le suivi dans Réglages › Confidentialité › Suivi pour voir des publicités plus pertinentes.";
 "permission.tracking.denied.openSettings" = "Ouvrir les réglages";
 
-// MARK: - What's New 2.18
+// MARK: - What's New 2.20
+
+"whatsNew.section220.title" = "Moments 2.20";
+"whatsNew.section219.title" = "Moments 2.19";
+
+"whatsNew.profilePreview.title" = "Aperçu de profil";
+"whatsNew.profilePreview.description" = "Appuie longuement sur l'avatar ou le nom d'un post pour voir un aperçu du profil.";
+"whatsNew.storyPreview.title" = "Aperçu de stories";
+"whatsNew.storyPreview.description" = "Appuie longuement sur l'anneau pour voir un aperçu. Un tap l'ouvre en plein écran et reprend pile où tu t'étais arrêté.";
+"whatsNew.feedToggle.title" = "Sélecteur du fil";
+"whatsNew.feedToggle.description" = "À l'ouverture, le wordmark Moments se transforme en Following et Discover.";
+"whatsNew.nestedComments.title" = "Commentaires imbriqués";
+"whatsNew.nestedComments.description" = "Correction d'un bug où les commentaires n'apparaissaient parfois pas.";
+"whatsNew.chatGestures.title" = "Touche dans le chat";
+"whatsNew.chatGestures.description" = "Touche une photo ou une vidéo pour l'ouvrir tout de suite.";
+"whatsNew.chatLongPress.title" = "Appui long dans le chat";
+"whatsNew.chatLongPress.description" = "Nouveau menu contextuel : le message se soulève, tu vois s'il a été lu, et avec le menu ouvert un tap ouvre cette photo, vidéo ou position.";
+
+// MARK: - What's New 2.19
 
 "whatsNew.floatingTabBar.title" = "Barre d'onglets flottante";
 "whatsNew.floatingTabBar.description" = "Nouvelle barre d'onglets flottante en verre liquide. Nova et Messages ont échangé leurs places.";

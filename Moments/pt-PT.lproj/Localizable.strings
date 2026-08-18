@@ -3611,8 +3611,8 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "Novidades no Moments!";
-"whatsNew.subtitle" = "Barra de separadores flutuante, recuperação do chat, vídeo adaptativo e Reels mais fluidos.";
-"whatsNew.button" = "Explorar o Moments 2.19";
+"whatsNew.subtitle" = "Pré-visualização de perfil e histórias, comentários mais fiáveis e um menu novo no chat.";
+"whatsNew.button" = "Explorar o Moments 2.20";
 
 
 
@@ -5194,7 +5194,25 @@
 "permission.tracking.denied.subtitle" = "Ativa o rastreio em Definições › Privacidade › Rastreio para veres anúncios mais relevantes.";
 "permission.tracking.denied.openSettings" = "Abrir Definições";
 
-// MARK: - What's New 2.18
+// MARK: - What's New 2.20
+
+"whatsNew.section220.title" = "Moments 2.20";
+"whatsNew.section219.title" = "Moments 2.19";
+
+"whatsNew.profilePreview.title" = "Pré-visualização de perfil";
+"whatsNew.profilePreview.description" = "Mantém premido o avatar ou o nome num post para ver uma pré-visualização do perfil.";
+"whatsNew.storyPreview.title" = "Pré-visualização de histórias";
+"whatsNew.storyPreview.description" = "Mantém premido o anel para ver uma pré-visualização. Ao tocar, abre em ecrã inteiro e retoma exatamente onde paraste.";
+"whatsNew.feedToggle.title" = "Seletor do feed";
+"whatsNew.feedToggle.description" = "Ao abrir o Moments, o wordmark transforma-se em Following e Discover.";
+"whatsNew.nestedComments.title" = "Comentários aninhados";
+"whatsNew.nestedComments.description" = "Corrigido um erro em que, por vezes, os comentários não apareciam.";
+"whatsNew.chatGestures.title" = "Toca no chat";
+"whatsNew.chatGestures.description" = "Toca numa foto ou num vídeo para o abrir de imediato.";
+"whatsNew.chatLongPress.title" = "Mantém premido no chat";
+"whatsNew.chatLongPress.description" = "Novo menu contextual: a mensagem eleva-se, vês se foi lida e, com o menu aberto, um toque abre aquela foto, vídeo ou localização.";
+
+// MARK: - What's New 2.19
 
 "whatsNew.floatingTabBar.title" = "Barra de separadores flutuante";
 "whatsNew.floatingTabBar.description" = "Nova barra de separadores flutuante com vidro líquido. Nova e Mensagens trocaram de lugar.";

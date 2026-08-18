@@ -389,20 +389,12 @@ struct LiquidGlassButton: View {
 // MARK: - Layout auth (login / registro sobre el fondo, sin caja contenedora)
 private struct AuthScreenContentWidthModifier: ViewModifier {
     func body(content: Content) -> some View {
-        let screenWidth = UIApplication.shared.activeWindowSize.width
-        let margin: CGFloat
-        if screenWidth < 380 {
-            margin = 20
-        } else if screenWidth < 390 {
-            margin = 28
-        } else if screenWidth < 500 {
-            margin = 36
-        } else {
-            margin = 40
-        }
+        // El mismo ancho útil funciona desde un mini hasta un Pro Max y evita
+        // depender de activeWindowSize, que puede quedar desactualizado durante
+        // la presentación de una escena o en el simulador.
         return content
-            .frame(maxWidth: screenWidth >= 500 ? 400 : .infinity)
-            .padding(.horizontal, margin)
+            .padding(.horizontal, 20)
+            .frame(maxWidth: 400)
             .frame(maxWidth: .infinity)
     }
 }
@@ -414,18 +406,9 @@ extension View {
     }
 
     func authScreenHorizontalPadding() -> some View {
-        let screenWidth = UIApplication.shared.activeWindowSize.width
-        let margin: CGFloat
-        if screenWidth < 380 {
-            margin = 20
-        } else if screenWidth < 390 {
-            margin = 28
-        } else if screenWidth < 500 {
-            margin = 36
-        } else {
-            margin = 40
-        }
-        return padding(.horizontal, margin)
+        // Mantener el hit target completo dentro del safe area en todos los
+        // iPhone; el ancho del formulario ya tiene su propio maxWidth.
+        return padding(.horizontal, 20)
     }
 }
 
