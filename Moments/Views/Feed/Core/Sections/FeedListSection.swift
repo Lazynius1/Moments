@@ -38,6 +38,7 @@ struct FeedListSection: View {
     let onForceRefresh: () -> Void
     let onManualRefresh: (String) async -> Void
     let onOpenUserProfile: (String) -> Void
+    let onAuthorAvatarLongPress: (String, CGRect) -> Void
     let profileZoomNamespace: Namespace.ID
 
     var body: some View {
@@ -178,6 +179,7 @@ struct FeedListSection: View {
                 onContextMenu: handleFeedContextMenu,
                 onTagTap: onOpenUserProfile,
                 onOpenUserProfile: onOpenUserProfile,
+                onAuthorAvatarLongPress: onAuthorAvatarLongPress,
                 profileZoomNamespace: profileZoomNamespace,
                 onPeek: { imageURL, ratio, isPressing in
                     handleFeedPeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing, moment: moment)

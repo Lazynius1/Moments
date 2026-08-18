@@ -1215,6 +1215,7 @@
 /* Audience Types */
 "audience.type.everyone" = "Alle";
 "audience.type.connections" = "Gemeinsame";
+"audience.type.mutuals" = "Gemeinsame";
 "audience.type.bestFriends" = "Enge Freunde";
 "audience.type.custom" = "Individuell";
 "audience.type.customList" = "Individuelle Liste";

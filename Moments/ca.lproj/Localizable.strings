@@ -1216,6 +1216,7 @@
 /* Audience Types */
 "audience.type.everyone" = "Tothom";
 "audience.type.connections" = "Mútues";
+"audience.type.mutuals" = "Mútues";
 "audience.type.bestFriends" = "Millors amics";
 "audience.type.custom" = "Personalitzat";
 "audience.type.customList" = "Llista personalitzada";

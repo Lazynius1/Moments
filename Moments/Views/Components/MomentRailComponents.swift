@@ -218,6 +218,7 @@ struct ModernFollowButton: View {
     let isLoading: Bool
     let colorScheme: ColorScheme
     var style: Style = .standard
+    var isMutual: Bool = false
     let action: () -> Void
     
     private var adaptiveColors: AdaptiveColors {
@@ -237,6 +238,12 @@ struct ModernFollowButton: View {
                         .progressViewStyle(CircularProgressViewStyle())
                         .scaleEffect(0.8)
                         .tint(adaptiveColors.primary)
+                } else if showsMutuals {
+                    AudienceIconView(
+                        audience: .mutuals,
+                        size: isCompact ? 11 : 13,
+                        tintColor: adaptiveColors.primary
+                    )
                 } else {
                     Image(systemName: iconName)
                         .font(.system(size: isCompact ? 11 : 14, weight: .semibold))
@@ -257,7 +264,15 @@ struct ModernFollowButton: View {
         .opacity(isPassiveState ? 0.78 : 1)
     }
 
+    private var showsMutuals: Bool {
+        isMutual && state == .following
+    }
+
     private var title: String {
+        if showsMutuals {
+            return NSLocalizedString("audience.type.mutuals", comment: "")
+        }
+
         switch state {
         case .following:
             return NSLocalizedString("userProfile.followButton.following", comment: "")

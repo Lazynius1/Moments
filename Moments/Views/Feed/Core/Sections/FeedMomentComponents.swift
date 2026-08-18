@@ -194,6 +194,7 @@ struct ModernPostCardView: View {
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation Callback
     var onOpenUserProfile: ((String) -> Void)? = nil
     var onAuthorAvatarTap: ((String, Bool) -> Void)? = nil
+    var onAuthorAvatarLongPress: ((String, CGRect) -> Void)? = nil
     var profileZoomNamespace: Namespace.ID? = nil
     var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK: (imageURL, realRatio, isPressing)
     /// Sesión Reels de esta superficie (feed / perfil / explore…). Evita mezclar con `VideoMomentsIndex.shared`.
@@ -212,6 +213,8 @@ struct ModernPostCardView: View {
     @State private var showTags: Bool = false // ✅ NUEVO: Estado global para etiquetas en el post
     @State private var isImmersive: Bool = false // ✅ NUEVO: Modo inmersivo
     @State private var realAspectRatio: CGFloat = 1.0 // ✅ Ratio real sin cap (para long press reveal)
+    @State private var isAuthorAvatarPressing = false
+    @State private var authorAvatarAnchorCapture = FeedStoryCircleAnchorCapture()
 
     // ✅ ACTUALIZADO: AspectRatioType mejorado con soporte para reels
     @State private var aspectRatioType: AspectRatioType = .square
@@ -233,6 +236,7 @@ struct ModernPostCardView: View {
          onTagTap: ((String) -> Void)? = nil,
          onOpenUserProfile: ((String) -> Void)? = nil,
          onAuthorAvatarTap: ((String, Bool) -> Void)? = nil,
+         onAuthorAvatarLongPress: ((String, CGRect) -> Void)? = nil,
          profileZoomNamespace: Namespace.ID? = nil,
          onPeek: ((String, CGFloat, Bool) -> Void)? = nil,
          reelsVideos: [VideoMoment]? = nil) {
@@ -248,6 +252,7 @@ struct ModernPostCardView: View {
         self.onTagTap = onTagTap
         self.onOpenUserProfile = onOpenUserProfile
         self.onAuthorAvatarTap = onAuthorAvatarTap
+        self.onAuthorAvatarLongPress = onAuthorAvatarLongPress
         self.profileZoomNamespace = profileZoomNamespace
         self.onPeek = onPeek
         self.reelsVideos = reelsVideos
@@ -585,9 +590,35 @@ struct ModernPostCardView: View {
             StoryRingAvatarView(
                 userId: moment.authorId,
                 size: 44,
-                profileZoomNamespace: profileZoomNamespace,
-                onTap: handleAuthorAvatarTap
+                profileZoomNamespace: profileZoomNamespace
             )
+            .scaleEffect(isAuthorAvatarPressing ? 0.94 : 1)
+            .opacity(isAuthorAvatarPressing ? 0.88 : 1)
+            .animation(.easeOut(duration: 0.12), value: isAuthorAvatarPressing)
+            .contentShape(Circle())
+            .modifier(FeedStoryCirclePressModifier(
+                isPressing: $isAuthorAvatarPressing,
+                onTap: resolveAuthorAvatarTap,
+                onLongPress: onAuthorAvatarLongPress.map { callback in
+                    { [authorAvatarAnchorCapture] in
+                        let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !authorId.isEmpty else { return }
+                        callback(authorId, authorAvatarAnchorCapture.resolvedFrame)
+                    }
+                }
+            ))
+            .background {
+                ZStack {
+                    FeedStoryCircleAnchorProbe(capture: authorAvatarAnchorCapture)
+                    GeometryReader { geometry in
+                        Color.clear
+                            .onAppear { authorAvatarAnchorCapture.globalFrame = geometry.frame(in: .global) }
+                            .onChange(of: geometry.frame(in: .global)) { _, newValue in
+                                authorAvatarAnchorCapture.globalFrame = newValue
+                            }
+                    }
+                }
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .center, spacing: 4) {
@@ -666,6 +697,27 @@ struct ModernPostCardView: View {
             showSpecificUserStories = true
         } else {
             openAuthorProfile()
+        }
+    }
+
+    private func resolveAuthorAvatarTap() {
+        let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !authorId.isEmpty else { return }
+
+        guard let viewerId = Auth.auth().currentUser?.uid else {
+            handleAuthorAvatarTap(hasStory: false)
+            return
+        }
+
+        StoryRingResolverService.shared.resolve(
+            viewerId: viewerId,
+            authorId: authorId,
+            privacyService: privacyService,
+            useCache: true
+        ) { snapshot in
+            DispatchQueue.main.async {
+                handleAuthorAvatarTap(hasStory: snapshot.hasStory)
+            }
         }
     }
 

@@ -55,6 +55,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     private var targetVisibleFollowingIds: Set<String> = []
     private var targetVisibleFollowerIds: Set<String> = []
     private var lastSuggestionsSignature: String?
+    private var momentsFetchLimit: Int = 50
 
     // Cache local para tracking de unfollows recientes
     private var recentUnfollows: Set<String> = []
@@ -84,7 +85,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         }
     }
 
-    func fetchProfile() {
+    func fetchProfile(momentsLimit: Int = 50) {
+        momentsFetchLimit = max(1, momentsLimit)
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             isLoading = false
             return
@@ -117,7 +119,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         // ✅ SwiftData: Moments cacheados del perfil (evita el flash a "No moments yet" sin red)
         let cachedMoments = LocalPersistenceService.shared.loadProfileMoments(userId: userId, viewerId: currentUserId)
         if !cachedMoments.isEmpty && self.moments.isEmpty {
-            self.moments = cachedMoments
+            self.moments = Array(cachedMoments.prefix(self.momentsFetchLimit))
         }
 
         // ✅ Cargar conexiones del caché
@@ -566,10 +568,15 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 return
             }
 
-            if let result = await BackendFeedService.shared.fetchProfileMoments(targetUserId: self.userId, limit: 50) {
+            if let result = await BackendFeedService.shared.fetchProfileMoments(
+                targetUserId: self.userId,
+                limit: self.momentsFetchLimit
+            ) {
                 self.moments = result.moments
                 self.isLoadingMoments = false
-                LocalPersistenceService.shared.saveProfileMoments(result.moments, userId: self.userId, viewerId: currentUserId, sync: true)
+                if self.momentsFetchLimit >= 50 {
+                    LocalPersistenceService.shared.saveProfileMoments(result.moments, userId: self.userId, viewerId: currentUserId, sync: true)
+                }
                 completion?()
                 return
             }
@@ -584,9 +591,11 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 case .success(let allMoments):
                     self.filterMomentsForAudience(moments: allMoments, viewerId: currentUserId) { filteredMoments in
                         DispatchQueue.main.async {
-                            self.moments = filteredMoments
+                            self.moments = Array(filteredMoments.prefix(self.momentsFetchLimit))
                             self.isLoadingMoments = false
-                            LocalPersistenceService.shared.saveProfileMoments(filteredMoments, userId: self.userId, viewerId: currentUserId, sync: true)
+                            if self.momentsFetchLimit >= 50 {
+                                LocalPersistenceService.shared.saveProfileMoments(filteredMoments, userId: self.userId, viewerId: currentUserId, sync: true)
+                            }
                             completion?()
                         }
                     }
@@ -672,6 +681,20 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 self.followButtonState = reconciledState
                 self.isFollowing = (reconciledState == .following)
                 FollowStateStore.shared.setState(reconciledState, for: self.userId)
+            }
+        }
+    }
+
+    func refreshMutualRelationship() {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              currentUserId != userId else {
+            isMutualRelationship = false
+            return
+        }
+
+        privacyService.checkMutualConnection(user1: currentUserId, user2: userId) { [weak self] isMutual in
+            DispatchQueue.main.async {
+                self?.isMutualRelationship = isMutual
             }
         }
     }
@@ -853,6 +876,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                         self.followButtonState = .following
                         self.isFollowing = true
                         FollowStateStore.shared.setState(.following, for: userId)
+                        self.refreshMutualRelationship()
 
                         if self.visibleConnectionTypes.canViewMutuals,
                            let follower = self.followers.first(where: { $0.id == userId }),
@@ -958,6 +982,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
                 self.followButtonState = nextState
                 self.isFollowing = false
+                self.isMutualRelationship = false
 
                 if self.userProfile?.isPrivate == true {
                     self.canViewContent = false

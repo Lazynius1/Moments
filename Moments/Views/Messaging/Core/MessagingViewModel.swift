@@ -12,6 +12,7 @@ class MessagingViewModel: ObservableObject {
     @Published var selectedConversation: Conversation?
     @Published var errorMessage: String?
     @Published var requiresMessageRequest: Bool = false
+    @Published var presentationRoute: MessagingPresentationRoute?
 
     @Published var filteredConversations: [Conversation] = []
     @Published var searchedUsers: [AppUser] = []

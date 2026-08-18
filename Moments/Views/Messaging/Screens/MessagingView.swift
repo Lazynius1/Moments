@@ -138,6 +138,10 @@ struct MessagingView: View {
             .onChange(of: viewModel.conversations) { _, newConversations in
                 resolvePendingTargetConversation(in: newConversations)
             }
+            .onChange(of: viewModel.presentationRoute) { _, route in
+                guard route != nil else { return }
+                consumePresentationRouteIfNeeded()
+            }
     }
 
     private func applyMessagingForegroundObservers<V: View>(to content: V) -> some View {
@@ -347,7 +351,20 @@ struct MessagingView: View {
             navigateToConversation(id: targetId)
         }
 
+        consumePresentationRouteIfNeeded()
+
         triggerCatchUpIfNeeded()
+    }
+
+    private func consumePresentationRouteIfNeeded() {
+        guard let route = viewModel.presentationRoute else { return }
+        viewModel.presentationRoute = nil
+        switch route {
+        case .conversation(let conversation):
+            selectedConversation = conversation
+        case .pendingChat(let context):
+            pendingChatContext = context
+        }
     }
 
     private func handleConversationIdsChange() {

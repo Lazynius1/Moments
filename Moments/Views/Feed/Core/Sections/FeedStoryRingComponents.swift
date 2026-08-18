@@ -26,7 +26,7 @@ private struct FeedStoryRingAvatar<Avatar: View>: View {
 }
 
 /// Frame en coordenadas de ventana, leído en el momento del long-press (no un `@State` que se queda en `.zero`).
-private final class FeedStoryCircleAnchorCapture {
+final class FeedStoryCircleAnchorCapture {
     var globalFrame: CGRect = .zero
     weak var view: UIView?
 
@@ -41,7 +41,7 @@ private final class FeedStoryCircleAnchorCapture {
     }
 }
 
-private struct FeedStoryCircleAnchorProbe: UIViewRepresentable {
+struct FeedStoryCircleAnchorProbe: UIViewRepresentable {
     let capture: FeedStoryCircleAnchorCapture
 
     func makeUIView(context: Context) -> HostView {
@@ -72,7 +72,7 @@ private struct FeedStoryCircleAnchorProbe: UIViewRepresentable {
 }
 
 /// Tap vs long-press without `Button`, so the tray scroll doesn't swallow the hold.
-private struct FeedStoryCirclePressModifier: ViewModifier {
+struct FeedStoryCirclePressModifier: ViewModifier {
     @Binding var isPressing: Bool
     let onTap: () -> Void
     let onLongPress: (() -> Void)?

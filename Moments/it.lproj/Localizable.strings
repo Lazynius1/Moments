@@ -1215,6 +1215,7 @@
 /* Audience Types */
 "audience.type.everyone" = "Tutti";
 "audience.type.connections" = "In comune";
+"audience.type.mutuals" = "In comune";
 "audience.type.bestFriends" = "Amici stretti";
 "audience.type.custom" = "Personalizzato";
 "audience.type.customList" = "Lista personalizzata";

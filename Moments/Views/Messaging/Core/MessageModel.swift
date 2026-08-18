@@ -487,6 +487,12 @@ struct PendingChatTimelineMessage: Identifiable, Hashable {
 }
 
 // MARK: - Conversation Model
+
+enum MessagingPresentationRoute: Equatable {
+    case conversation(Conversation)
+    case pendingChat(PendingChatContext)
+}
+
 struct Conversation: Identifiable, Codable, Hashable {
     @DocumentID var id: String?
     let participants: [String]

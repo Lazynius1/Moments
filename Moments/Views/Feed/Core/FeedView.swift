@@ -76,6 +76,7 @@ struct FeedView: View {
     @State private var isPeeking = false
     @State private var peekIsProtected = false
     @State private var storyRingPreviewSelection: FeedStoryRingPreviewSelection?
+    @State private var postProfilePreviewSelection: FeedPostProfilePreviewSelection?
     
     @State private var targetMomentId: String? = nil
     @State private var showMomentDetail = false
@@ -168,6 +169,15 @@ struct FeedView: View {
             )
             .ignoresSafeArea()
             .zIndex(1600)
+
+            FeedPostProfilePreviewOverlay(
+                selection: $postProfilePreviewSelection,
+                colorScheme: colorScheme,
+                messagingViewModel: messagingViewModel,
+                onOpenProfile: openUserProfile
+            )
+            .ignoresSafeArea()
+            .zIndex(1601)
 
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -443,6 +453,12 @@ struct FeedView: View {
                 onForceRefresh: forceRefresh,
                 onManualRefresh: performManualRefresh,
                 onOpenUserProfile: openUserProfile,
+                onAuthorAvatarLongPress: { userId, frame in
+                    postProfilePreviewSelection = FeedPostProfilePreviewSelection(
+                        userId: userId,
+                        anchorFrame: frame
+                    )
+                },
                 profileZoomNamespace: profileZoomNamespace
             )
                 .ignoresSafeArea(edges: .top)
