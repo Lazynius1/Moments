@@ -194,7 +194,7 @@ struct ModernPostCardView: View {
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation Callback
     var onOpenUserProfile: ((String) -> Void)? = nil
     var onAuthorAvatarTap: ((String, Bool) -> Void)? = nil
-    var onAuthorAvatarLongPress: ((String, CGRect) -> Void)? = nil
+    var onAuthorAvatarLongPress: ((String, CGRect, CGRect) -> Void)? = nil
     var profileZoomNamespace: Namespace.ID? = nil
     var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK: (imageURL, realRatio, isPressing)
     /// Sesión Reels de esta superficie (feed / perfil / explore…). Evita mezclar con `VideoMomentsIndex.shared`.
@@ -214,7 +214,9 @@ struct ModernPostCardView: View {
     @State private var isImmersive: Bool = false // ✅ NUEVO: Modo inmersivo
     @State private var realAspectRatio: CGFloat = 1.0 // ✅ Ratio real sin cap (para long press reveal)
     @State private var isAuthorAvatarPressing = false
+    @State private var isAuthorUsernamePressing = false
     @State private var authorAvatarAnchorCapture = FeedStoryCircleAnchorCapture()
+    @State private var postCardAnchorCapture = FeedStoryCircleAnchorCapture()
 
     // ✅ ACTUALIZADO: AspectRatioType mejorado con soporte para reels
     @State private var aspectRatioType: AspectRatioType = .square
@@ -236,7 +238,7 @@ struct ModernPostCardView: View {
          onTagTap: ((String) -> Void)? = nil,
          onOpenUserProfile: ((String) -> Void)? = nil,
          onAuthorAvatarTap: ((String, Bool) -> Void)? = nil,
-         onAuthorAvatarLongPress: ((String, CGRect) -> Void)? = nil,
+         onAuthorAvatarLongPress: ((String, CGRect, CGRect) -> Void)? = nil,
          profileZoomNamespace: Namespace.ID? = nil,
          onPeek: ((String, CGFloat, Bool) -> Void)? = nil,
          reelsVideos: [VideoMoment]? = nil) {
@@ -525,6 +527,15 @@ struct ModernPostCardView: View {
             .opacity(isImmersive ? 0 : 1)
             .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
         }
+        .background {
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear { postCardAnchorCapture.globalFrame = geometry.frame(in: .global) }
+                    .onChange(of: geometry.frame(in: .global)) { _, newValue in
+                        postCardAnchorCapture.globalFrame = newValue
+                    }
+            }
+        }
         .feedMomentVisibility(momentId: GlobalVideoManager.profileVideoConsumerId(for: moment))
         .onAppear {
             if !hasLoadedInitialData {
@@ -599,13 +610,7 @@ struct ModernPostCardView: View {
             .modifier(FeedStoryCirclePressModifier(
                 isPressing: $isAuthorAvatarPressing,
                 onTap: resolveAuthorAvatarTap,
-                onLongPress: onAuthorAvatarLongPress.map { callback in
-                    { [authorAvatarAnchorCapture] in
-                        let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !authorId.isEmpty else { return }
-                        callback(authorId, authorAvatarAnchorCapture.resolvedFrame)
-                    }
-                }
+                onLongPress: authorProfileLongPressAction
             ))
             .background {
                 ZStack {
@@ -622,12 +627,15 @@ struct ModernPostCardView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .center, spacing: 4) {
-                    Button(action: openAuthorProfile) {
-                        Text(displayAuthorUsername)
-                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                            .foregroundStyle(adaptiveColors.primary)
-                    }
-                    .buttonStyle(PlainButtonStyle())
+                    Text(displayAuthorUsername)
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                        .foregroundStyle(adaptiveColors.primary)
+                        .contentShape(Rectangle())
+                        .modifier(FeedStoryCirclePressModifier(
+                            isPressing: $isAuthorUsernamePressing,
+                            onTap: openAuthorProfile,
+                            onLongPress: authorProfileLongPressAction
+                        ))
 
                     // ✅ INSIGNIA DE VERIFICADO
                     if moment.authorId == Auth.auth().currentUser?.uid {
@@ -908,6 +916,20 @@ struct ModernPostCardView: View {
             onOpenUserProfile(authorId)
         } else {
             LegacyNavigationBridge.userProfileInFeed(userId: authorId)
+        }
+    }
+
+    private var authorProfileLongPressAction: (() -> Void)? {
+        onAuthorAvatarLongPress.map { callback in
+            {
+                let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !authorId.isEmpty else { return }
+                callback(
+                    authorId,
+                    authorAvatarAnchorCapture.resolvedFrame,
+                    postCardAnchorCapture.resolvedFrame
+                )
+            }
         }
     }
 

@@ -6,6 +6,7 @@ struct FeedPostProfilePreviewSelection: Equatable {
     let userId: String
     let momentId: String
     let anchorFrame: CGRect
+    let postFrame: CGRect
 }
 
 struct FeedPostProfilePreviewOverlay: View {
@@ -27,6 +28,7 @@ struct FeedPostProfilePreviewOverlay: View {
 
     @State private var isPresented = false
     @State private var dismissGeneration = 0
+    @State private var cardSurfaceOpacity: CGFloat = 1
     @State private var showUnfollowConfirmation = false
     @State private var unfollowViewModel: UserProfileViewModel?
 
@@ -53,7 +55,8 @@ struct FeedPostProfilePreviewOverlay: View {
             ZStack {
                 if let selection {
                     let layout = previewLayout(for: selection, in: proxy)
-                    let cardCenter = isPresented ? layout.targetCenter : layout.naturalCenter
+                    let cardCenter = isPresented ? layout.targetCenter : layout.morphCenter
+                    let cardScale = isPresented ? 1 : layout.morphScale
 
                     Color.black.opacity(isPresented ? 0.28 : 0)
                         .ignoresSafeArea()
@@ -85,9 +88,10 @@ struct FeedPostProfilePreviewOverlay: View {
                         }
                     )
                     .frame(width: layout.cardWidth)
-                    .scaleEffect(isPresented ? 1 : 0.92, anchor: .center)
-                    .opacity(isPresented ? 1 : 0)
+                    .scaleEffect(cardScale, anchor: .center)
+                    .opacity(cardSurfaceOpacity)
                     .position(x: cardCenter.x, y: cardCenter.y)
+                    .animation(isPresented ? presentationAnimation : dismissalAnimation, value: isPresented)
                     .shadow(
                         color: .black.opacity(isPresented ? 0.28 : 0),
                         radius: isPresented ? 28 : 0,
@@ -127,6 +131,7 @@ struct FeedPostProfilePreviewOverlay: View {
                 }
                 GlobalVideoManager.shared.beginPlaybackHold()
                 dismissGeneration += 1
+                cardSurfaceOpacity = 1
                 isPresented = false
                 showUnfollowConfirmation = false
                 unfollowViewModel = nil
@@ -149,7 +154,8 @@ struct FeedPostProfilePreviewOverlay: View {
         cardWidth: CGFloat,
         contentWidth: CGFloat,
         gridCellSize: CGFloat,
-        naturalCenter: CGPoint,
+        morphCenter: CGPoint,
+        morphScale: CGFloat,
         targetCenter: CGPoint
     ) {
         let overlayGlobal = proxy.frame(in: .global)
@@ -158,6 +164,12 @@ struct FeedPostProfilePreviewOverlay: View {
             y: selection.anchorFrame.minY - overlayGlobal.minY,
             width: selection.anchorFrame.width,
             height: selection.anchorFrame.height
+        )
+        let post = CGRect(
+            x: selection.postFrame.minX - overlayGlobal.minX,
+            y: selection.postFrame.minY - overlayGlobal.minY,
+            width: selection.postFrame.width,
+            height: selection.postFrame.height
         )
 
         let cardWidth = max(300, proxy.size.width - horizontalInset * 2)
@@ -176,8 +188,19 @@ struct FeedPostProfilePreviewOverlay: View {
 
         let minCenterX = horizontalInset + cardWidth / 2
         let maxCenterX = max(minCenterX, proxy.size.width - horizontalInset - cardWidth / 2)
-        let naturalCenterX = min(max(anchor.midX, minCenterX), maxCenterX)
-        let naturalCenterY = anchor.maxY + avatarGap + cardHeight / 2
+        let avatarFallbackCenterX = min(max(anchor.midX, minCenterX), maxCenterX)
+        let avatarFallbackCenterY = anchor.maxY + avatarGap + cardHeight / 2
+
+        let hasMorph = post.width > 1 && post.height > 1
+        let morphCenter: CGPoint
+        let morphScale: CGFloat
+        if hasMorph {
+            morphCenter = CGPoint(x: post.midX, y: post.midY)
+            morphScale = min(max(min(post.width / cardWidth, post.height / cardHeight), 0.01), 1)
+        } else {
+            morphCenter = CGPoint(x: avatarFallbackCenterX, y: avatarFallbackCenterY)
+            morphScale = 0.92
+        }
 
         let safeMidY = proxy.safeAreaInsets.top
             + (proxy.size.height - proxy.safeAreaInsets.top - proxy.safeAreaInsets.bottom) / 2
@@ -190,7 +213,8 @@ struct FeedPostProfilePreviewOverlay: View {
             cardWidth,
             contentWidth,
             gridCellSize,
-            CGPoint(x: naturalCenterX, y: naturalCenterY),
+            morphCenter,
+            morphScale,
             CGPoint(x: targetCenterX, y: targetCenterY)
         )
     }
@@ -246,15 +270,24 @@ struct FeedPostProfilePreviewOverlay: View {
         let generation = dismissGeneration
         showUnfollowConfirmation = false
         unfollowViewModel = nil
-        onPresentedChange(false)
+        cardSurfaceOpacity = 1
         withAnimation(dismissalAnimation) {
             isPresented = false
+        }
+        if UIAccessibility.isReduceMotionEnabled {
+            cardSurfaceOpacity = 0
+        } else {
+            withAnimation(.easeOut(duration: 0.14).delay(0.12)) {
+                cardSurfaceOpacity = 0
+            }
         }
 
         let delay = UIAccessibility.isReduceMotionEnabled ? 0 : 0.26
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             guard generation == dismissGeneration else { return }
+            onPresentedChange(false)
             selection = nil
+            cardSurfaceOpacity = 1
             action?()
         }
     }

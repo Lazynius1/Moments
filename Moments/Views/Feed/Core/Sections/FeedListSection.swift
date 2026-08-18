@@ -38,7 +38,7 @@ struct FeedListSection: View {
     let onForceRefresh: () -> Void
     let onManualRefresh: (String) async -> Void
     let onOpenUserProfile: (String) -> Void
-    let onAuthorAvatarLongPress: (String, String, CGRect) -> Void
+    let onAuthorAvatarLongPress: (String, String, CGRect, CGRect) -> Void
     var hiddenMomentId: String? = nil
     let profileZoomNamespace: Namespace.ID
 
@@ -156,7 +156,7 @@ struct FeedListSection: View {
             .allowsHitTesting(!isHiddenForPreview)
             .animation(
                 hiddenMomentId == nil
-                    ? (UIAccessibility.isReduceMotionEnabled ? nil : .easeInOut(duration: 0.26))
+                    ? (UIAccessibility.isReduceMotionEnabled ? nil : .easeOut(duration: 0.12))
                     : (UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.42, dampingFraction: 0.84)),
                 value: isHiddenForPreview
             )
@@ -189,8 +189,8 @@ struct FeedListSection: View {
                 onContextMenu: handleFeedContextMenu,
                 onTagTap: onOpenUserProfile,
                 onOpenUserProfile: onOpenUserProfile,
-                onAuthorAvatarLongPress: { userId, frame in
-                    onAuthorAvatarLongPress(userId, moment.id ?? "", frame)
+                onAuthorAvatarLongPress: { userId, avatarFrame, postFrame in
+                    onAuthorAvatarLongPress(userId, moment.id ?? "", avatarFrame, postFrame)
                 },
                 profileZoomNamespace: profileZoomNamespace,
                 onPeek: { imageURL, ratio, isPressing in

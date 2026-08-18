@@ -459,12 +459,13 @@ struct FeedView: View {
                 onForceRefresh: forceRefresh,
                 onManualRefresh: performManualRefresh,
                 onOpenUserProfile: openUserProfile,
-                onAuthorAvatarLongPress: { userId, momentId, frame in
+                onAuthorAvatarLongPress: { userId, momentId, avatarFrame, postFrame in
                     hiddenPostPreviewMomentId = momentId
                     postProfilePreviewSelection = FeedPostProfilePreviewSelection(
                         userId: userId,
                         momentId: momentId,
-                        anchorFrame: frame
+                        anchorFrame: avatarFrame,
+                        postFrame: postFrame
                     )
                 },
                 hiddenMomentId: hiddenPostPreviewMomentId,
