@@ -155,6 +155,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
             }
         }
         .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .confirmationDialog(
             NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
             isPresented: $showingUnfollowConfirmation,
@@ -323,6 +324,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
                 otherUser: otherUser
             )
             .toolbar(.hidden, for: .tabBar)
+            .momentsFloatingTabBarHidden()
         } label: {
             sharedModuleRow(category: category, title: title, subtitle: subtitle)
         }

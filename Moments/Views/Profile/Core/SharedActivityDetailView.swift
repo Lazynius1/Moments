@@ -439,6 +439,7 @@ struct SharedActivityDetailView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .momentsScrollEdgeChrome()
         .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .navigationInteractivePopEnabled()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {

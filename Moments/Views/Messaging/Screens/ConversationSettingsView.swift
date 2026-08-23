@@ -191,16 +191,19 @@ struct ConversationSettingsView: View {
         .navigationDestination(isPresented: $viewModel.showSharedGallery) {
             sharedMediaGalleryDestination
                 .toolbar(.hidden, for: .tabBar)
+                .momentsFloatingTabBarHidden()
                 .chatInteractivePopEnabled()
         }
         .navigationDestination(isPresented: $showChatPreferences) {
             ConversationChatPreferencesView(viewModel: viewModel)
                 .toolbar(.hidden, for: .tabBar)
+                .momentsFloatingTabBarHidden()
                 .chatInteractivePopEnabled()
         }
         .navigationDestination(isPresented: $showVanishPreferences) {
             ConversationVanishModeView(viewModel: viewModel)
                 .toolbar(.hidden, for: .tabBar)
+                .momentsFloatingTabBarHidden()
         }
         .navigationDestination(isPresented: $showingUserProfile) {
             UserProfileView(userId: conversation.otherParticipantId)

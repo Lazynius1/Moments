@@ -16,6 +16,8 @@ struct HighlightViewer: View {
                 .offset(y: max(0, dragOffset))
         }
         .gesture(dismissDragGesture)
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .onAppear {
             viewModel.loadStories(highlight: highlight)
         }

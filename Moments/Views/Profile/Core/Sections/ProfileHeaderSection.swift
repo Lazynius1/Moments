@@ -8,6 +8,7 @@ struct ProfileOwnPinnedTopChrome: View {
     let isVerified: Bool
     let collapseProgress: CGFloat
     @Binding var isShowingSettings: Bool
+    @Binding var isShowingNotifications: Bool
     @Binding var showingQRCode: Bool
     @Binding var isShowingIncognito: Bool
     let isIncognitoActive: Bool
@@ -41,9 +42,10 @@ struct ProfileOwnPinnedTopChrome: View {
                     foregroundColor: ProfileColors.textPrimary,
                     standaloneGlass: false,
                     action: {
-                        NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
+                        isShowingNotifications = true
                     }
                 )
+                .matchedTransitionSource(id: "notifications-view", in: profileZoomNamespace)
 
                 ownHeaderMenu
             }

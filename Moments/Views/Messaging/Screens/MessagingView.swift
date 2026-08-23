@@ -1685,6 +1685,8 @@ struct GlassmorphicNewConversationView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .chatInteractivePopEnabled()
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .toolbar { newConversationToolbarContent }
         .navigationDestination(item: $showingUserProfile) { user in
             UserProfileView(userId: user.id)

@@ -29,6 +29,8 @@ struct HighlightCreateFlowView: View {
         .onAppear {
             viewModel.loadIfNeeded()
         }
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .confirmationDialog(
             NSLocalizedString("common.delete", comment: ""),
             isPresented: $showDeleteConfirmation,

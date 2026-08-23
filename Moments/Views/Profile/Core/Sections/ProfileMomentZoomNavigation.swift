@@ -328,6 +328,7 @@ struct HighlightZoomDetailDestination: View {
             .navigationInteractivePopEnabled()
             .toolbar(.hidden, for: .navigationBar)
             .toolbar(.hidden, for: .tabBar)
+            .momentsFloatingTabBarHidden()
             .navigationTransition(.zoom(sourceID: destination.zoomSourceID, in: namespace))
     }
 }

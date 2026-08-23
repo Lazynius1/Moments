@@ -28,7 +28,7 @@ struct SettingsFormView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 28) {
+            LazyVStack(spacing: 22) {
                 SettingsGroup(title: NSLocalizedString("settings.group.account", comment: "Account")) {
                     ProfileSection(username: $username)
 
@@ -121,8 +121,8 @@ struct SettingsFormView: View {
                     .opacity(animateSections ? 1 : 0)
                     .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.5), value: animateSections), value: animateSections)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.6)) {
@@ -159,11 +159,19 @@ struct SettingsVersionFooter: View {
     }
 }
 
-// Section group: plain list with a small caption header and thin dividers
+// Section group: category caption + rows inside a rounded card
 struct SettingsGroup<Content: View>: View {
     @Environment(\.colorScheme) var colorScheme
     let title: String
     let content: Content
+
+    private let cardCornerRadius: CGFloat = 18
+
+    private var cardFill: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.06)
+            : Color.black.opacity(0.04)
+    }
 
     init(title: String, @ViewBuilder content: () -> Content) {
         self.title = title
@@ -171,15 +179,24 @@ struct SettingsGroup<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title.uppercased())
-                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+                .foregroundStyle(colorScheme == .dark ? .white.opacity(0.50) : .black.opacity(0.40))
+                .tracking(0.4)
                 .padding(.leading, 4)
 
             VStack(spacing: 0) {
                 content
             }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
+                    .fill(cardFill)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous))
         }
     }
 }

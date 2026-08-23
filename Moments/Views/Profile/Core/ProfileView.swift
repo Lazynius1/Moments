@@ -316,6 +316,7 @@ struct ProfileView: View {
     @StateObject private var storyViewModel = StoryViewModel()
     @StateObject private var incognitoModeService = IncognitoModeService.shared
     @State private var isShowingSettings = false
+    @State private var isShowingNotifications = false
     @State private var isShowingEditProfile = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var newBio: String = ""
@@ -384,6 +385,7 @@ struct ProfileView: View {
                         safeAreaTop: safeAreaTop,
                         safeAreaBottom: safeAreaBottom,
                         isShowingSettings: $isShowingSettings,
+                        isShowingNotifications: $isShowingNotifications,
                         isShowingEditProfile: $isShowingEditProfile,
                         newBio: $newBio,
                         socialConnectionsRoute: $socialConnectionsRoute,
@@ -406,6 +408,15 @@ struct ProfileView: View {
                 .navigationDestination(isPresented: $isShowingSettings) {
                     SettingsView()
                         .navigationTransition(.zoom(sourceID: "settings-view", in: profileZoomNamespace))
+                }
+                .navigationDestination(isPresented: $isShowingNotifications) {
+                    NotificationsView(onNotificationsCleared: {
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("NotificationsCleared"),
+                            object: nil
+                        )
+                    })
+                    .navigationTransition(.zoom(sourceID: "notifications-view", in: profileZoomNamespace))
                 }
                 .navigationDestination(isPresented: $isShowingEditProfile) {
                     ModernEditProfileView(
@@ -538,6 +549,7 @@ struct ProfileView: View {
                 .onChange(of: selectedTab) { _, newTab in
                     if newTab == 4 {
                         isShowingSettings = false
+                        isShowingNotifications = false
                         isShowingEditProfile = false
                     } else {
                         // ✅ Resetear detalle y menús al salir del tab de perfil

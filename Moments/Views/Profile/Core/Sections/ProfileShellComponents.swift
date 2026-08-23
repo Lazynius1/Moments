@@ -72,6 +72,7 @@ struct ModernProfileContentView: View {
     let safeAreaTop: CGFloat
     let safeAreaBottom: CGFloat
     @Binding var isShowingSettings: Bool
+    @Binding var isShowingNotifications: Bool
     @Binding var isShowingEditProfile: Bool
     @Binding var newBio: String
     @Binding var socialConnectionsRoute: SocialConnectionsRoute?
@@ -361,6 +362,7 @@ struct ModernProfileContentView: View {
                         isVerified: viewModel.userProfile?.isVerified ?? false,
                         collapseProgress: usernameCollapseProgress,
                         isShowingSettings: $isShowingSettings,
+                        isShowingNotifications: $isShowingNotifications,
                         showingQRCode: $showingQRCode,
                         isShowingIncognito: $isShowingIncognito,
                         isIncognitoActive: isIncognitoActive,

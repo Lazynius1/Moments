@@ -173,6 +173,8 @@ struct StoriesView: View {
         }
         .ignoresSafeArea(.keyboard, edges: .all)
         .ignoresSafeArea(.container, edges: .all)
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .statusBar(hidden: false)
         .onAppear {
             GlobalVideoManager.shared.pauseAllVideos()
