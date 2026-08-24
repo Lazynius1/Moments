@@ -161,6 +161,11 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let userInfo = notification.request.content.userInfo
 
+        if userInfo["type"] as? String == "message_request_v2" {
+            completionHandler([.banner, .sound])
+            return
+        }
+
         Task { @MainActor in
             NotificationPresentationCoordinator.shared.present(from: userInfo, source: .push)
         }

@@ -202,6 +202,8 @@ struct StoryShareRecipientsPanel: View {
     @State private var conversations: [Conversation] = []
     @State private var globalSearchResults: [AppUser] = []
     @State private var isLoading = true
+    @State private var isSending = false
+    @State private var deliveryFeedback: String?
     @State private var activeFilter: FilterType = .none
 
     enum FilterType {
@@ -358,6 +360,19 @@ struct StoryShareRecipientsPanel: View {
             )
         }
         .onAppear(perform: loadConversations)
+        .alert(
+            NSLocalizedString("common.error", comment: ""),
+            isPresented: Binding(
+                get: { deliveryFeedback != nil },
+                set: { if !$0 { deliveryFeedback = nil } }
+            )
+        ) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {
+                deliveryFeedback = nil
+            }
+        } message: {
+            Text(deliveryFeedback ?? "")
+        }
     }
 
     private func loadConversations() {
@@ -403,37 +418,112 @@ struct StoryShareRecipientsPanel: View {
 
     private func sendToSelectedUsers() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
-              story.id != nil else { return }
+              let storyId = story.id,
+              !isSending else { return }
+
+        let recipientIds = selectedUsers.sorted()
+        guard !recipientIds.isEmpty else { return }
+        isSending = true
 
         let freshUsername = UserCacheService.shared.getCachedUser(userId: story.authorId)?.username ?? story.username
         let shareText = String(format: NSLocalizedString("share.story.by", comment: ""), freshUsername)
-
-        for userId in selectedUsers {
-            let existingConv = conversations.first(where: { $0.otherParticipantId == userId })
-
-            if let conversationId = existingConv?.id, !conversationId.isEmpty {
-                chatService.sendSharedStoryMessage(
-                    conversationId: conversationId,
-                    senderId: currentUserId,
-                    story: story,
-                    shareText: shareText
-                ) { _ in }
-            } else {
-                chatService.getOrCreateConversation(between: currentUserId, and: userId) { result in
-                    if case .success(let conversationId) = result {
-                        chatService.sendSharedStoryMessage(
+        Task { @MainActor in
+            let coordinator = MessageRequestService()
+            var results: [DirectRecipientSendResult] = []
+            for userId in recipientIds {
+                guard !userId.isEmpty else {
+                    results.append(.init(id: userId, outcome: .denied, errorDescription: nil))
+                    continue
+                }
+                do {
+                    let context = MessageRequestInteractionContext(
+                        kind: .shareStory,
+                        storyId: storyId,
+                        storyOwnerId: story.authorId,
+                        sharedContentId: storyId
+                    )
+                    let route = try await coordinator.resolveRoute(to: userId, interaction: context)
+                    switch route {
+                    case .conversation(let conversationId):
+                        try await sendSharedStory(
                             conversationId: conversationId,
                             senderId: currentUserId,
-                            story: story,
                             shareText: shareText
-                        ) { _ in }
+                        )
+                        results.append(.init(id: userId, outcome: .conversation, errorDescription: nil))
+                    case .conversationDraft(let threadId):
+                        let conversationId = try await coordinator.activateConversationDraft(
+                            to: userId,
+                            threadId: threadId
+                        )
+                        try await sendSharedStory(
+                            conversationId: conversationId,
+                            senderId: currentUserId,
+                            shareText: shareText
+                        )
+                        results.append(.init(id: userId, outcome: .conversation, errorDescription: nil))
+                    case .outgoingRequest:
+                        _ = try await coordinator.appendRequestMessage(
+                            to: userId,
+                            text: shareText,
+                            messageType: .sharedStory,
+                            interaction: context
+                        )
+                        results.append(.init(id: userId, outcome: .request, errorDescription: nil))
+                    case .incomingRequest(let threadId, _):
+                        let accepted = try await coordinator.acceptIncomingThread(threadId: threadId)
+                        try await sendSharedStory(
+                            conversationId: accepted.conversationId,
+                            senderId: currentUserId,
+                            shareText: shareText
+                        )
+                        results.append(.init(id: userId, outcome: .conversation, errorDescription: nil))
                     }
+                } catch {
+                    results.append(.init(
+                        id: userId,
+                        outcome: (error as NSError).code == 403 ? .denied : .failed,
+                        errorDescription: error.localizedDescription
+                    ))
                 }
             }
+            isSending = false
+            let failures = results.filter { $0.outcome == .failed || $0.outcome == .denied }
+            guard !results.isEmpty, failures.isEmpty else {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                if results.count == 1, let message = failures.first?.errorDescription, !message.isEmpty {
+                    deliveryFeedback = message
+                } else {
+                    deliveryFeedback = String(
+                        format: NSLocalizedString("messaging.forward.partialFailure", comment: ""),
+                        failures.count,
+                        results.count
+                    )
+                }
+                let successfulIds = Set(results.filter { $0.outcome == .conversation || $0.outcome == .request }.map(\.id))
+                selectedUsers.subtract(successfulIds)
+                return
+            }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            onDismiss()
         }
+    }
 
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        onDismiss()
+    private func sendSharedStory(
+        conversationId: String,
+        senderId: String,
+        shareText: String
+    ) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            chatService.sendSharedStoryMessage(
+                conversationId: conversationId,
+                senderId: senderId,
+                story: story,
+                shareText: shareText
+            ) { result in
+                continuation.resume(with: result.map { _ in () })
+            }
+        }
     }
 }
 
@@ -446,6 +536,11 @@ struct SharedStoryMessageBubble: View {
     @State private var canViewStory: Bool?
     @State private var denialReason: SharedStoryAccessDenialReason?
     @State private var isLoading = true
+    @State private var resolvedSharedStoryData: [String: String]?
+
+    private var displayedSharedStoryData: [String: String]? {
+        resolvedSharedStoryData ?? message.sharedStoryData
+    }
 
     var body: some View {
         Group {
@@ -456,12 +551,12 @@ struct SharedStoryMessageBubble: View {
                         alignment: isCurrentUser ? .trailing : .leading
                     )
                     .padding(.vertical, 4)
-            } else if canViewStory == true, let sharedStoryData = message.sharedStoryData {
+            } else if canViewStory == true, let sharedStoryData = displayedSharedStoryData {
                 StoryBubbleContent(sharedStoryData: sharedStoryData, isCurrentUser: isCurrentUser)
             } else {
                 BlockedStoryBubble(
                     reason: denialReason ?? .restricted,
-                    sharedStoryData: message.sharedStoryData
+                    sharedStoryData: displayedSharedStoryData
                 )
                 .frame(
                     maxWidth: 280,
@@ -496,7 +591,18 @@ struct SharedStoryMessageBubble: View {
         ) { result in
             DispatchQueue.main.async {
                 switch result {
-                case .success:
+                case .success(let story):
+                    var payload = sharedStoryData
+                    let freshAuthor = UserCacheService.shared
+                        .getCachedUser(userId: story.authorId)?.username ?? story.username
+                    payload["storyId"] = story.id ?? storyId
+                    payload["storyAuthor"] = freshAuthor
+                    payload["storyAuthorId"] = story.authorId
+                    payload["storyPreviewUrl"] = storyPreviewURL(for: story)
+                    payload["storyMediaType"] = storyMediaTypeString(for: story)
+                    payload["storyExpiration"] = String(story.expirationDate.timeIntervalSince1970)
+                    payload["storyTimestamp"] = String(story.timestamp.timeIntervalSince1970)
+                    resolvedSharedStoryData = payload
                     canViewStory = true
                     denialReason = nil
                 case .failure(let reason):

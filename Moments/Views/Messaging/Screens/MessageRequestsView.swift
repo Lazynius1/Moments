@@ -3,136 +3,194 @@ import FirebaseAuth
 import Kingfisher
 
 struct MessageRequestsView: View {
-    @EnvironmentObject var messageRequestService: MessageRequestService
-    @EnvironmentObject var authService: AuthService
-    @Environment(\.colorScheme) var colorScheme
-    @Environment(\.dismiss) var dismiss
-    
-    @State private var showingActionSheet = false
+    @EnvironmentObject private var messageRequestService: MessageRequestService
+    @Environment(\.colorScheme) private var colorScheme
+
+    @State private var selectedFolder: MessageRequestFolder = .normal
     @State private var actionRequest: MessageRequest?
+    @State private var showingActions = false
+
     let onOpenRequest: (MessageRequest) -> Void
 
     init(onOpenRequest: @escaping (MessageRequest) -> Void = { _ in }) {
         self.onOpenRequest = onOpenRequest
     }
-    
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
+
+    private var displayedRequests: [MessageRequest] {
+        switch selectedFolder {
+        case .normal: messageRequestService.pendingRequests
+        case .old: messageRequestService.oldRequests
+        case .hidden: messageRequestService.hiddenRequests
+        }
     }
 
-    private var backgroundColor: Color {
-        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
-    }
-    
     var body: some View {
         VStack(spacing: 0) {
-            requestCountHeader
-
-            if messageRequestService.pendingRequests.isEmpty {
-                emptyStateView
-            } else {
-                requestsListView
-            }
+            MessageRequestFolderPicker(selection: $selectedFolder)
+            MessageRequestFolderContent(
+                folder: selectedFolder,
+                requests: displayedRequests,
+                visibleRequestCount: messageRequestService.pendingRequests.count,
+                onOpen: onOpenRequest,
+                onAction: presentActions
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(backgroundColor.ignoresSafeArea())
         .navigationTitle("messageRequests.title")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(backgroundColor, for: .navigationBar)
         .momentsFloatingTabBarHidden()
-        .onAppear {
-            if let userId = Auth.auth().currentUser?.uid {
-                messageRequestService.listenToPendingRequests(for: userId)
-            }
+        .task {
+            guard let userId = Auth.auth().currentUser?.uid else { return }
+            messageRequestService.listenToPendingRequests(for: userId)
         }
-        .onDisappear {
-            messageRequestService.removeAllListeners()
-        }
-        .confirmationDialog("messageRequests.request.title", isPresented: $showingActionSheet) {
-            if let request = actionRequest {
-                Button("messageRequests.accept") { acceptRequest(request) }
-                Button("messageRequests.delete", role: .destructive) { rejectRequest(request) }
-                Button("messageRequests.blockUser", role: .destructive) { blockUser(request) }
-                Button("common.cancel", role: .cancel) { }
+        .confirmationDialog("messageRequests.request.title", isPresented: $showingActions, presenting: actionRequest) { request in
+            Button("messageRequests.accept") { accept(request) }
+            if selectedFolder == .hidden {
+                Button("messageRequests.moveToRequests") { move(request, to: .normal) }
+            } else {
+                Button("messageRequests.moveToHidden") { move(request, to: .hidden) }
             }
-        } message: {
+            Button("messageRequests.report", role: .destructive) { report(request) }
+            Button("messageRequests.delete", role: .destructive) { reject(request) }
+            Button("messageRequests.blockUser", role: .destructive) { block(request) }
+            Button("common.cancel", role: .cancel) { }
+        } message: { _ in
             Text("messageRequests.request.message")
         }
     }
 
-    // MARK: - Request Count Header
-    private var requestCountHeader: some View {
-        Group {
-            if !messageRequestService.pendingRequests.isEmpty {
-                Text(String(format: NSLocalizedString("messageRequests.count", comment: "Request count"), messageRequestService.pendingRequests.count))
-                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundStyle(adaptiveColors.secondary)
+    private var backgroundColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    private func presentActions(_ request: MessageRequest) {
+        actionRequest = request
+        showingActions = true
+    }
+
+    private func accept(_ request: MessageRequest) {
+        messageRequestService.acceptRequest(request) { _ in }
+    }
+
+    private func reject(_ request: MessageRequest) {
+        messageRequestService.rejectRequest(request) { _ in }
+    }
+
+    private func block(_ request: MessageRequest) {
+        messageRequestService.blockUser(request) { _ in }
+    }
+
+    private func report(_ request: MessageRequest) {
+        messageRequestService.reportRequest(request) { _ in }
+    }
+
+    private func move(_ request: MessageRequest, to folder: MessageRequestFolder) {
+        messageRequestService.moveRequest(request, to: folder) { _ in }
+    }
+}
+
+private struct MessageRequestFolderPicker: View {
+    @Binding var selection: MessageRequestFolder
+
+    var body: some View {
+        Picker("messageRequests.folder.picker", selection: $selection) {
+            Text("messageRequests.folder.requests").tag(MessageRequestFolder.normal)
+            Text("messageRequests.folder.old").tag(MessageRequestFolder.old)
+            Text("messageRequests.folder.hidden").tag(MessageRequestFolder.hidden)
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+}
+
+private struct MessageRequestFolderContent: View {
+    let folder: MessageRequestFolder
+    let requests: [MessageRequest]
+    let visibleRequestCount: Int
+    let onOpen: (MessageRequest) -> Void
+    let onAction: (MessageRequest) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            MessageRequestCountHeader(folder: folder, count: visibleRequestCount)
+            if requests.isEmpty {
+                MessageRequestEmptyState(folder: folder)
+            } else {
+                MessageRequestList(
+                    requests: requests,
+                    onOpen: onOpen,
+                    onAction: onAction
+                )
+            }
+        }
+    }
+}
+
+private struct MessageRequestCountHeader: View {
+    let folder: MessageRequestFolder
+    let count: Int
+
+    var body: some View {
+        VStack {
+            if folder == .normal, count > 0 {
+                Text(String(
+                    format: NSLocalizedString(
+                        count == 1 ? "messageRequests.count" : "messageRequests.count.plural",
+                        comment: ""
+                    ),
+                    count
+                ))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.clear.momentsChromeGlass(in: Capsule()))
-                    .padding(.top, 8)
                     .padding(.bottom, 8)
             }
         }
     }
-    
-    // MARK: - Actions
-    private func acceptRequest(_ request: MessageRequest) {
-        messageRequestService.acceptRequest(request) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    // Success
-                    break
-                case .failure(_):
-                    break
+}
+
+private struct MessageRequestList: View {
+    let requests: [MessageRequest]
+    let onOpen: (MessageRequest) -> Void
+    let onAction: (MessageRequest) -> Void
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(requests) { request in
+                    MessageRequestListRow(
+                        request: request,
+                        onTap: { onOpen(request) },
+                        onAction: { onAction(request) }
+                    )
                 }
             }
+            .padding(.bottom, 24)
         }
+        .scrollContentBackground(.hidden)
+        .momentsScrollEdgeChrome()
     }
-    
-    private func rejectRequest(_ request: MessageRequest) {
-        messageRequestService.rejectRequest(request) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    // success
-                    break
-                case .failure(_):
-                    break
-                }
-            }
-        }
-    }
-    
-    private func blockUser(_ request: MessageRequest) {
-        messageRequestService.blockUser(request) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    // User blocked successfully
-                    break
-                case .failure(_):
-                    break
-                }
-            }
-        }
-    }
-    
-    // MARK: - Empty State View
-    private var emptyStateView: some View {
+}
+
+private struct MessageRequestEmptyState: View {
+    let folder: MessageRequestFolder
+
+    var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: "message")
-                .font(.system(size: 28, weight: .medium))
-                .foregroundStyle(adaptiveColors.secondary.opacity(0.72))
-
-            Text("messageRequests.empty.title")
-                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                .foregroundStyle(adaptiveColors.primary)
-
-            Text("messageRequests.empty.description")
-                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                .foregroundStyle(adaptiveColors.secondary)
+            Image(systemName: folder == .hidden ? "eye.slash" : folder == .old ? "archivebox" : "message")
+                .font(.title2.weight(.medium))
+                .foregroundStyle(.secondary.opacity(0.72))
+            Text(title)
+                .font(.headline)
+            Text(description)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 28)
         }
@@ -140,57 +198,50 @@ struct MessageRequestsView: View {
         .padding(.top, 96)
         .momentsEmptyStateAppear()
     }
-    
-    // MARK: - Requests List View
-    private var requestsListView: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(messageRequestService.pendingRequests) { request in
-                    RequestListRow(request: request) {
-                        onOpenRequest(request)
-                    } onAction: {
-                        actionRequest = request
-                        showingActionSheet = true
-                    }
-                }
-            }
-            .padding(.top, 2)
-            .padding(.bottom, 24)
+
+    private var title: LocalizedStringKey {
+        switch folder {
+        case .normal: "messageRequests.empty.title"
+        case .old: "messageRequests.old.empty.title"
+        case .hidden: "messageRequests.hidden.empty.title"
         }
-        .scrollContentBackground(.hidden)
-        .momentsScrollEdgeChrome()
     }
-    
+
+    private var description: LocalizedStringKey {
+        switch folder {
+        case .normal: "messageRequests.empty.description"
+        case .old: "messageRequests.old.empty.description"
+        case .hidden: "messageRequests.hidden.empty.description"
+        }
+    }
 }
 
-// MARK: - Request List Row
-struct RequestListRow: View {
+private struct MessageRequestListRow: View {
     let request: MessageRequest
     let onTap: () -> Void
     let onAction: () -> Void
-    
-    @Environment(\.colorScheme) var colorScheme
-    
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Button(action: onTap) {
-                avatar
+                MessageRequestAvatar(path: request.senderProfileImagePath)
             }
             .buttonStyle(.plain)
 
             Button(action: onTap) {
-                content
+                MessageRequestRowContent(
+                    username: request.senderUsername,
+                    preview: request.messagePreview,
+                    messageCount: request.messageCount,
+                    date: request.lastActivityAt
+                )
             }
             .buttonStyle(.plain)
 
             Button(action: onAction) {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(adaptiveColors.secondary)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.secondary)
                     .frame(width: 34, height: 34)
                     .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
             }
@@ -200,56 +251,62 @@ struct RequestListRow: View {
         .padding(.vertical, 8)
         .contentShape(Rectangle())
     }
+}
 
-    @ViewBuilder
-    private var avatar: some View {
-        if let profileImagePath = request.senderProfileImagePath {
-            KFImage(URL(string: profileImagePath))
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 56, height: 56)
-                .clipShape(Circle())
-        } else {
-            Circle()
-                .fill(adaptiveColors.secondary.opacity(0.12))
-                .frame(width: 56, height: 56)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .foregroundStyle(adaptiveColors.secondary)
-                )
+private struct MessageRequestAvatar: View {
+    let path: String?
+
+    var body: some View {
+        ZStack {
+            Circle().fill(.secondary.opacity(0.12))
+            if let path, let url = URL(string: path) {
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "person.fill").foregroundStyle(.secondary)
+            }
         }
+        .frame(width: 56, height: 56)
+        .clipShape(Circle())
     }
+}
 
-    private var content: some View {
+private struct MessageRequestRowContent: View {
+    let username: String?
+    let preview: String
+    let messageCount: Int
+    let date: Date
+
+    var body: some View {
         HStack(alignment: .center, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(request.senderUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name"))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(adaptiveColors.primary)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(username ?? NSLocalizedString("messaging.user.default", comment: ""))
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
-
-                Text(request.messagePreview)
-                    .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundStyle(adaptiveColors.secondary)
+                Text(preview)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
+                Text("\(messageCount)/5")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(timeAgoString(from: request.timestamp))
-                .font(.system(size: legacyPoppinsSize(12)))
-                .foregroundStyle(adaptiveColors.secondary)
+            Text(MomentsFormat.relativeTime(from: date))
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-    }
-    
-    private func timeAgoString(from date: Date) -> String {
-        MomentsFormat.relativeTime(from: date)
     }
 }
 
 #Preview {
-    MessageRequestsView()
-        .environmentObject(MessageRequestService())
-        .environmentObject(AuthService())
+    NavigationStack {
+        MessageRequestsView()
+            .environmentObject(MessageRequestService())
+    }
 }

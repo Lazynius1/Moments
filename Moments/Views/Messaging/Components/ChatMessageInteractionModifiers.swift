@@ -212,6 +212,7 @@ struct ChatBubbleReplySwipeContainer<Content: View>: View {
     @Binding var hapticStep: Int
     let isOutgoing: Bool
     let cornerRadius: CGFloat
+    var isEnabled: Bool = true
     let onReply: () -> Void
     @ViewBuilder let content: () -> Content
 
@@ -234,6 +235,7 @@ struct ChatBubbleReplySwipeContainer<Content: View>: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .chatReplySwipeGesture(
+            enabled: isEnabled,
             isOutgoing: isOutgoing,
             dragOffset: $dragOffset,
             hapticStep: $hapticStep,
@@ -250,64 +252,70 @@ struct ChatBubbleReplySwipeContainer<Content: View>: View {
 
 extension View {
     /// Deslizar sobre la burbuja para responder: entrantes → derecha, salientes → izquierda.
+    @ViewBuilder
     func chatReplySwipeGesture(
+        enabled: Bool = true,
         isOutgoing: Bool,
         dragOffset: Binding<CGFloat>,
         hapticStep: Binding<Int>,
         onReply: @escaping () -> Void
     ) -> some View {
-        let gesture = ChatHorizontalPanGesture(
-            direction: isOutgoing ? .left : .right,
-            onChanged: { value in
-                let horizontal = value.translation.x
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    dragOffset.wrappedValue = ChatReplySwipeMetrics.signedDrag(
-                        rawHorizontal: horizontal,
-                        isOutgoing: isOutgoing
-                    )
-                }
-
-                let magnitude = abs(dragOffset.wrappedValue)
-                let progress = ChatReplySwipeMetrics.progress(for: dragOffset.wrappedValue)
-                let nextStep: Int
-                if progress >= 1 {
-                    nextStep = ChatReplySwipeMetrics.hapticStepCount + 1
-                } else {
-                    nextStep = min(
-                        Int(magnitude / ChatReplySwipeMetrics.hapticStepPoints),
-                        ChatReplySwipeMetrics.hapticStepCount
-                    )
-                }
-                if nextStep != hapticStep.wrappedValue {
-                    if nextStep == ChatReplySwipeMetrics.hapticStepCount + 1 {
-                        HapticManager.shared.replySwipeThresholdReached()
-                    } else if nextStep > 0 || hapticStep.wrappedValue > 0 {
-                        HapticManager.shared.replySwipeStep()
+        if enabled {
+            let gesture = ChatHorizontalPanGesture(
+                direction: isOutgoing ? .left : .right,
+                onChanged: { value in
+                    let horizontal = value.translation.x
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        dragOffset.wrappedValue = ChatReplySwipeMetrics.signedDrag(
+                            rawHorizontal: horizontal,
+                            isOutgoing: isOutgoing
+                        )
                     }
-                    hapticStep.wrappedValue = nextStep
-                }
-            },
-            onEnded: { _, completed in
-                let didComplete = completed
-                    && ChatReplySwipeMetrics.progress(for: dragOffset.wrappedValue) >= 1
-                if didComplete {
-                    onReply()
-                }
-                if UIAccessibility.isReduceMotionEnabled {
-                    dragOffset.wrappedValue = 0
-                    hapticStep.wrappedValue = 0
-                } else {
-                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
+
+                    let magnitude = abs(dragOffset.wrappedValue)
+                    let progress = ChatReplySwipeMetrics.progress(for: dragOffset.wrappedValue)
+                    let nextStep: Int
+                    if progress >= 1 {
+                        nextStep = ChatReplySwipeMetrics.hapticStepCount + 1
+                    } else {
+                        nextStep = min(
+                            Int(magnitude / ChatReplySwipeMetrics.hapticStepPoints),
+                            ChatReplySwipeMetrics.hapticStepCount
+                        )
+                    }
+                    if nextStep != hapticStep.wrappedValue {
+                        if nextStep == ChatReplySwipeMetrics.hapticStepCount + 1 {
+                            HapticManager.shared.replySwipeThresholdReached()
+                        } else if nextStep > 0 || hapticStep.wrappedValue > 0 {
+                            HapticManager.shared.replySwipeStep()
+                        }
+                        hapticStep.wrappedValue = nextStep
+                    }
+                },
+                onEnded: { _, completed in
+                    let didComplete = completed
+                        && ChatReplySwipeMetrics.progress(for: dragOffset.wrappedValue) >= 1
+                    if didComplete {
+                        onReply()
+                    }
+                    if UIAccessibility.isReduceMotionEnabled {
                         dragOffset.wrappedValue = 0
                         hapticStep.wrappedValue = 0
+                    } else {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
+                            dragOffset.wrappedValue = 0
+                            hapticStep.wrappedValue = 0
+                        }
                     }
                 }
-            }
-        )
+            )
 
-        return self.gesture(gesture)
+            self.gesture(gesture)
+        } else {
+            self
+        }
     }
 
     /// El reveal global sólo nace en el fondo de la fila. Sobre la burbuja manda reply,
@@ -477,7 +485,8 @@ enum ChatMessageBodyOpen {
         onViewOnceOpen: ((EnhancedMessage, Bool) -> Void)?,
         onOpenLocation: ((EnhancedMessage) -> Void)?,
         onHydrateMedia: ((EnhancedMessage) -> Void)?,
-        onMessageViewed: ((String) -> Void)?
+        onMessageViewed: ((String) -> Void)?,
+        persistsViewState: Bool = true
     ) {
         if let cluster, cluster.count > 1 {
             onOpenCluster?(cluster)
@@ -504,12 +513,16 @@ enum ChatMessageBodyOpen {
             }
         case .ephemeral:
             if !message.isViewed {
-                onHydrateMedia?(message)
-                onMessageViewed?(message.id)
-                ChatService().markEphemeralAsViewed(
-                    conversationId: message.conversationId,
-                    messageId: message.id
-                ) { _ in }
+                if persistsViewState {
+                    onHydrateMedia?(message)
+                    onMessageViewed?(message.id)
+                    ChatService().markEphemeralAsViewed(
+                        conversationId: message.conversationId,
+                        messageId: message.id
+                    ) { _ in }
+                } else {
+                    onOpenMedia(message)
+                }
             } else {
                 onOpenMedia(message)
             }

@@ -296,6 +296,7 @@ struct ChatAttachmentMenuPopover: View {
     @Binding var isPresented: ChatAttachmentSheetKind?
     let anchorFrame: CGRect
     let canSendBuzz: Bool
+    var ephemeralOnly: Bool = false
     let onOpenCamera: () -> Void
     let onSendBuzz: () -> Void
 
@@ -337,6 +338,7 @@ struct ChatAttachmentMenuPopover: View {
                     ChatAttachmentMenuPopoverCard(
                         isPresented: $isPresented,
                         canSendBuzz: canSendBuzz,
+                        ephemeralOnly: ephemeralOnly,
                         onOpenCamera: {
                             dismissMenu()
                             onOpenCamera()
@@ -410,6 +412,7 @@ struct ChatAttachmentMenuPopover: View {
 private struct ChatAttachmentMenuPopoverCard: View {
     @Binding var isPresented: ChatAttachmentSheetKind?
     let canSendBuzz: Bool
+    let ephemeralOnly: Bool
     let onOpenCamera: () -> Void
     let onSendBuzz: () -> Void
 
@@ -434,33 +437,35 @@ private struct ChatAttachmentMenuPopoverCard: View {
                 titleKey: "nova.attach.camera",
                 action: onOpenCamera
             )
-            menuRow(
-                assetImage: AttachmentIcon.photos.rawValue,
-                titleKey: "nova.attach.photos",
-                action: { present(.photos) }
-            )
-            if canSendBuzz {
+            if !ephemeralOnly {
                 menuRow(
-                    assetImage: AttachmentIcon.buzz.rawValue,
-                    titleKey: "chat.attach.buzz",
-                    action: onSendBuzz
+                    assetImage: AttachmentIcon.photos.rawValue,
+                    titleKey: "nova.attach.photos",
+                    action: { present(.photos) }
+                )
+                if canSendBuzz {
+                    menuRow(
+                        assetImage: AttachmentIcon.buzz.rawValue,
+                        titleKey: "chat.attach.buzz",
+                        action: onSendBuzz
+                    )
+                }
+                menuRow(
+                    assetImage: AttachmentIcon.gif.rawValue,
+                    titleKey: "chat.attach.gif",
+                    action: { present(.gif) }
+                )
+                menuRow(
+                    assetImage: "MomentsStickerTool",
+                    titleKey: "chat.attach.sticker",
+                    action: { present(.sticker) }
+                )
+                menuRow(
+                    assetImage: AttachmentIcon.location.rawValue,
+                    titleKey: "chat.attach.location",
+                    action: { present(.location) }
                 )
             }
-            menuRow(
-                assetImage: AttachmentIcon.gif.rawValue,
-                titleKey: "chat.attach.gif",
-                action: { present(.gif) }
-            )
-            menuRow(
-                assetImage: "MomentsStickerTool",
-                titleKey: "chat.attach.sticker",
-                action: { present(.sticker) }
-            )
-            menuRow(
-                assetImage: AttachmentIcon.location.rawValue,
-                titleKey: "chat.attach.location",
-                action: { present(.location) }
-            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 10)

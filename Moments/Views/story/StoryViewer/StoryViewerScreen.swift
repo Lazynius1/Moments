@@ -94,6 +94,7 @@ struct StoryViewerScreen: View {
     @State private var canContinueChain: Bool = false
     @State private var showChainActions: Bool = false
     @State private var successMessageText: String = ""
+    @State private var successMessageIsError = false
     @FocusState private var isTextFieldFocused: Bool
     /// Vanish activo en el chat con el autor: el modo se extiende a las respuestas de historia.
     @State private var isVanishActiveWithAuthor = false
@@ -459,7 +460,7 @@ struct StoryViewerScreen: View {
 
             // MARK: - 7. Success message overlay
             if showSuccessMessage {
-                GlassmorphicSuccessMessage(text: successMessageText)
+                GlassmorphicSuccessMessage(text: successMessageText, isError: successMessageIsError)
                     .transition(MotionPolicy.Transition.enterPop)
                     .zIndex(10)
             }
@@ -1792,12 +1793,14 @@ struct StoryViewerScreen: View {
             to: story.authorId,
             storyId: storyId,
             message: messageToSend
-        ) { success in
-            if success {
-                showSuccessAnimation("Mensaje enviado")
-            } else {
+        ) { result in
+            switch result {
+            case .success:
+                showSuccessAnimation(NSLocalizedString("stories.messageSent", comment: "Story message sent"))
+            case .failure(let error):
                 // Restore message if failed
                 messageText = messageToSend
+                showErrorAnimation(error.localizedDescription)
             }
         }
     }
@@ -1811,7 +1814,14 @@ struct StoryViewerScreen: View {
             to: story.authorId,
             storyId: storyId,
             reaction: reaction
-        )
+        ) { result in
+            switch result {
+            case .success:
+                showSuccessAnimation(NSLocalizedString("stories.reactionSent", comment: "Story reaction sent"))
+            case .failure(let error):
+                showErrorAnimation(error.localizedDescription)
+            }
+        }
 
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             showReactions = false
@@ -1840,6 +1850,7 @@ struct StoryViewerScreen: View {
                 guard let data = try await photo.loadTransferable(type: Data.self),
                       let uiImage = UIImage(data: data),
                       let storyId = story.id else {
+                    showErrorAnimation(NSLocalizedString("stories.delivery.failed", comment: "Story media could not be loaded"))
                     return
                 }
 
@@ -1847,16 +1858,23 @@ struct StoryViewerScreen: View {
                     to: story.authorId,
                     storyId: storyId,
                     image: uiImage
-                ) { success in
-                    if success {
-                        showSuccessAnimation("Momento enviado")
+                ) { result in
+                    switch result {
+                    case .success:
+                        showSuccessAnimation(NSLocalizedString("stories.ephemeralSent", comment: "Ephemeral moment sent"))
                         // ✅ Reanudar historia después de enviar foto efímera
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            resumeStory()
+                        }
+                    case .failure(let error):
+                        showErrorAnimation(error.localizedDescription)
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             resumeStory()
                         }
                     }
                 }
             } catch {
+                showErrorAnimation(NSLocalizedString("stories.delivery.failed", comment: "Story media could not be loaded"))
                 // ✅ Reanudar historia si hay error
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     resumeStory()
@@ -1943,7 +1961,17 @@ struct StoryViewerScreen: View {
     }
 
     private func showSuccessAnimation(_ message: String) {
+        showFeedbackAnimation(message, isError: false)
+    }
+
+    private func showErrorAnimation(_ message: String) {
+        AppLog.error("Story interaction failed: \(message)")
+        showFeedbackAnimation(message, isError: true)
+    }
+
+    private func showFeedbackAnimation(_ message: String, isError: Bool) {
         successMessageText = message
+        successMessageIsError = isError
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             showSuccessMessage = true
         }

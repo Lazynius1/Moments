@@ -13,19 +13,31 @@ extension GlassmorphicChatView {
     }
 
     var pendingChatCanType: Bool {
-        pendingChatContext?.status == .outgoingRequestDraft
+        guard let context = pendingChatContext, context.direction == .outgoing else { return false }
+        return (context.status == .outgoingRequestDraft || context.status == .outgoingRequestSent)
+            && pendingRequestMessageCount < MessageRequestService.messageLimit
     }
 
-    var pendingChatTimelineMessage: PendingChatTimelineMessage? {
-        guard let context = pendingChatContext else { return nil }
+    var pendingChatTimelineMessages: [PendingChatTimelineMessage] {
+        guard let context = pendingChatContext else { return [] }
+        if !pendingRequestMessages.isEmpty {
+            return pendingRequestMessages.map {
+                PendingChatTimelineMessage(message: $0, currentUserId: viewModel.currentUserId)
+            }
+        }
+        if let request = context.request, !request.messages.isEmpty {
+            return request.messages.map {
+                PendingChatTimelineMessage(message: $0, currentUserId: viewModel.currentUserId)
+            }
+        }
         if let request = context.request {
-            return PendingChatTimelineMessage(request: request, currentUserId: viewModel.currentUserId)
+            return [PendingChatTimelineMessage(request: request, currentUserId: viewModel.currentUserId)]
         }
         guard context.status == .outgoingRequestSent,
               let text = context.initialText?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty
-        else { return nil }
-        return PendingChatTimelineMessage(outgoingText: text, receiverId: context.otherUserId)
+        else { return [] }
+        return [PendingChatTimelineMessage(outgoingText: text, receiverId: context.otherUserId)]
     }
 
     var pendingChatDisclaimerKey: LocalizedStringKey {
@@ -46,35 +58,52 @@ extension GlassmorphicChatView {
     func sendPendingMessageRequest(_ text: String) {
         guard var context = pendingChatContext else { return }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, context.status == .outgoingRequestDraft else { return }
+        guard !trimmed.isEmpty, pendingChatCanType else { return }
 
-        pendingMessageRequestService.sendMessageRequest(
-            to: context.otherUserId,
-            message: trimmed
-        ) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    context.status = .outgoingRequestSent
-                    context.initialText = trimmed
-                    pendingChatContext = context
-                    messageText = ""
-                    isTextFieldFocused = false
-                    ChatDraftStore.shared.clearDraft(for: draftStorageKey)
-                case .failure(let error):
-                    let nsError = error as NSError
-                    if nsError.domain == "MessageRequest", nsError.code == 409 {
-                        context.status = .outgoingRequestSent
-                        context.initialText = nil
-                        pendingChatContext = context
-                        messageText = ""
-                        isTextFieldFocused = false
-                    } else {
-                        showBuzzToast(error.localizedDescription)
-                    }
-                }
+        Task { @MainActor in
+            do {
+                let result = try await pendingMessageRequestService.appendRequestMessage(
+                    to: context.otherUserId,
+                    text: trimmed
+                )
+                context.status = .outgoingRequestSent
+                context.initialText = trimmed
+                pendingChatContext = context
+                recordPendingRequestSend(result, text: trimmed, type: .text)
+                messageText = ""
+                ChatDraftStore.shared.clearDraft(for: draftStorageKey)
+            } catch {
+                showBuzzToast(error.localizedDescription)
             }
         }
+    }
+
+    func recordPendingRequestSend(
+        _ result: MessageRequestSendResult,
+        text: String,
+        type: MessageType
+    ) {
+        pendingRequestThreadId = result.threadId
+        pendingRequestMessageCount = result.messageCount
+        pendingRequestMessages.append(MessageRequestMessage(
+            id: result.messageId,
+            senderId: viewModel.currentUserId,
+            content: text,
+            timestamp: Date(),
+            type: type,
+            sequence: result.messageCount,
+            mediaUrl: nil,
+            thumbnailUrl: nil,
+            mediaEncryption: nil,
+            contextKind: "general",
+            storyId: nil,
+            storyOwnerId: nil,
+            sharedContentId: nil,
+            sharedContentOwnerId: nil,
+            expirationDate: nil,
+            isViewOnce: type.isViewOnce,
+            allowReplay: false
+        ))
     }
 
     func acceptPendingMessageRequest(thenSend replyText: String? = nil) {
@@ -111,9 +140,20 @@ extension GlassmorphicChatView {
     }
 
     func cancelPendingMessageRequest() {
-        guard let context = pendingChatContext,
-              context.direction == .outgoing,
-              let request = context.request else {
+        guard let context = pendingChatContext, context.direction == .outgoing else { return }
+        guard let request = context.request else {
+            if let threadId = pendingRequestThreadId {
+                pendingMessageRequestService.cancelRequest(threadId: threadId) { result in
+                    DispatchQueue.main.async {
+                        if case .failure(let error) = result { showBuzzToast(error.localizedDescription) }
+                        else {
+                            pendingChatContext = nil
+                            onPendingChatDismissed?()
+                        }
+                    }
+                }
+                return
+            }
             if let context = pendingChatContext, context.direction == .outgoing {
                 pendingChatContext = context.resetToDraft()
             }
@@ -286,30 +326,12 @@ extension GlassmorphicChatView {
                 BlockedByMeChatInputBar(onUnblock: unblockOtherParticipantFromChat)
             } else if isOtherParticipantUnavailable {
                 UnavailableChatInputBar()
-            } else if pendingChatContext?.status == .outgoingRequestSent {
-                PendingRequestSentInputBar(onCancel: cancelPendingMessageRequest)
+            } else if pendingChatContext?.status == .outgoingRequestSent && !pendingChatCanType {
+                Color.clear.frame(height: 0)
             } else if pendingChatContext?.status == .outgoingRequestBlocked {
                 RequestsClosedInputBar(displayName: pendingChatContext?.otherUsername ?? otherParticipantDisplayName)
             } else {
                 VStack(spacing: 0) {
-                    if pendingChatContext?.status == .incomingRequestPending {
-                        IncomingRequestActionBar(
-                            isLoading: pendingMessageRequestService.isLoading,
-                            onAccept: { acceptPendingMessageRequest() },
-                            onDelete: deletePendingMessageRequest,
-                            onBlock: blockPendingMessageRequest,
-                            onReport: { showingReportSheet = true }
-                        )
-                    }
-
-                    if pendingChatCanType, let context = pendingChatContext {
-                        ChatRequestInviteNotice(
-                            displayName: context.otherUsername,
-                            username: context.otherUsername,
-                            adaptiveColors: adaptiveColors
-                        )
-                    }
-
                     GlassmorphicInputBar(
                         text: $messageText,
                         isTyping: $session.isTyping,
@@ -317,7 +339,8 @@ extension GlassmorphicChatView {
                         isVoiceRecordingLocked: $isVoiceRecordingLocked,
                         activeAttachmentSheet: $activeAttachmentSheet,
                         isVanishModeActive: viewModel.vanishModeActive,
-                        allowsAttachments: !isPendingChat,
+                        allowsAttachments: !isPendingChat || pendingChatCanType,
+                        allowsVoiceRecording: !isPendingChat,
                         recordingTime: recordingTime,
                         recordingInteractionId: voiceRecordingInteractionId,
                         voiceRecordingDraft: voiceRecordingDraft,
@@ -400,6 +423,7 @@ extension GlassmorphicChatView {
     }
 
     struct PendingRequestSentInputBar: View {
+        let limitReached: Bool
         let onCancel: () -> Void
         @Environment(\.colorScheme) var colorScheme
 
@@ -408,7 +432,9 @@ extension GlassmorphicChatView {
                 Image(systemName: "paperplane.circle.fill")
                     .font(.system(size: 17, weight: .semibold))
 
-                Text("chat.request.sent.input")
+                Text(LocalizedStringKey(
+                    limitReached ? "messageRequests.limitReached" : "chat.request.sent.input"
+                ))
                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     .lineLimit(2)
 
@@ -433,7 +459,9 @@ extension GlassmorphicChatView {
         }
     }
 
-    struct IncomingRequestActionBar: View {
+    struct IncomingRequestBottomDock: View {
+        let disclaimerTextKey: LocalizedStringKey
+        let adaptiveColors: AdaptiveColors
         let isLoading: Bool
         let onAccept: () -> Void
         let onDelete: () -> Void
@@ -443,6 +471,11 @@ extension GlassmorphicChatView {
 
         var body: some View {
             VStack(spacing: 10) {
+                ChatRequestDisclaimerRow(
+                    textKey: disclaimerTextKey,
+                    adaptiveColors: adaptiveColors
+                )
+
                 Button(action: onAccept) {
                     HStack(spacing: 8) {
                         if isLoading {
@@ -496,7 +529,7 @@ extension GlassmorphicChatView {
                 }
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.top, 10)
         }
     }
 

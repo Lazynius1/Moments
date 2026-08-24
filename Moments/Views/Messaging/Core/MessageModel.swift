@@ -177,6 +177,13 @@ struct PendingChatContext: Identifiable, Hashable {
 struct AcceptMessageRequestResult: Hashable {
     let conversationId: String
     let messageId: String
+    let messageIds: [String]
+
+    init(conversationId: String, messageId: String, messageIds: [String]? = nil) {
+        self.conversationId = conversationId
+        self.messageId = messageId
+        self.messageIds = messageIds ?? [messageId]
+    }
 }
 
 enum PendingChatContextFactory {
@@ -298,18 +305,23 @@ enum PendingChatContextFactory {
         return await fetchUser(userId: userId)
     }
 
+    @MainActor
     static func pendingOutgoingRequest(from senderId: String, to receiverId: String) async -> MessageRequest? {
         guard !senderId.isEmpty, !receiverId.isEmpty else { return nil }
         do {
             let snapshot = try await Firestore.firestore()
-                .collection("messageRequests")
-                .whereField("senderId", isEqualTo: senderId)
+                .collection("users").document(senderId)
+                .collection("messageRequestOutbox")
                 .whereField("receiverId", isEqualTo: receiverId)
                 .whereField("status", isEqualTo: MessageRequest.RequestStatus.pending.rawValue)
                 .getDocuments()
             guard let document = snapshot.documents.first else { return nil }
-            return MessageRequest.fromFirestoreData(document.data(), id: document.documentID)
+            return try await MessageRequestService().loadOutgoingRequest(
+                threadId: document.documentID,
+                receiverId: receiverId
+            )
         } catch {
+            AppLog.error("PendingChatContextFactory: no se pudo cargar la solicitud saliente: \(error.localizedDescription)")
             return nil
         }
     }
@@ -458,32 +470,147 @@ actor ConversationIntroContextCache {
 
 struct PendingChatTimelineMessage: Identifiable, Hashable {
     let id: String
+    let sourceMessageId: String
+    let senderId: String
     let text: String
     let messageType: MessageType
     let mediaUrl: String?
     let thumbnailUrl: String?
     let timestamp: Date
     let isOutgoing: Bool
+    let mediaEncryption: EncryptedChatMediaMetadata?
+    let expirationDate: Date?
+    let isViewOnce: Bool
+    let allowReplay: Bool
+    let contextKind: String
+    let storyId: String?
+    let storyOwnerId: String?
+    let sharedContentId: String?
+    let sharedContentOwnerId: String?
+
+    var hasStoryReplyContext: Bool {
+        guard storyId?.isEmpty == false, storyOwnerId?.isEmpty == false else { return false }
+        return contextKind == MessageRequestInteractionContext.Kind.storyMessage.rawValue
+            || contextKind == MessageRequestInteractionContext.Kind.storyEphemeral.rawValue
+    }
 
     init(request: MessageRequest, currentUserId: String) {
         self.id = request.id.map { "pending-request:\($0)" } ?? "pending-request:\(request.senderId):\(request.timestamp.timeIntervalSince1970)"
+        self.sourceMessageId = request.id ?? self.id
+        self.senderId = request.senderId
         self.text = request.message
         self.messageType = request.messageType
         self.mediaUrl = request.mediaUrl
         self.thumbnailUrl = request.thumbnailUrl
         self.timestamp = request.timestamp
         self.isOutgoing = request.senderId == currentUserId
+        self.mediaEncryption = nil
+        self.expirationDate = nil
+        self.isViewOnce = request.messageType.isViewOnce
+        self.allowReplay = false
+        self.contextKind = MessageRequestInteractionContext.Kind.general.rawValue
+        self.storyId = nil
+        self.storyOwnerId = nil
+        self.sharedContentId = nil
+        self.sharedContentOwnerId = nil
+    }
+
+    init(message: MessageRequestMessage, currentUserId: String) {
+        self.id = "pending-request-message:\(message.id)"
+        self.sourceMessageId = message.id
+        self.senderId = message.senderId
+        self.text = message.content
+        self.messageType = message.type
+        self.mediaUrl = message.mediaUrl
+        self.thumbnailUrl = message.thumbnailUrl
+        self.timestamp = message.timestamp
+        self.isOutgoing = message.senderId == currentUserId
+        self.mediaEncryption = message.mediaEncryption
+        self.expirationDate = message.expirationDate
+        self.isViewOnce = message.isViewOnce
+        self.allowReplay = message.allowReplay
+        self.contextKind = message.contextKind
+        self.storyId = message.storyId
+        self.storyOwnerId = message.storyOwnerId
+        self.sharedContentId = message.sharedContentId
+        self.sharedContentOwnerId = message.sharedContentOwnerId
     }
 
     init(outgoingText: String, receiverId: String) {
         self.id = "pending-outgoing:\(receiverId)"
+        self.sourceMessageId = self.id
+        self.senderId = ""
         self.text = outgoingText
         self.messageType = .text
         self.mediaUrl = nil
         self.thumbnailUrl = nil
         self.timestamp = Date()
         self.isOutgoing = true
+        self.mediaEncryption = nil
+        self.expirationDate = nil
+        self.isViewOnce = false
+        self.allowReplay = false
+        self.contextKind = MessageRequestInteractionContext.Kind.general.rawValue
+        self.storyId = nil
+        self.storyOwnerId = nil
+        self.sharedContentId = nil
+        self.sharedContentOwnerId = nil
     }
+
+    func asEnhancedMessage(conversationId: String, currentUserId: String) -> EnhancedMessage {
+        let storyReplyData: [String: String]? = hasStoryReplyContext
+            ? [
+                "storyId": storyId ?? "",
+                "storyAuthorId": storyOwnerId ?? ""
+            ]
+            : nil
+
+        let sharedMomentData: [String: String]? = contextKind == MessageRequestInteractionContext.Kind.shareMoment.rawValue
+            ? [
+                "momentId": sharedContentId ?? "",
+                "momentAuthorId": sharedContentOwnerId ?? ""
+            ]
+            : nil
+
+        let sharedStoryData: [String: String]? = contextKind == MessageRequestInteractionContext.Kind.shareStory.rawValue
+            ? [
+                "storyId": sharedContentId ?? storyId ?? "",
+                "storyAuthorId": sharedContentOwnerId ?? storyOwnerId ?? ""
+            ]
+            : nil
+
+        let usesEncryptedMedia = mediaEncryption != nil
+        let resolvedSenderId = senderId.isEmpty && isOutgoing ? currentUserId : senderId
+        let adapted = EnhancedMessage(
+            id: sourceMessageId,
+            conversationId: conversationId,
+            senderId: resolvedSenderId,
+            type: messageType,
+            content: text,
+            mediaUrl: usesEncryptedMedia ? nil : mediaUrl,
+            thumbnailUrl: usesEncryptedMedia ? nil : thumbnailUrl,
+            mediaObjectPath: usesEncryptedMedia ? mediaUrl : nil,
+            thumbnailObjectPath: usesEncryptedMedia ? thumbnailUrl : nil,
+            mediaEncryption: mediaEncryption,
+            timestamp: timestamp,
+            status: .sent,
+            isRead: false,
+            expirationDate: expirationDate,
+            isViewed: false,
+            storyReplyData: storyReplyData,
+            sharedMomentData: sharedMomentData,
+            sharedStoryData: sharedStoryData
+        )
+        adapted.allowReplay = allowReplay
+        return adapted
+    }
+}
+
+struct PendingRequestMediaPresentation: Identifiable {
+    let id: String
+    let localURL: URL
+    let isVideo: Bool
+    let allowReplay: Bool
 }
 
 // MARK: - Conversation Model
@@ -905,7 +1032,7 @@ extension Message: Equatable {
 }
 
 // MARK: - Message Types
-enum MessageType: String, CaseIterable, Codable {
+enum MessageType: String, CaseIterable, Codable, Hashable {
     case text = "text"
     case image = "image"
     case video = "video"
@@ -2347,6 +2474,38 @@ enum ViewOnceError: Error, LocalizedError {
     }
 }
 
+// MARK: - Message Request V2 Models
+
+enum MessageRequestFolder: String, Codable, CaseIterable, Hashable {
+    case normal
+    case old
+    case hidden
+}
+
+struct MessageRequestMessage: Identifiable, Codable, Hashable {
+    let id: String
+    let senderId: String
+    let content: String
+    let timestamp: Date
+    let type: MessageType
+    let sequence: Int
+    let mediaUrl: String?
+    let thumbnailUrl: String?
+    let mediaEncryption: EncryptedChatMediaMetadata?
+    let contextKind: String
+    let storyId: String?
+    let storyOwnerId: String?
+    let sharedContentId: String?
+    let sharedContentOwnerId: String?
+    let expirationDate: Date?
+    let isViewOnce: Bool
+    let allowReplay: Bool
+
+    var isExpired: Bool {
+        expirationDate.map { $0 <= Date() } ?? false
+    }
+}
+
 // MARK: - Message Request Model
 struct MessageRequest: Identifiable, Codable, Hashable {
     @DocumentID var id: String?
@@ -2360,18 +2519,25 @@ struct MessageRequest: Identifiable, Codable, Hashable {
     let messageType: MessageType
     let mediaUrl: String?
     let thumbnailUrl: String?
+    let folder: MessageRequestFolder
+    let messages: [MessageRequestMessage]
+    let messageCount: Int
+    let schemaVersion: Int
+    let generation: Int
+    let lastActivityAt: Date
 
     enum RequestStatus: String, Codable, CaseIterable {
         case pending = "pending"
         case accepted = "accepted"
         case rejected = "rejected"
         case blocked = "blocked"
+        case cancelled = "cancelled"
 
         var displayName: String {
             switch self {
             case .pending: return NSLocalizedString("messaging.request.status.pending", comment: "")
             case .accepted: return NSLocalizedString("messaging.request.status.accepted", comment: "")
-            case .rejected: return NSLocalizedString("messaging.request.status.rejected", comment: "")
+            case .rejected, .cancelled: return NSLocalizedString("messaging.request.status.rejected", comment: "")
             case .blocked: return NSLocalizedString("messaging.request.status.blocked", comment: "")
             }
         }
@@ -2380,13 +2546,31 @@ struct MessageRequest: Identifiable, Codable, Hashable {
             switch self {
             case .pending: return "FF9500" // Naranja
             case .accepted: return "34C759" // Verde
-            case .rejected: return "FF3B30" // Rojo
+            case .rejected, .cancelled: return "FF3B30" // Rojo
             case .blocked: return "8E8E93" // Gris
             }
         }
     }
 
-    init(id: String?, senderId: String, senderUsername: String?, senderProfileImagePath: String?, receiverId: String, message: String, timestamp: Date, status: RequestStatus, messageType: MessageType, mediaUrl: String?, thumbnailUrl: String?) {
+    init(
+        id: String?,
+        senderId: String,
+        senderUsername: String?,
+        senderProfileImagePath: String?,
+        receiverId: String,
+        message: String,
+        timestamp: Date,
+        status: RequestStatus,
+        messageType: MessageType,
+        mediaUrl: String?,
+        thumbnailUrl: String?,
+        folder: MessageRequestFolder = .normal,
+        messages: [MessageRequestMessage] = [],
+        messageCount: Int? = nil,
+        schemaVersion: Int = 1,
+        generation: Int = 1,
+        lastActivityAt: Date? = nil
+    ) {
         self.id = id
         self.senderId = senderId
         self.senderUsername = senderUsername
@@ -2398,6 +2582,12 @@ struct MessageRequest: Identifiable, Codable, Hashable {
         self.messageType = messageType
         self.mediaUrl = mediaUrl
         self.thumbnailUrl = thumbnailUrl
+        self.folder = folder
+        self.messages = messages
+        self.messageCount = min(5, max(0, messageCount ?? max(messages.count, message.isEmpty ? 0 : 1)))
+        self.schemaVersion = schemaVersion
+        self.generation = generation
+        self.lastActivityAt = lastActivityAt ?? timestamp
     }
 
     init(from decoder: Decoder) throws {
@@ -2407,7 +2597,7 @@ struct MessageRequest: Identifiable, Codable, Hashable {
         self.senderUsername = try container.decodeIfPresent(String.self, forKey: .senderUsername)
         self.senderProfileImagePath = try container.decodeIfPresent(String.self, forKey: .senderProfileImagePath)
         self.receiverId = try container.decode(String.self, forKey: .receiverId)
-        self.message = try container.decode(String.self, forKey: .message)
+        self.message = try container.decodeIfPresent(String.self, forKey: .message) ?? ""
 
         // Manejar timestamp de Firestore
         do {
@@ -2422,6 +2612,16 @@ struct MessageRequest: Identifiable, Codable, Hashable {
         self.messageType = try container.decode(MessageType.self, forKey: .messageType)
         self.mediaUrl = try container.decodeIfPresent(String.self, forKey: .mediaUrl)
         self.thumbnailUrl = try container.decodeIfPresent(String.self, forKey: .thumbnailUrl)
+        self.folder = try container.decodeIfPresent(MessageRequestFolder.self, forKey: .folder) ?? .normal
+        self.messages = try container.decodeIfPresent([MessageRequestMessage].self, forKey: .messages) ?? []
+        self.messageCount = min(5, max(0, try container.decodeIfPresent(Int.self, forKey: .messageCount) ?? max(messages.count, message.isEmpty ? 0 : 1)))
+        self.schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        self.generation = try container.decodeIfPresent(Int.self, forKey: .generation) ?? 1
+        if let lastActivity = try container.decodeIfPresent(Timestamp.self, forKey: .lastActivityAt) {
+            self.lastActivityAt = lastActivity.dateValue()
+        } else {
+            self.lastActivityAt = timestamp
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -2437,6 +2637,12 @@ struct MessageRequest: Identifiable, Codable, Hashable {
         try container.encode(messageType, forKey: .messageType)
         try container.encodeIfPresent(mediaUrl, forKey: .mediaUrl)
         try container.encodeIfPresent(thumbnailUrl, forKey: .thumbnailUrl)
+        try container.encode(folder, forKey: .folder)
+        try container.encode(messages, forKey: .messages)
+        try container.encode(messageCount, forKey: .messageCount)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+        try container.encode(generation, forKey: .generation)
+        try container.encode(Timestamp(date: lastActivityAt), forKey: .lastActivityAt)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -2451,6 +2657,12 @@ struct MessageRequest: Identifiable, Codable, Hashable {
         case messageType
         case mediaUrl
         case thumbnailUrl
+        case folder
+        case messages
+        case messageCount
+        case schemaVersion
+        case generation
+        case lastActivityAt
     }
 
     // Propiedad calculada para mostrar preview del mensaje
@@ -2502,6 +2714,14 @@ struct MessageRequest: Identifiable, Codable, Hashable {
     // Verificar si el usuario puede enviar más solicitudes
     var canSendMoreRequests: Bool {
         return status != .blocked
+    }
+
+    var remainingMessages: Int {
+        max(0, 5 - messageCount)
+    }
+
+    var canAppend: Bool {
+        status == .pending && remainingMessages > 0
     }
 }
 

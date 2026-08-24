@@ -47,11 +47,15 @@ struct GlassmorphicChatView: View {
     @StateObject var pendingMessageRequestService = MessageRequestService()
     @State var messageText: String = ""
     @State var pendingChatContext: PendingChatContext?
+    @State var pendingRequestMessages: [MessageRequestMessage] = []
+    @State var pendingRequestMessageCount = 0
+    @State var pendingRequestThreadId: String?
     @State var conversationIntroContext: PendingChatContext?
     @State var showEnhancedCamera = false
     @StateObject var micGate = PermissionPrimerGate(.microphone)
     @State var pendingCameraReplyToMessageId: String?
     @State var viewOnceViewerPresentation: ViewOnceViewerPresentation?
+    @State var pendingRequestMediaPresentation: PendingRequestMediaPresentation?
     @State var activeAttachmentSheet: ChatAttachmentSheetKind?
     @State var plusButtonAnchorFrame: CGRect = .zero
     @State var replyingTo: EnhancedMessage?
@@ -251,6 +255,9 @@ struct GlassmorphicChatView: View {
         _session = ObservedObject(wrappedValue: resolved)
         _messageText = State(initialValue: ChatDraftStore.shared.draft(for: draftKey))
         _pendingChatContext = State(initialValue: pendingChatContext)
+        _pendingRequestMessages = State(initialValue: pendingChatContext?.request?.messages ?? [])
+        _pendingRequestMessageCount = State(initialValue: pendingChatContext?.request?.messageCount ?? 0)
+        _pendingRequestThreadId = State(initialValue: pendingChatContext?.request?.id)
         // Cada apertura arranca fresca y va al fondo (no se restaura posición).
         _hasCompletedInitialScroll = State(initialValue: false)
         _isPinnedToBottom = State(initialValue: true)
@@ -304,6 +311,10 @@ struct GlassmorphicChatView: View {
             )
             .interactiveDismissDisabled(true)
             .navigationTransition(.zoom(sourceID: presentation.zoomSourceID, in: viewOnceZoomNamespace))
+        }
+        .fullScreenCover(item: $pendingRequestMediaPresentation) { presentation in
+            PendingRequestMediaViewer(presentation: presentation)
+                .interactiveDismissDisabled(true)
         }
         .onChange(of: activeAttachmentSheet) { _, newValue in
             guard newValue != nil else { return }
@@ -709,7 +720,8 @@ struct GlassmorphicChatView: View {
             ChatAttachmentMenuPopover(
                 isPresented: $activeAttachmentSheet,
                 anchorFrame: plusButtonAnchorFrame,
-                canSendBuzz: viewModel.canSendBuzz,
+                canSendBuzz: !isPendingChat && viewModel.canSendBuzz,
+                ephemeralOnly: isPendingChat,
                 onOpenCamera: {
                     showEnhancedCamera = true
                 },

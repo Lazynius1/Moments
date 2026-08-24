@@ -20,6 +20,7 @@ class MessagingViewModel: ObservableObject {
     @Published var isSearchingContent: Bool = false
 
     private let chatService = ChatService.shared
+    private let messageRequestService = MessageRequestService()
     private var cancellables = Set<AnyCancellable>()
     private var isFirstFetch = true
     private var searchWorkItem: DispatchWorkItem?
@@ -379,99 +380,7 @@ class MessagingViewModel: ObservableObject {
     }
 
     func createOrFindConversation(with user: AppUser, from userId: String, completion: @escaping (Conversation?) -> Void) {
-        if let existingConversation = (conversations + archivedConversations).first(where: { $0.otherParticipantId == user.id }) {
-            completion(existingConversation)
-            return
-        }
-
-        chatService.canSendMessage(from: userId, to: user.id) { [weak self] result in
-            switch result {
-            case .success(let canSend):
-                if !canSend {
-                    DispatchQueue.main.async {
-                        self?.errorMessage = NSLocalizedString("messaging.error.cannotStart", comment: "Cannot start conversation")
-                    }
-                    completion(nil)
-                    return
-                }
-
-                self?.chatService.createBidirectionalConversation(user1Id: userId, user2Id: user.id) { result in
-                    switch result {
-                    case .success:
-                        DispatchQueue.main.async {
-                            self?.fetchConversations(for: userId)
-                        }
-                        completion(nil)
-
-                    case .failure(let error):
-                        DispatchQueue.main.async {
-                            self?.errorMessage = String(
-                                format: NSLocalizedString("messaging.error.createConversation", comment: "Failed to create conversation"),
-                                error.localizedDescription
-                            )
-                        }
-                        completion(nil)
-                    }
-                }
-
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self?.errorMessage = String(
-                        format: NSLocalizedString("messaging.error.verifyPermissions", comment: "Failed to verify permissions"),
-                        error.localizedDescription
-                    )
-                }
-                completion(nil)
-            }
-        }
-    }
-
-    private func createNewConversation(with user: AppUser, from userId: String, completion: @escaping (Conversation?) -> Void) {
-        let participants = [userId, user.id].sorted()
-        let readStatus: [String: Bool] = [userId: true, user.id: false]
-        let conversationData: [String: Any] = [
-            "participants": participants,
-            "lastMessage": "",
-            "timestamp": FieldValue.serverTimestamp(),
-            "readStatus": readStatus,
-            "otherParticipantId": user.id,
-            "otherParticipantUsername": user.username,
-            "otherParticipantProfileImagePath": user.profileImagePath ?? ""
-        ]
-
-        let conversationRef = Firestore.firestore().collection("conversations").document()
-        let conversationId = conversationRef.documentID
-
-        conversationRef.setData(conversationData) { [weak self] error in
-            if let error = error {
-                DispatchQueue.main.async {
-                    self?.errorMessage = String(
-                        format: NSLocalizedString("messaging.error.createConversation", comment: "Failed to create conversation"),
-                        error.localizedDescription
-                    )
-                }
-                completion(nil)
-                return
-            }
-
-            let newConversation = Conversation(
-                id: conversationId,
-                participants: participants,
-                lastMessage: "",
-                timestamp: Date(),
-                readStatus: readStatus,
-                otherParticipantId: user.id,
-                otherParticipantUsername: user.username,
-                otherParticipantProfileImagePath: user.profileImagePath ?? ""
-            )
-
-            DispatchQueue.main.async {
-                self?.conversations.insert(newConversation, at: 0)
-                self?.selectedConversation = newConversation
-            }
-
-            completion(newConversation)
-        }
+        startConversation(with: user, from: userId, completion: completion)
     }
 
     func searchUsers(query: String) {
@@ -530,196 +439,151 @@ class MessagingViewModel: ObservableObject {
         }
     }
 
-    func startConversation(with user: AppUser, from userId: String, initialMessage: String? = nil, completion: @escaping (Conversation?) -> Void) {
-        requiresMessageRequest = false
+    func startConversation(
+        with user: AppUser,
+        from userId: String,
+        initialMessage: String? = nil,
+        completion: @escaping (Conversation?) -> Void
+    ) {
+        let trimmed = initialMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        Task { @MainActor [weak self] in
+            guard let self else { completion(nil); return }
+            do {
+                let route = try await self.messageRequestService.resolveRoute(
+                    to: user.id,
+                    reserve: !trimmed.isEmpty
+                )
+                switch route {
+                case .conversation(let conversationId):
+                    if !trimmed.isEmpty {
+                        try await self.sendText(trimmed, conversationId: conversationId, senderId: userId)
+                    }
+                    let conversation = self.directConversation(
+                        id: conversationId,
+                        user: user,
+                        currentUserId: userId,
+                        lastMessage: trimmed.isEmpty ? "" : MessageType.text.conversationPreview
+                    )
+                    self.selectedConversation = conversation
+                    self.presentationRoute = .conversation(conversation)
+                    self.requiresMessageRequest = false
+                    self.errorMessage = nil
+                    completion(conversation)
 
-        if let existingConversation = conversations.first(where: { $0.otherParticipantId == user.id && $0.id != nil }) {
-            let trimmedInitial = initialMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                case .conversationDraft(let threadId):
+                    if trimmed.isEmpty {
+                        let conversation = self.directConversation(
+                            id: nil,
+                            user: user,
+                            currentUserId: userId,
+                            lastMessage: ""
+                        )
+                        self.selectedConversation = conversation
+                        self.presentationRoute = .conversation(conversation)
+                        self.requiresMessageRequest = false
+                        self.errorMessage = nil
+                        completion(conversation)
+                    } else {
+                        let conversationId = try await self.messageRequestService.activateConversationDraft(
+                            to: user.id,
+                            threadId: threadId
+                        )
+                        try await self.sendText(trimmed, conversationId: conversationId, senderId: userId)
+                        let conversation = self.directConversation(
+                            id: conversationId,
+                            user: user,
+                            currentUserId: userId,
+                            lastMessage: MessageType.text.conversationPreview
+                        )
+                        self.selectedConversation = conversation
+                        self.presentationRoute = .conversation(conversation)
+                        self.requiresMessageRequest = false
+                        self.errorMessage = nil
+                        completion(conversation)
+                    }
 
-            guard !trimmedInitial.isEmpty else {
-                DispatchQueue.main.async {
-                    self.selectedConversation = existingConversation
-                    completion(existingConversation)
-                }
-                return
-            }
-
-            guard let conversationId = existingConversation.id else {
-                DispatchQueue.main.async {
-                    self.errorMessage = NSLocalizedString("messaging.error.startConversationFailed", comment: "Failed to start conversation")
+                case let .outgoingRequest(threadId, count, _, _):
+                    var request: MessageRequest?
+                    var resultingCount = count
+                    if !trimmed.isEmpty {
+                        let sent = try await self.messageRequestService.appendRequestMessage(to: user.id, text: trimmed)
+                        resultingCount = sent.messageCount
+                    }
+                    if resultingCount > 0 {
+                        request = try? await self.messageRequestService.loadOutgoingRequest(
+                            threadId: threadId,
+                            receiverId: user.id
+                        )
+                    }
+                    let context = PendingChatContext(
+                        outgoingTo: user,
+                        status: resultingCount > 0 ? .outgoingRequestSent : .outgoingRequestDraft,
+                        initialText: trimmed.isEmpty ? request?.message : trimmed,
+                        request: request
+                    )
+                    self.presentationRoute = .pendingChat(context)
+                    self.requiresMessageRequest = false
+                    self.errorMessage = nil
                     completion(nil)
-                }
-                return
-            }
 
+                case let .incomingRequest(threadId, _):
+                    if trimmed.isEmpty {
+                        let request = try await self.messageRequestService.loadIncomingRequest(threadId: threadId)
+                        let context = await PendingChatContextFactory.incoming(request: request, viewerId: userId)
+                        self.presentationRoute = .pendingChat(context)
+                        self.requiresMessageRequest = false
+                        self.errorMessage = nil
+                        completion(nil)
+                    } else {
+                        let accepted = try await self.messageRequestService.acceptIncomingThread(threadId: threadId)
+                        try await self.sendText(trimmed, conversationId: accepted.conversationId, senderId: userId)
+                        let conversation = self.directConversation(
+                            id: accepted.conversationId,
+                            user: user,
+                            currentUserId: userId,
+                            lastMessage: MessageType.text.conversationPreview
+                        )
+                        self.selectedConversation = conversation
+                        self.presentationRoute = .conversation(conversation)
+                        self.requiresMessageRequest = false
+                        self.errorMessage = nil
+                        completion(conversation)
+                    }
+                }
+            } catch {
+                self.errorMessage = error.localizedDescription
+                self.requiresMessageRequest = false
+                completion(nil)
+            }
+        }
+    }
+
+    private func directConversation(
+        id: String?,
+        user: AppUser,
+        currentUserId: String,
+        lastMessage: String
+    ) -> Conversation {
+        Conversation(
+            id: id,
+            participants: [currentUserId, user.id].sorted(),
+            lastMessage: lastMessage,
+            timestamp: Date(),
+            readStatus: [currentUserId: true, user.id: false],
+            otherParticipantId: user.id,
+            otherParticipantUsername: user.username,
+            otherParticipantProfileImagePath: user.profileImagePath
+        )
+    }
+
+    private func sendText(_ text: String, conversationId: String, senderId: String) async throws {
+        try await withCheckedThrowingContinuation { continuation in
             chatService.sendTextMessage(
                 conversationId: conversationId,
-                senderId: userId,
-                content: trimmedInitial
-            ) { [weak self] result in
-                guard let self = self else { return }
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success:
-                        let updatedConversation = Conversation(
-                            id: existingConversation.id,
-                            participants: existingConversation.participants,
-                            lastMessage: MessageType.text.conversationPreview,
-                            timestamp: Date(),
-                            readStatus: existingConversation.readStatus,
-                            otherParticipantId: existingConversation.otherParticipantId,
-                            otherParticipantUsername: existingConversation.otherParticipantUsername,
-                            otherParticipantProfileImagePath: existingConversation.otherParticipantProfileImagePath,
-                            isPinned: existingConversation.isPinned,
-                            pinnedByUserIds: existingConversation.pinnedByUserIds,
-                            pinnedBy: existingConversation.pinnedBy,
-                            isMuted: existingConversation.isMuted,
-                            mutedByUserIds: existingConversation.mutedByUserIds,
-                            mutedBy: existingConversation.mutedBy
-                        )
-                        self.selectedConversation = updatedConversation
-                        if let idx = self.conversations.firstIndex(where: { $0.id == conversationId }) {
-                            self.conversations[idx] = updatedConversation
-                        }
-                        self.fetchConversations(for: userId)
-                        self.errorMessage = nil
-                        self.requiresMessageRequest = false
-                        completion(updatedConversation)
-                    case .failure(let error):
-                        self.errorMessage = String(
-                            format: NSLocalizedString("messaging.error.sendMessage", comment: "Failed to send message"),
-                            error.localizedDescription
-                        )
-                        self.requiresMessageRequest = false
-                        completion(nil)
-                    }
-                }
-            }
-            return
-        }
-
-        chatService.canSendMessage(from: userId, to: user.id) { [weak self] result in
-            guard let self = self else { return }
-            switch result {
-            case .success(let canSend):
-                if !canSend {
-                    DispatchQueue.main.async {
-                        self.errorMessage = NSLocalizedString("messaging.error.cannotStart", comment: "Cannot start conversation")
-                        self.requiresMessageRequest = false
-                        completion(nil)
-                    }
-                    return
-                }
-
-                // Sin mensaje inicial: abrir un borrador local en vez de crear el documento.
-                // Solo se persiste en Firestore cuando el usuario envía el primer mensaje.
-                let trimmedInitial = initialMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                if trimmedInitial.isEmpty {
-                    // Si ya existe una conversación (aunque esté "borrada" o no cargada en la
-                    // lista local), se abre directa: no se exige una solicitud nueva.
-                    self.chatService.findExistingConversation(between: userId, and: user.id) { existingResult in
-                        let existingId = (try? existingResult.get()) ?? nil
-                        if let existingId {
-                            DispatchQueue.main.async {
-                                let existing = Conversation(
-                                    id: existingId,
-                                    participants: [userId, user.id].sorted(),
-                                    lastMessage: "",
-                                    timestamp: Date(),
-                                    readStatus: [userId: true, user.id: false],
-                                    otherParticipantId: user.id,
-                                    otherParticipantUsername: user.username,
-                                    otherParticipantProfileImagePath: user.profileImagePath
-                                )
-                                self.selectedConversation = existing
-                                self.errorMessage = nil
-                                self.requiresMessageRequest = false
-                                completion(existing)
-                            }
-                            return
-                        }
-
-                        // No hay conversación previa: follow mutuo → borrador; si no → solicitud.
-                        self.chatService.areMutualFollowers(user1Id: userId, user2Id: user.id) { mutual in
-                            DispatchQueue.main.async {
-                                if mutual {
-                                    let draftConversation = Conversation(
-                                        id: nil,
-                                        participants: [userId, user.id].sorted(),
-                                        lastMessage: "",
-                                        timestamp: Date(),
-                                        readStatus: [userId: true, user.id: false],
-                                        otherParticipantId: user.id,
-                                        otherParticipantUsername: user.username,
-                                        otherParticipantProfileImagePath: user.profileImagePath
-                                    )
-                                    self.selectedConversation = draftConversation
-                                    self.errorMessage = nil
-                                    self.requiresMessageRequest = false
-                                    completion(draftConversation)
-                                } else {
-                                    self.errorMessage = NSLocalizedString("messaging.error.messageRequestRequired", comment: "A message request is required to start this conversation")
-                                    self.requiresMessageRequest = true
-                                    completion(nil)
-                                }
-                            }
-                        }
-                    }
-                    return
-                }
-
-                self.chatService.getOrCreateConversation(between: userId, and: user.id, initialMessage: initialMessage) { result in
-                    switch result {
-                    case .success(let conversationId):
-                        DispatchQueue.main.async {
-                            let immediateConversation = Conversation(
-                                id: conversationId,
-                                participants: [userId, user.id].sorted(),
-                                lastMessage: MessageType.text.conversationPreview,
-                                timestamp: Date(),
-                                readStatus: [userId: true, user.id: false],
-                                otherParticipantId: user.id,
-                                otherParticipantUsername: user.username,
-                                otherParticipantProfileImagePath: user.profileImagePath
-                            )
-                            self.selectedConversation = immediateConversation
-                            if !self.conversations.contains(where: { $0.id == conversationId }) {
-                                self.conversations.insert(immediateConversation, at: 0)
-                            }
-                            self.fetchConversations(for: userId)
-                            self.errorMessage = nil
-                            self.requiresMessageRequest = false
-                            completion(immediateConversation)
-                        }
-
-                    case .failure(let error):
-                        let nsError = error as NSError
-                        DispatchQueue.main.async {
-                            let localizedError = nsError.localizedDescription.lowercased()
-                            if nsError.code == 403 || localizedError.contains("no siguen mutuamente") || localizedError.contains("solicitud") {
-                                self.errorMessage = NSLocalizedString("messaging.error.messageRequestRequired", comment: "A message request is required to start this conversation")
-                                self.requiresMessageRequest = true
-                            } else {
-                                self.errorMessage = String(
-                                    format: NSLocalizedString("messaging.error.createConversation", comment: "Failed to create conversation"),
-                                    nsError.localizedDescription
-                                )
-                                self.requiresMessageRequest = false
-                            }
-                            completion(nil)
-                        }
-                    }
-                }
-
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self.errorMessage = String(
-                        format: NSLocalizedString("messaging.error.verifyPermissions", comment: "Failed to verify permissions"),
-                        error.localizedDescription
-                    )
-                    self.requiresMessageRequest = false
-                    completion(nil)
-                }
+                senderId: senderId,
+                content: text
+            ) { result in
+                continuation.resume(with: result.map { _ in () })
             }
         }
     }

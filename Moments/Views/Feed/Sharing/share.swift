@@ -670,6 +670,9 @@ struct ModernShareSheet: View {
     let onDismiss: () -> Void
 
     @StateObject private var chatService = ChatService.shared
+    @State private var isSending = false
+    @State private var deliveryFeedback: String?
+    @State private var dismissAfterFeedback = false
 
     var body: some View {
         ShareRecipientsPickerSheet(
@@ -683,30 +686,137 @@ struct ModernShareSheet: View {
             onDismiss: onDismiss,
             onSend: sendToSelectedUsers
         )
+        .alert(
+            NSLocalizedString("common.error", comment: ""),
+            isPresented: Binding(
+                get: { deliveryFeedback != nil },
+                set: { if !$0 { deliveryFeedback = nil } }
+            )
+        ) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {
+                deliveryFeedback = nil
+                if dismissAfterFeedback { onDismiss() }
+                dismissAfterFeedback = false
+            }
+        } message: {
+            Text(deliveryFeedback ?? "")
+        }
     }
 
     private func sendToSelectedUsers(selectedUsers: Set<String>, conversations: [Conversation]) {
         guard let currentUserId = Auth.auth().currentUser?.uid,
-              moment.id != nil else { return }
+              moment.id != nil,
+              !isSending else { return }
+
+        let recipientIds = selectedUsers.sorted()
+        guard !recipientIds.isEmpty else { return }
+        isSending = true
 
         let freshUsername = UserCacheService.shared.getCachedUser(userId: moment.authorId)?.username ?? moment.username
         let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), freshUsername)
         let momentUrl = buildMomentShareURLString(moment)
 
-        for userId in selectedUsers {
-            let existingConv = conversations.first(where: { $0.otherParticipantId == userId })
+        Task { @MainActor in
+            let coordinator = MessageRequestService()
+            var results: [DirectRecipientSendResult] = []
+            for userId in recipientIds {
+                guard !userId.isEmpty else {
+                    results.append(.init(id: userId, outcome: .denied, errorDescription: nil))
+                    continue
+                }
+                do {
+                    let context = MessageRequestInteractionContext(
+                        kind: .shareMoment,
+                        sharedContentId: moment.id,
+                        sharedContentOwnerId: moment.authorId
+                    )
+                    let route = try await coordinator.resolveRoute(to: userId, interaction: context)
+                    switch route {
+                    case .conversation(let conversationId):
+                        try await sendSharedMoment(
+                            conversationId: conversationId,
+                            senderId: currentUserId,
+                            shareText: shareText,
+                            momentUrl: momentUrl
+                        )
+                        results.append(.init(id: userId, outcome: .conversation, errorDescription: nil))
+                    case .conversationDraft(let threadId):
+                        let conversationId = try await coordinator.activateConversationDraft(
+                            to: userId,
+                            threadId: threadId
+                        )
+                        try await sendSharedMoment(
+                            conversationId: conversationId,
+                            senderId: currentUserId,
+                            shareText: shareText,
+                            momentUrl: momentUrl
+                        )
+                        results.append(.init(id: userId, outcome: .conversation, errorDescription: nil))
+                    case .outgoingRequest:
+                        _ = try await coordinator.appendRequestMessage(
+                            to: userId,
+                            text: shareText,
+                            messageType: .sharedMoment,
+                            interaction: context
+                        )
+                        results.append(.init(id: userId, outcome: .request, errorDescription: nil))
+                    case .incomingRequest(let threadId, _):
+                        let accepted = try await coordinator.acceptIncomingThread(threadId: threadId)
+                        try await sendSharedMoment(
+                            conversationId: accepted.conversationId,
+                            senderId: currentUserId,
+                            shareText: shareText,
+                            momentUrl: momentUrl
+                        )
+                        results.append(.init(id: userId, outcome: .conversation, errorDescription: nil))
+                    }
+                } catch {
+                    results.append(.init(
+                        id: userId,
+                        outcome: (error as NSError).code == 403 ? .denied : .failed,
+                        errorDescription: error.localizedDescription
+                    ))
+                }
+            }
+            isSending = false
+            let failures = results.filter { $0.outcome == .failed || $0.outcome == .denied }
+            if !results.isEmpty, failures.isEmpty {
+                HapticManager.shared.success()
+                onDismiss()
+                return
+            }
 
+            HapticManager.shared.error()
+            if results.count == 1, let message = failures.first?.errorDescription, !message.isEmpty {
+                deliveryFeedback = message
+            } else {
+                deliveryFeedback = String(
+                    format: NSLocalizedString("messaging.forward.partialFailure", comment: ""),
+                    failures.count,
+                    results.count
+                )
+            }
+            dismissAfterFeedback = failures.count < results.count
+        }
+    }
+
+    private func sendSharedMoment(
+        conversationId: String,
+        senderId: String,
+        shareText: String,
+        momentUrl: String
+    ) async throws {
+        try await withCheckedThrowingContinuation { continuation in
             chatService.sendSharedMomentMessage(
-                conversationId: existingConv?.id ?? "",
-                senderId: currentUserId,
+                conversationId: conversationId,
+                senderId: senderId,
                 moment: moment,
                 shareText: shareText,
                 momentUrl: momentUrl
-            ) { _ in }
+            ) { result in
+                continuation.resume(with: result.map { _ in () })
+            }
         }
-
-        HapticManager.shared.success()
-        onDismiss()
     }
 }
 
@@ -1447,6 +1557,11 @@ struct SharedMomentMessageBubble: View {
     private let privacyService = PrivacyService.shared
     @State private var canViewMoment: Bool? = nil
     @State private var isLoading: Bool = true
+    @State private var resolvedSharedMomentData: [String: String]?
+
+    private var displayedSharedMomentData: [String: String]? {
+        resolvedSharedMomentData ?? message.sharedMomentData
+    }
     
     var body: some View {
         Group {
@@ -1454,7 +1569,7 @@ struct SharedMomentMessageBubble: View {
                 SharedDMPreviewCardSkeleton()
                     .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
                     .padding(.vertical, 4)
-            } else if canViewMoment == true, let sharedMomentData = message.sharedMomentData {
+            } else if canViewMoment == true, let sharedMomentData = displayedSharedMomentData {
                 // Tarjeta con preview si tiene acceso
                 MomentBubbleContent(
                     content: nil,
@@ -1462,7 +1577,7 @@ struct SharedMomentMessageBubble: View {
                     isCurrentUser: isCurrentUser
                 )
             } else {
-                BlockedMomentBubble(sharedMomentData: message.sharedMomentData)
+                BlockedMomentBubble(sharedMomentData: displayedSharedMomentData)
                     .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
                     .padding(.vertical, 4)
             }
@@ -1483,12 +1598,6 @@ struct SharedMomentMessageBubble: View {
         
         let authorId = sharedMomentData["momentAuthorId"] ?? message.senderId
         
-        if authorId == currentUserId {
-            self.canViewMoment = true
-            self.isLoading = false
-            return
-        }
-        
         FirestoreService.shared.fetchMoment(momentId: momentId, userId: authorId) { result in
             guard case .success(let moment) = result else {
                 DispatchQueue.main.async {
@@ -1498,13 +1607,55 @@ struct SharedMomentMessageBubble: View {
                 return
             }
 
+            if authorId == currentUserId {
+                DispatchQueue.main.async {
+                    self.resolvedSharedMomentData = resolvedPayload(
+                        for: moment,
+                        momentId: momentId,
+                        base: sharedMomentData
+                    )
+                    self.canViewMoment = true
+                    self.isLoading = false
+                }
+                return
+            }
+
             self.privacyService.canUserViewMomentEnhanced(moment, viewerId: currentUserId) { canView in
                 DispatchQueue.main.async {
+                    if canView {
+                        self.resolvedSharedMomentData = resolvedPayload(
+                            for: moment,
+                            momentId: momentId,
+                            base: sharedMomentData
+                        )
+                    }
                     self.canViewMoment = canView
                     self.isLoading = false
                 }
             }
         }
+    }
+
+    private func resolvedPayload(
+        for moment: Moment,
+        momentId: String,
+        base: [String: String]
+    ) -> [String: String] {
+        var payload = base
+        let freshAuthor = UserCacheService.shared
+            .getCachedUser(userId: moment.authorId)?.username ?? moment.username
+        payload["momentId"] = moment.id ?? momentId
+        payload["momentAuthor"] = freshAuthor
+        payload["momentAuthorId"] = moment.authorId
+        payload["momentContent"] = moment.content
+        payload["momentImageUrl"] = moment.previewImageURLString ?? ""
+        payload["momentAspectRatio"] = moment.primaryVisibleMediaItem?.aspectRatio
+            ?? moment.aspectRatio
+            ?? "1:1"
+        payload["momentVideoUrl"] = moment.previewVideoURLString ?? ""
+        payload["momentTimestamp"] = String(moment.timestamp.timeIntervalSince1970)
+        payload["shareUrl"] = payload["shareUrl"] ?? buildMomentShareURLString(moment)
+        return payload
     }
 }
 

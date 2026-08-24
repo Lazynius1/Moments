@@ -103,6 +103,9 @@ class NotificationNavigationService: ObservableObject {
                 AppRouter.shared.navigate(to: .conversation(id: conversationId))
             }
 
+        case "message_request_v2":
+            AppRouter.shared.navigate(to: .showMessages)
+
         case "messageReaction":
             if let conversationId = userInfo["conversationId"] as? String {
                 let messageId = firstString(in: userInfo, keys: ["messageId", "targetMessageId"])

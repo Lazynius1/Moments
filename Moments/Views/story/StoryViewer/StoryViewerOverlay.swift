@@ -123,11 +123,12 @@ struct GlassmorphicActionButton: View {
 
 struct GlassmorphicSuccessMessage: View {
     let text: String
+    var isError = false
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(Color(hex: "007AFF"))
+            Image(systemName: isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
+                .foregroundStyle(isError ? Color(hex: "FF453A") : Color(hex: "007AFF"))
                 .font(.system(size: 20))
 
             Text(text)

@@ -31,13 +31,57 @@ extension GlassmorphicChatView {
             .padding(.vertical, 6)
             .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
         case .pendingRequestMessage(let message):
-            PendingRequestMessageRow(
-                message: message,
-                adaptiveColors: adaptiveColors
-            )
-            .padding(.horizontal, 14)
-            .padding(.vertical, 4)
+            ChatMessageRowChrome(
+                isOutgoing: message.isOutgoing,
+                colorScheme: colorScheme
+            ) {
+                PendingRequestNormalMessageRow(
+                    pendingMessage: message,
+                    conversationId: pendingRequestThreadId
+                        ?? pendingChatContext?.request?.id
+                        ?? "pending:\(pendingChatContext?.otherUserId ?? "unknown")",
+                    currentUserId: viewModel.currentUserId,
+                    otherParticipantId: pendingChatContext?.otherUserId,
+                    otherParticipantName: pendingChatContext?.otherUsername ?? otherParticipantDisplayName,
+                    isOtherParticipantUnavailable: isOtherParticipantUnavailable,
+                    showAvatar: shouldShowPendingRequestAvatar(for: message),
+                    groupPosition: pendingRequestGroupPosition(for: message),
+                    timestampRevealState: chatListController.timestampRevealState,
+                    onAvatarTap: { showingUserProfile = true },
+                    onOpenMedia: { _ in openPendingRequestMedia(message) },
+                    onMomentNavigation: { handleMomentNavigationFromChat(message: $0) },
+                    onStoryNavigation: { handleStoryNavigationFromChat(message: $0) }
+                )
+            }
             .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+        case .incomingRequestActions(let isLoading):
+            IncomingRequestBottomDock(
+                disclaimerTextKey: pendingChatDisclaimerKey,
+                adaptiveColors: adaptiveColors,
+                isLoading: isLoading,
+                onAccept: { acceptPendingMessageRequest() },
+                onDelete: deletePendingMessageRequest,
+                onBlock: blockPendingMessageRequest,
+                onReport: { showingReportSheet = true }
+            )
+            .padding(.bottom, 8)
+            .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+        case .outgoingRequestControls(let messageCount, let limitReached):
+            if limitReached {
+                PendingRequestSentInputBar(
+                    limitReached: true,
+                    onCancel: cancelPendingMessageRequest
+                )
+                .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+            } else if let context = pendingChatContext {
+                ChatRequestInviteNotice(
+                    displayName: context.otherUsername,
+                    username: context.otherUsername,
+                    messageCount: messageCount,
+                    adaptiveColors: adaptiveColors
+                )
+                .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+            }
         case .header(let date):
             GlassmorphicDateHeader(date: date)
                 .padding(.vertical, 10)
@@ -81,6 +125,27 @@ extension GlassmorphicChatView {
         case .mediaCluster(let messages):
             return messages.first?.senderId == viewModel.currentUserId
         }
+    }
+
+    func pendingRequestGroupPosition(for message: PendingChatTimelineMessage) -> ChatMessageGroupPosition {
+        let messages = pendingChatTimelineMessages
+        guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return .single }
+        let previousMatches = index > 0 && messages[index - 1].isOutgoing == message.isOutgoing
+        let nextMatches = index < messages.count - 1 && messages[index + 1].isOutgoing == message.isOutgoing
+
+        switch (previousMatches, nextMatches) {
+        case (false, false): return .single
+        case (false, true): return .first
+        case (true, true): return .middle
+        case (true, false): return .last
+        }
+    }
+
+    func shouldShowPendingRequestAvatar(for message: PendingChatTimelineMessage) -> Bool {
+        guard !message.isOutgoing else { return false }
+        let messages = pendingChatTimelineMessages
+        guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return true }
+        return index == messages.count - 1 || messages[index + 1].isOutgoing != message.isOutgoing
     }
 
     // ✅ REFACTORIZADO: Sección de barra de respuesta o edición

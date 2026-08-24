@@ -191,7 +191,13 @@ final class StoryRepository {
         }
     }
 
-    func addReaction(userId: String, storyId: String, currentUserId: String, reaction: String, completion: @escaping (Error?) -> Void) {
+    func addReaction(
+        userId: String,
+        storyId: String,
+        currentUserId: String,
+        reaction: String,
+        completion: @escaping (Error?) -> Void
+    ) {
         let db = firestoreService.db
         let reactionsCollection = db.collection("users").document(userId).collection("stories").document(storyId)
             .collection("reactions")

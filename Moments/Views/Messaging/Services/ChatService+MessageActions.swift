@@ -1,6 +1,19 @@
 import Foundation
 import FirebaseFirestore
 
+struct DirectRecipientSendResult: Identifiable, Hashable {
+    enum Outcome: String, Hashable {
+        case conversation
+        case request
+        case denied
+        case failed
+    }
+
+    let id: String
+    let outcome: Outcome
+    let errorDescription: String?
+}
+
 extension ChatService {
     // MARK: - Reenviar (solo texto, recifrado E2E por destino)
 
@@ -61,47 +74,86 @@ extension ChatService {
         plaintext: String,
         toUserIds: Set<String>,
         senderId: String,
-        completion: @escaping (Result<Void, Error>) -> Void
+        completion: @escaping ([DirectRecipientSendResult]) -> Void
     ) {
         guard !toUserIds.isEmpty else {
-            completion(.success(()))
+            completion([])
             return
         }
 
-        let group = DispatchGroup()
-        var lastError: Error?
-
-        for userId in toUserIds {
-            group.enter()
-            getOrCreateConversation(between: senderId, and: userId) { [weak self] result in
-                guard let self else {
-                    group.leave()
-                    return
+        Task { @MainActor in
+            let coordinator = MessageRequestService()
+            var results: [DirectRecipientSendResult] = []
+            for userId in toUserIds.sorted() {
+                guard !userId.isEmpty else {
+                    results.append(DirectRecipientSendResult(id: userId, outcome: .denied, errorDescription: "INVALID_RECIPIENT"))
+                    continue
                 }
-                switch result {
-                case .success(let conversationId):
-                    self.forwardTextMessage(
-                        plaintext: plaintext,
-                        destinationConversationId: conversationId,
-                        senderId: senderId
-                    ) { forwardResult in
-                        if case .failure(let error) = forwardResult {
-                            lastError = error
-                        }
-                        group.leave()
+                do {
+                    let route = try await coordinator.resolveRoute(
+                        to: userId,
+                        interaction: MessageRequestInteractionContext(kind: .forwardText)
+                    )
+                    switch route {
+                    case .conversation(let conversationId):
+                        try await self.forwardText(
+                            plaintext: plaintext,
+                            destinationConversationId: conversationId,
+                            senderId: senderId
+                        )
+                        results.append(DirectRecipientSendResult(id: userId, outcome: .conversation, errorDescription: nil))
+                    case .conversationDraft(let threadId):
+                        let conversationId = try await coordinator.activateConversationDraft(
+                            to: userId,
+                            threadId: threadId
+                        )
+                        try await self.forwardText(
+                            plaintext: plaintext,
+                            destinationConversationId: conversationId,
+                            senderId: senderId
+                        )
+                        results.append(DirectRecipientSendResult(id: userId, outcome: .conversation, errorDescription: nil))
+                    case .outgoingRequest:
+                        _ = try await coordinator.appendRequestMessage(
+                            to: userId,
+                            text: plaintext,
+                            interaction: MessageRequestInteractionContext(kind: .forwardText)
+                        )
+                        results.append(DirectRecipientSendResult(id: userId, outcome: .request, errorDescription: nil))
+                    case .incomingRequest(let threadId, _):
+                        let accepted = try await coordinator.acceptIncomingThread(threadId: threadId)
+                        try await self.forwardText(
+                            plaintext: plaintext,
+                            destinationConversationId: accepted.conversationId,
+                            senderId: senderId
+                        )
+                        results.append(DirectRecipientSendResult(id: userId, outcome: .conversation, errorDescription: nil))
                     }
-                case .failure(let error):
-                    lastError = error
-                    group.leave()
+                } catch {
+                    let outcome: DirectRecipientSendResult.Outcome = (error as NSError).code == 403 ? .denied : .failed
+                    results.append(DirectRecipientSendResult(
+                        id: userId,
+                        outcome: outcome,
+                        errorDescription: error.localizedDescription
+                    ))
                 }
             }
+            completion(results)
         }
+    }
 
-        group.notify(queue: .main) {
-            if let lastError {
-                completion(.failure(lastError))
-            } else {
-                completion(.success(()))
+    private func forwardText(
+        plaintext: String,
+        destinationConversationId: String,
+        senderId: String
+    ) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            forwardTextMessage(
+                plaintext: plaintext,
+                destinationConversationId: destinationConversationId,
+                senderId: senderId
+            ) { result in
+                continuation.resume(with: result.map { _ in () })
             }
         }
     }

@@ -8,6 +8,8 @@ struct GlassmorphicMessageRow: View {
     let isCurrentUser: Bool
     let showAvatar: Bool
     var groupPosition: ChatMessageGroupPosition = .single
+    var allowsReplySwipe: Bool = true
+    var persistsViewState: Bool = true
     let otherUserId: String?
     let isOtherParticipantUnavailable: Bool
     let otherParticipantName: String
@@ -206,6 +208,7 @@ struct GlassmorphicMessageRow: View {
             hapticStep: $replyHapticStep,
             isOutgoing: isCurrentUser,
             cornerRadius: cornerRadius,
+            isEnabled: allowsReplySwipe,
             onReply: onReply
         ) {
             ChatMessageBubbleChrome(
@@ -243,7 +246,8 @@ struct GlassmorphicMessageRow: View {
             onViewOnceOpen: onViewOnceOpen,
             onOpenLocation: onOpenLocation,
             onHydrateMedia: onHydrateMedia,
-            onMessageViewed: onMessageViewed
+            onMessageViewed: onMessageViewed,
+            persistsViewState: persistsViewState
         )
     }
 }

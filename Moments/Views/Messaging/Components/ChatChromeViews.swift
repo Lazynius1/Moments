@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import AVKit
 
 // MARK: - Swipe back nativo
 
@@ -424,6 +425,7 @@ struct ChatConversationIntroRow: View {
 struct ChatRequestInviteNotice: View {
     let displayName: String
     let username: String
+    let messageCount: Int
     let adaptiveColors: AdaptiveColors
 
     var body: some View {
@@ -444,6 +446,10 @@ struct ChatRequestInviteNotice: View {
                     .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                     .foregroundStyle(adaptiveColors.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                Text("\(messageCount)/5")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(adaptiveColors.secondary)
             }
 
             Spacer(minLength: 0)
@@ -482,49 +488,135 @@ struct ChatRequestDisclaimerRow: View {
     }
 }
 
-struct PendingRequestMessageRow: View {
-    let message: PendingChatTimelineMessage
-    let adaptiveColors: AdaptiveColors
+struct PendingRequestNormalMessageRow: View {
+    @StateObject private var normalMessage: EnhancedMessage
 
-    var body: some View {
-        HStack {
-            if message.isOutgoing {
-                Spacer(minLength: 48)
-            }
+    let currentUserId: String
+    let otherParticipantId: String?
+    let otherParticipantName: String
+    let isOtherParticipantUnavailable: Bool
+    let showAvatar: Bool
+    let groupPosition: ChatMessageGroupPosition
+    let timestampRevealState: ChatTimestampRevealState
+    let onAvatarTap: () -> Void
+    let onOpenMedia: (EnhancedMessage) -> Void
+    let onMomentNavigation: (EnhancedMessage) -> Void
+    let onStoryNavigation: (EnhancedMessage) -> Void
 
-            VStack(alignment: .leading, spacing: 6) {
-                switch message.messageType {
-                case .image:
-                    mediaLabel(systemName: "photo", textKey: "messageRequests.image")
-                case .video:
-                    mediaLabel(systemName: "play.rectangle", textKey: "messageRequests.video")
-                default:
-                    Text(message.text)
-                        .font(.system(size: legacyPoppinsSize(15)))
-                        .foregroundStyle(message.isOutgoing ? Color.white : adaptiveColors.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(message.isOutgoing ? AnyShapeStyle(Color.blue.opacity(0.92)) : AnyShapeStyle(adaptiveColors.cardBackground))
+    init(
+        pendingMessage: PendingChatTimelineMessage,
+        conversationId: String,
+        currentUserId: String,
+        otherParticipantId: String?,
+        otherParticipantName: String,
+        isOtherParticipantUnavailable: Bool,
+        showAvatar: Bool,
+        groupPosition: ChatMessageGroupPosition,
+        timestampRevealState: ChatTimestampRevealState,
+        onAvatarTap: @escaping () -> Void,
+        onOpenMedia: @escaping (EnhancedMessage) -> Void,
+        onMomentNavigation: @escaping (EnhancedMessage) -> Void,
+        onStoryNavigation: @escaping (EnhancedMessage) -> Void
+    ) {
+        _normalMessage = StateObject(
+            wrappedValue: pendingMessage.asEnhancedMessage(
+                conversationId: conversationId,
+                currentUserId: currentUserId
             )
-
-            if !message.isOutgoing {
-                Spacer(minLength: 48)
-            }
-        }
+        )
+        self.currentUserId = currentUserId
+        self.otherParticipantId = otherParticipantId
+        self.otherParticipantName = otherParticipantName
+        self.isOtherParticipantUnavailable = isOtherParticipantUnavailable
+        self.showAvatar = showAvatar
+        self.groupPosition = groupPosition
+        self.timestampRevealState = timestampRevealState
+        self.onAvatarTap = onAvatarTap
+        self.onOpenMedia = onOpenMedia
+        self.onMomentNavigation = onMomentNavigation
+        self.onStoryNavigation = onStoryNavigation
     }
 
-    private func mediaLabel(systemName: String, textKey: LocalizedStringKey) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: systemName)
-            Text(textKey)
+    var body: some View {
+        GlassmorphicMessageRow(
+            message: normalMessage,
+            displayReactions: nil,
+            isCurrentUser: normalMessage.senderId == currentUserId,
+            showAvatar: showAvatar,
+            groupPosition: groupPosition,
+            allowsReplySwipe: false,
+            persistsViewState: false,
+            otherUserId: otherParticipantId,
+            isOtherParticipantUnavailable: isOtherParticipantUnavailable,
+            otherParticipantName: otherParticipantName,
+            repliedMessage: nil,
+            onReply: {},
+            onReaction: { _ in },
+            onAvatarTap: onAvatarTap,
+            onReplyTap: nil,
+            onMessageViewed: nil,
+            onMomentNavigation: onMomentNavigation,
+            onStoryNavigation: onStoryNavigation,
+            onOpenMedia: onOpenMedia,
+            onStopLiveLocation: nil,
+            onHydrateMedia: nil,
+            onLongPress: nil,
+            onViewOnceOpen: { message, _ in onOpenMedia(message) },
+            progress: nil,
+            showSeenLabel: false,
+            timestampRevealState: timestampRevealState
+        )
+    }
+}
+
+struct PendingRequestMediaViewer: View {
+    let presentation: PendingRequestMediaPresentation
+    @Environment(\.dismiss) private var dismiss
+    @State private var player: AVPlayer?
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if presentation.isVideo {
+                VideoPlayer(player: player)
+                    .ignoresSafeArea()
+                    .onAppear {
+                        let player = AVPlayer(url: presentation.localURL)
+                        self.player = player
+                        player.play()
+                    }
+            } else if let image = UIImage(contentsOfFile: presentation.localURL.path) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .ignoresSafeArea()
+            }
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        player?.pause()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(.black.opacity(0.45), in: Circle())
+                    }
+                    .accessibilityLabel("common.close")
+                }
+                .padding()
+                Spacer()
+            }
         }
-        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-        .foregroundStyle(message.isOutgoing ? Color.white : adaptiveColors.primary)
+        .onDisappear {
+            player?.pause()
+            player = nil
+            try? FileManager.default.removeItem(at: presentation.localURL)
+        }
     }
 }
 

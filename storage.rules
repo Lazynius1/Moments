@@ -140,6 +140,24 @@ service firebase.storage {
       return firestore.get(conversationPath(conversationId));
     }
 
+    function messageRequestPath(threadId) {
+      return /databases/(default)/documents/messageRequests/$(threadId);
+    }
+
+    function isPendingRequestParticipant(threadId) {
+      return isAuthenticated()
+        && firestore.exists(messageRequestPath(threadId))
+        && request.auth.uid in firestore.get(messageRequestPath(threadId)).data.participants;
+    }
+
+    function canWritePendingRequestMedia(threadId) {
+      return isAuthenticated()
+        && firestore.exists(messageRequestPath(threadId))
+        && firestore.get(messageRequestPath(threadId)).data.schemaVersion == 2
+        && firestore.get(messageRequestPath(threadId)).data.state == 'pending'
+        && firestore.get(messageRequestPath(threadId)).data.initiatorId == request.auth.uid;
+    }
+
     // participants[] o claves de participantData (conversaciones antiguas / migraciones).
     function isConversationParticipant(conversationId) {
       return isAuthenticated() &&
@@ -362,23 +380,27 @@ service firebase.storage {
       allow delete: if isOwner(userId);
     }
 
+    // Ruta estable antes y después de aceptar. El contenido siempre es un
+    // blob cifrado; el backend valida y enlaza su storagePath al mensaje V2.
+    match /directThreads/{threadId}/{messageId}/{fileName} {
+      allow read: if isActiveUser()
+                    && (isPendingRequestParticipant(threadId) || isConversationParticipant(threadId));
+
+      allow write: if isActiveUser()
+                     && (canWritePendingRequestMedia(threadId) || isConversationParticipant(threadId))
+                     && request.resource.contentType.matches('application/octet-stream')
+                     && request.resource.metadata.ownerId == request.auth.uid
+                     && request.resource.metadata.threadId == threadId
+                     && request.resource.metadata.messageId == messageId
+                     && request.resource.size < 85 * 1024 * 1024;
+
+      allow delete: if isActiveUser()
+                      && resource.metadata.ownerId == request.auth.uid
+                      && (canWritePendingRequestMedia(threadId) || isConversationParticipant(threadId));
+    }
+
     match /messageRequests/{requestId}/{fileName} {
-      allow read: if isAuthenticated()
-                    && firestore.exists(/databases/(default)/documents/messageRequests/$(requestId))
-                    && request.auth.uid == firestore.get(/databases/(default)/documents/messageRequests/$(requestId)).data.receiverId
-                    && isActiveUser();
-
-      allow write: if isAuthenticated()
-                     && firestore.exists(/databases/(default)/documents/messageRequests/$(requestId))
-                     && request.auth.uid == firestore.get(/databases/(default)/documents/messageRequests/$(requestId)).data.senderId
-                     && isActiveUser()
-                     && request.resource.contentType.matches('image/.*|video/.*|audio/.*')
-                     && request.resource.size < 25 * 1024 * 1024;
-
-      allow delete: if isAuthenticated()
-                     && firestore.exists(/databases/(default)/documents/messageRequests/$(requestId))
-                     && request.auth.uid == firestore.get(/databases/(default)/documents/messageRequests/$(requestId)).data.senderId
-                     && isActiveUser();
+      allow read, write, delete: if false;
     }
   }
 }

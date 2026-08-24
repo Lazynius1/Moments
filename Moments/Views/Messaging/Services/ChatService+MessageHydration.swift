@@ -189,6 +189,32 @@ extension ChatService {
         let mediaEncryption = (data["mediaEncryption"] as? [String: Any]).flatMap { EncryptedChatMediaMetadata(map: $0) }
         let thumbnailEncryption = (data["thumbnailEncryption"] as? [String: Any]).flatMap { EncryptedChatMediaMetadata(map: $0) }
         let isDeleted = data["isDeleted"] as? Bool ?? false
+        let requestContext = data["context"] as? [String: Any] ?? [:]
+        let requestContextKind = data["contextKind"] as? String ?? requestContext["kind"] as? String
+        var resolvedStoryReplyData = data["storyReplyData"] as? [String: String]
+        var resolvedSharedMomentData = data["sharedMomentData"] as? [String: String]
+        var resolvedSharedStoryData = data["sharedStoryData"] as? [String: String]
+        if resolvedStoryReplyData == nil,
+           requestContextKind == MessageRequestInteractionContext.Kind.storyMessage.rawValue {
+            resolvedStoryReplyData = [
+                "storyId": requestContext["storyId"] as? String ?? "",
+                "storyOwnerId": requestContext["storyOwnerId"] as? String ?? ""
+            ]
+        }
+        if resolvedSharedMomentData == nil, requestContextKind == MessageRequestInteractionContext.Kind.shareMoment.rawValue {
+            resolvedSharedMomentData = [
+                "momentId": requestContext["sharedContentId"] as? String ?? "",
+                "momentAuthorId": requestContext["sharedContentOwnerId"] as? String ?? ""
+            ]
+        }
+        if resolvedSharedStoryData == nil, requestContextKind == MessageRequestInteractionContext.Kind.shareStory.rawValue {
+            resolvedSharedStoryData = [
+                "storyId": requestContext["sharedContentId"] as? String ?? requestContext["storyId"] as? String ?? "",
+                "storyAuthorId": requestContext["sharedContentOwnerId"] as? String
+                    ?? requestContext["storyOwnerId"] as? String
+                    ?? ""
+            ]
+        }
 
         let resolvedIsRead = Self.resolvedIncomingIsRead(from: data, senderId: senderId)
 
@@ -249,9 +275,9 @@ extension ChatService {
             replyTo: data["replyTo"] as? String,
             expirationDate: (data["expirationDate"] as? Timestamp)?.dateValue(),
             isViewed: data["isViewed"] as? Bool ?? false,
-            storyReplyData: data["storyReplyData"] as? [String: String],
-            sharedMomentData: data["sharedMomentData"] as? [String: String],
-            sharedStoryData: data["sharedStoryData"] as? [String: String],
+            storyReplyData: resolvedStoryReplyData,
+            sharedMomentData: resolvedSharedMomentData,
+            sharedStoryData: resolvedSharedStoryData,
             mediaBatchId: data["mediaBatchId"] as? String,
             textOverlayLive: data["textOverlayLive"] as? Bool,
             textOverlays: Self.decodeCodableArray(StoryTextOverlayMetadata.self, from: data["textOverlays"]),

@@ -2854,10 +2854,15 @@ class EnhancedChatViewModel: ObservableObject {
                 plaintext: plaintext,
                 toUserIds: toUserIds,
                 senderId: currentUserId
-            ) { [weak self] result in
+            ) { [weak self] results in
                 DispatchQueue.main.async {
-                    if case .failure(let error) = result {
-                        self?.error = error.localizedDescription
+                    let failures = results.filter { $0.outcome == .failed || $0.outcome == .denied }
+                    if !failures.isEmpty {
+                        self?.error = String(
+                            format: NSLocalizedString("messaging.forward.partialFailure", comment: ""),
+                            failures.count,
+                            results.count
+                        )
                     }
                 }
             }

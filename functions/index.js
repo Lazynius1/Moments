@@ -8,6 +8,7 @@ const registers = [
   require('./src/registers/triggers-engagement'),
   require('./src/registers/triggers-social'),
   require('./src/registers/triggers-messaging'),
+  require('./src/registers/http-message-requests-v2'),
   require('./src/registers/triggers-cleanup'),
   require('./src/registers/http-account'),
   require('./src/registers/http-feed'),

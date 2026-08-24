@@ -9,6 +9,7 @@ struct GlassmorphicInputBar: View {
     @Binding var activeAttachmentSheet: ChatAttachmentSheetKind?
     var isVanishModeActive: Bool = false
     var allowsAttachments: Bool = true
+    var allowsVoiceRecording: Bool = true
     let recordingTime: TimeInterval
     let recordingInteractionId: UUID?
     let voiceRecordingDraft: VoiceRecordingDraft?
@@ -152,7 +153,7 @@ struct GlassmorphicInputBar: View {
                 .opacity(isPreparingVoiceRecordingPreview ? 0.45 : 1)
         } else if !text.isEmpty {
             circularSendButton
-        } else if allowsAttachments {
+        } else if allowsAttachments && allowsVoiceRecording {
             VoiceRecordingGestureButton(
                 tint: adaptiveColors.mediaIconColor,
                 isRecording: isRecordingVoice,

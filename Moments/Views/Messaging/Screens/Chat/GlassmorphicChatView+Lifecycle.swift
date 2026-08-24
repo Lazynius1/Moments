@@ -8,6 +8,38 @@ import CoreLocation
 import MapKit
 
 extension GlassmorphicChatView {
+    func openPendingRequestMedia(_ timelineMessage: PendingChatTimelineMessage) {
+        guard let threadId = pendingRequestThreadId ?? pendingChatContext?.request?.id,
+              let message = pendingRequestMessages.first(where: { $0.id == timelineMessage.sourceMessageId }),
+              !message.isExpired else {
+            showBuzzToast(NSLocalizedString("messageRequests.media.unavailable", comment: ""))
+            return
+        }
+
+        Task { @MainActor in
+            do {
+                let localURL = try await pendingMessageRequestService.decryptedPendingMediaURL(
+                    threadId: threadId,
+                    message: message
+                )
+                if pendingChatContext?.direction == .incoming {
+                    try await pendingMessageRequestService.consumePendingEphemeral(
+                        threadId: threadId,
+                        messageId: message.id
+                    )
+                }
+                pendingRequestMediaPresentation = PendingRequestMediaPresentation(
+                    id: message.id,
+                    localURL: localURL,
+                    isVideo: message.type == .viewOnceVideo || message.mediaEncryption?.contentType.hasPrefix("video/") == true,
+                    allowReplay: message.allowReplay
+                )
+            } catch {
+                showBuzzToast(error.localizedDescription)
+            }
+        }
+    }
+
     // MARK: - Helper Methods
     func setupOnlineStatusObserver() {
         let otherUserId = viewModel.conversation.otherParticipantId
@@ -27,6 +59,36 @@ extension GlassmorphicChatView {
         overlayPayload: ChatMediaOverlayPayload? = nil
     ) {
         guard !isOtherParticipantUnavailable else {
+            showEnhancedCamera = false
+            return
+        }
+
+        if pendingChatCanType, var context = pendingChatContext {
+            let allowReplay = mode == .allowReplay
+            let expiresAt = mode == .keepInChat ? Date().addingTimeInterval(24 * 60 * 60) : nil
+            Task { @MainActor in
+                do {
+                    let result = try await pendingMessageRequestService.appendEphemeralMedia(
+                        to: context.otherUserId,
+                        data: data,
+                        mediaType: mediaType,
+                        allowReplay: allowReplay,
+                        expiresAt: expiresAt
+                    )
+                    context.status = .outgoingRequestSent
+                    pendingChatContext = context
+                    let type: MessageType = expiresAt == nil
+                        ? (mediaType == .video ? .viewOnceVideo : .viewOnceImage)
+                        : .ephemeral
+                    recordPendingRequestSend(
+                        result,
+                        text: mediaType == .video ? "🎥" : "📷",
+                        type: type
+                    )
+                } catch {
+                    showBuzzToast(error.localizedDescription)
+                }
+            }
             showEnhancedCamera = false
             return
         }

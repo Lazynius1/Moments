@@ -169,6 +169,7 @@ struct StoryReplyGatedThumbnailView: View {
     @State private var canViewStory = false
     @State private var denialReason: SharedStoryAccessDenialReason = .expired
     @State private var isLoading = true
+    @State private var resolvedStoryReplyData: [String: String]?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -177,7 +178,7 @@ struct StoryReplyGatedThumbnailView: View {
             if isLoading {
                 StoryReplyThumbnailSkeleton()
             } else if canViewStory {
-                StoryReplyThumbnailView(storyReplyData: storyReplyData)
+                StoryReplyThumbnailView(storyReplyData: resolvedStoryReplyData ?? storyReplyData)
             } else {
                 StoryReplyUnavailableThumbnail(
                     reason: denialReason,
@@ -218,12 +219,37 @@ struct StoryReplyGatedThumbnailView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    canViewStory = true
-                    denialReason = .expired
+                    hydrateStoryPreviewIfNeeded(authorId: authorId, storyId: storyId)
                 case .failure(let reason):
                     canViewStory = false
                     denialReason = reason
+                    isLoading = false
                 }
+            }
+        }
+    }
+
+    private func hydrateStoryPreviewIfNeeded(authorId: String, storyId: String) {
+        let mediaURL = storyReplyData["storyMediaUrl"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if mediaURL?.isEmpty == false {
+            resolvedStoryReplyData = storyReplyData
+            canViewStory = true
+            denialReason = .expired
+            isLoading = false
+            return
+        }
+
+        StoryRepository().fetchStoryReplyData(userId: authorId, storyId: storyId) { replyData in
+            DispatchQueue.main.async {
+                guard let replyData else {
+                    canViewStory = false
+                    denialReason = .expired
+                    isLoading = false
+                    return
+                }
+                resolvedStoryReplyData = replyData.payload
+                canViewStory = true
+                denialReason = .expired
                 isLoading = false
             }
         }
@@ -340,6 +366,12 @@ struct StoryReplyThumbnailView: View {
         storyReplyData["storyMediaType"] == "video"
     }
 
+    private var previewURL: String? {
+        let preview = storyReplyData["storyPreviewUrl"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let preview, !preview.isEmpty { return preview }
+        return storyReplyData["storyMediaUrl"]
+    }
+
     var body: some View {
         let innerRadius = StoryReplyPreviewMetrics.cornerRadius - 2
         let innerWidth = StoryReplyPreviewMetrics.width - 4
@@ -347,8 +379,8 @@ struct StoryReplyThumbnailView: View {
 
         ZStack {
             Group {
-                if let storyMediaUrl = storyReplyData["storyMediaUrl"],
-                   let url = URL(string: storyMediaUrl) {
+                if let previewURL,
+                   let url = URL(string: previewURL) {
                     KFImage(url)
                         .resizable()
                         .placeholder {

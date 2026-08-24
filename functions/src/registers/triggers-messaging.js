@@ -215,6 +215,9 @@ const acceptMessageRequest = onRequest(
         }
 
         const data = requestSnap.data() || {};
+        if (Number(data.schemaVersion || 1) >= 2) {
+          throw new Error('UPGRADE_REQUIRED');
+        }
         if (data.receiverId !== receiverId) {
           throw new Error('REQUEST_FORBIDDEN');
         }
@@ -361,6 +364,10 @@ const acceptMessageRequest = onRequest(
       }
       if (error.message === 'REQUEST_UNTRUSTED') {
         res.status(403).json({ error: 'Untrusted message request', errorCode: 'REQUEST_UNTRUSTED' });
+        return;
+      }
+      if (error.message === 'UPGRADE_REQUIRED') {
+        res.status(426).json({ error: 'Client upgrade required', errorCode: 'UPGRADE_REQUIRED' });
         return;
       }
 

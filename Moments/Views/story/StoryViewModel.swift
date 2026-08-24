@@ -6,6 +6,14 @@ import AVKit
 import Kingfisher
 import SwiftData
 
+private enum StoryDeliveryError: LocalizedError {
+    case unavailable
+
+    var errorDescription: String? {
+        NSLocalizedString("stories.delivery.failed", comment: "Story interaction could not be delivered")
+    }
+}
+
 // MARK: - StoryViewModel
 @MainActor
 class StoryViewModel: ObservableObject {
@@ -32,6 +40,7 @@ class StoryViewModel: ObservableObject {
 
     private let firestoreService = FirestoreService()
     private let chatService = ChatService.shared
+    private let messageRequestService = MessageRequestService()
     private let privacyService = PrivacyService()
     private let storyRepository = StoryRepository()
     private let playbackCoordinator = StoryPlaybackCoordinator()
@@ -425,47 +434,74 @@ class StoryViewModel: ObservableObject {
         }
     }
 
-    // Updated sendMessage function in StoryViewModel
-    func sendMessage(to userId: String, storyId: String, message: String, completion: @escaping (Bool) -> Void) {
+    func sendMessage(
+        to userId: String,
+        storyId: String,
+        message: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            completion(false)
+            completion(.failure(StoryDeliveryError.unavailable))
             return
         }
-
-
-        // First, get or create conversation
-        getOrCreateConversation(between: currentUserId, and: userId) { [weak self] conversationId, error in
-            guard let self = self, let conversationId = conversationId, error == nil else {
-                completion(false)
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            completion(.failure(StoryDeliveryError.unavailable))
+            return
+        }
+        let context = MessageRequestInteractionContext(
+            kind: .storyMessage,
+            storyId: storyId,
+            storyOwnerId: userId
+        )
+        storyRepository.fetchStoryReplyData(userId: userId, storyId: storyId) { [weak self] storyReply in
+            guard let self, let storyReply else {
+                completion(.failure(StoryDeliveryError.unavailable))
                 return
             }
-
-            storyRepository.fetchStoryReplyData(userId: userId, storyId: storyId) { storyReply in
-                guard let storyReply else {
-                    completion(false)
-                    return
-                }
-
-                // El vanish del chat se extiende a las respuestas de historia:
-                // leer el estado real de la conversación justo antes de enviar.
-                self.firestoreService.db.collection("conversations").document(conversationId).getDocument { snapshot, _ in
-                    let vanishActive = snapshot?.data()?["vanishModeActive"] as? Bool ?? false
-
-                    // Send the message as regular text message with story reply data
-                    self.chatService.sendStoryReplyMessage(
-                        conversationId: conversationId,
-                        senderId: currentUserId,
-                        content: "💬 \(message)",  // Keep the message content
-                        storyReplyData: storyReply.payload,
-                        isVanishModeMessage: vanishActive
-                    ) { result in
-                        switch result {
-                        case .success(_):
-                            completion(true)
-                        case .failure:
-                            completion(false)
-                        }
+            Task { @MainActor in
+                do {
+                    let route = try await self.messageRequestService.resolveRoute(to: userId, interaction: context)
+                    switch route {
+                    case .outgoingRequest:
+                        _ = try await self.messageRequestService.appendRequestMessage(
+                            to: userId,
+                            text: "💬 \(trimmed)",
+                            interaction: context
+                        )
+                        completion(.success(()))
+                    case .conversation(let conversationId):
+                        self.sendAcceptedStoryReply(
+                            conversationId: conversationId,
+                            senderId: currentUserId,
+                            content: "💬 \(trimmed)",
+                            storyReplyData: storyReply.payload,
+                            completion: completion
+                        )
+                    case .conversationDraft(let threadId):
+                        let conversationId = try await self.messageRequestService.activateConversationDraft(
+                            to: userId,
+                            threadId: threadId
+                        )
+                        self.sendAcceptedStoryReply(
+                            conversationId: conversationId,
+                            senderId: currentUserId,
+                            content: "💬 \(trimmed)",
+                            storyReplyData: storyReply.payload,
+                            completion: completion
+                        )
+                    case .incomingRequest(let threadId, _):
+                        let accepted = try await self.messageRequestService.acceptIncomingThread(threadId: threadId)
+                        self.sendAcceptedStoryReply(
+                            conversationId: accepted.conversationId,
+                            senderId: currentUserId,
+                            content: "💬 \(trimmed)",
+                            storyReplyData: storyReply.payload,
+                            completion: completion
+                        )
                     }
+                } catch {
+                    completion(.failure(error))
                 }
             }
         }
@@ -506,81 +542,80 @@ class StoryViewModel: ObservableObject {
     }
 
 
-    func sendEphemeralMoment(to userId: String, storyId: String, image: UIImage, completion: @escaping (Bool) -> Void) {
+    func sendEphemeralMoment(
+        to userId: String,
+        storyId: String,
+        image: UIImage,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            completion(false)
+            completion(.failure(StoryDeliveryError.unavailable))
             return
         }
 
 
         // Convert UIImage to Data
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            completion(false)
+            completion(.failure(StoryDeliveryError.unavailable))
             return
         }
 
-        // Fetch the story to include its media
+        let context = MessageRequestInteractionContext(
+            kind: .storyEphemeral,
+            storyId: storyId,
+            storyOwnerId: userId
+        )
         storyRepository.fetchStoryReplyData(userId: userId, storyId: storyId) { [weak self] storyReply in
-            guard let storyReply else {
-                completion(false)
+            guard let self, let storyReply else {
+                completion(.failure(StoryDeliveryError.unavailable))
                 return
             }
-
-            // Check if user can send message
-            self?.chatService.canSendMessage(from: currentUserId, to: userId) { [weak self] result in
-                switch result {
-                case .success(let canSend):
-                    guard canSend else {
-                        completion(false)
-                        return
-                    }
-
-                    // Get or create conversation
-                    self?.getOrCreateConversation(between: currentUserId, and: userId) { [weak self] conversationId, error in
-                        guard let self = self, let conversationId = conversationId, error == nil else {
-                            completion(false)
-                            return
-                        }
-
-                        // Upload media and send ephemeral message
-                        let messageId = UUID().uuidString
-                        self.chatService.uploadMedia(
+            Task { @MainActor in
+                do {
+                    let route = try await self.messageRequestService.resolveRoute(to: userId, interaction: context)
+                    switch route {
+                    case .outgoingRequest:
+                        _ = try await self.messageRequestService.appendEphemeralMedia(
+                            to: userId,
                             data: imageData,
-                            type: .ephemeral,
+                            mediaType: .image,
+                            allowReplay: true,
+                            interaction: context,
+                            expiresAt: Date().addingTimeInterval(24 * 60 * 60)
+                        )
+                        completion(.success(()))
+                    case .conversation(let conversationId):
+                        self.sendAcceptedEphemeralStoryReply(
+                            data: imageData,
                             conversationId: conversationId,
-                            messageId: messageId
-                        ) { result in
-                            switch result {
-                            case .success(let uploadResult):
-                                self.chatService.sendEphemeralMessage(
-                                    conversationId: conversationId,
-                                    senderId: currentUserId,
-                                    content: NSLocalizedString("stories.ephemeral.replyContent", comment: "Ephemeral moment in reply to story"),
-                                    mediaUrl: uploadResult.mediaUrl,
-                                    mediaObjectPath: uploadResult.mediaObjectPath,
-                                    thumbnailUrl: uploadResult.thumbnailUrl,
-                                    thumbnailObjectPath: uploadResult.thumbnailObjectPath,
-                                    mediaEncryption: uploadResult.mediaEncryption,
-                                    thumbnailEncryption: uploadResult.thumbnailEncryption,
-                                    expirationHours: 24,
-                                    storyReplyData: storyReply.payload,
-                                    messageId: messageId
-                                ) { ephemeralResult in
-                                    switch ephemeralResult {
-                                    case .success(_):
-                                        completion(true)
-                                    case .failure:
-                                        completion(false)
-                                    }
-                                }
-                            case .failure:
-                                completion(false)
-                            }
-                        }
+                            senderId: currentUserId,
+                            storyReplyData: storyReply.payload,
+                            completion: completion
+                        )
+                    case .conversationDraft(let threadId):
+                        let conversationId = try await self.messageRequestService.activateConversationDraft(
+                            to: userId,
+                            threadId: threadId
+                        )
+                        self.sendAcceptedEphemeralStoryReply(
+                            data: imageData,
+                            conversationId: conversationId,
+                            senderId: currentUserId,
+                            storyReplyData: storyReply.payload,
+                            completion: completion
+                        )
+                    case .incomingRequest(let threadId, _):
+                        let accepted = try await self.messageRequestService.acceptIncomingThread(threadId: threadId)
+                        self.sendAcceptedEphemeralStoryReply(
+                            data: imageData,
+                            conversationId: accepted.conversationId,
+                            senderId: currentUserId,
+                            storyReplyData: storyReply.payload,
+                            completion: completion
+                        )
                     }
-
-                case .failure:
-                    completion(false)
+                } catch {
+                    completion(.failure(error))
                 }
             }
         }
@@ -697,105 +732,103 @@ class StoryViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Private Helpers
-
-    private func getOrCreateConversation(between senderId: String, and receiverId: String, completion: @escaping (String?, Error?) -> Void) {
-
-        // Validate inputs
-        guard !senderId.isEmpty, !receiverId.isEmpty else {
-            completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid user IDs"]))
+    func sendReaction(
+        to userId: String,
+        storyId: String,
+        reaction: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            completion(.failure(StoryDeliveryError.unavailable))
             return
         }
-
-        firestoreService.db.collection("conversations")
-            .whereField("participants", arrayContains: senderId)
-            .getDocuments { [weak self] snapshot, error in
-                if let error = error {
-                    completion(nil, error)
+        storyRepository.addReaction(
+            userId: userId,
+            storyId: storyId,
+            currentUserId: currentUserId,
+            reaction: reaction
+        ) { [weak self] error in
+            Task { @MainActor in
+                if let error {
+                    completion(.failure(error))
                     return
                 }
+                self?.completeStoryReaction(userId: userId, storyId: storyId)
+                completion(.success(()))
+            }
+        }
+    }
 
-                guard let documents = snapshot?.documents else {
-                    Task { @MainActor in
-                        self?.createNewConversation(between: senderId, and: receiverId, completion: completion)
-                    }
-                    return
-                }
+    private func sendAcceptedStoryReply(
+        conversationId: String,
+        senderId: String,
+        content: String,
+        storyReplyData: [String: String],
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        firestoreService.db.collection("conversations").document(conversationId).getDocument { [weak self] snapshot, _ in
+            guard let self else {
+                completion(.failure(StoryDeliveryError.unavailable))
+                return
+            }
+            let vanishActive = snapshot?.data()?["vanishModeActive"] as? Bool ?? false
+            self.chatService.sendStoryReplyMessage(
+                conversationId: conversationId,
+                senderId: senderId,
+                content: content,
+                storyReplyData: storyReplyData,
+                isVanishModeMessage: vanishActive
+            ) { result in
+                completion(result.map { _ in () })
+            }
+        }
+    }
 
-
-                // Find conversation with both participants
-                let conversation = documents.first { doc in
-                    let participants = doc.data()["participants"] as? [String] ?? []
-                    return participants.contains(receiverId)
-                }
-
-                if let conversation = conversation {
-                    let conversationId = conversation.documentID
-                    completion(conversationId, nil)
+    private func sendAcceptedEphemeralStoryReply(
+        data: Data,
+        conversationId: String,
+        senderId: String,
+        storyReplyData: [String: String],
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        let messageId = UUID().uuidString
+        chatService.uploadMedia(data: data, type: .ephemeral, conversationId: conversationId, messageId: messageId) { [weak self] result in
+            guard let self else {
+                completion(.failure(StoryDeliveryError.unavailable))
+                return
+            }
+            guard case .success(let upload) = result else {
+                if case .failure(let error) = result {
+                    completion(.failure(error))
                 } else {
-                    Task { @MainActor in
-                        self?.createNewConversation(between: senderId, and: receiverId, completion: completion)
-                    }
+                    completion(.failure(StoryDeliveryError.unavailable))
                 }
+                return
             }
-    }
-
-
-
-    func sendReaction(to userId: String, storyId: String, reaction: String) {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-
-        storyRepository.addReaction(userId: userId, storyId: storyId, currentUserId: currentUserId, reaction: reaction) { [weak self] error in
-            if error == nil {
-                // Update local reactions
-                self?.fetchReactions(for: userId, storyId: storyId)
-
-                // Track local affinity for story reaction (on successful write)
-                Task { @MainActor in
-                    AffinityTracker.shared.trackInteraction(type: .storyReaction, with: userId)
-                }
-
-                // 2. Notificación manejada por el servidor (onStoryReactionAdded)
+            self.chatService.sendEphemeralMessage(
+                conversationId: conversationId,
+                senderId: senderId,
+                content: NSLocalizedString("stories.ephemeral.replyContent", comment: ""),
+                mediaUrl: upload.mediaUrl,
+                mediaObjectPath: upload.mediaObjectPath,
+                thumbnailUrl: upload.thumbnailUrl,
+                thumbnailObjectPath: upload.thumbnailObjectPath,
+                mediaEncryption: upload.mediaEncryption,
+                thumbnailEncryption: upload.thumbnailEncryption,
+                expirationHours: 24,
+                storyReplyData: storyReplyData,
+                messageId: messageId
+            ) { result in
+                completion(result.map { _ in () })
             }
         }
     }
 
-    private func createNewConversation(between senderId: String, and receiverId: String, completion: @escaping (String?, Error?) -> Void) {
-        let participants = [senderId, receiverId]
-        var readStatus: [String: Bool] = [:]
-        participants.forEach { readStatus[$0] = ($0 == senderId) }
-
-        // Fetch receiver's profile
-        firestoreService.fetchUserProfile(userId: receiverId) { [weak self] result in
-            switch result {
-            case .success(let user):
-                let conversationRef = self?.firestoreService.db.collection("conversations").document()
-                let conversationId = conversationRef?.documentID ?? UUID().uuidString
-
-                let conversationData: [String: Any] = [
-                    "id": conversationId,
-                    "participants": participants,
-                    "lastMessage": "",
-                    "timestamp": Timestamp(),
-                    "readStatus": readStatus,
-                    "otherParticipantId": receiverId,
-                    "otherParticipantUsername": user.username,
-                    "otherParticipantProfileImagePath": user.profileImagePath ?? ""
-                ]
-
-                conversationRef?.setData(conversationData) { error in
-                    if let error = error {
-                        completion(nil, error)
-                    } else {
-                        completion(conversationId, nil)
-                    }
-                }
-
-            case .failure(let error):
-                completion(nil, error)
-            }
-        }
+    private func completeStoryReaction(userId: String, storyId: String) {
+        fetchReactions(for: userId, storyId: storyId)
+        AffinityTracker.shared.trackInteraction(type: .storyReaction, with: userId)
     }
+
 }
 
 

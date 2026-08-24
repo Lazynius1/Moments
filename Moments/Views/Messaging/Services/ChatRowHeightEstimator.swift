@@ -29,6 +29,8 @@ enum ChatRowHeightEstimator {
     private static let historyStartHeight: CGFloat = 50
     private static let conversationIntroHeight: CGFloat = 190
     private static let requestDisclaimerHeight: CGFloat = 58
+    private static let incomingRequestActionsHeight: CGFloat = 190
+    private static let outgoingRequestControlsHeight: CGFloat = 76
 
     static let fallbackHeight: CGFloat = 60
 
@@ -40,9 +42,16 @@ enum ChatRowHeightEstimator {
         case .requestDisclaimer:
             return requestDisclaimerHeight
         case .pendingRequestMessage(let message):
+            if message.hasStoryReplyContext {
+                return 190
+            }
             let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return viewOncePillHeight + viewOnceRowVerticalPadding }
             return max(46, textHeight(for: text, bubbleWidth: bubbleWidth) + 6)
+        case .incomingRequestActions:
+            return incomingRequestActionsHeight
+        case .outgoingRequestControls:
+            return outgoingRequestControlsHeight
         case .header:
             return headerHeight
         case .buzz:

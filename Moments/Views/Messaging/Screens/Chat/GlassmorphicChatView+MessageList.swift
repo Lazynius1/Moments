@@ -74,12 +74,23 @@ extension GlassmorphicChatView {
             }
             if pendingChatContext != nil,
                pendingChatContext?.status != .outgoingRequestDraft,
-               pendingChatContext?.status != .outgoingRequestBlocked {
+               pendingChatContext?.status != .outgoingRequestBlocked,
+               pendingChatContext?.status != .incomingRequestPending {
                 rows.insert(.requestDisclaimer(pendingChatContext), at: 0)
             }
             rows.insert(.conversationIntro(introContext), at: 0)
-            if let pendingMessage = pendingChatTimelineMessage {
-                rows.insert(.pendingRequestMessage(pendingMessage), at: min(3, rows.count))
+            for (offset, pendingMessage) in pendingChatTimelineMessages.enumerated() {
+                rows.insert(.pendingRequestMessage(pendingMessage), at: min(3 + offset, rows.count))
+            }
+            if pendingChatContext?.status == .incomingRequestPending {
+                rows.append(.incomingRequestActions(isLoading: pendingMessageRequestService.isLoading))
+            } else if pendingChatContext?.direction == .outgoing,
+                      (pendingChatContext?.status == .outgoingRequestDraft
+                        || pendingChatContext?.status == .outgoingRequestSent) {
+                rows.append(.outgoingRequestControls(
+                    messageCount: pendingRequestMessageCount,
+                    limitReached: pendingChatContext?.status == .outgoingRequestSent && !pendingChatCanType
+                ))
             }
         }
         if !viewModel.typingUsers.isEmpty {

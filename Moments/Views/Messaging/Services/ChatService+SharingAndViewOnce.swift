@@ -3,136 +3,41 @@ import FirebaseFirestore
 
 extension ChatService {
     // MARK: - Conversations and Sharing
-    func getOrCreateConversation(between user1Id: String, and user2Id: String, initialMessage: String? = nil, completion: @escaping (Result<String, Error>) -> Void) {
-        db.collection("conversations")
-            .whereField("participants", arrayContains: user1Id)
-            .getDocuments { [weak self] snapshot, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-
-                let existingConversation = snapshot?.documents.first { doc in
-                    let participants = doc.data()["participants"] as? [String] ?? []
-                    return participants.contains(user2Id)
-                }
-
-                if let conversation = existingConversation {
-                    let conversationId = conversation.documentID
-                    let trimmedInitial = initialMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-                    guard !trimmedInitial.isEmpty else {
-                        completion(.success(conversationId))
-                        return
-                    }
-
-                    Task { @MainActor in
-                        guard let self = self else {
-                            completion(
-                                .failure(
-                                    NSError(
-                                        domain: "ChatService",
-                                        code: -2,
-                                        userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.serviceUnavailable", comment: "Messaging service unavailable")]
-                                    )
-                                )
-                            )
-                            return
-                        }
-
-                        self.sendTextMessage(
-                            conversationId: conversationId,
-                            senderId: user1Id,
-                            content: trimmedInitial
-                        ) { sendResult in
-                            switch sendResult {
-                            case .success:
-                                completion(.success(conversationId))
-                            case .failure(let sendError):
-                                completion(.failure(sendError))
-                            }
-                        }
-                    }
-                } else {
-                    Task { @MainActor in
-                        self?.checkMutualFollowAndCreateConversation(user1Id: user1Id, user2Id: user2Id, initialMessage: initialMessage, completion: completion)
-                    }
-                }
-            }
-    }
-
-    private func checkMutualFollowAndCreateConversation(user1Id: String, user2Id: String, initialMessage: String? = nil, completion: @escaping (Result<String, Error>) -> Void) {
-        areMutualFollowers(user1Id: user1Id, user2Id: user2Id) { [weak self] mutualFollow in
-            if mutualFollow {
-                Task { @MainActor in
-                    self?.createBidirectionalConversation(user1Id: user1Id, user2Id: user2Id, initialMessage: initialMessage, completion: completion)
-                }
-            } else {
-                let error = NSError(
-                    domain: "ChatService",
-                    code: 403,
-                    userInfo: [
-                        NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.messageRequestRequired", comment: "A message request is required to start this conversation")
-                    ]
-                )
-                completion(.failure(error))
-            }
-        }
-    }
-
-    /// Busca en Firestore una conversación existente entre ambos usuarios sin crear nada.
-    /// Devuelve su id si existe (incluidas las que el usuario "borró", que son borrados
-    /// suaves y siguen presentes), o `nil` si no hay ninguna. Sirve para no exigir una
-    /// solicitud nueva cuando ya se ha hablado antes.
-    func findExistingConversation(between user1Id: String, and user2Id: String, completion: @escaping (Result<String?, Error>) -> Void) {
-        db.collection("conversations")
-            .whereField("participants", arrayContains: user1Id)
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-
-                let existing = snapshot?.documents.first { doc in
-                    let participants = doc.data()["participants"] as? [String] ?? []
-                    return participants.contains(user2Id)
-                }
-
-                completion(.success(existing?.documentID))
-            }
-    }
-
-    /// Comprueba si dos usuarios son mutuos (`users/{uid}/mutuals/{other}`).
-    func areMutualFollowers(user1Id: String, user2Id: String, completion: @escaping (Bool) -> Void) {
-        FirestoreService().isMutualConnection(userId: user1Id, otherUserId: user2Id, completion: completion)
-    }
-
     /// Materializa una conversación borrador: si ya existe entre ambos usuarios devuelve su id;
     /// si no, la crea sin mensaje inicial. Se usa al enviar el primer mensaje de un chat que
     /// se abrió en modo borrador (sin persistir nada hasta que hay contenido real).
-    func materializeConversation(with otherUserId: String, from currentUserId: String, completion: @escaping (Result<String, Error>) -> Void) {
-        db.collection("conversations")
-            .whereField("participants", arrayContains: currentUserId)
-            .getDocuments { [weak self] snapshot, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
+    func materializeConversation(
+        with otherUserId: String,
+        from currentUserId: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        Task { @MainActor in
+            do {
+                let coordinator = MessageRequestService()
+                let route = try await coordinator.resolveRoute(to: otherUserId)
+                switch route {
+                case .conversation(let conversationId):
+                    completion(.success(conversationId))
+                case .conversationDraft(let threadId):
+                    let conversationId = try await coordinator.activateConversationDraft(
+                        to: otherUserId,
+                        threadId: threadId
+                    )
+                    completion(.success(conversationId))
+                case .incomingRequest(let threadId, _):
+                    let accepted = try await coordinator.acceptIncomingThread(threadId: threadId)
+                    completion(.success(accepted.conversationId))
+                case .outgoingRequest:
+                    completion(.failure(NSError(
+                        domain: "MessageRequest.Materialization",
+                        code: 409,
+                        userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.messageRequestRequired", comment: "")]
+                    )))
                 }
-
-                let existing = snapshot?.documents.first { doc in
-                    let participants = doc.data()["participants"] as? [String] ?? []
-                    return participants.contains(otherUserId)
-                }
-
-                if let existing = existing {
-                    completion(.success(existing.documentID))
-                    return
-                }
-
-                Task { @MainActor in
-                    self?.createBidirectionalConversation(user1Id: currentUserId, user2Id: otherUserId, initialMessage: nil, completion: completion)
-                }
+            } catch {
+                completion(.failure(error))
             }
+        }
     }
 
     func sendSharedMomentMessage(

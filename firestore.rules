@@ -56,6 +56,12 @@ service cloud.firestore {
                  );
         }
 
+    function storyReactionsEnabled(ownerId) {
+      let ownerData = get(/databases/$(database)/documents/users/$(ownerId)).data;
+      let visibility = ownerData.get('contentVisibilitySettings', {'allowStoryReactions': true});
+      return visibility.get('allowStoryReactions', true) == true;
+    }
+
     // ✅ NUEVA: Función helper para verificar si una cuenta puede ser seguida
     function canFollowUser(followerId, targetUserId) {
       let followerUserDoc = get(/databases/$(database)/documents/users/$(followerId));
@@ -180,6 +186,16 @@ service cloud.firestore {
     // ✅ NUEVA: Función para verificar si un usuario puede participar en conversaciones
     function canParticipateInConversations(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true);
+    }
+
+    function canCreateDirectConversation(conversationData) {
+      let participants = conversationData.participants;
+      let otherUserId = participants[0] == request.auth.uid ? participants[1] : participants[0];
+      return participants.size() > 2
+        || (
+          participants.size() == 2
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid)/mutuals/$(otherUserId))
+        );
     }
     
         // ✅ NUEVA: Función para validar memoria categorizada de Nova
@@ -927,19 +943,26 @@ service cloud.firestore {
         match /reactions/{reactionId} {
           allow read: if request.auth != null;
 
-          // ✅ SIMPLIFICADO: Para historias usar 'reaction' (emoji)
-          allow create: if request.auth != null
-                        && request.resource.data.userId == request.auth.uid
-                        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isActive', true)
-                        // ✅ Para historias: usar 'reaction' para emojis
-                        && request.resource.data.keys().hasAll(['userId', 'reaction', 'timestamp'])
-                        && request.resource.data.userId is string
-                        && request.resource.data.reaction is string
-                        && request.resource.data.reaction.size() > 0
-                        && request.resource.data.reaction.size() <= 32
-                        && request.resource.data.timestamp is timestamp;
-
-          allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+          // Es una interacción de actividad, no un mensaje: respeta la visibilidad
+          // de la historia y el interruptor de reacciones, sin abrir conversaciones.
+          allow create, update: if request.auth != null
+                                && request.resource.data.userId == request.auth.uid
+                                && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isActive', true)
+                                && request.resource.data.keys().hasOnly(['userId', 'reaction', 'timestamp'])
+                                && request.resource.data.userId is string
+                                && request.resource.data.reaction is string
+                                && request.resource.data.reaction.size() > 0
+                                && request.resource.data.reaction.size() <= 32
+                                && request.resource.data.timestamp is timestamp
+                                && storyReactionsEnabled(userId)
+                                && canViewContentWithAudience(
+                                     request.auth.uid,
+                                     userId,
+                                     get(/databases/$(database)/documents/users/$(userId)/stories/$(storyId)).data.get('audience', 'everyone'),
+                                     'story',
+                                     storyId,
+                                     get(/databases/$(database)/documents/users/$(userId)/stories/$(storyId)).data.get('customListId', '')
+                                   );
 
           allow delete: if request.auth != null && (
             request.auth.uid == userId ||
@@ -1681,6 +1704,15 @@ service cloud.firestore {
         && request.auth.uid in request.resource.data.participants
         && canParticipateInConversations(request.auth.uid)
         && request.resource.data.participants.size() >= 2
+        && canCreateDirectConversation(request.resource.data)
+        && (
+          request.resource.data.participants.size() > 2
+          || (
+            request.resource.data.get('wrappedKeys', {}) is map
+            && request.resource.data.get('wrappedKeys', {}).keys().hasAll(request.resource.data.participants)
+            && request.resource.data.get('encryptionVersion', '') == '3.0'
+          )
+        )
         && (!('encryptionKey' in request.resource.data) || request.resource.data.encryptionKey is string)
         && (!('encryptionKeyCreatedAt' in request.resource.data) || request.resource.data.encryptionKeyCreatedAt is timestamp)
         && (!('encryptionVersion' in request.resource.data) || request.resource.data.encryptionVersion is string)
@@ -2042,58 +2074,67 @@ service cloud.firestore {
                       && canParticipateInConversations(request.auth.uid);
     }
 
-    // ✅ SISTEMA DE SOLICITUDES DE MENSAJES
+    // Solicitudes V2: el backend es la única autoridad que crea o muta el
+    // hilo. El receptor puede leer la cabecera (incluida su carpeta privada),
+    // mientras ambos participantes pueden leer los mensajes cifrados. El
+    // remitente observa únicamente su proyección sanitizada en Outbox.
     match /messageRequests/{requestId} {
       allow read, list: if request.auth != null
-                          && (request.auth.uid == resource.data.senderId ||
-                              request.auth.uid == resource.data.receiverId)
+                          && request.auth.uid == resource.data.receiverId
                           && canParticipateInConversations(request.auth.uid);
+      allow create, update, delete: if false;
 
-      allow create: if request.auth != null
-                      && request.auth.uid == request.resource.data.senderId
-                      && request.resource.data.createdBy == request.auth.uid
-                      && request.resource.data.receiverId is string
-                      && request.resource.data.receiverId != ''
-                      && request.resource.data.receiverId != request.auth.uid
-                      && request.resource.data.message is string
-                      && request.resource.data.status == 'pending'
-                      && request.resource.data.messageType is string
-                      && request.resource.data.timestamp is timestamp
-                      && canParticipateInConversations(request.auth.uid)
-                      && canParticipateInConversations(request.resource.data.receiverId)
-                      // ✅ Política de solicitudes del receptor: everyone | following | nobody
-                      && (
-                        get(/databases/$(database)/documents/users/$(request.resource.data.receiverId)).data.get('messageRequestPolicy', 'everyone') == 'everyone' ||
-                        (
-                          get(/databases/$(database)/documents/users/$(request.resource.data.receiverId)).data.get('messageRequestPolicy', 'everyone') == 'following' &&
-                          exists(/databases/$(database)/documents/users/$(request.resource.data.receiverId)/following/$(request.auth.uid))
-                        )
-                      );
-
-      allow update: if request.auth != null
-                      && request.auth.uid == resource.data.senderId
-                      && resource.data.createdBy == resource.data.senderId
-                      && request.resource.data.senderId == resource.data.senderId
-                      && request.resource.data.createdBy == resource.data.createdBy
-                      && request.resource.data.receiverId == resource.data.receiverId
-                      && request.resource.data.status == resource.data.status
-                      && resource.data.status == 'pending'
-                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                        'message',
-                        'messageType',
-                        'mediaUrl',
-                        'thumbnailUrl',
-                        'timestamp'
-                      ])
-                      && request.resource.data.message is string
-                      && request.resource.data.messageType is string
-                      && request.resource.data.timestamp is timestamp
+      match /messages/{messageId} {
+        allow read: if request.auth != null
+                      && request.auth.uid in get(/databases/$(database)/documents/messageRequests/$(requestId)).data.participants
                       && canParticipateInConversations(request.auth.uid);
+        allow create, update, delete: if false;
+      }
+    }
 
-      allow delete: if request.auth != null
-                      && (request.auth.uid == resource.data.senderId ||
-                          request.auth.uid == resource.data.receiverId)
-                      && canParticipateInConversations(request.auth.uid);
+    match /users/{userId}/messageRequestOutbox/{threadId} {
+      allow read, list: if request.auth != null && request.auth.uid == userId;
+      allow create, update, delete: if false;
+    }
+
+    match /users/{userId}/messageRequestOperations/{operationId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update, delete: if false;
+    }
+
+    match /users/{userId}/pendingEphemeralReceipts/{receiptId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update, delete: if false;
+    }
+
+    match /users/{userId}/messageRequestPreferences/{documentId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null
+                              && request.auth.uid == userId
+                              && request.resource.data.keys().hasOnly([
+                                'automaticFilterEnabled', 'customWords', 'updatedAt'
+                              ])
+                              && request.resource.data.get('automaticFilterEnabled', true) is bool
+                              && request.resource.data.get('customWords', []) is list
+                              && request.resource.data.get('customWords', []).size() <= 100
+                              && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp);
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /messageRequestCooldowns/{threadId} {
+      allow read, write: if false;
+    }
+
+    match /messageRequestRateLimits/{senderId}/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /messageRequestSafety/{senderId}/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /messageRequestMetrics/{metricId} {
+      allow read, write: if false;
     }
 
     match /globalExportRequests/{requestId} {

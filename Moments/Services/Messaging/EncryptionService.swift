@@ -1761,6 +1761,50 @@ class EncryptionService: ObservableObject {
         return wrappedKeys
     }
 
+    /// Genera el contexto E2E compartido por conversaciones y solicitudes.
+    /// La persistencia se hace después en el documento autoritativo de cada flujo.
+    private func makeWrappedConversationKeyContext(
+        participantIds: [String],
+        wrappedBy currentUserId: String
+    ) async throws -> (key: SymmetricKey, wrappedKeys: [String: [String: Any]]) {
+        let participants = Array(Set(participantIds)).sorted()
+        guard !participants.isEmpty, participants.contains(currentUserId) else {
+            throw EncryptionError.invalidInput
+        }
+
+        let key = SymmetricKey(size: .bits256)
+        let wrappedKeys = try await withTimeout(seconds: 10) {
+            try await self.buildWrappedConversationKeys(
+                for: participants,
+                conversationKey: key,
+                wrappedBy: currentUserId
+            )
+        }
+        guard wrappedKeys.count == participants.count else {
+            throw EncryptionError.peerKeyUnavailable
+        }
+        return (key, wrappedKeys)
+    }
+
+    /// Prepara el mismo contexto E2E que usará la conversación futura, sin
+    /// crear todavía un documento de conversación. La clave nunca sale en
+    /// claro: solo se devuelven sus envoltorios para los dos participantes.
+    func prepareMessageRequestKey(
+        threadId: String,
+        participantIds: [String],
+        wrappedBy currentUserId: String
+    ) async throws -> [String: [String: Any]] {
+        guard !threadId.isEmpty, participantIds.count == 2 else {
+            throw EncryptionError.invalidInput
+        }
+        let context = try await makeWrappedConversationKeyContext(
+            participantIds: participantIds,
+            wrappedBy: currentUserId
+        )
+        await cacheConversationKey(conversationId: threadId, key: context.key)
+        return context.wrappedKeys
+    }
+
     private func loadOrCreateLocalChatIdentity(for userId: String) async throws -> LocalChatIdentity {
         let keyTag = chatIdentityKeyPrefix + userId
 
@@ -2125,17 +2169,53 @@ class EncryptionService: ObservableObject {
         }
 
         do {
-            let snapshot = try await db.collection("conversations")
+            // Cada lectura es independiente. Antes de aceptar no existe una
+            // conversación legible y Firestore puede responder permission-denied
+            // en vez de un snapshot vacío; ese error no debe impedir probar la
+            // proyección privada o la cabecera de la solicitud.
+            var data = try? await db.collection("conversations")
                 .document(conversationId)
                 .getDocument()
-            
-            guard let data = snapshot.data() else {
-                throw EncryptionError.keyNotFound
+                .data()
+            var keySource = "conversation"
+
+            // Una solicitud V2 y su conversación comparten ID y AAD. Antes
+            // de aceptar, el remitente consulta primero su Outbox privado y
+            // el receptor usa la cabecera. Los fallos de permisos de una ruta
+            // no deben impedir probar la otra.
+            if data == nil {
+                data = try? await db.collection("users")
+                    .document(currentUserId)
+                    .collection("messageRequestOutbox")
+                    .document(conversationId)
+                    .getDocument()
+                    .data()
+                if data != nil { keySource = "messageRequestOutbox" }
             }
+            if data == nil {
+                data = try? await db.collection("messageRequests")
+                    .document(conversationId)
+                    .getDocument()
+                    .data()
+                if data != nil { keySource = "messageRequest" }
+            }
+
+            guard let data else { throw EncryptionError.keyNotFound }
+            AppLog.debug("E2E: contexto \(conversationId) recuperado desde \(keySource)")
 
             if
                 let wrappedKeys = data["wrappedKeys"] as? [String: Any],
                 let wrappedKeyMap = wrappedKeys[currentUserId] as? [String: Any],
+                let wrappedKey = WrappedConversationKey(map: wrappedKeyMap)
+            {
+                let conversationKey = try unwrapConversationKey(wrappedKey, for: currentUserId)
+                await cacheConversationKey(conversationId: conversationId, key: conversationKey)
+                await updateMetrics { $0.firestoreHits += 1 }
+                return conversationKey
+            }
+
+            if
+                let wrappedKeyMap = data["wrappedKey"] as? [String: Any],
                 let wrappedKey = WrappedConversationKey(map: wrappedKeyMap)
             {
                 let conversationKey = try unwrapConversationKey(wrappedKey, for: currentUserId)
@@ -2202,29 +2282,21 @@ class EncryptionService: ObservableObject {
         participants: [String],
         currentUserId: String
     ) async throws -> SymmetricKey {
-        let newKey = SymmetricKey(size: .bits256)
-
-        let wrappedKeys = try await withTimeout(seconds: 10) {
-            try await self.buildWrappedConversationKeys(
-                for: participants,
-                conversationKey: newKey,
-                wrappedBy: currentUserId
-            )
-        }
-        guard wrappedKeys.count == participants.count else {
-            throw EncryptionError.peerKeyUnavailable
-        }
+        let context = try await makeWrappedConversationKeyContext(
+            participantIds: participants,
+            wrappedBy: currentUserId
+        )
 
         let uploadData: [String: Any] = [
-            "wrappedKeys": wrappedKeys,
+            "wrappedKeys": context.wrappedKeys,
             "conversationKeyVersion": 1,
             "encryptionVersion": "3.0"
         ]
         try await db.collection("conversations")
             .document(conversationId)
             .setData(uploadData, merge: true)
-        await cacheConversationKey(conversationId: conversationId, key: newKey)
-        return newKey
+        await cacheConversationKey(conversationId: conversationId, key: context.key)
+        return context.key
     }
     
     // MARK: - 🗂️ CACHE Management
@@ -2962,9 +3034,11 @@ class EncryptionService: ObservableObject {
         }
     }
     
-    func decryptChatMessage(_ encryptedText: String, for conversationId: String) async -> String? {
-        guard isEncryptionEnabled else { return encryptedText }
-        
+    /// Variante estricta para superficies que nunca deben representar el
+    /// ciphertext como si fuera contenido del usuario.
+    func decryptChatMessageStrict(_ encryptedText: String, for conversationId: String) async throws -> String {
+        guard isEncryptionEnabled else { throw EncryptionError.encryptionFailed }
+
         do {
             let key = try await getConversationKey(for: conversationId)
             let result = try decrypt(encryptedText: encryptedText, with: key)
@@ -2975,6 +3049,16 @@ class EncryptionService: ObservableObject {
                 $0.decryptionErrors += 1
                 $0.lastError = error.localizedDescription
             }
+            throw error
+        }
+    }
+
+    func decryptChatMessage(_ encryptedText: String, for conversationId: String) async -> String? {
+        do {
+            return try await decryptChatMessageStrict(encryptedText, for: conversationId)
+        } catch {
+            // Compatibilidad temporal con consumidores legacy. Las solicitudes
+            // usan la variante estricta y nunca muestran este fallback.
             return encryptedText
         }
     }

@@ -1595,6 +1595,18 @@ private extension ChatRenderRow {
             hasher.combine(message.id)
             hasher.combine(message.text)
             hasher.combine(message.isOutgoing)
+            hasher.combine(message.contextKind)
+            hasher.combine(message.storyId)
+            hasher.combine(message.storyOwnerId)
+            hasher.combine(message.sharedContentId)
+            hasher.combine(message.sharedContentOwnerId)
+        case .incomingRequestActions(let isLoading):
+            hasher.combine(8)
+            hasher.combine(isLoading)
+        case .outgoingRequestControls(let messageCount, let limitReached):
+            hasher.combine(9)
+            hasher.combine(messageCount)
+            hasher.combine(limitReached)
         case .header(let date):
             hasher.combine(0)
             hasher.combine(date.timeIntervalSinceReferenceDate)
