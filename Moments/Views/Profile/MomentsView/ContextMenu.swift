@@ -157,7 +157,6 @@ enum ContextMenuViewState {
 struct ModernContextMenuOverlay: View {
     let moment: Moment
     @Binding var isPresented: Bool
-    @Environment(\.displayScale) private var displayScale
 
     @State private var viewState: ContextMenuViewState = .main
     
@@ -558,7 +557,7 @@ struct ModernContextMenuOverlay: View {
     
     // ✅ MÉTODOS DE RENDERIZADO INTEGRADOS
     private func preFetchAndRender() {
-        guard let imageUrlString = moment.imagePath ?? moment.videoUrl,
+        guard let imageUrlString = moment.storyShareImageURLString,
               let contentUrl = URL(string: imageUrlString) else {
             errorMessage = "No se pudo obtener la imagen del momento"
             return
@@ -570,48 +569,90 @@ struct ModernContextMenuOverlay: View {
             if let error = error {
                 print("❌ Error fetching profile path: \(error.localizedDescription)")
                 // Continuamos aunque falle la de perfil, usará placeholder
-                renderSticker(urls: [contentUrl])
+                renderSticker(
+                    contentURL: contentUrl,
+                    profileURL: URL(string: moment.profileImagePath ?? ""),
+                    resolvedProfilePath: moment.profileImagePath
+                )
                 return
             }
-            
-            var urlsToPrefetch = [contentUrl]
-            if let data = snapshot?.data(), let profilePath = data["profileImagePath"] as? String, let profileUrl = URL(string: profilePath) {
-                urlsToPrefetch.append(profileUrl)
-            }
-            
-            renderSticker(urls: urlsToPrefetch)
+
+            let resolvedProfilePath = (snapshot?.data()?["profileImagePath"] as? String)
+                .flatMap { $0.isEmpty ? nil : $0 }
+                ?? moment.profileImagePath
+            renderSticker(
+                contentURL: contentUrl,
+                profileURL: resolvedProfilePath.flatMap(URL.init(string:)),
+                resolvedProfilePath: resolvedProfilePath
+            )
         }
     }
     
-    private func renderSticker(urls: [URL]) {
+    private func renderSticker(
+        contentURL: URL,
+        profileURL: URL?,
+        resolvedProfilePath: String?
+    ) {
         // 2. Pre-fetch todas las imágenes para tenerlas en caché
-        ImagePrefetchManager.shared.prefetch(urls: urls)
+        ImagePrefetchManager.shared.prefetch(urls: [contentURL] + [profileURL].compactMap { $0 })
         
         // 3. Obtener las imágenes reales de Kingfisher — async/await para evitar mutaciones concurrentes
         Task { @MainActor in
-            async let profileImgTask: UIImage? = urls.count > 1
-                ? (try? await KingfisherManager.shared.retrieveImage(with: urls[1]).image)
+            async let profileImgTask: UIImage? = profileURL != nil
+                ? (try? await KingfisherManager.shared.retrieveImage(with: profileURL!).image)
                 : nil
-            async let contentImgTask: UIImage? = try? await KingfisherManager.shared.retrieveImage(with: urls[0]).image
+            async let contentImgTask: UIImage? = try? await KingfisherManager.shared.retrieveImage(with: contentURL).image
 
-            let profileImg = await profileImgTask
-            let contentImg = await contentImgTask
+            _ = await profileImgTask
+            let downloadedContentImg = await contentImgTask
+            let contentImg: UIImage?
+            if let downloadedContentImg {
+                contentImg = downloadedContentImg
+            } else if let videoURLString = moment.previewVideoURLString {
+                contentImg = await VideoThumbnailCache.shared.thumbnail(for: videoURLString)
+            } else {
+                contentImg = nil
+            }
 
-            self.performFinalRender(profile: profileImg, content: contentImg)
+            self.performFinalRender(
+                content: contentImg,
+                resolvedProfilePath: resolvedProfilePath
+            )
         }
     }
     
-    private func performFinalRender(profile: UIImage?, content: UIImage?) {
-        // Asumiendo que ShareMomentSticker está disponible globalmente
-        let stickerView = ShareMomentSticker(moment: moment, profileImage: profile, contentImage: content, renderClean: true)
+    private func performFinalRender(
+        content: UIImage?,
+        resolvedProfilePath: String?
+    ) {
+        guard let content else {
+            errorMessage = NSLocalizedString("errors.momentImageUnavailable", comment: "Moment image unavailable")
+            return
+        }
+        let naturalSize = sharedMomentStoryCardSize(
+            aspectRatio: moment.primaryVisibleMediaItem?.aspectRatio ?? moment.aspectRatio,
+            image: content
+        )
+        let stickerView = SharedMomentStorySnapshotView(image: content, size: naturalSize)
             .environment(\.colorScheme, .dark)
-            .frame(width: 260)
+            .frame(width: naturalSize.width, height: naturalSize.height)
         
         let renderer = ImageRenderer(content: stickerView)
-        renderer.scale = displayScale
+        renderer.scale = 1
         
         if let uiImage = renderer.uiImage {
-            let position = CGPoint(x: UIApplication.shared.activeWindowSize.width / 2, y: UIApplication.shared.activeWindowSize.height / 2)
+            let window = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap(\.windows)
+                .first(where: \.isKeyWindow)
+            let viewportSize = window?.bounds.size ?? UIApplication.shared.activeWindowSize
+            let safeAreaInsets = window?.safeAreaInsets ?? .zero
+            let canvasRect = creatorMomentsCaptureRect(
+                in: viewportSize,
+                topInset: safeAreaInsets.top,
+                bottomInset: safeAreaInsets.bottom
+            )
+            let position = CGPoint(x: canvasRect.width / 2, y: canvasRect.height / 2)
             
             let interactionData = StickerItem.StickerInteractionData(
                 username: moment.username,
@@ -619,13 +660,16 @@ struct ModernContextMenuOverlay: View {
                 hashtag: nil,
                 location: nil,
                 locationCoordinate: nil,
+                styleVariant: 0,
+                cardLayoutVariant: 0,
                 pollData: nil,
                 questionText: nil,
                 weatherSymbol: nil,
                 caption: moment.content.isEmpty ? nil : moment.content,
-                profileImagePath: moment.profileImagePath,
+                profileImagePath: resolvedProfilePath,
+                sharedMediaPath: moment.storyShareOriginalPhotoURLString,
                 momentId: moment.id,
-                mediaCount: moment.mediaItems?.count ?? 1
+                mediaCount: max(moment.visibleMediaCount, 1)
             )
             
             let sticker = StickerItem(
@@ -633,7 +677,7 @@ struct ModernContextMenuOverlay: View {
                 position: position,
                 type: .shareMoment,
                 interactionData: interactionData,
-                videoURL: moment.videoUrl != nil ? URL(string: moment.videoUrl!) : nil
+                videoURL: moment.previewVideoURLString.flatMap(URL.init(string:))
             )
             
             self.createdSticker = sticker

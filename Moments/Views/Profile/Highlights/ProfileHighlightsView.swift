@@ -202,10 +202,15 @@ struct HighlightIconView: View {
     let highlight: HighlightedStory
     var size: CGFloat = 64
     @Environment(\.colorScheme) var colorScheme
+    @State private var resolvedCoverStory: Story?
 
     var body: some View {
         ZStack {
-            if let coverUrl = highlight.coverImageUrl, let url = URL(string: coverUrl) {
+            if let resolvedCoverStory {
+                StoryStaticPreviewSurface(story: resolvedCoverStory)
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
+            } else if let coverUrl = highlight.coverImageUrl, let url = URL(string: coverUrl) {
                 KFImage(url)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -225,6 +230,28 @@ struct HighlightIconView: View {
             Circle()
                 .stroke(ProfileColors.borderColor.opacity(0.5), lineWidth: 1)
                 .frame(width: size, height: size)
+        }
+        .task(id: coverResolutionIdentity) {
+            resolveCoverStory()
+        }
+    }
+
+    private var coverResolutionIdentity: String {
+        "\(highlight.id ?? "")-\(highlight.coverImageUrl ?? "")-\(highlight.storyIds.joined(separator: ","))"
+    }
+
+    private func resolveCoverStory() {
+        guard !highlight.storyIds.isEmpty else { return }
+        FirestoreService.shared.fetchStoriesByIds(
+            userId: highlight.authorId,
+            storyIds: highlight.storyIds
+        ) { result in
+            guard case .success(let stories) = result else { return }
+            let coverURL = highlight.coverImageUrl
+            let resolved = stories.first(where: { $0.mediaItem.url == coverURL }) ?? stories.first
+            DispatchQueue.main.async {
+                resolvedCoverStory = resolved
+            }
         }
     }
 }

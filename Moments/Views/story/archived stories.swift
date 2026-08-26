@@ -350,10 +350,8 @@ struct ArchiveView: View {
                                             } label: {
                                                 ZStack {
                                                     if let bucket = cell.bucket {
-                                                        if let url = URL(string: bucket.thumbnailURL) {
-                                                            KFImage(url)
-                                                                .resizable()
-                                                                .scaledToFill()
+                                                        if let story = bucket.stories.first {
+                                                            StoryStaticPreviewSurface(story: story, revealPolicy: .exposed)
                                                                 .frame(width: 40, height: 40)
                                                                 .clipShape(Circle())
                                                                 .overlay(
@@ -405,10 +403,8 @@ struct ArchiveView: View {
                             openCalendarStories(pin.stories)
                         } label: {
                             ZStack(alignment: .topTrailing) {
-                                if let story = pin.stories.first, let url = URL(string: mapPreviewURL(for: story)) {
-                                    KFImage(url)
-                                        .resizable()
-                                        .scaledToFill()
+                                if let story = pin.stories.first {
+                                    StoryStaticPreviewSurface(story: story, revealPolicy: .exposed)
                                         .frame(width: 48, height: 48)
                                         .clipShape(RoundedRectangle(cornerRadius: 10))
                                         .overlay(
@@ -486,21 +482,9 @@ struct ArchiveView: View {
 
         return grouped.map { date, stories in
             let sortedStories = stories.sorted { $0.timestamp > $1.timestamp }
-            let previewURL = calendarPreviewURL(for: sortedStories[0])
-            return ArchiveCalendarDayBucket(date: date, stories: sortedStories, thumbnailURL: previewURL)
+            return ArchiveCalendarDayBucket(date: date, stories: sortedStories)
         }
         .sorted { $0.date < $1.date }
-    }
-
-    private func calendarPreviewURL(for story: Story) -> String {
-        if story.mediaItem.type == .video {
-            return story.mediaItem.thumbnailUrl ?? story.mediaItem.url
-        }
-        return story.mediaItem.url
-    }
-
-    private func mapPreviewURL(for story: Story) -> String {
-        calendarPreviewURL(for: story)
     }
 
     private var calendarMonthSections: [ArchiveCalendarMonthSection] {
@@ -696,11 +680,9 @@ private struct ArchiveCalendarDayBucket: Identifiable {
     let dayKey: String
     let date: Date
     let stories: [Story]
-    let thumbnailURL: String
-    init(date: Date, stories: [Story], thumbnailURL: String) {
+    init(date: Date, stories: [Story]) {
         self.date = date
         self.stories = stories
-        self.thumbnailURL = thumbnailURL
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         self.dayKey = formatter.string(from: date)
@@ -860,32 +842,9 @@ struct ArchiveStoryVerticalCard: View {
             HStack(spacing: 16) {
                 // Story thumbnail
                 ZStack {
-                    if let url = URL(string: story.mediaItem.url) {
-                        KFImage(url)
-                            .placeholder {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(width: 70, height: 124)
-                                    .overlay(
-                                        Image(systemName: "photo")
-                                            .foregroundStyle(.gray.opacity(0.5))
-                                            .font(.system(size: 20))
-                                    )
-                            }
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 70, height: 124)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    } else {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 70, height: 124)
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .foregroundStyle(.gray)
-                                    .font(.system(size: 20))
-                            )
-                    }
+                    StoryStaticPreviewSurface(story: story, revealPolicy: .exposed)
+                        .frame(width: 70, height: 124)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     
                     // Video indicator
                     if story.mediaItem.type == .video {
@@ -1056,24 +1015,9 @@ struct ArchiveStoryCardVisual: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                if let url = previewURL {
-                    KFImage(url)
-                        .placeholder {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.24))
-                        }
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .clipped()
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.26))
-                        .overlay(
-                            Image(systemName: "photo")
-                                .foregroundStyle(.gray)
-                        )
-                }
+                StoryStaticPreviewSurface(story: story, revealPolicy: .exposed)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
 
                 VStack {
                     HStack {
@@ -1103,10 +1047,6 @@ struct ArchiveStoryCardVisual: View {
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 
-    private var previewURL: URL? {
-        let urlString = story.mediaItem.thumbnailUrl ?? story.mediaItem.url
-        return URL(string: urlString)
-    }
 }
 
 private struct ArchiveStoryLiftedPreview: View {
@@ -1135,13 +1075,16 @@ struct ArchiveStorySquareCard: View {
             ZStack {
                 ArchiveStoryCardVisual(story: story, cornerRadius: 0)
                     .opacity(isLifted ? 0 : 1)
+                    .allowsHitTesting(false)
 
                 if isLifted {
                     Rectangle()
                         .fill(Color.gray.opacity(0.24))
                         .aspectRatio(9.0 / 16.0, contentMode: .fit)
+                        .allowsHitTesting(false)
                 }
             }
+            .contentShape(Rectangle())
             .background {
                 GeometryReader { proxy in
                     Color.clear.preference(

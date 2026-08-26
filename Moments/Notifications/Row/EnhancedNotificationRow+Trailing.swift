@@ -86,27 +86,33 @@ extension EnhancedNotificationRow {
             case .storyReaction:
                 NotificationStoryThumbnailView(
                     imagePath: storyImagePath,
+                    story: storyPreviewModel,
                     reaction: group.notifications.first?.reaction,
                     colorScheme: colorScheme,
                     loadFailed: storyImageLoadFailed
                 )
 
             case .storyChainContinued:
-                if let path = storyImagePath, let url = URL(string: path), !storyImageLoadFailed {
+                if storyPreviewModel != nil || (storyImagePath != nil && !storyImageLoadFailed) {
                     ZStack(alignment: .bottomTrailing) {
-                        KFImage(url)
-                            .placeholder {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(.ultraThinMaterial)
-                                    .frame(width: 44, height: 44)
-                                    .overlay(
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                            .tint(Color(hex: "007AFF"))
-                                    )
+                        Group {
+                            if let storyPreviewModel {
+                                StoryStaticPreviewSurface(story: storyPreviewModel)
+                            } else if let path = storyImagePath, let url = URL(string: path) {
+                                KFImage(url)
+                                    .placeholder {
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(.ultraThinMaterial)
+                                            .overlay(
+                                                ProgressView()
+                                                    .scaleEffect(0.8)
+                                                    .tint(Color(hex: "007AFF"))
+                                            )
+                                    }
+                                    .resizable()
+                                    .scaledToFill()
                             }
-                            .resizable()
-                            .scaledToFill()
+                        }
                             .frame(width: 44, height: 44)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .overlay(
@@ -303,6 +309,7 @@ extension EnhancedNotificationRow {
     var storyMentionThumbnail: some View {
         NotificationStoryThumbnailView(
             imagePath: storyImagePath,
+            story: storyPreviewModel,
             reaction: nil,
             colorScheme: colorScheme,
             loadFailed: storyImageLoadFailed

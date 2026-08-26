@@ -61,7 +61,7 @@ struct HighlightArchiveStoryCardVisual: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                storyThumbnail
+                StoryStaticPreviewSurface(story: story, revealPolicy: .exposed)
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .clipped()
 
@@ -91,26 +91,6 @@ struct HighlightArchiveStoryCardVisual: View {
         }
         .aspectRatio(9.0 / 16.0, contentMode: .fit)
         .clipped()
-    }
-
-    @ViewBuilder
-    private var storyThumbnail: some View {
-        let urlString = story.mediaItem.thumbnailUrl ?? story.mediaItem.url
-        if let url = URL(string: urlString) {
-            KFImage(url)
-                .placeholder {
-                    Rectangle().fill(Color.gray.opacity(0.22))
-                }
-                .resizable()
-                .scaledToFill()
-        } else {
-            Rectangle()
-                .fill(Color.gray.opacity(0.22))
-                .overlay(
-                    Image(systemName: "photo")
-                        .foregroundStyle(.gray.opacity(0.5))
-                )
-        }
     }
 
     static func formatVideoDuration(_ duration: Double) -> String {

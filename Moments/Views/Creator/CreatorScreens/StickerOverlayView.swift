@@ -96,6 +96,17 @@ struct StickerOverlayView: View {
         let hardMaxScaleHeight = hardMaxDimension / max(stickerSize.height, 1)
         let hardSafeMaxScale = min(hardMaxScaleWidth, hardMaxScaleHeight)
 
+        if sticker.type == .shareMoment,
+           sticker.videoURL != nil,
+           (sticker.interactionData?.mediaCount ?? 1) == 1,
+           (sticker.interactionData?.cardLayoutVariant ?? 0) % 2 == 1 {
+            let fillScale = max(
+                screenBounds.width / max(stickerSize.width, 1),
+                screenBounds.height / max(stickerSize.height, 1)
+            )
+            return min(hardSafeMaxScale, max(fillScale, minimumStickerScale))
+        }
+
         let widthPadding: CGFloat
         let heightRatio: CGFloat
         let typeCap: CGFloat
@@ -145,7 +156,13 @@ struct StickerOverlayView: View {
     }
 
     private var interactiveBoundsSize: CGSize {
-        CGSize(
+        // La tarjeta compartida ya se escala como una sola unidad. Mantener su
+        // caja natural estable evita que el layout cambie durante el pellizco.
+        if sticker.type == .shareMoment {
+            return stickerSize
+        }
+
+        return CGSize(
             width: stickerSize.width * max(scale, 1),
             height: stickerSize.height * max(scale, 1)
         )
@@ -161,7 +178,9 @@ struct StickerOverlayView: View {
                 .frame(width: interactiveBoundsSize.width, height: interactiveBoundsSize.height)
 
 
-            if sticker.isAnimated {
+            // Los Moments compartidos con vídeo también son animados, pero
+            // necesitan su renderer contextual (paleta, avatar y fullscreen).
+            if sticker.isAnimated && sticker.type != .shareMoment {
                 if let videoURL = sticker.videoURL {
                     // ✅ VIDEO STICKER (Loop)
                     ZStack(alignment: .top) {
@@ -412,108 +431,19 @@ struct StickerOverlayView: View {
                 )
                 .allowsHitTesting(isEditingInline)
             } else if sticker.type == .shareMoment {
-                // ✅ SHARE MOMENT: Renderizado dinámico de overlays (Header + Caption)
-                ZStack(alignment: .top) {
-                    // 1. Imagen base (Captura limpia del marco glass + media)
-                    Image(uiImage: sticker.image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: sticker.image.size.width, height: sticker.image.size.height)
-
-                    // 2. Video Overlay (si existe)
-                    if let videoURL = sticker.videoURL {
-                        StickerVideoPlayer(url: videoURL)
-                           .frame(width: sticker.image.size.width, height: sticker.image.size.height)
-                           .allowsHitTesting(false)
-                    }
-
-                    // 3. Dynamic Overlays (Mismo diseño que en el Viewer)
-                    ZStack(alignment: .top) {
-                        Color.clear // Contenedor
-
-                        // Header (Username + Profile)
-                        HStack(spacing: 10) {
-                            if let interactionData = sticker.interactionData,
-                               let userId = interactionData.userId {
-                                AsyncProfileImageView(userId: userId)
-                                    .frame(width: 34, height: 34)
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(
-                                                LinearGradient(
-                                                    colors: [.white.opacity(0.5), .clear],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 1
-                                            )
-                                    )
-                            } else {
-                                Image(systemName: "person.circle.fill")
-                                    .resizable()
-                                    .frame(width: 34, height: 34)
-                                    .foregroundStyle(.white.opacity(0.5))
-                            }
-
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(sticker.interactionData?.username ?? "User")
-                                    .font(.system(size: legacyPoppinsSize(13), weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                            }
-                            Spacer()
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(
-                            Rectangle()
-                                .fill(.ultraThinMaterial)
-                                .mask(
-                                    LinearGradient(
-                                        colors: [.black, .black, .clear],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                        )
-
-                        // Caption Overlay (Bottom)
-                        if let caption = sticker.interactionData?.caption, !caption.isEmpty {
-                            VStack {
-                                Spacer()
-                                Text(caption)
-                                    .font(.system(size: legacyPoppinsSize(9), weight: .medium))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(Capsule())
-                                    .padding(.bottom, 10)
-                            }
-                        }
-
-                        // Gallery Indicator (Top Right)
-                        if (sticker.interactionData?.mediaCount ?? 0) > 1 {
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "square.on.square.fill")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .padding(6)
-                                        .background(.ultraThinMaterial)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                        .padding(12)
-                                        .padding(.top, 42) // Below header text
-                                }
-                                Spacer()
-                            }
-                        }
-                    }
-                    .frame(width: sticker.image.size.width, height: sticker.image.size.height)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius))
+                SharedMomentStoryCardView(
+                    image: sticker.image,
+                    videoURL: sticker.videoURL,
+                    username: sticker.interactionData?.username
+                        ?? NSLocalizedString("storyEditor.mention.userFallback", comment: "Fallback username for shared Moment"),
+                    userId: sticker.interactionData?.userId,
+                    profileImagePath: sticker.interactionData?.profileImagePath,
+                    sharedMediaPath: sticker.interactionData?.sharedMediaPath,
+                    caption: sticker.interactionData?.caption,
+                    mediaCount: sticker.interactionData?.mediaCount ?? 1,
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0,
+                    cardLayoutVariant: sticker.interactionData?.cardLayoutVariant ?? 0
+                )
                 .allowsHitTesting(false)
 
             } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {

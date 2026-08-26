@@ -725,8 +725,10 @@
 "settings.privacy.hideMutual.description" = "Solo tú podrás ver quiénes son tus amigos en común";
 "settings.privacy.hideFollowing" = "Ocultar mi lista de seguidos";
 "settings.privacy.hideFollowing.description" = "Solo tú podrás ver a quién sigues";
+"settings.privacy.hideFollowing.description.visible" = "Las demás personas pueden ver a quién sigues";
 "settings.privacy.hideFollowers" = "Ocultar mis seguidores";
 "settings.privacy.hideFollowers.description" = "Solo tú podrás ver quién te sigue";
+"settings.privacy.hideFollowers.description.visible" = "Las demás personas pueden ver quién te sigue";
 "nova.confirm.field.showFollowers" = "Mostrar seguidores";
 "nova.confirm.field.showMutuals" = "Mostrar mutuas";
 "settings.privacy.control.description" = "Cuando actives estas opciones, otros usuarios no podrán ver esas listas en tu perfil. Siempre podrás cambiar estas configuraciones.";

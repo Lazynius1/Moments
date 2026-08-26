@@ -490,15 +490,6 @@ struct StoryChainGridItemView: View {
     let isSelected: Bool
     @Environment(\.colorScheme) private var colorScheme
     
-    private var thumbnailURL: URL? {
-        if story.mediaItem.type == .video {
-            if let thumb = story.mediaItem.thumbnailUrl, let url = URL(string: thumb) { return url }
-            return URL(string: story.mediaItem.url)
-        } else {
-            return URL(string: story.mediaItem.url)
-        }
-    }
-
     private var profileImageURL: URL? {
         guard let path = story.profileImagePath, !path.isEmpty else { return nil }
         return URL(string: path)
@@ -506,40 +497,7 @@ struct StoryChainGridItemView: View {
     
     var body: some View {
         ZStack {
-            // Miniatura estática
-            if let url = thumbnailURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .empty:
-                        ZStack {
-                            Color.white.opacity(0.06)
-                            ProgressView().tint(.white)
-                        }
-                        .clipped()
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .clipped()
-                    case .failure(_):
-                        ZStack {
-                            (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
-                            Image(systemName: story.mediaItem.type == .video ? "video.fill" : "photo.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .clipped()
-                    @unknown default:
-                        Color.white.opacity(0.06)
-                    }
-                }
-            } else {
-                ZStack {
-                    (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
-                    Image(systemName: story.mediaItem.type == .video ? "video.fill" : "photo.fill")
-                        .foregroundStyle(.secondary)
-                }
-            }
+            StoryStaticPreviewSurface(story: story)
             
             // Degradado sutil para legibilidad
             LinearGradient(

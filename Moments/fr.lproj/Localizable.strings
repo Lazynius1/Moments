@@ -707,8 +707,12 @@
 "settings.privacy.hideMutual.description" = "Vous seul pouvez voir qui sont vos amis mutuels";
 "settings.privacy.hideFollowing" = "Masquer ma liste d’abonnements";
 "settings.privacy.hideFollowing.description" = "Vous seul pouvez voir qui vous suivez";
+"settings.privacy.hideFollowing.description.visible" = "Les autres peuvent voir qui vous suivez";
 "settings.privacy.hideAdmirers" = "Masquer mes abonnés";
 "settings.privacy.hideAdmirers.description" = "Vous seul pouvez voir qui vous suit";
+"settings.privacy.hideFollowers" = "Masquer mes abonnés";
+"settings.privacy.hideFollowers.description" = "Vous seul pouvez voir qui vous suit";
+"settings.privacy.hideFollowers.description.visible" = "Les autres peuvent voir qui vous suit";
 "settings.privacy.control.description" = "Lorsque vous activez ces options, les autres utilisateurs ne pourront pas voir ces listes sur votre profil. Vous pouvez toujours modifier ces réglages.";
 "conversationSettings.title" = "Réglages de conversation";
 "conversationSettings.created" = "Créée";

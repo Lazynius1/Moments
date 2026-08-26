@@ -537,6 +537,7 @@ struct SharedStoryMessageBubble: View {
     @State private var denialReason: SharedStoryAccessDenialReason?
     @State private var isLoading = true
     @State private var resolvedSharedStoryData: [String: String]?
+    @State private var resolvedStory: Story?
 
     private var displayedSharedStoryData: [String: String]? {
         resolvedSharedStoryData ?? message.sharedStoryData
@@ -552,7 +553,11 @@ struct SharedStoryMessageBubble: View {
                     )
                     .padding(.vertical, 4)
             } else if canViewStory == true, let sharedStoryData = displayedSharedStoryData {
-                StoryBubbleContent(sharedStoryData: sharedStoryData, isCurrentUser: isCurrentUser)
+                StoryBubbleContent(
+                    sharedStoryData: sharedStoryData,
+                    story: resolvedStory,
+                    isCurrentUser: isCurrentUser
+                )
             } else {
                 BlockedStoryBubble(
                     reason: denialReason ?? .restricted,
@@ -603,6 +608,7 @@ struct SharedStoryMessageBubble: View {
                     payload["storyExpiration"] = String(story.expirationDate.timeIntervalSince1970)
                     payload["storyTimestamp"] = String(story.timestamp.timeIntervalSince1970)
                     resolvedSharedStoryData = payload
+                    resolvedStory = story
                     canViewStory = true
                     denialReason = nil
                 case .failure(let reason):
@@ -647,11 +653,12 @@ struct BlockedStoryBubble: View {
 
 struct StoryBubbleContent: View {
     let sharedStoryData: [String: String]
+    let story: Story?
     let isCurrentUser: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            StoryPreviewCard(sharedStoryData: sharedStoryData)
+            StoryPreviewCard(sharedStoryData: sharedStoryData, story: story)
         }
         .padding(.vertical, 4)
         .frame(alignment: isCurrentUser ? .trailing : .leading)
@@ -668,6 +675,7 @@ enum StoryShareCardMetrics {
 /// vertical (9:16) redondeada, con el autor superpuesto arriba en blanco.
 struct StoryPreviewCard: View {
     let sharedStoryData: [String: String]
+    let story: Story?
 
     private var isVideo: Bool {
         sharedStoryData["storyMediaType"] == "video"
@@ -675,9 +683,15 @@ struct StoryPreviewCard: View {
 
     var body: some View {
         ZStack {
-            StoryVisualContent(sharedStoryData: sharedStoryData)
-                .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
-                .clipped()
+            if let story {
+                StoryStaticPreviewSurface(story: story)
+                    .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+                    .clipped()
+            } else {
+                StoryVisualContent(sharedStoryData: sharedStoryData)
+                    .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+                    .clipped()
+            }
 
             VStack {
                 ZStack(alignment: .topLeading) {

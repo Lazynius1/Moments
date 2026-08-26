@@ -1517,8 +1517,12 @@
 "settings.privacy.hideMutual.description" = "Só tu podes ver quem são os teus amigos em comum";
 "settings.privacy.hideFollowing" = "Ocultar a minha lista de seguidos";
 "settings.privacy.hideFollowing.description" = "Só tu podes ver quem segues";
+"settings.privacy.hideFollowing.description.visible" = "As outras pessoas podem ver quem segues";
 "settings.privacy.hideAdmirers" = "Ocultar os meus seguidores";
 "settings.privacy.hideAdmirers.description" = "Só tu podes ver quem te segue";
+"settings.privacy.hideFollowers" = "Ocultar os meus seguidores";
+"settings.privacy.hideFollowers.description" = "Só tu podes ver quem te segue";
+"settings.privacy.hideFollowers.description.visible" = "As outras pessoas podem ver quem te segue";
 "settings.privacy.control.description" = "Quando ativares estas opções, os outros utilizadores não poderão ver estas listas no teu perfil. Podes sempre alterar estas definições.";
 "conversationSettings.title" = "Definições da conversa";
 "conversationSettings.created" = "Criada";

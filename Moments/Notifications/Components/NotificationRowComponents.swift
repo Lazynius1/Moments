@@ -60,6 +60,7 @@ struct NotificationLeadingAvatarView: View {
 /// Miniatura vertical de historia.
 struct NotificationStoryThumbnailView: View {
     let imagePath: String?
+    var story: Story? = nil
     let reaction: String?
     let colorScheme: ColorScheme
     let loadFailed: Bool
@@ -67,7 +68,9 @@ struct NotificationStoryThumbnailView: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             Group {
-                if let path = imagePath, let url = URL(string: path), !loadFailed {
+                if let story {
+                    StoryStaticPreviewSurface(story: story)
+                } else if let path = imagePath, let url = URL(string: path), !loadFailed {
                     KFImage(url)
                         .placeholder { thumbnailPlaceholder }
                         .resizable()

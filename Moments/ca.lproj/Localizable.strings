@@ -706,8 +706,12 @@
 "settings.privacy.hideMutual.description" = "Només tu podràs veure qui són els teus amics en comú";
 "settings.privacy.hideFollowing" = "Amagar la meva llista de seguits";
 "settings.privacy.hideFollowing.description" = "Només tu podràs veure a qui segueixes";
+"settings.privacy.hideFollowing.description.visible" = "Altres persones poden veure a qui segueixes";
 "settings.privacy.hideAdmirers" = "Amagar els meus seguidors";
 "settings.privacy.hideAdmirers.description" = "Només tu podràs veure qui et segueix";
+"settings.privacy.hideFollowers" = "Amagar els meus seguidors";
+"settings.privacy.hideFollowers.description" = "Només tu podràs veure qui et segueix";
+"settings.privacy.hideFollowers.description.visible" = "Altres persones poden veure qui et segueix";
 "settings.privacy.control.description" = "Quan activis aquestes opcions, altres usuaris no podran veure aquestes llistes al teu perfil. Sempre podràs canviar aquestes configuracions.";
 "settings.privacy.readReceipts.title" = "Confirmacions de lectura";
 "settings.privacy.readReceipts.description" = "Si desactives les confirmacions de lectura, no podràs veure les de les altres persones.";

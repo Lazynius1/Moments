@@ -986,7 +986,9 @@ struct ConnectionVisibilityView: View {
                         VStack(spacing: 0) {
                             privacyToggleRow(
                                 title: "settings.privacy.hideFollowing",
-                                description: "settings.privacy.hideFollowing.description",
+                                description: showFollowing
+                                    ? "settings.privacy.hideFollowing.description.visible"
+                                    : "settings.privacy.hideFollowing.description",
                                 isOn: Binding(
                                     get: { !showFollowing },
                                     set: { newValue in
@@ -1002,7 +1004,9 @@ struct ConnectionVisibilityView: View {
 
                             privacyToggleRow(
                                 title: "settings.privacy.hideFollowers",
-                                description: "settings.privacy.hideFollowers.description",
+                                description: showFollowers
+                                    ? "settings.privacy.hideFollowers.description.visible"
+                                    : "settings.privacy.hideFollowers.description",
                                 isOn: Binding(
                                     get: { !showFollowers },
                                     set: { newValue in
@@ -1040,7 +1044,7 @@ struct ConnectionVisibilityView: View {
 
     private func privacyToggleRow(title: LocalizedStringKey, description: LocalizedStringKey, isOn: Binding<Bool>) -> some View {
         HStack(alignment: .center, spacing: 14) {
-            Image(systemName: "eye.slash")
+            Image(systemName: isOn.wrappedValue ? "eye.slash" : "eye")
                 .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .font(.system(size: 18))
                 .frame(width: 24)

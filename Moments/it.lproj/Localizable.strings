@@ -707,8 +707,12 @@
 "settings.privacy.hideMutual.description" = "Solo tu puoi vedere chi sono i vostri amici in comune";
 "settings.privacy.hideFollowing" = "Nascondi chi seguo";
 "settings.privacy.hideFollowing.description" = "Solo tu puoi vedere chi segui";
+"settings.privacy.hideFollowing.description.visible" = "Gli altri possono vedere chi segui";
 "settings.privacy.hideAdmirers" = "Nascondi i miei follower";
 "settings.privacy.hideAdmirers.description" = "Solo tu puoi vedere chi ti segue";
+"settings.privacy.hideFollowers" = "Nascondi i miei follower";
+"settings.privacy.hideFollowers.description" = "Solo tu puoi vedere chi ti segue";
+"settings.privacy.hideFollowers.description.visible" = "Gli altri possono vedere chi ti segue";
 "settings.privacy.control.description" = "Quando attivi queste opzioni, gli altri utenti non potranno vedere queste liste sul tuo profilo. Puoi sempre modificare queste impostazioni.";
 "conversationSettings.title" = "Impostazioni conversazione";
 "conversationSettings.created" = "Creata";

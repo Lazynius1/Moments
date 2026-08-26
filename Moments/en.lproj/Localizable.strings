@@ -717,8 +717,10 @@
 "settings.privacy.hideMutual.description" = "Only you can see who your mutual friends are";
 "settings.privacy.hideFollowing" = "Hide my following list";
 "settings.privacy.hideFollowing.description" = "Only you can see who you follow";
+"settings.privacy.hideFollowing.description.visible" = "Other people can see who you follow";
 "settings.privacy.hideFollowers" = "Hide my followers";
 "settings.privacy.hideFollowers.description" = "Only you can see who follows you";
+"settings.privacy.hideFollowers.description.visible" = "Other people can see who follows you";
 "nova.confirm.field.showFollowers" = "Show followers";
 "nova.confirm.field.showMutuals" = "Show mutuals";
 "settings.privacy.control.description" = "When you enable these options, other users won't be able to see these lists on your profile. You can always change these settings.";

@@ -1,8 +1,5 @@
 import SwiftUI
 import FirebaseAuth
-import FirebaseFirestore
-import FirebaseStorage
-import Kingfisher
 
 extension EnhancedNotificationRow {
 
@@ -43,71 +40,23 @@ extension EnhancedNotificationRow {
     func fetchStoryPreview(storyId: String, authorId: String) {
         let userId = authorId
         guard !userId.isEmpty else { return }
-        isLoadingStoryImage = true
-        
-        Firestore.firestore()
-            .collection("users")
-            .document(userId)
-            .collection("stories")
-            .document(storyId)
-            .getDocument { snapshot, error in
-                if error != nil {
-                    DispatchQueue.main.async {
-                        self.isLoadingStoryImage = false
-                        self.storyImageLoadFailed = true
-                    }
-                    return
+        if storyImagePath == nil {
+            isLoadingStoryImage = true
+        }
+
+        StoryRepository().fetchStory(userId: userId, storyId: storyId) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let story):
+                    storyPreviewModel = story
+                    storyImagePath = storyPreviewURL(for: story)
+                    storyImageLoadFailed = false
+                case .failure:
+                    storyImageLoadFailed = storyImagePath == nil
                 }
-                
-                guard let data = snapshot?.data() else {
-                    DispatchQueue.main.async {
-                        self.isLoadingStoryImage = false
-                        self.storyImageLoadFailed = true
-                    }
-                    return
-                }
-                
-                if let previewURL = storyPreviewURL(from: data) {
-                    DispatchQueue.main.async {
-                        self.storyImagePath = previewURL
-                        self.isLoadingStoryImage = false
-                        self.storyImageLoadFailed = false
-                    }
-                } else {
-                    DispatchQueue.main.async {
-                        self.isLoadingStoryImage = false
-                        self.storyImageLoadFailed = true
-                    }
-                }
+                isLoadingStoryImage = false
             }
-    }
-
-    func storyPreviewURL(from data: [String: Any]) -> String? {
-        let mediaItem = data["mediaItem"] as? [String: Any]
-        let mediaType = mediaItem?["type"] as? String
-
-        if mediaType == MediaItem.MediaType.image.rawValue {
-            return nonEmptyString(mediaItem?["url"])
-                ?? nonEmptyString(data["imagePath"])
         }
-
-        if mediaType == MediaItem.MediaType.video.rawValue {
-            return nonEmptyString(mediaItem?["thumbnailUrl"])
-                ?? nonEmptyString(data["backgroundFrameURL"])
-                ?? nonEmptyString(data["backgroundBlurredFrameURL"])
-        }
-
-        return nonEmptyString(data["imagePath"])
-            ?? nonEmptyString(mediaItem?["thumbnailUrl"])
-            ?? nonEmptyString(data["backgroundFrameURL"])
-            ?? nonEmptyString(data["backgroundBlurredFrameURL"])
-            ?? nonEmptyString(mediaItem?["url"])
-    }
-
-    func nonEmptyString(_ value: Any?) -> String? {
-        guard let string = value as? String else { return nil }
-        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
     }
 
 }

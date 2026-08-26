@@ -420,6 +420,9 @@ extension FirestoreService {
         if let styleVariant = sticker.styleVariant {
             stickerData["styleVariant"] = styleVariant
         }
+        if let cardLayoutVariant = sticker.cardLayoutVariant {
+            stickerData["cardLayoutVariant"] = cardLayoutVariant
+        }
         if let questionText = sticker.questionText {
             stickerData["questionText"] = questionText
         }
@@ -452,6 +455,9 @@ extension FirestoreService {
         }
         if let profileImagePath = sticker.profileImagePath {
             stickerData["profileImagePath"] = profileImagePath
+        }
+        if let sharedMediaPath = sticker.sharedMediaPath {
+            stickerData["sharedMediaPath"] = sharedMediaPath
         }
         if let momentId = sticker.momentId {
             stickerData["momentId"] = momentId

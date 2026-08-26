@@ -16,6 +16,7 @@ struct EnhancedNotificationRow: View {
     @State var showStories = false
     @State var momentImagePath: String?
     @State var storyImagePath: String?
+    @State var storyPreviewModel: Story?
     @State var isLoadingMomentImage: Bool = false
     @State var isLoadingStoryImage: Bool = false
     @State var momentImageLoadFailed: Bool = false
@@ -293,6 +294,9 @@ struct EnhancedNotificationRow: View {
                 storyImagePath = preview
                 isLoadingStoryImage = false
                 storyImageLoadFailed = false
+                if let storyId = first.storyId {
+                    fetchStoryPreview(storyId: storyId, authorId: resolvedStoryAuthorId(for: first))
+                }
             } else if let storyId = first.storyId {
                 fetchStoryPreview(storyId: storyId, authorId: resolvedStoryAuthorId(for: first))
             }

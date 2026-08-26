@@ -817,6 +817,46 @@ struct Moment: Identifiable, Codable, Equatable {
         return nil
     }
 
+    /// Fuente visual para compartir en historias. Las fotos siempre usan el
+    /// archivo original; los thumbnails quedan reservados para vídeo/fallback.
+    var storyShareImageURLString: String? {
+        if let primaryVisibleMediaItem {
+            switch primaryVisibleMediaItem.type {
+            case .image:
+                let original = primaryVisibleMediaItem.url.trimmingCharacters(in: .whitespacesAndNewlines)
+                return original.isEmpty ? nil : original
+            case .video:
+                let thumbnail = primaryVisibleMediaItem.thumbnailUrl?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if let thumbnail, !thumbnail.isEmpty { return thumbnail }
+                let video = primaryVisibleMediaItem.url.trimmingCharacters(in: .whitespacesAndNewlines)
+                return video.isEmpty ? nil : video
+            }
+        }
+
+        if let imagePath = imagePath?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !imagePath.isEmpty {
+            return imagePath
+        }
+        if let thumbnailUrl = thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !thumbnailUrl.isEmpty {
+            return thumbnailUrl
+        }
+        return videoUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var storyShareOriginalPhotoURLString: String? {
+        if let primaryVisibleMediaItem {
+            guard primaryVisibleMediaItem.type == .image else { return nil }
+            let original = primaryVisibleMediaItem.url.trimmingCharacters(in: .whitespacesAndNewlines)
+            return original.isEmpty ? nil : original
+        }
+
+        guard let imagePath = imagePath?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !imagePath.isEmpty else { return nil }
+        return imagePath
+    }
+
     var previewVideoURLString: String? {
         if let primaryVisibleMediaItem, primaryVisibleMediaItem.type == .video {
             let url = primaryVisibleMediaItem.url.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1533,6 +1573,7 @@ struct Story: Identifiable, Codable {
                 location: stickerData.location,
                 locationCoordinate: locationCoordinate,
                 styleVariant: stickerData.styleVariant,
+                cardLayoutVariant: stickerData.cardLayoutVariant,
                 pollData: stickerData.pollOptions,
                 questionText: stickerData.questionText,
                 weatherSymbol: weatherSymbol,
@@ -1544,6 +1585,7 @@ struct Story: Identifiable, Codable {
                 sliderPrompt: stickerData.sliderPrompt,
                 caption: stickerData.caption,
                 profileImagePath: stickerData.profileImagePath,
+                sharedMediaPath: stickerData.sharedMediaPath,
                 momentId: stickerData.momentId,
                 mediaCount: stickerData.mediaCount,
                 quizQuestion: stickerData.quizQuestion,
@@ -1873,6 +1915,7 @@ struct StickerData: Codable {
     let latitude: Double?
     let longitude: Double?
     let styleVariant: Int?
+    let cardLayoutVariant: Int?
     let questionText: String?
     let pollOptions: [String]?
     let weatherSymbol: String? // ✅ NUEVA: Para stickers de clima
@@ -1884,6 +1927,7 @@ struct StickerData: Codable {
     let sliderPrompt: String?
     let caption: String? // ✅ NUEVA: Para pie de foto en momentos compartidos
     let profileImagePath: String? // ✅ NUEVA: Ruta de imagen de perfil para reconstrucción
+    let sharedMediaPath: String? // Foto original; el Base64 queda como fallback
     let momentId: String? // ✅ NUEVA: Para navegación
     let mediaCount: Int? // ✅ NUEVA: Para indicador de galería
     let quizQuestion: String?
@@ -1914,7 +1958,7 @@ struct StickerData: Codable {
 
     init(stickerId: String? = nil, type: String, content: String, position: CGPoint, scale: CGFloat, rotation: Double, zIndex: Int? = nil,
          username: String? = nil, userId: String? = nil, hashtag: String? = nil,
-         location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, styleVariant: Int? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, sliderEmoji: String? = nil, sliderPrompt: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
+         location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, styleVariant: Int? = nil, cardLayoutVariant: Int? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, sliderEmoji: String? = nil, sliderPrompt: String? = nil, caption: String? = nil, profileImagePath: String? = nil, sharedMediaPath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
          quizQuestion: String? = nil, quizOptions: [String]? = nil, quizCorrectIndex: Int? = nil,
          revealType: String? = nil, revealPattern: String? = nil, revealPrimaryColor: String? = nil, revealSecondaryColor: String? = nil, revealEffectColor: String? = nil,
          frameStyle: String? = nil,
@@ -1936,6 +1980,7 @@ struct StickerData: Codable {
         self.latitude = latitude
         self.longitude = longitude
         self.styleVariant = styleVariant
+        self.cardLayoutVariant = cardLayoutVariant
         self.questionText = questionText
         self.pollOptions = pollOptions
         self.weatherSymbol = weatherSymbol
@@ -1947,6 +1992,7 @@ struct StickerData: Codable {
         self.sliderPrompt = sliderPrompt
         self.caption = caption
         self.profileImagePath = profileImagePath
+        self.sharedMediaPath = sharedMediaPath
         self.momentId = momentId
         self.mediaCount = mediaCount
         self.quizQuestion = quizQuestion
@@ -2002,6 +2048,7 @@ struct StickerData: Codable {
         self.latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
         self.longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
         self.styleVariant = try container.decodeIfPresent(Int.self, forKey: .styleVariant)
+        self.cardLayoutVariant = try container.decodeIfPresent(Int.self, forKey: .cardLayoutVariant)
         self.questionText = try container.decodeIfPresent(String.self, forKey: .questionText)
         self.pollOptions = try container.decodeIfPresent([String].self, forKey: .pollOptions)
         self.weatherSymbol = try container.decodeIfPresent(String.self, forKey: .weatherSymbol)
@@ -2013,6 +2060,7 @@ struct StickerData: Codable {
         self.sliderPrompt = try container.decodeIfPresent(String.self, forKey: .sliderPrompt)
         self.caption = try container.decodeIfPresent(String.self, forKey: .caption)
         self.profileImagePath = try container.decodeIfPresent(String.self, forKey: .profileImagePath)
+        self.sharedMediaPath = try container.decodeIfPresent(String.self, forKey: .sharedMediaPath)
         self.momentId = try container.decodeIfPresent(String.self, forKey: .momentId)
         self.mediaCount = try container.decodeIfPresent(Int.self, forKey: .mediaCount)
         self.quizQuestion = try container.decodeIfPresent(String.self, forKey: .quizQuestion)
@@ -2074,6 +2122,7 @@ struct StickerData: Codable {
             latitude: interactionData?.locationCoordinate?.latitude,
             longitude: interactionData?.locationCoordinate?.longitude,
             styleVariant: interactionData?.styleVariant,
+            cardLayoutVariant: interactionData?.cardLayoutVariant,
             questionText: interactionData?.questionText,
             pollOptions: interactionData?.pollData,
             weatherSymbol: interactionData?.weatherSymbol,
@@ -2085,6 +2134,7 @@ struct StickerData: Codable {
             sliderPrompt: interactionData?.sliderPrompt,
             caption: stickerItem.interactionData?.caption,
             profileImagePath: stickerItem.interactionData?.profileImagePath,
+            sharedMediaPath: stickerItem.interactionData?.sharedMediaPath,
             momentId: stickerItem.interactionData?.momentId,
             mediaCount: stickerItem.interactionData?.mediaCount,
             quizQuestion: stickerItem.interactionData?.quizQuestion,
@@ -2179,6 +2229,7 @@ extension StickerData {
         case latitude
         case longitude
         case styleVariant
+        case cardLayoutVariant
         case questionText
         case pollOptions
         case weatherSymbol
@@ -2193,6 +2244,7 @@ extension StickerData {
         case videoURL
         case caption
         case profileImagePath
+        case sharedMediaPath
         case momentId
         case mediaCount
         case quizQuestion
@@ -2230,6 +2282,7 @@ extension StickerData {
         try container.encodeIfPresent(latitude, forKey: .latitude)
         try container.encodeIfPresent(longitude, forKey: .longitude)
         try container.encodeIfPresent(styleVariant, forKey: .styleVariant)
+        try container.encodeIfPresent(cardLayoutVariant, forKey: .cardLayoutVariant)
         try container.encodeIfPresent(questionText, forKey: .questionText)
         try container.encodeIfPresent(pollOptions, forKey: .pollOptions)
         try container.encodeIfPresent(weatherSymbol, forKey: .weatherSymbol)
@@ -2244,6 +2297,7 @@ extension StickerData {
         try container.encodeIfPresent(videoURL, forKey: .videoURL)
         try container.encodeIfPresent(caption, forKey: .caption)
         try container.encodeIfPresent(profileImagePath, forKey: .profileImagePath)
+        try container.encodeIfPresent(sharedMediaPath, forKey: .sharedMediaPath)
         try container.encodeIfPresent(momentId, forKey: .momentId)
         try container.encodeIfPresent(mediaCount, forKey: .mediaCount)
         try container.encodeIfPresent(quizQuestion, forKey: .quizQuestion)

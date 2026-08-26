@@ -1082,37 +1082,16 @@ struct ActivityPortraitMomentCard: View {
 }
 
 struct ActivityDeletedStoryCard: View {
-    @Environment(\.colorScheme) private var colorScheme
     let item: ActivityDeletedStoryItem
     let isSelectionMode: Bool
     let isSelected: Bool
 
-    private var previewURLString: String? {
-        if item.story.mediaItem.type == .video,
-           let thumbnail = item.story.mediaItem.thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !thumbnail.isEmpty {
-            return thumbnail
-        }
-
-        let url = item.story.mediaItem.url.trimmingCharacters(in: .whitespacesAndNewlines)
-        return url.isEmpty ? nil : url
-    }
-
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .topTrailing) {
-                if let previewURLString, let url = URL(string: previewURLString) {
-                    KFImage(url)
-                        .placeholder {
-                            placeholder
-                        }
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .clipped()
-                } else {
-                    placeholder
-                }
+                StoryStaticPreviewSurface(story: item.story, revealPolicy: .exposed)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
 
                 VStack {
                     HStack {
@@ -1149,14 +1128,6 @@ struct ActivityDeletedStoryCard: View {
         .clipped()
     }
 
-    private var placeholder: some View {
-        ZStack {
-            Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
-            Image(systemName: item.story.mediaItem.type == .video ? "play.rectangle.fill" : "photo")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.secondary)
-        }
-    }
 }
 
 struct ActivityThumbnailVideoPlayIndicator: View {

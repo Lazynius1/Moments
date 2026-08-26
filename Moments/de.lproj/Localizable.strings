@@ -707,8 +707,12 @@
 "settings.privacy.hideMutual.description" = "Nur du kannst sehen, wer deine gemeinsamen Kontakte sind";
 "settings.privacy.hideFollowing" = "Wem ich folge verbergen";
 "settings.privacy.hideFollowing.description" = "Nur du kannst sehen, wem du folgst";
+"settings.privacy.hideFollowing.description.visible" = "Andere können sehen, wem du folgst";
 "settings.privacy.hideAdmirers" = "Meine Follower verbergen";
 "settings.privacy.hideAdmirers.description" = "Nur du kannst sehen, wer dir folgt";
+"settings.privacy.hideFollowers" = "Meine Follower verbergen";
+"settings.privacy.hideFollowers.description" = "Nur du kannst sehen, wer dir folgt";
+"settings.privacy.hideFollowers.description.visible" = "Andere können sehen, wer dir folgt";
 "settings.privacy.control.description" = "Wenn du diese Optionen aktivierst, können andere Nutzer diese Listen in deinem Profil nicht sehen. Du kannst diese Einstellungen jederzeit ändern.";
 "conversationSettings.title" = "Unterhaltungseinstellungen";
 "conversationSettings.created" = "Erstellt";

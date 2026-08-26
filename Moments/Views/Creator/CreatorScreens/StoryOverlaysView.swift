@@ -4,6 +4,12 @@ import AVKit
 import CoreLocation
 import UIKit
 
+private struct SharedMomentCardTransform {
+    let position: CGPoint
+    let scale: CGFloat
+    let rotation: Angle
+}
+
 enum StoryOverlayToast: Equatable {
     case userNotFound(String)
     case hashtag(String)
@@ -72,11 +78,19 @@ struct StoryOverlaysView: View {
     @State private var keyboardHeight: CGFloat = 0
     @State private var activeToast: StoryOverlayToast?
     @State private var toastDismissTask: Task<Void, Never>?
+    @State private var sharedMomentCardTransforms: [String: SharedMomentCardTransform] = [:]
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         ZStack {
+            Color.clear
+                .frame(width: canvasSize.width, height: canvasSize.height)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    selectedStickerId = nil
+                }
+
             // 📸 FONDO OSCURO DE EDICIÓN INLINE DE STICKERS
             if activeEditingStickerId != nil {
                 RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous)
@@ -314,7 +328,7 @@ struct StoryOverlaysView: View {
                             selectedStickerId = tappedSticker.id
 
                             if tapCyclesStickerStyle(tappedSticker.type) {
-                                if wasSelected {
+                                if wasSelected || tappedSticker.type == .shareMoment {
                                     cycleStickerStyle(for: tappedSticker.id)
                                 }
                                 return
@@ -486,8 +500,20 @@ struct StoryOverlaysView: View {
                 HapticManager.shared.mediumImpact()
             }
         }
+        .onChange(of: stickers.map(\.id)) { previousIDs, currentIDs in
+            prepareNewStickersForCanvas(
+                previousIDs: Set(previousIDs),
+                currentIDs: currentIDs
+            )
+        }
         .coordinateSpace(name: "storyCanvas")
         .frame(width: canvasSize.width, height: canvasSize.height)
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: storyViewerCanvasCornerRadius,
+                style: .continuous
+            )
+        )
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
             guard let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
             let screenHeight = (notification.object as? UIScreen)?.bounds.height ?? endFrame.maxY
@@ -497,6 +523,81 @@ struct StoryOverlaysView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             keyboardHeight = 0
         }
+    }
+
+    private func prepareNewStickersForCanvas(
+        previousIDs: Set<String>,
+        currentIDs: [String]
+    ) {
+        guard !currentIDs.isEmpty else { return }
+
+        var occupiedPositions = stickers
+            .filter { previousIDs.contains($0.id) && $0.type != .reveal }
+            .map(\.position)
+        var newestVisibleStickerID: String?
+
+        for index in stickers.indices {
+            stickers[index].zIndex = index
+            guard !previousIDs.contains(stickers[index].id),
+                  stickers[index].type != .reveal else { continue }
+            newestVisibleStickerID = stickers[index].id
+
+            let imageSize = stickers[index].image.size
+            let scale = max(stickers[index].scale, 0.1)
+            let halfWidth = min(max(imageSize.width * scale / 2, 28), canvasSize.width / 2)
+            let halfHeight = min(max(imageSize.height * scale / 2, 28), canvasSize.height / 2)
+            let original = clampedStickerCenter(
+                stickers[index].position,
+                halfWidth: halfWidth,
+                halfHeight: halfHeight
+            )
+            let minimumSeparation = min(max(max(imageSize.width, imageSize.height) * scale * 0.28, 48), 110)
+
+            let offsets: [CGSize] = [
+                .zero,
+                CGSize(width: 42, height: 42),
+                CGSize(width: -42, height: 42),
+                CGSize(width: 42, height: -42),
+                CGSize(width: -42, height: -42),
+                CGSize(width: 84, height: 0),
+                CGSize(width: -84, height: 0),
+                CGSize(width: 0, height: 84),
+                CGSize(width: 0, height: -84)
+            ]
+
+            let resolvedPosition = offsets
+                .map {
+                    clampedStickerCenter(
+                        CGPoint(x: original.x + $0.width, y: original.y + $0.height),
+                        halfWidth: halfWidth,
+                        halfHeight: halfHeight
+                    )
+                }
+                .first { candidate in
+                    occupiedPositions.allSatisfy { occupied in
+                        hypot(candidate.x - occupied.x, candidate.y - occupied.y) >= minimumSeparation
+                    }
+                }
+                ?? original
+
+            stickers[index].position = resolvedPosition
+            occupiedPositions.append(resolvedPosition)
+        }
+
+        if let newestVisibleStickerID {
+            selectedStickerId = newestVisibleStickerID
+        }
+    }
+
+    private func clampedStickerCenter(
+        _ point: CGPoint,
+        halfWidth: CGFloat,
+        halfHeight: CGFloat
+    ) -> CGPoint {
+        CGPoint(
+            x: min(max(point.x, halfWidth), max(canvasSize.width - halfWidth, halfWidth)),
+            y: min(max(point.y, halfHeight), max(canvasSize.height - halfHeight, halfHeight))
+        )
     }
 
     private func updateTextOverlay(_ overlayId: String, mutate: (inout StoryTextOverlayDraft) -> Void) {
@@ -829,7 +930,7 @@ struct StoryOverlaysView: View {
 
     private func tapCyclesStickerStyle(_ type: StickerItem.StickerType) -> Bool {
         switch type {
-        case .location, .mention, .link, .hashtag, .time, .questionResponse:
+        case .location, .mention, .link, .hashtag, .time, .questionResponse, .shareMoment:
             return true
         default:
             return false
@@ -841,8 +942,19 @@ struct StoryOverlaysView: View {
 
         let sticker = stickers[index]
         var interactionData = stickers[index].interactionData ?? StickerItem.StickerInteractionData()
-        let variantCount = styleVariantCount(for: sticker.type)
-        interactionData.styleVariant = ((interactionData.styleVariant ?? 0) + 1) % variantCount
+        if sticker.type == .shareMoment {
+            let nextLayout = ((interactionData.cardLayoutVariant ?? 0) + 1) % 2
+            interactionData.cardLayoutVariant = nextLayout
+            stickers[index].interactionData = interactionData
+
+            if sticker.videoURL != nil,
+               (sticker.interactionData?.mediaCount ?? 1) == 1 {
+                transitionSharedReelLayout(at: index, to: nextLayout)
+            }
+        } else {
+            let variantCount = styleVariantCount(for: sticker.type)
+            interactionData.styleVariant = ((interactionData.styleVariant ?? 0) + 1) % variantCount
+        }
 
         if sticker.type == .questionResponse,
            let questionText = interactionData.questionText {
@@ -865,17 +977,47 @@ struct StoryOverlaysView: View {
                 type: sticker.type,
                 interactionData: interactionData
             )
-        } else {
+        } else if sticker.type != .shareMoment {
             stickers[index].interactionData = interactionData
         }
 
         HapticManager.shared.lightImpact()
     }
 
+    private func transitionSharedReelLayout(at index: Int, to layoutVariant: Int) {
+        let sticker = stickers[index]
+
+        if layoutVariant == 1 {
+            sharedMomentCardTransforms[sticker.id] = SharedMomentCardTransform(
+                position: sticker.position,
+                scale: sticker.scale,
+                rotation: sticker.rotation
+            )
+
+            let naturalSize = sticker.image.size
+            let fillScale = max(
+                canvasSize.width / max(naturalSize.width, 1),
+                canvasSize.height / max(naturalSize.height, 1)
+            )
+            stickers[index].position = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+            stickers[index].scale = fillScale
+            stickers[index].rotation = .zero
+            return
+        }
+
+        let previous = sharedMomentCardTransforms.removeValue(forKey: sticker.id)
+        stickers[index].position = previous?.position
+            ?? CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+        stickers[index].scale = previous?.scale ?? 1
+        stickers[index].rotation = previous?.rotation ?? .zero
+    }
+
     private func styleVariantCount(for type: StickerItem.StickerType) -> Int {
         switch type {
         case .questionResponse:
             return 6
+        case .shareMoment:
+            return 2
         default:
             return 4
         }

@@ -73,6 +73,7 @@ struct StickerItem: Identifiable {
         var location: String?
         var locationCoordinate: CLLocationCoordinate2D?
         var styleVariant: Int?
+        var cardLayoutVariant: Int?
         var pollData: [String]?
         var questionText: String?
         var weatherSymbol: String?
@@ -84,6 +85,7 @@ struct StickerItem: Identifiable {
         var sliderPrompt: String?
         var caption: String?
         var profileImagePath: String?
+        var sharedMediaPath: String?
         var momentId: String?
         var mediaCount: Int?
 
@@ -112,6 +114,7 @@ struct StickerItem: Identifiable {
             location: String? = nil,
             locationCoordinate: CLLocationCoordinate2D? = nil,
             styleVariant: Int? = nil,
+            cardLayoutVariant: Int? = nil,
             pollData: [String]? = nil,
             questionText: String? = nil,
             weatherSymbol: String? = nil,
@@ -123,6 +126,7 @@ struct StickerItem: Identifiable {
             sliderPrompt: String? = nil,
             caption: String? = nil,
             profileImagePath: String? = nil,
+            sharedMediaPath: String? = nil,
             momentId: String? = nil,
             mediaCount: Int? = nil,
             quizQuestion: String? = nil,
@@ -146,6 +150,7 @@ struct StickerItem: Identifiable {
             self.location = location
             self.locationCoordinate = locationCoordinate
             self.styleVariant = styleVariant
+            self.cardLayoutVariant = cardLayoutVariant
             self.pollData = pollData
             self.questionText = questionText
             self.weatherSymbol = weatherSymbol
@@ -157,6 +162,7 @@ struct StickerItem: Identifiable {
             self.sliderPrompt = sliderPrompt
             self.caption = caption
             self.profileImagePath = profileImagePath
+            self.sharedMediaPath = sharedMediaPath
             self.momentId = momentId
             self.mediaCount = mediaCount
             self.quizQuestion = quizQuestion

@@ -31,6 +31,7 @@ class UploadingStory: ObservableObject, Identifiable {
     let textOverlayMetadata: StoryTextOverlayMetadata?
     let textOverlays: [StoryTextOverlayMetadata]?
     let stickerData: [StickerItem]?
+    let editorCanvasSize: CGSize?
     let drawingData: Data?
     let audienceSetting: ContentAudience
     let customViewers: [String]?
@@ -67,6 +68,7 @@ class UploadingStory: ObservableObject, Identifiable {
         textOverlayMetadata: StoryTextOverlayMetadata? = nil,
         textOverlays: [StoryTextOverlayMetadata]? = nil,
         stickerData: [StickerItem]?,
+        editorCanvasSize: CGSize? = nil,
         drawingData: Data?,
         audienceSetting: ContentAudience,
         customViewers: [String]?,
@@ -96,6 +98,7 @@ class UploadingStory: ObservableObject, Identifiable {
         self.textOverlayMetadata = textOverlayMetadata
         self.textOverlays = textOverlays
         self.stickerData = stickerData
+        self.editorCanvasSize = editorCanvasSize
         self.drawingData = drawingData
         self.audienceSetting = audienceSetting
         self.customViewers = customViewers
@@ -130,6 +133,7 @@ struct StoryUploadPayload: Codable {
     let textOverlayMetadata: StoryTextOverlayMetadata?
     let textOverlays: [StoryTextOverlayMetadata]?
     let stickers: [CachedSticker]?
+    let editorCanvasSize: CGSize?
     let drawingFileName: String?
     let audienceSetting: String
     let customViewers: [String]?
@@ -170,6 +174,7 @@ struct CachedStickerInteractionData: Codable {
     let latitude: Double?
     let longitude: Double?
     let styleVariant: Int?
+    let cardLayoutVariant: Int?
     let pollData: [String]?
     let questionText: String?
     let weatherSymbol: String?
@@ -181,6 +186,7 @@ struct CachedStickerInteractionData: Codable {
     let sliderPrompt: String?
     let caption: String?
     let profileImagePath: String?
+    let sharedMediaPath: String?
     let momentId: String?
     let mediaCount: Int?
 
@@ -236,6 +242,7 @@ class BackgroundStoryUploadService: ObservableObject {
         textOverlayMetadata: StoryTextOverlayMetadata? = nil,
         textOverlays: [StoryTextOverlayMetadata]? = nil,
         stickerData: [StickerItem]?,
+        editorCanvasSize: CGSize? = nil,
         drawingData: Data?,
         audienceSetting: ContentAudience,
         customViewers: [String]?,
@@ -268,6 +275,7 @@ class BackgroundStoryUploadService: ObservableObject {
             textOverlayMetadata: textOverlayMetadata,
             textOverlays: textOverlays,
             stickerData: stickerData,
+            editorCanvasSize: editorCanvasSize,
             drawingData: drawingData,
             audienceSetting: audienceSetting,
             customViewers: customViewers,
@@ -374,6 +382,7 @@ class BackgroundStoryUploadService: ObservableObject {
         textOverlayMetadata: StoryTextOverlayMetadata? = nil,
         textOverlays: [StoryTextOverlayMetadata]? = nil,
         stickerData: [StickerItem]?,
+        editorCanvasSize: CGSize? = nil,
         drawingData: Data?,
         audienceSetting: ContentAudience,
         customViewers: [String]?,
@@ -443,6 +452,7 @@ class BackgroundStoryUploadService: ObservableObject {
             textOverlayMetadata: textOverlayMetadata,
             textOverlays: textOverlays,
             stickerData: stickerData,
+            editorCanvasSize: editorCanvasSize,
             drawingData: drawingData,
             audienceSetting: audienceSetting,
             customViewers: customViewers,
@@ -655,6 +665,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 textOverlayMetadata: isFirstClip ? uploadingStory.textOverlayMetadata : nil,
                 textOverlays: isFirstClip ? uploadingStory.textOverlays : nil,
                 stickerData: isFirstClip ? uploadingStory.stickerData : revealStickers,
+                editorCanvasSize: uploadingStory.editorCanvasSize,
                 drawingData: isFirstClip ? uploadingStory.drawingData : nil,
                 audienceSetting: uploadingStory.audienceSetting,
                 customViewers: uploadingStory.customViewers,
@@ -1105,7 +1116,9 @@ class BackgroundStoryUploadService: ObservableObject {
         // ✅ NORMALIZAR STICKERS EN EL CANVAS REAL COMPARTIDO
         // Las posiciones del editor ya viven en coordenadas locales del canvas.
         // Guardamos posición relativa (u,v) dentro de ese canvas y escala relativa a su ancho.
-        let contentRect = storyContentRectInEditor()
+        let capturedCanvasSize = uploadingStory.editorCanvasSize
+            .flatMap { $0.width > 0 && $0.height > 0 ? $0 : nil }
+            ?? storyContentRectInEditor().size
         let referenceContentWidth: CGFloat = 375.0
 
         let primaryTextOverlay = (uploadingStory.textOverlays?.isEmpty == false ? uploadingStory.textOverlays : nil)?.sorted(by: { $0.layerOrder < $1.layerOrder }).first
@@ -1118,8 +1131,8 @@ class BackgroundStoryUploadService: ObservableObject {
         let normalizedStickerData: [StickerData]? = uploadingStory.stickerData?.enumerated().compactMap { index, stickerItem in
             var normalizedItem = stickerItem
 
-            let safeWidth = max(contentRect.width, 1)
-            let safeHeight = max(contentRect.height, 1)
+            let safeWidth = max(capturedCanvasSize.width, 1)
+            let safeHeight = max(capturedCanvasSize.height, 1)
 
             let normalizedX = stickerItem.position.x / safeWidth
             let normalizedY = stickerItem.position.y / safeHeight
@@ -1754,6 +1767,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 textOverlayMetadata: uploadingStory.textOverlayMetadata,
                 textOverlays: uploadingStory.textOverlays,
                 stickers: cachedStickers.isEmpty ? nil : cachedStickers,
+                editorCanvasSize: uploadingStory.editorCanvasSize,
                 drawingFileName: drawingFileName,
                 audienceSetting: uploadingStory.audienceSetting.rawValue,
                 customViewers: uploadingStory.customViewers,
@@ -1847,6 +1861,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 latitude: data.locationCoordinate?.latitude,
                 longitude: data.locationCoordinate?.longitude,
                 styleVariant: data.styleVariant,
+                cardLayoutVariant: data.cardLayoutVariant,
                 pollData: data.pollData,
                 questionText: data.questionText,
                 weatherSymbol: data.weatherSymbol,
@@ -1858,6 +1873,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 sliderPrompt: data.sliderPrompt,
                 caption: data.caption,
                 profileImagePath: data.profileImagePath,
+                sharedMediaPath: data.sharedMediaPath,
                 momentId: data.momentId,
                 mediaCount: data.mediaCount,
                 quizQuestion: data.quizQuestion,
@@ -2019,6 +2035,7 @@ class BackgroundStoryUploadService: ObservableObject {
                             location: data.location,
                             locationCoordinate: (data.latitude != nil && data.longitude != nil) ? CLLocationCoordinate2D(latitude: data.latitude!, longitude: data.longitude!) : nil,
                             styleVariant: data.styleVariant,
+                            cardLayoutVariant: data.cardLayoutVariant,
                             pollData: data.pollData,
                             questionText: data.questionText,
                             weatherSymbol: data.weatherSymbol,
@@ -2030,6 +2047,7 @@ class BackgroundStoryUploadService: ObservableObject {
                             sliderPrompt: data.sliderPrompt,
                             caption: data.caption,
                             profileImagePath: data.profileImagePath,
+                            sharedMediaPath: data.sharedMediaPath,
                             momentId: data.momentId,
                             mediaCount: data.mediaCount,
                             quizQuestion: data.quizQuestion,
@@ -2131,6 +2149,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 textOverlayMetadata: payload.textOverlayMetadata,
                 textOverlays: payload.textOverlays,
                 stickerData: stickers.isEmpty ? nil : stickers,
+                editorCanvasSize: payload.editorCanvasSize,
                 drawingData: drawingData,
                 audienceSetting: audience,
                 customViewers: payload.customViewers,

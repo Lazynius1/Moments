@@ -1921,11 +1921,11 @@ struct StoryEditingView: View {
     }
 
     private var showsStickerPaletteButton: Bool {
-        guard let activeId = activeEditingStickerId,
+        guard let activeId = activeEditingStickerId ?? selectedStickerId,
               let activeSticker = selectedStickers.first(where: { $0.id == activeId }) else { return false }
 
         switch activeSticker.type {
-        case .poll, .question, .quiz, .countdown, .emojiSlider:
+        case .poll, .question, .quiz, .countdown, .emojiSlider, .shareMoment:
             return true
         default:
             return false
@@ -2447,6 +2447,7 @@ struct StoryEditingView: View {
             textOverlayMetadata: primaryTextOverlay,
             textOverlays: preparedTextOverlays.isEmpty ? nil : preparedTextOverlays,
             stickerData: stickerData,
+            editorCanvasSize: contentRect.size,
             drawingData: drawingData,
             audienceSetting: contentAudience,
             customViewers: customSelectedUsers,
