@@ -29,7 +29,7 @@ extension MessageType {
             return .photos
         case .ephemeral, .viewOnceImage, .viewOnceVideo:
             return .ephemeral
-        case .sharedMoment:
+        case .sharedMoment, .sharedProfile:
             return .share
         default:
             return nil

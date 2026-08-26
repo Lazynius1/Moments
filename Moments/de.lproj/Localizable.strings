@@ -1619,6 +1619,7 @@
 "share.saveToCollection" = "In Sammlung speichern";
 "share.preparing" = "Wird vorbereitet...";
 "share.loading" = "Wird geladen...";
+"share.profileUnavailable" = "Dieses Profil ist nicht verfügbar";
 "share.momentUnavailable" = "Dieser Moment ist nicht verfügbar";
 "share.noPermission" = "Du hast keine Berechtigung, diesen Inhalt anzusehen";
 "share.video" = "Video";
@@ -4070,12 +4071,17 @@
 "share.storyDenied.private" = "Folge dieser Person, um ihre Stories zu sehen.";
 "share.storyDenied.restricted" = "Du hast keine Berechtigung, diese Story anzusehen.";
 "chat.preview.sharedStory" = "Geteilte Story";
+"chat.preview.sharedProfile" = "Shared profile";
 "chat.menu.details" = "Chat-Einstellungen";
 "report.action.user" = "Nutzer melden";
 "report.contentType.moment" = "Moment";
 "report.contentType.story" = "Story";
 "report.contentType.user" = "Nutzer";
 "share.story" = "Story";
+"share.profile.by" = "Profil · @%@";
+"share.send.success.title" = "Gesendet";
+"share.send.success.message" = "In Moments geteilt";
+"share.send.invalidPayload" = "Dieses Profil konnte nicht geteilt werden. Bitte erneut versuchen.";
 
 "userActivity.event.visit.clean" = "Hat dein Profil besucht";
 "userActivity.event.follow.clean" = "Folgt dir jetzt";

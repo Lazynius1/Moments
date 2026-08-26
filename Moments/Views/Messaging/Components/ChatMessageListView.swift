@@ -1682,6 +1682,7 @@ private extension EnhancedMessage {
         hasher.combine(stableDictionarySignature(storyReplyData))
         hasher.combine(stableDictionarySignature(sharedMomentData))
         hasher.combine(stableDictionarySignature(sharedStoryData))
+        hasher.combine(stableDictionarySignature(sharedProfileData))
         hasher.combine(stableArraySignature(viewedBy))
         hasher.combine(stableArraySignature(readBy))
         hasher.combine(stableDateDictionarySignature(readAtBy))

@@ -215,7 +215,7 @@ extension FirestoreService {
                 completion(.success(user))
             } catch {
                 if let data = document.data() {
-                    self.attemptManualDecoding(data: data, completion: completion)
+                    self.attemptManualDecoding(data: data, documentId: document.documentID, completion: completion)
                 } else {
                     completion(.failure(error))
                 }
@@ -245,13 +245,19 @@ extension FirestoreService {
                     completion(.success(user))
                 } catch {
                     let data = document.data()
-                    self.attemptManualDecoding(data: data, completion: completion)
+                    self.attemptManualDecoding(data: data, documentId: document.documentID, completion: completion)
                 }
             }
     }
 
-    private func attemptManualDecoding(data: [String: Any], completion: @escaping (Result<AppUser, Error>) -> Void) {
-        guard let id = data["id"] as? String,
+    private func attemptManualDecoding(
+        data: [String: Any],
+        documentId: String? = nil,
+        completion: @escaping (Result<AppUser, Error>) -> Void
+    ) {
+        let rawId = (data["id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let id = rawId.isEmpty ? (documentId ?? "") : rawId
+        guard !id.isEmpty,
               let email = data["email"] as? String else {
             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Campos obligatorios faltantes"])))
             return
@@ -309,10 +315,14 @@ extension FirestoreService {
             }
 
             do {
-                let user = try document.data(as: AppUser.self)
+                let user = try Self.decodeAppUser(from: document)
                 completion(.success(user))
             } catch {
-                completion(.failure(error))
+                if let data = document.data() {
+                    self.attemptManualDecoding(data: data, documentId: document.documentID, completion: completion)
+                } else {
+                    completion(.failure(error))
+                }
             }
         })
     }
@@ -341,12 +351,23 @@ extension FirestoreService {
             let availability = Self.publicProfileAvailability(from: data)
 
             do {
-                let user = try document.data(as: AppUser.self)
+                let user = try Self.decodeAppUser(from: document)
                 completion(.success(user), availability)
             } catch {
-                completion(.failure(error), availability)
+                self.attemptManualDecoding(data: data, documentId: document.documentID) { result in
+                    completion(result, availability)
+                }
             }
         }
+    }
+
+    /// Asegura `id` = documentID cuando el doc no trae `id` (o viene vacío).
+    private static func decodeAppUser(from document: DocumentSnapshot) throws -> AppUser {
+        var payload = document.data() ?? [:]
+        if (payload["id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+            payload["id"] = document.documentID
+        }
+        return try Firestore.Decoder().decode(AppUser.self, from: payload)
     }
 
     private static func publicProfileAvailability(from data: [String: Any]) -> PublicProfileAvailability {

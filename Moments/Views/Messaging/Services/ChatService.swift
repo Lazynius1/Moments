@@ -1219,6 +1219,9 @@ class ChatService: ObservableObject {
         if let sharedStoryData = message.sharedStoryData {
             messageData["sharedStoryData"] = sharedStoryData
         }
+        if let sharedProfileData = message.sharedProfileData {
+            messageData["sharedProfileData"] = sharedProfileData
+        }
         if let mediaBatchId = message.mediaBatchId {
             messageData["mediaBatchId"] = mediaBatchId
         }

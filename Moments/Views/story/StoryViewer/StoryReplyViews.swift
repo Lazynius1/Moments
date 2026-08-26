@@ -19,12 +19,9 @@ private enum StoryReplyPreviewMetrics {
     static let cornerRadius: CGFloat = 14
 }
 
-private var storyReplyRingGradient: LinearGradient {
-    LinearGradient(
-        colors: [Color.blue, Color.purple, Color.pink],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+/// Borde sutil de chasis Moments (familia fichas DM; sin anillo arcoíris).
+private var storyReplyChassisStroke: Color {
+    Color.white.opacity(0.2)
 }
 
 // MARK: - Story Reply Message Bubble
@@ -289,9 +286,7 @@ private struct StoryReplyUnavailableThumbnail: View {
     }
 
     var body: some View {
-        let innerRadius = StoryReplyPreviewMetrics.cornerRadius - 2
-        let innerWidth = StoryReplyPreviewMetrics.width - 4
-        let innerHeight = StoryReplyPreviewMetrics.height - 4
+        let shape = RoundedRectangle(cornerRadius: StoryReplyPreviewMetrics.cornerRadius, style: .continuous)
 
         ZStack {
             Group {
@@ -307,8 +302,7 @@ private struct StoryReplyUnavailableThumbnail: View {
                         .fill(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.15))
                 }
             }
-            .frame(width: innerWidth, height: innerHeight)
-            .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
+            .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
 
             Color.black.opacity(0.55)
 
@@ -326,12 +320,9 @@ private struct StoryReplyUnavailableThumbnail: View {
             }
             .padding(.horizontal, 6)
         }
-        .padding(2)
-        .background(
-            RoundedRectangle(cornerRadius: StoryReplyPreviewMetrics.cornerRadius, style: .continuous)
-                .stroke(storyReplyRingGradient.opacity(0.45), lineWidth: 2)
-        )
         .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
+        .clipShape(shape)
+        .overlay(shape.stroke(storyReplyChassisStroke, lineWidth: 0.5))
     }
 }
 
@@ -356,9 +347,7 @@ struct StoryReplyThumbnailView: View {
     }
 
     var body: some View {
-        let innerRadius = StoryReplyPreviewMetrics.cornerRadius - 2
-        let innerWidth = StoryReplyPreviewMetrics.width - 4
-        let innerHeight = StoryReplyPreviewMetrics.height - 4
+        let shape = RoundedRectangle(cornerRadius: StoryReplyPreviewMetrics.cornerRadius, style: .continuous)
 
         ZStack {
             Group {
@@ -382,8 +371,7 @@ struct StoryReplyThumbnailView: View {
                         )
                 }
             }
-            .frame(width: innerWidth, height: innerHeight)
-            .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
+            .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
 
             if isVideo {
                 Circle()
@@ -397,12 +385,9 @@ struct StoryReplyThumbnailView: View {
                     )
             }
         }
-        .padding(2)
-        .background(
-            RoundedRectangle(cornerRadius: StoryReplyPreviewMetrics.cornerRadius, style: .continuous)
-                .stroke(storyReplyRingGradient, lineWidth: 2)
-        )
         .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
+        .clipShape(shape)
+        .overlay(shape.stroke(storyReplyChassisStroke, lineWidth: 0.5))
     }
 }
 
@@ -474,7 +459,7 @@ struct StoryReplyEphemeralTapCard: View {
         .clipShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous)
-                .stroke(storyReplyRingGradient, lineWidth: 2)
+                .stroke(storyReplyChassisStroke, lineWidth: 0.5)
         )
         .contentShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
         .onTapGesture(perform: onTap)
@@ -584,9 +569,10 @@ struct StoryReplyEphemeralResolvingCard: View {
                 .tint(colorScheme == .dark ? .white.opacity(0.7) : .gray)
         }
         .frame(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
+        .clipShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous)
-                .stroke(storyReplyRingGradient, lineWidth: 2)
+                .stroke(storyReplyChassisStroke, lineWidth: 0.5)
         )
     }
 }

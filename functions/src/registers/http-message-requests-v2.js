@@ -33,6 +33,7 @@ const ALLOWED_MESSAGE_TYPES = new Set([
   'ephemeral',
   'sharedMoment',
   'sharedStory',
+  'sharedProfile',
   'viewOnceImage',
   'viewOnceVideo'
 ]);
@@ -42,6 +43,7 @@ const ALLOWED_CONTEXT_KINDS = new Set([
   'storyEphemeral',
   'shareStory',
   'shareMoment',
+  'shareProfile',
   'forwardText'
 ]);
 
@@ -171,7 +173,7 @@ function storyInteractionAllowed(recipientData, actorId, interactionKind, relati
 }
 
 async function interactionContentAllowed(db, actorId, recipientId, interactionKind, context, relationship) {
-  if (!['storyMessage', 'storyEphemeral', 'shareStory', 'shareMoment'].includes(interactionKind)) {
+  if (!['storyMessage', 'storyEphemeral', 'shareStory', 'shareMoment', 'shareProfile'].includes(interactionKind)) {
     return true;
   }
 
@@ -193,6 +195,12 @@ async function interactionContentAllowed(db, actorId, recipientId, interactionKi
     ? relationship.actorSnap
     : ownerId === recipientId ? relationship.recipientSnap : await db.doc(`users/${ownerId}`).get();
   if (!authorSnap.exists || !isActiveUserData(authorSnap.data() || {})) return false;
+
+  // Perfil compartido: basta con que el usuario exista y esté activo.
+  if (interactionKind === 'shareProfile') {
+    return contentId === ownerId;
+  }
+
   const [actorContext, recipientContext] = await Promise.all([
     buildViewerContext(actorId),
     buildViewerContext(recipientId)
@@ -230,7 +238,7 @@ function sanitizeInteractionContext(kind, rawContext) {
     context.storyOwnerId = stringValue(rawContext.storyOwnerId, 160);
     if (!context.storyId || !context.storyOwnerId) return null;
   }
-  if (kind === 'shareStory' || kind === 'shareMoment') {
+  if (kind === 'shareStory' || kind === 'shareMoment' || kind === 'shareProfile') {
     context.sharedContentId = stringValue(rawContext.sharedContentId, 160);
     context.sharedContentOwnerId = stringValue(rawContext.sharedContentOwnerId || rawContext.storyOwnerId, 160);
     if (!context.sharedContentId || !context.sharedContentOwnerId) return null;

@@ -20,6 +20,7 @@ struct MessageRequestInteractionContext: Hashable {
         case storyEphemeral
         case shareStory
         case shareMoment
+        case shareProfile
         case forwardText
     }
 
@@ -831,7 +832,7 @@ final class MessageRequestService: ObservableObject {
     }
 
     private static let allowedPendingTypes: Set<MessageType> = [
-        .text, .ephemeral, .sharedMoment, .sharedStory, .viewOnceImage, .viewOnceVideo
+        .text, .ephemeral, .sharedMoment, .sharedStory, .sharedProfile, .viewOnceImage, .viewOnceVideo
     ]
 
     private func post(endpoint: String, payload: [String: Any]) async throws -> [String: Any] {

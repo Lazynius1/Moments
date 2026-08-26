@@ -263,6 +263,7 @@ actor MessagePersistenceStore {
         existing.storyReplyDataEncoded = new.storyReplyDataEncoded
         existing.sharedMomentDataEncoded = new.sharedMomentDataEncoded
         existing.sharedStoryDataEncoded = new.sharedStoryDataEncoded
+        existing.sharedProfileDataEncoded = new.sharedProfileDataEncoded
         existing.textOverlayLive = new.textOverlayLive
         existing.textOverlaysData = new.textOverlaysData
         existing.stickersData = new.stickersData

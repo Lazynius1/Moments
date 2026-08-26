@@ -195,6 +195,71 @@ extension ChatService {
         }
     }
 
+
+    func sendSharedProfileMessage(
+        conversationId: String,
+        senderId: String,
+        sharedProfileData: [String: String],
+        shareText: String,
+        completion: @escaping (Result<EnhancedMessage, Error>) -> Void
+    ) {
+        Task {
+            let encryptedContent: String
+            do {
+                encryptedContent = try await encryptMessageContent(shareText, for: conversationId)
+            } catch {
+                completion(.failure(error))
+                return
+            }
+
+            let messageId = UUID().uuidString
+            let message = EnhancedMessage(
+                id: messageId,
+                conversationId: conversationId,
+                senderId: senderId,
+                type: .sharedProfile,
+                content: encryptedContent,
+                mediaUrl: nil,
+                thumbnailUrl: nil,
+                duration: nil,
+                fileName: nil,
+                fileSize: nil,
+                latitude: nil,
+                longitude: nil,
+                timestamp: Date(),
+                status: .sending,
+                isRead: false,
+                isDeleted: false,
+                deletedAt: nil,
+                editedAt: nil,
+                reactions: nil,
+                replyTo: nil,
+                expirationDate: nil,
+                isViewed: false,
+                storyReplyData: nil,
+                sharedMomentData: nil,
+                sharedStoryData: nil,
+                sharedProfileData: sharedProfileData
+            )
+
+            sendMessage(message, useServerTimestamp: true) { result in
+                switch result {
+                case .success(let sentMessage):
+                    self.updateConversation(
+                        conversationId: conversationId,
+                        lastMessage: self.neutralConversationPreview(for: .sharedProfile),
+                        senderId: senderId,
+                        messageType: .sharedProfile
+                    ) { _ in
+                        completion(.success(sentMessage))
+                    }
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+
     // MARK: - View Once
     func deleteViewOnceAfterViewing(
         conversationId: String,

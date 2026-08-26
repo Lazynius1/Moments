@@ -14,6 +14,7 @@ struct ProfileVisitorPinnedTopChrome: View {
     @Binding var showingReportSheet: Bool
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var profileShareItem: ProfileShareSheetItem?
 
     var body: some View {
         StickyChromeBarLayout {
@@ -39,6 +40,15 @@ struct ProfileVisitorPinnedTopChrome: View {
             .animation(.easeOut(duration: 0.18), value: collapseProgress)
         } trailing: {
             visitorHeaderMenu
+        }
+        // `item:` evita race del Menu: sheet(isPresented) a veces abre con payload vacío.
+        .sheet(item: $profileShareItem) { item in
+            ProfileShareSheet(
+                profileUserId: item.profileUserId,
+                sharedProfileData: item.data,
+                onDismiss: { profileShareItem = nil }
+            )
+            .presentationDetents([.medium, .large])
         }
     }
 
@@ -80,6 +90,15 @@ struct ProfileVisitorPinnedTopChrome: View {
             }
 
             if let user = viewModel.userProfile {
+                Button {
+                    presentProfileShare(for: user)
+                } label: {
+                    Label(
+                        NSLocalizedString("share.profile.sendInChat", comment: "Send in Moments"),
+                        systemImage: "paperplane"
+                    )
+                }
+
                 ShareLink(item: URL(string: "https://glowsy.app/\(user.username)")!) {
                     Label {
                         Text(NSLocalizedString("qrCode.share", comment: "Share"))
@@ -106,6 +125,30 @@ struct ProfileVisitorPinnedTopChrome: View {
                 .contentShape(Circle())
         }
     }
+
+    private func presentProfileShare(for user: AppUser) {
+        let resolvedId = user.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? viewModel.userId
+            : user.id
+        let isOwnProfile = resolvedId == Auth.auth().currentUser?.uid
+        let data = SharedProfilePayloadBuilder.make(
+            user: user,
+            moments: viewModel.moments,
+            canViewContent: viewModel.canViewContent,
+            visibleConnectionTypes: viewModel.visibleConnectionTypes,
+            isOwnProfile: isOwnProfile,
+            fallbackUserId: viewModel.userId
+        )
+        guard let profileUserId = data["profileUserId"], !profileUserId.isEmpty else { return }
+        profileShareItem = ProfileShareSheetItem(profileUserId: profileUserId, data: data)
+    }
+}
+
+/// Payload identificable para `.sheet(item:)` (evita compartir con dict vacío).
+private struct ProfileShareSheetItem: Identifiable {
+    let id = UUID()
+    let profileUserId: String
+    let data: [String: String]
 }
 
 struct UserModernProfileHeader: View {

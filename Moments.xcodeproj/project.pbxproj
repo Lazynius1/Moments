@@ -586,7 +586,7 @@
 				CODE_SIGN_ENTITLEMENTS = Moments.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 6T7NTUGU3C;
 				ENABLE_DEBUG_DYLIB = YES;
 				ENABLE_PREVIEWS = YES;
@@ -621,7 +621,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Moments/Resources/AudienceIcons/alternatives/.venv/lib/python3.14/site-packages/PIL/.dylibs",
 				);
-				MARKETING_VERSION = 2.20;
+				MARKETING_VERSION = 2.21;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -644,7 +644,7 @@
 				CODE_SIGN_ENTITLEMENTS = Moments.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 6T7NTUGU3C;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -678,7 +678,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Moments/Resources/AudienceIcons/alternatives/.venv/lib/python3.14/site-packages/PIL/.dylibs",
 				);
-				MARKETING_VERSION = 2.20;
+				MARKETING_VERSION = 2.21;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -698,7 +698,7 @@
 				CODE_SIGN_ENTITLEMENTS = MomentsNotificationService/MomentsNotificationService.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 6T7NTUGU3C;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MomentsNotificationService/Info.plist;
@@ -710,7 +710,7 @@
 					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.20;
+				MARKETING_VERSION = 2.21;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.MomentsNotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -730,7 +730,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 6T7NTUGU3C;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MomentsNotificationService/Info.plist;
@@ -742,7 +742,7 @@
 					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.20;
+				MARKETING_VERSION = 2.21;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.MomentsNotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -763,7 +763,7 @@
 				CODE_SIGN_ENTITLEMENTS = GlowsyWidgetExtensionExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 6T7NTUGU3C;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = GlowsyWidgetExtension/Info.plist;
@@ -775,7 +775,7 @@
 					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.20;
+				MARKETING_VERSION = 2.21;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.GlowsyWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -798,7 +798,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 6T7NTUGU3C;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = GlowsyWidgetExtension/Info.plist;
@@ -810,7 +810,7 @@
 					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.20;
+				MARKETING_VERSION = 2.21;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.GlowsyWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

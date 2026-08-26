@@ -1352,7 +1352,7 @@ service cloud.firestore {
                'mediaWidth', 'mediaHeight', 'latitude', 'longitude', 'locationName', 'locationAddress',
                'isLiveLocation', 'liveLocationExpiresAt', 'liveLocationDuration', 'liveLocationStoppedAt',
                'liveLocationSessionId', 'locationUpdatedAt', 'replyTo', 'expirationDate',
-               'storyReplyData', 'sharedMomentData', 'sharedStoryData', 'mediaBatchId',
+               'storyReplyData', 'sharedMomentData', 'sharedStoryData', 'sharedProfileData', 'mediaBatchId',
                'textOverlayLive', 'textOverlays', 'stickers', 'drawingData',
                'isForwarded', 'starredBy', 'timestamp', 'isVanishModeMessage', 'vanishExpiresAt'
              ]) &&
@@ -1362,7 +1362,7 @@ service cloud.firestore {
              message.conversationId.matches('^[A-Za-z0-9_-]+$') &&
              message.senderId is string &&
              message.senderId == request.auth.uid &&
-             message.type in ['text', 'image', 'video', 'audio', 'location', 'file', 'gif', 'sticker', 'ephemeral', 'sharedMoment', 'sharedStory', 'viewOnceImage', 'viewOnceVideo', 'chatNotice'] &&
+             message.type in ['text', 'image', 'video', 'audio', 'location', 'file', 'gif', 'sticker', 'ephemeral', 'sharedMoment', 'sharedStory', 'sharedProfile', 'viewOnceImage', 'viewOnceVideo', 'chatNotice'] &&
              message.status in ['sending', 'sent', 'delivered', 'read'] &&
              message.isRead is bool &&
              message.isDeleted is bool &&

@@ -194,6 +194,7 @@ extension ChatService {
         var resolvedStoryReplyData = data["storyReplyData"] as? [String: String]
         var resolvedSharedMomentData = data["sharedMomentData"] as? [String: String]
         var resolvedSharedStoryData = data["sharedStoryData"] as? [String: String]
+        var resolvedSharedProfileData = data["sharedProfileData"] as? [String: String]
         if resolvedStoryReplyData == nil,
            requestContextKind == MessageRequestInteractionContext.Kind.storyMessage.rawValue {
             resolvedStoryReplyData = [
@@ -213,6 +214,11 @@ extension ChatService {
                 "storyAuthorId": requestContext["sharedContentOwnerId"] as? String
                     ?? requestContext["storyOwnerId"] as? String
                     ?? ""
+            ]
+        }
+        if resolvedSharedProfileData == nil, requestContextKind == MessageRequestInteractionContext.Kind.shareProfile.rawValue {
+            resolvedSharedProfileData = [
+                "profileUserId": requestContext["sharedContentId"] as? String ?? "",
             ]
         }
 
@@ -278,6 +284,7 @@ extension ChatService {
             storyReplyData: resolvedStoryReplyData,
             sharedMomentData: resolvedSharedMomentData,
             sharedStoryData: resolvedSharedStoryData,
+            sharedProfileData: resolvedSharedProfileData,
             mediaBatchId: data["mediaBatchId"] as? String,
             textOverlayLive: data["textOverlayLive"] as? Bool,
             textOverlays: Self.decodeCodableArray(StoryTextOverlayMetadata.self, from: data["textOverlays"]),

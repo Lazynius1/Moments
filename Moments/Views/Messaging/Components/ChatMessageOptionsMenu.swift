@@ -201,7 +201,7 @@ enum ChatBubbleAnchorMetrics {
             return 20
         case .audio:
             return 18
-        case .image, .video, .viewOnceImage, .viewOnceVideo, .location, .ephemeral, .sharedMoment, .sharedStory:
+        case .image, .video, .viewOnceImage, .viewOnceVideo, .location, .ephemeral, .sharedMoment, .sharedStory, .sharedProfile:
             return 16
         case .gif, .sticker:
             return 12

@@ -579,6 +579,12 @@ struct PendingChatTimelineMessage: Identifiable, Hashable {
             ]
             : nil
 
+        let sharedProfileData: [String: String]? = contextKind == MessageRequestInteractionContext.Kind.shareProfile.rawValue
+            ? [
+                "profileUserId": sharedContentId ?? "",
+            ]
+            : nil
+
         let usesEncryptedMedia = mediaEncryption != nil
         let resolvedSenderId = senderId.isEmpty && isOutgoing ? currentUserId : senderId
         let adapted = EnhancedMessage(
@@ -599,7 +605,8 @@ struct PendingChatTimelineMessage: Identifiable, Hashable {
             isViewed: false,
             storyReplyData: storyReplyData,
             sharedMomentData: sharedMomentData,
-            sharedStoryData: sharedStoryData
+            sharedStoryData: sharedStoryData,
+            sharedProfileData: sharedProfileData
         )
         adapted.allowReplay = allowReplay
         return adapted
@@ -1044,6 +1051,7 @@ enum MessageType: String, CaseIterable, Codable, Hashable {
     case ephemeral = "ephemeral"
     case sharedMoment = "sharedMoment"
     case sharedStory = "sharedStory"
+    case sharedProfile = "sharedProfile"
     // ✅ NUEVOS: Tipos para view-once
     case viewOnceImage = "viewOnceImage"
     case viewOnceVideo = "viewOnceVideo"
@@ -1062,6 +1070,7 @@ enum MessageType: String, CaseIterable, Codable, Hashable {
         case .ephemeral: return NSLocalizedString("chat.viewOnce.viewOnce", comment: "")
         case .sharedMoment: return NSLocalizedString("chat.preview.sharedMoment", comment: "")
         case .sharedStory: return NSLocalizedString("chat.preview.sharedStory", comment: "")
+        case .sharedProfile: return NSLocalizedString("chat.preview.sharedProfile", comment: "")
         case .viewOnceImage: return NSLocalizedString("chat.viewOnce.photo", comment: "") + " (" + NSLocalizedString("chat.viewOnce.viewOnce", comment: "") + ")"
         case .viewOnceVideo: return NSLocalizedString("chat.viewOnce.video", comment: "") + " (" + NSLocalizedString("chat.viewOnce.viewOnce", comment: "") + ")"
         case .chatNotice: return ""
@@ -1081,6 +1090,7 @@ enum MessageType: String, CaseIterable, Codable, Hashable {
         case .ephemeral: return "timer"
         case .sharedMoment: return "square.and.arrow.up"
         case .sharedStory: return "paperplane.fill"
+        case .sharedProfile: return "person.crop.circle"
         case .viewOnceImage: return "camera.circle"
         case .viewOnceVideo: return "video.circle"
         case .chatNotice: return "timer"
@@ -1110,6 +1120,7 @@ enum MessageType: String, CaseIterable, Codable, Hashable {
         case .ephemeral: return NSLocalizedString("chat.preview.ephemeral", comment: "")
         case .sharedMoment: return NSLocalizedString("chat.preview.sharedMoment", comment: "")
         case .sharedStory: return NSLocalizedString("chat.preview.sharedStory", comment: "")
+        case .sharedProfile: return NSLocalizedString("chat.preview.sharedProfile", comment: "")
         case .viewOnceImage: return NSLocalizedString("chat.preview.photo", comment: "")
         case .viewOnceVideo: return NSLocalizedString("chat.preview.video", comment: "")
         case .chatNotice: return ""
@@ -1295,6 +1306,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     let storyReplyData: [String: String]?
     let sharedMomentData: [String: String]?
     let sharedStoryData: [String: String]?
+    let sharedProfileData: [String: String]?
     let mediaBatchId: String?
     var textOverlayLive: Bool?
     var textOverlays: [StoryTextOverlayMetadata]?
@@ -1326,7 +1338,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case mediaObjectPath, thumbnailObjectPath, mediaEncryption, thumbnailEncryption
         case duration, audioWaveform, fileName, fileSize, mediaWidth, mediaHeight, latitude, longitude, timestamp
         case status, isRead, isDeleted, deletedAt, editedAt, reactions
-        case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData
+        case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData, sharedProfileData
         case mediaBatchId
         case textOverlayLive, textOverlays, stickers, drawingData
         case viewedBy
@@ -1439,6 +1451,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.storyReplyData = try container.decodeIfPresent([String: String].self, forKey: .storyReplyData)
         self.sharedMomentData = try container.decodeIfPresent([String: String].self, forKey: .sharedMomentData)
         self.sharedStoryData = try container.decodeIfPresent([String: String].self, forKey: .sharedStoryData)
+        self.sharedProfileData = try container.decodeIfPresent([String: String].self, forKey: .sharedProfileData)
         self.mediaBatchId = try container.decodeIfPresent(String.self, forKey: .mediaBatchId)
         self.textOverlayLive = try container.decodeIfPresent(Bool.self, forKey: .textOverlayLive)
         self.textOverlays = try container.decodeIfPresent([StoryTextOverlayMetadata].self, forKey: .textOverlays)
@@ -1527,6 +1540,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encodeIfPresent(storyReplyData, forKey: .storyReplyData)
         try container.encodeIfPresent(sharedMomentData, forKey: .sharedMomentData)
         try container.encodeIfPresent(sharedStoryData, forKey: .sharedStoryData)
+        try container.encodeIfPresent(sharedProfileData, forKey: .sharedProfileData)
         try container.encodeIfPresent(mediaBatchId, forKey: .mediaBatchId)
         try container.encodeIfPresent(textOverlayLive, forKey: .textOverlayLive)
         try container.encodeIfPresent(textOverlays, forKey: .textOverlays)
@@ -1594,6 +1608,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          storyReplyData: [String: String]? = nil,
          sharedMomentData: [String: String]? = nil,
          sharedStoryData: [String: String]? = nil,
+         sharedProfileData: [String: String]? = nil,
          mediaBatchId: String? = nil,
          textOverlayLive: Bool? = nil,
          textOverlays: [StoryTextOverlayMetadata]? = nil,
@@ -1648,6 +1663,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.storyReplyData = storyReplyData
         self.sharedMomentData = sharedMomentData
         self.sharedStoryData = sharedStoryData
+        self.sharedProfileData = sharedProfileData
         self.mediaBatchId = mediaBatchId
         self.textOverlayLive = textOverlayLive
         self.textOverlays = textOverlays
@@ -1709,6 +1725,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             storyReplyData: storyReplyData,
             sharedMomentData: sharedMomentData,
             sharedStoryData: sharedStoryData,
+            sharedProfileData: sharedProfileData,
             mediaBatchId: mediaBatchId,
             textOverlayLive: textOverlayLive,
             textOverlays: textOverlays,
@@ -1769,6 +1786,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             storyReplyData: storyReplyData,
             sharedMomentData: sharedMomentData,
             sharedStoryData: sharedStoryData,
+            sharedProfileData: sharedProfileData,
             mediaBatchId: mediaBatchId,
             textOverlayLive: textOverlayLive,
             textOverlays: textOverlays,
@@ -1831,6 +1849,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             return NSLocalizedString("chat.preview.sharedMoment", comment: "")
         case .sharedStory:
             return NSLocalizedString("chat.preview.sharedStory", comment: "")
+        case .sharedProfile:
+            return NSLocalizedString("chat.preview.sharedProfile", comment: "")
         case .viewOnceImage:
             return NSLocalizedString("chat.preview.photo", comment: "")
         case .viewOnceVideo:
@@ -2693,6 +2713,8 @@ struct MessageRequest: Identifiable, Codable, Hashable {
             return NSLocalizedString("messaging.preview.sharedMoment", comment: "")
         case .sharedStory:
             return NSLocalizedString("chat.preview.sharedStory", comment: "")
+        case .sharedProfile:
+            return NSLocalizedString("chat.preview.sharedProfile", comment: "")
         case .viewOnceImage:
             return NSLocalizedString("messaging.preview.viewOncePhoto", comment: "")
         case .viewOnceVideo:

@@ -204,6 +204,7 @@ struct StoryShareRecipientsPanel: View {
     @State private var isLoading = true
     @State private var isSending = false
     @State private var deliveryFeedback: String?
+    @State private var showSuccessFeedback = false
     @State private var activeFilter: FilterType = .none
 
     enum FilterType {
@@ -373,6 +374,16 @@ struct StoryShareRecipientsPanel: View {
         } message: {
             Text(deliveryFeedback ?? "")
         }
+        .alert(
+            NSLocalizedString("share.send.success.title", comment: ""),
+            isPresented: $showSuccessFeedback
+        ) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {
+                onDismiss()
+            }
+        } message: {
+            Text(NSLocalizedString("share.send.success.message", comment: ""))
+        }
     }
 
     private func loadConversations() {
@@ -505,7 +516,7 @@ struct StoryShareRecipientsPanel: View {
                 return
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
-            onDismiss()
+            showSuccessFeedback = true
         }
     }
 

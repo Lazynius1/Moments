@@ -673,6 +673,7 @@ struct ModernShareSheet: View {
     @State private var isSending = false
     @State private var deliveryFeedback: String?
     @State private var dismissAfterFeedback = false
+    @State private var showSuccessFeedback = false
 
     var body: some View {
         ShareRecipientsPickerSheet(
@@ -700,6 +701,16 @@ struct ModernShareSheet: View {
             }
         } message: {
             Text(deliveryFeedback ?? "")
+        }
+        .alert(
+            NSLocalizedString("share.send.success.title", comment: ""),
+            isPresented: $showSuccessFeedback
+        ) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {
+                onDismiss()
+            }
+        } message: {
+            Text(NSLocalizedString("share.send.success.message", comment: ""))
         }
     }
 
@@ -782,7 +793,7 @@ struct ModernShareSheet: View {
             let failures = results.filter { $0.outcome == .failed || $0.outcome == .denied }
             if !results.isEmpty, failures.isEmpty {
                 HapticManager.shared.success()
-                onDismiss()
+                showSuccessFeedback = true
                 return
             }
 

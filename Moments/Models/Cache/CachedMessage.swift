@@ -47,6 +47,7 @@ final class CachedMessage {
     var storyReplyDataEncoded: Data? // [String: String] encoded
     var sharedMomentDataEncoded: Data? // [String: String] encoded
     var sharedStoryDataEncoded: Data? // [String: String] encoded
+    var sharedProfileDataEncoded: Data? // [String: String] encoded
     var textOverlayLive: Bool?
     var textOverlaysData: Data?
     var stickersData: Data?
@@ -100,6 +101,7 @@ final class CachedMessage {
          storyReplyDataEncoded: Data?,
          sharedMomentDataEncoded: Data?,
          sharedStoryDataEncoded: Data? = nil,
+         sharedProfileDataEncoded: Data? = nil,
          textOverlayLive: Bool? = nil,
          textOverlaysData: Data? = nil,
          stickersData: Data? = nil,
@@ -152,6 +154,7 @@ final class CachedMessage {
         self.storyReplyDataEncoded = storyReplyDataEncoded
         self.sharedMomentDataEncoded = sharedMomentDataEncoded
         self.sharedStoryDataEncoded = sharedStoryDataEncoded
+        self.sharedProfileDataEncoded = sharedProfileDataEncoded
         self.textOverlayLive = textOverlayLive
         self.textOverlaysData = textOverlaysData
         self.stickersData = stickersData
@@ -187,6 +190,7 @@ extension CachedMessage {
         let storyReplyDataEncoded = try? encoder.encode(message.storyReplyData)
         let sharedMomentDataEncoded = try? encoder.encode(message.sharedMomentData)
         let sharedStoryDataEncoded = try? encoder.encode(message.sharedStoryData)
+        let sharedProfileDataEncoded = try? encoder.encode(message.sharedProfileData)
         let textOverlaysData = try? encoder.encode(message.textOverlays)
         let stickersData = try? encoder.encode(message.stickers)
         let mediaEncryptionData = try? encoder.encode(message.mediaEncryption)
@@ -236,6 +240,7 @@ extension CachedMessage {
             storyReplyDataEncoded: storyReplyDataEncoded,
             sharedMomentDataEncoded: sharedMomentDataEncoded,
             sharedStoryDataEncoded: sharedStoryDataEncoded,
+            sharedProfileDataEncoded: sharedProfileDataEncoded,
             textOverlayLive: message.textOverlayLive,
             textOverlaysData: textOverlaysData,
             stickersData: stickersData,
@@ -273,6 +278,11 @@ extension CachedMessage {
 
         let sharedStoryData: [String: String]? = {
             guard let data = sharedStoryDataEncoded else { return nil }
+            return try? decoder.decode([String: String].self, from: data)
+        }()
+
+        let sharedProfileData: [String: String]? = {
+            guard let data = sharedProfileDataEncoded else { return nil }
             return try? decoder.decode([String: String].self, from: data)
         }()
 
@@ -347,6 +357,7 @@ extension CachedMessage {
             storyReplyData: storyReplyData,
             sharedMomentData: sharedMomentData,
             sharedStoryData: sharedStoryData,
+            sharedProfileData: sharedProfileData,
             mediaBatchId: mediaBatchId,
             textOverlayLive: textOverlayLive,
             textOverlays: textOverlays,

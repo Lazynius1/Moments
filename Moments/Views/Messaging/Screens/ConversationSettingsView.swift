@@ -1859,6 +1859,7 @@ private enum StarredMessagePreview {
         case .text: return ("text.quote", .secondary)
         case .sharedMoment: return ("sparkles.rectangle.stack", .pink)
         case .sharedStory: return ("circle.dashed", .purple)
+        case .sharedProfile: return ("person.crop.circle", .blue)
         case .gif: return ("photo.on.rectangle.angled", .blue)
         case .sticker: return ("face.smiling", .yellow)
         default: return ("ellipsis.bubble.fill", .secondary)

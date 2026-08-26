@@ -550,6 +550,14 @@ struct GlassmorphicMessageBubble: View {
                             )
                         )
 
+                    case .sharedProfile:
+                        attachBubbleBadges(
+                            to: SharedProfileMessageBubble(
+                                message: message,
+                                isCurrentUser: isCurrentUser
+                            )
+                        )
+
                     case .gif:
                         attachBubbleBadges(
                             to: ChatGifMessageBubble(

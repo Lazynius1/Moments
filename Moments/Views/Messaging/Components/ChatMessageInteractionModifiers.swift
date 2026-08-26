@@ -461,6 +461,7 @@ enum ChatMessageBodyOpen {
         switch message.type {
         case .image, .video, .location, .sharedMoment, .sharedStory, .ephemeral:
             return true
+        // `.sharedProfile`: el tap lo gestiona `SharedProfileMessageBubble` (abre UserProfileView).
         case .viewOnceImage, .viewOnceVideo:
             guard !isCurrentUser else { return false }
             if viewOnceEffectiveViewed(message: message) {

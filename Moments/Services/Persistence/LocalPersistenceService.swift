@@ -2095,6 +2095,7 @@ final class LocalPersistenceService: ObservableObject {
         existing.storyReplyDataEncoded = new.storyReplyDataEncoded
         existing.sharedMomentDataEncoded = new.sharedMomentDataEncoded
         existing.sharedStoryDataEncoded = new.sharedStoryDataEncoded
+        existing.sharedProfileDataEncoded = new.sharedProfileDataEncoded
         existing.viewedBy = new.viewedBy
         existing.readBy = new.readBy
         existing.readAtByData = new.readAtByData

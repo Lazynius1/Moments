@@ -23,6 +23,8 @@ enum ChatRowHeightEstimator {
     private static let sharedMomentPreviewHeight: CGFloat = 320
     /// Story share DM card 180×320 + vertical padding.
     private static let sharedStoryPreviewHeight: CGFloat = 336
+    /// Shared profile DM card (~70% feed preview, 4×1 grid, no follow/footer).
+    private static let sharedProfilePreviewHeight: CGFloat = 248
     private static let chatNoticeHeight: CGFloat = 36
 
     private static let headerHeight: CGFloat = 32
@@ -117,6 +119,8 @@ enum ChatRowHeightEstimator {
             return sharedMomentPreviewHeight
         case .sharedStory:
             return sharedStoryPreviewHeight
+        case .sharedProfile:
+            return sharedProfilePreviewHeight
         case .chatNotice:
             return chatNoticeHeight
         }
