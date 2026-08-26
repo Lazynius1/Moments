@@ -527,7 +527,7 @@ struct StoryShareRecipientsPanel: View {
     }
 }
 
-// MARK: - Chat bubble (misma huella que momentos compartidos en DM)
+// MARK: - Chat bubble (miniatura de historia ampliada — no tarjeta de post)
 
 struct SharedStoryMessageBubble: View {
     let message: EnhancedMessage
@@ -546,7 +546,7 @@ struct SharedStoryMessageBubble: View {
     var body: some View {
         Group {
             if isLoading {
-                SharedDMPreviewCardSkeleton()
+                SharedStoryPreviewSkeleton()
                     .frame(
                         maxWidth: 280,
                         alignment: isCurrentUser ? .trailing : .leading
@@ -639,14 +639,12 @@ struct BlockedStoryBubble: View {
     }
 
     var body: some View {
-        SharedDMUnavailablePreviewCard(
+        SharedStoryUnavailablePreview(
             titleKey: reason.titleKey,
-            messageKey: reason.messageKey,
             iconName: iconName,
             previewImageURL: sharedStoryData?["storyPreviewUrl"],
             authorId: sharedStoryData?["storyAuthorId"],
-            authorName: sharedStoryData?["storyAuthor"],
-            useStoryRing: true
+            authorName: sharedStoryData?["storyAuthor"]
         )
     }
 }
@@ -665,14 +663,114 @@ struct StoryBubbleContent: View {
     }
 }
 
+/// Misma proporción que la miniatura de “respuesta a historia”, ~1.85× más grande.
 enum StoryShareCardMetrics {
-    static let width: CGFloat = 172
-    static var height: CGFloat { width * 16 / 9 }
-    static let cornerRadius: CGFloat = 12
+    static let width: CGFloat = 140
+    static let height: CGFloat = 217
+    static let cornerRadius: CGFloat = 16
+    static let ringLineWidth: CGFloat = 2.25
 }
 
-/// Story compartida: NO usa tarjeta, es la propia media
-/// vertical (9:16) redondeada, con el autor superpuesto arriba en blanco.
+private var sharedStoryRingGradient: LinearGradient {
+    LinearGradient(
+        colors: [Color.blue, Color.purple, Color.pink],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+}
+
+private struct SharedStoryPreviewSkeleton: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous)
+            .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12))
+            .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+            .overlay {
+                ProgressView()
+                    .tint(colorScheme == .dark ? .white.opacity(0.6) : .gray)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous)
+                    .stroke(sharedStoryRingGradient.opacity(0.45), lineWidth: StoryShareCardMetrics.ringLineWidth)
+            )
+    }
+}
+
+private struct SharedStoryUnavailablePreview: View {
+    let titleKey: String
+    let iconName: String
+    let previewImageURL: String?
+    let authorId: String?
+    let authorName: String?
+
+    var body: some View {
+        let innerRadius = StoryShareCardMetrics.cornerRadius - 2.5
+        let inset = StoryShareCardMetrics.ringLineWidth + 1.5
+        let innerWidth = StoryShareCardMetrics.width - inset * 2
+        let innerHeight = StoryShareCardMetrics.height - inset * 2
+
+        ZStack {
+            Group {
+                if let previewImageURL,
+                   !previewImageURL.isEmpty,
+                   let url = URL(string: previewImageURL) {
+                    KFImage(url)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.14), Color.white.opacity(0.06)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+            }
+            .frame(width: innerWidth, height: innerHeight)
+            .blur(radius: previewImageURL == nil ? 0 : 18)
+            .saturation(previewImageURL == nil ? 1 : 0.35)
+            .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
+
+            Color.black.opacity(0.48)
+                .frame(width: innerWidth, height: innerHeight)
+                .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
+
+            VStack(spacing: 8) {
+                Image(systemName: iconName)
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.92))
+                Text(LocalizedStringKey(titleKey))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+            }
+
+            VStack {
+                SharedDMPreviewAuthorRow(
+                    authorId: authorId,
+                    authorName: authorName,
+                    useStoryRing: true
+                )
+                .padding(.horizontal, 10)
+                .padding(.top, 10)
+                Spacer(minLength: 0)
+            }
+            .frame(width: innerWidth, height: innerHeight)
+        }
+        .padding(inset)
+        .background(
+            RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous)
+                .stroke(sharedStoryRingGradient, lineWidth: StoryShareCardMetrics.ringLineWidth)
+        )
+        .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+    }
+}
+
+/// Historia compartida en DM: misma idea que la reply (media + anillo), más grande; autor encima.
 struct StoryPreviewCard: View {
     let sharedStoryData: [String: String]
     let story: Story?
@@ -682,25 +780,31 @@ struct StoryPreviewCard: View {
     }
 
     var body: some View {
+        let innerRadius = StoryShareCardMetrics.cornerRadius - 2.5
+        let inset = StoryShareCardMetrics.ringLineWidth + 1.5
+        let innerWidth = StoryShareCardMetrics.width - inset * 2
+        let innerHeight = StoryShareCardMetrics.height - inset * 2
+
         ZStack {
-            if let story {
-                StoryStaticPreviewSurface(story: story)
-                    .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
-                    .clipped()
-            } else {
-                StoryVisualContent(sharedStoryData: sharedStoryData)
-                    .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
-                    .clipped()
+            Group {
+                if let story {
+                    StoryStaticPreviewSurface(story: story)
+                } else {
+                    StoryVisualContent(sharedStoryData: sharedStoryData)
+                }
             }
+            .frame(width: innerWidth, height: innerHeight)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
 
             VStack {
                 ZStack(alignment: .topLeading) {
                     LinearGradient(
-                        colors: [.black.opacity(0.45), .clear],
+                        colors: [.black.opacity(0.5), .clear],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: 70)
+                    .frame(height: 64)
 
                     SharedDMPreviewAuthorRow(
                         authorId: sharedStoryData["storyAuthorId"],
@@ -712,17 +816,27 @@ struct StoryPreviewCard: View {
                 }
                 Spacer(minLength: 0)
             }
+            .frame(width: innerWidth, height: innerHeight)
+            .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
 
             if isVideo {
-                SharedDMCenteredPlayOverlay()
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .offset(x: 1)
+                    )
             }
         }
-        .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
-        .clipShape(RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous))
-        .overlay(
+        .padding(inset)
+        .background(
             RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                .stroke(sharedStoryRingGradient, lineWidth: StoryShareCardMetrics.ringLineWidth)
         )
+        .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
     }
 }
 

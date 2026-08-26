@@ -20,7 +20,9 @@ enum ChatRowHeightEstimator {
     private static let viewOncePillHeight: CGFloat = 50
     private static let viewOnceRowVerticalPadding: CGFloat = 10
     private static let ephemeralHeight: CGFloat = 150
-    private static let sharedPreviewHeight: CGFloat = 220
+    private static let sharedMomentPreviewHeight: CGFloat = 320
+    /// Story share = reply thumb × ~1.85 (140×217) + padding.
+    private static let sharedStoryPreviewHeight: CGFloat = 232
     private static let chatNoticeHeight: CGFloat = 36
 
     private static let headerHeight: CGFloat = 32
@@ -111,8 +113,10 @@ enum ChatRowHeightEstimator {
             return viewOnceHeight(for: message)
         case .ephemeral:
             return ephemeralHeight
-        case .sharedMoment, .sharedStory:
-            return sharedPreviewHeight
+        case .sharedMoment:
+            return sharedMomentPreviewHeight
+        case .sharedStory:
+            return sharedStoryPreviewHeight
         case .chatNotice:
             return chatNoticeHeight
         }
