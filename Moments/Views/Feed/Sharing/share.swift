@@ -1532,6 +1532,13 @@ struct SharedDMCenteredPlayOverlay: View {
     }
 }
 
+/// Vídeo vertical ~9:16 → preview tipo historia (no tarjeta de post).
+func sharedMomentLooksLikeReel(isVideo: Bool, aspectRatio: CGFloat) -> Bool {
+    guard isVideo else { return false }
+    let target = CGFloat(9.0 / 16.0)
+    return abs(aspectRatio - target) <= 0.05
+}
+
 struct SharedDMUnavailablePreviewCard: View {
     let titleKey: String
     let messageKey: String
@@ -1749,18 +1756,89 @@ struct MomentPreviewCard: View {
         return false
     }
 
+    private var aspectRatio: CGFloat {
+        parseSharedAspectRatio(sharedMomentData["momentAspectRatio"])
+    }
+
+    private var isReel: Bool {
+        sharedMomentLooksLikeReel(isVideo: isVideo, aspectRatio: aspectRatio)
+    }
+
     var body: some View {
-        SharedDMPostCard(
-            authorId: sharedMomentData["momentAuthorId"],
-            authorName: sharedMomentData["momentAuthor"],
-            useStoryRing: true,
-            isVideo: isVideo,
-            aspectRatio: parseSharedAspectRatio(sharedMomentData["momentAspectRatio"]),
-            captionAuthor: sharedMomentData["momentAuthor"],
-            caption: sharedMomentData["momentContent"]
-        ) {
-            MomentVisualContent(sharedMomentData: sharedMomentData)
+        if isReel {
+            ReelPreviewCard(sharedMomentData: sharedMomentData)
+        } else {
+            SharedDMPostCard(
+                authorId: sharedMomentData["momentAuthorId"],
+                authorName: sharedMomentData["momentAuthor"],
+                useStoryRing: true,
+                isVideo: isVideo,
+                aspectRatio: aspectRatio,
+                captionAuthor: sharedMomentData["momentAuthor"],
+                caption: sharedMomentData["momentContent"]
+            ) {
+                MomentVisualContent(sharedMomentData: sharedMomentData)
+            }
         }
+    }
+}
+
+/// Preview DM de reel: mismas métricas que historia; play + pill de caption.
+struct ReelPreviewCard: View {
+    let sharedMomentData: [String: String]
+
+    private var caption: String? {
+        let raw = sharedMomentData["momentContent"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let raw, !raw.isEmpty else { return nil }
+        return raw
+    }
+
+    var body: some View {
+        ZStack {
+            MomentVisualContent(sharedMomentData: sharedMomentData)
+                .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+                .clipped()
+
+            VStack {
+                ZStack(alignment: .topLeading) {
+                    LinearGradient(
+                        colors: [.black.opacity(0.5), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 72)
+
+                    SharedDMPreviewAuthorRow(
+                        authorId: sharedMomentData["momentAuthorId"],
+                        authorName: sharedMomentData["momentAuthor"],
+                        useStoryRing: true
+                    )
+                    .padding(.horizontal, 12)
+                    .padding(.top, 12)
+                }
+                Spacer(minLength: 0)
+
+                HStack(alignment: .center, spacing: 8) {
+                    ChatVideoPlayBadge(size: 18, padding: 8)
+                    if let caption {
+                        Text(caption)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .momentsChromeGlass(in: Capsule(), interactive: false, style: .nativeTinted)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.trailing, 12)
+                .padding(.bottom, 4)
+            }
+            .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+        }
+        .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+        .clipShape(RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous))
     }
 }
 

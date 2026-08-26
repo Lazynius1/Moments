@@ -194,7 +194,8 @@ struct ChatVideoPlayBadge: View {
         Image(systemName: "play.fill")
             .font(.system(size: size, weight: .bold))
             .foregroundStyle(.white)
-            .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.75), radius: 4, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.35), radius: 8, x: 0, y: 2)
             .padding(padding)
     }
 }
