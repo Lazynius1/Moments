@@ -9,21 +9,21 @@ enum ChatEphemeralLayout {
 
     var width: CGFloat {
         switch self {
-        case .compact: return 76
+        case .compact: return 104
         case .standard: return 188
         }
     }
 
     var height: CGFloat {
         switch self {
-        case .compact: return 118
+        case .compact: return 162
         case .standard: return 240
         }
     }
 
     var cornerRadius: CGFloat {
         switch self {
-        case .compact: return 14
+        case .compact: return 17
         case .standard: return 18
         }
     }
@@ -86,6 +86,35 @@ private enum ChatEphemeralPalette {
     }
 }
 
+/// Perímetro de vida restante. La fecha del mensaje evita reiniciar visualmente
+/// el progreso cuando la celda sale y vuelve a entrar en pantalla.
+private struct ChatEphemeralLifetimeBorder: View {
+    let layout: ChatEphemeralLayout
+    let sentAt: Date
+    let expirationDate: Date?
+    var lineWidth: CGFloat = 1.5
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
+                .trim(from: 0, to: progress(at: context.date))
+                .stroke(
+                    ChatEphemeralPalette.accentBorder,
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                )
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func progress(at date: Date) -> CGFloat {
+        guard let expirationDate else { return 1 }
+        let duration = expirationDate.timeIntervalSince(sentAt)
+        guard duration > 0 else { return 0 }
+        return min(max(expirationDate.timeIntervalSince(date) / duration, 0), 1)
+    }
+}
+
 struct ChatEphemeralMessageContent: View {
     @ObservedObject var message: EnhancedMessage
     let layout: ChatEphemeralLayout
@@ -117,16 +146,22 @@ struct ChatEphemeralMessageContent: View {
                 ChatEphemeralTapCard(
                     layout: layout,
                     previewImageURL: previewImageURL,
+                    sentAt: message.timestamp,
                     expirationDate: message.expirationDate
                 )
             } else if let url = resolvedMediaURL {
                 ChatEphemeralImageCard(
                     layout: layout,
                     imageUrl: url,
+                    sentAt: message.timestamp,
                     expirationDate: message.expirationDate
                 )
             } else if message.isMediaPendingResolution {
-                ChatEphemeralResolvingCard(layout: layout)
+                ChatEphemeralResolvingCard(
+                    layout: layout,
+                    sentAt: message.timestamp,
+                    expirationDate: message.expirationDate
+                )
             } else {
                 ChatEphemeralExpiredCard(layout: layout)
             }
@@ -152,6 +187,7 @@ struct ChatEphemeralMessageContent: View {
 struct ChatEphemeralTapCard: View {
     let layout: ChatEphemeralLayout
     let previewImageURL: String?
+    let sentAt: Date
     let expirationDate: Date?
 
     var body: some View {
@@ -198,10 +234,13 @@ struct ChatEphemeralTapCard: View {
         }
         .frame(width: layout.width, height: layout.height)
         .clipShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
-                .stroke(ChatEphemeralPalette.accentBorder, lineWidth: 1.5)
-        )
+        .overlay {
+            ChatEphemeralLifetimeBorder(
+                layout: layout,
+                sentAt: sentAt,
+                expirationDate: expirationDate
+            )
+        }
         .contentShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(LocalizedStringKey("chat.viewOnce.media")))
@@ -231,6 +270,7 @@ struct ChatEphemeralTapCard: View {
 struct ChatEphemeralImageCard: View {
     let layout: ChatEphemeralLayout
     let imageUrl: URL
+    let sentAt: Date
     let expirationDate: Date?
 
     var body: some View {
@@ -257,10 +297,14 @@ struct ChatEphemeralImageCard: View {
                         .padding(8)
                 }
             }
-            .overlay(
-                RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
-                    .stroke(ChatEphemeralPalette.accent.opacity(0.45), lineWidth: 1)
-            )
+            .overlay {
+                ChatEphemeralLifetimeBorder(
+                    layout: layout,
+                    sentAt: sentAt,
+                    expirationDate: expirationDate,
+                    lineWidth: 1
+                )
+            }
             .contentShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(LocalizedStringKey("chat.viewOnce.photo")))
@@ -271,6 +315,8 @@ struct ChatEphemeralImageCard: View {
 
 struct ChatEphemeralResolvingCard: View {
     let layout: ChatEphemeralLayout
+    let sentAt: Date
+    let expirationDate: Date?
 
     var body: some View {
         ZStack {
@@ -286,10 +332,14 @@ struct ChatEphemeralResolvingCard: View {
         }
         .frame(width: layout.width, height: layout.height)
         .clipShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
-                .stroke(ChatEphemeralPalette.accent.opacity(0.35), lineWidth: 1)
-        )
+        .overlay {
+            ChatEphemeralLifetimeBorder(
+                layout: layout,
+                sentAt: sentAt,
+                expirationDate: expirationDate,
+                lineWidth: 1
+            )
+        }
     }
 }
 

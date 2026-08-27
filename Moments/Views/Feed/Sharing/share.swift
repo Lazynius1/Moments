@@ -1284,9 +1284,17 @@ enum SharedDMMediaCardMetrics {
 // MARK: - Tarjeta compartida (cabecera arriba · media limpia · caption debajo)
 
 enum SharedDMPostCardMetrics {
-    static let width: CGFloat = 248
-    static let defaultMediaHeight: CGFloat = 248
-    static let cornerRadius: CGFloat = 12
+    static let width: CGFloat = 272
+    static let mediaInset: CGFloat = 6
+    static let mediaVerticalInset: CGFloat = 4
+    static let mediaWidth: CGFloat = width - mediaInset * 2
+    static let defaultMediaHeight: CGFloat = 240
+    static let minimumMediaHeight: CGFloat = 145
+    /// Mantiene la tarjeta completa dentro de la huella que ya admite bien
+    /// el menú contextual del chat, incluso para fotos 9:16.
+    static let maximumMediaHeight: CGFloat = 240
+    static let cornerRadius: CGFloat = 18
+    static let mediaCornerRadius: CGFloat = 10
 }
 
 /// Convierte una cadena de proporción ("9:16", "4:5", "1.0") en width/height.
@@ -1310,6 +1318,7 @@ struct SharedDMPostCard<Media: View>: View {
     let authorName: String?
     var useStoryRing: Bool = false
     let isVideo: Bool
+    var mediaCount: Int = 1
     var aspectRatio: CGFloat = 1.0
     var captionAuthor: String? = nil
     let caption: String?
@@ -1318,7 +1327,7 @@ struct SharedDMPostCard<Media: View>: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var cardBackground: Color {
-        colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.14) : Color(hex: "0B1215").opacity(0.07)
+        colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
     }
 
     private var primaryText: Color {
@@ -1327,8 +1336,13 @@ struct SharedDMPostCard<Media: View>: View {
 
     private var resolvedMediaHeight: CGFloat {
         guard aspectRatio > 0.01 else { return SharedDMPostCardMetrics.defaultMediaHeight }
-        let raw = SharedDMPostCardMetrics.width / aspectRatio
-        return min(max(raw, SharedDMPostCardMetrics.width * 0.6), SharedDMPostCardMetrics.width * 1.25)
+        // El ratio decide la altura natural. Los extremos se recortan en
+        // aspect-fill para conservar una tarjeta compacta, nunca con bandas.
+        let naturalHeight = SharedDMPostCardMetrics.mediaWidth / aspectRatio
+        return min(
+            max(naturalHeight, SharedDMPostCardMetrics.minimumMediaHeight),
+            SharedDMPostCardMetrics.maximumMediaHeight
+        )
     }
 
     var body: some View {
@@ -1339,7 +1353,15 @@ struct SharedDMPostCard<Media: View>: View {
         }
         .frame(width: SharedDMPostCardMetrics.width)
         .background(cardBackground)
+        .compositingGroup()
         .clipShape(RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous)
+                .stroke(
+                    colorScheme == .dark ? Color.white.opacity(0.13) : Color.black.opacity(0.09),
+                    lineWidth: 0.75
+                )
+        }
     }
 
     private var header: some View {
@@ -1381,15 +1403,31 @@ struct SharedDMPostCard<Media: View>: View {
 
     private var mediaSection: some View {
         ZStack {
-            Color.black
             media()
-                .frame(width: SharedDMPostCardMetrics.width, height: resolvedMediaHeight)
+                .frame(width: SharedDMPostCardMetrics.mediaWidth, height: resolvedMediaHeight)
                 .clipped()
+
             if isVideo {
                 SharedDMCenteredPlayOverlay()
             }
         }
-        .frame(width: SharedDMPostCardMetrics.width, height: resolvedMediaHeight)
+        .frame(width: SharedDMPostCardMetrics.mediaWidth, height: resolvedMediaHeight)
+        .overlay(alignment: .topTrailing) {
+            if mediaCount > 1 {
+                MomentCarouselIndicatorIcon(size: 20)
+                    .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
+                    .padding(9)
+            }
+        }
+        .compositingGroup()
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: SharedDMPostCardMetrics.mediaCornerRadius,
+                style: .continuous
+            )
+        )
+        .padding(.horizontal, SharedDMPostCardMetrics.mediaInset)
+        .padding(.vertical, SharedDMPostCardMetrics.mediaVerticalInset)
         .clipped()
     }
 
@@ -1438,7 +1476,7 @@ struct SharedDMPreviewCardSkeleton: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var cardBackground: Color {
-        colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.14) : Color(hex: "0B1215").opacity(0.07)
+        colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
     }
 
     private var placeholderFill: Color {
@@ -1464,7 +1502,18 @@ struct SharedDMPreviewCardSkeleton: View {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .gray.opacity(0.7)))
             }
-            .frame(width: SharedDMPostCardMetrics.width, height: SharedDMPostCardMetrics.defaultMediaHeight)
+            .frame(
+                width: SharedDMPostCardMetrics.mediaWidth,
+                height: SharedDMPostCardMetrics.defaultMediaHeight
+            )
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: SharedDMPostCardMetrics.mediaCornerRadius,
+                    style: .continuous
+                )
+            )
+            .padding(.horizontal, SharedDMPostCardMetrics.mediaInset)
+            .padding(.vertical, SharedDMPostCardMetrics.mediaVerticalInset)
         }
         .frame(width: SharedDMPostCardMetrics.width)
         .background(cardBackground)
@@ -1611,6 +1660,8 @@ struct SharedDMUnavailablePreviewCard: View {
 struct SharedMomentMessageBubble: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     
     private let privacyService = PrivacyService.shared
     @State private var canViewMoment: Bool? = nil
@@ -1640,6 +1691,13 @@ struct SharedMomentMessageBubble: View {
                     .padding(.vertical, 4)
             }
         }
+        .modifier(
+            ProfileMomentZoomSourceModifier(
+                namespace: zoomNamespace,
+                sourceID: canViewMoment == true ? zoomSourceID : nil,
+                cornerRadius: SharedDMPostCardMetrics.cornerRadius
+            )
+        )
         .onAppear {
             validateAccess()
         }
@@ -1710,6 +1768,7 @@ struct SharedMomentMessageBubble: View {
         payload["momentAspectRatio"] = moment.primaryVisibleMediaItem?.aspectRatio
             ?? moment.aspectRatio
             ?? "1:1"
+        payload["momentMediaCount"] = String(max(moment.visibleMediaCount, 1))
         payload["momentVideoUrl"] = moment.previewVideoURLString ?? ""
         payload["momentTimestamp"] = String(moment.timestamp.timeIntervalSince1970)
         payload["shareUrl"] = payload["shareUrl"] ?? buildMomentShareURLString(moment)
@@ -1784,6 +1843,7 @@ struct MomentPreviewCard: View {
                 authorName: sharedMomentData["momentAuthor"],
                 useStoryRing: true,
                 isVideo: isVideo,
+                mediaCount: Int(sharedMomentData["momentMediaCount"] ?? "") ?? 1,
                 aspectRatio: aspectRatio,
                 captionAuthor: sharedMomentData["momentAuthor"],
                 caption: sharedMomentData["momentContent"]

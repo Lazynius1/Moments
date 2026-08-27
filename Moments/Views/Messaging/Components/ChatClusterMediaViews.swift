@@ -96,6 +96,7 @@ struct GlassmorphicClusterRow: View {
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let onReply: ([EnhancedMessage]) -> Void
     let onReplyTap: ((String) -> Void)?
+    var onDoubleTap: (() -> Void)? = nil
     let displayReactions: (String) -> [String: [String]]?
     let onReaction: (EnhancedMessage, String) -> Void
     let uploadProgress: [String: Double]
@@ -155,9 +156,12 @@ struct GlassmorphicClusterRow: View {
                             isBubbleFlashing: isBubbleFlashing,
                             dragOffset: $dragOffset,
                             hapticStep: $replyHapticStep,
-                            onReply: { onReply(messages) }
+                            onReply: { onReply(messages) },
+                            onDoubleTap: onDoubleTap
                         )
                     }
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
 
                     if !isCurrentUser {
                         Color.clear
@@ -185,10 +189,8 @@ struct GlassmorphicClusterRow: View {
             .offset(x: timestampRevealState.offset)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .chatTimestampRevealGesture(
-            enabled: !isCurrentUser,
-            state: timestampRevealState
-        )
+        .contentShape(Rectangle())
+        .chatTimestampRevealGesture(state: timestampRevealState)
     }
 }
 
@@ -273,6 +275,7 @@ struct MediaGridBubble: View {
     @Binding var dragOffset: CGFloat
     @Binding var hapticStep: Int
     let onReply: () -> Void
+    var onDoubleTap: (() -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -357,6 +360,11 @@ struct MediaGridBubble: View {
                     }
                 }
             }
+            .simultaneousGesture(
+                TapGesture(count: 2).onEnded {
+                    onDoubleTap?()
+                }
+            )
         }
         .id(clusterReactionIdentity)
     }

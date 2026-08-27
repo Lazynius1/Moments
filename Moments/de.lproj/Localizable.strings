@@ -2806,8 +2806,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Neu in Moments!";
-"whatsNew.subtitle" = "Profil- und Story-Vorschauen, zuverlässigere Kommentare und ein neues Chat-Menü.";
-"whatsNew.button" = "Moments 2.20 entdecken";
+"whatsNew.subtitle" = "Erneuerte Nachrichtenanfragen, reichere Teilen-im-Chat-Karten und Bestätigung beim Senden.";
+"whatsNew.button" = "Moments 2.21 entdecken";
 
 
 
@@ -4072,6 +4072,8 @@
 "share.storyDenied.restricted" = "Du hast keine Berechtigung, diese Story anzusehen.";
 "chat.preview.sharedStory" = "Geteilte Story";
 "chat.preview.sharedProfile" = "Shared profile";
+"chat.preview.storyKind" = "Story";
+"chat.preview.reelKind" = "Reel";
 "chat.menu.details" = "Chat-Einstellungen";
 "report.action.user" = "Nutzer melden";
 "report.contentType.moment" = "Moment";
@@ -4394,6 +4396,19 @@
 "permission.tracking.denied.subtitle" = "Aktiviere das Tracking unter Einstellungen › Datenschutz › Tracking, um relevantere Werbung zu erhalten.";
 "permission.tracking.denied.openSettings" = "Einstellungen öffnen";
 
+// MARK: - What's New 2.21
+
+"whatsNew.section221.title" = "Moments 2.21";
+
+"whatsNew.messageRequestThreads.title" = "Nachrichtenanfragen";
+"whatsNew.messageRequestThreads.description" = "Bis zu 5 Nachrichten pro Unterhaltung, während du wartest, und 10 pro Tag gegen Spam. Ordner Anfragen, Alt und Ausgeblendet, plus versteckte Wörter auf dem Gerät.";
+"whatsNew.shareInChat.title" = "Im Chat teilen";
+"whatsNew.shareInChat.description" = "Moments, Storys, Reels und Profile erscheinen als Karten im Chat mit reicher Vorschau — tippen zum Öffnen.";
+"whatsNew.sharedProfilePrivacy.title" = "Live-Privatsphäre";
+"whatsNew.sharedProfilePrivacy.description" = "Geteilte Profilkarten prüfen Blockierungen und Audience für den Betrachter erneut.";
+"whatsNew.shareConfirmation.title" = "Bestätigung beim Teilen";
+"whatsNew.shareConfirmation.description" = "Beim Senden eines Moments, einer Story, eines Reels oder Profils im Chat siehst du eine Bestätigung, bevor sich der Auswahl-Sheet schließt.";
+
 // MARK: - What's New 2.20
 
 "whatsNew.section220.title" = "Moments 2.20";
@@ -4430,8 +4445,8 @@
 "whatsNew.liveLocation.description" = "Echtzeit-Standortblase und Chat-Karte sind zuverlässiger und polierter.";
 "whatsNew.viewOnce.title" = "View-once behoben";
 "whatsNew.viewOnce.description" = "Einmal-Fotos werden korrekt als angesehen markiert, damit die Medien verbraucht werden können.";
-"whatsNew.note.android.title" = "Android läuft";
-"whatsNew.note.android.description" = "Moments für Android läuft bereits auf Handy und Tablet. Die Parität mit iOS schreitet parallel voran.";
+"whatsNew.note.android.title" = "Moments ist auf Android!";
+"whatsNew.note.android.description" = "Nach einer guten Weile in der Werkstatt ist die App jetzt auch bei Google Play.\n\nHast du Freunde oder Familie mit Android? Du kannst es ihnen endlich sagen: Sie können Moments beitreten. Sag ihnen, sie sollen die App bei Google Play suchen und einsteigen!\n\nZurück auf iOS: Mit dem Sprung geschafft gebe ich hier weiter Vollgas (obwohl ich eigentlich nie wirklich weg war). Lass uns Moments zusammen bauen! 🚀";
 "whatsNew.note.closing" = "Danke, dass ihr uns auf diesem Weg begleitet! ⚡🤖";
 "messageRequests.folder.picker" = "Ordner";
 "messageRequests.folder.requests" = "Anfragen";

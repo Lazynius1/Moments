@@ -502,6 +502,7 @@ struct PendingRequestNormalMessageRow: View {
     let onOpenMedia: (EnhancedMessage) -> Void
     let onMomentNavigation: (EnhancedMessage) -> Void
     let onStoryNavigation: (EnhancedMessage) -> Void
+    var momentZoomNamespace: Namespace.ID? = nil
 
     init(
         pendingMessage: PendingChatTimelineMessage,
@@ -516,7 +517,8 @@ struct PendingRequestNormalMessageRow: View {
         onAvatarTap: @escaping () -> Void,
         onOpenMedia: @escaping (EnhancedMessage) -> Void,
         onMomentNavigation: @escaping (EnhancedMessage) -> Void,
-        onStoryNavigation: @escaping (EnhancedMessage) -> Void
+        onStoryNavigation: @escaping (EnhancedMessage) -> Void,
+        momentZoomNamespace: Namespace.ID? = nil
     ) {
         _normalMessage = StateObject(
             wrappedValue: pendingMessage.asEnhancedMessage(
@@ -535,6 +537,7 @@ struct PendingRequestNormalMessageRow: View {
         self.onOpenMedia = onOpenMedia
         self.onMomentNavigation = onMomentNavigation
         self.onStoryNavigation = onStoryNavigation
+        self.momentZoomNamespace = momentZoomNamespace
     }
 
     var body: some View {
@@ -562,6 +565,7 @@ struct PendingRequestNormalMessageRow: View {
             onHydrateMedia: nil,
             onLongPress: nil,
             onViewOnceOpen: { message, _ in onOpenMedia(message) },
+            momentZoomNamespace: momentZoomNamespace,
             progress: nil,
             showSeenLabel: false,
             timestampRevealState: timestampRevealState

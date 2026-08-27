@@ -305,7 +305,7 @@ struct SharedProfilePreviewCard: View {
 
     /// Misma superficie elevada que `SharedDMPostCard` (contraste vs canvas del chat).
     private var cardBackground: Color {
-        colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.14) : Color(hex: "0B1215").opacity(0.07)
+        colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
     }
 
     private var cardShape: RoundedRectangle {

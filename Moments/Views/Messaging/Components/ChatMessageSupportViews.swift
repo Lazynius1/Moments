@@ -2,11 +2,24 @@ import SwiftUI
 import FirebaseAuth
 import Kingfisher
 
-struct GlassmorphicReplyBar: View {
+struct ChatComposerReplyHeader: View {
     let message: EnhancedMessage
     let otherParticipantName: String
     let onCancel: () -> Void
     @Environment(\.colorScheme) var colorScheme
+
+    /// Debe coincidir con `GlassmorphicInputBar.inputFieldShape`.
+    private static let fieldCornerRadius: CGFloat = 22
+
+    private var composerReplyHeaderTopShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: Self.fieldCornerRadius,
+            bottomLeadingRadius: 0,
+            bottomTrailingRadius: 0,
+            topTrailingRadius: Self.fieldCornerRadius,
+            style: .continuous
+        )
+    }
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -20,10 +33,20 @@ struct GlassmorphicReplyBar: View {
         message.isVanishModeMessage == true
     }
 
+    private var accentColor: Color {
+        message.senderId == currentUserId
+            ? adaptiveColors.userAccentColor
+            : adaptiveColors.receivedAccentColor
+    }
+
+    private var surfaceColor: Color {
+        colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
+    }
+
     var body: some View {
         Group {
             if isVanishProtected {
-                ScreenshotProtectedView(isProtected: true, cornerRadius: 12) {
+                ScreenshotProtectedView(isProtected: true, cornerRadius: Self.fieldCornerRadius) {
                     replyBarContent
                 }
             } else {
@@ -33,54 +56,55 @@ struct GlassmorphicReplyBar: View {
     }
 
     private var replyBarContent: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 9) {
             Capsule()
-                .fill(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
-                .frame(width: 3.5)
-                .padding(.vertical, 8)
-                .padding(.leading, 1)
+                .fill(accentColor)
+                .frame(width: 3, height: 36)
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(message.senderId == currentUserId ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
-                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundStyle(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(message.senderId == currentUserId ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                    .foregroundStyle(accentColor)
 
-                    Text(message.preview)
-                        .font(.system(size: legacyPoppinsSize(14)))
-                        .foregroundStyle(adaptiveColors.replyBarText)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                if !message.isViewOnce, let mediaUrl = message.thumbnailUrl ?? message.mediaUrl, let url = URL(string: mediaUrl) {
-                    KFImage(url)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 40, height: 40)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .padding(.trailing, 8)
-                }
-
-                Button(action: onCancel) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(adaptiveColors.replyBarSecondaryText)
-                }
+                Text(message.preview)
+                    .font(.system(size: legacyPoppinsSize(13)))
+                    .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.72) : Color.black.opacity(0.68))
+                    .lineLimit(1)
             }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 10)
+
+            Spacer(minLength: 4)
+
+            if !message.isViewOnce,
+               let mediaUrl = message.replyPreviewThumbnailURL,
+               let url = URL(string: mediaUrl) {
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 34, height: 34)
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            }
+
+            Button(action: onCancel) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.72) : Color.black.opacity(0.62))
+                    .frame(width: 28, height: 28)
+                    .background(
+                        colorScheme == .dark
+                            ? Color.white.opacity(0.09)
+                            : Color.black.opacity(0.08),
+                        in: Circle()
+                    )
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("common.cancel"))
         }
-        .fixedSize(horizontal: false, vertical: true)
-        .background(adaptiveColors.replyBarBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-        )
         .padding(.horizontal, 8)
-        .padding(.bottom, 4)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, minHeight: 54)
+        .background(surfaceColor, in: composerReplyHeaderTopShape)
+        .clipShape(composerReplyHeaderTopShape)
     }
 }
 
@@ -138,7 +162,7 @@ struct GlassmorphicReplyPreview: View {
 
                     Spacer()
 
-                    if !message.isViewOnce, let mediaUrl = message.thumbnailUrl ?? message.mediaUrl, let url = URL(string: mediaUrl) {
+                    if !message.isViewOnce, let mediaUrl = message.replyPreviewThumbnailURL, let url = URL(string: mediaUrl) {
                         KFImage(url)
                             .resizable()
                             .scaledToFill()
@@ -199,22 +223,28 @@ struct StackedReplyQuote: View {
     }
 
     private var content: some View {
-        VStack(alignment: isOutgoingRow ? .trailing : .leading, spacing: 3) {
-            HStack(spacing: 4) {
-                Image(systemName: "arrowshape.turn.up.left.fill")
-                    .font(.system(size: 9))
-                Text(captionText)
-                    .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                    .lineLimit(1)
-            }
-            .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.5))
-            .padding(.horizontal, 6)
+        Button(action: {
+            HapticManager.shared.lightImpact()
+            onTap?()
+        }) {
+            VStack(alignment: isOutgoingRow ? .trailing : .leading, spacing: 3) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrowshape.turn.up.left.fill")
+                        .font(.system(size: 9))
+                    Text(captionText)
+                        .font(.system(size: legacyPoppinsSize(11), weight: .medium))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.5))
+                .padding(.horizontal, 6)
 
-            quoteSnippet
+                quoteSnippet
+            }
+            .frame(maxWidth: 240, alignment: isOutgoingRow ? .trailing : .leading)
+            .contentShape(Rectangle())
         }
-        .frame(maxWidth: 240, alignment: isOutgoingRow ? .trailing : .leading)
-        .contentShape(Rectangle())
-        .onTapGesture { onTap?() }
+        .buttonStyle(.plain)
+        .disabled(onTap == nil)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(captionText), \(repliedMessage.preview)")
         .accessibilityAddTraits(.isButton)
@@ -222,7 +252,7 @@ struct StackedReplyQuote: View {
 
     private var quoteSnippet: some View {
         HStack(spacing: 7) {
-            if !repliedMessage.isViewOnce, let mediaUrl = repliedMessage.thumbnailUrl ?? repliedMessage.mediaUrl, let url = URL(string: mediaUrl) {
+            if !repliedMessage.isViewOnce, let mediaUrl = repliedMessage.replyPreviewThumbnailURL, let url = URL(string: mediaUrl) {
                 KFImage(url)
                     .resizable()
                     .scaledToFill()
@@ -312,7 +342,7 @@ struct EmbeddedReplyView: View {
 
             Spacer(minLength: 0)
 
-            if !repliedMessage.isViewOnce, let mediaUrl = repliedMessage.thumbnailUrl ?? repliedMessage.mediaUrl, let url = URL(string: mediaUrl) {
+            if !repliedMessage.isViewOnce, let mediaUrl = repliedMessage.replyPreviewThumbnailURL, let url = URL(string: mediaUrl) {
                 KFImage(url)
                     .resizable()
                     .scaledToFill()

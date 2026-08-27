@@ -207,6 +207,7 @@ struct ChatReplySwipeIndicator: View {
 }
 
 /// Contenedor: burbuja se desliza; el indicador queda fijo en el hueco.
+/// El gesto vive solo en la burbuja (texto/card/media), no en el resto de la fila.
 struct ChatBubbleReplySwipeContainer<Content: View>: View {
     @Binding var dragOffset: CGFloat
     @Binding var hapticStep: Int
@@ -232,19 +233,20 @@ struct ChatBubbleReplySwipeContainer<Content: View>: View {
 
             content()
                 .offset(x: dragOffset)
+                .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .chatReplySwipeGesture(
+                    enabled: isEnabled,
+                    isOutgoing: isOutgoing,
+                    dragOffset: $dragOffset,
+                    hapticStep: $hapticStep,
+                    onReply: onReply
+                )
         }
-        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .chatReplySwipeGesture(
-            enabled: isEnabled,
-            isOutgoing: isOutgoing,
-            dragOffset: $dragOffset,
-            hapticStep: $hapticStep,
-            onReply: onReply
-        )
+        // Hug al contenido: el gesto UIKit hereda este frame (no el ancho vacío de la fila).
+        .fixedSize(horizontal: true, vertical: true)
         .accessibilityAction(named: Text("chat.action.reply")) {
             onReply()
         }
-        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -318,8 +320,8 @@ extension View {
         }
     }
 
-    /// El reveal global sólo nace en el fondo de la fila. Sobre la burbuja manda reply,
-    /// cuya dirección depende de si el mensaje es enviado o recibido.
+    /// El reveal nace en la superficie vacía de la fila (entrantes y propios).
+    /// Sobre la burbuja propia el reply (mismo eje) tiene prioridad.
     @ViewBuilder
     func chatTimestampRevealGutter(
         minLength: CGFloat = 50,
@@ -338,7 +340,7 @@ extension View {
         }
     }
 
-    /// Deslizar a la izquierda en cualquier punto de la fila para revelar timestamps.
+    /// Deslizar a la izquierda en la superficie vacía para revelar timestamps (hora a la derecha).
     func chatTimestampRevealGesture(
         enabled: Bool = true,
         state: ChatTimestampRevealState

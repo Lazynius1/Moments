@@ -63,8 +63,9 @@ extension ChatService {
                 "momentAuthor": freshMomentAuthor,
                 "momentAuthorId": moment.authorId,
                 "momentContent": moment.content,
-                "momentImageUrl": moment.thumbnailUrl ?? moment.imagePath ?? "",
-                "momentAspectRatio": moment.aspectRatio ?? "1:1",
+                "momentImageUrl": moment.previewImageURLString ?? moment.thumbnailUrl ?? moment.imagePath ?? "",
+                "momentAspectRatio": moment.primaryVisibleMediaItem?.aspectRatio ?? moment.aspectRatio ?? "1:1",
+                "momentMediaCount": String(max(moment.visibleMediaCount, 1)),
                 "momentVideoUrl": moment.videoUrl ?? "",
                 "momentTimestamp": String(moment.timestamp.timeIntervalSince1970),
                 "shareUrl": momentUrl

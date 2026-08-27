@@ -2812,8 +2812,8 @@
 
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Profile and story previews, more reliable comments and a new chat menu.";
-"whatsNew.button" = "Explore Moments 2.20";
+"whatsNew.subtitle" = "Renewed message requests, richer share-in-chat cards, and confirmation when you send.";
+"whatsNew.button" = "Explore Moments 2.21";
 
 
 
@@ -4104,6 +4104,8 @@
 "share.send.success.message" = "Shared in Moments";
 "share.send.invalidPayload" = "Couldn't share this profile. Try again.";
 "chat.preview.sharedProfile" = "Shared profile";
+"chat.preview.storyKind" = "Story";
+"chat.preview.reelKind" = "Reel";
 "chat.menu.details" = "Conversation settings";
 "report.action.user" = "Report user";
 "report.contentType.moment" = "moment";
@@ -4428,6 +4430,19 @@
 "permission.tracking.denied.subtitle" = "Turn on tracking in Settings › Privacy › Tracking to get more relevant ads.";
 "permission.tracking.denied.openSettings" = "Open Settings";
 
+// MARK: - What's New 2.21
+
+"whatsNew.section221.title" = "Moments 2.21";
+
+"whatsNew.messageRequestThreads.title" = "Message requests";
+"whatsNew.messageRequestThreads.description" = "Up to 5 messages per conversation while you wait, and 10 per day to prevent spam. Requests, Old and Hidden folders, plus hidden-word filters on device.";
+"whatsNew.shareInChat.title" = "Share in chat";
+"whatsNew.shareInChat.description" = "Moments, stories, reels and profiles arrive as cards in the conversation with rich previews — tap to open.";
+"whatsNew.sharedProfilePrivacy.title" = "Live privacy";
+"whatsNew.sharedProfilePrivacy.description" = "Shared profile cards re-check blocks and audience for whoever is viewing.";
+"whatsNew.shareConfirmation.title" = "Share confirmation";
+"whatsNew.shareConfirmation.description" = "When you send a moment, story, reel or profile in chat, you get a confirmation before the picker closes.";
+
 // MARK: - What's New 2.20
 
 "whatsNew.section220.title" = "Moments 2.20";
@@ -4464,8 +4479,8 @@
 "whatsNew.liveLocation.description" = "Real-time location bubble and chat map are more reliable and polished.";
 "whatsNew.viewOnce.title" = "View-once fixed";
 "whatsNew.viewOnce.description" = "One-time photos now mark as viewed correctly so the media can be consumed.";
-"whatsNew.note.android.title" = "Android is moving";
-"whatsNew.note.android.description" = "Moments for Android already runs on phone and tablet. Parity with iOS is progressing in parallel.";
+"whatsNew.note.android.title" = "Moments is on Android!";
+"whatsNew.note.android.description" = "After a good stretch in the workshop, the app is now on Google Play too.\n\nGot friends or family on Android? You can tell them now: they can finally join Moments. Have them search for the app on Google Play and jump in!\n\nBack on iOS: with the leap done, I'm still going full throttle here (though I never really left). Let's build Moments together! 🚀";
 "whatsNew.note.closing" = "Thanks for coming along on this journey! ⚡🤖";
 "messageRequests.folder.picker" = "Folder";
 "messageRequests.folder.requests" = "Requests";

@@ -5,6 +5,26 @@ struct WhatsNewView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var appearAnimation = false
 
+    private var features221: [WhatsNewFeature] {
+        [
+            WhatsNewFeature(
+                icon: .system("tray.full"),
+                title: NSLocalizedString("whatsNew.messageRequestThreads.title", comment: ""),
+                description: NSLocalizedString("whatsNew.messageRequestThreads.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("square.and.arrow.up"),
+                title: NSLocalizedString("whatsNew.shareInChat.title", comment: ""),
+                description: NSLocalizedString("whatsNew.shareInChat.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("checkmark.circle"),
+                title: NSLocalizedString("whatsNew.shareConfirmation.title", comment: ""),
+                description: NSLocalizedString("whatsNew.shareConfirmation.description", comment: "")
+            ),
+        ]
+    }
+
     private var features220: [WhatsNewFeature] {
         [
             WhatsNewFeature(
@@ -30,60 +50,15 @@ struct WhatsNewView: View {
         ]
     }
 
-    private var features219: [WhatsNewFeature] {
-        [
-            WhatsNewFeature(
-                icon: .system("dock.rectangle"),
-                title: NSLocalizedString("whatsNew.floatingTabBar.title", comment: ""),
-                description: NSLocalizedString("whatsNew.floatingTabBar.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("key.viewfinder"),
-                title: NSLocalizedString("whatsNew.chatRecovery.title", comment: ""),
-                description: NSLocalizedString("whatsNew.chatRecovery.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("play.rectangle.on.rectangle"),
-                title: NSLocalizedString("whatsNew.hlsVideo.title", comment: ""),
-                description: NSLocalizedString("whatsNew.hlsVideo.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("film.stack"),
-                title: NSLocalizedString("whatsNew.reels.title", comment: ""),
-                description: NSLocalizedString("whatsNew.reels.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("person.crop.circle.badge.checkmark"),
-                title: NSLocalizedString("whatsNew.conversationSettings.title", comment: ""),
-                description: NSLocalizedString("whatsNew.conversationSettings.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("lock.shield"),
-                title: NSLocalizedString("whatsNew.messageRequests.title", comment: ""),
-                description: NSLocalizedString("whatsNew.messageRequests.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("location.fill"),
-                title: NSLocalizedString("whatsNew.liveLocation.title", comment: ""),
-                description: NSLocalizedString("whatsNew.liveLocation.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("eye.slash.fill"),
-                title: NSLocalizedString("whatsNew.viewOnce.title", comment: ""),
-                description: NSLocalizedString("whatsNew.viewOnce.description", comment: "")
-            ),
-        ]
-    }
-
     private var sections: [WhatsNewSection] {
         [
             WhatsNewSection(
-                title: NSLocalizedString("whatsNew.section220.title", comment: ""),
-                features: features220
+                title: NSLocalizedString("whatsNew.section221.title", comment: ""),
+                features: features221
             ),
             WhatsNewSection(
-                title: NSLocalizedString("whatsNew.section219.title", comment: ""),
-                features: features219
+                title: NSLocalizedString("whatsNew.section220.title", comment: ""),
+                features: features220
             ),
         ]
     }

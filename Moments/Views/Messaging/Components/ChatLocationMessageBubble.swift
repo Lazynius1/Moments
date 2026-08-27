@@ -60,6 +60,13 @@ struct ChatLocationMessageBubble: View {
 
     private let bubbleWidth: CGFloat = 276
     private let mapHeight: CGFloat = 150
+    private let cardInset: CGFloat = 6
+
+    private var mapWidth: CGFloat { bubbleWidth - (cardInset * 2) }
+
+    private var cardBackground: Color {
+        colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
+    }
 
     private var coordinate: CLLocationCoordinate2D? {
         guard let lat = message.latitude, let lng = message.longitude else { return nil }
@@ -73,6 +80,8 @@ struct ChatLocationMessageBubble: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: 0) {
                 mapThumbnail
+                    .padding(.horizontal, cardInset)
+                    .padding(.top, cardInset)
                 infoBar
             }
 
@@ -81,6 +90,7 @@ struct ChatLocationMessageBubble: View {
             }
         }
         .frame(width: bubbleWidth)
+        .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -110,12 +120,12 @@ struct ChatLocationMessageBubble: View {
                 Image(uiImage: snapshot)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: bubbleWidth, height: mapHeight)
+                    .frame(width: mapWidth, height: mapHeight)
                     .clipped()
             } else {
                 Rectangle()
                     .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.05))
-                    .frame(width: bubbleWidth, height: mapHeight)
+                    .frame(width: mapWidth, height: mapHeight)
                     .overlay { ProgressView() }
             }
 
@@ -133,8 +143,9 @@ struct ChatLocationMessageBubble: View {
                         .foregroundStyle(.red)
                 }
             }
-            .frame(width: bubbleWidth, height: mapHeight)
+            .frame(width: mapWidth, height: mapHeight)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private var infoBar: some View {
@@ -142,9 +153,9 @@ struct ChatLocationMessageBubble: View {
             AttachmentIconView(
                 icon: isLive ? .liveLocation : .location,
                 preset: .locationBubbleInfo,
-                tintColor: isLive && isLiveActive
-                    ? .green
-                    : (colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
+                tintColor: isLive
+                    ? (isLiveActive ? .green : (colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6)))
+                    : .red
             )
 
             VStack(alignment: .leading, spacing: 2) {
@@ -165,7 +176,7 @@ struct ChatLocationMessageBubble: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(width: bubbleWidth, alignment: .leading)
-        .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white.opacity(0.6))
+        .background(cardBackground)
     }
 
     private var stopLiveButton: some View {
@@ -181,7 +192,7 @@ struct ChatLocationMessageBubble: View {
             .foregroundStyle(.red)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
-            .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white.opacity(0.6))
+            .background(Color.red.opacity(colorScheme == .dark ? 0.12 : 0.08))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -216,7 +227,7 @@ struct ChatLocationMessageBubble: View {
 
     private func loadSnapshot() {
         guard let coordinate else { return }
-        let size = CGSize(width: bubbleWidth, height: mapHeight)
+        let size = CGSize(width: mapWidth, height: mapHeight)
         if let cached = ChatMapSnapshotCache.shared.image(
             lat: coordinate.latitude, lng: coordinate.longitude, size: size, scheme: colorScheme
         ) {

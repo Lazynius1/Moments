@@ -122,8 +122,10 @@ private struct ChatExtractableContent<Content: View>: UIViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: ChatExtractSlotView, context: Context) -> CGSize? {
+        let screenCap = UIApplication.shared.activeWindowSize.width
+            * ChatTextBubbleMetrics.maxWidthScreenFraction
         let target = CGSize(
-            width: proposal.width ?? UIView.layoutFittingExpandedSize.width,
+            width: min(proposal.width ?? screenCap, screenCap),
             height: proposal.height ?? .greatestFiniteMagnitude
         )
         return context.coordinator.hostingController.sizeThatFits(in: target)
@@ -193,6 +195,8 @@ enum ChatBubbleAnchorMetrics {
     static let menuSelectionScale: CGFloat = 1.07
     static let highlightScale: CGFloat = 1.03
     static let highlightDuration: TimeInterval = 1.5
+    /// Duración del flash al saltar a un mensaje citado (tap en la cita).
+    static let replyJumpHighlightDuration: TimeInterval = 0.7
     static let pressScale: CGFloat = 0.97
 
     static func cornerRadius(for message: EnhancedMessage) -> CGFloat {

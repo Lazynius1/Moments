@@ -19,11 +19,23 @@ extension GlassmorphicChatView {
     }
 
     func jumpToMessageInList(_ messageId: String) {
+        guard !messageId.isEmpty else { return }
+        let exists = viewModel.messagesById[messageId] != nil
+            || viewModel.messageIndexById[messageId] != nil
+        guard exists else { return }
+
         isPinnedToBottom = false
         listIsAtBottom = false
         let rowId = messageRowId(containingMessageId: messageId) ?? messageId
         chatListController.scrollToRow(id: rowId, at: .centeredVertically, animated: !reduceMotion)
-        highlightMessages([messageId], scroll: false)
+        // Flash tras iniciar el scroll (el highlight llega cuando el row ya está en vista).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            self.highlightMessages(
+                [messageId],
+                duration: ChatBubbleAnchorMetrics.replyJumpHighlightDuration,
+                scroll: false
+            )
+        }
     }
 
     func highlightMessages(
@@ -99,7 +111,13 @@ extension GlassmorphicChatView {
                             moment.id = momentId
                         }
                         self.selectedMoment = moment
-                        self.showingMomentDetail = true
+                        self.momentZoomDestination = MomentZoomDestination(
+                            zoomSourceID: "chat-moment-\(message.id)",
+                            initialIndex: 0,
+                            initialMomentId: moment.id,
+                            presentation: .single
+                        )
+                        HapticManager.shared.lightImpact()
                     case .failure:
                         self.showingMomentError = true
                     }

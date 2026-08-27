@@ -1821,6 +1821,24 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         return true
     }
 
+    /// Miniatura para citas / reply (incluye payload de shares y respuestas a historias).
+    var replyPreviewThumbnailURL: String? {
+        guard !isViewOnce else { return nil }
+        if let direct = Self.nonEmptyTrimmed(thumbnailUrl) ?? Self.nonEmptyTrimmed(mediaUrl) {
+            return direct
+        }
+        switch type {
+        case .sharedMoment:
+            return Self.nonEmptyTrimmed(sharedMomentData?["momentImageUrl"])
+        case .sharedStory:
+            return Self.nonEmptyTrimmed(sharedStoryData?["storyPreviewUrl"])
+        case .sharedProfile:
+            return Self.nonEmptyTrimmed(sharedProfileData?["profileImagePath"])
+        default:
+            return Self.nonEmptyTrimmed(storyReplyData?["storyPreviewUrl"])
+        }
+    }
+
     // ✅ ACTUALIZADA: Preview mejorado con support para view-once
     var preview: String {
         if isVanishModeMessage == true, type != .chatNotice {
@@ -1846,11 +1864,11 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case .ephemeral:
             return NSLocalizedString("chat.preview.ephemeral_long", comment: "")
         case .sharedMoment:
-            return NSLocalizedString("chat.preview.sharedMoment", comment: "")
+            return Self.sharedMomentPreviewText(from: sharedMomentData)
         case .sharedStory:
-            return NSLocalizedString("chat.preview.sharedStory", comment: "")
+            return Self.sharedStoryPreviewText(from: sharedStoryData)
         case .sharedProfile:
-            return NSLocalizedString("chat.preview.sharedProfile", comment: "")
+            return Self.sharedProfilePreviewText(from: sharedProfileData)
         case .viewOnceImage:
             return NSLocalizedString("chat.preview.photo", comment: "")
         case .viewOnceVideo:
@@ -1858,6 +1876,77 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case .chatNotice:
             return EnhancedMessage.chatNoticePreviewText(for: content ?? "")
         }
+    }
+
+    private static func nonEmptyTrimmed(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func previewAspectRatio(from raw: String?) -> CGFloat {
+        guard let raw = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return 1.0 }
+        if raw.contains(":") {
+            let parts = raw.split(separator: ":")
+            if parts.count == 2, let w = Double(parts[0]), let h = Double(parts[1]), h > 0 {
+                return CGFloat(w / h)
+            }
+        }
+        if let value = Double(raw), value > 0 { return CGFloat(value) }
+        return 1.0
+    }
+
+    private static func sharedMomentLooksLikeReel(isVideo: Bool, aspectRatio: CGFloat) -> Bool {
+        guard isVideo else { return false }
+        let target = CGFloat(9.0 / 16.0)
+        return abs(aspectRatio - target) <= 0.05
+    }
+
+    private static func authorAtPrefix(_ username: String) -> String {
+        username.hasPrefix("@") ? username : "@\(username)"
+    }
+
+    private static func truncatedPreviewCaption(_ caption: String, limit: Int = 80) -> String {
+        guard caption.count > limit else { return caption }
+        return String(caption.prefix(limit - 1)) + "…"
+    }
+
+    static func sharedMomentPreviewText(from data: [String: String]?) -> String {
+        guard let data else {
+            return NSLocalizedString("chat.preview.sharedMoment", comment: "")
+        }
+        guard let author = nonEmptyTrimmed(data["momentAuthor"]) else {
+            return NSLocalizedString("chat.preview.sharedMoment", comment: "")
+        }
+        let prefixed = authorAtPrefix(author)
+        let isVideo = nonEmptyTrimmed(data["momentVideoUrl"]) != nil
+        let aspectRatio = previewAspectRatio(from: data["momentAspectRatio"])
+        if sharedMomentLooksLikeReel(isVideo: isVideo, aspectRatio: aspectRatio) {
+            let reel = NSLocalizedString("chat.preview.reelKind", comment: "")
+            return "\(prefixed) · \(reel)"
+        }
+        if let caption = nonEmptyTrimmed(data["momentContent"]) {
+            return "\(prefixed) · \(truncatedPreviewCaption(caption))"
+        }
+        return prefixed
+    }
+
+    static func sharedStoryPreviewText(from data: [String: String]?) -> String {
+        guard let data else {
+            return NSLocalizedString("chat.preview.sharedStory", comment: "")
+        }
+        guard let author = nonEmptyTrimmed(data["storyAuthor"]) else {
+            return NSLocalizedString("chat.preview.sharedStory", comment: "")
+        }
+        let story = NSLocalizedString("chat.preview.storyKind", comment: "")
+        return "\(authorAtPrefix(author)) · \(story)"
+    }
+
+    static func sharedProfilePreviewText(from data: [String: String]?) -> String {
+        guard let username = nonEmptyTrimmed(data?["username"]) else {
+            return NSLocalizedString("chat.preview.sharedProfile", comment: "")
+        }
+        return authorAtPrefix(username)
     }
 
     static func chatNoticePreviewText(for token: String) -> String {

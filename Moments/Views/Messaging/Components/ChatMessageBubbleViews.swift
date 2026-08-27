@@ -20,6 +20,7 @@ struct GlassmorphicMessageRow: View {
     let onReaction: (String) -> Void
     let onAvatarTap: () -> Void
     let onReplyTap: ((String) -> Void)?
+    var onDoubleTap: (() -> Void)? = nil
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onStoryNavigation: ((EnhancedMessage) -> Void)?
@@ -30,6 +31,7 @@ struct GlassmorphicMessageRow: View {
     var onViewOnceOpen: ((EnhancedMessage, Bool) -> Void)? = nil
     var onOpenLocation: ((EnhancedMessage) -> Void)? = nil
     var viewOnceZoomNamespace: Namespace.ID? = nil
+    var momentZoomNamespace: Namespace.ID? = nil
     let progress: Double?
     var downloadProgress: Double? = nil
     var isDownloadingMedia: Bool = false
@@ -138,6 +140,9 @@ struct GlassmorphicMessageRow: View {
                                 otherParticipantName: otherParticipantName
                             )
                         }
+                        // Hug al contenido: sin esto el hueco vacío de la fila sigue siendo “fila”.
+                        .fixedSize(horizontal: true, vertical: false)
+                        .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
                         .layoutPriority(1)
 
                         if !isCurrentUser {
@@ -166,10 +171,10 @@ struct GlassmorphicMessageRow: View {
         .padding(.horizontal, 8)
         .padding(.top, isGroupHead ? 5 : 1)
         .padding(.bottom, bottomRowPadding)
-        .chatTimestampRevealGesture(
-            enabled: !isCurrentUser,
-            state: timestampRevealState
-        )
+        // Superficie vacía de la fila (entrantes y propios): swipe izq. → hora a la derecha.
+        // Encima de la burbuja propia manda el reply (mismo eje); el gesto de la bubble gana.
+        .contentShape(Rectangle())
+        .chatTimestampRevealGesture(state: timestampRevealState)
     }
 
     @ViewBuilder
@@ -200,7 +205,8 @@ struct GlassmorphicMessageRow: View {
             onHydrateMedia: onHydrateMedia,
             isDownloadingMedia: isDownloadingMedia,
             onViewOnceOpen: onViewOnceOpen,
-            viewOnceZoomNamespace: viewOnceZoomNamespace
+            viewOnceZoomNamespace: viewOnceZoomNamespace,
+            momentZoomNamespace: momentZoomNamespace
         )
 
         ChatBubbleReplySwipeContainer(
@@ -233,6 +239,11 @@ struct GlassmorphicMessageRow: View {
                 }
             }
         }
+        .simultaneousGesture(
+            TapGesture(count: 2).onEnded {
+                onDoubleTap?()
+            }
+        )
     }
 
     private func openMessageBody() {
@@ -346,6 +357,7 @@ struct GlassmorphicMessageBubble: View {
     var isDownloadingMedia: Bool = false
     var onViewOnceOpen: ((EnhancedMessage, Bool) -> Void)? = nil
     var viewOnceZoomNamespace: Namespace.ID? = nil
+    var momentZoomNamespace: Namespace.ID? = nil
     @Environment(\.colorScheme) var colorScheme
 
     private var adaptiveColors: AdaptiveColors {
@@ -404,7 +416,6 @@ struct GlassmorphicMessageBubble: View {
         Group {
             if message.isDeleted {
                 DeletedMessageBubble(message: message, isCurrentUser: isCurrentUser)
-                    .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
             } else {
                 if message.type == .viewOnceImage || message.type == .viewOnceVideo {
                     attachBubbleBadges(
@@ -417,7 +428,6 @@ struct GlassmorphicMessageBubble: View {
                             zoomSourceID: "view-once-\(message.id)"
                         )
                     )
-                    .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
                     .onAppear {
                     }
                 } else {
@@ -538,7 +548,9 @@ struct GlassmorphicMessageBubble: View {
                         attachBubbleBadges(
                             to: SharedMomentMessageBubble(
                                 message: message,
-                                isCurrentUser: isCurrentUser
+                                isCurrentUser: isCurrentUser,
+                                zoomNamespace: momentZoomNamespace,
+                                zoomSourceID: "chat-moment-\(message.id)"
                             )
                         )
 

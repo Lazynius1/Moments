@@ -14,7 +14,10 @@ struct GlassmorphicInputBar: View {
     let recordingInteractionId: UUID?
     let voiceRecordingDraft: VoiceRecordingDraft?
     let isPreparingVoiceRecordingPreview: Bool
+    let replyingTo: EnhancedMessage?
+    let otherParticipantName: String
     @ObservedObject var voiceGestureState: VoiceRecordingGestureState
+    let onCancelReply: () -> Void
     let onSend: () -> Void
     let onStartVoiceRecording: (UUID, Bool) -> Void
     let onFinishVoiceRecording: (UUID, VoiceRecordingFinishAction) -> Void
@@ -53,13 +56,14 @@ struct GlassmorphicInputBar: View {
     }
 
     private var shouldCoordinateComposerGlass: Bool {
-        !isRecordingVoice
+        replyingTo == nil
+            && !isRecordingVoice
             && voiceRecordingDraft == nil
             && !isPreparingVoiceRecordingPreview
     }
 
     private var inputRow: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .bottom, spacing: 10) {
             leadingControl
             composerSurface
             trailingControl
@@ -72,6 +76,58 @@ struct GlassmorphicInputBar: View {
     }
 
     private var composerSurface: some View {
+        VStack(spacing: 0) {
+            if let replyingTo {
+                ChatComposerReplyHeader(
+                    message: replyingTo,
+                    otherParticipantName: otherParticipantName,
+                    onCancel: onCancelReply
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .bottom)))
+
+                Rectangle()
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.07))
+                    .frame(height: 0.5)
+            }
+
+            composerContent
+                .padding(.leading, 14)
+                .padding(.trailing, 12)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .frame(maxWidth: .infinity)
+        .momentsChromeGlass(
+            in: inputFieldShape,
+            interactive: !isVanishModeActive && replyingTo == nil,
+            style: .native
+        )
+        .background {
+            if isVanishModeActive {
+                inputFieldShape
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.02))
+            }
+        }
+        .compositingGroup()
+        .clipShape(inputFieldShape)
+        .overlay {
+            inputFieldShape
+                .stroke(
+                    isVanishModeActive
+                        ? vanishStrokeColor
+                        : (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)),
+                    style: isVanishModeActive
+                        ? StrokeStyle(lineWidth: 1.2, dash: [5, 4])
+                        : StrokeStyle(lineWidth: 0.8)
+                )
+        }
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: replyingTo?.id), value: replyingTo?.id)
+        .animation(.easeInOut(duration: 0.2), value: isRecordingVoice)
+        .animation(.easeInOut(duration: 0.2), value: isPreparingVoiceRecordingPreview)
+        .animation(.easeInOut(duration: 0.2), value: voiceRecordingDraft != nil)
+    }
+
+    private var composerContent: some View {
         ZStack {
             if isRecordingVoice {
                 VoiceRecordingHeldStatus(
@@ -104,31 +160,6 @@ struct GlassmorphicInputBar: View {
                     .transition(.opacity)
             }
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, minHeight: 44)
-        .momentsChromeGlass(in: inputFieldShape, interactive: !isVanishModeActive, style: .native)
-        .background {
-            if isVanishModeActive {
-                inputFieldShape
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.02))
-            }
-        }
-        .overlay {
-            inputFieldShape
-                .stroke(
-                    isVanishModeActive
-                        ? vanishStrokeColor
-                        : (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)),
-                    style: isVanishModeActive
-                        ? StrokeStyle(lineWidth: 1.2, dash: [5, 4])
-                        : StrokeStyle(lineWidth: 0.8)
-                )
-        }
-        .animation(.easeInOut(duration: 0.2), value: isRecordingVoice)
-        .animation(.easeInOut(duration: 0.2), value: isPreparingVoiceRecordingPreview)
-        .animation(.easeInOut(duration: 0.2), value: voiceRecordingDraft != nil)
     }
 
     @ViewBuilder

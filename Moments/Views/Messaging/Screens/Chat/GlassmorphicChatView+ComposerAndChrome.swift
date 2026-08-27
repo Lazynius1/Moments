@@ -345,7 +345,12 @@ extension GlassmorphicChatView {
                         recordingInteractionId: voiceRecordingInteractionId,
                         voiceRecordingDraft: voiceRecordingDraft,
                         isPreparingVoiceRecordingPreview: isPreparingVoiceRecordingPreview,
+                        replyingTo: replyingTo,
+                        otherParticipantName: otherParticipantDisplayName,
                         voiceGestureState: voiceRecordingGestureState,
+                        onCancelReply: {
+                            self.replyingTo = nil
+                        },
                         onSend: {
                             let messageToSend = messageText
 
@@ -649,6 +654,9 @@ extension GlassmorphicChatView {
                     onReplyTap: { targetId in
                         jumpTo(targetId, proxy: proxy)
                     },
+                    onDoubleTap: {
+                        addQuickReaction(to: liveMessage)
+                    },
                     onMessageViewed: { messageId in
                         if let index = viewModel.messageIndexById[messageId] {
                             viewModel.messages[index].isViewed = true
@@ -695,16 +703,12 @@ extension GlassmorphicChatView {
                         locationDetailMessage = message
                     },
                     viewOnceZoomNamespace: viewOnceZoomNamespace,
+                    momentZoomNamespace: momentZoomNamespace,
                     progress: viewModel.uploadProgress[liveMessage.id],
                     downloadProgress: viewModel.downloadProgress[liveMessage.id],
                     isDownloadingMedia: viewModel.isDownloadingMedia(liveMessage.id),
                     showSeenLabel: shouldShowSeenLabel(for: liveMessage.id, status: liveMessage.status),
                     timestampRevealState: chatListController.timestampRevealState
-                )
-                .simultaneousGesture(
-                    TapGesture(count: 2).onEnded {
-                        addQuickReaction(to: liveMessage)
-                    }
                 )
                     }
 
@@ -759,10 +763,14 @@ extension GlassmorphicChatView {
                     onReplyTap: { id in
                         jumpTo(id, proxy: proxy)
                     },
-                    displayReactions: { messageId in
+                    onDoubleTap: {
+                        if let frontMessage = liveCluster.first {
+                            addQuickReaction(to: frontMessage)
+                        }
+                    }, displayReactions: { messageId in
                         shouldRenderReactionChrome(rowId: rowId, messageIds: liveCluster.map(\.id))
-                            ? viewModel.displayReactions(for: messageId)
-                            : nil
+                        ? viewModel.displayReactions(for: messageId)
+                        : nil
                     },
                     onReaction: { message, emoji in
                         viewModel.addReaction(to: message, emoji: emoji)
@@ -777,13 +785,6 @@ extension GlassmorphicChatView {
                     isMenuSelected: isMenuSelected,
                     isBubbleFlashing: liveCluster.contains { isBubbleFlashing($0.id) },
                     timestampRevealState: chatListController.timestampRevealState
-                )
-                .simultaneousGesture(
-                    TapGesture(count: 2).onEnded {
-                        if let frontMessage = liveCluster.first {
-                            addQuickReaction(to: frontMessage)
-                        }
-                    }
                 )
 
                 }

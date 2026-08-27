@@ -14,7 +14,7 @@ enum ChatRowHeightEstimator {
     private static let gifDefaultAspect: CGFloat = 200.0 / 150.0
 
     private static let voiceNoteHeight: CGFloat = 68
-    private static let locationHeight: CGFloat = 205
+    private static let locationHeight: CGFloat = 217
     private static let liveLocationExtraHeight: CGFloat = 40
     private static let fileHeight: CGFloat = 72
     private static let viewOncePillHeight: CGFloat = 50
@@ -25,6 +25,8 @@ enum ChatRowHeightEstimator {
     private static let sharedStoryPreviewHeight: CGFloat = 336
     /// Shared profile DM card (~70% feed preview, 4×1 grid, no follow/footer).
     private static let sharedProfilePreviewHeight: CGFloat = 248
+    private static let storyReplyTextHeight: CGFloat = 244
+    private static let storyReplyEphemeralHeight: CGFloat = 368
     private static let chatNoticeHeight: CGFloat = 36
 
     private static let headerHeight: CGFloat = 32
@@ -47,7 +49,7 @@ enum ChatRowHeightEstimator {
             return requestDisclaimerHeight
         case .pendingRequestMessage(let message):
             if message.hasStoryReplyContext {
-                return 190
+                return message.messageType == .ephemeral ? storyReplyEphemeralHeight : storyReplyTextHeight
             }
             let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return viewOncePillHeight + viewOnceRowVerticalPadding }
@@ -98,6 +100,9 @@ enum ChatRowHeightEstimator {
     }
 
     private static func estimatedHeight(for message: EnhancedMessage, bubbleWidth: CGFloat) -> CGFloat {
+        if message.storyReplyData != nil {
+            return message.type == .ephemeral ? storyReplyEphemeralHeight : storyReplyTextHeight
+        }
         switch message.type {
         case .text:
             return textHeight(for: message, bubbleWidth: bubbleWidth)

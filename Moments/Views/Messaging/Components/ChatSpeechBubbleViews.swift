@@ -69,6 +69,27 @@ enum ChatTextBubbleMetrics {
     static let maxWidthScreenFraction: CGFloat = 0.78
 }
 
+/// Cap de ancho que **no** hincha el layout: propone como máximo `maxWidth` al hijo
+/// y devuelve el tamaño intrínseco (texto corto = burbuja corta).
+/// `frame(maxWidth:)` de SwiftUI expandiría el hit-test al máximo aunque el dibujo sea menor.
+struct ChatBubbleWidthCapLayout: Layout {
+    var maxWidth: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let subview = subviews.first else { return .zero }
+        let widthCap = min(proposal.width ?? maxWidth, maxWidth)
+        return subview.sizeThatFits(ProposedViewSize(width: widthCap, height: proposal.height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let subview = subviews.first else { return }
+        subview.place(
+            at: bounds.origin,
+            proposal: ProposedViewSize(width: bounds.width, height: bounds.height)
+        )
+    }
+}
+
 /// Fuente de mensaje: ~15pt por defecto, escalada con Ajustes → Tamaño del texto.
 enum ChatMessageFont {
     static var bubble: Font {
@@ -275,8 +296,9 @@ struct ChatTextBubbleView: View {
     }
 
     var body: some View {
-        textContent
-            .frame(maxWidth: maxBubbleWidth, alignment: isOutgoing ? .trailing : .leading)
+        ChatBubbleWidthCapLayout(maxWidth: maxBubbleWidth) {
+            textContent
+        }
     }
 
     private var textContent: some View {
@@ -362,7 +384,6 @@ struct ChatTextBubbleView: View {
                 compact: true,
                 onTap: onReaction
             )
-        .frame(maxWidth: maxBubbleWidth, alignment: isOutgoing ? .trailing : .leading)
     }
 }
 

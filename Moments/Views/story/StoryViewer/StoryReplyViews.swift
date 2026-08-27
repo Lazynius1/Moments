@@ -13,10 +13,11 @@ import SwiftData
 // MARK: - Story reply preview (DM)
 
 private enum StoryReplyPreviewMetrics {
-    /// Miniatura vertical (más alta que antes).
-    static let width: CGFloat = 76
-    static let height: CGFloat = 118
-    static let cornerRadius: CGFloat = 14
+    /// Compacta frente a una historia compartida, pero con presencia suficiente
+    /// junto al resto de tarjetas del chat.
+    static let width: CGFloat = 104
+    static let height: CGFloat = 162
+    static let cornerRadius: CGFloat = 17
 }
 
 /// Borde sutil de chasis Moments (familia fichas DM; sin anillo arcoíris).

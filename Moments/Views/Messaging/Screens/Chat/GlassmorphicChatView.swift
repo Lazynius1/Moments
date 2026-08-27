@@ -140,8 +140,9 @@ struct GlassmorphicChatView: View {
     @State var navigateToProfile = false
 
     // ✅ NUEVO: Estados para navegación al momento
-    @State var showingMomentDetail = false
     @State var selectedMoment: Moment?
+    @State var momentZoomDestination: MomentZoomDestination?
+    @Namespace var momentZoomNamespace
     @State var showingMomentError = false
     @State var showingStoryUnavailable = false
     @State var storyUnavailableReason: SharedStoryAccessDenialReason?
@@ -382,11 +383,14 @@ struct GlassmorphicChatView: View {
                 }
                 .environmentObject(FirestoreService.shared)
             }
-            // ✅ NUEVO: Sheet para navegación al detalle del momento
-            .sheet(isPresented: $showingMomentDetail) {
-                if let moment = selectedMoment {
-                    MomentDetailContainerView(context: .single(moment))
-                }
+            // El Moment compartido se empuja como el resto de destinos de detalle.
+            .navigationDestination(item: $momentZoomDestination) { destination in
+                MomentZoomDetailDestination(
+                    destination: destination,
+                    moments: selectedMoment.map { [$0] } ?? [],
+                    namespace: momentZoomNamespace
+                )
+                .momentZoomNavigationSurface(colorScheme: colorScheme)
             }
             // ✅ NUEVO: Alert para error al cargar momento
             .alert("common.error", isPresented: $showingMomentError) {

@@ -50,7 +50,8 @@ extension GlassmorphicChatView {
                     onAvatarTap: { showingUserProfile = true },
                     onOpenMedia: { _ in openPendingRequestMedia(message) },
                     onMomentNavigation: { handleMomentNavigationFromChat(message: $0) },
-                    onStoryNavigation: { handleStoryNavigationFromChat(message: $0) }
+                    onStoryNavigation: { handleStoryNavigationFromChat(message: $0) },
+                    momentZoomNamespace: momentZoomNamespace
                 )
             }
             .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
@@ -151,15 +152,6 @@ extension GlassmorphicChatView {
     // ✅ REFACTORIZADO: Sección de barra de respuesta o edición
     var replyBarSection: some View {
         VStack(spacing: 0) {
-            if let replyingTo = replyingTo {
-                GlassmorphicReplyBar(
-                    message: replyingTo,
-                    otherParticipantName: otherParticipantDisplayName
-                ) {
-                    self.replyingTo = nil
-                }
-            }
-
             if editingMessage != nil {
                 HStack {
                     Image(systemName: "pencil")
