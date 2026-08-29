@@ -2812,8 +2812,8 @@
 
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Renewed message requests, richer share-in-chat cards, and confirmation when you send.";
-"whatsNew.button" = "Explore Moments 2.21";
+"whatsNew.subtitle" = "Reply in chat, quote thumbnails, swipe for timestamps, and a redesigned composer.";
+"whatsNew.button" = "Explore Moments 2.21.1";
 
 
 
@@ -4432,6 +4432,19 @@
 "permission.tracking.denied.title" = "Tracking is off";
 "permission.tracking.denied.subtitle" = "Turn on tracking in Settings › Privacy › Tracking to get more relevant ads.";
 "permission.tracking.denied.openSettings" = "Open Settings";
+
+// MARK: - What's New 2.21.1
+
+"whatsNew.section2211.title" = "Moments 2.21.1";
+
+"whatsNew.replyInChat.title" = "Reply in chat";
+"whatsNew.replyInChat.description" = "Swipe on the bubble to reply. Tap a quote to jump to the original message.";
+"whatsNew.quotePreviews.title" = "Quotes in chat";
+"whatsNew.quotePreviews.description" = "Replies show a thumbnail when you quote a moment, story or profile.";
+"whatsNew.chatTimestamps.title" = "Timestamps in chat";
+"whatsNew.chatTimestamps.description" = "Swipe horizontally on a row to reveal the time, including on your own messages.";
+"whatsNew.composerVoice.title" = "Message input";
+"whatsNew.composerVoice.description" = "Redesigned composer and smoother voice notes, with a clearer cancel animation.";
 
 // MARK: - What's New 2.21
 

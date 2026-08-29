@@ -2827,8 +2827,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Sol·licituds de missatge renovades, compartir al xat amb fitxes enriquides i confirmació en enviar.";
-"whatsNew.button" = "Explorar Moments 2.21";
+"whatsNew.subtitle" = "Respondre al xat, cites amb miniatura, hores lliscant i compositor renovat.";
+"whatsNew.button" = "Explorar Moments 2.21.1";
 
 
 
@@ -4418,6 +4418,19 @@
 "permission.tracking.denied.title" = "El seguiment està desactivat";
 "permission.tracking.denied.subtitle" = "Activa el seguiment a Configuració › Privadesa › Seguiment per veure anuncis més rellevants.";
 "permission.tracking.denied.openSettings" = "Obre Configuració";
+
+// MARK: - What's New 2.21.1
+
+"whatsNew.section2211.title" = "Moments 2.21.1";
+
+"whatsNew.replyInChat.title" = "Respondre al xat";
+"whatsNew.replyInChat.description" = "Llisca a la bombolla per respondre. Toca una cita per saltar al missatge original.";
+"whatsNew.quotePreviews.title" = "Cites al xat";
+"whatsNew.quotePreviews.description" = "Les respostes mostren miniatura quan cites un moment, story o perfil.";
+"whatsNew.chatTimestamps.title" = "Hores al xat";
+"whatsNew.chatTimestamps.description" = "Llisca horitzontalment en una fila per veure l'hora, també als teus missatges enviats.";
+"whatsNew.composerVoice.title" = "Entrada de missatge";
+"whatsNew.composerVoice.description" = "Compositor renovat i notes de veu més fluides, amb animació més clara en cancel·lar.";
 
 // MARK: - What's New 2.21
 

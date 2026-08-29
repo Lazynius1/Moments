@@ -2806,8 +2806,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Neu in Moments!";
-"whatsNew.subtitle" = "Erneuerte Nachrichtenanfragen, reichere Teilen-im-Chat-Karten und Bestätigung beim Senden.";
-"whatsNew.button" = "Moments 2.21 entdecken";
+"whatsNew.subtitle" = "Im Chat antworten, Zitat-Miniaturen, Uhrzeit per Wisch und überarbeiteter Composer.";
+"whatsNew.button" = "Moments 2.21.1 entdecken";
 
 
 
@@ -4398,6 +4398,19 @@
 "permission.tracking.denied.title" = "Tracking ist deaktiviert";
 "permission.tracking.denied.subtitle" = "Aktiviere das Tracking unter Einstellungen › Datenschutz › Tracking, um relevantere Werbung zu erhalten.";
 "permission.tracking.denied.openSettings" = "Einstellungen öffnen";
+
+// MARK: - What's New 2.21.1
+
+"whatsNew.section2211.title" = "Moments 2.21.1";
+
+"whatsNew.replyInChat.title" = "Im Chat antworten";
+"whatsNew.replyInChat.description" = "Auf der Sprechblase wischen zum Antworten. Tippe auf ein Zitat, um zur Originalnachricht zu springen.";
+"whatsNew.quotePreviews.title" = "Zitate im Chat";
+"whatsNew.quotePreviews.description" = "Antworten zeigen eine Miniatur, wenn du einen Moment, eine Story oder ein Profil zitierst.";
+"whatsNew.chatTimestamps.title" = "Uhrzeiten im Chat";
+"whatsNew.chatTimestamps.description" = "Horizontal auf einer Zeile wischen, um die Uhrzeit zu sehen — auch bei eigenen Nachrichten.";
+"whatsNew.composerVoice.title" = "Nachrichteneingabe";
+"whatsNew.composerVoice.description" = "Überarbeiteter Composer und flüssigere Sprachnachrichten, mit klarerer Animation beim Abbrechen.";
 
 // MARK: - What's New 2.21
 

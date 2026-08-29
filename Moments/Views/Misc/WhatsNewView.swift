@@ -5,6 +5,31 @@ struct WhatsNewView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var appearAnimation = false
 
+    private var features2211: [WhatsNewFeature] {
+        [
+            WhatsNewFeature(
+                icon: .system("arrowshape.turn.up.left"),
+                title: NSLocalizedString("whatsNew.replyInChat.title", comment: ""),
+                description: NSLocalizedString("whatsNew.replyInChat.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("photo.on.rectangle.angled"),
+                title: NSLocalizedString("whatsNew.quotePreviews.title", comment: ""),
+                description: NSLocalizedString("whatsNew.quotePreviews.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("clock"),
+                title: NSLocalizedString("whatsNew.chatTimestamps.title", comment: ""),
+                description: NSLocalizedString("whatsNew.chatTimestamps.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("mic.fill"),
+                title: NSLocalizedString("whatsNew.composerVoice.title", comment: ""),
+                description: NSLocalizedString("whatsNew.composerVoice.description", comment: "")
+            ),
+        ]
+    }
+
     private var features221: [WhatsNewFeature] {
         [
             WhatsNewFeature(
@@ -52,6 +77,10 @@ struct WhatsNewView: View {
 
     private var sections: [WhatsNewSection] {
         [
+            WhatsNewSection(
+                title: NSLocalizedString("whatsNew.section2211.title", comment: ""),
+                features: features2211
+            ),
             WhatsNewSection(
                 title: NSLocalizedString("whatsNew.section221.title", comment: ""),
                 features: features221

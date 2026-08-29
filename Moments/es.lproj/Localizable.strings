@@ -2835,8 +2835,8 @@
 /* Whats New v2.14 */
 /* Whats New v2.16 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Solicitudes de mensaje renovadas, compartir en el chat con fichas enriquecidas y confirmación al enviar.";
-"whatsNew.button" = "Explorar Moments 2.21";
+"whatsNew.subtitle" = "Responder en el chat, citas con miniatura, horas deslizando y compositor renovado.";
+"whatsNew.button" = "Explorar Moments 2.21.1";
 
 
 
@@ -4483,6 +4483,19 @@
 "permission.tracking.denied.title" = "El seguimiento está desactivado";
 "permission.tracking.denied.subtitle" = "Activa el seguimiento en Ajustes › Privacidad › Seguimiento para ver anuncios más relevantes.";
 "permission.tracking.denied.openSettings" = "Abrir Ajustes";
+
+// MARK: - What's New 2.21.1
+
+"whatsNew.section2211.title" = "Moments 2.21.1";
+
+"whatsNew.replyInChat.title" = "Responder en el chat";
+"whatsNew.replyInChat.description" = "Desliza en la burbuja para responder. Toca una cita para saltar al mensaje original.";
+"whatsNew.quotePreviews.title" = "Citas en el chat";
+"whatsNew.quotePreviews.description" = "Las respuestas muestran miniatura cuando citas un moment, story o perfil.";
+"whatsNew.chatTimestamps.title" = "Horas en el chat";
+"whatsNew.chatTimestamps.description" = "Desliza horizontalmente en una fila para ver la hora, también en tus mensajes enviados.";
+"whatsNew.composerVoice.title" = "Entrada de mensaje";
+"whatsNew.composerVoice.description" = "Compositor renovado y notas de voz más fluidas, con animación más clara al cancelar.";
 
 // MARK: - What's New 2.21
 
