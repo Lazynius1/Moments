@@ -27,11 +27,6 @@ struct WhatsNewView: View {
                 title: NSLocalizedString("whatsNew.composerVoice.title", comment: ""),
                 description: NSLocalizedString("whatsNew.composerVoice.description", comment: "")
             ),
-        ]
-    }
-
-    private var features221: [WhatsNewFeature] {
-        [
             WhatsNewFeature(
                 icon: .system("tray.full"),
                 title: NSLocalizedString("whatsNew.messageRequestThreads.title", comment: ""),
@@ -50,44 +45,11 @@ struct WhatsNewView: View {
         ]
     }
 
-    private var features220: [WhatsNewFeature] {
-        [
-            WhatsNewFeature(
-                icon: .system("person.crop.rectangle"),
-                title: NSLocalizedString("whatsNew.profilePreview.title", comment: ""),
-                description: NSLocalizedString("whatsNew.profilePreview.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .storyRing,
-                title: NSLocalizedString("whatsNew.storyPreview.title", comment: ""),
-                description: NSLocalizedString("whatsNew.storyPreview.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("bubble.left.and.bubble.right"),
-                title: NSLocalizedString("whatsNew.nestedComments.title", comment: ""),
-                description: NSLocalizedString("whatsNew.nestedComments.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("hand.point.up.left"),
-                title: NSLocalizedString("whatsNew.chatLongPress.title", comment: ""),
-                description: NSLocalizedString("whatsNew.chatLongPress.description", comment: "")
-            ),
-        ]
-    }
-
     private var sections: [WhatsNewSection] {
         [
             WhatsNewSection(
                 title: NSLocalizedString("whatsNew.section2211.title", comment: ""),
                 features: features2211
-            ),
-            WhatsNewSection(
-                title: NSLocalizedString("whatsNew.section221.title", comment: ""),
-                features: features221
-            ),
-            WhatsNewSection(
-                title: NSLocalizedString("whatsNew.section220.title", comment: ""),
-                features: features220
             ),
         ]
     }
