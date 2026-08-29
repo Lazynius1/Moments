@@ -48,6 +48,7 @@ extension View {
 struct StoryMentionNotificationResult {
     let sentUserIds: [String]
     let skippedOutsideAudienceUserIds: [String]
+    let failedDeliveryUserIds: [String]
 }
 
 extension StickerPickerView {
@@ -84,6 +85,18 @@ extension StickerPickerView {
 
         var sentUserIds: [String] = []
         var skippedOutsideAudienceUserIds: [String] = []
+        var failedDeliveryUserIds: [String] = []
+
+        let story: Story
+        do {
+            story = try await fetchMentionedStory(authorId: storyAuthorId, storyId: storyId)
+        } catch {
+            return StoryMentionNotificationResult(
+                sentUserIds: [],
+                skippedOutsideAudienceUserIds: [],
+                failedDeliveryUserIds: mentionedUserIds
+            )
+        }
 
         for userId in mentionedUserIds {
             let canNotify = await canNotifyStoryMention(
@@ -99,20 +112,92 @@ extension StickerPickerView {
                 continue
             }
 
-            await MainActor.run {
-                NotificationService.shared.sendStoryMentionNotification(
-                    to: userId,
-                    storyId: storyId,
-                    storyAuthorId: storyAuthorId
+            do {
+                try await sendStoryMentionMessage(
+                    story: story,
+                    authorId: storyAuthorId,
+                    recipientId: userId
                 )
+                sentUserIds.append(userId)
+            } catch {
+                failedDeliveryUserIds.append(userId)
             }
-            sentUserIds.append(userId)
         }
 
         return StoryMentionNotificationResult(
             sentUserIds: sentUserIds,
-            skippedOutsideAudienceUserIds: skippedOutsideAudienceUserIds
+            skippedOutsideAudienceUserIds: skippedOutsideAudienceUserIds,
+            failedDeliveryUserIds: failedDeliveryUserIds
         )
+    }
+
+    private static func fetchMentionedStory(authorId: String, storyId: String) async throws -> Story {
+        try await withCheckedThrowingContinuation { continuation in
+            StoryRepository().fetchStory(userId: authorId, storyId: storyId) { result in
+                continuation.resume(with: result)
+            }
+        }
+    }
+
+    private static func sendStoryMentionMessage(
+        story: Story,
+        authorId: String,
+        recipientId: String
+    ) async throws {
+        guard let storyId = story.id, !storyId.isEmpty else {
+            throw NSError(domain: "StoryMention", code: 400)
+        }
+        let coordinator = MessageRequestService()
+        let deliveryMessageId = "storyMention_\(storyId)_\(recipientId)"
+        let context = MessageRequestInteractionContext(
+            kind: .shareStory,
+            storyId: storyId,
+            storyOwnerId: authorId,
+            sharedContentId: storyId,
+            sharedContentOwnerId: authorId,
+            isStoryMention: true
+        )
+        let route = try await coordinator.resolveRoute(to: recipientId, interaction: context)
+        let conversationId: String?
+        switch route {
+        case .conversation(let id):
+            conversationId = id
+        case .conversationDraft(let threadId):
+            conversationId = try await coordinator.activateConversationDraft(
+                to: recipientId,
+                threadId: threadId
+            )
+        case .incomingRequest(let threadId, _):
+            conversationId = try await coordinator.acceptIncomingThread(threadId: threadId).conversationId
+        case .outgoingRequest:
+            _ = try await coordinator.appendRequestMessage(
+                to: recipientId,
+                text: NSLocalizedString("chat.preview.sharedStory", comment: ""),
+                messageType: .sharedStory,
+                interaction: context,
+                messageId: deliveryMessageId
+            )
+            conversationId = nil
+        }
+
+        guard let conversationId else { return }
+        let existing = try? await Firestore.firestore()
+            .collection("conversations").document(conversationId)
+            .collection("messages").document(deliveryMessageId)
+            .getDocument()
+        if existing?.exists == true { return }
+        try await withCheckedThrowingContinuation { continuation in
+            ChatService.shared.sendSharedStoryMessage(
+                conversationId: conversationId,
+                senderId: authorId,
+                story: story,
+                shareText: NSLocalizedString("chat.preview.sharedStory", comment: ""),
+                isStoryMention: true,
+                messageId: deliveryMessageId
+            ) { result in
+                continuation.resume(with: result.map { _ in () })
+            }
+        }
     }
 
     private static func canNotifyStoryMention(

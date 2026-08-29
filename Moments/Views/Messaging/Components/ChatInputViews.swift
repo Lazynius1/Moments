@@ -1,4 +1,5 @@
 import AVFoundation
+import Lottie
 import SwiftUI
 
 struct GlassmorphicInputBar: View {
@@ -17,6 +18,8 @@ struct GlassmorphicInputBar: View {
     let replyingTo: EnhancedMessage?
     let otherParticipantName: String
     @ObservedObject var voiceGestureState: VoiceRecordingGestureState
+    var isKeyboardVisible: Bool = false
+    var isTextFieldFocused: FocusState<Bool>.Binding
     let onCancelReply: () -> Void
     let onSend: () -> Void
     let onStartVoiceRecording: (UUID, Bool) -> Void
@@ -24,6 +27,7 @@ struct GlassmorphicInputBar: View {
     let onVoiceRecordingTrimChanged: (Range<TimeInterval>) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
@@ -40,6 +44,49 @@ struct GlassmorphicInputBar: View {
         RoundedRectangle(cornerRadius: 22, style: .continuous)
     }
 
+    private var unifiedComposerShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 26, style: .continuous)
+    }
+
+    private var usesUnifiedComposerSurface: Bool {
+        guard !isVanishModeActive else { return false }
+        return isTextFieldFocused.wrappedValue
+            || !text.isEmpty
+            || isRecordingVoice
+            || voiceRecordingDraft != nil
+            || isPreparingVoiceRecordingPreview
+            || voiceGestureState.preserveKeyboardElevation
+            || (separatesCancelTrashCircle && returnsToUnifiedComposerAfterTrash)
+    }
+
+    /// Destino real del compositor cuando termina la secuencia de borrado.
+    /// Con el teclado abajo vuelve al + standalone; con teclado/foco conserva la cápsula fusionada.
+    private var returnsToUnifiedComposerAfterTrash: Bool {
+        isTextFieldFocused.wrappedValue
+            || isKeyboardVisible
+            || !text.isEmpty
+            || voiceGestureState.preserveKeyboardElevation
+    }
+
+    /// Desplazamiento del centro del círculo de papelera al centro del botón +.
+    private var trashToPlusMorphOffset: CGFloat {
+        guard separatesCancelTrashCircle, returnsToUnifiedComposerAfterTrash else { return 0 }
+        // La cápsula recupera el hueco del control separado; el centro final del +
+        // solo queda desplazado por su padding interior.
+        return 4
+    }
+
+    private var showsLeadingPlusButton: Bool {
+        !isRecordingVoice
+            && allowsAttachments
+            && !voiceGestureState.playDeleteAnimation
+            && !voiceGestureState.isTrashMorphingToPlus
+    }
+
+    private var showsComposerTextInput: Bool {
+        voiceRecordingDraft == nil && !isPreparingVoiceRecordingPreview
+    }
+
     private var vanishStrokeColor: Color {
         colorScheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.22)
     }
@@ -47,8 +94,14 @@ struct GlassmorphicInputBar: View {
     var body: some View {
         // Mantener GlassEffectContainer estable durante el DragGesture del mic.
         if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: shouldCoordinateComposerGlass ? 10 : 0) {
+            if separatesCancelTrashCircle {
+                // Lottie contiene una UIView. Dentro de GlassEffectContainer, el compositor
+                // nativo puede colocarla detrás de las superficies glass coordinadas.
                 inputRow
+            } else {
+                GlassEffectContainer(spacing: usesUnifiedComposerSurface ? 0 : (shouldCoordinateComposerGlass ? 10 : 0)) {
+                    inputRow
+                }
             }
         } else {
             inputRow
@@ -62,20 +115,66 @@ struct GlassmorphicInputBar: View {
             && !isPreparingVoiceRecordingPreview
     }
 
+    private var separatesCancelTrashCircle: Bool {
+        voiceGestureState.playDeleteAnimation || voiceGestureState.isTrashMorphingToPlus
+    }
+
+    /// La papelera del borrador pausado también vive fuera de la cápsula central.
+    private var separatesLeadingControl: Bool {
+        voiceRecordingDraft != nil
+            || isPreparingVoiceRecordingPreview
+            || separatesCancelTrashCircle
+    }
+
     private var inputRow: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            leadingControl
-            composerSurface
-            trailingControl
+        HStack(alignment: .bottom, spacing: separatesLeadingControl ? 10 : (usesUnifiedComposerSurface ? 0 : 10)) {
+            if separatesLeadingControl {
+                leadingControl(usesStandaloneGlass: true)
+                    .zIndex(2)
+            }
+
+            HStack(alignment: .bottom, spacing: usesUnifiedComposerSurface ? 0 : 10) {
+                if !separatesLeadingControl {
+                    leadingControl(usesStandaloneGlass: !usesUnifiedComposerSurface)
+                        .zIndex(2)
+                }
+                composerSurface(usesStandaloneGlass: !usesUnifiedComposerSurface)
+                    .zIndex(1)
+                trailingControl(usesStandaloneGlass: !usesUnifiedComposerSurface)
+                    .zIndex(2)
+            }
+            // Reserva la geometría de la cápsula expandida también en reposo. Así el primer
+            // toque no obliga al compositor y al teclado a resolver dos alturas distintas.
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
+            .momentsChromeGlass(
+                in: unifiedComposerShape,
+                interactive: false,
+                isEnabled: usesUnifiedComposerSurface,
+                style: .native
+            )
+            .overlay {
+                if usesUnifiedComposerSurface {
+                    unifiedComposerShape
+                        .stroke(
+                            colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05),
+                            lineWidth: 0.8
+                        )
+                        .allowsHitTesting(false)
+                }
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isVanishModeActive), value: isVanishModeActive)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isRecordingVoice), value: isRecordingVoice)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isVoiceRecordingLocked), value: isVoiceRecordingLocked)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: usesUnifiedComposerSurface), value: usesUnifiedComposerSurface)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: voiceGestureState.playDeleteAnimation), value: voiceGestureState.playDeleteAnimation)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: voiceGestureState.isTrashMorphingToPlus), value: voiceGestureState.isTrashMorphingToPlus)
     }
 
-    private var composerSurface: some View {
+    private func composerSurface(usesStandaloneGlass: Bool) -> some View {
         VStack(spacing: 0) {
             if let replyingTo {
                 ChatComposerReplyHeader(
@@ -95,11 +194,18 @@ struct GlassmorphicInputBar: View {
                 .padding(.trailing, 12)
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        focusTextInputIfNeeded()
+                    }
+                )
         }
         .frame(maxWidth: .infinity)
         .momentsChromeGlass(
             in: inputFieldShape,
             interactive: !isVanishModeActive && replyingTo == nil,
+            isEnabled: usesStandaloneGlass,
             style: .native
         )
         .background {
@@ -120,6 +226,7 @@ struct GlassmorphicInputBar: View {
                         ? StrokeStyle(lineWidth: 1.2, dash: [5, 4])
                         : StrokeStyle(lineWidth: 0.8)
                 )
+                .opacity(usesUnifiedComposerSurface ? 0 : 1)
         }
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: replyingTo?.id), value: replyingTo?.id)
         .animation(.easeInOut(duration: 0.2), value: isRecordingVoice)
@@ -128,15 +235,35 @@ struct GlassmorphicInputBar: View {
     }
 
     private var composerContent: some View {
-        ZStack {
+        ZStack(alignment: .leading) {
+            // Mantener el TextField montado durante la grabación (alpha 0) para no perder
+            // first responder ni bajar el teclado — mismo patrón que el panel nativo de referencia.
+            if showsComposerTextInput {
+                TextField(inputPlaceholder, text: $text, axis: .vertical)
+                    .lineLimit(1...6)
+                    .font(.system(size: legacyPoppinsSize(15)))
+                    .foregroundStyle(adaptiveColors.primary)
+                    .tint(adaptiveColors.primary)
+                    .textFieldStyle(.plain)
+                    .focused(isTextFieldFocused)
+                    .opacity(isRecordingVoice ? 0 : 1)
+                    .allowsHitTesting(!isRecordingVoice)
+                    .accessibilityHidden(isRecordingVoice)
+                    .onChange(of: text) { _, newValue in
+                        isTyping = !newValue.isEmpty
+                    }
+            }
+
             if isRecordingVoice {
                 VoiceRecordingHeldStatus(
                     isLocked: isVoiceRecordingLocked,
                     recordingTime: recordingTime,
                     cancelDragOffset: voiceGestureState.cancelDragOffset,
+                    cancelProgress: voiceGestureState.cancelProgress,
                     adaptiveColors: adaptiveColors,
                     onCancel: cancelVoiceRecording
                 )
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else if voiceRecordingDraft != nil || isPreparingVoiceRecordingPreview {
                 VoiceRecordingDraftPreview(
@@ -147,35 +274,54 @@ struct GlassmorphicInputBar: View {
                     onTrimChanged: onVoiceRecordingTrimChanged
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
-            } else {
-                TextField(inputPlaceholder, text: $text, axis: .vertical)
-                    .lineLimit(1...6)
-                    .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundStyle(adaptiveColors.primary)
-                    .tint(adaptiveColors.primary)
-                    .textFieldStyle(.plain)
-                    .onChange(of: text) { _, newValue in
-                        isTyping = !newValue.isEmpty
-                    }
-                    .transition(.opacity)
+            }
+        }
+        .onChange(of: voiceGestureState.preserveKeyboardElevation) { _, preserve in
+            if preserve {
+                isTextFieldFocused.wrappedValue = true
+            }
+        }
+        .onChange(of: isRecordingVoice) { _, recording in
+            if recording, voiceGestureState.preserveKeyboardElevation {
+                isTextFieldFocused.wrappedValue = true
+            } else if !recording {
+                voiceGestureState.preserveKeyboardElevation = false
             }
         }
     }
 
     @ViewBuilder
-    private var leadingControl: some View {
+    private func leadingControl(usesStandaloneGlass: Bool) -> some View {
         if voiceRecordingDraft != nil || isPreparingVoiceRecordingPreview {
             circularGlassButton(systemName: "trash.fill", tint: .red, action: cancelVoiceRecording)
                 .accessibilityLabel(Text("common.cancel"))
                 .transition(.opacity.combined(with: .scale(scale: 0.78)))
-        } else if !isRecordingVoice, allowsAttachments {
-            ChatAttachmentPlusButton(isMenuOpen: isMenuOpen, action: toggleAttachmentMenu)
-                .transition(.opacity.combined(with: .scale(scale: 0.78)))
+        } else if voiceGestureState.playDeleteAnimation || voiceGestureState.isTrashMorphingToPlus {
+            VoiceRecordingTrashIndicator(
+                morphProgress: voiceGestureState.trashMorphProgress,
+                morphOffsetX: trashToPlusMorphOffset,
+                onLottieFinished: {
+                    voiceGestureState.startTrashMorphToPlus {
+                        voiceGestureState.trashAnimationCompletionHandler?()
+                        voiceGestureState.trashAnimationCompletionHandler = nil
+                    }
+                }
+            )
+            .fixedSize()
+            .id("voice-recording-trash-indicator")
+            .transition(.opacity.combined(with: .scale(scale: 0.78)))
+        } else if showsLeadingPlusButton {
+            ChatAttachmentPlusButton(
+                isMenuOpen: isMenuOpen,
+                usesStandaloneGlass: usesStandaloneGlass,
+                action: toggleAttachmentMenu
+            )
+                .transition(.scale(scale: 0.001).combined(with: .opacity))
         }
     }
 
     @ViewBuilder
-    private var trailingControl: some View {
+    private func trailingControl(usesStandaloneGlass: Bool) -> some View {
         if isVoiceRecordingLocked {
             VoiceRecordingLockedSendButton(action: sendCurrentContent)
         } else if voiceRecordingDraft != nil || isPreparingVoiceRecordingPreview {
@@ -192,8 +338,10 @@ struct GlassmorphicInputBar: View {
                 isLocked: $isVoiceRecordingLocked,
                 gestureState: voiceGestureState,
                 glassInteractive: !isVanishModeActive,
+                usesStandaloneGlass: usesStandaloneGlass,
                 onStart: onStartVoiceRecording,
-                onFinish: onFinishVoiceRecording
+                onFinish: onFinishVoiceRecording,
+                onPressBegan: handleVoiceRecordingPressBegan
             )
             .frame(width: 44, height: 44)
         }
@@ -218,12 +366,15 @@ struct GlassmorphicInputBar: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 19, weight: .semibold))
                 .foregroundStyle(tint)
-                .frame(width: 44, height: 44)
+                .frame(width: 52, height: 52)
+                .contentShape(Circle())
                 .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
         }
         .buttonStyle(.plain)
+        .frame(width: 52, height: 52)
+        .contentShape(Circle())
     }
 
     private func toggleAttachmentMenu() {
@@ -240,9 +391,35 @@ struct GlassmorphicInputBar: View {
         }
     }
 
+    private func focusTextInputIfNeeded() {
+        guard !isTextFieldFocused.wrappedValue,
+              !isRecordingVoice,
+              voiceRecordingDraft == nil,
+              !isPreparingVoiceRecordingPreview else { return }
+        isTextFieldFocused.wrappedValue = true
+    }
+
     private func cancelVoiceRecording() {
         guard let recordingInteractionId else { return }
+        if voiceRecordingDraft != nil || isPreparingVoiceRecordingPreview {
+            voiceGestureState.trashAnimationCompletionHandler = nil
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
+                voiceGestureState.playDeleteAnimation = true
+            }
+            // Dejar que GlassEffectContainer procese primero la sustitución del botón.
+            // Vaciar el borrador en el mismo frame provoca actualizaciones glass duplicadas.
+            DispatchQueue.main.async {
+                onFinishVoiceRecording(recordingInteractionId, .cancel)
+            }
+            return
+        }
         onFinishVoiceRecording(recordingInteractionId, .cancel)
+    }
+
+    private func handleVoiceRecordingPressBegan() {
+        guard isTextFieldFocused.wrappedValue || isKeyboardVisible else { return }
+        voiceGestureState.preserveKeyboardElevation = true
+        isTextFieldFocused.wrappedValue = true
     }
 }
 
@@ -472,10 +649,174 @@ private struct VoiceRecordingLockedSendButton: View {
     }
 }
 
+/// Punto rojo pulsante dentro del input mientras grabas.
+private struct VoiceRecordingRecordDot: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulseLow = false
+
+    var body: some View {
+        Circle()
+            .fill(Color.red)
+            .frame(width: 9, height: 9)
+            .opacity(reduceMotion ? 1 : (pulseLow ? 0.35 : 1))
+            .accessibilityHidden(true)
+            .onAppear(perform: restartPulse)
+            .onChange(of: reduceMotion) { _, _ in restartPulse() }
+    }
+
+    private func restartPulse() {
+        pulseLow = false
+        guard !reduceMotion else { return }
+        withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+            pulseLow = true
+        }
+    }
+}
+
+/// Círculo de vidrio separado (fuera del input): solo papelera al cancelar.
+private struct VoiceRecordingTrashIndicator: View {
+    var morphProgress: CGFloat = 0
+    var morphOffsetX: CGFloat = 0
+    var onLottieFinished: (() -> Void)?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let restingCircleSize: CGFloat = 52
+    private let expandedCircleSize: CGFloat = 62
+    private let animationCanvasSize: CGFloat = 78
+    private let animationContentScale: CGFloat = 1.55
+    private let animation: LottieAnimation?
+    @State private var didFinishLottie = false
+    @State private var isExpanded = false
+
+    init(
+        morphProgress: CGFloat = 0,
+        morphOffsetX: CGFloat = 0,
+        onLottieFinished: (() -> Void)? = nil
+    ) {
+        self.morphProgress = morphProgress
+        self.morphOffsetX = morphOffsetX
+        self.onLottieFinished = onLottieFinished
+        self.animation = Self.loadBundledAnimation()
+    }
+
+    var body: some View {
+        Color.clear
+            .frame(
+                width: isExpanded ? expandedCircleSize : restingCircleSize,
+                height: isExpanded ? expandedCircleSize : restingCircleSize
+            )
+            .momentsChromeGlass(in: Circle(), interactive: false, style: .native)
+            // El overlay se compone después del glass nativo para que nunca tape el icono.
+            .overlay {
+                trashContent
+                    .frame(width: animationCanvasSize, height: animationCanvasSize)
+                    .scaleEffect(animationContentScale)
+                    .allowsHitTesting(false)
+            }
+            // La geometría del HStack permanece en 44 pt: el crecimiento es puramente visual.
+            .frame(width: restingCircleSize, height: restingCircleSize)
+            .offset(x: morphOffsetX * morphProgress)
+            .scaleEffect(max(0.001, 1 - morphProgress * 0.999))
+            .opacity(1 - Double(morphProgress))
+            .accessibilityHidden(true)
+            .onAppear {
+                if reduceMotion {
+                    guard !didFinishLottie else { return }
+                    didFinishLottie = true
+                    onLottieFinished?()
+                } else {
+                    MotionPolicy.withOptionalAnimation(.spring(response: 0.24, dampingFraction: 0.76)) {
+                        isExpanded = true
+                    }
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var trashContent: some View {
+        if reduceMotion {
+            Image(systemName: "trash.fill")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.red)
+        } else if let animation {
+            LottieView(animation: animation)
+                .playbackMode(.playing(.fromProgress(0, toProgress: 1, loopMode: .playOnce)))
+                .animationDidFinish { completed in
+                    guard completed, !didFinishLottie else { return }
+                    didFinishLottie = true
+                    onLottieFinished?()
+                }
+                .configure { animationView in
+                    animationView.contentMode = .scaleAspectFit
+                    animationView.animationSpeed = 2
+                    animationView.backgroundBehavior = .pauseAndRestore
+                    animationView.isOpaque = false
+                    animationView.backgroundColor = .clear
+                }
+        } else {
+            Image(systemName: "trash.fill")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.red)
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        guard !didFinishLottie else { return }
+                        didFinishLottie = true
+                        onLottieFinished?()
+                    }
+                }
+        }
+    }
+
+    private static func loadBundledAnimation() -> LottieAnimation? {
+        VoiceRecordingTrashAnimationLoader.load()
+    }
+}
+
+private struct VoiceRecordingSlideToCancelHint: View {
+    let cancelDragOffset: CGFloat
+    let cancelProgress: CGFloat
+    let color: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @State private var bounceOffset: CGFloat = 0
+
+    private var slideOpacity: Double {
+        max(0, 1 - Double(cancelProgress) * 1.15)
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 10, weight: .bold))
+            Text("chat.voice.record.slideToCancel")
+                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
+                .lineLimit(1)
+        }
+        .foregroundStyle(color)
+        .offset(x: cancelDragOffset * 0.55 + bounceOffset)
+        .opacity(slideOpacity)
+        .onAppear(perform: syncBounce)
+        .onChange(of: cancelProgress) { _, _ in syncBounce() }
+        .onChange(of: reduceMotion) { _, _ in syncBounce() }
+    }
+
+    private func syncBounce() {
+        if reduceMotion || cancelProgress > 0.2 || slideOpacity < 0.5 {
+            bounceOffset = 0
+            return
+        }
+        bounceOffset = 6
+        withAnimation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true)) {
+            bounceOffset = -6
+        }
+    }
+}
+
 private struct VoiceRecordingHeldStatus: View {
     let isLocked: Bool
     let recordingTime: TimeInterval
     var cancelDragOffset: CGFloat = 0
+    var cancelProgress: CGFloat = 0
     let adaptiveColors: AdaptiveColors
     let onCancel: () -> Void
 
@@ -486,10 +827,10 @@ private struct VoiceRecordingHeldStatus: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(.red)
-                .frame(width: 8, height: 8)
+        HStack(spacing: 6) {
+            if !isLocked {
+                VoiceRecordingRecordDot()
+            }
 
             Text(formattedTime)
                 .font(.system(size: legacyPoppinsSize(13), weight: .medium, design: .monospaced))
@@ -503,20 +844,15 @@ private struct VoiceRecordingHeldStatus: View {
                     .foregroundStyle(adaptiveColors.accent)
                     .buttonStyle(.plain)
             } else {
-                HStack(spacing: 5) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 10, weight: .bold))
-                    Text("chat.voice.record.slideToCancel")
-                        .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                        .lineLimit(1)
-                }
-                .foregroundStyle(adaptiveColors.timestampColor)
-                // El texto acompaña el arrastre del blob hacia cancelar y se desvanece.
-                .offset(x: cancelDragOffset * 0.55)
-                .opacity(max(0, 1 + Double(cancelDragOffset) / 130))
+                VoiceRecordingSlideToCancelHint(
+                    cancelDragOffset: cancelDragOffset,
+                    cancelProgress: cancelProgress,
+                    color: adaptiveColors.timestampColor
+                )
             }
         }
         .padding(.trailing, 46)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isLocked), value: isLocked)
     }
 }
 
@@ -778,12 +1114,17 @@ private final class VoiceRecordingDraftPlayer: NSObject, ObservableObject, AVAud
     }
 
     func stop() {
-        audioPlayer?.stop()
+        let playerToStop = audioPlayer
         audioPlayer = nil
         timer?.invalidate()
         timer = nil
         isPlaying = false
         progress = 0
+        if let playerToStop {
+            DispatchQueue.global(qos: .utility).async {
+                playerToStop.stop()
+            }
+        }
     }
 
     private func startTimer() {

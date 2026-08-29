@@ -123,7 +123,7 @@ enum ChatRowHeightEstimator {
         case .sharedMoment:
             return sharedMomentPreviewHeight
         case .sharedStory:
-            return sharedStoryPreviewHeight
+            return sharedStoryPreviewHeight + (message.sharedStoryData?["isStoryMention"] == "true" ? 28 : 0)
         case .sharedProfile:
             return sharedProfilePreviewHeight
         case .chatNotice:

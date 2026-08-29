@@ -23,6 +23,8 @@ const {
   addOwnedBackgroundFrameStorageUrl,
   addStorageUrl,
   apnsCollapseId,
+  ANDROID_FCM_CHANNELS,
+  withAndroidShade,
   approvedModerationDecision,
   asDate,
   batchLoadAuthorDocs,
@@ -354,7 +356,11 @@ const onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momentI
 
     if (shouldSendPush) {
       try {
-        await admin.messaging().send(message);
+        await admin.messaging().send(withAndroidShade(message, {
+          collapseKey: `reaction_${momentId}`,
+          threadId: `moment_reactions_${momentId}`,
+          channel: ANDROID_FCM_CHANNELS.social,
+        }));
         console.log(`✅ Notificación enviada: ${username} -> ${momentOwnerData.username} (${reaction.reactionType}) - Pending: ${pendingReactionCount}`);
       } catch (error) {
         if (error.code === 'messaging/registration-token-not-registered') {
@@ -498,7 +504,11 @@ async function handleBadgeUpdate(userId, userData) {
   };
 
   try {
-    await admin.messaging().send(message);
+    await admin.messaging().send(withAndroidShade(message, {
+      collapseKey: undefined,
+      threadId: '',
+      channel: ANDROID_FCM_CHANNELS.social,
+    }));
     console.log(`✅ Badge actualizado para ${userId}: ${badgeCount}`);
   } catch (error) {
     if (error.code === 'messaging/registration-token-not-registered') {
@@ -592,7 +602,12 @@ async function handleModerationPush(userId, notificationId, notification, userDa
   };
 
   try {
-    await admin.messaging().send(message);
+    const moderationCollapse = `moderation_${storyId || momentId || notificationId}`;
+    await admin.messaging().send(withAndroidShade(message, {
+      collapseKey: moderationCollapse,
+      threadId: moderationCollapse,
+      channel: ANDROID_FCM_CHANNELS.social,
+    }));
     console.log(`✅ Push de moderación enviada a ${userData.username} (${moderationType})`);
   } catch (error) {
     if (error.code === 'messaging/registration-token-not-registered') {
@@ -753,7 +768,11 @@ async function handleMentionPush(userId, notificationId, notification, userData)
       }
     };
 
-    await admin.messaging().send(message);
+    await admin.messaging().send(withAndroidShade(message, {
+      collapseKey: `mention_${userId}`,
+      threadId: `mentions_${userId}`,
+      channel: ANDROID_FCM_CHANNELS.social,
+    }));
     await markProcessingDone(mentionRef, {
       processedField: 'processed',
       processingField: 'processingUntil'
@@ -820,6 +839,7 @@ async function handleReplyPush(userId, notificationId, notification, userData) {
         commentId: notification.commentId || '',
         senderUsername: senderData.username,
         senderProfileImage: senderData.profileImagePath || '',
+        commentPreview: String(replyPreview || '').substring(0, 80),
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
@@ -846,7 +866,11 @@ async function handleReplyPush(userId, notificationId, notification, userData) {
       }
     };
 
-    await admin.messaging().send(message);
+    await admin.messaging().send(withAndroidShade(message, {
+      collapseKey: `reply_${notification.commentId || notificationId}`,
+      threadId: `moment_replies_${notification.momentId || userId}`,
+      channel: ANDROID_FCM_CHANNELS.social,
+    }));
     await markProcessingDone(replyRef, {
       processedField: 'processed',
       processingField: 'processingUntil'
@@ -938,7 +962,11 @@ async function handlePhotoTagPush(userId, notificationId, notification, userData
       }
     };
 
-    await admin.messaging().send(message);
+    await admin.messaging().send(withAndroidShade(message, {
+      collapseKey: `tag_${userId}`,
+      threadId: `photo_tags_${userId}`,
+      channel: ANDROID_FCM_CHANNELS.social,
+    }));
     await markProcessingDone(tagRef, {
       processedField: 'processed',
       processingField: 'processingUntil'
@@ -1166,6 +1194,8 @@ const onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{momentId
         senderUsername: commenterData.username,
         senderProfileImage: commenterData.profileImagePath || '',
         mediaUrl: momentPreviewUrl || '',
+        commentPreview: commentPreview,
+        reactionCount: String(commentCount),
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
@@ -1198,7 +1228,11 @@ const onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{momentId
 
     if (shouldSendPush) {
       try {
-        await admin.messaging().send(message);
+        await admin.messaging().send(withAndroidShade(message, {
+          collapseKey: `comment_${momentId}`,
+          threadId: `moment_comments_${momentId}`,
+          channel: ANDROID_FCM_CHANNELS.social,
+        }));
         console.log(`✅ Notificación de comentario enviada: ${commenterData.username} -> ${momentOwnerData.username}`);
       } catch (error) {
         if (error.code === 'messaging/registration-token-not-registered') {

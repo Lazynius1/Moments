@@ -415,7 +415,11 @@ async function sendGentleReminderPush(userId, userData, variant) {
     }
   };
 
-  await admin.messaging().send(message);
+  await admin.messaging().send(withAndroidShade(message, {
+    collapseKey: `gentle_reminder_${userId}`,
+    threadId: 'gentle_reminders',
+    channel: ANDROID_FCM_CHANNELS.reminders,
+  }));
 }
 
 function normalizeMutedWords(words) {
@@ -527,6 +531,51 @@ function apnsCollapseId(prefix, ...parts) {
   }
   const hash = crypto.createHash('sha256').update(parts.join('\0')).digest('hex').slice(0, 57);
   return `${prefix}_${hash}`;
+}
+
+// Canales FCM ≡ importancia iOS (no copiar nombres Apple). El cliente los crea.
+const ANDROID_FCM_CHANNELS = {
+  messages: 'moments_messages',
+  social: 'moments_social',
+  reminders: 'moments_reminders',
+};
+
+function clampCollapseKey(collapseKey) {
+  if (!collapseKey) return '';
+  const key = String(collapseKey);
+  if (Buffer.byteLength(key, 'utf8') <= 64) return key;
+  return apnsCollapseId('a', key);
+}
+
+/**
+ * Espejo Android de apns-collapse-id / prioridad. Data-only:
+ * no usar `notification` ni `android.notification` (el sistema pintaría
+ * el aviso genérico y, en background, saltaría onMessageReceived).
+ * El channelId viaja en `data` y lo crea el cliente.
+ */
+function androidFcm({ collapseKey } = {}) {
+  const config = { priority: 'high' };
+  const key = clampCollapseKey(collapseKey);
+  if (key) config.collapseKey = key;
+  return config;
+}
+
+function withAndroidShade(message, { collapseKey, threadId, channel } = {}) {
+  const channelId = channel || ANDROID_FCM_CHANNELS.social;
+  const key = clampCollapseKey(collapseKey);
+  return {
+    ...message,
+    data: {
+      ...(message.data || {}),
+      collapseKey: key,
+      threadId: threadId || '',
+      channelId,
+    },
+    android: {
+      ...(message.android || {}),
+      ...androidFcm({ collapseKey: key || undefined }),
+    },
+  };
 }
 
 // ✅ Contar mensajes no leídos EN UNA CONVERSACIÓN ESPECÍFICA
@@ -786,7 +835,8 @@ async function sendMutualConnectionNotification(receiverData, senderData, receiv
         targetType: 'profile',
         targetId: senderId,
         senderUsername: senderData.username,
-        senderProfileImage: senderData.profileImagePath || ''
+        senderProfileImage: senderData.profileImagePath || '',
+        reactionCount: String(count),
       },
       apns: {
         headers: {
@@ -817,7 +867,11 @@ async function sendMutualConnectionNotification(receiverData, senderData, receiv
       }
     };
 
-    await admin.messaging().send(message);
+    await admin.messaging().send(withAndroidShade(message, {
+      collapseKey: `mutual_${receiverId}`,
+      threadId: `mutual_connections_${receiverId}`,
+      channel: ANDROID_FCM_CHANNELS.social,
+    }));
     console.log(`✅ Notificación de conexión mutua enviada: ${senderData.username} ↔ ${receiverData.username}`);
 
   } catch (error) {
@@ -1158,6 +1212,9 @@ module.exports = {
   pickMomentPreviewUrl,
   pickStoryPreviewUrl,
   apnsCollapseId,
+  ANDROID_FCM_CHANNELS,
+  androidFcm,
+  withAndroidShade,
   getUnreadMessagesInConversation,
   getUnreadReactionSummary,
   socialNotificationDocId,

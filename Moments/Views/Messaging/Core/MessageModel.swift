@@ -487,6 +487,7 @@ struct PendingChatTimelineMessage: Identifiable, Hashable {
     let storyOwnerId: String?
     let sharedContentId: String?
     let sharedContentOwnerId: String?
+    let isStoryMention: Bool
 
     var hasStoryReplyContext: Bool {
         guard storyId?.isEmpty == false, storyOwnerId?.isEmpty == false else { return false }
@@ -513,6 +514,7 @@ struct PendingChatTimelineMessage: Identifiable, Hashable {
         self.storyOwnerId = nil
         self.sharedContentId = nil
         self.sharedContentOwnerId = nil
+        self.isStoryMention = false
     }
 
     init(message: MessageRequestMessage, currentUserId: String) {
@@ -534,6 +536,7 @@ struct PendingChatTimelineMessage: Identifiable, Hashable {
         self.storyOwnerId = message.storyOwnerId
         self.sharedContentId = message.sharedContentId
         self.sharedContentOwnerId = message.sharedContentOwnerId
+        self.isStoryMention = message.isStoryMention == true
     }
 
     init(outgoingText: String, receiverId: String) {
@@ -555,6 +558,7 @@ struct PendingChatTimelineMessage: Identifiable, Hashable {
         self.storyOwnerId = nil
         self.sharedContentId = nil
         self.sharedContentOwnerId = nil
+        self.isStoryMention = false
     }
 
     func asEnhancedMessage(conversationId: String, currentUserId: String) -> EnhancedMessage {
@@ -575,7 +579,8 @@ struct PendingChatTimelineMessage: Identifiable, Hashable {
         let sharedStoryData: [String: String]? = contextKind == MessageRequestInteractionContext.Kind.shareStory.rawValue
             ? [
                 "storyId": sharedContentId ?? storyId ?? "",
-                "storyAuthorId": sharedContentOwnerId ?? storyOwnerId ?? ""
+                "storyAuthorId": sharedContentOwnerId ?? storyOwnerId ?? "",
+                "isStoryMention": isStoryMention ? "true" : "false"
             ]
             : nil
 
@@ -1942,6 +1947,15 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         return "\(authorAtPrefix(author)) · \(story)"
     }
 
+    /// Preview de inbox para `sharedStory`: mención vs historia compartida genérica.
+    static func sharedStoryConversationPreview(from data: [String: String]?, isOutgoing: Bool) -> String {
+        if data?["isStoryMention"] == "true" {
+            let key = isOutgoing ? "story.mention.chat.outgoing" : "story.mention.chat.incoming"
+            return NSLocalizedString(key, comment: "")
+        }
+        return NSLocalizedString("chat.preview.sharedStory", comment: "")
+    }
+
     static func sharedProfilePreviewText(from data: [String: String]?) -> String {
         guard let username = nonEmptyTrimmed(data?["username"]) else {
             return NSLocalizedString("chat.preview.sharedProfile", comment: "")
@@ -2606,6 +2620,7 @@ struct MessageRequestMessage: Identifiable, Codable, Hashable {
     let storyOwnerId: String?
     let sharedContentId: String?
     let sharedContentOwnerId: String?
+    var isStoryMention: Bool? = nil
     let expirationDate: Date?
     let isViewOnce: Bool
     let allowReplay: Bool

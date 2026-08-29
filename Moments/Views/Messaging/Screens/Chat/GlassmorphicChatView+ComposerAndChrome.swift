@@ -348,6 +348,8 @@ extension GlassmorphicChatView {
                         replyingTo: replyingTo,
                         otherParticipantName: otherParticipantDisplayName,
                         voiceGestureState: voiceRecordingGestureState,
+                        isKeyboardVisible: keyboardScrollCoordinator.isVisible,
+                        isTextFieldFocused: $isTextFieldFocused,
                         onCancelReply: {
                             self.replyingTo = nil
                         },
@@ -394,7 +396,6 @@ extension GlassmorphicChatView {
                             updateVoiceRecordingTrimRange(range)
                         }
                     )
-                    .focused($isTextFieldFocused)
                     .onPreferenceChange(ChatPlusButtonAnchorKey.self) { frame in
                         plusButtonAnchorFrame = frame
                     }

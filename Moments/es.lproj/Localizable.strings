@@ -3071,6 +3071,9 @@
 "notification.message.single.viewOnce" = "Te envió un mensaje que desaparece 👀";
 "notification.message.single.moment" = "Te envió un momento 📸";
 "notification.message.single.default" = "Te envió un mensaje";
+"notification.message.single.storyMention" = "Te mencionó en su historia";
+"story.mention.chat.incoming" = "Te mencionó en su historia";
+"story.mention.chat.outgoing" = "Mencionaste a esta persona en tu historia";
 "notification.chatReaction.single" = "Reaccionó con %@ a tu mensaje";
 "notification.chatReaction.singleQuoted" = "Reaccionó con %@ a tu mensaje \"%@\"";
 "notification.chatReaction.multiple" = "Reaccionó con %@ a tus mensajes";

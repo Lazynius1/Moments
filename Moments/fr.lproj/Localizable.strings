@@ -3040,6 +3040,9 @@
 "notification.message.single.viewOnce" = "Sent you a disappearing message 👀";
 "notification.message.single.moment" = "Sent you a moment 📸";
 "notification.message.single.default" = "Sent you a message";
+"notification.message.single.storyMention" = "Vous a mentionné(e) dans sa story";
+"story.mention.chat.incoming" = "Vous a mentionné(e) dans sa story";
+"story.mention.chat.outgoing" = "Vous avez mentionné cette personne dans votre story";
 "notification.chatReaction.single" = "A réagi avec %@ à ton message";
 "notification.chatReaction.singleQuoted" = "A réagi avec %@ à ton message \"%@\"";
 "notification.chatReaction.multiple" = "A réagi avec %@ à tes messages";

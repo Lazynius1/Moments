@@ -239,6 +239,7 @@ extension View {
     func momentsChromeGlass<S: Shape>(
         in shape: S,
         interactive: Bool = true,
+        isEnabled: Bool = true,
         style: MomentsGlassStyle = .native,
         tintOpacity: CGFloat = MomentsChromeGlass.defaultTintOpacity,
         tint: Color? = nil
@@ -247,6 +248,7 @@ extension View {
             MomentsChromeGlassModifier(
                 shape: shape,
                 interactive: interactive,
+                isEnabled: isEnabled,
                 style: style,
                 tintOpacity: tintOpacity,
                 tintOverride: tint
@@ -260,6 +262,7 @@ private struct MomentsChromeGlassModifier<S: Shape>: ViewModifier {
 
     let shape: S
     var interactive: Bool
+    var isEnabled: Bool
     var style: MomentsGlassStyle = .tinted
     var tintOpacity: CGFloat
     var tintOverride: Color?
@@ -274,39 +277,49 @@ private struct MomentsChromeGlassModifier<S: Shape>: ViewModifier {
             case .tinted:
                 content
                     .glassEffect(
-                        MomentsChromeGlass.chromeGlass(interactive: interactive, tint: resolvedTint),
+                        isEnabled
+                            ? MomentsChromeGlass.chromeGlass(interactive: interactive, tint: resolvedTint)
+                            : .identity,
                         in: shape
                     )
             case .native:
                 content
                     .glassEffect(
-                        MomentsChromeGlass.nativeGlass(interactive: interactive),
+                        isEnabled
+                            ? MomentsChromeGlass.nativeGlass(interactive: interactive)
+                            : .identity,
                         in: shape
                     )
             case .nativeTinted:
                 content
                     .glassEffect(
-                        MomentsChromeGlass.chromeGlass(
-                            interactive: interactive,
-                            tint: resolvedTint.opacity(MomentsChromeGlass.nativeTintedOpacityScale)
-                        ),
+                        isEnabled
+                            ? MomentsChromeGlass.chromeGlass(
+                                interactive: interactive,
+                                tint: resolvedTint.opacity(MomentsChromeGlass.nativeTintedOpacityScale)
+                            )
+                            : .identity,
                         in: shape
                     )
             }
         } else {
-            content
-                .background {
-                    switch style {
-                    case .tinted:
-                        shape.fill(resolvedTint)
-                    case .nativeTinted:
-                        shape.fill(resolvedTint.opacity(MomentsChromeGlass.nativeTintedOpacityScale))
-                    case .native:
-                        EmptyView()
+            if isEnabled {
+                content
+                    .background {
+                        switch style {
+                        case .tinted:
+                            shape.fill(resolvedTint)
+                        case .nativeTinted:
+                            shape.fill(resolvedTint.opacity(MomentsChromeGlass.nativeTintedOpacityScale))
+                        case .native:
+                            EmptyView()
+                        }
                     }
-                }
-                .background(.ultraThinMaterial)
-                .clipShape(shape)
+                    .background(.ultraThinMaterial)
+                    .clipShape(shape)
+            } else {
+                content
+            }
         }
     }
 }

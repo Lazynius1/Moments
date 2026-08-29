@@ -11,8 +11,36 @@ enum VoiceRecordingFinishAction: Equatable {
 /// barra (que mueve texto de cancelar y píldora del candado a juego).
 final class VoiceRecordingGestureState: ObservableObject {
     @Published var cancelDragOffset: CGFloat = 0
+    /// 0 = sin arrastre de cancelación, 1 = umbral de cancelar.
+    @Published var cancelProgress: CGFloat = 0
     @Published var lockProgress: CGFloat = 0
     @Published var followOffset: CGSize = .zero
+    /// Dispara la animación de papelera en el indicador rojo al cancelar la grabación.
+    @Published var playDeleteAnimation = false
+    /// Morph del círculo completo hacia el + tras el Lottie.
+    @Published var isTrashMorphingToPlus = false
+    @Published var trashMorphProgress: CGFloat = 0
+    /// Mantener el compositor/teclado elevados si la grabación empezó con el teclado arriba.
+    @Published var preserveKeyboardElevation = false
+    /// Llamado cuando termina toda la secuencia de salida de la papelera.
+    var trashAnimationCompletionHandler: (() -> Void)?
+
+    func startTrashMorphToPlus(completion: @escaping () -> Void) {
+        guard !isTrashMorphingToPlus else { return }
+        isTrashMorphingToPlus = true
+        trashMorphProgress = 0
+        MotionPolicy.withOptionalAnimation(.easeInOut(duration: 0.2)) {
+            trashMorphProgress = 1
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            self.isTrashMorphingToPlus = false
+            self.trashMorphProgress = 0
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
+                self.playDeleteAnimation = false
+            }
+            completion()
+        }
+    }
 }
 
 /// Medidas compartidas del blob de grabación (botón mantenido y send en locked).
@@ -241,6 +269,7 @@ private enum VoiceRecordingGesturePhase: Equatable {
     case pressing
     case recordingHeld
     case recordingLocked
+    case cancelling
 }
 
 struct VoiceRecordingGestureButton: View {
@@ -251,8 +280,10 @@ struct VoiceRecordingGestureButton: View {
     /// Estado compartido con la barra (texto de cancelar, píldora del candado).
     @ObservedObject var gestureState: VoiceRecordingGestureState
     let glassInteractive: Bool
+    var usesStandaloneGlass: Bool = true
     let onStart: (UUID, Bool) -> Void
     let onFinish: (UUID, VoiceRecordingFinishAction) -> Void
+    let onPressBegan: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
@@ -280,7 +311,12 @@ struct VoiceRecordingGestureButton: View {
         // `GlassmorphicInputBar` cambia de contenedor al arrancar la grabación. SwiftUI puede
         // recrear este botón durante esa transición y perder `phase`, pero la sesión real sigue
         // viva en `isRecording`; el aura debe seguir a la sesión, no a la identidad efímera de la vista.
-        isRecording || phase == .recordingHeld || phase == .recordingLocked
+        isRecording || phase == .recordingHeld || phase == .recordingLocked || phase == .cancelling
+    }
+
+    /// Al soltar con este progreso de slide-to-cancel, no enviar.
+    private var didReachCancelThreshold: Bool {
+        cancelProgress >= 0.85
     }
 
     var body: some View {
@@ -295,7 +331,12 @@ struct VoiceRecordingGestureButton: View {
             }
             .frame(width: 44, height: 44)
             .contentShape(Circle())
-            .momentsChromeGlass(in: Circle(), interactive: glassInteractive, style: .native)
+            .momentsChromeGlass(
+                in: Circle(),
+                interactive: glassInteractive,
+                isEnabled: usesStandaloneGlass,
+                style: .native
+            )
             .overlay {
                 if showsRecordingOverlay {
                     recordingOverlay
@@ -314,16 +355,19 @@ struct VoiceRecordingGestureButton: View {
         .accessibilityLabel(Text("chat.voice.record.accessibility"))
         .accessibilityHint(Text("chat.voice.record.holdHint"))
         .onChange(of: isRecording) { _, recording in
+            guard !gestureState.playDeleteAnimation, phase != .cancelling else { return }
             if !recording, !isLocked, activeInteractionId == nil {
                 resetLocalState()
             }
         }
         .onChange(of: isLocked) { _, locked in
+            guard !gestureState.playDeleteAnimation, phase != .cancelling else { return }
             if !locked, !isRecording {
                 resetLocalState()
             }
         }
         .onChange(of: activeInteractionId) { _, activeId in
+            guard !gestureState.playDeleteAnimation, phase != .cancelling else { return }
             if activeId == nil, phase != .pressing, !isRecording {
                 resetLocalState()
             }
@@ -332,6 +376,11 @@ struct VoiceRecordingGestureButton: View {
             holdTask?.cancel()
             holdTask = nil
         }
+    }
+
+    /// Escala mínima 0.4 al arrastrar hacia cancelar: max(0.4, 1.0 - cancelProgress).
+    private var cancelDragScale: CGFloat {
+        max(0.4, 1.0 - cancelProgress)
     }
 
     private var recordingOverlay: some View {
@@ -348,9 +397,11 @@ struct VoiceRecordingGestureButton: View {
             }
             // El blob viaja con el dedo en ambos ejes; el botón base permanece anclado.
             .offset(x: blobFollowOffset.width, y: blobFollowOffset.height)
+            .scaleEffect(cancelDragScale)
         }
         .frame(width: 44, height: 44)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isLocked), value: isLocked)
+        .animation(.interactiveSpring(response: 0.26, dampingFraction: 0.82), value: cancelDragScale)
     }
 
     private var recordingGesture: some Gesture {
@@ -370,11 +421,14 @@ struct VoiceRecordingGestureButton: View {
 
     private func beginPress() {
         guard !voiceOverEnabled else { return }
+        onPressBegan()
         let id = UUID()
         interactionId = id
         phase = .pressing
         lockProgress = 0
         cancelProgress = 0
+        gestureState.cancelProgress = 0
+        gestureState.cancelDragOffset = 0
         lastLockTick = 0
 
         holdTask?.cancel()
@@ -404,6 +458,7 @@ struct VoiceRecordingGestureButton: View {
         lockProgress = min(1, max(0, -translation.height / lockDistance))
         cancelProgress = min(1, max(0, -translation.width / cancelDistance))
         gestureState.lockProgress = lockProgress
+        gestureState.cancelProgress = cancelProgress
         if lockProgress == 0 {
             lastLockTick = 0
         }
@@ -475,13 +530,18 @@ struct VoiceRecordingGestureButton: View {
 
     private func commitCancellation() {
         guard phase == .recordingHeld, let id = interactionId else { return }
+        phase = .cancelling
         HapticManager.shared.warning()
         UIAccessibility.post(
             notification: .announcement,
             argument: NSLocalizedString("chat.voice.record.cancelled", comment: "Voice recording cancelled")
         )
+        gestureState.playDeleteAnimation = true
+        gestureState.trashAnimationCompletionHandler = { resetLocalState() }
+        holdTask?.cancel()
+        holdTask = nil
+        // Parar grabación ya; la animación de papelera es solo visual.
         onFinish(id, .cancel)
-        resetLocalState()
     }
 
     private func endPress() {
@@ -497,8 +557,15 @@ struct VoiceRecordingGestureButton: View {
         case .pressing:
             resetLocalState()
         case .recordingHeld:
-            onFinish(id, .send)
-            resetLocalState()
+            if didReachCancelThreshold {
+                commitCancellation()
+            } else {
+                onFinish(id, .send)
+                resetLocalState()
+            }
+        case .cancelling:
+            // Cancelación ya en curso; no enviar al soltar.
+            break
         case .recordingLocked:
             interactionId = nil
         case .idle:
@@ -530,6 +597,12 @@ struct VoiceRecordingGestureButton: View {
         blobFollowOffset = .zero
         gestureState.followOffset = .zero
         gestureState.cancelDragOffset = 0
+        gestureState.cancelProgress = 0
         gestureState.lockProgress = 0
+        gestureState.playDeleteAnimation = false
+        gestureState.isTrashMorphingToPlus = false
+        gestureState.trashMorphProgress = 0
+        gestureState.preserveKeyboardElevation = false
+        gestureState.trashAnimationCompletionHandler = nil
     }
 }

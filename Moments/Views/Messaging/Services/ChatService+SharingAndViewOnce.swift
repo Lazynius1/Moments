@@ -122,6 +122,8 @@ extension ChatService {
         senderId: String,
         story: Story,
         shareText: String,
+        isStoryMention: Bool = false,
+        messageId requestedMessageId: String? = nil,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         guard let storyId = story.id else {
@@ -146,10 +148,11 @@ extension ChatService {
                 "storyPreviewUrl": storyPreviewURL(for: story),
                 "storyMediaType": storyMediaTypeString(for: story),
                 "storyExpiration": String(story.expirationDate.timeIntervalSince1970),
-                "storyTimestamp": String(story.timestamp.timeIntervalSince1970)
+                "storyTimestamp": String(story.timestamp.timeIntervalSince1970),
+                "isStoryMention": isStoryMention ? "true" : "false"
             ]
 
-            let messageId = UUID().uuidString
+            let messageId = requestedMessageId ?? UUID().uuidString
             let message = EnhancedMessage(
                 id: messageId,
                 conversationId: conversationId,
@@ -183,7 +186,10 @@ extension ChatService {
                 case .success(let sentMessage):
                     self.updateConversation(
                         conversationId: conversationId,
-                        lastMessage: self.neutralConversationPreview(for: .sharedStory),
+                        lastMessage: EnhancedMessage.sharedStoryConversationPreview(
+                            from: sharedStoryData,
+                            isOutgoing: true
+                        ),
                         senderId: senderId,
                         messageType: .sharedStory
                     ) { _ in

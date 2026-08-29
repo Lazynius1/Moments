@@ -134,8 +134,25 @@ extension GlassmorphicChatView {
         guard voiceRecordingInteractionId == interactionId else { return }
 
         if action == .cancel {
-            clearVoiceRecordingState()
+            recordingTimer?.invalidate()
+            recordingTimer = nil
+            isRecordingVoice = false
+            isVoiceRecordingLocked = false
             AudioRecordingManager.shared.stopRecording { _ in }
+
+            if voiceRecordingGestureState.playDeleteAnimation {
+                let gestureCleanup = voiceRecordingGestureState.trashAnimationCompletionHandler
+                voiceRecordingGestureState.trashAnimationCompletionHandler = {
+                    gestureCleanup?()
+                    clearVoiceRecordingState()
+                }
+                voiceRecordingInteractionId = nil
+                voiceRecordingDraft = nil
+                isPreparingVoiceRecordingPreview = false
+                recordingTime = 0
+            } else {
+                clearVoiceRecordingState()
+            }
             return
         }
 
@@ -241,6 +258,8 @@ extension GlassmorphicChatView {
         recordingTimer?.invalidate()
         recordingTimer = nil
         recordingTime = 0
+        voiceRecordingGestureState.preserveKeyboardElevation = false
+        MomentsAudioSession.deactivate()
     }
 
     func resetVoiceRecordingInteraction() {

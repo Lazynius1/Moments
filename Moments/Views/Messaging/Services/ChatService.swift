@@ -2602,6 +2602,22 @@ class ChatService: ObservableObject {
                     continue
                 }
 
+                if messageType == .sharedStory {
+                    let sharedData = data["sharedStoryData"] as? [String: String]
+                    let currentUserId = Auth.auth().currentUser?.uid
+                    let isOutgoing = messageSenderId == currentUserId
+                    return makeConversationSnapshot(
+                        preview: EnhancedMessage.sharedStoryConversationPreview(
+                            from: sharedData,
+                            isOutgoing: isOutgoing
+                        ),
+                        timestamp: messageTimestamp,
+                        senderId: messageSenderId,
+                        messageType: messageType,
+                        messageData: data
+                    )
+                }
+
                 return makeConversationSnapshot(
                     preview: neutralConversationPreview(for: messageType),
                     timestamp: messageTimestamp,

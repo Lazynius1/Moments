@@ -28,6 +28,7 @@
 		36CE4D382E0A18F400901FD0 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 36CE4D372E0A18F400901FD0 /* ZIPFoundation */; };
 		36CE4D4E2E0DEE4400901FD0 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 36CE4D4D2E0DEE4400901FD0 /* GoogleMobileAds */; };
 		36CK00032F70000100CAMKIT /* SCSDKCameraKit in Frameworks */ = {isa = PBXBuildFile; productRef = 36CK00022F70000100CAMKIT /* SCSDKCameraKit */; };
+		36LT00032F80000100LOTIE /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 36LT00022F80000100LOTIE /* Lottie */; };
 		7A6D2F212F5A120100A1B2C3 /* IncognitoActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F202F5A120100A1B2C3 /* IncognitoActivityAttributes.swift */; };
 		7A6D2F222F5A120100A1B2C3 /* IncognitoActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F202F5A120100A1B2C3 /* IncognitoActivityAttributes.swift */; };
 		7A6D2F242F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A6D2F232F5A1A0100A1B2C3 /* PauseIncognitoIntent.swift */; };
@@ -173,6 +174,7 @@
 				36A036D32F36BCDB002B2937 /* GoogleUserMessagingPlatform in Frameworks */,
 				36CE4D382E0A18F400901FD0 /* ZIPFoundation in Frameworks */,
 				36CK00032F70000100CAMKIT /* SCSDKCameraKit in Frameworks */,
+				36LT00032F80000100LOTIE /* Lottie in Frameworks */,
 			);
 		};
 		36A036DB2F38B220002B2937 /* Frameworks */ = {
@@ -277,6 +279,7 @@
 				36CE4D4D2E0DEE4400901FD0 /* GoogleMobileAds */,
 				36A036D22F36BCDB002B2937 /* GoogleUserMessagingPlatform */,
 				36CK00022F70000100CAMKIT /* SCSDKCameraKit */,
+				36LT00022F80000100LOTIE /* Lottie */,
 			);
 			productName = Moments;
 			productReference = 0D4FD1B92DB27BFE00CA6DB1 /* Moments Social.app */;
@@ -371,6 +374,7 @@
 				36CE4D4C2E0DEE4400901FD0 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 				36A036D12F36BCDB002B2937 /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */,
 				36CK00012F70000100CAMKIT /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */,
+				36LT00012F80000100LOTIE /* XCRemoteSwiftPackageReference "lottie-ios" */,
 			);
 			preferredProjectObjectVersion = 100;
 			productRefGroup = 0D4FD1BA2DB27BFE00CA6DB1 /* Products */;
@@ -621,7 +625,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Moments/Resources/AudienceIcons/alternatives/.venv/lib/python3.14/site-packages/PIL/.dylibs",
 				);
-				MARKETING_VERSION = 2.21;
+				MARKETING_VERSION = 2.21.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -678,7 +682,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Moments/Resources/AudienceIcons/alternatives/.venv/lib/python3.14/site-packages/PIL/.dylibs",
 				);
-				MARKETING_VERSION = 2.21;
+				MARKETING_VERSION = 2.21.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -775,7 +779,7 @@
 					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.21;
+				MARKETING_VERSION = 2.21.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.GlowsyWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -810,7 +814,7 @@
 					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.21;
+				MARKETING_VERSION = 2.21.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.GlowsyWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -918,6 +922,14 @@
 				minimumVersion = 1.50.0;
 			};
 		};
+		36LT00012F80000100LOTIE /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.5.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1005,6 +1017,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 36CK00012F70000100CAMKIT /* XCRemoteSwiftPackageReference "camera-kit-ios-sdk" */;
 			productName = SCSDKCameraKit;
+		};
+		36LT00022F80000100LOTIE /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 36LT00012F80000100LOTIE /* XCRemoteSwiftPackageReference "lottie-ios" */;
+			productName = Lottie;
 		};
 		A1C7A0022F5F100100A11C7A /* FirebaseAppCheck */ = {
 			isa = XCSwiftPackageProductDependency;

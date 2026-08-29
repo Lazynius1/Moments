@@ -3062,6 +3062,9 @@
 "notification.message.single.viewOnce" = "T'ha enviat un missatge que desapareix 👀";
 "notification.message.single.moment" = "T'ha enviat un moment 📸";
 "notification.message.single.default" = "T'ha enviat un missatge";
+"notification.message.single.storyMention" = "T'ha mencionat a la seva història";
+"story.mention.chat.incoming" = "T'ha mencionat a la seva història";
+"story.mention.chat.outgoing" = "Has mencionat aquesta persona a la teva història";
 "notification.chatReaction.single" = "Ha reaccionat amb %@ al teu missatge";
 "notification.chatReaction.singleQuoted" = "Ha reaccionat amb %@ al teu missatge \"%@\"";
 "notification.chatReaction.multiple" = "Ha reaccionat amb %@ als teus missatges";

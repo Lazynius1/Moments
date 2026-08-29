@@ -23,6 +23,8 @@ const {
   addOwnedBackgroundFrameStorageUrl,
   addStorageUrl,
   apnsCollapseId,
+  ANDROID_FCM_CHANNELS,
+  withAndroidShade,
   approvedModerationDecision,
   asDate,
   batchLoadAuthorDocs,
@@ -487,17 +489,29 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
         getUnreadMessagesInConversation(conversationId, receiverId)
       ]);
 
-      // Determinar clave de localización según el tipo de mensaje
-      let bodyLocKey = 'notification.message.single.default';
-      switch (message.type) {
-        case 'text': bodyLocKey = 'notification.message.single.text'; break;
-        case 'image': bodyLocKey = 'notification.message.single.photo'; break;
-        case 'video': bodyLocKey = 'notification.message.single.video'; break;
-        case 'audio': bodyLocKey = 'notification.message.single.audio'; break;
-        case 'viewOnceImage':
-        case 'viewOnceVideo': bodyLocKey = 'notification.message.single.viewOnce'; break;
-        case 'moment': bodyLocKey = 'notification.message.single.moment'; break;
-        default: bodyLocKey = 'notification.message.single.default';
+      // Determinar clave de localización según el tipo de mensaje.
+      // sharedStory + isStoryMention no entra al switch: message.type sigue siendo
+      // "sharedStory" y el default lo pisaba con el copy genérico.
+      const isStoryMention = message.type === 'sharedStory' &&
+        message.sharedStoryData &&
+        (message.sharedStoryData.isStoryMention === 'true' ||
+          message.sharedStoryData.isStoryMention === true);
+      let bodyLocKey;
+      if (isStoryMention) {
+        bodyLocKey = 'notification.message.single.storyMention';
+      } else {
+        switch (message.type) {
+          case 'text': bodyLocKey = 'notification.message.single.text'; break;
+          case 'image': bodyLocKey = 'notification.message.single.photo'; break;
+          case 'video': bodyLocKey = 'notification.message.single.video'; break;
+          case 'audio': bodyLocKey = 'notification.message.single.audio'; break;
+          case 'viewOnceImage':
+          case 'viewOnceVideo':
+          case 'ephemeral': bodyLocKey = 'notification.message.single.viewOnce'; break;
+          case 'moment':
+          case 'sharedMoment': bodyLocKey = 'notification.message.single.moment'; break;
+          default: bodyLocKey = 'notification.message.single.default';
+        }
       }
 
       // Si hay múltiples mensajes, usar clave plural
@@ -538,12 +552,16 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
         targetType: 'conversation',
         targetId: conversationId,
         senderUsername: senderData.username,
-        messageType: message.type || 'text',
+        senderProfileImage: cleanImageUrl || '',
+        messageType: isStoryMention ? 'storyMention' : (message.type || 'text'),
         isVanishModeMessage: isVanishMessage ? '1' : '0',
         'sender-id': message.senderId,
         'chat-id': conversationId,
         hasEncryptedThumbnail: (!isViewOnceMessage && !isVanishMessage && message.thumbnailObjectPath && message.thumbnailEncryption) ? '1' : '0',
         mediaUrl: publicMediaUrl,
+        // Android/data-only: CopyResolver.messageCopy usa reactionCount como unreadInConvo
+        // cuando no hay preview descifrable (≡ loc-key plural en APNs).
+        reactionCount: String(unreadInConvo),
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
@@ -594,7 +612,11 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
       };
 
       try {
-        await admin.messaging().send(notificationMessage);
+        await admin.messaging().send(withAndroidShade(notificationMessage, {
+          collapseKey: `msg_${conversationId}`,
+          threadId: `conversation_${conversationId}`,
+          channel: ANDROID_FCM_CHANNELS.messages,
+        }));
       } catch (error) {
         if (error.code === 'messaging/registration-token-not-registered') {
           await removeInvalidToken(receiverId, receiverData.fcmToken);
@@ -722,6 +744,7 @@ const onMessageReactionAdded = onDocumentCreated(
         isVanishModeMessage: isVanishMessage ? '1' : '0',
         isReactionPlural: isPlural ? '1' : '0',
         reactionEmojis: emojiList,
+        reactionCount: String(unreadReactedCount),
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
@@ -768,7 +791,11 @@ const onMessageReactionAdded = onDocumentCreated(
       };
 
       try {
-        await admin.messaging().send(notificationMessage);
+        await admin.messaging().send(withAndroidShade(notificationMessage, {
+          collapseKey: apnsCollapseId('rx', conversationId),
+          threadId: `conversation_${conversationId}`,
+          channel: ANDROID_FCM_CHANNELS.messages,
+        }));
         await reactionRef.update({
           processed: true,
           processedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -945,7 +972,11 @@ const onBuzzEventCreated = onDocumentCreated(
         };
 
         try {
-          await admin.messaging().send(notificationMessage);
+          await admin.messaging().send(withAndroidShade(notificationMessage, {
+            collapseKey: apnsCollapseId('bz', conversationId),
+            threadId: `conversation_${conversationId}`,
+            channel: ANDROID_FCM_CHANNELS.messages,
+          }));
         } catch (error) {
           if (error.code === 'messaging/registration-token-not-registered') {
             await removeInvalidToken(receiverId, receiverData.fcmToken);
@@ -1056,6 +1087,7 @@ const onStoryReactionAdded = onDocumentWritten('users/{userId}/stories/{storyId}
         senderUsername: reacterData.username,
         senderProfileImage: reacterData.profileImagePath || '',
         mediaUrl: storyPreviewUrl || '',
+        reactionCount: String(reactionCount),
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
@@ -1084,7 +1116,11 @@ const onStoryReactionAdded = onDocumentWritten('users/{userId}/stories/{storyId}
 
     if (shouldSendPush) {
       try {
-        await admin.messaging().send(message);
+        await admin.messaging().send(withAndroidShade(message, {
+          collapseKey: `story_reaction_${storyId}`,
+          threadId: `story_reactions_${storyId}`,
+          channel: ANDROID_FCM_CHANNELS.social,
+        }));
         console.log(`✅ Notificación de reacción a historia enviada: ${reacterData.username} -> ${storyOwnerData.username} (${emoji})`);
       } catch (error) {
         if (error.code === 'messaging/registration-token-not-registered') {
@@ -1187,6 +1223,7 @@ const onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFollow
         targetId: requestId,
         senderUsername: requesterData.username,
         senderProfileImage: requesterData.profileImagePath || '',
+        reactionCount: String(requestCount),
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
@@ -1215,7 +1252,11 @@ const onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFollow
 
     if (shouldSendPush) {
       try {
-        await admin.messaging().send(message);
+        await admin.messaging().send(withAndroidShade(message, {
+          collapseKey: `follow_request_${userId}`,
+          threadId: `follow_requests_${userId}`,
+          channel: ANDROID_FCM_CHANNELS.social,
+        }));
         console.log(`✅ Notificación de solicitud enviada: ${requesterData.username} -> ${userData.username}`);
       } catch (error) {
         if (error.code === 'messaging/registration-token-not-registered') {

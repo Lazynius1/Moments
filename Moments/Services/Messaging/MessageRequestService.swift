@@ -29,6 +29,7 @@ struct MessageRequestInteractionContext: Hashable {
     var storyOwnerId: String?
     var sharedContentId: String?
     var sharedContentOwnerId: String?
+    var isStoryMention = false
 
     static let general = MessageRequestInteractionContext(kind: .general)
 
@@ -38,6 +39,7 @@ struct MessageRequestInteractionContext: Hashable {
         if let storyOwnerId { value["storyOwnerId"] = storyOwnerId }
         if let sharedContentId { value["sharedContentId"] = sharedContentId }
         if let sharedContentOwnerId { value["sharedContentOwnerId"] = sharedContentOwnerId }
+        if isStoryMention { value["isStoryMention"] = true }
         return value
     }
 }
@@ -291,7 +293,8 @@ final class MessageRequestService: ObservableObject {
         interaction: MessageRequestInteractionContext = .general,
         encryptedMedia: [String: Any]? = nil,
         expirationDate: Date? = nil,
-        allowReplay: Bool = false
+        allowReplay: Bool = false,
+        messageId requestedMessageId: String? = nil
     ) async throws -> MessageRequestSendResult {
         guard let senderId = Auth.auth().currentUser?.uid else {
             throw serviceError(code: 401, key: "messaging.error.notAuthenticated")
@@ -312,7 +315,8 @@ final class MessageRequestService: ObservableObject {
         let currentCount = prepared.messageCount
 
         let ciphertext = try await encryptionService.encryptChatMessage(text, for: threadId)
-        let messageId = UUID().uuidString
+        let requestedId = requestedMessageId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let messageId = requestedId.isEmpty ? UUID().uuidString : requestedId
         var message: [String: Any] = [
             "id": messageId,
             "clientNonce": messageId,
@@ -730,6 +734,7 @@ final class MessageRequestService: ObservableObject {
                     storyOwnerId: context["storyOwnerId"] as? String,
                     sharedContentId: context["sharedContentId"] as? String,
                     sharedContentOwnerId: context["sharedContentOwnerId"] as? String,
+                    isStoryMention: context["isStoryMention"] as? Bool ?? false,
                     expirationDate: (value["expirationDate"] as? Timestamp)?.dateValue(),
                     isViewOnce: value["isViewOnce"] as? Bool ?? false,
                     allowReplay: value["allowReplay"] as? Bool ?? false

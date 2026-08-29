@@ -20,7 +20,9 @@ const {
   removeInvalidToken,
   setProxyCors,
   usersAreBlocked,
-  verifyFirebaseAuth
+  verifyFirebaseAuth,
+  ANDROID_FCM_CHANNELS,
+  withAndroidShade
 } = h;
 
 const REQUEST_SCHEMA_VERSION = 2;
@@ -242,6 +244,9 @@ function sanitizeInteractionContext(kind, rawContext) {
     context.sharedContentId = stringValue(rawContext.sharedContentId, 160);
     context.sharedContentOwnerId = stringValue(rawContext.sharedContentOwnerId || rawContext.storyOwnerId, 160);
     if (!context.sharedContentId || !context.sharedContentOwnerId) return null;
+    if (kind === 'shareStory' && rawContext.isStoryMention === true) {
+      context.isStoryMention = true;
+    }
   }
   return context;
 }
@@ -693,7 +698,8 @@ function acceptedMessageContextFields(source) {
     return {
       sharedStoryData: {
         storyId: stringValue(context.sharedContentId, 160),
-        storyAuthorId: stringValue(context.sharedContentOwnerId, 160)
+        storyAuthorId: stringValue(context.sharedContentOwnerId, 160),
+        isStoryMention: context.isStoryMention === true ? 'true' : 'false'
       }
     };
   }
@@ -1174,16 +1180,14 @@ const onMessageRequestV2MessageCreated = onDocumentCreated('messageRequests/{thr
           'thread-id': `message_request_${threadId}`
         }
       }
-    },
-    android: {
-      priority: 'high',
-      // Data-only: Android descifra y aplica palabras personalizadas antes de decidir
-      // si debe mostrar el único aviso genérico. Nunca se incluye contenido sensible.
-      collapseKey: `message_request_${threadId.slice(-48)}`
     }
   };
   try {
-    await admin.messaging().send(notification);
+    await admin.messaging().send(withAndroidShade(notification, {
+      collapseKey: `message_request_${threadId.slice(-48)}`,
+      threadId: `message_request_${threadId}`,
+      channel: ANDROID_FCM_CHANNELS.messages,
+    }));
   } catch (error) {
     if (error.code === 'messaging/registration-token-not-registered') {
       await removeInvalidToken(shouldNotify.receiverId, receiver.fcmToken);

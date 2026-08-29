@@ -3851,6 +3851,9 @@
 "notification.message.single.viewOnce" = "Enviou-te uma mensagem efémera 👀";
 "notification.message.single.moment" = "Enviou-te um moment 📸";
 "notification.message.single.default" = "Enviou-te uma mensagem";
+"notification.message.single.storyMention" = "Mencionou-te na sua história";
+"story.mention.chat.incoming" = "Mencionou-te na sua história";
+"story.mention.chat.outgoing" = "Mencionaste esta pessoa na tua história";
 "notification.chatReaction.single" = "Reagiu com %@ à tua mensagem";
 "notification.chatReaction.singleQuoted" = "Reagiu com %@ à tua mensagem \"%@\"";
 "notification.chatReaction.multiple" = "Reagiu com %@ às tuas mensagens";

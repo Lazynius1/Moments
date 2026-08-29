@@ -3046,6 +3046,9 @@
 "notification.message.single.viewOnce" = "Sent you a disappearing message 👀";
 "notification.message.single.moment" = "Sent you a moment 📸";
 "notification.message.single.default" = "Sent you a message";
+"notification.message.single.storyMention" = "Mentioned you in their story";
+"story.mention.chat.incoming" = "Mentioned you in their story";
+"story.mention.chat.outgoing" = "You mentioned them in your story";
 "notification.chatReaction.single" = "Reacted with %@ to your message";
 "notification.chatReaction.singleQuoted" = "Reacted with %@ to your message \"%@\"";
 "notification.chatReaction.multiple" = "Reacted with %@ to your messages";

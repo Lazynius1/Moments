@@ -118,6 +118,7 @@ enum NotificationCopyResolver {
         case "audio": return "notification.message.single.audio"
         case "viewOnceImage", "viewOnceVideo", "ephemeral": return "notification.message.single.viewOnce"
         case "moment", "sharedMoment": return "notification.message.single.moment"
+        case "storyMention": return "notification.message.single.storyMention"
         default: return "notification.message.single.default"
         }
     }

@@ -23,6 +23,8 @@ const {
   addOwnedBackgroundFrameStorageUrl,
   addStorageUrl,
   apnsCollapseId,
+  ANDROID_FCM_CHANNELS,
+  withAndroidShade,
   approvedModerationDecision,
   asDate,
   batchLoadAuthorDocs,
@@ -283,6 +285,7 @@ const onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerId}
         targetId: followerId,
         senderUsername: followerData.username,
         senderProfileImage: followerData.profileImagePath || '',
+        reactionCount: String(followerCount),
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
@@ -311,7 +314,11 @@ const onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerId}
 
     if (shouldSendPush) {
       try {
-        await admin.messaging().send(message);
+        await admin.messaging().send(withAndroidShade(message, {
+          collapseKey: `followers_${userId}`,
+          threadId: `new_followers_${userId}`,
+          channel: ANDROID_FCM_CHANNELS.social,
+        }));
         console.log(`✅ Notificación de seguidor enviada: ${followerData.username} -> ${userData.username}`);
       } catch (error) {
         if (error.code === 'messaging/registration-token-not-registered') {
@@ -442,7 +449,11 @@ async function sendRequestAcceptedNotification({ requesterId, accepterId, reques
     };
 
     try {
-      await admin.messaging().send(message);
+      await admin.messaging().send(withAndroidShade(message, {
+        collapseKey: `ra_${requesterId}_${accepterId}`,
+        threadId: `request_accepted_${requesterId}`,
+        channel: ANDROID_FCM_CHANNELS.social,
+      }));
       console.log(`✅ Solicitud aceptada enviada: ${accepterData.username} -> ${requesterData.username}`);
     } catch (error) {
       if (error.code === 'messaging/registration-token-not-registered') {

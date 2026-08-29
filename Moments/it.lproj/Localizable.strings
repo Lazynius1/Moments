@@ -3040,6 +3040,9 @@
 "notification.message.single.viewOnce" = "Ti ha inviato un messaggio effimero 👀";
 "notification.message.single.moment" = "Ti ha inviato un momento 📸";
 "notification.message.single.default" = "Ti ha inviato un messaggio";
+"notification.message.single.storyMention" = "Ti ha menzionato nella sua storia";
+"story.mention.chat.incoming" = "Ti ha menzionato nella sua storia";
+"story.mention.chat.outgoing" = "Hai menzionato questa persona nella tua storia";
 "notification.chatReaction.single" = "Ha reagito con %@ al tuo messaggio";
 "notification.chatReaction.singleQuoted" = "Ha reagito con %@ al tuo messaggio \"%@\"";
 "notification.chatReaction.multiple" = "Ha reagito con %@ ai tuoi messaggi";

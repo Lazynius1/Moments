@@ -234,8 +234,19 @@ final class AudioRecordingManager: NSObject, ObservableObject {
                 DispatchQueue.main.async { completion(false) }
                 return
             }
-            DispatchQueue.main.async {
-                completion(granted ? self.beginRecording() : false)
+            guard granted else {
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
+            Task {
+                let activated = await MomentsAudioSession.activate(
+                    category: .playAndRecord,
+                    mode: .default,
+                    options: [.defaultToSpeaker, .allowBluetoothHFP]
+                )
+                await MainActor.run {
+                    completion(activated ? self.beginRecording() : false)
+                }
             }
         }
     }
@@ -270,14 +281,6 @@ final class AudioRecordingManager: NSObject, ObservableObject {
     }
 
     private func beginRecording() -> Bool {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
-            try session.setActive(true)
-        } catch {
-            return false
-        }
-
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("chat_voice_\(UUID().uuidString).m4a")
         try? FileManager.default.removeItem(at: fileURL)

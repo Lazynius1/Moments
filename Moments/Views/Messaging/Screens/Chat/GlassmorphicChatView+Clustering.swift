@@ -22,20 +22,18 @@ extension GlassmorphicChatView {
         guard !messageId.isEmpty else { return }
         let exists = viewModel.messagesById[messageId] != nil
             || viewModel.messageIndexById[messageId] != nil
-        guard exists else { return }
-
-        isPinnedToBottom = false
-        listIsAtBottom = false
-        let rowId = messageRowId(containingMessageId: messageId) ?? messageId
-        chatListController.scrollToRow(id: rowId, at: .centeredVertically, animated: !reduceMotion)
-        // Flash tras iniciar el scroll (el highlight llega cuando el row ya está en vista).
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-            self.highlightMessages(
-                [messageId],
-                duration: ChatBubbleAnchorMetrics.replyJumpHighlightDuration,
-                scroll: false
-            )
+        guard exists else {
+            pendingSearchHighlightId = messageId
+            scheduleSearchHighlightScrollInList(to: messageId)
+            return
         }
+
+        scrollToTargetInList(.highlightedMessage(messageId: messageId), animated: false)
+        highlightMessages(
+            [messageId],
+            duration: ChatBubbleAnchorMetrics.replyJumpHighlightDuration,
+            scroll: false
+        )
     }
 
     func highlightMessages(
@@ -46,8 +44,7 @@ extension GlassmorphicChatView {
         guard !messageIds.isEmpty else { return }
 
         if scroll, let targetId = messageIds.first {
-            let rowId = messageRowId(containingMessageId: targetId) ?? targetId
-            chatListController.scrollToRow(id: rowId, at: .centeredVertically, animated: !reduceMotion)
+            scrollToTargetInList(.highlightedMessage(messageId: targetId), animated: false)
         }
 
         let insertAnimation: Animation? = reduceMotion ? nil : MotionPolicy.Spring.press

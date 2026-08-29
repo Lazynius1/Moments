@@ -667,6 +667,16 @@ struct StoryBubbleContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if sharedStoryData["isStoryMention"] == "true" {
+                Text(LocalizedStringKey(
+                    isCurrentUser
+                        ? "story.mention.chat.outgoing"
+                        : "story.mention.chat.incoming"
+                ))
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
             StoryPreviewCard(sharedStoryData: sharedStoryData, story: story)
         }
         .padding(.vertical, 4)

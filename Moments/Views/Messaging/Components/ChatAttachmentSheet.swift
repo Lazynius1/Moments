@@ -258,6 +258,7 @@ struct ChatPlusButtonAnchorKey: PreferenceKey {
 
 struct ChatAttachmentPlusButton: View {
     let isMenuOpen: Bool
+    var usesStandaloneGlass: Bool = true
     let action: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
@@ -273,7 +274,12 @@ struct ChatAttachmentPlusButton: View {
                 .rotationEffect(.degrees(isMenuOpen ? 45 : 0))
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
-                .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
+                .momentsChromeGlass(
+                    in: Circle(),
+                    interactive: true,
+                    isEnabled: usesStandaloneGlass,
+                    style: .native
+                )
         }
         .buttonStyle(.plain)
         .frame(width: 44, height: 44)
@@ -305,6 +311,7 @@ struct ChatAttachmentMenuPopover: View {
         width: ChatAttachmentMenuPopoverLayout.estimatedWidth(canSendBuzz: true),
         height: ChatAttachmentMenuPopoverLayout.estimatedHeight(canSendBuzz: true)
     )
+    @State private var isCardPresented = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -325,9 +332,18 @@ struct ChatAttachmentMenuPopover: View {
                 localAnchor: localAnchor,
                 popoverHeight: popoverSize.height
             )
+            let cardAnchor = resolvedCardAnchor(
+                localAnchor: localAnchor,
+                popoverCenterX: popoverX,
+                popoverWidth: popoverSize.width
+            )
 
             ZStack {
-                Color.black.opacity(colorScheme == .dark ? 0.12 : 0.08)
+                Color.black.opacity(
+                    isCardPresented
+                        ? (colorScheme == .dark ? 0.12 : 0.08)
+                        : 0
+                )
                     .ignoresSafeArea()
                     .onTapGesture {
                         dismissMenu()
@@ -336,17 +352,11 @@ struct ChatAttachmentMenuPopover: View {
 
                 if anchorFrame != .zero {
                     ChatAttachmentMenuPopoverCard(
-                        isPresented: $isPresented,
                         canSendBuzz: canSendBuzz,
                         ephemeralOnly: ephemeralOnly,
-                        onOpenCamera: {
-                            dismissMenu()
-                            onOpenCamera()
-                        },
-                        onSendBuzz: {
-                            dismissMenu()
-                            onSendBuzz()
-                        }
+                        onOpenCamera: { performAfterClosing(onOpenCamera) },
+                        onPresent: presentAfterClosing,
+                        onSendBuzz: { performAfterClosing(onSendBuzz) }
                     )
                     .fixedSize(horizontal: true, vertical: true)
                     .background {
@@ -357,13 +367,15 @@ struct ChatAttachmentMenuPopover: View {
                             )
                         }
                     }
+                    .scaleEffect(isCardPresented ? 1 : 0.9, anchor: cardAnchor)
+                    .opacity(isCardPresented ? 1 : 0)
                     .position(x: popoverX, y: popoverCenterY)
-                    .transition(
-                        .scale(scale: 0.88, anchor: UnitPoint(x: 0.5, y: 1))
-                            .combined(with: .opacity)
-                    )
                 }
             }
+            .animation(
+                MotionPolicy.animation(MotionPolicy.Spring.sheet, value: isCardPresented),
+                value: isCardPresented
+            )
             .onPreferenceChange(ChatAttachmentMenuPopoverSizeKey.self) { size in
                 guard size != .zero else { return }
                 popoverSize = size
@@ -378,6 +390,11 @@ struct ChatAttachmentMenuPopover: View {
                 width: ChatAttachmentMenuPopoverLayout.estimatedWidth(canSendBuzz: canSendBuzz),
                 height: ChatAttachmentMenuPopoverLayout.estimatedHeight(canSendBuzz: canSendBuzz)
             )
+            revealCardIfPossible()
+        }
+        .onChange(of: anchorFrame) { _, frame in
+            guard frame != .zero else { return }
+            revealCardIfPossible()
         }
     }
 
@@ -402,18 +419,62 @@ struct ChatAttachmentMenuPopover: View {
         return popoverBottom - popoverHeight / 2
     }
 
-    private func dismissMenu() {
+    private func resolvedCardAnchor(
+        localAnchor: CGRect,
+        popoverCenterX: CGFloat,
+        popoverWidth: CGFloat
+    ) -> UnitPoint {
+        guard popoverWidth > 0 else { return .bottomLeading }
+        let popoverLeading = popoverCenterX - popoverWidth / 2
+        let relativeX = (localAnchor.midX - popoverLeading) / popoverWidth
+        return UnitPoint(x: min(max(relativeX, 0), 1), y: 1)
+    }
+
+    private func revealCardIfPossible() {
+        guard anchorFrame != .zero, !isCardPresented else { return }
+        DispatchQueue.main.async {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
+                isCardPresented = true
+            }
+        }
+    }
+
+    private func presentAfterClosing(_ kind: ChatAttachmentSheetKind) {
+        closeCard {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
+                isPresented = kind
+            }
+        }
+    }
+
+    private func performAfterClosing(_ action: @escaping () -> Void) {
+        closeCard {
+            isPresented = nil
+            action()
+        }
+    }
+
+    private func closeCard(completion: @escaping () -> Void) {
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
+            isCardPresented = false
+        }
+
+        let delay = MotionPolicy.reduceMotion ? 0 : 0.12
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: completion)
+    }
+
+    private func dismissMenu() {
+        closeCard {
             isPresented = nil
         }
     }
 }
 
 private struct ChatAttachmentMenuPopoverCard: View {
-    @Binding var isPresented: ChatAttachmentSheetKind?
     let canSendBuzz: Bool
     let ephemeralOnly: Bool
     let onOpenCamera: () -> Void
+    let onPresent: (ChatAttachmentSheetKind) -> Void
     let onSendBuzz: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -441,7 +502,7 @@ private struct ChatAttachmentMenuPopoverCard: View {
                 menuRow(
                     assetImage: AttachmentIcon.photos.rawValue,
                     titleKey: "nova.attach.photos",
-                    action: { present(.photos) }
+                    action: { onPresent(.photos) }
                 )
                 if canSendBuzz {
                     menuRow(
@@ -453,17 +514,17 @@ private struct ChatAttachmentMenuPopoverCard: View {
                 menuRow(
                     assetImage: AttachmentIcon.gif.rawValue,
                     titleKey: "chat.attach.gif",
-                    action: { present(.gif) }
+                    action: { onPresent(.gif) }
                 )
                 menuRow(
                     assetImage: "MomentsStickerTool",
                     titleKey: "chat.attach.sticker",
-                    action: { present(.sticker) }
+                    action: { onPresent(.sticker) }
                 )
                 menuRow(
                     assetImage: AttachmentIcon.location.rawValue,
                     titleKey: "chat.attach.location",
-                    action: { present(.location) }
+                    action: { onPresent(.location) }
                 )
             }
         }
@@ -473,12 +534,6 @@ private struct ChatAttachmentMenuPopoverCard: View {
         .momentsChromeGlass(in: cardShape, interactive: true)
         .clipShape(cardShape)
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
-    }
-
-    private func present(_ kind: ChatAttachmentSheetKind) {
-        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
-            isPresented = kind
-        }
     }
 
     private func menuRow(systemImage: String? = nil, assetImage: String? = nil, titleKey: String, action: @escaping () -> Void) -> some View {
@@ -560,7 +615,7 @@ struct ChatAttachmentMediaSheetOverlay: View {
                             onConfirmAssets: { assets in
                                 onConfirmAssets(assets)
                             },
-                            onBack: dismiss
+                            onBack: returnToMenu
                         )
                     }
                     .padding(.horizontal, ChatAttachmentSheetMetrics.horizontalInset)
@@ -599,6 +654,15 @@ struct ChatAttachmentMediaSheetOverlay: View {
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
             dragOffset = 0
             activeSheet = nil
+        }
+    }
+
+    /// Atrás conserva la jerarquía del selector: Fotos vuelve al menú anclado al botón +.
+    /// El fondo o el gesto descendente siguen cerrando todo el flujo.
+    private func returnToMenu() {
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
+            dragOffset = 0
+            activeSheet = .menu
         }
     }
 }

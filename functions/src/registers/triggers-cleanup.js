@@ -25,6 +25,8 @@ const {
   addOwnedBackgroundFrameStorageUrl,
   addStorageUrl,
   apnsCollapseId,
+  ANDROID_FCM_CHANNELS,
+  withAndroidShade,
   approvedModerationDecision,
   asDate,
   batchLoadAuthorDocs,
@@ -484,6 +486,7 @@ const onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{storyId
           chainTitle: story.chainTitle || '',
           chainPosition: story.chainPosition.toString(),
           totalParts: totalParts.toString(),
+          senderId: continuerId,
           continuerId: continuerId,
           chainCreatorId: chainCreatorId,
           targetType: 'story_chain',
@@ -491,6 +494,7 @@ const onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{storyId
           senderUsername: continuerData.username,
           senderProfileImage: continuerData.profileImagePath || '',
           mediaUrl: storyPreviewUrl || '',
+          chainRole: isCreator ? 'creator' : 'participant',
           unreadMessages: String(counts.unreadMessages),
           unreadNotifications: String(counts.unreadNotifications),
           unreadEchoes: String(counts.unreadEchoes),
@@ -521,7 +525,11 @@ const onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{storyId
 
       if (shouldSendPush) {
         try {
-          await admin.messaging().send(message);
+          await admin.messaging().send(withAndroidShade(message, {
+            collapseKey: `chain_${story.chainId}`,
+            threadId: `story_chain_${story.chainId}`,
+            channel: ANDROID_FCM_CHANNELS.social,
+          }));
         } catch (error) {
           if (error.code === 'messaging/registration-token-not-registered') {
             await removeInvalidToken(recipientId, fcmToken);
@@ -637,11 +645,13 @@ const onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
         data: {
           type: 'echo_suggestion',
           echoId: echoId,
+          senderId: hostId,
           hostId: hostId,
           targetType: 'echo',
           targetId: echoId,
           senderUsername: hostData.username,
           senderProfileImage: hostData.profileImagePath || '',
+          isHost: isHost ? '1' : '0',
           unreadMessages: String(counts.unreadMessages),
           unreadNotifications: String(counts.unreadNotifications),
           unreadEchoes: String(counts.unreadEchoes),
@@ -677,7 +687,11 @@ const onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
 
       if (shouldSendPush) {
         try {
-          await admin.messaging().send(message);
+          await admin.messaging().send(withAndroidShade(message, {
+            collapseKey: `echo_${recipientId}`,
+            threadId: `echo_suggestions_${recipientId}`,
+            channel: ANDROID_FCM_CHANNELS.social,
+          }));
         } catch (error) {
           if (error.code === 'messaging/registration-token-not-registered') {
             await removeInvalidToken(recipientId, userData.fcmToken);
