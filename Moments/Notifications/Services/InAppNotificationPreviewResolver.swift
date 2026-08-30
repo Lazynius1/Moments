@@ -49,19 +49,28 @@ enum InAppNotificationPreviewResolver {
 
         if let embedded = userInfo?["encryptedContent"] as? String,
            let decrypted = await decryptPreview(embedded, conversationId: conversationId) {
-            return notification.withBannerPreview(reaction: truncated(decrypted, maxLength: 200), title: notification.title)
+            return notification.withBannerPreview(
+                reaction: truncated(ChatTextMarkup.plainText(from: decrypted, hidesSpoilers: true), maxLength: 200),
+                title: notification.title
+            )
         }
 
         if let messageId = notification.messageId,
            let decrypted = await fetchAndDecryptMessage(messageId: messageId, conversationId: conversationId) {
-            return notification.withBannerPreview(reaction: truncated(decrypted, maxLength: 200), title: notification.title)
+            return notification.withBannerPreview(
+                reaction: truncated(ChatTextMarkup.plainText(from: decrypted, hidesSpoilers: true), maxLength: 200),
+                title: notification.title
+            )
         }
 
         if let reaction = notification.reaction,
            !reaction.isEmpty,
            !isNeutralPlaceholder(reaction),
            let decrypted = await decryptPreview(reaction, conversationId: conversationId) {
-            return notification.withBannerPreview(reaction: truncated(decrypted, maxLength: 200), title: notification.title)
+            return notification.withBannerPreview(
+                reaction: truncated(ChatTextMarkup.plainText(from: decrypted, hidesSpoilers: true), maxLength: 200),
+                title: notification.title
+            )
         }
 
         return notification.withBannerPreview(reaction: nil, title: notification.title)
@@ -81,18 +90,27 @@ enum InAppNotificationPreviewResolver {
 
         if let embedded = userInfo?["encryptedContent"] as? String,
            let decrypted = await decryptPreview(embedded, conversationId: conversationId) {
-            return notification.withBannerPreview(reaction: notification.reaction, title: truncated(decrypted, maxLength: 120))
+            return notification.withBannerPreview(
+                reaction: notification.reaction,
+                title: truncated(ChatTextMarkup.plainText(from: decrypted, hidesSpoilers: true), maxLength: 120)
+            )
         }
 
         if let messageId = notification.messageId,
            let decrypted = await fetchAndDecryptMessage(messageId: messageId, conversationId: conversationId) {
-            return notification.withBannerPreview(reaction: notification.reaction, title: truncated(decrypted, maxLength: 120))
+            return notification.withBannerPreview(
+                reaction: notification.reaction,
+                title: truncated(ChatTextMarkup.plainText(from: decrypted, hidesSpoilers: true), maxLength: 120)
+            )
         }
 
         if let title = notification.title,
            !title.isEmpty,
            let decrypted = await decryptPreview(title, conversationId: conversationId) {
-            return notification.withBannerPreview(reaction: notification.reaction, title: truncated(decrypted, maxLength: 120))
+            return notification.withBannerPreview(
+                reaction: notification.reaction,
+                title: truncated(ChatTextMarkup.plainText(from: decrypted, hidesSpoilers: true), maxLength: 120)
+            )
         }
 
         return notification.withBannerPreview(reaction: notification.reaction, title: nil)

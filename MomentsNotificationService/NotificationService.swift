@@ -211,7 +211,7 @@ class NotificationService: UNNotificationServiceExtension {
         userInfo: [AnyHashable: Any],
         content: UNMutableNotificationContent
     ) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = notificationPlainText(text).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
         if let senderUsername = userInfo["senderUsername"] as? String, !senderUsername.isEmpty {
@@ -289,7 +289,7 @@ class NotificationService: UNNotificationServiceExtension {
         emoji: String,
         content: UNMutableNotificationContent
     ) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = notificationPlainText(text).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
         let maxLength = 120
@@ -302,6 +302,29 @@ class NotificationService: UNNotificationServiceExtension {
 
         let format = localizedString("notification.chatReaction.singleQuoted")
         content.body = String(format: format, locale: Locale.current, arguments: [emoji, quoted])
+    }
+
+    /// Las notificaciones muestran el significado del mensaje, no la sintaxis del
+    /// editor. El spoiler nunca se revela fuera del chat.
+    private func notificationPlainText(_ input: String) -> String {
+        var result = input
+        let replacements: [(String, String)] = [
+            (#"\|\|([^|]+)\|\|"#, "••••"),
+            (#"\*\*([^*]+)\*\*"#, "$1"),
+            (#"(?<!\*)\*([^*]+)\*(?!\*)"#, "$1"),
+            (#"~~([^~]+)~~"#, "$1"),
+            (#"`([^`]+)`"#, "$1"),
+            (#"(?m)^> ?"#, "")
+        ]
+        for (pattern, template) in replacements {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            result = regex.stringByReplacingMatches(
+                in: result,
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: template
+            )
+        }
+        return result
     }
 
     /// Localiza desde el bundle de la app host (el NSE vive en App.app/PlugIns/…).

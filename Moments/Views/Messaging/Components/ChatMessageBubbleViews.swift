@@ -24,6 +24,7 @@ struct GlassmorphicMessageRow: View {
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onStoryNavigation: ((EnhancedMessage) -> Void)?
+    var onMentionNavigation: ((String) -> Void)? = nil
     let onOpenMedia: (EnhancedMessage) -> Void
     let onStopLiveLocation: ((String) -> Void)?
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
@@ -200,6 +201,7 @@ struct GlassmorphicMessageRow: View {
             onMessageViewed: onMessageViewed,
             onMomentNavigation: onMomentNavigation,
             onStoryNavigation: onStoryNavigation,
+            onMentionNavigation: onMentionNavigation,
             onOpenMedia: onOpenMedia,
             onStopLiveLocation: onStopLiveLocation,
             onHydrateMedia: onHydrateMedia,
@@ -351,6 +353,7 @@ struct GlassmorphicMessageBubble: View {
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onStoryNavigation: ((EnhancedMessage) -> Void)?
+    var onMentionNavigation: ((String) -> Void)? = nil
     let onOpenMedia: (EnhancedMessage) -> Void
     let onStopLiveLocation: ((String) -> Void)?
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
@@ -408,6 +411,7 @@ struct GlassmorphicMessageBubble: View {
             repliedMessage: nil,
             otherParticipantName: otherParticipantName,
             onReplyTap: nil,
+            onMentionTap: onMentionNavigation,
             onReaction: onReaction
         )
     }
@@ -629,6 +633,8 @@ struct GlassmorphicMessageBubble: View {
 // MARK: - Link opening
 
 enum ChatLinkOpener {
+    private static let mentionScheme = "moments-mention"
+
     static func firstURL(in text: String) -> URL? {
         guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
             return nil
@@ -678,6 +684,52 @@ enum ChatLinkOpener {
                 attributed[attrRange].underlineStyle = .single
             }
         }
+    }
+
+    static func applyDetectedMentions(
+        to attributed: inout AttributedString,
+        mentionColor: Color
+    ) {
+        let plainText = String(attributed.characters)
+        guard let regex = try? NSRegularExpression(
+            pattern: #"(?<![\p{L}\p{N}_])@([\p{L}\p{N}_]{1,30})"#
+        ) else { return }
+
+        let fullRange = NSRange(plainText.startIndex..., in: plainText)
+        for match in regex.matches(in: plainText, range: fullRange) {
+            guard let swiftRange = Range(match.range, in: plainText),
+                  let usernameRange = Range(match.range(at: 1), in: plainText),
+                  let attrRange = swiftRange.toAttributedStringRange(in: attributed),
+                  let url = mentionURL(for: String(plainText[usernameRange])) else {
+                continue
+            }
+            attributed[attrRange].link = url
+            attributed[attrRange].foregroundColor = mentionColor
+            attributed[attrRange].inlinePresentationIntent = .stronglyEmphasized
+        }
+    }
+
+    static func openMentionIfNeeded(_ url: URL, onOpen: ((String) -> Void)? = nil) -> Bool {
+        guard url.scheme == mentionScheme,
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let username = components.queryItems?.first(where: { $0.name == "username" })?.value,
+              !username.isEmpty else {
+            return false
+        }
+        if let onOpen {
+            onOpen(username)
+        } else {
+            MomentMentionNavigation.openProfile(forUsername: username)
+        }
+        return true
+    }
+
+    private static func mentionURL(for username: String) -> URL? {
+        var components = URLComponents()
+        components.scheme = mentionScheme
+        components.host = "profile"
+        components.queryItems = [URLQueryItem(name: "username", value: username)]
+        return components.url
     }
 }
 

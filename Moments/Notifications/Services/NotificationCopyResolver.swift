@@ -137,7 +137,7 @@ enum NotificationCopyResolver {
         if looksLikeEncryptedPayload(preview) {
             return nil
         }
-        return preview
+        return ChatTextMarkup.plainText(from: preview, hidesSpoilers: true)
     }
 
     private static func looksLikeEncryptedPayload(_ text: String) -> Bool {
@@ -153,7 +153,10 @@ enum NotificationCopyResolver {
         let emoji = notification.reaction ?? "❤️"
         let emojiList = notification.message ?? emoji
         let isPlural = notification.isReactionPlural == true || (notification.reactionCount ?? 0) > 1
-        let quotedPreview = notification.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let quotedPreview = notification.title.map {
+            ChatTextMarkup.plainText(from: $0, hidesSpoilers: true)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
 
         let body: String
         if isPlural {

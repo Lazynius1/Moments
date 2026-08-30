@@ -13,7 +13,9 @@ struct ChatMessageForwardSheet: View {
     var body: some View {
         ShareRecipientsPickerSheet(
             titleKey: "chat.forward.title",
-            subtitle: message.content,
+            subtitle: message.content.map {
+                ChatTextMarkup.plainText(from: $0, hidesSpoilers: true)
+            },
             showsBackButton: false,
             flexibleListHeight: true,
             onDismiss: onDismiss,

@@ -10,7 +10,10 @@ enum ChatCommunicationNotificationService {
 
         let senderUsername = (userInfo["senderUsername"] as? String) ?? "Moments"
         let avatarURL = (userInfo["senderProfileImage"] as? String).flatMap { URL(string: $0) }
-        let preview = previewBody?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let preview = previewBody.map {
+            ChatTextMarkup.plainText(from: $0, hidesSpoilers: true)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
 
         ChatCommunicationIntentDonor.donateIncomingMessage(
             conversationId: conversationId,

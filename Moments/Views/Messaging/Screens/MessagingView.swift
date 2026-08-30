@@ -1288,7 +1288,12 @@ struct SearchMessageResultRow: View {
                             .foregroundStyle(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
                     }
 
-                    Text(result.message.content ?? "")
+                    Text(
+                        ChatTextMarkup.plainText(
+                            from: result.message.content ?? "",
+                            hidesSpoilers: true
+                        )
+                    )
                         .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
                         .lineLimit(2)

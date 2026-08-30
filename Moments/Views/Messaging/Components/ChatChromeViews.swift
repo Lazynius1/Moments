@@ -132,7 +132,10 @@ extension View {
 }
 
 enum ChatComposerChromeMetrics {
+    /// Separación del compositor respecto al home indicator (teclado cerrado).
     static let panelHomeGap: CGFloat = 16
+    /// Separación con teclado abierto — el sistema ya eleva la vista; casi flush.
+    static let panelKeyboardGap: CGFloat = 2
     static let messageListGap: CGFloat = 11
     static let fadeExtendAbovePanel: CGFloat = 20
     static let fadeEdgeSize: CGFloat = 60
@@ -145,6 +148,10 @@ enum ChatComposerChromeMetrics {
 
     static func floatingControlBottomInset(composerChromeHeight: CGFloat) -> CGFloat {
         max(composerChromeHeight, estimatedComposerChromeHeight) + 20
+    }
+
+    static func panelBottomGap(keyboardVisible: Bool) -> CGFloat {
+        keyboardVisible ? panelKeyboardGap : panelHomeGap
     }
 }
 
@@ -875,6 +882,24 @@ struct GlassmorphicTypingIndicator: View {
         .padding(.vertical, 10)
         .glassmorphicChat()
         .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+}
+
+/// El usuario remoto escribe: ocupa la misma columna incoming que sus mensajes,
+/// incluido el gutter reservado para avatar.
+struct ChatIncomingTypingIndicatorRow: View {
+    var body: some View {
+        HStack(spacing: 0) {
+            Color.clear
+                .frame(width: ChatIncomingMessageLayout.gutterInset, height: 1)
+
+            GlassmorphicTypingIndicator()
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

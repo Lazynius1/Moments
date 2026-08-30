@@ -12,6 +12,16 @@ extension GlassmorphicChatView {
         pendingChatContext != nil
     }
 
+    func openMentionProfile(username: String) {
+        MomentMentionNavigation.resolveProfile(forUsername: username) { userId in
+            openChatProfile(userId: userId)
+        }
+    }
+
+    func openOtherParticipantProfile() {
+        openChatProfile(userId: viewModel.conversation.otherParticipantId)
+    }
+
     var pendingChatCanType: Bool {
         guard let context = pendingChatContext, context.direction == .outgoing else { return false }
         return (context.status == .outgoingRequestDraft || context.status == .outgoingRequestSent)
@@ -346,12 +356,17 @@ extension GlassmorphicChatView {
                         voiceRecordingDraft: voiceRecordingDraft,
                         isPreparingVoiceRecordingPreview: isPreparingVoiceRecordingPreview,
                         replyingTo: replyingTo,
+                        editingMessage: editingMessage,
                         otherParticipantName: otherParticipantDisplayName,
                         voiceGestureState: voiceRecordingGestureState,
                         isKeyboardVisible: keyboardScrollCoordinator.isVisible,
                         isTextFieldFocused: $isTextFieldFocused,
                         onCancelReply: {
                             self.replyingTo = nil
+                        },
+                        onCancelEdit: {
+                            self.editingMessage = nil
+                            self.messageText = ""
                         },
                         onSend: {
                             let messageToSend = messageText
@@ -650,7 +665,7 @@ extension GlassmorphicChatView {
                         pulseBubbleHighlight(liveMessage.id)
                     },
                     onAvatarTap: {
-                        showingUserProfile = true
+                        openOtherParticipantProfile()
                     },
                     onReplyTap: { targetId in
                         jumpTo(targetId, proxy: proxy)
@@ -668,6 +683,9 @@ extension GlassmorphicChatView {
                     },
                     onStoryNavigation: { message in
                         handleStoryNavigationFromChat(message: message)
+                    },
+                    onMentionNavigation: { username in
+                        openMentionProfile(username: username)
                     },
                     onOpenMedia: { message in
                         if message.needsDownloadForPlayback {
@@ -725,7 +743,7 @@ extension GlassmorphicChatView {
                     showAvatar: shouldShowAvatar(for: liveCluster.first!, in: messages),
                     otherUserId: viewModel.conversation.otherParticipantId,
                     isOtherParticipantUnavailable: isOtherParticipantUnavailable,
-                    onAvatarTap: { showingUserProfile = true },
+                    onAvatarTap: { openOtherParticipantProfile() },
                     onMessageViewed: { messageId in
                         if let index = viewModel.messageIndexById[messageId] {
                             viewModel.messages[index].isViewed = true
@@ -1041,7 +1059,7 @@ extension GlassmorphicChatView {
     // ✅ REFACTORIZADO: Acciones al desaparecer
     func onDisappearActions() {
         // Empujar Settings/Perfil no es salir del chat: conservar scroll y sesión activa.
-        if showingConversationSettings || showingUserProfile {
+        if showingConversationSettings || chatProfileRoute != nil {
             return
         }
 

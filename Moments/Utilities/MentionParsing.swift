@@ -86,12 +86,18 @@ enum MentionParsing {
 
 enum MomentMentionNavigation {
     static func openProfile(forUsername username: String) {
+        resolveProfile(forUsername: username) { userId in
+            LegacyNavigationBridge.profile(userId: userId)
+        }
+    }
+
+    static func resolveProfile(forUsername username: String, completion: @escaping (String) -> Void) {
         let clean = username.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
 
         FirestoreService.shared.fetchUserByUsername(clean) { result in
             if case .success(let user) = result {
-                LegacyNavigationBridge.profile(userId: user.id)
+                completion(user.id)
             }
         }
     }

@@ -240,11 +240,11 @@ extension GlassmorphicChatView {
 
     func openProfileOrStoryFromHeader() {
         if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
-            showingUserProfile = true
+            openOtherParticipantProfile()
         } else if hasStory && !isOtherParticipantBlockedByCurrentUser {
             storyRoute = ChatStoryRoute(userId: viewModel.conversation.otherParticipantId)
         } else {
-            showingUserProfile = true
+            openOtherParticipantProfile()
         }
     }
 

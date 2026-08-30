@@ -109,6 +109,68 @@ struct TextSegment: Identifiable {
     let isSpoiler: Bool
 }
 
+struct ChatTextMarkupBlock: Identifiable, Equatable {
+    let id: Int
+    let text: String
+    let isQuote: Bool
+}
+
+/// Contrato de texto persistido común con Android. El servidor conserva el raw E2E;
+/// las plataformas solo interpretan los delimitadores al renderizar.
+enum ChatTextMarkup {
+    static func blocks(in input: String) -> [ChatTextMarkupBlock] {
+        let lines = input.split(separator: "\n", omittingEmptySubsequences: false)
+        var grouped: [(text: String, isQuote: Bool)] = []
+
+        for line in lines {
+            let rawLine = String(line)
+            let isQuote = rawLine == ">" || rawLine.hasPrefix("> ")
+            let content = isQuote
+                ? String(rawLine.dropFirst(rawLine.hasPrefix("> ") ? 2 : 1))
+                : rawLine
+
+            if let last = grouped.last, last.isQuote == isQuote {
+                grouped[grouped.count - 1].text += "\n" + content
+            } else {
+                grouped.append((content, isQuote))
+            }
+        }
+
+        return grouped.enumerated().map { index, block in
+            ChatTextMarkupBlock(id: index, text: block.text, isQuote: block.isQuote)
+        }
+    }
+
+    static func plainText(from input: String, hidesSpoilers: Bool) -> String {
+        var result = input
+        if let spoilerRegex = try? NSRegularExpression(pattern: #"\|\|([^|]+)\|\|"#) {
+            let template = hidesSpoilers ? "••••" : "$1"
+            result = spoilerRegex.stringByReplacingMatches(
+                in: result,
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: template
+            )
+        }
+
+        let replacements: [(String, String)] = [
+            (#"\*\*([^*]+)\*\*"#, "$1"),
+            (#"(?<!\*)\*([^*]+)\*(?!\*)"#, "$1"),
+            (#"~~([^~]+)~~"#, "$1"),
+            (#"`([^`]+)`"#, "$1"),
+            (#"(?m)^> ?"#, "")
+        ]
+        for (pattern, template) in replacements {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            result = regex.stringByReplacingMatches(
+                in: result,
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: template
+            )
+        }
+        return result
+    }
+}
+
 private struct ChatSearchHighlightTermKey: EnvironmentKey {
     static let defaultValue = ""
 }
@@ -139,6 +201,7 @@ struct ChatTextBubbleView: View {
     var repliedMessage: EnhancedMessage? = nil
     var otherParticipantName: String = ""
     var onReplyTap: (() -> Void)? = nil
+    var onMentionTap: ((String) -> Void)? = nil
     let onReaction: (String) -> Void
 
     @State private var revealSpoilers = false
@@ -219,9 +282,9 @@ struct ChatTextBubbleView: View {
         isOutgoing ? Color.white.opacity(0.92) : .blue
     }
 
-    private var formattedAttributedString: AttributedString {
+    private func formattedAttributedString(for rawText: String) -> AttributedString {
         var combined = AttributedString("")
-        let segments = parseSegments(text)
+        let segments = parseSegments(rawText)
         for segment in segments {
             var segmentAttr: AttributedString
             if let parsed = try? AttributedString(markdown: segment.text, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
@@ -243,6 +306,10 @@ struct ChatTextBubbleView: View {
                         in: segment.text,
                         linkColor: linkColor
                     )
+                    ChatLinkOpener.applyDetectedMentions(
+                        to: &segmentAttr,
+                        mentionColor: linkColor
+                    )
                 }
             } else {
                 segmentAttr.foregroundColor = textColor
@@ -250,6 +317,10 @@ struct ChatTextBubbleView: View {
                     to: &segmentAttr,
                     in: segment.text,
                     linkColor: linkColor
+                )
+                ChatLinkOpener.applyDetectedMentions(
+                    to: &segmentAttr,
+                    mentionColor: linkColor
                 )
             }
             combined.append(segmentAttr)
@@ -323,15 +394,37 @@ struct ChatTextBubbleView: View {
     }
 
     private var messageText: some View {
-        Text(formattedAttributedString)
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(ChatTextMarkup.blocks(in: text)) { block in
+                if block.isQuote {
+                    HStack(alignment: .top, spacing: 8) {
+                        Capsule()
+                            .fill(isOutgoing ? Color.white.opacity(0.78) : adaptiveColors.receivedAccentColor)
+                            .frame(width: 3)
+
+                        formattedText(block.text)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    formattedText(block.text)
+                }
+            }
+        }
+        .environment(\.openURL, OpenURLAction { url in
+            if ChatLinkOpener.openMentionIfNeeded(url, onOpen: onMentionTap) {
+                return .handled
+            }
+            ChatLinkOpener.open(url)
+            return .handled
+        })
+    }
+
+    private func formattedText(_ rawText: String) -> some View {
+        Text(formattedAttributedString(for: rawText))
             .font(ChatMessageFont.bubble)
             .lineSpacing(lineSpacing)
             .multilineTextAlignment(textAlignment)
             .fixedSize(horizontal: false, vertical: true)
-            .environment(\.openURL, OpenURLAction { url in
-                ChatLinkOpener.open(url)
-                return .handled
-            })
     }
 
     private var bubbleText: some View {

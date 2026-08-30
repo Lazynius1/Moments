@@ -714,7 +714,7 @@
 					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.21;
+				MARKETING_VERSION = 2.21.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.MomentsNotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -746,7 +746,7 @@
 					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.21;
+				MARKETING_VERSION = 2.21.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.MomentsNotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

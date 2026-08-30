@@ -47,7 +47,7 @@ extension GlassmorphicChatView {
                     showAvatar: shouldShowPendingRequestAvatar(for: message),
                     groupPosition: pendingRequestGroupPosition(for: message),
                     timestampRevealState: chatListController.timestampRevealState,
-                    onAvatarTap: { showingUserProfile = true },
+                    onAvatarTap: { openOtherParticipantProfile() },
                     onOpenMedia: { _ in openPendingRequestMedia(message) },
                     onMomentNavigation: { handleMomentNavigationFromChat(message: $0) },
                     onStoryNavigation: { handleStoryNavigationFromChat(message: $0) },
@@ -108,10 +108,7 @@ extension GlassmorphicChatView {
             .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
             .transition(.identity)
         case .typing:
-            GlassmorphicTypingIndicator()
-                .padding(.horizontal)
-                .padding(.vertical, 2)
-                .frame(maxWidth: .infinity, alignment: .center)
+            ChatIncomingTypingIndicatorRow()
                 .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
         case .historyStart:
             ChatHistoryStartHeader(adaptiveColors: adaptiveColors)
@@ -149,41 +146,13 @@ extension GlassmorphicChatView {
         return index == messages.count - 1 || messages[index + 1].isOutgoing != message.isOutgoing
     }
 
-    // ✅ REFACTORIZADO: Sección de barra de respuesta o edición
-    var replyBarSection: some View {
-        VStack(spacing: 0) {
-            if editingMessage != nil {
-                HStack {
-                    Image(systemName: "pencil")
-                        .foregroundStyle(adaptiveColors.primary)
-                    Text("chat.editing.title")
-                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundStyle(adaptiveColors.primary)
-                    Spacer()
-                    Button(action: {
-                        self.editingMessage = nil
-                        self.messageText = ""
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(adaptiveColors.primary.opacity(0.6))
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(.ultraThinMaterial.opacity(0.5))
-            }
-        }
-    }
-
     var chatRootContent: some View {
         GeometryReader { proxy in
-            let composerBottomInset = ChatComposerChromeMetrics.panelHomeGap
-
             ZStack {
                 adaptiveColors.chatBackground[0]
                     .ignoresSafeArea()
                 ChatGlassmorphicBackground(adaptiveColors: adaptiveColors)
-                mainChatStack(composerBottomInset: composerBottomInset)
+                mainChatStack()
                     .modifier(ChatBuzzShakeEffect(
                         progress: buzzShakeProgress,
                         amplitude: reduceMotion ? 0 : buzzShakeAmplitude
@@ -215,8 +184,10 @@ extension GlassmorphicChatView {
                         viewModel.deleteMessageForMe(message)
                     },
                     onEdit: { message in
+                        replyingTo = nil
                         editingMessage = message
                         messageText = message.content ?? ""
+                        isTextFieldFocused = true
                     },
                     onReply: { message in
                         activateReply(to: message)
@@ -249,8 +220,12 @@ extension GlassmorphicChatView {
         .ignoresSafeArea(.container, edges: .bottom)
     }
 
-    func mainChatStack(composerBottomInset: CGFloat) -> some View {
-        messagesListSection
+    func mainChatStack() -> some View {
+        let composerBottomInset = ChatComposerChromeMetrics.panelBottomGap(
+            keyboardVisible: keyboardScrollCoordinator.isVisible
+        )
+
+        return messagesListSection
             .environment(\.chatFailedMessageRetryAction, ChatFailedMessageRetryAction(
                 canRetry: { viewModel.canRetryMessage($0) },
                 retry: { viewModel.retryFailedMessage($0) }
@@ -264,12 +239,8 @@ extension GlassmorphicChatView {
                 )
             }
             .chatBottomBarInset {
-                VStack(spacing: 0) {
-                    replyBarSection
-                        .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
-                    inputBarSection
-                        .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
-                }
+                inputBarSection
+                    .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
                 .padding(.bottom, composerBottomInset)
                 .opacity(isSearchVisible ? 0 : 1)
                 .allowsHitTesting(!isSearchVisible)

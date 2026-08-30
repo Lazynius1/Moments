@@ -2,9 +2,41 @@ import SwiftUI
 import FirebaseAuth
 import Kingfisher
 
+enum ChatComposerContextMode: Equatable {
+    case reply
+    case edit
+}
+
+struct ChatComposerContextPanel: View {
+    let replyingTo: EnhancedMessage?
+    let editingMessage: EnhancedMessage?
+    let otherParticipantName: String
+    let onCancelReply: () -> Void
+    let onCancelEdit: () -> Void
+
+    var body: some View {
+        if let editingMessage {
+            ChatComposerReplyHeader(
+                message: editingMessage,
+                otherParticipantName: otherParticipantName,
+                mode: .edit,
+                onCancel: onCancelEdit
+            )
+        } else if let replyingTo {
+            ChatComposerReplyHeader(
+                message: replyingTo,
+                otherParticipantName: otherParticipantName,
+                mode: .reply,
+                onCancel: onCancelReply
+            )
+        }
+    }
+}
+
 struct ChatComposerReplyHeader: View {
     let message: EnhancedMessage
     let otherParticipantName: String
+    let mode: ChatComposerContextMode
     let onCancel: () -> Void
     @Environment(\.colorScheme) var colorScheme
 
@@ -34,7 +66,10 @@ struct ChatComposerReplyHeader: View {
     }
 
     private var accentColor: Color {
-        message.senderId == currentUserId
+        if mode == .edit {
+            return adaptiveColors.userAccentColor
+        }
+        return message.senderId == currentUserId
             ? adaptiveColors.userAccentColor
             : adaptiveColors.receivedAccentColor
     }
@@ -62,9 +97,15 @@ struct ChatComposerReplyHeader: View {
                 .frame(width: 3, height: 36)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(message.senderId == currentUserId ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
-                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                    .foregroundStyle(accentColor)
+                if mode == .edit {
+                    Text("chat.editing.title")
+                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                        .foregroundStyle(accentColor)
+                } else {
+                    Text(message.senderId == currentUserId ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                        .foregroundStyle(accentColor)
+                }
 
                 Text(message.preview)
                     .font(.system(size: legacyPoppinsSize(13)))

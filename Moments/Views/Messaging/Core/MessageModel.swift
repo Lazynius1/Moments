@@ -962,10 +962,11 @@ struct Conversation: Identifiable, Codable, Hashable {
         if let lastMessage {
             if lastMessage.starts(with: "📎") {
                 return lastMessage
-            } else if lastMessage.count > 50 {
-                return String(lastMessage.prefix(47)) + "..."
             }
-            return lastMessage
+            let display = lastMessageType == .text
+                ? ChatTextMarkup.plainText(from: lastMessage, hidesSpoilers: true)
+                : lastMessage
+            return display.count > 50 ? String(display.prefix(47)) + "..." : display
         }
         return NSLocalizedString("chat.preview.newConversation", comment: "")
     }
@@ -1851,7 +1852,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         }
         switch type {
         case .text:
-            return content ?? ""
+            return ChatTextMarkup.plainText(from: content ?? "", hidesSpoilers: true)
         case .image:
             return NSLocalizedString("chat.preview.image", comment: "")
         case .video:
@@ -2045,7 +2046,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     /// Preview para mostrar en la lista de conversaciones
     var conversationPreview: String {
         if let content = content, type == .text {
-            return content.count > 50 ? String(content.prefix(47)) + "..." : content
+            let display = ChatTextMarkup.plainText(from: content, hidesSpoilers: true)
+            return display.count > 50 ? String(display.prefix(47)) + "..." : display
         }
         return type.conversationPreview
     }
@@ -2793,10 +2795,11 @@ struct MessageRequest: Identifiable, Codable, Hashable {
     var messagePreview: String {
         switch messageType {
         case .text:
-            if message.count > 50 {
-                return String(message.prefix(47)) + "..."
+            let display = ChatTextMarkup.plainText(from: message, hidesSpoilers: true)
+            if display.count > 50 {
+                return String(display.prefix(47)) + "..."
             }
-            return message
+            return display
         case .image:
             return NSLocalizedString("messaging.preview.image", comment: "")
         case .video:

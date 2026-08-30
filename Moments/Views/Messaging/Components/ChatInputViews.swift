@@ -1,6 +1,238 @@
 import AVFoundation
 import Lottie
 import SwiftUI
+import UIKit
+
+private struct ChatRichComposerTextView: UIViewRepresentable {
+    @Binding var text: String
+    var focusRequest: Int
+    let onFocusChange: (Bool) -> Void
+    let fontSize: CGFloat
+    let primaryColor: UIColor
+    let secondaryColor: UIColor
+    let accentColor: UIColor
+    let onTextChange: (String) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIView(context: Context) -> ComposerTextView {
+        let textView = ComposerTextView()
+        textView.delegate = context.coordinator
+        textView.backgroundColor = .clear
+        textView.font = UIFont.systemFont(ofSize: fontSize)
+        textView.textColor = primaryColor
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.isScrollEnabled = false
+        textView.textContainerInset = .zero
+        textView.textContainer.lineFragmentPadding = 0
+        textView.textContainer.widthTracksTextView = true
+        textView.adjustsFontForContentSizeCategory = true
+        textView.keyboardDismissMode = .interactive
+        textView.autocorrectionType = .yes
+        textView.smartDashesType = .yes
+        textView.smartQuotesType = .yes
+        textView.tintColor = accentColor
+        textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        context.coordinator.syncText(from: text, into: textView)
+        return textView
+    }
+
+    func updateUIView(_ textView: ComposerTextView, context: Context) {
+        context.coordinator.parent = self
+        textView.tintColor = accentColor
+
+        if textView.text != text, textView.markedTextRange == nil {
+            context.coordinator.syncText(from: text, into: textView)
+        }
+
+        if context.coordinator.lastFocusRequest != focusRequest {
+            context.coordinator.lastFocusRequest = focusRequest
+            DispatchQueue.main.async { textView.becomeFirstResponder() }
+        }
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        uiView: ComposerTextView,
+        context: Context
+    ) -> CGSize? {
+        guard let width = proposal.width, width > 0 else { return nil }
+        let lineHeight = UIFont.systemFont(ofSize: fontSize).lineHeight
+        let measured = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        let height = min(max(lineHeight, measured), lineHeight * 6)
+        uiView.isScrollEnabled = measured > lineHeight * 6
+        return CGSize(width: width, height: ceil(height))
+    }
+
+    final class ComposerTextView: UITextView {
+        override var intrinsicContentSize: CGSize {
+            CGSize(width: UIView.noIntrinsicMetric, height: contentSize.height)
+        }
+    }
+
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var parent: ChatRichComposerTextView
+        var isApplyingMarkup = false
+        var lastFocusRequest = 0
+
+        init(parent: ChatRichComposerTextView) {
+            self.parent = parent
+        }
+
+        func syncText(from rawText: String, into textView: UITextView) {
+            let selection = textView.selectedRange
+            isApplyingMarkup = true
+            textView.text = rawText
+            if textView.markedTextRange == nil {
+                applyMarkup(to: textView, rawText: rawText)
+            }
+            restoreSelection(selection, in: textView, textLength: (rawText as NSString).length)
+            isApplyingMarkup = false
+        }
+
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            parent.onFocusChange(true)
+        }
+
+        func textViewDidEndEditing(_ textView: UITextView) {
+            parent.onFocusChange(false)
+        }
+
+        func textViewDidChange(_ textView: UITextView) {
+            guard !isApplyingMarkup else { return }
+            let raw = textView.text ?? ""
+            if parent.text != raw {
+                parent.text = raw
+                parent.onTextChange(raw)
+            }
+            guard textView.markedTextRange == nil else { return }
+            isApplyingMarkup = true
+            applyMarkup(to: textView, rawText: raw)
+            isApplyingMarkup = false
+            textView.invalidateIntrinsicContentSize()
+        }
+
+        private func restoreSelection(_ selection: NSRange, in textView: UITextView, textLength: Int) {
+            let location = min(max(0, selection.location), textLength)
+            let length = min(max(0, selection.length), textLength - location)
+            textView.selectedRange = NSRange(location: location, length: length)
+        }
+
+        func applyMarkup(to textView: UITextView, rawText: String) {
+            let fullRange = NSRange(location: 0, length: (rawText as NSString).length)
+            let baseFont = UIFont.systemFont(ofSize: parent.fontSize)
+            let baseAttributes: [NSAttributedString.Key: Any] = [
+                .font: baseFont,
+                .foregroundColor: parent.primaryColor
+            ]
+            let selection = textView.selectedRange
+            let storage = textView.textStorage
+            storage.beginEditing()
+            storage.setAttributes(baseAttributes, range: fullRange)
+
+            let delimiterAttributes: [NSAttributedString.Key: Any] = [
+                .foregroundColor: parent.secondaryColor.withAlphaComponent(0.48)
+            ]
+
+            func applyDelimited(
+                pattern: String,
+                prefixLength: Int,
+                suffixLength: Int? = nil,
+                contentAttributes: [NSAttributedString.Key: Any]
+            ) {
+                guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
+                regex.enumerateMatches(in: rawText, range: fullRange) { match, _, _ in
+                    guard let match else { return }
+                    let suffix = suffixLength ?? prefixLength
+                    let contentRange = NSRange(
+                        location: match.range.location + prefixLength,
+                        length: match.range.length - prefixLength - suffix
+                    )
+                    guard contentRange.length > 0 else { return }
+                    storage.addAttributes(contentAttributes, range: contentRange)
+                    storage.addAttributes(
+                        delimiterAttributes,
+                        range: NSRange(location: match.range.location, length: prefixLength)
+                    )
+                    storage.addAttributes(
+                        delimiterAttributes,
+                        range: NSRange(location: NSMaxRange(contentRange), length: suffix)
+                    )
+                }
+            }
+
+            applyDelimited(
+                pattern: #"\*\*([^*]+)\*\*"#,
+                prefixLength: 2,
+                contentAttributes: [.font: UIFont.boldSystemFont(ofSize: parent.fontSize)]
+            )
+            applyDelimited(
+                pattern: #"(?<!\*)\*([^*]+)\*(?!\*)"#,
+                prefixLength: 1,
+                contentAttributes: [.font: UIFont.italicSystemFont(ofSize: parent.fontSize)]
+            )
+            applyDelimited(
+                pattern: #"~~([^~]+)~~"#,
+                prefixLength: 2,
+                contentAttributes: [.strikethroughStyle: NSUnderlineStyle.single.rawValue]
+            )
+            applyDelimited(
+                pattern: #"`([^`]+)`"#,
+                prefixLength: 1,
+                contentAttributes: [.font: UIFont.monospacedSystemFont(ofSize: parent.fontSize, weight: .regular)]
+            )
+            applyDelimited(
+                pattern: #"\|\|([^|]+)\|\|"#,
+                prefixLength: 2,
+                contentAttributes: [
+                    .backgroundColor: parent.accentColor.withAlphaComponent(0.16),
+                    .font: UIFont.systemFont(ofSize: parent.fontSize, weight: .medium)
+                ]
+            )
+
+            if let urlRegex = try? NSRegularExpression(pattern: #"https?://[^\s]+"#, options: [.caseInsensitive]) {
+                urlRegex.enumerateMatches(in: rawText, range: fullRange) { match, _, _ in
+                    guard let range = match?.range else { return }
+                    storage.addAttributes([
+                        .foregroundColor: parent.accentColor,
+                        .underlineStyle: NSUnderlineStyle.single.rawValue
+                    ], range: range)
+                }
+            }
+            if let mentionRegex = try? NSRegularExpression(pattern: #"(?<![\p{L}\p{N}_])@[\p{L}\p{N}._]+"#) {
+                mentionRegex.enumerateMatches(in: rawText, range: fullRange) { match, _, _ in
+                    guard let range = match?.range else { return }
+                    storage.addAttributes([
+                        .foregroundColor: parent.accentColor,
+                        .font: UIFont.systemFont(ofSize: parent.fontSize, weight: .semibold)
+                    ], range: range)
+                }
+            }
+            if let quoteRegex = try? NSRegularExpression(pattern: #"^> ?.*$"#, options: [.anchorsMatchLines]) {
+                quoteRegex.enumerateMatches(in: rawText, range: fullRange) { match, _, _ in
+                    guard let range = match?.range, range.length > 0 else { return }
+                    storage.addAttributes([
+                        .foregroundColor: parent.secondaryColor,
+                        .font: UIFont.italicSystemFont(ofSize: parent.fontSize)
+                    ], range: range)
+                    let raw = rawText as NSString
+                    let markerLength = raw.substring(with: range).hasPrefix("> ") ? 2 : 1
+                    storage.addAttributes([
+                        .foregroundColor: parent.accentColor,
+                        .font: UIFont.boldSystemFont(ofSize: parent.fontSize)
+                    ], range: NSRange(location: range.location, length: markerLength))
+                }
+            }
+
+            storage.endEditing()
+            textView.typingAttributes = baseAttributes
+            restoreSelection(selection, in: textView, textLength: fullRange.length)
+        }
+    }
+}
 
 struct GlassmorphicInputBar: View {
     @Binding var text: String
@@ -16,11 +248,14 @@ struct GlassmorphicInputBar: View {
     let voiceRecordingDraft: VoiceRecordingDraft?
     let isPreparingVoiceRecordingPreview: Bool
     let replyingTo: EnhancedMessage?
+    let editingMessage: EnhancedMessage?
     let otherParticipantName: String
     @ObservedObject var voiceGestureState: VoiceRecordingGestureState
     var isKeyboardVisible: Bool = false
     var isTextFieldFocused: FocusState<Bool>.Binding
+    @State private var composerFocusRequest = 0
     let onCancelReply: () -> Void
+    let onCancelEdit: () -> Void
     let onSend: () -> Void
     let onStartVoiceRecording: (UUID, Bool) -> Void
     let onFinishVoiceRecording: (UUID, VoiceRecordingFinishAction) -> Void
@@ -50,7 +285,7 @@ struct GlassmorphicInputBar: View {
 
     private var usesUnifiedComposerSurface: Bool {
         guard !isVanishModeActive else { return false }
-        return isTextFieldFocused.wrappedValue
+        return isKeyboardVisible
             || !text.isEmpty
             || isRecordingVoice
             || voiceRecordingDraft != nil
@@ -62,8 +297,7 @@ struct GlassmorphicInputBar: View {
     /// Destino real del compositor cuando termina la secuencia de borrado.
     /// Con el teclado abajo vuelve al + standalone; con teclado/foco conserva la cápsula fusionada.
     private var returnsToUnifiedComposerAfterTrash: Bool {
-        isTextFieldFocused.wrappedValue
-            || isKeyboardVisible
+        isKeyboardVisible
             || !text.isEmpty
             || voiceGestureState.preserveKeyboardElevation
     }
@@ -78,6 +312,7 @@ struct GlassmorphicInputBar: View {
 
     private var showsLeadingPlusButton: Bool {
         !isRecordingVoice
+            && editingMessage == nil
             && allowsAttachments
             && !voiceGestureState.playDeleteAnimation
             && !voiceGestureState.isTrashMorphingToPlus
@@ -85,6 +320,10 @@ struct GlassmorphicInputBar: View {
 
     private var showsComposerTextInput: Bool {
         voiceRecordingDraft == nil && !isPreparingVoiceRecordingPreview
+    }
+
+    private var hasComposerContext: Bool {
+        replyingTo != nil || editingMessage != nil
     }
 
     private var vanishStrokeColor: Color {
@@ -110,6 +349,7 @@ struct GlassmorphicInputBar: View {
 
     private var shouldCoordinateComposerGlass: Bool {
         replyingTo == nil
+            && editingMessage == nil
             && !isRecordingVoice
             && voiceRecordingDraft == nil
             && !isPreparingVoiceRecordingPreview
@@ -133,16 +373,35 @@ struct GlassmorphicInputBar: View {
                     .zIndex(2)
             }
 
-            HStack(alignment: .bottom, spacing: usesUnifiedComposerSurface ? 0 : 10) {
-                if !separatesLeadingControl {
-                    leadingControl(usesStandaloneGlass: !usesUnifiedComposerSurface)
+            VStack(spacing: 0) {
+                if usesUnifiedComposerSurface && hasComposerContext {
+                    ChatComposerContextPanel(
+                        replyingTo: replyingTo,
+                        editingMessage: editingMessage,
+                        otherParticipantName: otherParticipantName,
+                        onCancelReply: onCancelReply,
+                        onCancelEdit: onCancelEdit
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .bottom)))
+
+                    composerContextDivider
+                }
+
+                HStack(alignment: .bottom, spacing: usesUnifiedComposerSurface ? 0 : 10) {
+                    if !separatesLeadingControl {
+                        leadingControl(usesStandaloneGlass: !usesUnifiedComposerSurface)
+                            .zIndex(2)
+                    }
+                    composerSurface(
+                        usesStandaloneGlass: !usesUnifiedComposerSurface,
+                        showsContextPanel: !usesUnifiedComposerSurface
+                    )
+                    .zIndex(1)
+                    trailingControl(usesStandaloneGlass: !usesUnifiedComposerSurface)
                         .zIndex(2)
                 }
-                composerSurface(usesStandaloneGlass: !usesUnifiedComposerSurface)
-                    .zIndex(1)
-                trailingControl(usesStandaloneGlass: !usesUnifiedComposerSurface)
-                    .zIndex(2)
             }
+            .frame(maxWidth: .infinity)
             // Reserva la geometría de la cápsula expandida también en reposo. Así el primer
             // toque no obliga al compositor y al teclado a resolver dos alturas distintas.
             .padding(.horizontal, 4)
@@ -174,19 +433,22 @@ struct GlassmorphicInputBar: View {
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: voiceGestureState.isTrashMorphingToPlus), value: voiceGestureState.isTrashMorphingToPlus)
     }
 
-    private func composerSurface(usesStandaloneGlass: Bool) -> some View {
+    private func composerSurface(
+        usesStandaloneGlass: Bool,
+        showsContextPanel: Bool
+    ) -> some View {
         VStack(spacing: 0) {
-            if let replyingTo {
-                ChatComposerReplyHeader(
-                    message: replyingTo,
+            if showsContextPanel && hasComposerContext {
+                ChatComposerContextPanel(
+                    replyingTo: replyingTo,
+                    editingMessage: editingMessage,
                     otherParticipantName: otherParticipantName,
-                    onCancel: onCancelReply
+                    onCancelReply: onCancelReply,
+                    onCancelEdit: onCancelEdit
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .bottom)))
 
-                Rectangle()
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.07))
-                    .frame(height: 0.5)
+                composerContextDivider
             }
 
             composerContent
@@ -194,17 +456,11 @@ struct GlassmorphicInputBar: View {
                 .padding(.trailing, 12)
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, minHeight: 44)
-                .contentShape(Rectangle())
-                .simultaneousGesture(
-                    TapGesture().onEnded {
-                        focusTextInputIfNeeded()
-                    }
-                )
         }
         .frame(maxWidth: .infinity)
         .momentsChromeGlass(
             in: inputFieldShape,
-            interactive: !isVanishModeActive && replyingTo == nil,
+            interactive: !isVanishModeActive && replyingTo == nil && editingMessage == nil,
             isEnabled: usesStandaloneGlass,
             style: .native
         )
@@ -229,9 +485,16 @@ struct GlassmorphicInputBar: View {
                 .opacity(usesUnifiedComposerSurface ? 0 : 1)
         }
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: replyingTo?.id), value: replyingTo?.id)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: editingMessage?.id), value: editingMessage?.id)
         .animation(.easeInOut(duration: 0.2), value: isRecordingVoice)
         .animation(.easeInOut(duration: 0.2), value: isPreparingVoiceRecordingPreview)
         .animation(.easeInOut(duration: 0.2), value: voiceRecordingDraft != nil)
+    }
+
+    private var composerContextDivider: some View {
+        Rectangle()
+            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.07))
+            .frame(height: 0.5)
     }
 
     private var composerContent: some View {
@@ -239,13 +502,28 @@ struct GlassmorphicInputBar: View {
             // Mantener el TextField montado durante la grabación (alpha 0) para no perder
             // first responder ni bajar el teclado — mismo patrón que el panel nativo de referencia.
             if showsComposerTextInput {
-                TextField(inputPlaceholder, text: $text, axis: .vertical)
-                    .lineLimit(1...6)
-                    .font(.system(size: legacyPoppinsSize(15)))
-                    .foregroundStyle(adaptiveColors.primary)
-                    .tint(adaptiveColors.primary)
-                    .textFieldStyle(.plain)
-                    .focused(isTextFieldFocused)
+                ZStack(alignment: .leading) {
+                    if text.isEmpty {
+                        Text(inputPlaceholder)
+                            .font(.system(size: legacyPoppinsSize(15)))
+                            .foregroundStyle(adaptiveColors.secondary.opacity(0.65))
+                            .allowsHitTesting(false)
+                    }
+
+                    ChatRichComposerTextView(
+                        text: $text,
+                        focusRequest: composerFocusRequest,
+                        onFocusChange: { focused in
+                            isTextFieldFocused.wrappedValue = focused
+                        },
+                        fontSize: legacyPoppinsSize(15),
+                        primaryColor: UIColor(adaptiveColors.primary),
+                        secondaryColor: UIColor(adaptiveColors.secondary),
+                        accentColor: UIColor(adaptiveColors.userAccentColor),
+                        onTextChange: { isTyping = !$0.isEmpty }
+                    )
+                    .frame(maxWidth: .infinity, minHeight: legacyPoppinsSize(15) * 1.25)
+                }
                     .opacity(isRecordingVoice ? 0 : 1)
                     .allowsHitTesting(!isRecordingVoice)
                     .accessibilityHidden(isRecordingVoice)
@@ -278,14 +556,19 @@ struct GlassmorphicInputBar: View {
         }
         .onChange(of: voiceGestureState.preserveKeyboardElevation) { _, preserve in
             if preserve {
-                isTextFieldFocused.wrappedValue = true
+                composerFocusRequest += 1
             }
         }
         .onChange(of: isRecordingVoice) { _, recording in
             if recording, voiceGestureState.preserveKeyboardElevation {
-                isTextFieldFocused.wrappedValue = true
+                composerFocusRequest += 1
             } else if !recording {
                 voiceGestureState.preserveKeyboardElevation = false
+            }
+        }
+        .onChange(of: editingMessage?.id) { _, messageID in
+            if messageID != nil {
+                composerFocusRequest += 1
             }
         }
     }
@@ -328,6 +611,10 @@ struct GlassmorphicInputBar: View {
             circularSendButton
                 .disabled(isPreparingVoiceRecordingPreview)
                 .opacity(isPreparingVoiceRecordingPreview ? 0.45 : 1)
+        } else if editingMessage != nil {
+            circularApplyButton
+                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
         } else if !text.isEmpty {
             circularSendButton
         } else if allowsAttachments && allowsVoiceRecording {
@@ -357,6 +644,18 @@ struct GlassmorphicInputBar: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("notification.action.send"))
+    }
+
+    private var circularApplyButton: some View {
+        Button(action: sendCurrentContent) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(adaptiveColors.userAccentColor, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("chat.editing.title"))
     }
 
     private func circularGlassButton(
@@ -392,11 +691,10 @@ struct GlassmorphicInputBar: View {
     }
 
     private func focusTextInputIfNeeded() {
-        guard !isTextFieldFocused.wrappedValue,
-              !isRecordingVoice,
+        guard !isRecordingVoice,
               voiceRecordingDraft == nil,
               !isPreparingVoiceRecordingPreview else { return }
-        isTextFieldFocused.wrappedValue = true
+        composerFocusRequest += 1
     }
 
     private func cancelVoiceRecording() {
@@ -419,7 +717,7 @@ struct GlassmorphicInputBar: View {
     private func handleVoiceRecordingPressBegan() {
         guard isTextFieldFocused.wrappedValue || isKeyboardVisible else { return }
         voiceGestureState.preserveKeyboardElevation = true
-        isTextFieldFocused.wrappedValue = true
+        composerFocusRequest += 1
     }
 }
 

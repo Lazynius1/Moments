@@ -27,6 +27,11 @@ struct ChatStoryRoute: Identifiable {
     }
 }
 
+/// Perfil empujado desde el chat (avatar, @mention) sin salir del hilo.
+struct ChatProfileRoute: Identifiable, Hashable {
+    let id: String
+}
+
 struct ViewOnceViewerPresentation: Identifiable {
     let id = UUID()
     let message: EnhancedMessage
@@ -134,10 +139,9 @@ struct GlassmorphicChatView: View {
     let onPendingChatAccepted: ((String) -> Void)?
     let onPendingChatDismissed: (() -> Void)?
 
-    // ✅ NUEVO: Estados para navegación al perfil
-    @State var showingUserProfile = false
+    // ✅ Navegación al perfil dentro del chat (push + zoom, back → chat)
+    @State var chatProfileRoute: ChatProfileRoute?
     @Namespace var profileZoomNamespace
-    @State var navigateToProfile = false
 
     // ✅ NUEVO: Estados para navegación al momento
     @State var selectedMoment: Moment?
@@ -267,6 +271,12 @@ struct GlassmorphicChatView: View {
         self.onPendingChatDismissed = onPendingChatDismissed
     }
 
+    func openChatProfile(userId: String) {
+        let trimmed = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        chatProfileRoute = ChatProfileRoute(id: trimmed)
+    }
+
     // ✅ REFACTOR: Dividido en variables separadas para evitar el error del compilador (timeout AST)
     var baseChatView: some View {
         chatRootContent
@@ -320,6 +330,12 @@ struct GlassmorphicChatView: View {
         .onChange(of: activeAttachmentSheet) { _, newValue in
             guard newValue != nil else { return }
             isTextFieldFocused = false
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
         }
         .onChange(of: messageText) { _, newValue in
             guard editingMessage == nil else { return }
@@ -453,10 +469,10 @@ struct GlassmorphicChatView: View {
                     consumeDeferredJumpToMessageIfNeeded()
                 }
             }
-            .navigationDestination(isPresented: $showingUserProfile) {
-                UserProfileView(userId: viewModel.conversation.otherParticipantId)
+            .navigationDestination(item: $chatProfileRoute) { route in
+                UserProfileView(userId: route.id)
                     .userProfileZoomDestination(
-                        userId: viewModel.conversation.otherParticipantId,
+                        userId: route.id,
                         namespace: profileZoomNamespace
                     )
             }
