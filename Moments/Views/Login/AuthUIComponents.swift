@@ -220,7 +220,7 @@ struct EnhancedInterestChip: View {
     
     var body: some View {
         Button(action: onTap) {
-            Text(InterestOption.localize(interest))
+            Text("\(InterestCatalog.emoji(for: interest)) \(InterestOption.localize(interest))")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(isSelected ? AuthColors.primary(colorScheme) : AuthColors.secondary(colorScheme, opacity: 0.72))
                 .padding(.horizontal, 15)

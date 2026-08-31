@@ -10,9 +10,6 @@ struct ArchiveView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = ArchiveViewModel()
     @State private var storyViewerPresentation: StoryViewerPresentation?
-    @State private var storyStatsPresentation: StoryStatsPresentation?
-    @State private var highlightedActivityStoryId: String?
-    @State private var archiveStoryCardFrames: [String: CGRect] = [:]
     @State private var selectedDisplayMode: ArchiveDisplayMode = .stories
     @State private var mapPosition: MapCameraPosition = .region(
         MKCoordinateRegion(
@@ -33,11 +30,6 @@ struct ArchiveView: View {
         let initialIndex: Int
     }
 
-    private struct StoryStatsPresentation: Identifiable {
-        let id = UUID()
-        let story: Story
-    }
-    
     enum ArchiveDisplayMode: String, CaseIterable, Identifiable {
         case stories
         case calendar
@@ -132,42 +124,24 @@ struct ArchiveView: View {
                             }
                         } else {
                             ScrollView {
-                                ZStack(alignment: .topLeading) {
-                                    LazyVGrid(
-                                        columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 3),
-                                        spacing: 1
-                                    ) {
-                                        ForEach(storiesForGrid) { story in
-                                            ArchiveStorySquareCard(
-                                                story: story,
-                                                isLifted: highlightedActivityStoryId == story.id,
-                                                onTap: {
-                                                    storyViewerPresentation = StoryViewerPresentation(
-                                                        stories: [story],
-                                                        initialIndex: 0
-                                                    )
-                                                },
-                                                onStatsTap: {
-                                                    presentStoryActivity(for: story)
-                                                }
-                                            )
-                                        }
-                                    }
-                                    .padding(.top, 8)
-                                    .padding(.bottom, 20)
-
-                                    if let storyId = highlightedActivityStoryId,
-                                       let frame = archiveStoryCardFrames[storyId],
-                                       let story = storiesForGrid.first(where: { $0.id == storyId }) {
-                                        ArchiveStoryLiftedPreview(story: story, frame: frame)
-                                            .zIndex(2)
-                                            .transition(.identity)
+                                LazyVGrid(
+                                    columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 3),
+                                    spacing: 1
+                                ) {
+                                    ForEach(storiesForGrid) { story in
+                                        ArchiveStorySquareCard(
+                                            story: story,
+                                            onTap: {
+                                                storyViewerPresentation = StoryViewerPresentation(
+                                                    stories: [story],
+                                                    initialIndex: 0
+                                                )
+                                            }
+                                        )
                                     }
                                 }
-                                .coordinateSpace(name: "archiveStoryGrid")
-                            }
-                            .onPreferenceChange(ArchiveStoryCardFrameKey.self) { frames in
-                                archiveStoryCardFrames = frames
+                                .padding(.top, 8)
+                                .padding(.bottom, 20)
                             }
                             .momentRefresh {
                                 await reloadArchivedStories()
@@ -271,19 +245,9 @@ struct ArchiveView: View {
                 initialIndex: presentation.initialIndex
             )
         }
-        .sheet(item: $storyStatsPresentation, onDismiss: {
-            highlightedActivityStoryId = nil
-        }) { presentation in
-            StoryStatsView(story: presentation.story)
-        }
         .navigationDestination(isPresented: $navigateToArchivedMoments) {
             ActivityInteractionDetailView(category: .archived)
         }
-    }
-
-    private func presentStoryActivity(for story: Story) {
-        highlightedActivityStoryId = story.id
-        storyStatsPresentation = StoryStatsPresentation(story: story)
     }
 
     private func archiveEmptyView(icon: String, text: String) -> some View {
@@ -800,8 +764,7 @@ struct ArchiveDateSectionGrid: View {
                 ForEach(stories) { story in
                     ArchiveStorySquareCard(
                         story: story,
-                        onTap: { onStoryTap(story) },
-                        onStatsTap: { onStatsTap(story) }
+                        onTap: { onStoryTap(story) }
                     )
                 }
             }
@@ -1000,14 +963,6 @@ struct ArchiveStoryVerticalCard: View {
     }
 }
 
-private struct ArchiveStoryCardFrameKey: PreferenceKey {
-    static var defaultValue: [String: CGRect] = [:]
-
-    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
-    }
-}
-
 struct ArchiveStoryCardVisual: View {
     let story: Story
     let cornerRadius: CGFloat
@@ -1049,58 +1004,19 @@ struct ArchiveStoryCardVisual: View {
 
 }
 
-private struct ArchiveStoryLiftedPreview: View {
-    let story: Story
-    let frame: CGRect
-
-    var body: some View {
-        ArchiveStoryCardVisual(story: story, cornerRadius: 0)
-            .frame(width: frame.width, height: frame.height)
-            .scaleEffect(1.14)
-            .shadow(color: Color.black.opacity(0.38), radius: 22, y: 10)
-            .position(x: frame.midX, y: frame.midY)
-            .allowsHitTesting(false)
-    }
-}
-
 // MARK: - Archive Story SQUARE Card
 struct ArchiveStorySquareCard: View {
     let story: Story
-    var isLifted: Bool = false
     let onTap: () -> Void
-    let onStatsTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            ZStack {
+        StoryActivityFlipTransition(story: story) {
+            Button(action: onTap) {
                 ArchiveStoryCardVisual(story: story, cornerRadius: 0)
-                    .opacity(isLifted ? 0 : 1)
                     .allowsHitTesting(false)
-
-                if isLifted {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.24))
-                        .aspectRatio(9.0 / 16.0, contentMode: .fit)
-                        .allowsHitTesting(false)
-                }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
-            .background {
-                GeometryReader { proxy in
-                    Color.clear.preference(
-                        key: ArchiveStoryCardFrameKey.self,
-                        value: story.id.map { [$0: proxy.frame(in: .named("archiveStoryGrid"))] } ?? [:]
-                    )
-                }
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-        .contextMenu {
-            Button {
-                onStatsTap()
-            } label: {
-                Label("archivedStories.viewActivity", systemImage: "chart.bar.fill")
-            }
+            .buttonStyle(.plain)
         }
     }
 }
@@ -1192,6 +1108,7 @@ struct ArchiveDayStoriesViewer: View {
 // MARK: - Story Stats View
 struct StoryStatsView: View {
     let story: Story
+    var onClose: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = StoryStatsViewModel()
@@ -1266,8 +1183,8 @@ struct StoryStatsView: View {
     private var statsHeader: some View {
         ZStack(alignment: .top) {
             HStack {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.down")
+                Button(action: close) {
+                    Image(systemName: onClose == nil ? "chevron.down" : "xmark")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(primaryText)
                         .frame(width: 40, height: 40)
@@ -1482,6 +1399,14 @@ struct StoryStatsView: View {
                     reactionUsersById[user.id] = user
                 }
             }
+        }
+    }
+
+    private func close() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
         }
     }
 

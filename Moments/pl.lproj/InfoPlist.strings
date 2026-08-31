@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "Zezwól na dostęp do aparatu, aby robić zdjęcia i nagrywać filmy do relacji, chwil i profilu.";
+"NSMicrophoneUsageDescription" = "Zezwól na dostęp do mikrofonu, aby nagrywać dźwięk do relacji i wiadomości głosowych.";
+"NSLocationWhenInUseUsageDescription" = "Zezwól na dostęp do lokalizacji, aby oznaczać nią posty, wyświetlać pasujące treści w pobliżu i ulepszać sugestie Nova AI.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Zezwól na udostępnianie swojej bieżącej lokalizacji na czatach — także gdy aplikacja działa w tle — przez cały czas trwania sesji.";
+"NSUserTrackingUsageDescription" = "Ten identyfikator posłuży do wyświetlania spersonalizowanych reklam i ulepszania korzystania z aplikacji.";
+"NSPhotoLibraryUsageDescription" = "Zezwól na dostęp do biblioteki zdjęć, aby przesyłać zdjęcia do relacji, zmieniać zdjęcie profilowe i umożliwić Nova AI analizowanie obrazów.";
+"NSPhotoLibraryAddUsageDescription" = "Zezwól na zapisywanie zdjęć i filmów, takich jak kod QR lub edytowane relacje, bezpośrednio w galerii.";

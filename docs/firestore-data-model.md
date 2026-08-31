@@ -451,7 +451,7 @@ Modelos en `Moments/Models/ChatSecurityModels.swift`. Estos structs **no** usan 
 
 ### 8.1 Intereses
 
-⚠️ **Las claves en la base de datos están en español** (`"Fotografía"`, `"Viajes"`, `"Música"`, `"Cine"`, `"Arte"`, `"Deportes"`, `"Libros"`, `"Cocina"`, `"Tecnología"`, `"Moda"`, `"Gaming"`, `"Fitness"`, `"Naturaleza"`, `"Animales"`, `"Comida"`, `"Ciencia"`, `"Historia"`, `"Política"`, `"Negocios"`, `"Salud"`, `"Estilo"`, `"Baile"`, `"Escritura"`, `"DIY"`, `"Coches"`), con tildes. La localización se hace en el cliente. Android debe usar **las mismas claves en español** como identidad y traducir solo para mostrar. Valores no reconocidos se muestran tal cual.
+⚠️ **Las claves en la base de datos están en español** (p. ej. `"Fotografía"`, `"Viajes"`, `"K-pop"`, `"Senderismo"`). Colección `interests/{slug}` con campos `name` (clave ES), `slug`, `emoji`, `order`. Catálogo canónico: `Moments/shared/interest-catalog.json` (71 intereses, v2). Seed: `node scripts/seed-interests.mjs` desde `Moments/` (requiere `firebase login`). La localización es en cliente (`InterestCatalog` / `interest.*`). Valores legacy (`Viajar`, `Lectura`, `Kpop`…) se resuelven por alias. Valores no reconocidos se muestran tal cual.
 
 ### 8.2 Usuario y social
 

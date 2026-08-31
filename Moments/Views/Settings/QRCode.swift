@@ -10,18 +10,34 @@ struct QRCodeView: View {
     @State private var showShareSheet = false
     @State private var qrImage: UIImage?
     var targetUser: AppUser? = nil
+    var onClose: (() -> Void)? = nil
     
 // MARK: - Modern Sheet View
     var body: some View {
         VStack(spacing: 0) {
             // Header con título
-            VStack(spacing: 2) {
+            ZStack {
                 Text(NSLocalizedString("qrCode.title", comment: "QR code title"))
                     .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    .padding(.top, 20)
+
+                if onClose != nil {
+                    HStack {
+                        Spacer()
+                        Button(action: close) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(ProfileColors.textPrimary)
+                                .frame(width: 38, height: 38)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
             .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
             .padding(.bottom, 20)
             
             // Tarjeta QR Limpia
@@ -109,6 +125,14 @@ struct QRCodeView: View {
             }
         }
         .permissionPrimerGate(photosSaveGate)
+    }
+
+    private func close() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
     }
     
     private func generateQRCode() {

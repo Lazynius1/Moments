@@ -174,16 +174,23 @@ struct UserModernProfileHeader: View {
         VStack(spacing: 10) {
             HStack(alignment: .top, spacing: 14) {
                 VStack(spacing: 8) {
-                    UserModernAvatarWithBadges(
-                        userProfile: viewModel.userProfile,
-                        onOpenStories: onOpenStories,
-                        storyRingRefreshTrigger: storyRingRefreshTrigger,
-                        showProfileImageFullscreen: Binding<Bool>(
-                            get: { self.showProfileImageFullscreen },
-                            set: { self.showProfileImageFullscreen = $0 }
-                        ),
-                        size: 96
-                    )
+                    ProfileContextFlipTransition(
+                        isRequested: $showingQRCode,
+                        configuration: .qr
+                    ) {
+                        UserModernAvatarWithBadges(
+                            userProfile: viewModel.userProfile,
+                            onOpenStories: onOpenStories,
+                            storyRingRefreshTrigger: storyRingRefreshTrigger,
+                            showProfileImageFullscreen: Binding<Bool>(
+                                get: { self.showProfileImageFullscreen },
+                                set: { self.showProfileImageFullscreen = $0 }
+                            ),
+                            size: 96
+                        )
+                    } destination: { close in
+                        QRCodeView(targetUser: viewModel.userProfile, onClose: close)
+                    }
                     .frame(width: 96, height: 96)
 
                     ProfileAvatarNoteView(

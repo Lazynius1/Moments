@@ -2550,32 +2550,13 @@
 "editMoment.audience.locked.explainer" = "This moment was limited by moderation and its audience can't be changed here.";
 
 /* Interests */
-"interest.escritura" = "Writing";
-"interest.cine" = "Movies";
-"interest.libros" = "Books";
-"interest.teatro" = "Theater";
-"interest.meditacion" = "Meditation";
 "interest.naturaleza" = "Nature";
-"interest.fotografia" = "Photography";
-"interest.moda" = "Fashion";
-"interest.emprendimiento" = "Entrepreneurship";
-"interest.yoga" = "Yoga";
-"interest.historia" = "History";
-"interest.cafe" = "Coffee";
 "interest.fitness" = "Fitness";
-"interest.musica" = "Music";
 "interest.gaming" = "Gaming";
-"interest.tecnologia" = "Technology";
-"interest.viajar" = "Travel";
-"interest.astronomia" = "Astronomy";
 "interest.podcasts" = "Podcasts";
-"interest.deportes" = "Sports";
 "interest.cocina" = "Cooking";
 "interest.mascotas" = "Pets";
-"interest.diseno" = "Design";
 "interest.baile" = "Dance";
-"interest.programacion" = "Programming";
-"interest.kpop" = "Kpop";
 
 /* Report System */
 "report.title" = "Report %@";
@@ -2939,15 +2920,16 @@
 "echo.viewer.unavailable" = "This moment is no longer available";
 
 /* Interests */
+/* Interest catalog v2 — generated */
 "interest.photography" = "Photography";
 "interest.travel" = "Travel";
 "interest.music" = "Music";
-"interest.movies" = "Movies";
+"interest.movies" = "Movies & TV";
 "interest.art" = "Art";
 "interest.sports" = "Sports";
-"interest.books" = "Books";
+"interest.books" = "Reading";
 "interest.cooking" = "Cooking";
-"interest.technology" = "Technology";
+"interest.technology" = "Tech";
 "interest.fashion" = "Fashion";
 "interest.gaming" = "Gaming";
 "interest.fitness" = "Fitness";
@@ -2959,11 +2941,57 @@
 "interest.politics" = "Politics";
 "interest.business" = "Business";
 "interest.health" = "Health";
-"interest.style" = "Style";
+"interest.style" = "Personal style";
 "interest.dance" = "Dance";
 "interest.writing" = "Writing";
 "interest.diy" = "DIY";
 "interest.cars" = "Cars";
+"interest.theater" = "Theater";
+"interest.meditation" = "Meditation";
+"interest.entrepreneurship" = "Startups";
+"interest.yoga" = "Yoga";
+"interest.coffee" = "Coffee";
+"interest.astronomy" = "Astronomy";
+"interest.podcasts" = "Podcasts";
+"interest.pets" = "Pets";
+"interest.design" = "Design";
+"interest.programming" = "Coding";
+"interest.kpop" = "K-pop";
+"interest.anime" = "Anime";
+"interest.hiking" = "Hiking";
+"interest.cycling" = "Cycling";
+"interest.running" = "Running";
+"interest.climbing" = "Climbing";
+"interest.surfing" = "Surf";
+"interest.football" = "Soccer";
+"interest.basketball" = "Basketball";
+"interest.swimming" = "Swimming";
+"interest.skateboarding" = "Skateboarding";
+"interest.vinyl" = "Vinyl records";
+"interest.concerts" = "Live music";
+"interest.hiphop" = "Hip-hop";
+"interest.electronic_music" = "Electronic music";
+"interest.baking" = "Baking";
+"interest.wine" = "Wine";
+"interest.craft_beer" = "Craft beer";
+"interest.beauty" = "Beauty";
+"interest.sneakers" = "Sneakers";
+"interest.tattoos" = "Tattoos";
+"interest.plants" = "Houseplants";
+"interest.gardening" = "Gardening";
+"interest.languages" = "Languages";
+"interest.volunteering" = "Volunteering";
+"interest.sustainability" = "Sustainability";
+"interest.cosplay" = "Cosplay";
+"interest.true_crime" = "True crime";
+"interest.collecting" = "Collecting";
+"interest.crafts" = "Crafts";
+"interest.streaming" = "Streaming";
+"interest.ai" = "AI";
+"interest.personal_finance" = "Personal finance";
+"interest.philosophy" = "Philosophy";
+"interest.chess" = "Chess";
+"interest.board_games" = "Board games";
 
 /* Deactivated Account */
 "deactivated.title" = "Sleeping Account";
@@ -3563,19 +3591,35 @@
 
 /* Privacy Policy */
 "privacyPolicy.title" = "Privacy Policy";
-"privacyPolicy.lastUpdated" = "Last updated: April 29, 2026";
+"privacyPolicy.lastUpdated" = "Last updated: August 30, 2026";
 "privacyPolicy.section.summary.title" = "1. Summary";
 "privacyPolicy.section.summary.body" = "Moments is a social app for sharing moments, stories, chains, messages, and conversations with Nova. We do not collect unnecessary data or build commercial profiles about you.\n\nWe store or process the minimum information you enter, create, or enable while using the app, together with technical data needed for Moments to work, stay secure, sync content, show ads where applicable, and power Nova.";
 "privacyPolicy.section.data.title" = "2. Information you use or generate in Moments";
-"privacyPolicy.section.data.body" = "When you create an account or set up your profile, we store data such as email address, username, profile photo, bio, website, interests, badges, online status, and preferences.\n\nWhen you use the app, we store the content and actions you choose to create: moments, stories, chains, echoes, comments, reactions, saved items, visits, tags, custom lists, best friends, and audience settings.\n\nWe also process minimal technical data needed for security, sessions, syncing, notifications, ads, and error resolution.";
+"privacyPolicy.section.data.body" = "When you create an account or set up your profile, we store data such as email address, username, profile photo, bio, website, interests, badges, online status, and preferences.
+
+When you use the app, we store the content and actions you choose to create: moments, stories, chains, echoes, comments, reactions, saved items, visits, tags, custom lists, best friends, and audience settings.
+
+We also process minimal technical data needed for security, sessions, syncing, notifications, ads, and error resolution.
+
+For account security, we may also store your IP address, device information, push notification token, active sessions, and approximate location when you sign in or enable security features.";
 "privacyPolicy.section.use.title" = "3. How we use data";
 "privacyPolicy.section.use.body" = "We use information to provide the service, authenticate you, sync content, deliver messages, apply your privacy settings, personalize the experience, improve Moments, prevent abuse, handle reports, and comply with legal obligations.\n\nLegal bases may include providing the service you request, your consent, our legitimate interest in security and product improvement, and compliance with legal obligations.";
 "privacyPolicy.section.nova.title" = "4. Nova and artificial intelligence";
-"privacyPolicy.section.nova.body" = "Nova may process your messages, images you send to it, account context, preferences, recent activity, and personal memory to respond in a more useful way.\n\nNova's memory may store details such as what you prefer to be called, interests, conversation style, or information you voluntarily share. You can edit or delete this memory from the app.\n\nNova works through technical AI providers, such as Firebase Vertex AI/Gemini, and some moderation tasks may use external services. We do not use your Nova conversations to sell data or for third-party personalized advertising.";
+"privacyPolicy.section.nova.body" = "Nova may process your messages, images you send to it, account context, preferences, recent activity, and personal memory to respond in a more useful way.
+
+Nova's memory may store details such as what you prefer to be called, interests, conversation style, or information you voluntarily share. You can edit or delete this memory from the app.
+
+Nova may also use web search to answer certain questions when that helps provide a useful response.
+
+Nova works through technical AI providers, such as Firebase Vertex AI/Gemini, and some moderation tasks may use external services. We do not use your Nova conversations to sell data or for third-party personalized advertising.";
 "privacyPolicy.section.visibility.title" = "5. Content, audiences, and visibility";
 "privacyPolicy.section.visibility.body" = "You control who can see parts of your content through private account settings, audiences, best friends, custom lists, only me, blocks, mutes, and visibility settings for followers, following, and admirers.\n\nPrivate or restricted content uses Blackout: Moments tries to hide it from screenshots and screen recordings using secure system protection. Posts published to everyone do not use this protection. Even so, no measure can fully prevent someone from copying or sharing outside the app content they were able to access.";
 "privacyPolicy.section.messages.title" = "6. Messages and communications";
-"privacyPolicy.section.messages.body" = "We process conversations, message requests, participants, timestamps, read receipts, media files, ephemeral messages, and shared content to deliver messaging.\n\nWe apply encryption and security measures to protect messages and sensitive data. However, some metadata, media file URLs, or information needed to deliver the service may be stored and processed separately.";
+"privacyPolicy.section.messages.body" = "We process conversations, message requests, participants, timestamps, read receipts, media files, ephemeral messages, and shared content to deliver messaging.
+
+We apply encryption and security measures to protect messages and sensitive data. However, some metadata, media file URLs, or information needed to deliver the service may be stored and processed separately.
+
+If you choose to share live location in a conversation, we process that location until the sharing session ends or expires.";
 "privacyPolicy.section.permissions.title" = "7. Device permissions";
 "privacyPolicy.section.permissions.body" = "We request permissions only when needed for a specific feature: camera to create photos or videos, photo library to upload or save content, microphone for audio, and location to tag posts, show maps, nearby content, and optional Nova context.\n\nYou can change these permissions in iOS Settings. If you turn them off, some features may no longer be available.";
 "privacyPolicy.section.ads.title" = "8. Advertising and consent";
@@ -3589,9 +3633,11 @@
 "privacyPolicy.section.rights.title" = "12. Your rights";
 "privacyPolicy.section.rights.body" = "You may request access, correction, deletion, objection, restriction, portability of your data, and withdrawal of consent where applicable. You can also export data, delete Nova memories, change privacy settings, block users, mute accounts or words, deactivate your account, or request deletion.\n\nIf you are in the European Union or another region with equivalent rights, you may also complain to your data protection authority.";
 "privacyPolicy.section.minors.title" = "13. Minors";
-"privacyPolicy.section.minors.body" = "Moments is not directed to children under 13. If we detect that an account belongs to someone below the applicable minimum age, we may limit or delete it. If you are a minor, use Moments with parent or guardian supervision where appropriate.";
+"privacyPolicy.section.minors.body" = "Moments is not directed at children. The minimum age to create an account and use the service depends on your country or region; in many places it is 13 or higher. Where required by local law, parental or guardian consent may also apply. If we detect that an account does not meet the applicable minimum age or consent requirements, we may restrict or delete it.";
 "privacyPolicy.section.contact.title" = "14. Contact and changes";
-"privacyPolicy.section.contact.body" = "We may update this policy when our features, providers, or legal requirements change. If a change is important, we will communicate it in the app or through other reasonable means.\n\nFor privacy questions or requests, contact us at soporte@moments.app or visit moments.app/privacy.";
+"privacyPolicy.section.contact.body" = "We may update this policy when our features, providers, or legal requirements change. If a change is important, we will communicate it in the app or through other reasonable means.
+
+For privacy questions or requests, contact us at soporte@momentsapp.app or visit momentsapp.app/privacy.";
 "userProfile.unavailable.title" = "Profile unavailable";
 "userProfile.unavailable.description" = "You can't view this profile right now.";
 "userProfile.unavailable.username" = "User";

@@ -157,9 +157,6 @@ struct SettingsView: View {
         .momentsScrollEdgeChrome()
         .toolbar(.hidden, for: .tabBar)
         .momentsFloatingTabBarHidden()
-        .sheet(isPresented: $isShowingQRCode) {
-            QRCodeView()
-        }
         .sheet(isPresented: $isShowingPersonalInfo) {
             PersonalInfoView(username: $username, email: $email, phoneNumber: $phoneNumber)
                 .presentationDetents([.medium, .large])

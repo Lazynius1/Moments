@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "Geef toegang tot je camera om foto's en video's te maken voor je stories, momenten en profiel.";
+"NSMicrophoneUsageDescription" = "Geef toegang tot je microfoon om audio op te nemen voor je stories en spraakberichten.";
+"NSLocationWhenInUseUsageDescription" = "Geef toegang tot je locatie om berichten te taggen, relevante content in de buurt te tonen en de suggesties van Nova AI te verbeteren.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Sta toe dat je live locatie in chats wordt gedeeld, ook als de app op de achtergrond actief is, zolang de sessie actief is.";
+"NSUserTrackingUsageDescription" = "Deze identificatie wordt gebruikt om je gepersonaliseerde advertenties te tonen en je ervaring in de app te verbeteren.";
+"NSPhotoLibraryUsageDescription" = "Geef toegang tot je fotobibliotheek om foto's naar je stories te uploaden, je profielfoto te wijzigen en Nova AI je afbeeldingen te laten analyseren.";
+"NSPhotoLibraryAddUsageDescription" = "Sta toe dat foto's en video's, zoals je QR-code of bewerkte stories, rechtstreeks in je galerij worden opgeslagen.";

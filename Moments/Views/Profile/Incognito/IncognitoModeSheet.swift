@@ -2,6 +2,7 @@ import SwiftUI
 
 struct IncognitoModeSheet: View {
     @ObservedObject var service: IncognitoModeService
+    var onClose: (() -> Void)? = nil
     @ObservedObject private var networkMonitor = NetworkMonitor.shared
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("incognito_has_seen_inline_onboarding") private var hasSeenOnboarding = false
@@ -53,8 +54,8 @@ struct IncognitoModeSheet: View {
                     details
                 }
                 .padding(.horizontal, 24)
-                .padding(.top, 12)
-                .padding(.bottom, 30)
+                .padding(.top, onClose == nil ? 12 : 30)
+                .padding(.bottom, onClose == nil ? 30 : 20)
             }
             .scrollContentBackground(.hidden)
 
@@ -72,6 +73,20 @@ struct IncognitoModeSheet: View {
             }
         }
         .animation(.easeInOut(duration: 0.22), value: hasSeenOnboarding)
+        .overlay(alignment: .topTrailing) {
+            if let onClose {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(titleColor)
+                        .frame(width: 38, height: 38)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 12)
+                .padding(.trailing, 16)
+            }
+        }
     }
 
     private var header: some View {

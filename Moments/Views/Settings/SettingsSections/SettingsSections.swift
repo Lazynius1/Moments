@@ -754,12 +754,19 @@ struct AccountSection: View {
                 action: { isShowingPersonalInfo = true }
             )
 
-            SettingsRow(
-                icon: "qrcode",
-                title: NSLocalizedString("settings.sections.qrCode", comment: "QR Code"),
-                subtitle: NSLocalizedString("settings.sections.qrCode.subtitle", comment: "Share your profile"),
-                action: { isShowingQRCode = true }
-            )
+            ProfileContextFlipTransition(
+                isRequested: $isShowingQRCode,
+                configuration: .settingsQR
+            ) {
+                SettingsRow(
+                    icon: "qrcode",
+                    title: NSLocalizedString("settings.sections.qrCode", comment: "QR Code"),
+                    subtitle: NSLocalizedString("settings.sections.qrCode.subtitle", comment: "Share your profile"),
+                    action: { isShowingQRCode = true }
+                )
+            } destination: { close in
+                QRCodeView(onClose: close)
+            }
         }
     }
 }

@@ -11,6 +11,7 @@ struct ProfileOwnPinnedTopChrome: View {
     @Binding var isShowingNotifications: Bool
     @Binding var showingQRCode: Bool
     @Binding var isShowingIncognito: Bool
+    @ObservedObject var incognitoModeService: IncognitoModeService
     let isIncognitoActive: Bool
     let profileZoomNamespace: Namespace.ID
 
@@ -47,7 +48,14 @@ struct ProfileOwnPinnedTopChrome: View {
                 )
                 .matchedTransitionSource(id: "notifications-view", in: profileZoomNamespace)
 
-                ownHeaderMenu
+                ProfileContextFlipTransition(
+                    isRequested: $isShowingIncognito,
+                    configuration: .incognito
+                ) {
+                    ownHeaderMenu
+                } destination: { close in
+                    IncognitoModeSheet(service: incognitoModeService, onClose: close)
+                }
             }
         }
     }
@@ -98,6 +106,7 @@ struct ModernProfileHeader: View {
     @Binding var showingQRCode: Bool
     @Binding var showProfileImageFullscreen: Bool
     @Binding var isShowingIncognito: Bool
+    @ObservedObject var incognitoModeService: IncognitoModeService
     let isIncognitoActive: Bool
     let profileZoomNamespace: Namespace.ID
     let usernameCollapseProgress: CGFloat
@@ -132,7 +141,14 @@ struct ModernProfileHeader: View {
         VStack(spacing: 10) {
             HStack(alignment: .top, spacing: 14) {
                 VStack(spacing: 8) {
-                    compactAvatar
+                    ProfileContextFlipTransition(
+                        isRequested: $showingQRCode,
+                        configuration: .qr
+                    ) {
+                        compactAvatar
+                    } destination: { close in
+                        QRCodeView(onClose: close)
+                    }
                         .onTapGesture {
                             if storyViewModel.hasActiveStory, Auth.auth().currentUser?.uid != nil {
                                 showStoryViewer = true

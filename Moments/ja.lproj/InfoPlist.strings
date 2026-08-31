@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "カメラへのアクセスを許可すると、ストーリーズ、Moments、プロフィール用の写真や動画を撮影できます。";
+"NSMicrophoneUsageDescription" = "マイクへのアクセスを許可すると、ストーリーズやボイスメッセージ用の音声を録音できます。";
+"NSLocationWhenInUseUsageDescription" = "位置情報へのアクセスを許可すると、投稿に位置情報を付けたり、近くの関連コンテンツを表示したり、Nova AIの提案を改善したりできます。";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "セッションが有効な間は、アプリがバックグラウンドにある場合でも、チャットでリアルタイムの位置情報を共有できます。";
+"NSUserTrackingUsageDescription" = "この識別子は、パーソナライズされた広告の表示やアプリの使い心地の改善に使用されます。";
+"NSPhotoLibraryUsageDescription" = "写真ライブラリへのアクセスを許可すると、ストーリーズに写真をアップロードしたり、プロフィール写真を変更したり、Nova AIで画像を分析したりできます。";
+"NSPhotoLibraryAddUsageDescription" = "写真や動画（QRコードや編集したストーリーズなど）をギャラリーに直接保存できるようにします。";

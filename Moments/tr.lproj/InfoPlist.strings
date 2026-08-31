@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "Hikâyelerin, anların ve profilin için fotoğraf ve video çekmek üzere kameraya izin ver.";
+"NSMicrophoneUsageDescription" = "Hikâyelerin ve sesli mesajların için ses kaydetmek üzere mikrofona izin ver.";
+"NSLocationWhenInUseUsageDescription" = "Gönderileri konumla etiketlemek, yakındaki ilgili içerikleri göstermek ve Nova AI önerilerini iyileştirmek için konumuna izin ver.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Oturum aktifken, uygulama arka planda olsa bile sohbetlerde canlı konumunu paylaşmaya izin ver.";
+"NSUserTrackingUsageDescription" = "Bu tanımlayıcı, sana kişiselleştirilmiş reklamlar göstermek ve uygulamadaki deneyimini iyileştirmek için kullanılacak.";
+"NSPhotoLibraryUsageDescription" = "Hikâyelerine fotoğraf yüklemek, profil resmini değiştirmek ve Nova AI'ın görsellerini analiz etmesine izin vermek için fotoğraf arşivine erişime izin ver.";
+"NSPhotoLibraryAddUsageDescription" = "Fotoğraf ve videoları (QR kodun veya düzenlediğin hikâyeler gibi) doğrudan galerine kaydetmeye izin ver.";

@@ -3554,19 +3554,35 @@
 
 /* Privacy Policy */
 "privacyPolicy.title" = "Datenschutzerklärung";
-"privacyPolicy.lastUpdated" = "Zuletzt aktualisiert: 29. April 2026";
+"privacyPolicy.lastUpdated" = "Zuletzt aktualisiert: 30. August 2026";
 "privacyPolicy.section.summary.title" = "1. Zusammenfassung";
 "privacyPolicy.section.summary.body" = "Moments ist eine soziale App zum Teilen von Momenten, Stories, Ketten, Nachrichten und Gesprächen mit Nova. Wir sammeln keine unnötigen Daten und erstellen keine kommerziellen Profile über dich.\n\nWir speichern oder verarbeiten nur die Informationen, die du beim Verwenden der App eingibst, erstellst oder aktivierst, zusammen mit technischen Daten, die nötig sind, damit Moments funktioniert, sicher bleibt, Inhalte synchronisiert, gegebenenfalls Werbung anzeigt und Nova betreibt.";
 "privacyPolicy.section.data.title" = "2. Informationen, die du in Moments nutzt oder erzeugst";
-"privacyPolicy.section.data.body" = "Wenn du ein Konto erstellst oder dein Profil einrichtest, speichern wir Daten wie E-Mail-Adresse, Benutzername, Profilfoto, Bio, Website, Interessen, Abzeichen, Online-Status und Einstellungen.\n\nWenn du die App nutzt, speichern wir die Inhalte und Aktionen, die du erstellst: Momente, Stories, Ketten, Echos, Kommentare, Reaktionen, gespeicherte Elemente, Besuche, Markierungen, benutzerdefinierte Listen, enge Freunde und Zielgruppeneinstellungen.\n\nAußerdem verarbeiten wir nur die minimalen technischen Daten, die für Sicherheit, Sitzungen, Synchronisierung, Benachrichtigungen, Werbung und Fehlerbehebung erforderlich sind.";
+"privacyPolicy.section.data.body" = "Wenn du ein Konto erstellst oder dein Profil einrichtest, speichern wir Daten wie E-Mail-Adresse, Benutzername, Profilfoto, Bio, Website, Interessen, Abzeichen, Online-Status und Einstellungen.
+
+Wenn du die App nutzt, speichern wir die Inhalte und Aktionen, die du erstellst: Momente, Stories, Ketten, Echos, Kommentare, Reaktionen, gespeicherte Elemente, Besuche, Markierungen, benutzerdefinierte Listen, enge Freunde und Zielgruppeneinstellungen.
+
+Außerdem verarbeiten wir nur die minimalen technischen Daten, die für Sicherheit, Sitzungen, Synchronisierung, Benachrichtigungen, Werbung und Fehlerbehebung erforderlich sind.
+
+Für die Kontosicherheit können wir außerdem deine IP-Adresse, Geräteinformationen, Push-Benachrichtigungstoken, aktive Sitzungen und ungefähren Standort speichern, wenn du dich anmeldest oder Sicherheitsfunktionen aktivierst.";
 "privacyPolicy.section.use.title" = "3. Wie wir Daten verwenden";
 "privacyPolicy.section.use.body" = "Wir verwenden Informationen, um den Dienst bereitzustellen, dich zu authentifizieren, Inhalte zu synchronisieren, Nachrichten zuzustellen, deine Privatsphäre-Einstellungen anzuwenden, das Erlebnis zu personalisieren, Moments zu verbessern, Missbrauch zu verhindern, Meldungen zu bearbeiten und gesetzlichen Pflichten nachzukommen.\n\nRechtsgrundlagen können die Bereitstellung des von dir angeforderten Dienstes, deine Einwilligung, unser berechtigtes Interesse an Sicherheit und Produktverbesserung sowie die Einhaltung gesetzlicher Verpflichtungen sein.";
 "privacyPolicy.section.nova.title" = "4. Nova und künstliche Intelligenz";
-"privacyPolicy.section.nova.body" = "Nova kann deine Nachrichten, Bilder, die du an sie sendest, Kontokontext, Präferenzen, aktuelle Aktivität und persönliche Erinnerungen verarbeiten, um hilfreicher zu antworten.\n\nNovas Gedächtnis kann Details speichern wie den Namen, mit dem du angesprochen werden möchtest, Interessen, Gesprächsstil oder Informationen, die du freiwillig teilst. Du kannst diese Erinnerungen in der App bearbeiten oder löschen.\n\nNova arbeitet über technische KI-Anbieter wie Firebase Vertex AI/Gemini, und einige Moderationsaufgaben können externe Dienste nutzen. Wir verwenden deine Gespräche mit Nova nicht, um Daten zu verkaufen oder für personalisierte Werbung Dritter.";
+"privacyPolicy.section.nova.body" = "Nova kann deine Nachrichten, Bilder, die du an sie sendest, Kontokontext, Präferenzen, aktuelle Aktivität und persönliche Erinnerungen verarbeiten, um hilfreicher zu antworten.
+
+Novas Gedächtnis kann Details speichern wie den Namen, mit dem du angesprochen werden möchtest, Interessen, Gesprächsstil oder Informationen, die du freiwillig teilst. Du kannst diese Erinnerungen in der App bearbeiten oder löschen.
+
+Nova kann außerdem Websuche nutzen, um bestimmte Fragen zu beantworten, wenn das hilft, eine nützliche Antwort zu geben.
+
+Nova arbeitet über technische KI-Anbieter wie Firebase Vertex AI/Gemini, und einige Moderationsaufgaben können externe Dienste nutzen. Wir verwenden deine Gespräche mit Nova nicht, um Daten zu verkaufen oder für personalisierte Werbung Dritter.";
 "privacyPolicy.section.visibility.title" = "5. Inhalte, Zielgruppen und Sichtbarkeit";
 "privacyPolicy.section.visibility.body" = "Du kontrollierst, wer Teile deiner Inhalte sehen kann, über Einstellungen für private Konten, Zielgruppen, enge Freunde, benutzerdefinierte Listen, Nur ich, Blockierungen, Stummschaltungen und Sichtbarkeitseinstellungen für Follower, Abonnements und Bewunderer.\n\nPrivate oder eingeschränkte Inhalte verwenden Blackout: Moments versucht, sie mithilfe sicherer Systemschutzmechanismen vor Screenshots und Bildschirmaufnahmen zu verbergen. Beiträge, die für alle veröffentlicht werden, nutzen diesen Schutz nicht. Trotzdem kann keine Maßnahme vollständig verhindern, dass jemand Inhalte, auf die er Zugriff hatte, außerhalb der App kopiert oder teilt.";
 "privacyPolicy.section.messages.title" = "6. Nachrichten und Kommunikation";
-"privacyPolicy.section.messages.body" = "Wir verarbeiten Unterhaltungen, Nachrichtenanfragen, Teilnehmende, Zeitstempel, Lesebestätigungen, Mediendateien, ephemere Nachrichten und geteilte Inhalte, um die Nachrichtenfunktion bereitzustellen.\n\nWir wenden Verschlüsselung und Sicherheitsmaßnahmen an, um Nachrichten und sensible Daten zu schützen. Einige Metadaten, URLs von Mediendateien oder Informationen, die für die Bereitstellung des Dienstes nötig sind, können jedoch separat gespeichert und verarbeitet werden.";
+"privacyPolicy.section.messages.body" = "Wir verarbeiten Unterhaltungen, Nachrichtenanfragen, Teilnehmende, Zeitstempel, Lesebestätigungen, Mediendateien, ephemere Nachrichten und geteilte Inhalte, um die Nachrichtenfunktion bereitzustellen.
+
+Wir wenden Verschlüsselung und Sicherheitsmaßnahmen an, um Nachrichten und sensible Daten zu schützen. Einige Metadaten, URLs von Mediendateien oder Informationen, die für die Bereitstellung des Dienstes nötig sind, können jedoch separat gespeichert und verarbeitet werden.
+
+Wenn du dich entscheidest, Live-Standort in einer Unterhaltung zu teilen, verarbeiten wir diesen Standort, bis die Freigabesitzung endet oder abläuft.";
 "privacyPolicy.section.permissions.title" = "7. Geräteberechtigungen";
 "privacyPolicy.section.permissions.body" = "Wir fragen Berechtigungen nur dann an, wenn sie für eine bestimmte Funktion nötig sind: Kamera zum Erstellen von Fotos oder Videos, Fotomediathek zum Hochladen oder Speichern von Inhalten, Mikrofon für Audio und Standort zum Markieren von Beiträgen, Anzeigen von Karten, Inhalten in der Nähe und optionalem Nova-Kontext.\n\nDu kannst diese Berechtigungen in den iOS-Einstellungen ändern. Wenn du sie deaktivierst, stehen manche Funktionen möglicherweise nicht mehr zur Verfügung.";
 "privacyPolicy.section.ads.title" = "8. Werbung und Einwilligung";
@@ -3580,9 +3596,11 @@
 "privacyPolicy.section.rights.title" = "12. Deine Rechte";
 "privacyPolicy.section.rights.body" = "Du kannst Auskunft, Berichtigung, Löschung, Widerspruch, Einschränkung, Übertragbarkeit deiner Daten und gegebenenfalls den Widerruf deiner Einwilligung verlangen. Du kannst außerdem Daten exportieren, Nova-Erinnerungen löschen, Privatsphäre-Einstellungen ändern, Nutzer blockieren, Konten oder Wörter stummschalten, dein Konto deaktivieren oder eine Löschung beantragen.\n\nWenn du dich in der Europäischen Union oder in einer anderen Region mit vergleichbaren Rechten befindest, kannst du dich auch bei deiner Datenschutzbehörde beschweren.";
 "privacyPolicy.section.minors.title" = "13. Minderjährige";
-"privacyPolicy.section.minors.body" = "Moments richtet sich nicht an Kinder unter 13 Jahren. Wenn wir feststellen, dass ein Konto einer Person unter dem geltenden Mindestalter gehört, können wir es einschränken oder löschen. Wenn du minderjährig bist, nutze Moments gegebenenfalls unter Aufsicht deiner Eltern oder Erziehungsberechtigten.";
+"privacyPolicy.section.minors.body" = "Moments richtet sich nicht an Kinder. Das Mindestalter für die Erstellung eines Kontos und die Nutzung des Dienstes hängt von deinem Land oder deiner Region ab; in vielen Ländern beträgt es 13 Jahre oder mehr. Soweit das lokale Recht es vorschreibt, kann auch die Zustimmung eines Elternteils oder Erziehungsberechtigten erforderlich sein. Wenn wir feststellen, dass ein Konto das geltende Mindestalter oder die Zustimmungsanforderungen nicht erfüllt, können wir es einschränken oder löschen.";
 "privacyPolicy.section.contact.title" = "14. Kontakt und Änderungen";
-"privacyPolicy.section.contact.body" = "Wir können diese Richtlinie aktualisieren, wenn sich unsere Funktionen, Anbieter oder gesetzlichen Anforderungen ändern. Wenn eine Änderung wesentlich ist, informieren wir dich darüber in der App oder auf einem anderen angemessenen Weg.\n\nBei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@moments.app oder besuche moments.app/privacy.";
+"privacyPolicy.section.contact.body" = "Wir können diese Richtlinie aktualisieren, wenn sich unsere Funktionen, Anbieter oder gesetzlichen Anforderungen ändern. Wenn eine Änderung wesentlich ist, informieren wir dich darüber in der App oder auf einem anderen angemessenen Weg.
+
+Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsapp.app oder besuche momentsapp.app/privacy.";
 "userProfile.unavailable.title" = "Profil nicht verfügbar";
 "userProfile.unavailable.description" = "Du kannst dieses Profil gerade nicht ansehen.";
 "userProfile.unavailable.username" = "Nutzer";
@@ -4494,3 +4512,76 @@
 "messageRequests.hiddenWords.automatic.description" = "Nutzt Sicherheitssignale ohne serverseitige Inhaltsanalyse.";
 "messageRequests.hiddenWords.custom" = "Wörter und Ausdrücke";
 "messageRequests.hiddenWords.custom.description" = "Ein Eintrag pro Zeile oder durch Kommas getrennt.";
+
+/* Interest catalog v2 — generated */
+"interest.photography" = "Fotografie";
+"interest.travel" = "Reisen";
+"interest.music" = "Musik";
+"interest.movies" = "Filme & Serien";
+"interest.art" = "Kunst";
+"interest.sports" = "Sport";
+"interest.books" = "Lesen";
+"interest.cooking" = "Kochen";
+"interest.technology" = "Technik";
+"interest.fashion" = "Mode";
+"interest.gaming" = "Gaming";
+"interest.fitness" = "Fitness";
+"interest.nature" = "Natur";
+"interest.animals" = "Tiere";
+"interest.food" = "Essen";
+"interest.science" = "Wissenschaft";
+"interest.history" = "Geschichte";
+"interest.politics" = "Politik";
+"interest.business" = "Business";
+"interest.health" = "Gesundheit";
+"interest.style" = "Persönlicher Stil";
+"interest.dance" = "Tanzen";
+"interest.writing" = "Schreiben";
+"interest.diy" = "DIY";
+"interest.cars" = "Autos";
+"interest.theater" = "Theater";
+"interest.meditation" = "Meditation";
+"interest.entrepreneurship" = "Start-ups";
+"interest.yoga" = "Yoga";
+"interest.coffee" = "Kaffee";
+"interest.astronomy" = "Astronomie";
+"interest.podcasts" = "Podcasts";
+"interest.pets" = "Haustiere";
+"interest.design" = "Design";
+"interest.programming" = "Programmieren";
+"interest.kpop" = "K-pop";
+"interest.anime" = "Anime";
+"interest.hiking" = "Wandern";
+"interest.cycling" = "Radfahren";
+"interest.running" = "Laufen";
+"interest.climbing" = "Klettern";
+"interest.surfing" = "Surfen";
+"interest.football" = "Fußball";
+"interest.basketball" = "Basketball";
+"interest.swimming" = "Schwimmen";
+"interest.skateboarding" = "Skateboarden";
+"interest.vinyl" = "Schallplatten";
+"interest.concerts" = "Livemusik";
+"interest.hiphop" = "Hip-hop";
+"interest.electronic_music" = "Elektronische Musik";
+"interest.baking" = "Backen";
+"interest.wine" = "Wein";
+"interest.craft_beer" = "Craft-Bier";
+"interest.beauty" = "Beauty";
+"interest.sneakers" = "Sneakers";
+"interest.tattoos" = "Tattoos";
+"interest.plants" = "Zimmerpflanzen";
+"interest.gardening" = "Gärtnern";
+"interest.languages" = "Sprachen";
+"interest.volunteering" = "Ehrenamt";
+"interest.sustainability" = "Nachhaltigkeit";
+"interest.cosplay" = "Cosplay";
+"interest.true_crime" = "True Crime";
+"interest.collecting" = "Sammeln";
+"interest.crafts" = "Handarbeiten";
+"interest.streaming" = "Streaming";
+"interest.ai" = "AI";
+"interest.personal_finance" = "Private Finanzen";
+"interest.philosophy" = "Philosophie";
+"interest.chess" = "Schach";
+"interest.board_games" = "Brettspiele";

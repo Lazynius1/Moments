@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "允許使用相機拍攝照片和影片，用於限時動態、Moments 和個人檔案。";
+"NSMicrophoneUsageDescription" = "允許使用麥克風錄製音訊，用於限時動態和語音訊息。";
+"NSLocationWhenInUseUsageDescription" = "允許使用位置資訊，為貼文加上地點標籤、顯示附近的相關內容，並改善 Nova AI 的推薦。";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "允許在聊天中分享即時位置；工作階段進行期間，即使 App 在背景執行也會持續分享。";
+"NSUserTrackingUsageDescription" = "此識別碼將用於顯示個人化廣告，並改善你在 App 中的使用體驗。";
+"NSPhotoLibraryUsageDescription" = "允許存取照片圖庫，以上傳照片至限時動態、更換個人檔案照片，並讓 Nova AI 分析你的圖片。";
+"NSPhotoLibraryAddUsageDescription" = "允許將照片和影片（例如 QR code 或編輯過的限時動態）直接儲存到相簿。";

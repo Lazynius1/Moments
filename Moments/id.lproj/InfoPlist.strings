@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "Izinkan akses kamera untuk mengambil foto dan video untuk cerita, momen, dan profilmu.";
+"NSMicrophoneUsageDescription" = "Izinkan akses mikrofon untuk merekam audio bagi cerita dan pesan suara.";
+"NSLocationWhenInUseUsageDescription" = "Izinkan akses lokasi untuk menandai postingan, menampilkan konten relevan di sekitar, dan menyempurnakan saran Nova AI.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Izinkan berbagi lokasi real-time di chat, bahkan saat aplikasi berjalan di latar belakang, selama sesi masih aktif.";
+"NSUserTrackingUsageDescription" = "ID ini akan digunakan untuk menampilkan iklan yang dipersonalisasi dan meningkatkan pengalamanmu di aplikasi.";
+"NSPhotoLibraryUsageDescription" = "Izinkan akses ke perpustakaan foto untuk mengunggah foto ke cerita, mengubah foto profil, dan memungkinkan Nova AI menganalisis gambarmu.";
+"NSPhotoLibraryAddUsageDescription" = "Izinkan penyimpanan foto dan video (seperti kode QR atau cerita yang telah diedit) langsung ke galeri.";

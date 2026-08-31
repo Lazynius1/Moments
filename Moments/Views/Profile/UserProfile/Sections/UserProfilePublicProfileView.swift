@@ -286,9 +286,6 @@ struct UserModernPublicProfileView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
         .profileNavigationSurface(colorScheme: colorScheme)
-        .sheet(isPresented: $showingQRCode) {
-            QRCodeView(targetUser: viewModel.userProfile)
-        }
     }
 
     private func openVisitorGridMenu(moment: Moment, index: Int) {

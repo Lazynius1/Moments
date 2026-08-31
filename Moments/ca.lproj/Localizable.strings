@@ -3578,15 +3578,31 @@
 "privacyPolicy.section.summary.title" = "1. Resum";
 "privacyPolicy.section.summary.body" = "Moments és una app social per compartir moments, històries, cadenes, missatges i converses amb Nova. No recopilem dades innecessàries ni construïm perfils comercials sobre tu.\n\nGuardem o processem la informació mínima que introdueixes, crees o actives mentre fas servir l'app, juntament amb dades tècniques necessàries perquè Moments funcioni, sigui segura, sincronitzi contingut, mostri anuncis quan correspongui i permeti usar Nova.";
 "privacyPolicy.section.data.title" = "2. Informació que fas servir o generes a Moments";
-"privacyPolicy.section.data.body" = "Quan crees un compte o configures el perfil, guardem dades com correu electrònic, nom d'usuari, foto de perfil, biografia, web, interessos, insígnies, estat en línia i preferències.\n\nQuan fas servir l'app, guardem el contingut i les accions que decideixes crear: moments, històries, cadenes, ecos, comentaris, reaccions, elements desats, visites, etiquetes, llistes personalitzades, millors amics i ajustos d'audiència.\n\nTambé tractem dades tècniques mínimes necessàries per a seguretat, sessió, sincronització, notificacions, anuncis i resolució d'errors.";
+"privacyPolicy.section.data.body" = "Quan crees un compte o configures el perfil, guardem dades com correu electrònic, nom d'usuari, foto de perfil, biografia, web, interessos, insígnies, estat en línia i preferències.
+
+Quan fas servir l'app, guardem el contingut i les accions que decideixes crear: moments, històries, cadenes, ecos, comentaris, reaccions, elements desats, visites, etiquetes, llistes personalitzades, millors amics i ajustos d'audiència.
+
+També tractem dades tècniques mínimes necessàries per a seguretat, sessió, sincronització, notificacions, anuncis i resolució d'errors.
+
+Per a la seguretat del compte, també podem guardar la teva adreça IP, informació del dispositiu, token de notificacions push, sessions actives i ubicació aproximada quan inicies sessió o actives funcions de seguretat.";
 "privacyPolicy.section.use.title" = "3. Com fem servir les dades";
 "privacyPolicy.section.use.body" = "Fem servir la informació per prestar el servei, autenticar-te, sincronitzar contingut, entregar missatges, aplicar els teus ajustos de privacitat, personalitzar l'experiència, millorar Moments, prevenir abusos, gestionar denúncies i complir obligacions legals.\n\nLes bases legals poden incloure la prestació del servei que demanes, el teu consentiment, el nostre interès legítim en seguretat i millora del producte, i el compliment d'obligacions legals.";
 "privacyPolicy.section.nova.title" = "4. Nova i intel·ligència artificial";
-"privacyPolicy.section.nova.body" = "Nova pot processar els teus missatges, imatges que li enviïs, context del teu compte, preferències, activitat recent i memòria personal per respondre't de manera més útil.\n\nLa memòria de Nova pot guardar detalls com ara com prefereixes que et diguin, interessos, estil de conversa o informació que comparteixes voluntàriament. Pots editar o esborrar aquesta memòria des de l'app.\n\nNova funciona mitjançant proveïdors tècnics d'IA, com Firebase Vertex AI/Gemini, i algunes tasques de moderació poden utilitzar serveis externs. No fem servir les teves converses amb Nova per vendre dades ni per a publicitat personalitzada de tercers.";
+"privacyPolicy.section.nova.body" = "Nova pot processar els teus missatges, imatges que li enviïs, context del teu compte, preferències, activitat recent i memòria personal per respondre't de manera més útil.
+
+La memòria de Nova pot guardar detalls com ara com prefereixes que et diguin, interessos, estil de conversa o informació que comparteixes voluntàriament. Pots editar o esborrar aquesta memòria des de l'app.
+
+Nova també pot fer servir la cerca web per respondre a certes preguntes quan això ajuda a donar-te una resposta útil.
+
+Nova funciona mitjançant proveïdors tècnics d'IA, com Firebase Vertex AI/Gemini, i algunes tasques de moderació poden utilitzar serveis externs. No fem servir les teves converses amb Nova per vendre dades ni per a publicitat personalitzada de tercers.";
 "privacyPolicy.section.visibility.title" = "5. Contingut, audiències i visibilitat";
 "privacyPolicy.section.visibility.body" = "Tu controles qui pot veure part del teu contingut mitjançant compte privat, audiències, millors amics, llistes personalitzades, només jo, bloquejos, silencis i ajustos de visibilitat de seguidors, seguits i admiradors.\n\nEl contingut privat o restringit usa Blackout: Moments intenta ocultar-lo en captures i gravacions de pantalla mitjançant protecció segura del sistema. Les publicacions fetes per a everyone no fan servir aquesta protecció. Tot i això, cap mesura pot impedir del tot que algú copiï o comparteixi fora de l'app contingut al qual hagi tingut accés.";
 "privacyPolicy.section.messages.title" = "6. Missatges i comunicacions";
-"privacyPolicy.section.messages.body" = "Processem converses, sol·licituds de missatges, participants, marques de temps, confirmacions de lectura, fitxers multimèdia, missatges efímers i contingut compartit per entregar la missatgeria.\n\nApliquem xifratge i mesures de seguretat per protegir missatges i dades sensibles. Tot i això, algunes metadades, URLs de fitxers multimèdia o informació necessària per entregar el servei poden emmagatzemar-se i processar-se per separat.";
+"privacyPolicy.section.messages.body" = "Processem converses, sol·licituds de missatges, participants, marques de temps, confirmacions de lectura, fitxers multimèdia, missatges efímers i contingut compartit per entregar la missatgeria.
+
+Apliquem xifratge i mesures de seguretat per protegir missatges i dades sensibles. Tot i això, algunes metadades, URLs de fitxers multimèdia o informació necessària per entregar el servei poden emmagatzemar-se i processar-se per separat.
+
+Si decideixes compartir ubicació en viu en una conversa, tractem aquesta ubicació fins que la sessió de compartició acabi o expiri.";
 "privacyPolicy.section.permissions.title" = "7. Permisos del dispositiu";
 "privacyPolicy.section.permissions.body" = "Demanem permisos només quan són necessaris per a una funció concreta: càmera per crear fotos o vídeos, galeria per pujar o desar contingut, micròfon per a àudio, i ubicació per etiquetar publicacions, mapes, contingut proper i context opcional de Nova.\n\nPots canviar aquests permisos des dels ajustos d'iOS. Si els desactives, algunes funcions poden deixar d'estar disponibles.";
 "privacyPolicy.section.ads.title" = "8. Publicitat i consentiment";
@@ -3600,9 +3616,11 @@
 "privacyPolicy.section.rights.title" = "12. Els teus drets";
 "privacyPolicy.section.rights.body" = "Pots sol·licitar accés, rectificació, eliminació, oposició, limitació, portabilitat de les teves dades i retirada del consentiment quan correspongui. També pots exportar dades, esborrar records de Nova, canviar la privacitat, bloquejar usuaris, silenciar comptes o paraules, desactivar el compte o sol·licitar-ne l'eliminació.\n\nSi ets a la Unió Europea o en una altra regió amb drets equivalents, també pots reclamar davant la teva autoritat de protecció de dades.";
 "privacyPolicy.section.minors.title" = "13. Menors";
-"privacyPolicy.section.minors.body" = "Moments no està dirigida a menors de 13 anys. Si detectem que un compte pertany a una persona per sota de l'edat mínima aplicable, podem limitar-lo o eliminar-lo. Si ets menor d'edat, fes servir Moments amb supervisió dels pares o tutors quan correspongui.";
+"privacyPolicy.section.minors.body" = "Moments no està dirigida a menors. L'edat mínima per crear un compte i utilitzar el servei depèn del teu país o regió; en molts llocs és de 13 anys o més. Quan ho exigeixi la llei local, pot ser necessari el consentiment d'un pare, mare o tutor. Si detectem que un compte no compleix l'edat mínima aplicable o els requisits de consentiment, el podem restringir o eliminar.";
 "privacyPolicy.section.contact.title" = "14. Contacte i canvis";
-"privacyPolicy.section.contact.body" = "Podem actualitzar aquesta política quan canviïn les nostres funcions, proveïdors o requisits legals. Si el canvi és important, ho comunicarem a l'app o per altres mitjans raonables.\n\nPer a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@moments.app o visita moments.app/privacy.";
+"privacyPolicy.section.contact.body" = "Podem actualitzar aquesta política quan canviïn les nostres funcions, proveïdors o requisits legals. Si el canvi és important, ho comunicarem a l'app o per altres mitjans raonables.
+
+Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@momentsapp.app o visita momentsapp.app/privacy.";
 "userProfile.unavailable.title" = "Perfil no disponible";
 "userProfile.unavailable.description" = "No pots veure aquest perfil en aquest moment.";
 "userProfile.unavailable.username" = "Usuari";
@@ -4514,3 +4532,76 @@
 "messageRequests.hiddenWords.automatic.description" = "Oculta sol·licituds amb senyals de seguretat sense analitzar el contingut al servidor.";
 "messageRequests.hiddenWords.custom" = "Paraules i frases";
 "messageRequests.hiddenWords.custom.description" = "Escriu-ne una per línia o separa-les amb comes.";
+
+/* Interest catalog v2 — generated */
+"interest.photography" = "Fotografia";
+"interest.travel" = "Viatges";
+"interest.music" = "Música";
+"interest.movies" = "Cinema i TV";
+"interest.art" = "Art";
+"interest.sports" = "Esports";
+"interest.books" = "Lectura";
+"interest.cooking" = "Cuina";
+"interest.technology" = "Tecnologia";
+"interest.fashion" = "Moda";
+"interest.gaming" = "Videojocs";
+"interest.fitness" = "Fitness";
+"interest.nature" = "Natura";
+"interest.animals" = "Animals";
+"interest.food" = "Gastronomia";
+"interest.science" = "Ciència";
+"interest.history" = "Història";
+"interest.politics" = "Política";
+"interest.business" = "Negocis";
+"interest.health" = "Salut";
+"interest.style" = "Estil personal";
+"interest.dance" = "Dansa";
+"interest.writing" = "Escriptura";
+"interest.diy" = "DIY";
+"interest.cars" = "Cotxes";
+"interest.theater" = "Teatre";
+"interest.meditation" = "Meditació";
+"interest.entrepreneurship" = "Startups";
+"interest.yoga" = "Ioga";
+"interest.coffee" = "Cafè";
+"interest.astronomy" = "Astronomia";
+"interest.podcasts" = "Pòdcasts";
+"interest.pets" = "Animals de companyia";
+"interest.design" = "Disseny";
+"interest.programming" = "Programació";
+"interest.kpop" = "K-pop";
+"interest.anime" = "Anime";
+"interest.hiking" = "Senderisme";
+"interest.cycling" = "Ciclisme";
+"interest.running" = "Running";
+"interest.climbing" = "Escalada";
+"interest.surfing" = "Surf";
+"interest.football" = "Futbol";
+"interest.basketball" = "Bàsquet";
+"interest.swimming" = "Natació";
+"interest.skateboarding" = "Skateboarding";
+"interest.vinyl" = "Discos de vinil";
+"interest.concerts" = "Música en directe";
+"interest.hiphop" = "Hip-hop";
+"interest.electronic_music" = "Música electrònica";
+"interest.baking" = "Rebosteria";
+"interest.wine" = "Vi";
+"interest.craft_beer" = "Cervesa artesana";
+"interest.beauty" = "Bellesa";
+"interest.sneakers" = "Sneakers";
+"interest.tattoos" = "Tatuatges";
+"interest.plants" = "Plantes d’interior";
+"interest.gardening" = "Jardineria";
+"interest.languages" = "Idiomes";
+"interest.volunteering" = "Voluntariat";
+"interest.sustainability" = "Sostenibilitat";
+"interest.cosplay" = "Cosplay";
+"interest.true_crime" = "Crònica negra";
+"interest.collecting" = "Col·leccionisme";
+"interest.crafts" = "Manualitats";
+"interest.streaming" = "Streaming";
+"interest.ai" = "AI";
+"interest.personal_finance" = "Finances personals";
+"interest.philosophy" = "Filosofia";
+"interest.chess" = "Escacs";
+"interest.board_games" = "Jocs de taula";

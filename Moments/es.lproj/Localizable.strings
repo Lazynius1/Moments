@@ -2577,32 +2577,13 @@
 "editMoment.audience.locked.explainer" = "Este momento fue limitado por moderación y su audiencia no se puede cambiar desde aquí.";
 
 /* Interests */
-"interest.escritura" = "Escritura";
-"interest.cine" = "Cine";
-"interest.libros" = "Libros";
-"interest.teatro" = "Teatro";
-"interest.meditacion" = "Meditación";
 "interest.naturaleza" = "Naturaleza";
-"interest.fotografia" = "Fotografía";
-"interest.moda" = "Moda";
-"interest.emprendimiento" = "Emprendimiento";
-"interest.yoga" = "Yoga";
-"interest.historia" = "Historia";
-"interest.cafe" = "Café";
 "interest.fitness" = "Fitness";
-"interest.musica" = "Música";
 "interest.gaming" = "Gaming";
-"interest.tecnologia" = "Tecnología";
-"interest.viajar" = "Viajar";
-"interest.astronomia" = "Astronomía";
 "interest.podcasts" = "Podcasts";
-"interest.deportes" = "Deportes";
 "interest.cocina" = "Cocina";
 "interest.mascotas" = "Mascotas";
-"interest.diseno" = "Diseño";
 "interest.baile" = "Baile";
-"interest.programacion" = "Programación";
-"interest.kpop" = "Kpop";
 
 /* Report System */
 "report.title" = "Reportar %@";
@@ -2964,6 +2945,7 @@
 "echo.viewer.unavailable" = "Este momento ya no está disponible";
 
 /* Intereses */
+/* Interest catalog v2 — generated */
 "interest.photography" = "Fotografía";
 "interest.travel" = "Viajes";
 "interest.music" = "Música";
@@ -2987,8 +2969,54 @@
 "interest.style" = "Estilo";
 "interest.dance" = "Baile";
 "interest.writing" = "Escritura";
-"interest.diy" = "Bricolaje";
+"interest.diy" = "DIY";
 "interest.cars" = "Coches";
+"interest.theater" = "Teatro";
+"interest.meditation" = "Meditación";
+"interest.entrepreneurship" = "Emprendimiento";
+"interest.yoga" = "Yoga";
+"interest.coffee" = "Café";
+"interest.astronomy" = "Astronomía";
+"interest.podcasts" = "Podcasts";
+"interest.pets" = "Mascotas";
+"interest.design" = "Diseño";
+"interest.programming" = "Programación";
+"interest.kpop" = "K-pop";
+"interest.anime" = "Anime";
+"interest.hiking" = "Senderismo";
+"interest.cycling" = "Ciclismo";
+"interest.running" = "Correr";
+"interest.climbing" = "Escalada";
+"interest.surfing" = "Surf";
+"interest.football" = "Fútbol";
+"interest.basketball" = "Baloncesto";
+"interest.swimming" = "Natación";
+"interest.skateboarding" = "Skate";
+"interest.vinyl" = "Vinilos";
+"interest.concerts" = "Conciertos";
+"interest.hiphop" = "Hip-hop";
+"interest.electronic_music" = "Música electrónica";
+"interest.baking" = "Repostería";
+"interest.wine" = "Vino";
+"interest.craft_beer" = "Cerveza artesanal";
+"interest.beauty" = "Belleza";
+"interest.sneakers" = "Sneakers";
+"interest.tattoos" = "Tatuajes";
+"interest.plants" = "Plantas";
+"interest.gardening" = "Jardinería";
+"interest.languages" = "Idiomas";
+"interest.volunteering" = "Voluntariado";
+"interest.sustainability" = "Sostenibilidad";
+"interest.cosplay" = "Cosplay";
+"interest.true_crime" = "Crímenes reales";
+"interest.collecting" = "Coleccionismo";
+"interest.crafts" = "Manualidades";
+"interest.streaming" = "Streaming";
+"interest.ai" = "IA";
+"interest.personal_finance" = "Finanzas personales";
+"interest.philosophy" = "Filosofía";
+"interest.chess" = "Ajedrez";
+"interest.board_games" = "Juegos de mesa";
 
 /* Deactivated Account */
 "deactivated.title" = "Cuenta en Reposo";
@@ -3621,19 +3649,35 @@
 
 /* Privacy Policy */
 "privacyPolicy.title" = "Política de privacidad";
-"privacyPolicy.lastUpdated" = "Última actualización: 29 de abril de 2026";
+"privacyPolicy.lastUpdated" = "Última actualización: 30 de agosto de 2026";
 "privacyPolicy.section.summary.title" = "1. Resumen";
 "privacyPolicy.section.summary.body" = "Moments es una app social para compartir momentos, historias, cadenas, mensajes y conversaciones con Nova. No recopilamos datos innecesarios ni construimos perfiles comerciales sobre ti.\n\nGuardamos o procesamos la información mínima que tú introduces, creas o activas al usar la app, junto con datos técnicos necesarios para que Moments funcione, sea seguro, sincronice contenido, muestre anuncios cuando corresponda y permita usar Nova.";
 "privacyPolicy.section.data.title" = "2. Información que usas o generas en Moments";
-"privacyPolicy.section.data.body" = "Cuando creas una cuenta o configuras tu perfil, guardamos datos como correo electrónico, nombre de usuario, foto de perfil, biografía, web, intereses, insignias, estado online y preferencias.\n\nCuando usas la app, guardamos el contenido y acciones que decides crear: momentos, historias, cadenas, ecos, comentarios, reacciones, elementos guardados, visitas, etiquetas, listas personalizadas, mejores amigos y ajustes de audiencia.\n\nTambién tratamos datos técnicos mínimos necesarios para seguridad, sesión, sincronización, notificaciones, anuncios y resolución de errores.";
+"privacyPolicy.section.data.body" = "Cuando creas una cuenta o configuras tu perfil, guardamos datos como correo electrónico, nombre de usuario, foto de perfil, biografía, web, intereses, insignias, estado online y preferencias.
+
+Cuando usas la app, guardamos el contenido y acciones que decides crear: momentos, historias, cadenas, ecos, comentarios, reacciones, elementos guardados, visitas, etiquetas, listas personalizadas, mejores amigos y ajustes de audiencia.
+
+También tratamos datos técnicos mínimos necesarios para seguridad, sesión, sincronización, notificaciones, anuncios y resolución de errores.
+
+Para la seguridad de la cuenta, también podemos guardar tu dirección IP, información del dispositivo, token de notificaciones push, sesiones activas y ubicación aproximada cuando inicias sesión o activas funciones de seguridad.";
 "privacyPolicy.section.use.title" = "3. Cómo usamos los datos";
 "privacyPolicy.section.use.body" = "Usamos la información para prestar el servicio, autenticarte, sincronizar contenido, entregar mensajes, aplicar tus ajustes de privacidad, personalizar la experiencia, mejorar Moments, prevenir abuso, gestionar reportes y cumplir obligaciones legales.\n\nLas bases legales pueden incluir la ejecución del servicio que solicitas, tu consentimiento, nuestro interés legítimo en seguridad y mejora del producto, y el cumplimiento de obligaciones legales.";
 "privacyPolicy.section.nova.title" = "4. Nova e inteligencia artificial";
-"privacyPolicy.section.nova.body" = "Nova puede procesar tus mensajes, imágenes que le envíes, contexto de tu cuenta, preferencias, actividad reciente y memoria personal para responderte de forma más útil.\n\nLa memoria de Nova puede guardar detalles como cómo prefieres que te llamen, intereses, estilo de conversación o información que compartes voluntariamente. Puedes editar o borrar esa memoria desde la app.\n\nNova funciona mediante proveedores técnicos de IA, como Firebase Vertex AI/Gemini, y algunas tareas de moderación pueden usar servicios externos. No usamos tus conversaciones con Nova para vender datos ni para publicidad personalizada de terceros.";
+"privacyPolicy.section.nova.body" = "Nova puede procesar tus mensajes, imágenes que le envíes, contexto de tu cuenta, preferencias, actividad reciente y memoria personal para responderte de forma más útil.
+
+La memoria de Nova puede guardar detalles como cómo prefieres que te llamen, intereses, estilo de conversación o información que compartes voluntariamente. Puedes editar o borrar esa memoria desde la app.
+
+Nova también puede usar búsqueda web para responder a ciertas preguntas cuando eso ayuda a darte una respuesta útil.
+
+Nova funciona mediante proveedores técnicos de IA, como Firebase Vertex AI/Gemini, y algunas tareas de moderación pueden usar servicios externos. No usamos tus conversaciones con Nova para vender datos ni para publicidad personalizada de terceros.";
 "privacyPolicy.section.visibility.title" = "5. Contenido, audiencias y visibilidad";
 "privacyPolicy.section.visibility.body" = "Tú controlas quién puede ver parte de tu contenido mediante cuenta privada, audiencias, mejores amigos, listas personalizadas, solo yo, bloqueos, silenciados y ajustes de visibilidad de seguidores, seguidos y admiradores.\n\nEl contenido privado o restringido usa Blackout: Moments intenta ocultarlo en capturas y grabaciones de pantalla mediante protección segura del sistema. Los posts publicados para everyone no usan esta protección. Aun así, ninguna medida puede impedir por completo que alguien copie o comparta fuera de la app contenido al que haya tenido acceso.";
 "privacyPolicy.section.messages.title" = "6. Mensajes y comunicaciones";
-"privacyPolicy.section.messages.body" = "Procesamos conversaciones, solicitudes de mensajes, participantes, marcas de tiempo, confirmaciones de lectura, archivos multimedia, mensajes efímeros y contenido compartido para entregar la mensajería.\n\nAplicamos cifrado y medidas de seguridad para proteger mensajes y datos sensibles. Aun así, algunos metadatos, URLs de archivos multimedia o información necesaria para entregar el servicio pueden almacenarse y procesarse de forma separada.";
+"privacyPolicy.section.messages.body" = "Procesamos conversaciones, solicitudes de mensajes, participantes, marcas de tiempo, confirmaciones de lectura, archivos multimedia, mensajes efímeros y contenido compartido para entregar la mensajería.
+
+Aplicamos cifrado y medidas de seguridad para proteger mensajes y datos sensibles. Aun así, algunos metadatos, URLs de archivos multimedia o información necesaria para entregar el servicio pueden almacenarse y procesarse de forma separada.
+
+Si decides compartir ubicación en vivo en una conversación, tratamos esa ubicación hasta que la sesión de compartición termine o expire.";
 "privacyPolicy.section.permissions.title" = "7. Permisos del dispositivo";
 "privacyPolicy.section.permissions.body" = "Pedimos permisos solo cuando son necesarios para una función concreta: cámara para crear fotos o vídeos, galería para subir o guardar contenido, micrófono para audio, ubicación para etiquetar publicaciones, mapas, contenido cercano y contexto opcional de Nova.\n\nPuedes cambiar estos permisos desde los ajustes de iOS. Si los desactivas, algunas funciones pueden dejar de estar disponibles.";
 "privacyPolicy.section.ads.title" = "8. Publicidad y consentimiento";
@@ -3647,9 +3691,11 @@
 "privacyPolicy.section.rights.title" = "12. Tus derechos";
 "privacyPolicy.section.rights.body" = "Puedes solicitar acceso, rectificación, eliminación, oposición, limitación, portabilidad de tus datos y retirada del consentimiento cuando aplique. También puedes exportar datos, borrar recuerdos de Nova, cambiar privacidad, bloquear usuarios, silenciar cuentas o palabras, desactivar tu cuenta o solicitar su eliminación.\n\nSi estás en la Unión Europea u otra región con derechos equivalentes, también puedes reclamar ante tu autoridad de protección de datos.";
 "privacyPolicy.section.minors.title" = "13. Menores";
-"privacyPolicy.section.minors.body" = "Moments no está dirigida a menores de 13 años. Si detectamos que una cuenta pertenece a una persona menor de la edad mínima aplicable, podemos limitarla o eliminarla. Si eres menor de edad, usa Moments con la supervisión de tus padres o tutores cuando corresponda.";
+"privacyPolicy.section.minors.body" = "Moments no está dirigida a menores. La edad mínima para crear una cuenta y usar el servicio depende de tu país o región; en muchos lugares es de 13 años o más. Cuando la ley local lo exija, puede ser necesario el consentimiento de un padre, madre o tutor. Si detectamos que una cuenta no cumple la edad mínima aplicable o los requisitos de consentimiento, podemos restringirla o eliminarla.";
 "privacyPolicy.section.contact.title" = "14. Contacto y cambios";
-"privacyPolicy.section.contact.body" = "Podemos actualizar esta política cuando cambien nuestras funciones, proveedores o requisitos legales. Si el cambio es importante, lo comunicaremos en la app o por otros medios razonables.\n\nPara preguntas o solicitudes de privacidad, contacta con nosotros en soporte@moments.app o visita moments.app/privacy.";
+"privacyPolicy.section.contact.body" = "Podemos actualizar esta política cuando cambien nuestras funciones, proveedores o requisitos legales. Si el cambio es importante, lo comunicaremos en la app o por otros medios razonables.
+
+Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@momentsapp.app o visita momentsapp.app/privacy.";
 "userProfile.unavailable.title" = "Perfil no disponible";
 "userProfile.unavailable.description" = "No puedes ver este perfil en este momento.";
 "userProfile.unavailable.username" = "Usuario";

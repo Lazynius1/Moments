@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "스토리, Moments, 프로필에 사용할 사진과 동영상을 촬영할 수 있도록 카메라 사용을 허용해 주세요.";
+"NSMicrophoneUsageDescription" = "스토리와 음성 메시지를 녹음할 수 있도록 마이크 사용을 허용해 주세요.";
+"NSLocationWhenInUseUsageDescription" = "게시물에 위치를 태그하고 주변의 관련 콘텐츠를 보여 드리며 Nova AI 추천을 개선할 수 있도록 위치 정보 사용을 허용해 주세요.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "세션이 활성화된 동안 앱이 백그라운드에 있어도 채팅에서 실시간 위치를 공유할 수 있도록 허용해 주세요.";
+"NSUserTrackingUsageDescription" = "이 식별자는 맞춤형 광고를 표시하고 앱 사용 경험을 개선하는 데 사용됩니다.";
+"NSPhotoLibraryUsageDescription" = "스토리에 사진을 업로드하고 프로필 사진을 변경하며 Nova AI가 이미지를 분석할 수 있도록 사진 보관함 접근을 허용해 주세요.";
+"NSPhotoLibraryAddUsageDescription" = "QR 코드나 편집한 스토리 같은 사진과 동영상을 갤러리에 바로 저장할 수 있도록 허용해 주세요.";

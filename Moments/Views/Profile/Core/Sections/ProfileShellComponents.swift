@@ -85,6 +85,7 @@ struct ModernProfileContentView: View {
     @Binding var showingQRCode: Bool // ✅ NUEVO: Binding para QR
     @Binding var showProfileImageFullscreen: Bool // ✅ NUEVO
     @Binding var isShowingIncognito: Bool
+    @ObservedObject var incognitoModeService: IncognitoModeService
     let isIncognitoActive: Bool
     @Binding var editingMoment: Moment?
     @Binding var pendingDeleteMoment: Moment?
@@ -143,6 +144,7 @@ struct ModernProfileContentView: View {
                             showingQRCode: $showingQRCode,
                             showProfileImageFullscreen: $showProfileImageFullscreen,
                             isShowingIncognito: $isShowingIncognito,
+                            incognitoModeService: incognitoModeService,
                             isIncognitoActive: isIncognitoActive,
                             profileZoomNamespace: profileZoomNamespace,
                             usernameCollapseProgress: usernameCollapseProgress
@@ -365,6 +367,7 @@ struct ModernProfileContentView: View {
                         isShowingNotifications: $isShowingNotifications,
                         showingQRCode: $showingQRCode,
                         isShowingIncognito: $isShowingIncognito,
+                        incognitoModeService: incognitoModeService,
                         isIncognitoActive: isIncognitoActive,
                         profileZoomNamespace: profileZoomNamespace
                     )

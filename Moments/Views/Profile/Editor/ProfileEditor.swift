@@ -1015,13 +1015,7 @@ struct ModernEditProfileView: View {
                 case .success(let interests):
                     availableInterests = interests
                 case .failure:
-                    // Fallback a lista por defecto si falla la carga
-                    availableInterests = [
-                        "Música", "Cine", "Deportes", "Viajes", "Fotografía", "Arte", "Tecnología",
-                        "Lectura", "Cocina", "Moda", "Gaming", "Fitness", "Naturaleza", "Animales",
-                        "Baile", "Teatro", "Escritura", "Ciencia", "Historia", "Idiomas", "Anime",
-                        "K-pop", "Streaming", "Yoga", "Meditación", "Senderismo", "Ciclismo"
-                    ]
+                    availableInterests = InterestCatalog.firestoreKeys
                 }
             }
         }

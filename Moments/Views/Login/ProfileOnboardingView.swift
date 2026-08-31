@@ -544,12 +544,7 @@ struct ProfileOnboardingView: View {
     }
 
     private var fallbackInterests: [String] {
-        [
-            NSLocalizedString("register.interest.photography", comment: "Photography"),
-            NSLocalizedString("register.interest.travel", comment: "Travel"),
-            NSLocalizedString("register.interest.music", comment: "Music"),
-            NSLocalizedString("register.interest.technology", comment: "Technology")
-        ]
+        InterestCatalog.firestoreKeys
     }
 }
 

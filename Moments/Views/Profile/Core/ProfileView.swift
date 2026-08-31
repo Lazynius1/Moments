@@ -398,6 +398,7 @@ struct ProfileView: View {
                         showingQRCode: $isShowingQRCode, // ✅ NUEVO: Binding
                         showProfileImageFullscreen: $showProfileImageFullscreen, // ✅ NUEVO
                         isShowingIncognito: $isShowingIncognito,
+                        incognitoModeService: incognitoModeService,
                         isIncognitoActive: incognitoModeService.isActive,
                         editingMoment: $editingMoment,
                         pendingDeleteMoment: $pendingDeleteMoment
@@ -435,12 +436,6 @@ struct ProfileView: View {
                     if let currentUser = authService.currentUser {
                         ProfileThemeSelector(user: currentUser)
                     }
-                }
-                .sheet(isPresented: $isShowingQRCode) {
-                    QRCodeView()
-                }
-                .sheet(isPresented: $isShowingIncognito) {
-                    IncognitoModeSheet(service: incognitoModeService)
                 }
                 .sheet(isPresented: $showProfileImageFullscreen) {
                     if let profileImagePath = viewModel.userProfile?.profileImagePath {
