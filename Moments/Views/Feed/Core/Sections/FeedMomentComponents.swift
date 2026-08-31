@@ -524,6 +524,7 @@ struct ModernPostCardView: View {
                 colorScheme: colorScheme,
                 onHashtagTap: onHashtagTap
             )
+            .zIndex(200)
             .opacity(isImmersive ? 0 : 1)
             .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
         }

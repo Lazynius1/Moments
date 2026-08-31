@@ -1,5 +1,6 @@
 import SwiftUI
 import Kingfisher
+import UIKit
 
 enum MomentCaptionPresentationStyle {
     case feed
@@ -26,6 +27,8 @@ struct MomentCaptionView: View {
     var isReelsCaptionExpanded: Binding<Bool> = .constant(false)
 
     @State private var showFullCaption = false
+    @State private var limitedCaptionHeight: CGFloat = 0
+    @State private var fullCaptionHeight: CGFloat = 0
 
     private var trimmedContent: String {
         moment.content.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -41,22 +44,12 @@ struct MomentCaptionView: View {
         }
     }
 
-    private var maxCharacters: Int {
-        switch style {
-        case .feed: return 120
-        case .reels: return 90
-        case .detail: return 180
-        }
-    }
-
     private var previewContent: String {
-        guard needsExpansion else { return cardContent }
-        guard cardContent.count > maxCharacters else { return cardContent }
-        return String(cardContent.prefix(maxCharacters)).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
+        cardContent
     }
 
     private var needsExpansion: Bool {
-        cardContent.count > maxCharacters || trimmedContent.filter { $0 == "\n" }.count > 1
+        fullCaptionHeight > limitedCaptionHeight + 0.5
     }
 
     private var baseTextColor: Color {
@@ -102,60 +95,106 @@ struct MomentCaptionView: View {
     }
 
     private var feedOrDetailCaption: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            MomentHashtagText(
-                content: previewContent,
-                textFont: .system(size: style == .detail ? 15 : 14),
-                hashtagFont: .system(size: style == .detail ? 15 : 14, weight: .semibold),
-                baseColor: baseTextColor,
-                hashtagColor: hashtagTextColor,
-                mentionColor: mentionTextColor,
-                textAlignment: .leading,
-                shadowColor: .clear,
-                shadowRadius: 0,
-                shadowX: 0,
-                shadowY: 0,
-                onHashtagTap: onHashtagTap,
-                onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
-            )
-            .lineLimit(style == .detail ? 4 : 3)
-
-            if needsExpansion {
-                Button {
-                    HapticManager.shared.lightImpact()
-                    showFullCaption = true
-                } label: {
-                    HStack(spacing: 5) {
-                        Text(NSLocalizedString("feed.seeMore", comment: "See more"))
-                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-
-                        Image(systemName: "text.alignleft")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .foregroundStyle(secondaryTextColor)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 6)
-                    .momentsChromeGlass(in: Capsule(), interactive: true)
+        MomentCaptionContextTransition(isRequested: $showFullCaption) {
+            VStack(alignment: .leading, spacing: 8) {
+                MomentHashtagText(
+                    content: previewContent,
+                    textFont: .system(size: style == .detail ? 15 : 14),
+                    hashtagFont: .system(size: style == .detail ? 15 : 14, weight: .semibold),
+                    baseColor: baseTextColor,
+                    hashtagColor: hashtagTextColor,
+                    mentionColor: mentionTextColor,
+                    textAlignment: .leading,
+                    shadowColor: .clear,
+                    shadowRadius: 0,
+                    shadowX: 0,
+                    shadowY: 0,
+                    onHashtagTap: onHashtagTap,
+                    onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
+                )
+                .lineLimit(style == .detail ? 4 : 3)
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.height
+                } action: { height in
+                    limitedCaptionHeight = height
                 }
-                .buttonStyle(.plain)
+                .background(alignment: .topLeading) {
+                    MomentHashtagText(
+                        content: cardContent,
+                        textFont: .system(size: style == .detail ? 15 : 14),
+                        hashtagFont: .system(size: style == .detail ? 15 : 14, weight: .semibold),
+                        baseColor: baseTextColor,
+                        hashtagColor: hashtagTextColor,
+                        mentionColor: mentionTextColor,
+                        textAlignment: .leading,
+                        shadowColor: .clear,
+                        shadowRadius: 0,
+                        shadowX: 0,
+                        shadowY: 0,
+                        onHashtagTap: { _ in },
+                        onMentionTap: nil
+                    )
+                    .fixedSize(horizontal: false, vertical: true)
+                    .hidden()
+                    .allowsHitTesting(false)
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.size.height
+                    } action: { height in
+                        fullCaptionHeight = height
+                    }
+                }
+                .onChange(of: cardContent) { _, _ in
+                    limitedCaptionHeight = 0
+                    fullCaptionHeight = 0
+                }
+
+                if needsExpansion {
+                    Button {
+                        requestFullCaption()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text(NSLocalizedString("feed.seeMore", comment: "See more"))
+                                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+
+                            Image(systemName: "text.alignleft")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundStyle(secondaryTextColor)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 6)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .highPriorityGesture(
+                        TapGesture().onEnded {
+                            requestFullCaption()
+                        }
+                    )
+                }
             }
-        }
-        // Sin esto el Text usa solo su ideal width y el VStack del post (alignment .center)
-        // lo deja flotando con hueco grande a la izquierda — Android ya hace fillMaxWidth().
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
-        .padding(.top, style == .detail ? 0 : 2)
-        .sheet(isPresented: $showFullCaption) {
-            MomentCaptionReaderSheet(
+            // Sin esto el Text usa solo su ideal width y el VStack del post (alignment .center)
+            // lo deja flotando con hueco grande a la izquierda — Android ya hace fillMaxWidth().
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
+            .padding(.top, style == .detail ? 0 : 2)
+        } destination: { close, reportContentHeight in
+            MomentCaptionReaderCard(
                 moment: moment,
                 content: trimmedContent,
                 colorScheme: colorScheme,
-                onHashtagTap: onHashtagTap
+                onHashtagTap: onHashtagTap,
+                onClose: close,
+                onContentHeightChange: reportContentHeight
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.hidden)
-            .presentationBackground(.clear)
         }
+    }
+
+    private func requestFullCaption() {
+        guard !showFullCaption else { return }
+        HapticManager.shared.lightImpact()
+        showFullCaption = true
     }
 }
 
@@ -309,11 +348,233 @@ private struct HeightPreferenceKey: PreferenceKey {
     }
 }
 
-private struct MomentCaptionReaderSheet: View {
+/// El caption conserva su posición espacial, pero se materializa como una
+/// superficie de lectura. A diferencia del QR/estadísticas, no hay dos caras
+/// físicas y por eso el movimiento evita deliberadamente la rotación 3D.
+private struct MomentCaptionContextTransition<Source: View, Destination: View>: View {
+    @Binding var isRequested: Bool
+    @ViewBuilder let source: () -> Source
+    @ViewBuilder let destination: (@escaping () -> Void, @escaping (CGFloat) -> Void) -> Destination
+
+    @State private var sourceFrame: CGRect = .zero
+    @State private var presentationSourceFrame: CGRect = .zero
+    @State private var sourceImage: UIImage?
+    @State private var isPresented = false
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        source()
+            .opacity(isPresented ? 0 : 1)
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .global)
+            } action: { frame in
+                sourceFrame = frame
+                if isRequested, !isPresented {
+                    present()
+                }
+            }
+            .onChange(of: isRequested) { _, requested in
+                guard requested else { return }
+                present()
+            }
+            .fullScreenCover(isPresented: $isPresented, onDismiss: reset) {
+                MomentCaptionContextDestination(
+                    sourceFrame: presentationSourceFrame,
+                    sourceImage: sourceImage,
+                    destination: destination,
+                    onFinish: dismiss
+                )
+            }
+    }
+
+    private func present() {
+        guard isRequested, !isPresented else { return }
+        // El vídeo puede provocar una actualización de layout justo al tocar.
+        // Conservamos la petición y la completamos desde onGeometryChange.
+        guard sourceFrame.width > 0, sourceFrame.height > 0 else { return }
+
+        let renderer = ImageRenderer(
+            content: source()
+                .environment(\.colorScheme, colorScheme)
+                .frame(width: sourceFrame.width, height: sourceFrame.height)
+        )
+        renderer.proposedSize = ProposedViewSize(sourceFrame.size)
+        renderer.scale = displayScale
+        sourceImage = renderer.uiImage
+        presentationSourceFrame = sourceFrame
+
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            isPresented = true
+        }
+    }
+
+    private func dismiss() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            isPresented = false
+        }
+    }
+
+    private func reset() {
+        sourceImage = nil
+        presentationSourceFrame = .zero
+        isRequested = false
+    }
+}
+
+private struct MomentCaptionContextDestination<Destination: View>: View {
+    let sourceFrame: CGRect
+    let sourceImage: UIImage?
+    @ViewBuilder let destination: (@escaping () -> Void, @escaping (CGFloat) -> Void) -> Destination
+    let onFinish: () -> Void
+
+    @State private var progress: CGFloat = 0
+    @State private var isClosing = false
+    @State private var destinationContentHeight: CGFloat = 0
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        GeometryReader { proxy in
+            let destinationFrame = finalFrame(in: proxy)
+            let containerFrame = proxy.frame(in: .global)
+            let localSourceFrame = sourceFrame.offsetBy(
+                dx: -containerFrame.minX,
+                dy: -containerFrame.minY
+            )
+
+            ZStack {
+                Color.black
+                    .opacity(0.34 * progress)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: close)
+
+                if reduceMotion {
+                    destinationCard(frame: destinationFrame)
+                        .position(x: destinationFrame.midX, y: destinationFrame.midY)
+                        .opacity(progress)
+                } else {
+                    morphingCard(from: localSourceFrame, to: destinationFrame)
+                }
+            }
+        }
+        .presentationBackground(.clear)
+        .interactiveDismissDisabled()
+        .onAppear {
+            open()
+        }
+    }
+
+    private func morphingCard(from sourceFrame: CGRect, to destinationFrame: CGRect) -> some View {
+        let frame = interpolatedFrame(from: sourceFrame, to: destinationFrame, progress: progress)
+        let cornerRadius = mix(16, 28, progress)
+        let sourceOpacity = max(0, 1 - (progress / 0.44))
+        let destinationOpacity = min(max((progress - 0.16) / 0.42, 0), 1)
+        let surface = colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+
+        return ZStack {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(surface)
+                .frame(width: frame.width, height: frame.height)
+                .shadow(color: .black.opacity(0.25 * progress), radius: 24 * progress, y: 11 * progress)
+                .position(x: frame.midX, y: frame.midY)
+
+            if let sourceImage {
+                Image(uiImage: sourceImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: frame.width, height: frame.height)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .opacity(sourceOpacity)
+                    .position(x: frame.midX, y: frame.midY)
+            }
+
+            destinationCard(frame: destinationFrame)
+                .scaleEffect(
+                    x: frame.width / max(destinationFrame.width, 1),
+                    y: frame.height / max(destinationFrame.height, 1)
+                )
+                .opacity(destinationOpacity)
+                .position(x: frame.midX, y: frame.midY)
+        }
+    }
+
+    private func destinationCard(frame: CGRect) -> some View {
+        destination(close, updateDestinationContentHeight)
+            .frame(width: frame.width, height: frame.height)
+            .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+
+    private func finalFrame(in proxy: GeometryProxy) -> CGRect {
+        let horizontalInset: CGFloat = 12
+        let topInset = max(proxy.safeAreaInsets.top + 10, 16)
+        let bottomInset = max(proxy.safeAreaInsets.bottom + 10, 16)
+        let availableHeight = max(proxy.size.height - topInset - bottomInset, 1)
+        let maximumHeight = min(560, availableHeight * 0.50)
+        let measuredHeight = destinationContentHeight > 0 ? destinationContentHeight : 260
+        let height = min(max(measuredHeight, 220), maximumHeight)
+
+        return CGRect(
+            x: horizontalInset,
+            y: topInset + ((availableHeight - height) / 2),
+            width: max(proxy.size.width - (horizontalInset * 2), 1),
+            height: height
+        )
+    }
+
+    private func open() {
+        withAnimation(reduceMotion ? .easeOut(duration: 0.18) : .smooth(duration: 0.42, extraBounce: 0)) {
+            progress = 1
+        }
+    }
+
+    private func close() {
+        guard !isClosing else { return }
+        isClosing = true
+        withAnimation(
+            reduceMotion ? .easeIn(duration: 0.16) : .smooth(duration: 0.38, extraBounce: 0),
+            completionCriteria: .logicallyComplete
+        ) {
+            progress = 0
+        } completion: {
+            onFinish()
+        }
+    }
+
+    private func interpolatedFrame(from start: CGRect, to end: CGRect, progress: CGFloat) -> CGRect {
+        CGRect(
+            x: mix(start.minX, end.minX, progress),
+            y: mix(start.minY, end.minY, progress),
+            width: mix(start.width, end.width, progress),
+            height: mix(start.height, end.height, progress)
+        )
+    }
+
+    private func mix(_ start: CGFloat, _ end: CGFloat, _ progress: CGFloat) -> CGFloat {
+        start + ((end - start) * progress)
+    }
+
+    private func updateDestinationContentHeight(_ height: CGFloat) {
+        guard height.isFinite, height > 0, abs(destinationContentHeight - height) > 0.5 else { return }
+        destinationContentHeight = height
+    }
+}
+
+private struct MomentCaptionReaderCard: View {
     let moment: Moment
     let content: String
     let colorScheme: ColorScheme
     let onHashtagTap: (String) -> Void
+    let onClose: () -> Void
+    let onContentHeightChange: (CGFloat) -> Void
 
     private var baseTextColor: Color {
         colorScheme == .dark ? .white.opacity(0.94) : .black.opacity(0.86)
@@ -325,24 +586,17 @@ private struct MomentCaptionReaderSheet: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                Capsule()
-                    .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.22))
-                    .frame(width: 42, height: 5)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 10)
-
-                MomentCaptionMediaPreview(moment: moment, colorScheme: colorScheme)
-                    .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 20) {
+                MomentCaptionReaderHeader(
+                    moment: moment,
+                    colorScheme: colorScheme,
+                    onClose: onClose
+                )
 
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text(NSLocalizedString("editMoment.description", comment: "Description"))
-                            .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
-                            .foregroundStyle(baseTextColor)
-
-                        Spacer()
-                    }
+                    Text(NSLocalizedString("editMoment.description", comment: "Description"))
+                        .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
+                        .foregroundStyle(baseTextColor)
 
                     MomentHashtagText(
                         content: content,
@@ -360,17 +614,23 @@ private struct MomentCaptionReaderSheet: View {
                         onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
                     )
                 }
-                .padding(.horizontal, 4)
             }
-            .padding(.horizontal, 18)
-            .padding(.bottom, 34)
+            .padding(20)
+            .padding(.bottom, 14)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                onContentHeightChange(height)
+            }
         }
+        .scrollBounceBehavior(.basedOnSize)
     }
 }
 
-private struct MomentCaptionMediaPreview: View {
+private struct MomentCaptionReaderHeader: View {
     let moment: Moment
     let colorScheme: ColorScheme
+    let onClose: () -> Void
 
     private var mediaURL: String? {
         if let image = moment.previewImageURLString?.trimmingCharacters(in: .whitespacesAndNewlines), !image.isEmpty {
@@ -387,47 +647,51 @@ private struct MomentCaptionMediaPreview: View {
     }
 
     var body: some View {
-        ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
-            ZStack(alignment: .bottomLeading) {
-                if let mediaURL, let url = URL(string: mediaURL) {
-                    KFImage(url)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    LinearGradient(
-                        colors: colorScheme == .dark
-                            ? [Color.white.opacity(0.10), Color.white.opacity(0.04)]
-                            : [Color.black.opacity(0.08), Color.black.opacity(0.03)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                }
-
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.45)],
-                    startPoint: .center,
-                    endPoint: .bottom
-                )
-
-                HStack(spacing: 8) {
-                    if isVideo {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 10, weight: .bold))
+        HStack(spacing: 12) {
+            ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
+                ZStack {
+                    if let mediaURL, let url = URL(string: mediaURL) {
+                        KFImage(url)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        LinearGradient(
+                            colors: colorScheme == .dark
+                                ? [Color.white.opacity(0.10), Color.white.opacity(0.04)]
+                                : [Color.black.opacity(0.08), Color.black.opacity(0.03)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     }
 
-                    LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
-                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .lineLimit(1)
+                    if isVideo {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.45), radius: 3)
+                    }
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .momentsChromeGlass(in: Capsule(), interactive: false)
-                .padding(12)
+                .frame(width: 58, height: 58)
+                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
-            .frame(height: 230)
-            .clipShape(FeedMomentCardLayout.continuousRoundedRect)
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.28 : 0.14), radius: 18, y: 10)
+
+            VStack(alignment: .leading) {
+                LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(width: 38, height: 38)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("common.close"))
         }
+        .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.94) : Color.black.opacity(0.86))
     }
 }
