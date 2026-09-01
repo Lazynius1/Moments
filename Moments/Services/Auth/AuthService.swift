@@ -567,6 +567,7 @@ class AuthService: ObservableObject {
         email: String,
         selectedInterests: [String],
         privacyPolicyAccepted: Bool,
+        birthDate: Date? = nil,
         profileImage: UIImage?,
         firebaseUID: String? = nil,
         pendingAppleEmail: String? = nil
@@ -585,6 +586,7 @@ class AuthService: ObservableObject {
             email: email,
             selectedInterests: selectedInterests,
             privacyPolicyAccepted: privacyPolicyAccepted,
+            birthDate: birthDate,
             profileImage: profileImage,
             firebaseUID: firebaseUID ?? Auth.auth().currentUser?.uid,
             pendingAppleEmail: pendingAppleEmail
@@ -1685,7 +1687,23 @@ class AuthService: ObservableObject {
         }
 
     // ✅ NUEVA FUNCIÓN: Completar registro para logins sociales (Apple)
-    func completeSocialRegistration(username: String, interests: [String], profileImage: UIImage?, fallbackEmail: String? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
+    func completeSocialRegistration(
+        username: String,
+        interests: [String],
+        profileImage: UIImage?,
+        birthDate: Date,
+        privacyPolicyAccepted: Bool,
+        fallbackEmail: String? = nil,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        guard privacyPolicyAccepted else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.privacyPolicyRequired", comment: "Privacy policy required")])))
+            return
+        }
+        guard MomentsAgePolicy.isEligibleForAccount(birthDate: birthDate) else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.minimumAgeRequired", comment: "Minimum age required")])))
+            return
+        }
         // ✅ USAR AUTH DIRECTAMENTE: A veces el @Published currentFirebaseUser tarda un ciclo en actualizarse
         let firebaseUser = Auth.auth().currentUser
 
@@ -1711,7 +1729,9 @@ class AuthService: ObservableObject {
                 username: username,
                 email: email,
                 interests: interests,
-                profileImagePath: profileImagePath
+                profileImagePath: profileImagePath,
+                birthDate: birthDate,
+                privacyPolicyAccepted: privacyPolicyAccepted
             ) { error in
                 if let error = error {
                     completion(.failure(error))
@@ -1726,9 +1746,13 @@ class AuthService: ObservableObject {
     }
 
     // ✅ REGISTRO CORREGIDO - Establecer flags SÍNCRONAMENTE antes de crear usuario
-    func register(username: String, email: String, password: String, interests: [String], privacyPolicyAccepted: Bool, profileImage: UIImage?, completion: @escaping (Result<Void, Error>) -> Void) {
+    func register(username: String, email: String, password: String, interests: [String], privacyPolicyAccepted: Bool, birthDate: Date, profileImage: UIImage?, completion: @escaping (Result<Void, Error>) -> Void) {
         guard privacyPolicyAccepted else {
             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.privacyPolicyRequired", comment: "Privacy policy required")])))
+            return
+        }
+        guard MomentsAgePolicy.isEligibleForAccount(birthDate: birthDate) else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.minimumAgeRequired", comment: "Minimum age required")])))
             return
         }
 
@@ -1785,7 +1809,9 @@ class AuthService: ObservableObject {
                             username: username,
                             email: email,
                             interests: interests,
-                            profileImagePath: profileImagePath
+                            profileImagePath: profileImagePath,
+                            birthDate: birthDate,
+                            privacyPolicyAccepted: privacyPolicyAccepted
                         ) { error in
                             DispatchQueue.main.async {
                                 if let error = error {

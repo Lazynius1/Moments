@@ -2642,6 +2642,9 @@
 "auth.error.emptyFields" = "아이디와 비밀번호를 입력해 주세요.";
 "auth.error.usernameNotFound" = "사용자를 찾을 수 없어요. 사용자 이름을 확인해 주세요.";
 "auth.error.privacyPolicyRequired" = "개인정보 보호정책에 동의해야 해요.";
+"auth.error.minimumAgeRequired" = "거주 지역에 적용되는 최소 연령 요건을 충족하지 않아요.";
+"onboarding.birthDate.label" = "생년월일";
+"onboarding.birthDate.helper" = "계정을 만들려면 16세 이상이어야 해요.";
 "auth.error.usernameUnavailable" = "사용할 수 없는 사용자 이름이에요.";
 "auth.error.userIdNotFound" = "사용자 ID를 가져올 수 없어요.";
 "auth.error.incompleteRegistrationWrongPassword" = "이 이메일로 가입을 완료하지 않았어요. 가입할 때 설정한 비밀번호를 사용해 주세요.";
@@ -3379,7 +3382,7 @@
 "privacyPolicy.section.rights.title" = "12. 회원님의 권리";
 "privacyPolicy.section.rights.body" = "해당되는 경우 데이터 열람, 수정, 삭제, 처리 거부, 처리 제한, 데이터 이동을 요청하고 동의를 철회할 수 있어요. 또한 데이터를 내보내고, Nova 메모리를 삭제하고, 개인정보 설정을 변경하고, 사용자를 차단하고, 계정이나 단어를 숨기고, 계정을 비활성화하거나 삭제를 요청할 수 있어요.\n\n유럽연합 또는 이와 동등한 권리를 보장하는 지역에 거주하는 경우, 데이터 보호 기관에 민원을 제기할 수도 있어요.";
 "privacyPolicy.section.minors.title" = "13. 미성년자";
-"privacyPolicy.section.minors.body" = "Moments는 아동을 대상으로 하지 않아요. 계정을 만들고 서비스를 이용할 수 있는 최소 연령은 국가나 지역에 따라 다르며, 많은 지역에서 13세 이상이에요. 현지 법률에서 요구하는 경우 부모 또는 보호자의 동의가 필요할 수도 있어요. 계정이 해당 최소 연령 또는 동의 요건을 충족하지 않는 것으로 확인되면 계정 이용을 제한하거나 삭제할 수 있어요.";
+"privacyPolicy.section.minors.body" = "Moments는 아동을 대상으로 하지 않아요. 계정을 만들고 서비스를 이용하려면 가입할 때 거주 지역에 표시되는 최소 연령을 충족해야 해요. 현지 법률에서 요구하는 경우 추가 연령 확인이나 보호자 동의가 필요할 수 있어요. 계정이 해당 최소 연령 또는 동의 요건을 충족하지 않는 것으로 확인되면 계정 이용을 제한하거나 삭제할 수 있어요.";
 "privacyPolicy.section.contact.title" = "14. 문의 및 변경 사항";
 "privacyPolicy.section.contact.body" = "기능, 제공업체 또는 법적 요건이 변경되면 이 정책을 업데이트할 수 있어요. 중요한 변경 사항이 있는 경우 앱이나 기타 합리적인 방법을 통해 알려드릴게요.\n\n개인정보 보호에 관한 질문이나 요청은 soporte@momentsapp.app으로 문의하거나 momentsapp.app/privacy를 방문해 주세요.";
 "userProfile.unavailable.title" = "프로필을 사용할 수 없어요";

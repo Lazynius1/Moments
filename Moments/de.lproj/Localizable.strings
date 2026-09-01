@@ -2776,6 +2776,9 @@
 "auth.error.emptyFields" = "Kennung und Passwort sind erforderlich.";
 "auth.error.usernameNotFound" = "Nutzer nicht gefunden. Bitte überprüfe deinen Benutzernamen.";
 "auth.error.privacyPolicyRequired" = "Du musst die Datenschutzrichtlinie akzeptieren.";
+"auth.error.minimumAgeRequired" = "Du erfüllst das in deiner Region geltende Mindestalter nicht.";
+"onboarding.birthDate.label" = "Geburtsdatum";
+"onboarding.birthDate.helper" = "Du musst mindestens 16 Jahre alt sein, um ein Konto zu erstellen.";
 "auth.error.usernameUnavailable" = "Benutzername nicht verfügbar.";
 "auth.error.userIdNotFound" = "Nutzer-ID konnte nicht ermittelt werden.";
 "auth.error.incompleteRegistrationWrongPassword" = "Diese E-Mail hat eine unvollständige Registrierung. Verwende das Passwort von der Anmeldung.";
@@ -3598,7 +3601,7 @@ Wenn du dich entscheidest, Live-Standort in einer Unterhaltung zu teilen, verarb
 "privacyPolicy.section.rights.title" = "12. Deine Rechte";
 "privacyPolicy.section.rights.body" = "Du kannst Auskunft, Berichtigung, Löschung, Widerspruch, Einschränkung, Übertragbarkeit deiner Daten und gegebenenfalls den Widerruf deiner Einwilligung verlangen. Du kannst außerdem Daten exportieren, Nova-Erinnerungen löschen, Privatsphäre-Einstellungen ändern, Nutzer blockieren, Konten oder Wörter stummschalten, dein Konto deaktivieren oder eine Löschung beantragen.\n\nWenn du dich in der Europäischen Union oder in einer anderen Region mit vergleichbaren Rechten befindest, kannst du dich auch bei deiner Datenschutzbehörde beschweren.";
 "privacyPolicy.section.minors.title" = "13. Minderjährige";
-"privacyPolicy.section.minors.body" = "Moments richtet sich nicht an Kinder. Das Mindestalter für die Erstellung eines Kontos und die Nutzung des Dienstes hängt von deinem Land oder deiner Region ab; in vielen Ländern beträgt es 13 Jahre oder mehr. Soweit das lokale Recht es vorschreibt, kann auch die Zustimmung eines Elternteils oder Erziehungsberechtigten erforderlich sein. Wenn wir feststellen, dass ein Konto das geltende Mindestalter oder die Zustimmungsanforderungen nicht erfüllt, können wir es einschränken oder löschen.";
+"privacyPolicy.section.minors.body" = "Moments richtet sich nicht an Kinder. Du musst das in deiner Region während der Registrierung angezeigte Mindestalter erfüllen, um ein Konto zu erstellen und den Dienst zu nutzen. Soweit das lokale Recht es vorschreibt, kann zusätzliche Altersverifizierung oder elterliche Zustimmung erforderlich sein. Wenn wir feststellen, dass ein Konto das geltende Mindestalter oder die Zustimmungsanforderungen nicht erfüllt, können wir es einschränken oder löschen.";
 "privacyPolicy.section.contact.title" = "14. Kontakt und Änderungen";
 "privacyPolicy.section.contact.body" = "Wir können diese Richtlinie aktualisieren, wenn sich unsere Funktionen, Anbieter oder gesetzlichen Anforderungen ändern. Wenn eine Änderung wesentlich ist, informieren wir dich darüber in der App oder auf einem anderen angemessenen Weg.
 

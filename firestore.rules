@@ -22,6 +22,33 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(ownerId)).data.get('isActive', true);
     }
 
+    function meetsMinimumAccountAge(birthDate) {
+      return birthDate is timestamp
+        && birthDate <= request.time - duration.value(16, 'y');
+    }
+
+    function minimumAgeForCountry(countryCode) {
+      return countryCode == 'IN' ? 18 : 16;
+    }
+
+    function meetsRegionalMinimumAccountAge(birthDate, countryCode) {
+      return birthDate is timestamp
+        && countryCode is string
+        && countryCode.size() == 2
+        && birthDate <= request.time - duration.value(minimumAgeForCountry(countryCode), 'y');
+    }
+
+    function hasValidRegistrationCompliance(data) {
+      return data.privacyPolicyAccepted == true
+        && data.privacyPolicyAcceptedAt is timestamp
+        && data.privacyPolicyVersion is string
+        && data.privacyPolicyVersion.size() > 0
+        && data.birthDate is timestamp
+        && data.countryCode is string
+        && data.countryCode.size() == 2
+        && meetsRegionalMinimumAccountAge(data.birthDate, data.countryCode);
+    }
+
     // ✅ CORREGIDA: Función helper para verificar audiencia personalizada
     function canViewCustomContent(viewerId, ownerId, contentType, contentId) {
       let audienceDocId = contentType + '_' + contentId;
@@ -336,6 +363,7 @@ service cloud.firestore {
                 && (!("lastSeen" in request.resource.data) || request.resource.data.lastSeen is timestamp)
                     && (!("encryptionPublicKeyBase64" in request.resource.data) || request.resource.data.encryptionPublicKeyBase64 is string)
                 && (!("chatKey" in request.resource.data) || request.resource.data.chatKey is map)
+                && hasValidRegistrationCompliance(request.resource.data)
                 // No permitir campos de desactivación en creación
                 && !("deactivatedAt" in request.resource.data)
                 && !("deactivatedBy" in request.resource.data)
@@ -345,6 +373,9 @@ service cloud.firestore {
           allow update: if request.auth != null
             && request.auth.uid == userId
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['incognito'])
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'birthDate', 'countryCode', 'privacyPolicyAccepted', 'privacyPolicyAcceptedAt', 'privacyPolicyVersion'
+            ])
             && (
               !request.resource.data.diff(resource.data).affectedKeys().hasAny(['profileNote'])
               || (

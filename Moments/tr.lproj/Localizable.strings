@@ -2642,6 +2642,9 @@
 "auth.error.emptyFields" = "Kullanıcı adı ve şifre gerekli.";
 "auth.error.usernameNotFound" = "Kullanıcı bulunamadı. Kullanıcı adını kontrol et.";
 "auth.error.privacyPolicyRequired" = "Gizlilik politikasını kabul etmelisin.";
+"auth.error.minimumAgeRequired" = "Bölgenizde geçerli olan minimum yaş şartını karşılamıyorsunuz.";
+"onboarding.birthDate.label" = "Doğum tarihi";
+"onboarding.birthDate.helper" = "Hesap oluşturmak için en az 16 yaşında olmalısın.";
 "auth.error.usernameUnavailable" = "Bu kullanıcı adı kullanılamıyor.";
 "auth.error.userIdNotFound" = "Kullanıcı kimliği alınamadı.";
 "auth.error.incompleteRegistrationWrongPassword" = "Bu e-posta adresiyle başlatılmış bir kayıt işlemi tamamlanmamış. Kayıt olurken belirlediğin şifreyi kullan.";
@@ -3379,7 +3382,7 @@
 "privacyPolicy.section.rights.title" = "12. Haklarınız";
 "privacyPolicy.section.rights.body" = "Uygulanabildiği durumlarda verilerinize erişim, verilerinizin düzeltilmesi veya silinmesi, itiraz, işlemeyi kısıtlama, veri taşınabilirliği ve verdiğiniz izinleri geri çekme taleplerinde bulunabilirsiniz. Ayrıca verilerinizi dışa aktarabilir, Nova hafızalarını silebilir, gizlilik ayarlarını değiştirebilir, kullanıcıları engelleyebilir, hesapları veya kelimeleri sessize alabilir, hesabınızı devre dışı bırakabilir ya da silinmesini isteyebilirsiniz.\n\nAvrupa Birliği'nde veya eşdeğer haklara sahip başka bir bölgede bulunuyorsanız veri koruma kurumunuza da şikâyette bulunabilirsiniz.";
 "privacyPolicy.section.minors.title" = "13. Reşit olmayanlar";
-"privacyPolicy.section.minors.body" = "Moments çocuklara yönelik değildir. Hesap oluşturmak ve hizmeti kullanmak için gereken minimum yaş, ülkenize veya bölgenize göre değişir; birçok yerde bu yaş 13 veya üzeridir. Yerel yasaların gerektirdiği durumlarda ebeveyn veya vasi izni de gerekebilir. Bir hesabın geçerli minimum yaş veya izin koşullarını karşılamadığını tespit edersek hesabı kısıtlayabilir veya silebiliriz.";
+"privacyPolicy.section.minors.body" = "Moments çocuklara yönelik değildir. Hesap oluşturmak ve hizmeti kullanmak için bölgeniz için kayıt sırasında gösterilen minimum yaşı karşılamalısınız. Yerel yasa gerektirdiğinde ek yaş doğrulaması veya ebeveyn/vasi onayı gerekebilir. Bir hesabın geçerli minimum yaş veya onay koşullarını karşılamadığını tespit edersek hesabı kısıtlayabilir veya silebiliriz.";
 "privacyPolicy.section.contact.title" = "14. İletişim ve değişiklikler";
 "privacyPolicy.section.contact.body" = "Özelliklerimiz, sağlayıcılarımız veya yasal gereklilikler değiştiğinde bu politikayı güncelleyebiliriz. Önemli bir değişiklik olursa bunu uygulama içinde veya makul gördüğümüz başka yollarla size bildiririz.\n\nGizlilikle ilgili sorularınız veya talepleriniz için soporte@momentsapp.app adresinden bize ulaşabilir ya da momentsapp.app/privacy adresini ziyaret edebilirsiniz.";
 "userProfile.unavailable.title" = "Profil kullanılamıyor";

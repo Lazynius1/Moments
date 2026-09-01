@@ -2642,6 +2642,9 @@
 "auth.error.emptyFields" = "Gebruikersnaam en wachtwoord zijn vereist.";
 "auth.error.usernameNotFound" = "Gebruiker niet gevonden. Controleer je gebruikersnaam.";
 "auth.error.privacyPolicyRequired" = "Je moet het privacybeleid accepteren.";
+"auth.error.minimumAgeRequired" = "Je voldoet niet aan de minimumleeftijd die in jouw regio geldt.";
+"onboarding.birthDate.label" = "Geboortedatum";
+"onboarding.birthDate.helper" = "Je moet minstens 16 jaar zijn om een account aan te maken.";
 "auth.error.usernameUnavailable" = "Deze gebruikersnaam is niet beschikbaar.";
 "auth.error.userIdNotFound" = "Kan de gebruikers-ID niet ophalen.";
 "auth.error.incompleteRegistrationWrongPassword" = "Voor dit e-mailadres is de registratie nog niet afgerond. Gebruik het wachtwoord dat je bij het aanmelden hebt gekozen.";
@@ -3379,7 +3382,7 @@
 "privacyPolicy.section.rights.title" = "12. Jouw rechten";
 "privacyPolicy.section.rights.body" = "Je kunt verzoeken om inzage, correctie, verwijdering, bezwaar, beperking en overdraagbaarheid van je gegevens indienen. Waar van toepassing kun je ook je toestemming intrekken. Daarnaast kun je gegevens exporteren, herinneringen van Nova verwijderen, je privacyinstellingen aanpassen, gebruikers blokkeren, accounts of woorden dempen, je account deactiveren of verwijdering aanvragen.\n\nAls je in de Europese Unie woont of in een andere regio met vergelijkbare rechten, kun je ook een klacht indienen bij je privacytoezichthouder.";
 "privacyPolicy.section.minors.title" = "13. Minderjarigen";
-"privacyPolicy.section.minors.body" = "Moments is niet bedoeld voor kinderen. De minimumleeftijd om een account aan te maken en de dienst te gebruiken hangt af van je land of regio; op veel plaatsen is dat 13 jaar of ouder. Waar de lokale wet dat vereist, kan ook toestemming van een ouder of voogd nodig zijn. Als we vaststellen dat een account niet voldoet aan de geldende minimumleeftijd of toestemmingsvereisten, kunnen we het beperken of verwijderen.";
+"privacyPolicy.section.minors.body" = "Moments is niet bedoeld voor kinderen. Je moet voldoen aan de minimumleeftijd die tijdens de registratie voor jouw regio wordt vermeld om een account aan te maken en de dienst te gebruiken. Waar de lokale wet dat vereist, kunnen extra leeftijdscontroles of toestemming van een ouder of voogd gelden. Als we vaststellen dat een account niet voldoet aan de geldende minimumleeftijd of toestemmingsvereisten, kunnen we het beperken of verwijderen.";
 "privacyPolicy.section.contact.title" = "14. Contact en wijzigingen";
 "privacyPolicy.section.contact.body" = "We kunnen dit beleid aanpassen wanneer onze functies, providers of wettelijke verplichtingen veranderen. Als een wijziging belangrijk is, laten we dit weten in de app of via andere passende middelen.\n\nHeb je vragen over privacy of wil je een verzoek indienen? Neem dan contact met ons op via soporte@momentsapp.app of ga naar momentsapp.app/privacy.";
 "userProfile.unavailable.title" = "Profiel niet beschikbaar";

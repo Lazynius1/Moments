@@ -2642,6 +2642,9 @@
 "auth.error.emptyFields" = "IDとパスワードを入力してください。";
 "auth.error.usernameNotFound" = "ユーザーが見つかりません。ユーザーネームを確認してください。";
 "auth.error.privacyPolicyRequired" = "プライバシーポリシーに同意してください。";
+"auth.error.minimumAgeRequired" = "お住まいの地域で適用される最低年齢要件を満たしていません。";
+"onboarding.birthDate.label" = "生年月日";
+"onboarding.birthDate.helper" = "アカウントを作成するには16歳以上である必要があります。";
 "auth.error.usernameUnavailable" = "そのユーザーネームは使用できません。";
 "auth.error.userIdNotFound" = "ユーザーIDを取得できませんでした。";
 "auth.error.incompleteRegistrationWrongPassword" = "このメールアドレスでは登録が完了していません。登録時に設定したパスワードを使用してください。";
@@ -3379,7 +3382,7 @@
 "privacyPolicy.section.rights.title" = "12. あなたの権利";
 "privacyPolicy.section.rights.body" = "適用される場合、データへのアクセス、訂正、削除、異議申し立て、処理の制限、データポータビリティ、同意の撤回を請求できます。また、データのエクスポート、Novaのメモリーの削除、プライバシー設定の変更、ユーザーのブロック、アカウントや単語のミュート、アカウントの利用停止、削除の請求もできます。\n\n欧州連合または同等の権利が認められている地域にお住まいの場合は、データ保護当局に申し立てることもできます。";
 "privacyPolicy.section.minors.title" = "13. 未成年者";
-"privacyPolicy.section.minors.body" = "Momentsは子どもを対象としたサービスではありません。アカウントの作成とサービスの利用に必要な最低年齢は、国や地域によって異なります。多くの地域では13歳以上です。現地法で定められている場合は、保護者の同意が必要になることもあります。アカウントが適用される最低年齢や同意の要件を満たしていないことが判明した場合、利用を制限またはアカウントを削除することがあります。";
+"privacyPolicy.section.minors.body" = "Momentsは子どもを対象としたサービスではありません。アカウントを作成してサービスを利用するには、登録時にお住まいの地域に表示される最低年齢を満たす必要があります。現地法で定められている場合は、追加の年齢確認や保護者の同意が必要になることがあります。アカウントが適用される最低年齢や同意の要件を満たしていないことが判明した場合、利用を制限またはアカウントを削除することがあります。";
 "privacyPolicy.section.contact.title" = "14. お問い合わせと変更";
 "privacyPolicy.section.contact.body" = "機能、プロバイダー、法的要件の変更に伴い、このポリシーを更新することがあります。重要な変更がある場合は、アプリ内またはその他の適切な方法でお知らせします。\n\nプライバシーに関する質問や請求は、soporte@momentsapp.appまでお問い合わせいただくか、momentsapp.app/privacyをご覧ください。";
 "userProfile.unavailable.title" = "プロフィールを利用できません";

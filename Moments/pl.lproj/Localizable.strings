@@ -2642,6 +2642,9 @@
 "auth.error.emptyFields" = "Identyfikator i hasło są wymagane.";
 "auth.error.usernameNotFound" = "Nie znaleziono użytkownika. Sprawdź nazwę użytkownika.";
 "auth.error.privacyPolicyRequired" = "Musisz zaakceptować politykę prywatności.";
+"auth.error.minimumAgeRequired" = "Nie spełniasz minimalnego wieku obowiązującego w Twoim regionie.";
+"onboarding.birthDate.label" = "Data urodzenia";
+"onboarding.birthDate.helper" = "Musisz mieć co najmniej 16 lat, aby utworzyć konto.";
 "auth.error.usernameUnavailable" = "Ta nazwa użytkownika jest niedostępna.";
 "auth.error.userIdNotFound" = "Nie udało się pobrać identyfikatora użytkownika.";
 "auth.error.incompleteRegistrationWrongPassword" = "Rejestracja przy użyciu tego adresu e-mail nie została dokończona. Użyj hasła wybranego podczas rejestracji.";
@@ -3379,7 +3382,7 @@
 "privacyPolicy.section.rights.title" = "12. Twoje prawa";
 "privacyPolicy.section.rights.body" = "Możesz poprosić o dostęp do swoich danych, ich poprawienie, usunięcie, ograniczenie przetwarzania, przeniesienie lub wyrazić sprzeciw wobec przetwarzania, a także wycofać zgodę, jeśli ma to zastosowanie. Możesz również eksportować dane, usuwać zapamiętane informacje Nova, zmieniać ustawienia prywatności, blokować użytkowników, wyciszać konta lub słowa, dezaktywować konto albo poprosić o jego usunięcie.\n\nJeśli mieszkasz w Unii Europejskiej lub innym regionie, w którym obowiązują podobne prawa, możesz również złożyć skargę do organu ochrony danych.";
 "privacyPolicy.section.minors.title" = "13. Osoby niepełnoletnie";
-"privacyPolicy.section.minors.body" = "Moments nie jest przeznaczone dla dzieci. Minimalny wiek wymagany do założenia konta i korzystania z usługi zależy od kraju lub regionu; w wielu miejscach wynosi 13 lat lub więcej. Gdy wymaga tego lokalne prawo, może być potrzebna zgoda rodzica lub opiekuna. Jeśli wykryjemy, że konto nie spełnia obowiązującego minimalnego wieku lub wymogów dotyczących zgody, możemy je ograniczyć lub usunąć.";
+"privacyPolicy.section.minors.body" = "Moments nie jest przeznaczone dla dzieci. Musisz spełniać minimalny wiek wskazany podczas rejestracji dla Twojego regionu, aby utworzyć konto i korzystać z usługi. Gdy wymaga tego lokalne prawo, mogą obowiązywać dodatkowa weryfikacja wieku lub zgoda rodzica albo opiekuna. Jeśli wykryjemy, że konto nie spełnia obowiązującego minimalnego wieku lub wymogów dotyczących zgody, możemy je ograniczyć lub usunąć.";
 "privacyPolicy.section.contact.title" = "14. Kontakt i zmiany";
 "privacyPolicy.section.contact.body" = "Możemy aktualizować tę politykę, gdy zmienią się nasze funkcje, dostawcy lub wymagania prawne. Jeśli zmiana będzie istotna, poinformujemy Cię w aplikacji lub w inny uzasadniony sposób.\n\nW sprawach dotyczących prywatności lub próśb związanych z danymi napisz na adres soporte@momentsapp.app lub odwiedź momentsapp.app/privacy.";
 "userProfile.unavailable.title" = "Profil niedostępny";

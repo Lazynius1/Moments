@@ -2776,6 +2776,9 @@
 "auth.error.emptyFields" = "Identificador e senha são obrigatórios.";
 "auth.error.usernameNotFound" = "Usuário não encontrado. Verifique seu nome de usuário.";
 "auth.error.privacyPolicyRequired" = "Você precisa aceitar a política de privacidade.";
+"auth.error.minimumAgeRequired" = "Você não atende à idade mínima aplicável na sua região.";
+"onboarding.birthDate.label" = "Data de nascimento";
+"onboarding.birthDate.helper" = "Você precisa ter pelo menos 16 anos para criar uma conta.";
 "auth.error.usernameUnavailable" = "Nome de usuário indisponível.";
 "auth.error.userIdNotFound" = "Não foi possível obter o ID do usuário.";
 "auth.error.incompleteRegistrationWrongPassword" = "Este e-mail tem um cadastro incompleto. Use a senha que você escolheu ao se registrar.";
@@ -3598,7 +3601,7 @@ Se você optar por compartilhar localização ao vivo em uma conversa, tratamos 
 "privacyPolicy.section.rights.title" = "12. Seus direitos";
 "privacyPolicy.section.rights.body" = "Você pode solicitar acesso, correção, exclusão, oposição, restrição, portabilidade dos seus dados e retirada do consentimento, quando aplicável. Você também pode exportar dados, excluir memórias da Nova, alterar configurações de privacidade, bloquear usuários, silenciar contas ou palavras, desativar sua conta ou solicitar exclusão.\n\nSe você estiver na União Europeia ou em outra região com direitos equivalentes, também poderá apresentar reclamação à sua autoridade de proteção de dados.";
 "privacyPolicy.section.minors.title" = "13. Menores";
-"privacyPolicy.section.minors.body" = "O Moments não é direcionado a crianças. A idade mínima para criar uma conta e usar o serviço depende do seu país ou região; em muitos lugares, é de 13 anos ou mais. Quando exigido pela lei local, o consentimento de um responsável também pode ser necessário. Se detectarmos que uma conta não atende à idade mínima aplicável ou aos requisitos de consentimento, poderemos limitá-la ou excluí-la.";
+"privacyPolicy.section.minors.body" = "O Moments não é direcionado a crianças. Você precisa atender à idade mínima indicada durante o cadastro para a sua região para criar uma conta e usar o serviço. Quando exigido pela lei local, verificação adicional de idade ou consentimento dos responsáveis pode ser necessário. Se detectarmos que uma conta não atende à idade mínima aplicável ou aos requisitos de consentimento, poderemos limitá-la ou excluí-la.";
 "privacyPolicy.section.contact.title" = "14. Contato e mudanças";
 "privacyPolicy.section.contact.body" = "Podemos atualizar esta política quando nossos recursos, provedores ou requisitos legais mudarem. Se uma alteração for importante, comunicaremos isso no app ou por outros meios razoáveis.
 

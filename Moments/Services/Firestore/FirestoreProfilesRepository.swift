@@ -3,7 +3,41 @@ import FirebaseFirestore
 import Foundation
 
 extension FirestoreService {
-    func createUser(userId: String, username: String, email: String, interests: [String], profileImagePath: String? = nil, completion: @escaping (Error?) -> Void) {
+    func createUser(
+        userId: String,
+        username: String,
+        email: String,
+        interests: [String],
+        profileImagePath: String? = nil,
+        birthDate: Date,
+        privacyPolicyAccepted: Bool,
+        countryCode: String = MomentsAgePolicy.currentCountryCode,
+        privacyPolicyVersion: String = MomentsAgePolicy.privacyPolicyVersion,
+        completion: @escaping (Error?) -> Void
+    ) {
+        guard privacyPolicyAccepted else {
+            completion(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.privacyPolicyRequired", comment: "Privacy policy required")]
+            ))
+            return
+        }
+        let normalizedCountryCode = countryCode.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalizedCountryCode.count == 2 else {
+            completion(NSError(domain: "RegistrationCompliance", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid country code"]))
+            return
+        }
+        guard MomentsAgePolicy.isEligibleForAccount(birthDate: birthDate, countryCode: normalizedCountryCode) else {
+            completion(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.minimumAgeRequired", comment: "Minimum age required")]
+            ))
+            return
+        }
+
+        let normalizedBirthDate = MomentsAgePolicy.normalizedBirthDate(birthDate)
         let newUser = AppUser(
             id: userId,
             username: username.lowercased(),
@@ -52,6 +86,11 @@ extension FirestoreService {
 
             userData["createdAt"] = FieldValue.serverTimestamp()
             userData["updatedAt"] = FieldValue.serverTimestamp()
+            userData["birthDate"] = Timestamp(date: normalizedBirthDate)
+            userData["countryCode"] = normalizedCountryCode
+            userData["privacyPolicyAccepted"] = true
+            userData["privacyPolicyAcceptedAt"] = FieldValue.serverTimestamp()
+            userData["privacyPolicyVersion"] = privacyPolicyVersion
             userData["isActive"] = true
             userData["isSuspended"] = false
             userData.removeValue(forKey: "deactivatedAt")

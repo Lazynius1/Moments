@@ -2642,6 +2642,9 @@
 "auth.error.emptyFields" = "ID pengguna dan kata sandi wajib diisi.";
 "auth.error.usernameNotFound" = "Pengguna tidak ditemukan. Periksa nama penggunamu.";
 "auth.error.privacyPolicyRequired" = "Kamu harus menyetujui kebijakan privasi.";
+"auth.error.minimumAgeRequired" = "Kamu belum memenuhi batas usia minimum yang berlaku di wilayahmu.";
+"onboarding.birthDate.label" = "Tanggal lahir";
+"onboarding.birthDate.helper" = "Kamu harus berusia minimal 16 tahun untuk membuat akun.";
 "auth.error.usernameUnavailable" = "Nama pengguna tidak tersedia.";
 "auth.error.userIdNotFound" = "Tidak bisa mendapatkan ID pengguna.";
 "auth.error.incompleteRegistrationWrongPassword" = "Pendaftaran dengan email ini belum selesai. Gunakan kata sandi yang kamu pilih saat mendaftar.";
@@ -3379,7 +3382,7 @@
 "privacyPolicy.section.rights.title" = "12. Hak Anda";
 "privacyPolicy.section.rights.body" = "Anda dapat meminta akses, perbaikan, penghapusan, keberatan, pembatasan, dan portabilitas data, serta menarik persetujuan jika berlaku. Anda juga dapat mengekspor data, menghapus memori Nova, mengubah pengaturan privasi, memblokir pengguna, membisukan akun atau kata, menonaktifkan akun, atau meminta penghapusan akun.\n\nJika Anda berada di Uni Eropa atau wilayah lain dengan hak yang setara, Anda juga dapat mengajukan keluhan kepada otoritas perlindungan data.";
 "privacyPolicy.section.minors.title" = "13. Anak di bawah umur";
-"privacyPolicy.section.minors.body" = "Moments tidak ditujukan untuk anak-anak. Usia minimum untuk membuat akun dan menggunakan layanan bergantung pada negara atau wilayah Anda; di banyak tempat usia tersebut adalah 13 tahun atau lebih. Jika diwajibkan oleh hukum setempat, persetujuan orang tua atau wali juga dapat diperlukan. Jika kami mendeteksi bahwa sebuah akun tidak memenuhi usia minimum yang berlaku atau persyaratan persetujuan, kami dapat membatasi atau menghapus akun tersebut.";
+"privacyPolicy.section.minors.body" = "Moments tidak ditujukan untuk anak-anak. Kamu harus memenuhi usia minimum yang ditampilkan saat pendaftaran untuk wilayahmu untuk membuat akun dan menggunakan layanan. Jika diwajibkan oleh hukum setempat, verifikasi usia tambahan atau persetujuan orang tua/wali mungkin diperlukan. Jika kami mendeteksi bahwa sebuah akun tidak memenuhi usia minimum yang berlaku atau persyaratan persetujuan, kami dapat membatasi atau menghapus akun tersebut.";
 "privacyPolicy.section.contact.title" = "14. Kontak dan perubahan";
 "privacyPolicy.section.contact.body" = "Kami dapat memperbarui kebijakan ini ketika fitur, penyedia, atau persyaratan hukum kami berubah. Jika perubahannya penting, kami akan menyampaikannya melalui aplikasi atau cara lain yang wajar.\n\nUntuk pertanyaan atau permintaan terkait privasi, hubungi kami di soporte@momentsapp.app atau kunjungi momentsapp.app/privacy.";
 "userProfile.unavailable.title" = "Profil tidak tersedia";

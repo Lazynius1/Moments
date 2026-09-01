@@ -29,6 +29,7 @@ struct ProfileOnboardingView: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showingPhotoPicker = false
     @State private var privacyPolicyAccepted = false
+    @State private var birthDate = MomentsAgePolicy.defaultPickerBirthDate()
     @State private var showPrivacyPolicy = false
     @State private var currentStep = 1
     @State private var isLoading = false
@@ -154,6 +155,9 @@ struct ProfileOnboardingView: View {
             persistDraft()
         }
         .onChange(of: privacyPolicyAccepted) { _, _ in
+            persistDraft()
+        }
+        .onChange(of: birthDate) { _, _ in
             persistDraft()
         }
         .onChange(of: profileImage) { _, _ in
@@ -298,6 +302,7 @@ struct ProfileOnboardingView: View {
                 username: username,
                 accountLabel: accountLabel,
                 interests: selectedInterests,
+                birthDate: $birthDate,
                 privacyPolicyAccepted: $privacyPolicyAccepted,
                 showPrivacyPolicy: $showPrivacyPolicy,
                 isAppleAccount: context == .apple
@@ -362,7 +367,7 @@ struct ProfileOnboardingView: View {
             return !username.isEmpty && usernameError == nil
                 && (!needsAppleEmailInput || AuthService.isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines)))
         default:
-            return privacyPolicyAccepted
+            return privacyPolicyAccepted && MomentsAgePolicy.isEligibleForAccount(birthDate: birthDate)
         }
     }
 
@@ -407,6 +412,7 @@ struct ProfileOnboardingView: View {
                 password: password,
                 interests: selectedInterests,
                 privacyPolicyAccepted: privacyPolicyAccepted,
+                birthDate: birthDate,
                 profileImage: profileImage
             ) { result in
                 DispatchQueue.main.async {
@@ -431,6 +437,8 @@ struct ProfileOnboardingView: View {
                 username: username,
                 interests: selectedInterests,
                 profileImage: profileImage,
+                birthDate: birthDate,
+                privacyPolicyAccepted: privacyPolicyAccepted,
                 fallbackEmail: needsAppleEmailInput ? email.trimmingCharacters(in: .whitespacesAndNewlines) : nil
             ) { result in
                 DispatchQueue.main.async {
@@ -510,6 +518,9 @@ struct ProfileOnboardingView: View {
         email = draft.email
         selectedInterests = draft.selectedInterests
         privacyPolicyAccepted = draft.privacyPolicyAccepted
+        if let birthDateInterval = draft.birthDateInterval {
+            birthDate = Date(timeIntervalSince1970: birthDateInterval)
+        }
         profileImage = OnboardingDraftStore.profileImage(from: draft)
 
         if context == .apple, let pendingEmail = draft.pendingAppleEmail {
@@ -525,6 +536,7 @@ struct ProfileOnboardingView: View {
             email: email,
             selectedInterests: selectedInterests,
             privacyPolicyAccepted: privacyPolicyAccepted,
+            birthDate: birthDate,
             profileImage: profileImage,
             firebaseUID: Auth.auth().currentUser?.uid,
             pendingAppleEmail: context == .apple
@@ -1133,9 +1145,14 @@ private struct OnboardingProfilePreviewStep: View {
     let username: String
     let accountLabel: String
     let interests: [String]
+    @Binding var birthDate: Date
     @Binding var privacyPolicyAccepted: Bool
     @Binding var showPrivacyPolicy: Bool
     let isAppleAccount: Bool
+
+    private var birthDateEligible: Bool {
+        MomentsAgePolicy.isEligibleForAccount(birthDate: birthDate)
+    }
 
     @ScaledMetric(relativeTo: .body) private var fieldSpacing = AuthFormMetrics.onboardingFieldSpacing
     @ScaledMetric(relativeTo: .body) private var previewPhotoSize = AuthFormMetrics.onboardingPreviewPhotoSize
@@ -1194,6 +1211,33 @@ private struct OnboardingProfilePreviewStep: View {
             }
 
             VStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("onboarding.birthDate.label")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.68))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    DatePicker(
+                        "",
+                        selection: $birthDate,
+                        in: MomentsAgePolicy.minimumSelectableBirthDate()...MomentsAgePolicy.maximumSelectableBirthDate(),
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
+
+                    Text("onboarding.birthDate.helper")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(
+                            birthDateEligible
+                                ? AuthColors.secondary(colorScheme, opacity: 0.7)
+                                : Color.red.opacity(0.85)
+                        )
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                }
+
                 Toggle(isOn: $privacyPolicyAccepted) {
                     HStack(spacing: 4) {
                         Text("register.terms.accept")

@@ -2808,6 +2808,9 @@
 "auth.error.emptyFields" = "L'identificador i la contrasenya són obligatoris.";
 "auth.error.usernameNotFound" = "Usuari no trobat. Si us plau, verifica el teu nom d'usuari.";
 "auth.error.privacyPolicyRequired" = "Has d'acceptar les polítiques de privacitat.";
+"auth.error.minimumAgeRequired" = "No compleixes l’edat mínima aplicable a la teva regió.";
+"onboarding.birthDate.label" = "Data de naixement";
+"onboarding.birthDate.helper" = "Has de tenir almenys 16 anys per crear un compte.";
 "auth.error.usernameUnavailable" = "Nom d'usuari no disponible.";
 "auth.error.userIdNotFound" = "No s'ha pogut obtenir l'ID de l'usuari.";
 "auth.error.incompleteRegistrationWrongPassword" = "Aquest correu té un registre sense acabar. Fes servir la contrasenya que vas triar en registrar-te.";
@@ -3618,7 +3621,7 @@ Si decideixes compartir ubicació en viu en una conversa, tractem aquesta ubicac
 "privacyPolicy.section.rights.title" = "12. Els teus drets";
 "privacyPolicy.section.rights.body" = "Pots sol·licitar accés, rectificació, eliminació, oposició, limitació, portabilitat de les teves dades i retirada del consentiment quan correspongui. També pots exportar dades, esborrar records de Nova, canviar la privacitat, bloquejar usuaris, silenciar comptes o paraules, desactivar el compte o sol·licitar-ne l'eliminació.\n\nSi ets a la Unió Europea o en una altra regió amb drets equivalents, també pots reclamar davant la teva autoritat de protecció de dades.";
 "privacyPolicy.section.minors.title" = "13. Menors";
-"privacyPolicy.section.minors.body" = "Moments no està dirigida a menors. L'edat mínima per crear un compte i utilitzar el servei depèn del teu país o regió; en molts llocs és de 13 anys o més. Quan ho exigeixi la llei local, pot ser necessari el consentiment d'un pare, mare o tutor. Si detectem que un compte no compleix l'edat mínima aplicable o els requisits de consentiment, el podem restringir o eliminar.";
+"privacyPolicy.section.minors.body" = "Moments no està dirigida a menors. Has de complir l’edat mínima que es mostra durant el registre per a la teva regió per crear un compte i utilitzar el servei. Quan ho exigeixi la llei local, pot aplicar-se verificació d'edat addicional o consentiment parental. Si detectem que un compte no compleix l'edat mínima aplicable o els requisits de consentiment, el podem restringir o eliminar.";
 "privacyPolicy.section.contact.title" = "14. Contacte i canvis";
 "privacyPolicy.section.contact.body" = "Podem actualitzar aquesta política quan canviïn les nostres funcions, proveïdors o requisits legals. Si el canvi és important, ho comunicarem a l'app o per altres mitjans raonables.
 

@@ -14,6 +14,7 @@ struct OnboardingDraft: Codable, Equatable {
     var email: String
     var selectedInterests: [String]
     var privacyPolicyAccepted: Bool
+    var birthDateInterval: Double?
     var profileImageFilename: String?
     var pendingAppleEmail: String?
     var startedAt: Date
@@ -64,6 +65,7 @@ enum OnboardingDraftStore {
             email: "",
             selectedInterests: [],
             privacyPolicyAccepted: false,
+            birthDateInterval: nil,
             profileImageFilename: nil,
             pendingAppleEmail: pendingAppleEmail,
             startedAt: Date(),
@@ -94,6 +96,7 @@ enum OnboardingDraftStore {
         email: String? = nil,
         selectedInterests: [String]? = nil,
         privacyPolicyAccepted: Bool? = nil,
+        birthDate: Date? = nil,
         profileImage: UIImage? = nil,
         firebaseUID: String? = nil,
         pendingAppleEmail: String? = nil
@@ -105,6 +108,7 @@ enum OnboardingDraftStore {
         if let email { draft.email = email }
         if let selectedInterests { draft.selectedInterests = selectedInterests }
         if let privacyPolicyAccepted { draft.privacyPolicyAccepted = privacyPolicyAccepted }
+        if let birthDate { draft.birthDateInterval = birthDate.timeIntervalSince1970 }
         if let firebaseUID { draft.firebaseUID = firebaseUID }
         if let pendingAppleEmail { draft.pendingAppleEmail = pendingAppleEmail }
 

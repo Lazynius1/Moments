@@ -2776,6 +2776,9 @@
 "auth.error.emptyFields" = "Identifiant et mot de passe requis.";
 "auth.error.usernameNotFound" = "Utilisateur introuvable. Vérifiez votre nom d’utilisateur.";
 "auth.error.privacyPolicyRequired" = "Vous devez accepter la politique de confidentialité.";
+"auth.error.minimumAgeRequired" = "Vous n’atteignez pas l’âge minimum applicable dans votre région.";
+"onboarding.birthDate.label" = "Date de naissance";
+"onboarding.birthDate.helper" = "Vous devez avoir au moins 16 ans pour créer un compte.";
 "auth.error.usernameUnavailable" = "Nom d’utilisateur indisponible.";
 "auth.error.userIdNotFound" = "Impossible de récupérer l’identifiant utilisateur.";
 "auth.error.incompleteRegistrationWrongPassword" = "Cet e-mail a une inscription inachevée. Utilisez le mot de passe choisi lors de l'inscription.";
@@ -3598,7 +3601,7 @@ Si vous choisissez de partager votre localisation en direct dans une conversatio
 "privacyPolicy.section.rights.title" = "12. Vos droits";
 "privacyPolicy.section.rights.body" = "Vous pouvez demander l'accès, la rectification, la suppression, l'opposition, la limitation, la portabilité de vos données et le retrait de votre consentement lorsque cela s'applique. Vous pouvez également exporter vos données, supprimer les mémoires de Nova, modifier vos paramètres de confidentialité, bloquer des utilisateurs, mettre en sourdine des comptes ou des mots, désactiver votre compte ou demander sa suppression.\n\nSi vous résidez dans l'Union européenne ou dans une autre région disposant de droits équivalents, vous pouvez également déposer une réclamation auprès de votre autorité de protection des données.";
 "privacyPolicy.section.minors.title" = "13. Mineurs";
-"privacyPolicy.section.minors.body" = "Moments ne s'adresse pas aux enfants. L'âge minimum pour créer un compte et utiliser le service dépend de votre pays ou région ; dans de nombreux endroits, il est de 13 ans ou plus. Lorsque la loi locale l'exige, le consentement d'un parent ou d'un tuteur peut également s'appliquer. Si nous détectons qu'un compte ne respecte pas l'âge minimum applicable ou les exigences de consentement, nous pouvons le limiter ou le supprimer.";
+"privacyPolicy.section.minors.body" = "Moments ne s'adresse pas aux enfants. Vous devez respecter l’âge minimum indiqué lors de l’inscription pour votre région pour créer un compte et utiliser le service. Lorsque la loi locale l'exige, une vérification d'âge supplémentaire ou le consentement parental peut s'appliquer. Si nous détectons qu'un compte ne respecte pas l'âge minimum applicable ou les exigences de consentement, nous pouvons le limiter ou le supprimer.";
 "privacyPolicy.section.contact.title" = "14. Contact et modifications";
 "privacyPolicy.section.contact.body" = "Nous pouvons mettre à jour cette politique lorsque nos fonctionnalités, nos prestataires ou les exigences légales évoluent. Si un changement est important, nous vous en informerons dans l'application ou par tout autre moyen raisonnable.
 

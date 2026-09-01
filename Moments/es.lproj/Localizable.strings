@@ -2790,6 +2790,9 @@
 "auth.error.emptyFields" = "El identificador y la contraseña son obligatorios.";
 "auth.error.usernameNotFound" = "Usuario no encontrado. Por favor, verifica tu nombre de usuario.";
 "auth.error.privacyPolicyRequired" = "Debes aceptar las políticas de privacidad.";
+"auth.error.minimumAgeRequired" = "No cumples la edad mínima aplicable en tu región.";
+"onboarding.birthDate.label" = "Fecha de nacimiento";
+"onboarding.birthDate.helper" = "Debes tener al menos 16 años para crear una cuenta.";
 "auth.error.usernameUnavailable" = "Nombre de usuario no disponible.";
 "auth.error.userIdNotFound" = "No se pudo obtener el ID del usuario.";
 "auth.error.incompleteRegistrationWrongPassword" = "Este correo tiene un registro sin terminar. Usa la contraseña que elegiste al registrarte.";
@@ -3693,7 +3696,7 @@ Si decides compartir ubicación en vivo en una conversación, tratamos esa ubica
 "privacyPolicy.section.rights.title" = "12. Tus derechos";
 "privacyPolicy.section.rights.body" = "Puedes solicitar acceso, rectificación, eliminación, oposición, limitación, portabilidad de tus datos y retirada del consentimiento cuando aplique. También puedes exportar datos, borrar recuerdos de Nova, cambiar privacidad, bloquear usuarios, silenciar cuentas o palabras, desactivar tu cuenta o solicitar su eliminación.\n\nSi estás en la Unión Europea u otra región con derechos equivalentes, también puedes reclamar ante tu autoridad de protección de datos.";
 "privacyPolicy.section.minors.title" = "13. Menores";
-"privacyPolicy.section.minors.body" = "Moments no está dirigida a menores. La edad mínima para crear una cuenta y usar el servicio depende de tu país o región; en muchos lugares es de 13 años o más. Cuando la ley local lo exija, puede ser necesario el consentimiento de un padre, madre o tutor. Si detectamos que una cuenta no cumple la edad mínima aplicable o los requisitos de consentimiento, podemos restringirla o eliminarla.";
+"privacyPolicy.section.minors.body" = "Moments no está dirigida a menores. Debes cumplir la edad mínima que se muestra durante el registro para tu región para crear una cuenta y usar el servicio. Cuando la ley local lo exija, puede aplicarse verificación de edad adicional o consentimiento parental. Si detectamos que una cuenta no cumple la edad mínima aplicable o los requisitos de consentimiento, podemos restringirla o eliminarla.";
 "privacyPolicy.section.contact.title" = "14. Contacto y cambios";
 "privacyPolicy.section.contact.body" = "Podemos actualizar esta política cuando cambien nuestras funciones, proveedores o requisitos legales. Si el cambio es importante, lo comunicaremos en la app o por otros medios razonables.
 

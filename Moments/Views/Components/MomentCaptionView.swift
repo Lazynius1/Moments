@@ -109,10 +109,10 @@ struct MomentCaptionView: View {
                     shadowRadius: 0,
                     shadowX: 0,
                     shadowY: 0,
+                    lineLimit: style == .detail ? 4 : 3,
                     onHashtagTap: onHashtagTap,
                     onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
                 )
-                .lineLimit(style == .detail ? 4 : 3)
                 .onGeometryChange(for: CGFloat.self) { proxy in
                     proxy.size.height
                 } action: { height in

@@ -2642,6 +2642,9 @@
 "auth.error.emptyFields" = "請輸入識別碼和密碼。";
 "auth.error.usernameNotFound" = "找不到使用者，請確認使用者名稱。";
 "auth.error.privacyPolicyRequired" = "你必須接受隱私權政策。";
+"auth.error.minimumAgeRequired" = "你未符合所在區域適用的最低年齡要求。";
+"onboarding.birthDate.label" = "出生日期";
+"onboarding.birthDate.helper" = "你必須年滿 16 歲才能建立帳戶。";
 "auth.error.usernameUnavailable" = "此使用者名稱無法使用。";
 "auth.error.userIdNotFound" = "無法取得使用者 ID。";
 "auth.error.incompleteRegistrationWrongPassword" = "此電子郵件尚未完成註冊。請使用註冊時設定的密碼。";
@@ -3379,7 +3382,7 @@
 "privacyPolicy.section.rights.title" = "12. 您的權利";
 "privacyPolicy.section.rights.body" = "在適用的情況下，您可以要求查閱、更正、刪除、反對處理、限制處理及攜出您的資料，也可以撤回同意。您還可以匯出資料、刪除 Nova 記憶、變更隱私設定、封鎖使用者、將帳戶或文字設為靜音、停用帳戶，或要求刪除帳戶。\n\n如果您位於歐盟或其他享有同等權利的地區，也可以向當地資料保護主管機關提出申訴。";
 "privacyPolicy.section.minors.title" = "13. 未成年人";
-"privacyPolicy.section.minors.body" = "Moments 並非以兒童為服務對象。建立帳戶及使用服務的最低年齡取決於您所在的國家或地區；在許多地方，最低年齡為 13 歲或以上。當地法律要求時，也可能需要家長或監護人同意。如果我們發現帳戶未符合適用的最低年齡或同意要求，可能會限制或刪除該帳戶。";
+"privacyPolicy.section.minors.body" = "Moments 並非以兒童為服務對象。你必須符合註冊時為你所在區域顯示的最低年齡，才能建立帳戶並使用服務。若當地法律要求，可能需要額外的年齡驗證或監護人同意。若我們發現帳戶未符合適用的最低年齡或同意要求，可能會限制或刪除該帳戶。";
 "privacyPolicy.section.contact.title" = "14. 聯絡方式與變更";
 "privacyPolicy.section.contact.body" = "當我們的功能、服務供應商或法律要求有所變更時，可能會更新本政策。如果變更內容很重要，我們會在 App 中通知您，或透過其他合理方式通知您。\n\n如有隱私相關問題或要求，請透過 soporte@momentsapp.app 聯絡我們，或造訪 momentsapp.app/privacy。";
 "userProfile.unavailable.title" = "無法使用個人檔案";
