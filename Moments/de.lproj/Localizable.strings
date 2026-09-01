@@ -1971,7 +1971,9 @@
 "modernComments.loading" = "Kommentare werden geladen...";
 "modernComments.replyingTo" = "Antwort an %@";
 "modernComments.editing" = "Kommentar wird bearbeitet";
-"modernComments.viewMoreReplies" = "%d weitere Antwort(en) ansehen";
+"modernComments.viewOneMoreReply" = "1 weitere Antwort ansehen";
+"modernComments.viewMoreReplies" = "%d weitere Antworten ansehen";
+"modernComments.hideReplies" = "Antworten ausblenden";
 "modernComments.edited" = "(edited)";
 "modernComments.mutedWord.placeholder" = "Kommentar wegen eines stummgeschalteten Wortes ausgeblendet";
 "modernComments.mutedWord.reveal" = "Vorübergehend anzeigen";

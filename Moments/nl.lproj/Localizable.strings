@@ -1891,6 +1891,8 @@
 "modernComments.replyingTo" = "Reageren op %@";
 "modernComments.editing" = "Reactie bewerken";
 "modernComments.viewMoreReplies" = "Nog %d reacties bekijken";
+"modernComments.viewOneMoreReply" = "Nog 1 reactie bekijken";
+"modernComments.hideReplies" = "Reacties verbergen";
 "modernComments.edited" = "(bewerkt)";
 "modernComments.mutedWord.placeholder" = "Reactie verborgen omdat deze een gedempt woord bevat";
 "modernComments.mutedWord.reveal" = "Tijdelijk tonen";

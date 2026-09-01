@@ -1891,6 +1891,8 @@
 "modernComments.replyingTo" = "%@さんに返信中";
 "modernComments.editing" = "コメントを編集中";
 "modernComments.viewMoreReplies" = "返信を%d件表示";
+"modernComments.viewOneMoreReply" = "返信を1件表示";
+"modernComments.hideReplies" = "返信を非表示";
 "modernComments.edited" = "（編集済み）";
 "modernComments.mutedWord.placeholder" = "ミュートした単語によりコメントを非表示にしています";
 "modernComments.mutedWord.reveal" = "一時的に表示";

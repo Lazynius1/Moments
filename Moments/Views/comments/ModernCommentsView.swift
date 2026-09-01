@@ -36,7 +36,7 @@ struct ModernCommentsView: View {
     @State private var showDeleteAlert = false
     @State private var commentToDelete: Comment? = nil
     /// nestingLevel 0…max; no se puede responder desde el nivel máximo.
-    private let maxCommentNestingLevel = 4
+    private let maxCommentNestingLevel = 2
     @State private var expandedComments: Set<String> = []
     @State private var sortOption: CommentSortOption = .newest
     @State private var storyRoute: StoryUserPresentationRoute?
@@ -381,7 +381,7 @@ struct ModernCommentsView: View {
                 }
             }
             .padding(.vertical, 20)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 8)
         }
     }
     
@@ -1306,10 +1306,11 @@ struct EnhancedModernCommentRow: View {
     let temporarilyRevealedCommentIds: Set<String>
     let onRevealTemporarily: (String) -> Void
     let nestingLevel: Int
-    var maxNestingLevel: Int = 4
+    var maxNestingLevel: Int = 2
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) var colorScheme
     @State private var showFullContent = false
+    @State private var visibleReplyCount = 0
     
     private var isLongComment: Bool {
         comment.content.count > 100
@@ -1331,14 +1332,26 @@ struct EnhancedModernCommentRow: View {
         return isCommentExpanded(id)
     }
 
+    private var visibleNestedComments: ArraySlice<Comment> {
+        nestedComments.prefix(min(visibleReplyCount, nestedComments.count))
+    }
+
+    private var remainingReplyCount: Int {
+        max(0, nestedComments.count - visibleNestedComments.count)
+    }
+
     /// Cada nivel expande solo sus hijos directos.
     private var shouldShowNestedComments: Bool {
-        !nestedComments.isEmpty && nestingLevel < maxNestingLevel && isExpanded
+        !visibleNestedComments.isEmpty && nestingLevel < maxNestingLevel && isExpanded
     }
     
-    // ✅ Indentación visual basada en nivel
     private var indentationWidth: CGFloat {
-        CGFloat(min(nestingLevel, maxNestingLevel)) * 16
+        switch min(nestingLevel, maxNestingLevel) {
+        case 0: return 0
+        case 1: return 32
+        case 2: return 44
+        default: return 56
+        }
     }
     
     // ✅ Línea vertical para mostrar jerarquía
@@ -1398,7 +1411,7 @@ struct EnhancedModernCommentRow: View {
             // Hijos directos solo si este nivel está expandido.
             if shouldShowNestedComments {
                 LazyVStack(spacing: 8) {
-                    ForEach(nestedComments) { nestedComment in
+                    ForEach(visibleNestedComments) { nestedComment in
                         EnhancedModernCommentRow(
                             comment: nestedComment,
                             moment: moment,
@@ -1433,7 +1446,7 @@ struct EnhancedModernCommentRow: View {
     
     // ✅ Contenido principal del comentario
     private var commentContent: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 8) {
             StoryRingAvatarView(
                 userId: comment.authorId,
                 size: avatarSize,
@@ -1454,8 +1467,18 @@ struct EnhancedModernCommentRow: View {
                 actionButtons
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            if !isMaskApplied {
+                CommentLikeRail(
+                    isLiked: comment.reactions["like"]?.contains(Auth.auth().currentUser?.uid ?? "") ?? false,
+                    count: comment.reactions["like"]?.count ?? 0,
+                    colorScheme: colorScheme,
+                    onTap: { onLike(comment) }
+                )
+            }
         }
-        .padding(.horizontal, nestingLevel == 0 ? 10 : 6)
+        .padding(.leading, nestingLevel == 0 ? 4 : 2)
+        .padding(.trailing, 0)
         .padding(.vertical, nestingLevel == 0 ? 12 : 8)
         .contentShape(Rectangle())
         .contextMenu {
@@ -1491,8 +1514,8 @@ struct EnhancedModernCommentRow: View {
     private var avatarSize: CGFloat {
         switch nestingLevel {
         case 0: return 42
-        case 1: return 37
-        case 2: return 32
+        case 1: return 32
+        case 2: return 30
         default: return 28
         }
     }
@@ -1500,14 +1523,7 @@ struct EnhancedModernCommentRow: View {
     // ✅ Header del comentario mejorado
     private var commentHeader: some View {
         HStack(spacing: 8) {
-            // ✅ Username con @ si es respuesta
             HStack(spacing: 4) {
-                if nestingLevel > 0 {
-                    Image(systemName: "arrowshape.turn.up.left")
-                        .font(.system(size: 10))
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                }
-                
                 HStack(spacing: 3) {
                     Text(comment.username)
                         .font(.system(size: legacyPoppinsSize(nestingLevel == 0 ? 14 : 13), weight: .semibold))
@@ -1679,56 +1695,113 @@ struct EnhancedModernCommentRow: View {
     
 
     
-    // ✅ Botones de acción mejorados
     private var actionButtons: some View {
-        HStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             if !isMaskApplied {
-                // ✅ Like button
-                CommentActionButton(
-                    icon: comment.reactions["like"]?.contains(Auth.auth().currentUser?.uid ?? "") ?? false ? "heart.fill" : "heart",
-                    text: "",
-                    count: (comment.reactions["like"]?.count ?? 0) > 0 ? comment.reactions["like"]?.count : nil,
-                    isActive: comment.reactions["like"]?.contains(Auth.auth().currentUser?.uid ?? "") ?? false,
-                    activeColor: .red
-                ) {
-                    onLike(comment)
-                }
-                
-                // ✅ Reply button (solo hasta el máximo)
                 if nestingLevel < maxNestingLevel {
-                    CommentActionButton(
-                        icon: "arrowshape.turn.up.left",
-                        text: "Responder",
-                        count: nil,
-                        isActive: false,
-                        activeColor: colorScheme == .dark ? .white : .black
-                    ) {
+                    Button {
                         onReply(comment)
+                    } label: {
+                        Text(NSLocalizedString("chat.action.reply", comment: "Reply to comment"))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                            .foregroundStyle(actionColor)
+                            .padding(.trailing, 16)
+                            .padding(.vertical, 2)
                     }
+                    .buttonStyle(.plain)
                 }
             }
-            
-            // Cada nivel con respuestas directas tiene su propio expand.
+
             if !nestedComments.isEmpty && nestingLevel < maxNestingLevel {
-                CommentActionButton(
-                    icon: isExpanded ? "chevron.up" : "chevron.down",
-                    text: "\(nestedComments.count) respuesta\(nestedComments.count == 1 ? "" : "s")",
-                    count: nil,
-                    isActive: isExpanded,
-                    activeColor: colorScheme == .dark ? .white : .black
-                ) {
+                Button {
                     if let commentId = comment.id {
-                        onToggleExpand(commentId)
+                        switch (isExpanded, remainingReplyCount) {
+                        case (false, _):
+                            visibleReplyCount = min(Self.replyBatchSize, nestedComments.count)
+                            onToggleExpand(commentId)
+                        case (true, let remaining) where remaining > 0:
+                            visibleReplyCount = min(
+                                visibleReplyCount + Self.replyBatchSize,
+                                nestedComments.count
+                            )
+                        default:
+                            visibleReplyCount = 0
+                            onToggleExpand(commentId)
+                        }
                     }
+                } label: {
+                    HStack(spacing: 9) {
+                        Rectangle()
+                            .fill(actionColor.opacity(0.45))
+                            .frame(width: 33, height: 1)
+
+                        Text(repliesControlText)
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                            .foregroundStyle(actionColor)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(minHeight: 22)
+                    .contentShape(Rectangle())
+                    .offset(x: -10)
                 }
+                .buttonStyle(.plain)
             }
-            
-            Spacer()
         }
     }
+
+    private var actionColor: Color {
+        colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.58)
+    }
+
+    private var repliesControlText: String {
+        if isExpanded && remainingReplyCount == 0 {
+            return NSLocalizedString("modernComments.hideReplies", comment: "Hide comment replies")
+        }
+        let count = isExpanded ? remainingReplyCount : nestedComments.count
+        if count == 1 {
+            return NSLocalizedString("modernComments.viewOneMoreReply", comment: "View one more comment reply")
+        }
+        return String(
+            format: NSLocalizedString("modernComments.viewMoreReplies", comment: "View more comment replies"),
+            count
+        )
+    }
+
+    private static let replyBatchSize = 10
     
     private func timeAgo(from date: Date) -> String {
         MomentsFormat.relativeTime(from: date)
+    }
+}
+
+private struct CommentLikeRail: View {
+    let isLiked: Bool
+    let count: Int
+    let colorScheme: ColorScheme
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 3) {
+                Image(systemName: isLiked ? "heart.fill" : "heart")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(isLiked ? Color.red : secondaryColor)
+
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: legacyPoppinsSize(11)))
+                        .foregroundStyle(secondaryColor)
+                }
+            }
+            .frame(width: 40, height: 44, alignment: .top)
+            .padding(.top, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var secondaryColor: Color {
+        colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.58)
     }
 }
 
@@ -1797,58 +1870,6 @@ struct ModernEmptyCommentsView: View {
         .padding(.vertical, 40)
     }
 }
-
-// ✅ VISTA AUXILIAR PARA BOTONES DE ACCIÓN MEJORADOS
-struct CommentActionButton: View {
-    let icon: String
-    let text: String
-    let count: Int?
-    let isActive: Bool
-    let activeColor: Color
-    let action: () -> Void
-    @Environment(\.colorScheme) var colorScheme
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundStyle(isActive ? activeColor : (colorScheme == .dark ? .white : .black))
-                
-                if !text.isEmpty {
-                    Text(text)
-                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundStyle(isActive ? activeColor : (colorScheme == .dark ? .white : .black))
-                }
-                
-                if let count = count, count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Group {
-                    if isActive {
-                        activeColor.opacity(0.1)
-                    } else {
-                        (colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.1))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 0.5)
-                            )
-                    }
-                }
-            )
-            .clipShape(Capsule())
-        }
-        .scaleEffect(isActive ? 1.05 : 1.0)
-        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isActive), value: isActive)
-    }
-}
-
 
 // ✅ EXTENSIÓN PARA DETECTAR ENLACES Y MENCIONES
 extension String {

@@ -1891,6 +1891,8 @@
 "modernComments.replyingTo" = "%@ को जवाब दे रहे हैं";
 "modernComments.editing" = "कमेंट एडिट किया जा रहा है";
 "modernComments.viewMoreReplies" = "और %d जवाब देखें";
+"modernComments.viewOneMoreReply" = "1 और जवाब देखें";
+"modernComments.hideReplies" = "जवाब छिपाएँ";
 "modernComments.edited" = "(एडिट किया गया)";
 "modernComments.mutedWord.placeholder" = "म्यूट किए गए शब्द की वजह से कमेंट छिपा हुआ है";
 "modernComments.mutedWord.reveal" = "कुछ समय के लिए दिखाएँ";

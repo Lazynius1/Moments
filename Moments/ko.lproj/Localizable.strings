@@ -1891,6 +1891,8 @@
 "modernComments.replyingTo" = "%@님에게 답글 작성 중";
 "modernComments.editing" = "댓글 수정 중";
 "modernComments.viewMoreReplies" = "답글 %d개 더 보기";
+"modernComments.viewOneMoreReply" = "답글 1개 더 보기";
+"modernComments.hideReplies" = "답글 숨기기";
 "modernComments.edited" = "(수정됨)";
 "modernComments.mutedWord.placeholder" = "숨긴 단어가 포함되어 댓글이 숨겨졌어요";
 "modernComments.mutedWord.reveal" = "잠시 보기";

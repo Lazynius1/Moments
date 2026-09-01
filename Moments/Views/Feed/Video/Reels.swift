@@ -8,6 +8,60 @@ private struct ReelsStoryRoute: Identifiable {
     let id: String
 }
 
+/// Lee la posición animada real del sheet para que el Reel siga el gesto.
+private struct ReelCommentsSheetObserver: UIViewRepresentable {
+    let onOriginYChanged: (CGFloat) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onOriginYChanged: onOriginYChanged)
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        DispatchQueue.main.async {
+            context.coordinator.startObserving(view.superview?.superview ?? view)
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onOriginYChanged = onOriginYChanged
+    }
+
+    final class Coordinator {
+        var onOriginYChanged: (CGFloat) -> Void
+        private weak var observedView: UIView?
+        private var displayLink: CADisplayLink?
+        private var lastOriginY: CGFloat?
+
+        init(onOriginYChanged: @escaping (CGFloat) -> Void) {
+            self.onOriginYChanged = onOriginYChanged
+        }
+
+        deinit {
+            displayLink?.invalidate()
+        }
+
+        func startObserving(_ view: UIView) {
+            observedView = view
+            displayLink?.invalidate()
+            let displayLink = CADisplayLink(target: self, selector: #selector(readPresentationFrame))
+            displayLink.add(to: .main, forMode: .common)
+            self.displayLink = displayLink
+        }
+
+        @objc private func readPresentationFrame() {
+            guard let observedView,
+                  let presentationLayer = observedView.layer.presentation() else { return }
+            let originY = presentationLayer.convert(presentationLayer.frame, to: nil).origin.y
+            guard lastOriginY.map({ abs($0 - originY) > 0.25 }) ?? true else { return }
+            lastOriginY = originY
+            onOriginYChanged(originY)
+        }
+    }
+}
+
 // ✅ PRIVACIDAD: ReelsViewer solo muestra videos que ya pasaron los filtros de privacidad
 struct ReelsViewer: View {
     let videos: [VideoMoment]
@@ -159,6 +213,8 @@ struct ReelVideoView: View {
     @StateObject private var playerManager = ReelVideoPlayerManager()
     @State private var showUserActions = false
     @State private var showComments = false
+    @State private var commentsDetent: PresentationDetent = .medium
+    @State private var commentsSheetOriginY: CGFloat?
     @State private var commentCount: Int = 0
     @State private var isDoubleTapAnimating = false
     @State private var showContextMenu = false
@@ -234,6 +290,7 @@ struct ReelVideoView: View {
         HStack {
             if !video.moment.disableComments {
                 Button(action: {
+                    commentsDetent = .medium
                     showComments = true
                 }) {
                     HStack(spacing: 10) {
@@ -277,6 +334,16 @@ struct ReelVideoView: View {
             let chromeBottomPadding = max(2, bottomInset - 12)
             // Caption acaba justo donde empieza la línea de progreso.
             let bottomChromeClearance = progressLineHeight + bottomBarHeight + chromeBottomPadding
+            let sheetBottomPadding = commentsSheetOriginY.map {
+                max(geometry.size.height - $0, 0)
+            } ?? 0
+            let mediumDetentHeight = max(geometry.size.height * 0.5, 1)
+            let sheetProgress = min(sheetBottomPadding / mediumDetentHeight, 1)
+            let videoTopOffset = sheetProgress * safeTop
+            let videoScale = max(
+                (geometry.size.height - sheetBottomPadding - videoTopOffset) / geometry.size.height,
+                0.04
+            )
 
             ZStack {
                 // Video Player completamente fullscreen sin controles nativos
@@ -310,11 +377,15 @@ struct ReelVideoView: View {
                     .clipped()
                     .ignoresSafeArea(.all)
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .scaleEffect(videoScale, anchor: .top)
+                .offset(y: videoTopOffset)
                 
                 // Capa invisible para capturar gestos de reproducción y likes en el fondo,
                 // evitando que interfieran con los botones interactivos del overlay superior.
                 Color.black.opacity(0.001)
                     .ignoresSafeArea(.all)
+                    .allowsHitTesting(!showComments)
                     .onTapGesture {
                         let haptic = UIImpactFeedbackGenerator(style: .light)
                         haptic.impactOccurred()
@@ -328,7 +399,7 @@ struct ReelVideoView: View {
                     }
                 
                 // Double tap heart animation - usando feel reaction color
-                if isDoubleTapAnimating {
+                if isDoubleTapAnimating && !showComments {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 80, weight: .bold))
                         .foregroundStyle(.pink) // Color de la reacción "feel"
@@ -338,7 +409,7 @@ struct ReelVideoView: View {
                 }
 
                 // Al pausar: mute (pequeño) + play centrado con glass native.
-                if playerManager.player != nil, !playerManager.isPlaying, !isDraggingProgress {
+                if playerManager.player != nil, !playerManager.isPlaying, !isDraggingProgress, !showComments {
                     VStack(spacing: 14) {
                         Button(action: {
                             HapticManager.shared.lightImpact()
@@ -520,6 +591,7 @@ struct ReelVideoView: View {
                                         isActive: commentCount > 0,
                                         activeColor: .blue,
                                         action: {
+                                            commentsDetent = .medium
                                             showComments = true
                                         }
                                     )
@@ -553,13 +625,16 @@ struct ReelVideoView: View {
                         .animation(.spring(response: 0.38, dampingFraction: 0.85), value: isReelCaptionExpanded)
                     }
                 }
+                .opacity(showComments ? 0 : 1)
+                .allowsHitTesting(!showComments)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
+            .animation(.smooth(duration: 0.32), value: showComments)
             .ignoresSafeArea(.container, edges: .all)
             .overlay(alignment: .bottom) {
                 // Contenido por encima del home indicator; fondo Moments hasta el borde.
                 // Se oculta con el context menu para que nunca quede por encima del sheet.
-                if !showContextMenu {
+                if !showContextMenu && !showComments {
                     // Progress arriba del todo (donde acaba el VStack de caption); input abajo.
                     VStack(spacing: 0) {
                         if playerManager.duration > 0 {
@@ -727,10 +802,17 @@ struct ReelVideoView: View {
             ModernCommentsView(moment: video.moment)
                 .environmentObject(firestoreService)
                 .onDisappear {
+                    commentsSheetOriginY = nil
                     loadCommentCount()
                 }
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.medium, .large], selection: $commentsDetent)
                 .presentationDragIndicator(.visible)
+                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                .background {
+                    ReelCommentsSheetObserver { originY in
+                        commentsSheetOriginY = originY
+                    }
+                }
         }
     }
     

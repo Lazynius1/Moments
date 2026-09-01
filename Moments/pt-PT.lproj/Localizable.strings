@@ -2781,7 +2781,9 @@
 "modernComments.loading" = "A carregar comentários...";
 "modernComments.replyingTo" = "A responder a %@";
 "modernComments.editing" = "A editar comentário";
-"modernComments.viewMoreReplies" = "Ver mais %d resposta(s)";
+"modernComments.viewOneMoreReply" = "Ver mais 1 resposta";
+"modernComments.viewMoreReplies" = "Ver mais %d respostas";
+"modernComments.hideReplies" = "Ocultar respostas";
 "modernComments.edited" = "(editado)";
 "modernComments.mutedWord.placeholder" = "Comentário ocultado devido a palavra silenciada";
 "modernComments.mutedWord.reveal" = "Mostrar temporariamente";

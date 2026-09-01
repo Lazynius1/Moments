@@ -1972,6 +1972,8 @@
 "modernComments.replyingTo" = "Risposta a %@";
 "modernComments.editing" = "Modifica commento";
 "modernComments.viewMoreReplies" = "Vedi altre %d risposte";
+"modernComments.viewOneMoreReply" = "Vedi 1 altra risposta";
+"modernComments.hideReplies" = "Nascondi risposte";
 "modernComments.edited" = "(modificato)";
 "modernComments.mutedWord.placeholder" = "Commento nascosto a causa di una parola silenziata";
 "modernComments.mutedWord.reveal" = "Mostra temporaneamente";

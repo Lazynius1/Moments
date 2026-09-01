@@ -1891,6 +1891,8 @@
 "modernComments.replyingTo" = "Odpowiadasz użytkownikowi %@";
 "modernComments.editing" = "Edytowanie komentarza";
 "modernComments.viewMoreReplies" = "Wyświetl jeszcze %d odpowiedzi";
+"modernComments.viewOneMoreReply" = "Wyświetl jeszcze 1 odpowiedź";
+"modernComments.hideReplies" = "Ukryj odpowiedzi";
 "modernComments.edited" = "(edytowano)";
 "modernComments.mutedWord.placeholder" = "Komentarz ukryty ze względu na wyciszone słowo";
 "modernComments.mutedWord.reveal" = "Pokaż tymczasowo";

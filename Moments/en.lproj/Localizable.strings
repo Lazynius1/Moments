@@ -1982,7 +1982,9 @@
 "modernComments.loading" = "Loading comments...";
 "modernComments.replyingTo" = "Replying to %@";
 "modernComments.editing" = "Editing comment";
-"modernComments.viewMoreReplies" = "View %d more reply(ies)";
+"modernComments.viewOneMoreReply" = "View 1 more reply";
+"modernComments.viewMoreReplies" = "View %d more replies";
+"modernComments.hideReplies" = "Hide replies";
 "modernComments.edited" = "(edited)";
 "modernComments.mutedWord.placeholder" = "Comment hidden due to muted word";
 "modernComments.mutedWord.reveal" = "Show temporarily";

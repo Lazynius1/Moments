@@ -1971,7 +1971,9 @@
 "modernComments.loading" = "Chargement des commentaires...";
 "modernComments.replyingTo" = "Réponse à %@";
 "modernComments.editing" = "Modification du commentaire";
-"modernComments.viewMoreReplies" = "Voir %d réponse(s) de plus";
+"modernComments.viewOneMoreReply" = "Voir 1 réponse de plus";
+"modernComments.viewMoreReplies" = "Voir %d réponses de plus";
+"modernComments.hideReplies" = "Masquer les réponses";
 "modernComments.edited" = "(modifié)";
 "modernComments.mutedWord.placeholder" = "Commentaire masqué à cause d’un mot en sourdine";
 "modernComments.mutedWord.reveal" = "Afficher temporairement";

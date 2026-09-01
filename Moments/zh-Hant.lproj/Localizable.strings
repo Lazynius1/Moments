@@ -1891,6 +1891,8 @@
 "modernComments.replyingTo" = "回覆 %@";
 "modernComments.editing" = "編輯留言";
 "modernComments.viewMoreReplies" = "查看另外 %d 則回覆";
+"modernComments.viewOneMoreReply" = "查看另外 1 則回覆";
+"modernComments.hideReplies" = "隱藏回覆";
 "modernComments.edited" = "（已編輯）";
 "modernComments.mutedWord.placeholder" = "因包含已封鎖的字詞而隱藏留言";
 "modernComments.mutedWord.reveal" = "暫時顯示";

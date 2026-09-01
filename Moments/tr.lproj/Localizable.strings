@@ -1891,6 +1891,8 @@
 "modernComments.replyingTo" = "%@ kullanıcısına yanıt veriliyor";
 "modernComments.editing" = "Yorum düzenleniyor";
 "modernComments.viewMoreReplies" = "%d yanıt daha göster";
+"modernComments.viewOneMoreReply" = "1 yanıt daha göster";
+"modernComments.hideReplies" = "Yanıtları gizle";
 "modernComments.edited" = "(düzenlendi)";
 "modernComments.mutedWord.placeholder" = "Sessize alınmış bir kelime nedeniyle yorum gizlendi";
 "modernComments.mutedWord.reveal" = "Geçici olarak göster";

@@ -1891,6 +1891,8 @@
 "modernComments.replyingTo" = "Membalas %@";
 "modernComments.editing" = "Mengedit komentar";
 "modernComments.viewMoreReplies" = "Lihat %d balasan lainnya";
+"modernComments.viewOneMoreReply" = "Lihat 1 balasan lainnya";
+"modernComments.hideReplies" = "Sembunyikan balasan";
 "modernComments.edited" = "(diedit)";
 "modernComments.mutedWord.placeholder" = "Komentar disembunyikan karena mengandung kata yang dibisukan";
 "modernComments.mutedWord.reveal" = "Tampilkan sementara";

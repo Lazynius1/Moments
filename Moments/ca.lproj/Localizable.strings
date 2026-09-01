@@ -1963,7 +1963,9 @@
 "modernComments.loading" = "Carregant comentaris...";
 "modernComments.replyingTo" = "Responent a %@";
 "modernComments.editing" = "Editant comentari";
-"modernComments.viewMoreReplies" = "Veure %d resposta(s) més";
+"modernComments.viewOneMoreReply" = "Veure 1 resposta més";
+"modernComments.viewMoreReplies" = "Veure %d respostes més";
+"modernComments.hideReplies" = "Amagar respostes";
 "modernComments.edited" = "(editat)";
 "modernComments.mutedWord.placeholder" = "Comentari ocult per paraula silenciada";
 "modernComments.mutedWord.reveal" = "Mostrar temporalment";
