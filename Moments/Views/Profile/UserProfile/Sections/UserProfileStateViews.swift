@@ -123,6 +123,8 @@ struct UserModernPrivateProfileView: View {
     let onOpenStories: () -> Void
     let chatZoomNamespace: Namespace.ID
     @Environment(\.colorScheme) private var colorScheme
+    @State private var messageFlowError: String?
+    @State private var showMessageFlowError = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -188,21 +190,7 @@ struct UserModernPrivateProfileView: View {
                     }
                     .disabled(!followButtonState.isActionable)
 
-                    Button(action: {
-                        guard let currentUserId = Auth.auth().currentUser?.uid,
-                              let targetUser = userProfile else { return }
-
-                        messagingViewModel.startConversation(with: targetUser, from: currentUserId) { conversation in
-                            if let conversation {
-                                targetConversation = conversation
-                                navigateToChat = true
-                            } else if messagingViewModel.requiresMessageRequest {
-                                Task { @MainActor in
-                                    pendingChatContext = await PendingChatContextFactory.outgoing(to: targetUser, from: currentUserId)
-                                }
-                            }
-                        }
-                    }) {
+                    Button(action: openMessageFlow) {
                         HStack(spacing: 6) {
                             Image(systemName: "paperplane.fill")
                                 .font(.system(size: 13, weight: .semibold))
@@ -267,6 +255,44 @@ struct UserModernPrivateProfileView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
                 .padding(.bottom, safeAreaBottom + 60)
+            }
+        }
+        .alert(
+            NSLocalizedString("userProfile.sendMessage", comment: "Send message"),
+            isPresented: $showMessageFlowError,
+            actions: {
+                Button(NSLocalizedString("common.ok", comment: "OK"), role: .cancel) {
+                    messageFlowError = nil
+                }
+            },
+            message: {
+                Text(messageFlowError ?? "")
+            }
+        )
+    }
+
+    private func openMessageFlow() {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let targetUser = userProfile else { return }
+
+        messagingViewModel.startConversation(with: targetUser, from: currentUserId) { conversation in
+            Task { @MainActor in
+                if let presentation = await messagingViewModel.consumeProfileMessagePresentation(
+                    conversation: conversation,
+                    for: targetUser,
+                    from: currentUserId
+                ) {
+                    switch presentation.destination {
+                    case .conversation(let resolvedConversation):
+                        targetConversation = resolvedConversation
+                        navigateToChat = true
+                    case .pendingChat(let context):
+                        pendingChatContext = context
+                    }
+                } else if let error = messagingViewModel.errorMessage, !error.isEmpty {
+                    messageFlowError = error
+                    showMessageFlowError = true
+                }
             }
         }
     }

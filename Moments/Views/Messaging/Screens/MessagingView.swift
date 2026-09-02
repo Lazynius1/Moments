@@ -489,12 +489,18 @@ struct MessagingView: View {
     private func startDraftConversation(with user: AppUser) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         viewModel.startConversation(with: user, from: userId, initialMessage: nil) { conversation in
-            if let conversation {
-                selectedConversation = conversation
-            } else if viewModel.requiresMessageRequest {
-                Task { @MainActor in
-                    let context = await PendingChatContextFactory.outgoing(to: user, from: userId)
-                    pendingChatContext = context
+            Task { @MainActor in
+                if let presentation = await viewModel.consumeProfileMessagePresentation(
+                    conversation: conversation,
+                    for: user,
+                    from: userId
+                ) {
+                    switch presentation.destination {
+                    case .conversation(let resolvedConversation):
+                        selectedConversation = resolvedConversation
+                    case .pendingChat(let context):
+                        pendingChatContext = context
+                    }
                 }
             }
         }
@@ -1828,12 +1834,18 @@ struct GlassmorphicNewConversationView: View {
         guard let userId = Auth.auth().currentUser?.uid else { return }
 
         viewModel.startConversation(with: user, from: userId, initialMessage: nil) { conversation in
-            if let conversation {
-                onConversationCreated(.conversation(conversation))
-            } else if viewModel.requiresMessageRequest {
-                Task { @MainActor in
-                    let context = await PendingChatContextFactory.outgoing(to: user, from: userId)
-                    onConversationCreated(.pending(context))
+            Task { @MainActor in
+                if let presentation = await viewModel.consumeProfileMessagePresentation(
+                    conversation: conversation,
+                    for: user,
+                    from: userId
+                ) {
+                    switch presentation.destination {
+                    case .conversation(let resolvedConversation):
+                        onConversationCreated(.conversation(resolvedConversation))
+                    case .pendingChat(let context):
+                        onConversationCreated(.pending(context))
+                    }
                 }
             }
         }
