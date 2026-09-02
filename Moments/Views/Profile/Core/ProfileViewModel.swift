@@ -679,16 +679,16 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     }
 
     func relationshipState(for userId: String) -> FollowButtonState {
-        if let cached = FollowStateStore.shared.state(for: userId) {
-            return cached
-        }
-
         if let currentUserId = Auth.auth().currentUser?.uid, currentUserId == userId {
             return .ownProfile
         }
 
         if following.contains(where: { $0.id == userId }) || mutuals.contains(where: { $0.id == userId }) {
             return .following
+        }
+
+        if let cached = FollowStateStore.shared.state(for: userId) {
+            return cached
         }
 
         let knownUser = followers.first(where: { $0.id == userId })
@@ -703,9 +703,13 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     }
 
     func prefetchRelationshipState(for userId: String) {
-        guard FollowStateStore.shared.state(for: userId) == nil,
-              let currentUserId = Auth.auth().currentUser?.uid,
+        guard let currentUserId = Auth.auth().currentUser?.uid,
               currentUserId != userId else { return }
+
+        if following.contains(where: { $0.id == userId }) || mutuals.contains(where: { $0.id == userId }) {
+            FollowStateStore.shared.setState(.following, for: userId)
+            return
+        }
 
         privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { state in
             let reconciled = FollowStateStore.shared.reconciledState(state, for: userId)
