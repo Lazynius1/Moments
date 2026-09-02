@@ -832,43 +832,52 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     func forceScrollToBottom(animated: Bool, allowDuringNavigation: Bool = false) {
         if !allowDuringNavigation, scrollNavigationTargetRowId != nil {
+            chatScrollDebugLog(
+                "forceScroll skip — navTarget=\(scrollNavigationTargetRowId ?? "nil")"
+            )
             return
         }
         resetVanishPullState(animated: false)
         guard !orderedItemIds.isEmpty else { return }
 
-        // Celdas auto-dimensionadas (UIHostingConfiguration): la primera vez que una celda entra
-        // en pantalla puede medirse con un ancho/alto provisional antes de que el layout conozca
-        // el bounds real, dejando contentSize desactualizado tras un solo scrollToItem. Se repite
-        // scroll → invalidateLayout → layout hasta que el contentSize deje de moverse.
         let lastIndex = orderedItemIds.count - 1
-        var previousHeight: CGFloat = -1
-        for _ in 0..<6 {
-            collectionView.layoutIfNeeded()
-            let height = collectionView.collectionViewLayout.collectionViewContentSize.height
-            let stabilized = abs(height - previousHeight) < 0.5
-            previousHeight = height
+        let lastId = orderedItemIds[lastIndex]
+        let before = chatScrollDebugSnapshot(reason: "before")
 
-            collectionView.scrollToItem(
-                at: IndexPath(item: 0, section: lastIndex),
-                at: .bottom,
-                animated: false
-            )
+        collectionView.collectionViewLayout.invalidateLayout()
+        forceScrollToRow(at: lastIndex, position: .bottom, animated: false)
+        collectionView.layoutIfNeeded()
 
-            if stabilized { break }
-            collectionView.collectionViewLayout.invalidateLayout()
+        let indexPath = IndexPath(item: 0, section: lastIndex)
+        if let attrs = collectionView.collectionViewLayout.layoutAttributesForItem(at: indexPath) {
+            let targetY = clampedOffsetY(toReveal: attrs.frame, at: .bottom)
+            if abs(collectionView.contentOffset.y - targetY) > 0.5 {
+                collectionView.setContentOffset(
+                    CGPoint(x: collectionView.contentOffset.x, y: targetY),
+                    animated: false
+                )
+            }
+        } else {
+            collectionView.scrollToItem(at: indexPath, at: .bottom, animated: false)
         }
-
-        if animated {
-            collectionView.scrollToItem(at: IndexPath(item: 0, section: lastIndex), at: .bottom, animated: true)
-        }
-
-        // Tras el scrollToItem no animado, indexPathsForVisibleItems puede seguir reflejando las
-        // celdas visibles ANTES del scroll hasta el siguiente layout pass. Sin este layoutIfNeeded,
-        // isLastRowVisible() consulta datos obsoletos y recomputeBottomPinnedState falla incluso
-        // con el offset ya correcto — la flecha se queda pegada aunque se esté en el fondo.
         collectionView.layoutIfNeeded()
         recomputeBottomPinnedState()
+
+        chatScrollDebugLog(
+            "forceScroll last=\(lastId) idx=\(lastIndex) \(before) → \(chatScrollDebugSnapshot(reason: "after")) atBottom=\(isStrictlyAtBottom) lastVisible=\(isLastRowVisible())"
+        )
+    }
+
+    private func chatScrollDebugSnapshot(reason: String) -> String {
+        let inset = collectionView.adjustedContentInset
+        let layoutH = collectionView.collectionViewLayout.collectionViewContentSize.height
+        return "\(reason) y=\(Int(collectionView.contentOffset.y)) bounds=\(Int(collectionView.bounds.height)) content=\(Int(collectionView.contentSize.height)) layoutH=\(Int(layoutH)) insetB=\(Int(inset.bottom)) maxY=\(Int(maxContentOffsetY(in: collectionView))) dist=\(Int(distanceFromBottom))"
+    }
+
+    private func chatScrollDebugLog(_ message: String) {
+        #if DEBUG
+        print("[ChatScroll] \(message)")
+        #endif
     }
 
     private func isLikelyHistoryPrepend(oldIds: [String], newIds: [String]) -> Bool {
@@ -1118,7 +1127,13 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             raw = frame.midY - viewport / 2
         }
         let minY = -inset.top
-        let maxY = max(minY, collectionView.collectionViewLayout.collectionViewContentSize.height - viewport + inset.bottom)
+        let contentMaxY = collectionView.collectionViewLayout.collectionViewContentSize.height
+            - viewport
+            + inset.bottom
+        // El contentSize estimado puede quedar más corto que la última celda real.
+        // Si capamos a ese maxY, el chevron “llega al fondo” del layout y no al último mensaje.
+        let frameMaxY = frame.maxY - viewport + inset.bottom
+        let maxY = max(minY, max(contentMaxY, frameMaxY))
         return min(max(raw, minY), maxY)
     }
 

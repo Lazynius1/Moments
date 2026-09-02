@@ -1336,9 +1336,7 @@ struct StoryEditingView: View {
 
     private func chainInputBottomPadding() -> CGFloat {
         if keyboardHeight > 0 {
-            // Let the bar overlap the rounded top edge of the keyboard slightly
-            // so it doesn't leave a visible gap when the keyboard is shown.
-            return max(0, keyboardHeight - 10)
+            return keyboardHeight + 8
         }
         return 0
     }

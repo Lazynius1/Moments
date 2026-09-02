@@ -1158,24 +1158,38 @@ struct ChatAttachmentPillButton: View {
     }
 
     var body: some View {
-        Button(action: action) {
-            label
-                .font(.system(size: legacyPoppinsSize(14), weight: tint == nil ? .medium : .semibold))
-                .foregroundStyle(tint == nil ? StoryEditorChromeColor.icon(colorScheme) : .white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .momentsChromeGlass(
-                    in: Capsule(),
-                    interactive: !disabled,
-                    tint: tint.map { $0.opacity(disabled ? 0.35 : 0.92) }
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(strokeColor, lineWidth: 1)
-                )
-                .contentShape(Capsule())
+        Group {
+            if #available(iOS 26.0, *), let tint {
+                Button(action: action) {
+                    label
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.capsule)
+                .tint(tint)
+            } else {
+                Button(action: action) {
+                    label
+                        .font(.system(size: legacyPoppinsSize(14), weight: tint == nil ? .medium : .semibold))
+                        .foregroundStyle(tint == nil ? StoryEditorChromeColor.icon(colorScheme) : .white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .momentsChromeGlass(
+                            in: Capsule(),
+                            interactive: !disabled,
+                            tint: tint.map { $0.opacity(disabled ? 0.35 : 0.92) }
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(strokeColor, lineWidth: 1)
+                        )
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.plain)
         .disabled(disabled)
         .opacity(disabled ? 0.5 : 1)
     }

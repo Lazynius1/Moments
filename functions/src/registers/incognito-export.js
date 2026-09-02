@@ -539,6 +539,100 @@ const moderateMediaContent = onRequest(
   }
 );
 
+const uploadModeratedProfileImage = onRequest(
+  {
+    timeoutSeconds: 120,
+    memory: '1GiB',
+    secrets: [
+      OPENAI_API_KEY,
+      SIGHTENGINE_USER,
+      SIGHTENGINE_SECRET,
+      AWS_ACCESS_KEY_ID,
+      AWS_SECRET_ACCESS_KEY,
+      AWS_REGION
+    ]
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64.trim() : '';
+    if (!imageBase64) {
+      res.status(400).json({ error: 'Missing imageBase64' });
+      return;
+    }
+
+    let imageBuffer;
+    try {
+      imageBuffer = Buffer.from(imageBase64, 'base64');
+    } catch (_) {
+      res.status(400).json({ error: 'Invalid imageBase64' });
+      return;
+    }
+
+    if (!imageBuffer.length || imageBuffer.length > 8 * 1024 * 1024) {
+      res.status(413).json({ error: 'Profile image is empty or too large' });
+      return;
+    }
+
+    try {
+      const decision = await moderateImageBufferWithFallback(imageBuffer);
+      if (decision.action !== 'approved') {
+        res.status(422).json({
+          success: false,
+          action: decision.action,
+          reason: decision.reason,
+          category: decision.category
+        });
+        return;
+      }
+
+      const bucket = admin.storage().bucket();
+      const fileName = `${crypto.randomUUID()}.jpg`;
+      const objectName = `users/${uid}/profile/avatar/${fileName}`;
+      const downloadToken = crypto.randomUUID();
+      await bucket.file(objectName).save(imageBuffer, {
+        resumable: false,
+        metadata: {
+          contentType: 'image/jpeg',
+          cacheControl: 'public,max-age=3600',
+          metadata: {
+            firebaseStorageDownloadTokens: downloadToken,
+            ownerId: uid,
+            type: 'profile_picture',
+            moderationStatus: 'approved',
+            moderationProvider: decision.provider || decision.details?.provider || 'unknown'
+          }
+        }
+      });
+
+      res.status(200).json({
+        success: true,
+        action: 'approved',
+        mediaURL: firebaseStorageDownloadUrl(bucket.name, objectName, downloadToken),
+        objectPath: objectName
+      });
+    } catch (error) {
+      console.error('uploadModeratedProfileImage error:', { uid, error });
+      res.status(503).json({
+        success: false,
+        error: 'Profile image moderation unavailable'
+      });
+    }
+  }
+);
+
 const proxySpeechToText = onRequest(
   {
     timeoutSeconds: 30,
@@ -727,6 +821,7 @@ module.exports = {
   proxyOpenAIModeration,
   proxySightengineFrame,
   moderateMediaContent,
+  uploadModeratedProfileImage,
   proxySpeechToText,
   proxyGiphyStickers,
   proxyGiphyGifs,

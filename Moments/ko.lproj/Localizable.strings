@@ -1134,6 +1134,7 @@
 "profileEditor.album.screenshots" = "스크린샷";
 "profileEditor.error.updateProfile" = "프로필 업데이트 오류: %@";
 "profileEditor.error.uploadImage" = "이미지 업로드 오류: %@";
+"profileEditor.error.profileImageRejected" = "이 사진은 프로필 사진으로 사용할 수 없어요.";
 "profileEditor.error.unauthenticated" = "로그인되지 않았어요";
 "profileEditor.error.saveProfile" = "저장 오류: %@";
 "profileEditor.crop.loadingImage" = "이미지 불러오는 중...";
@@ -2675,7 +2676,7 @@
 /* Whats New v2.16 */
 "whatsNew.title" = "Moments의 새로운 소식!";
 "whatsNew.subtitle" = "채팅에서 답장하기, 더 풍성해진 공유 카드, 새로워진 메시지 요청, 그리고 새롭게 디자인된 작성 화면을 만나보세요.";
-"whatsNew.button" = "Moments 2.21.1 살펴보기";
+"whatsNew.button" = "Moments 2.22 살펴보기";
 /* Best Friends */
 "bestFriends.title" = "친한 친구";
 "bestFriends.empty.title" = "친한 친구가 없어요";
@@ -4191,7 +4192,7 @@
 "permission.tracking.denied.title" = "추적이 꺼져 있어요";
 "permission.tracking.denied.subtitle" = "더 관련성 높은 광고를 보려면 설정 › 개인정보 보호 및 보안 › 추적에서 추적을 켜세요.";
 "permission.tracking.denied.openSettings" = "설정 열기";
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 "whatsNew.replyInChat.title" = "채팅에서 답장하기";
 "whatsNew.replyInChat.description" = "말풍선을 밀어 답장하세요. 인용문을 탭하면 원본 메시지로 이동해요.";
 "whatsNew.quotePreviews.title" = "채팅 인용";
@@ -4200,6 +4201,17 @@
 "whatsNew.chatTimestamps.description" = "대화 행을 가로로 밀면 내 메시지를 포함해 전송 시간을 확인할 수 있어요.";
 "whatsNew.composerVoice.title" = "메시지 입력";
 "whatsNew.composerVoice.description" = "메시지 작성 화면을 새롭게 디자인하고 음성 메시지를 더 부드럽게 녹음할 수 있어요. 취소 애니메이션도 더 명확해졌어요.";
+"whatsNew.richChat.title" = "더 풍부한 채팅";
+"whatsNew.notificationsAndMentions.title" = "알림과 멘션";
+"whatsNew.notificationsAndMentions.description" = "채팅과 소셜 알림이 더 명확해졌고 스토리 멘션은 대화로 바로 전달돼요.";
+"whatsNew.richChat.description" = "텍스트 서식과 스포일러를 사용하고 멘션을 눌러 프로필을 열 수 있어요. 답장과 편집도 더 명확해졌어요.";
+"whatsNew.feedCaptions.title" = "알맞게 표시되는 캡션";
+"whatsNew.feedCaptions.description" = "필요할 때만 ‘더 보기’가 나타나며 위치를 유지한 채 전체 캡션을 열어요.";
+"whatsNew.reelComments.title" = "Reel과 함께 보는 댓글";
+"whatsNew.reelComments.description" = "영상이 댓글을 위한 공간을 만들고 입력창은 계속 표시되며 답글도 더 쉽게 따라갈 수 있어요.";
+"whatsNew.morePersonal.title" = "더 나답게";
+"whatsNew.morePersonal.description" = "더 많은 관심사, 8개 새 언어, 프로필·QR·스토리 보관함의 부드러운 전환을 만나보세요.";
+
 "whatsNew.section221.title" = "Moments 2.21";
 "whatsNew.messageRequestThreads.title" = "메시지 요청";
 "whatsNew.messageRequestThreads.description" = "스팸을 방지하기 위해 대화당 최대 5개, 하루 최대 10개의 메시지만 받을 수 있어요. 요청, 오래된 메시지, 숨김 폴더와 기기 내 숨은 단어 필터를 지원해요.";

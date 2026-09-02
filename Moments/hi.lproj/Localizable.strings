@@ -1134,6 +1134,7 @@
 "profileEditor.album.screenshots" = "स्क्रीनशॉट";
 "profileEditor.error.updateProfile" = "प्रोफ़ाइल अपडेट करने में गड़बड़ी: %@";
 "profileEditor.error.uploadImage" = "इमेज अपलोड करने में त्रुटि: %@";
+"profileEditor.error.profileImageRejected" = "इस फ़ोटो को प्रोफ़ाइल फ़ोटो के रूप में इस्तेमाल नहीं किया जा सकता।";
 "profileEditor.error.unauthenticated" = "उपयोगकर्ता लॉग इन नहीं है";
 "profileEditor.error.saveProfile" = "सेव करने में त्रुटि: %@";
 "profileEditor.crop.loadingImage" = "इमेज लोड हो रही है...";
@@ -2675,7 +2676,7 @@
 /* Whats New v2.16 */
 "whatsNew.title" = "Moments में नया!";
 "whatsNew.subtitle" = "चैट में रिप्लाई, बेहतर शेयर कार्ड, मैसेज रिक्वेस्ट में सुधार और नया कंपोज़र।";
-"whatsNew.button" = "Moments 2.21.1 देखें";
+"whatsNew.button" = "Moments 2.22 देखें";
 /* Best Friends */
 "bestFriends.title" = "करीबी दोस्त";
 "bestFriends.empty.title" = "कोई करीबी दोस्त नहीं";
@@ -4191,7 +4192,7 @@
 "permission.tracking.denied.title" = "ट्रैकिंग बंद है";
 "permission.tracking.denied.subtitle" = "ज़्यादा प्रासंगिक विज्ञापन पाने के लिए सेटिंग्स › प्राइवेसी › ट्रैकिंग में जाकर ट्रैकिंग चालू करें।";
 "permission.tracking.denied.openSettings" = "सेटिंग्स खोलें";
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 "whatsNew.replyInChat.title" = "चैट में जवाब दें";
 "whatsNew.replyInChat.description" = "जवाब देने के लिए बबल पर स्वाइप करें। मूल मैसेज पर जाने के लिए कोट पर टैप करें।";
 "whatsNew.quotePreviews.title" = "चैट में कोट";
@@ -4200,6 +4201,17 @@
 "whatsNew.chatTimestamps.description" = "समय देखने के लिए किसी रो पर क्षैतिज रूप से स्वाइप करें—अपने मैसेज पर भी।";
 "whatsNew.composerVoice.title" = "मैसेज लिखना";
 "whatsNew.composerVoice.description" = "नया मैसेज कंपोज़र और बेहतर वॉइस नोट्स, साथ में ज़्यादा साफ़ कैंसल ऐनिमेशन।";
+"whatsNew.richChat.title" = "ज़्यादा अभिव्यक्तिशील चैट";
+"whatsNew.notificationsAndMentions.title" = "सूचनाएँ और मेंशन";
+"whatsNew.notificationsAndMentions.description" = "चैट और सामाजिक सूचनाएँ अब अधिक स्पष्ट हैं, और स्टोरी मेंशन सीधे बातचीत में आते हैं।";
+"whatsNew.richChat.description" = "टेक्स्ट फ़ॉर्मैट करें, स्पॉइलर छिपाएँ और प्रोफ़ाइल खोलने के लिए मेंशन पर टैप करें। जवाब और एडिट भी अब ज़्यादा साफ़ हैं।";
+"whatsNew.feedCaptions.title" = "सही आकार के कैप्शन";
+"whatsNew.feedCaptions.description" = "और देखें केवल ज़रूरत पर दिखता है और आपकी जगह बनाए रखते हुए पूरा कैप्शन खोलता है।";
+"whatsNew.reelComments.title" = "Reel के साथ टिप्पणियाँ";
+"whatsNew.reelComments.description" = "वीडियो टिप्पणियों के लिए जगह बनाता है, कंपोज़र दिखता रहता है और जवाब समझना आसान है।";
+"whatsNew.morePersonal.title" = "और भी आपका";
+"whatsNew.morePersonal.description" = "अधिक रुचियाँ, 8 नई भाषाएँ और प्रोफ़ाइल, QR व स्टोरी आर्काइव में सहज ट्रांज़िशन।";
+
 "whatsNew.section221.title" = "Moments 2.21";
 "whatsNew.messageRequestThreads.title" = "मैसेज रिक्वेस्ट";
 "whatsNew.messageRequestThreads.description" = "आपके इंतज़ार के दौरान हर बातचीत में 5 मैसेज तक और स्पैम रोकने के लिए रोज़ाना 10 मैसेज तक। रिक्वेस्ट, पुराने और छिपे हुए फ़ोल्डर, साथ ही डिवाइस पर छिपे शब्दों के फ़िल्टर।";

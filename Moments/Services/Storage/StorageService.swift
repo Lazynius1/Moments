@@ -1,4 +1,6 @@
 import FirebaseStorage
+import FirebaseAuth
+import FirebaseCore
 import UIKit
 import AVFoundation
 
@@ -26,8 +28,8 @@ enum ModerationError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .contentRejected(let reason):
-            return "Contenido no permitido: \(reason)"
+        case .contentRejected:
+            return NSLocalizedString("profileEditor.error.profileImageRejected", comment: "")
         }
     }
 }
@@ -50,9 +52,57 @@ class StorageService {
             return
         }
 
-        let target = StoragePathBuilder.build(userId: userId, domain: .profileAvatar())
-        uploader.upload(target: target, payload: .data(imageData)) { result in
-            self.completeWithPublicDownloadURL(result, completion: completion)
+        guard Auth.auth().currentUser?.uid == userId,
+              let projectID = FirebaseApp.app()?.options.projectID,
+              let url = URL(string: "https://europe-southwest1-\(projectID).cloudfunctions.net/uploadModeratedProfileImage") else {
+            completion(.failure(StorageError.uploadFailed))
+            return
+        }
+
+        Auth.auth().currentUser?.getIDTokenForcingRefresh(false) { token, tokenError in
+            guard let token, tokenError == nil else {
+                completion(.failure(StorageError.uploadFailed))
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 120
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+            do {
+                request.httpBody = try JSONSerialization.data(withJSONObject: [
+                    "imageBase64": imageData.base64EncodedString()
+                ])
+            } catch {
+                completion(.failure(StorageError.invalidData))
+                return
+            }
+
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                guard error == nil,
+                      let httpResponse = response as? HTTPURLResponse,
+                      let data,
+                      let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    completion(.failure(StorageError.uploadFailed))
+                    return
+                }
+
+                if httpResponse.statusCode == 422 {
+                    let reason = payload["reason"] as? String ?? "profile_image_rejected"
+                    completion(.failure(ModerationError.contentRejected(reason)))
+                    return
+                }
+
+                guard (200...299).contains(httpResponse.statusCode),
+                      let mediaURL = payload["mediaURL"] as? String,
+                      !mediaURL.isEmpty else {
+                    completion(.failure(StorageError.uploadFailed))
+                    return
+                }
+                completion(.success(mediaURL))
+            }.resume()
         }
     }
 

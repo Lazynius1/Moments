@@ -1,0 +1,480 @@
+<es-ES>
+Novedades de Moments (v2.22)
+
+Moments 2.22 renueva las solicitudes de mensaje, hace el chat más expresivo y mejora cómo compartes historias, Moments, Reels y perfiles.
+
+Lo más importante de esta versión:
+
+SOLICITUDES DE MENSAJE
+- Continúa una solicitud con hasta 5 mensajes mientras esperas que la otra persona la acepte.
+- Límite de 10 destinatarios nuevos al día, controles de privacidad y protección contra spam.
+
+UN CHAT CON MÁS EXPRESIÓN
+- Respuestas y citas más claras, con previews de Moments, historias y perfiles.
+- Negrita, cursiva, tachado, monoespaciado, spoilers, citas y menciones interactivas.
+
+HISTORIAS Y CONTENIDO COMPARTIDO
+- Las menciones en historias llegan directamente a la conversación.
+- Las historias compartidas conservan stickers, overlays y su composición visual.
+
+FEED, REELS Y COMENTARIOS
+- «Ver más» aparece solo cuando hace falta y abre el caption sin perder tu posición.
+- El vídeo deja sitio a los comentarios, el compositor sigue visible y las respuestas se siguen mejor.
+
+MÁS TUYO
+- Más intereses, 8 idiomas nuevos y transiciones más fluidas en perfiles, QR, actividad y archivo de historias.
+- Navegación, estabilidad y consistencia refinadas en iOS.
+
+En resumen:
+Moments 2.22 se centra en conversar y compartir con más contexto, menos fricción y una interfaz más coherente.
+</es-ES>
+<ca>
+Novetats de Moments (v2.22)
+
+Moments 2.22 renova les sol·licituds de missatge, fa el xat més expressiu i millora com comparteixes històries, Moments, Reels i perfils.
+
+El més important d'aquesta versió:
+
+SOL·LICITUDS DE MISSATGE
+- Continua una sol·licitud amb fins a 5 missatges mentre esperes que l'altra persona l'accepti.
+- Límit de 10 destinataris nous al dia, controls de privacitat i protecció contra spam.
+
+UN XAT AMB MÉS EXPRESSIÓ
+- Respostes i cites més clares, amb previews de Moments, històries i perfils.
+- Negreta, cursiva, ratllat, monoespai, spoilers, cites i mencions interactives.
+
+HISTÒRIES I CONTINGUT COMPARTIT
+- Les mencions a històries arriben directament a la conversa.
+- Les històries compartides conserven stickers, overlays i la composició visual.
+
+FEED, REELS I COMENTARIS
+- «Veure'n més» apareix només quan cal i obre el text sense perdre la posició.
+- El vídeo deixa lloc als comentaris, el compositor segueix visible i les respostes se segueixen millor.
+
+MÉS TEU
+- Més interessos, 8 idiomes nous i transicions més fluides en perfils, QR, activitat i arxiu d'històries.
+- Navegació, estabilitat i coherència refinades a iOS.
+
+En resum:
+Moments 2.22 se centra a conversar i compartir amb més context, menys fricció i una interfície més coherent.
+</ca>
+<en-US>
+What's New in Moments (v2.22)
+
+Moments 2.22 rebuilds message requests, makes chat more expressive, and improves how you share stories, Moments, Reels, and profiles.
+
+The most important changes in this version:
+
+MESSAGE REQUESTS
+- Continue a request with up to 5 messages while you wait for the other person to accept it.
+- A limit of 10 new recipients per day, privacy controls, and spam protection.
+
+A MORE EXPRESSIVE CHAT
+- Clearer replies and quotes, with previews for Moments, stories, and profiles.
+- Bold, italic, strikethrough, monospace, spoilers, quotes, and interactive mentions.
+
+STORIES AND SHARED CONTENT
+- Story mentions now arrive directly in the conversation.
+- Shared stories preserve their stickers, overlays, and visual composition.
+
+FEED, REELS, AND COMMENTS
+- See more appears only when needed and opens the caption without losing your place.
+- Video makes room for comments, the composer stays visible, and replies are easier to follow.
+
+MORE YOURS
+- More interests, 8 new languages, and smoother transitions across profiles, QR, activity, and story archive.
+- Refined navigation, stability, and consistency on iOS.
+
+In summary:
+Moments 2.22 is about chatting and sharing with more context, less friction, and a more consistent interface.
+</en-US>
+<de-DE>
+Neu in Moments (v2.22)
+
+Moments 2.22 erneuert Nachrichtenanfragen, macht Chats ausdrucksstärker und verbessert das Teilen von Storys, Moments, Reels und Profilen.
+
+Die wichtigsten Änderungen in dieser Version:
+
+NACHRICHTENANFRAGEN
+- Sende bis zu 5 Nachrichten, während du auf die Annahme deiner Anfrage wartest.
+- Begrenzung auf 10 neue Empfänger pro Tag, Datenschutzkontrollen und Spamschutz.
+
+EIN AUSDRUCKSSTÄRKERER CHAT
+- Klarere Antworten und Zitate mit Vorschauen für Moments, Storys und Profile.
+- Fett, kursiv, durchgestrichen, Monospace, Spoiler, Zitate und interaktive Erwähnungen.
+
+STORYS UND GETEILTE INHALTE
+- Erwähnungen in Storys landen direkt im passenden Gespräch.
+- Geteilte Storys behalten Sticker, Overlays und ihre visuelle Komposition.
+
+FEED, REELS UND KOMMENTARE
+- „Mehr anzeigen“ erscheint nur bei Bedarf und öffnet die Caption ohne Positionsverlust.
+- Das Video macht Platz für Kommentare, die Eingabe bleibt sichtbar und Antworten sind leichter zu verfolgen.
+
+MEHR DEINS
+- Mehr Interessen, 8 neue Sprachen und flüssigere Übergänge bei Profilen, QR, Aktivität und Story-Archiv.
+- Navigation, Stabilität und Konsistenz auf iOS wurden verfeinert.
+
+Zusammengefasst:
+Moments 2.22 bringt mehr Kontext, weniger Reibung und eine einheitlichere Oberfläche in Gespräche und geteilte Inhalte.
+</de-DE>
+<fr-FR>
+Nouveautés de Moments (v2.22)
+
+Moments 2.22 renouvelle les demandes de messages, rend le chat plus expressif et améliore le partage des stories, Moments, Reels et profils.
+
+Le plus important dans cette version :
+
+DEMANDES DE MESSAGES
+- Poursuis une demande avec jusqu'à 5 messages en attendant son acceptation.
+- Limite de 10 nouveaux destinataires par jour, contrôles de confidentialité et protection antispam.
+
+UN CHAT PLUS EXPRESSIF
+- Réponses et citations plus claires, avec aperçus de Moments, stories et profils.
+- Gras, italique, barré, monospace, spoilers, citations et mentions interactives.
+
+STORIES ET CONTENU PARTAGÉ
+- Les mentions dans les stories arrivent directement dans la conversation.
+- Les stories partagées conservent stickers, overlays et composition visuelle.
+
+FIL, REELS ET COMMENTAIRES
+- « Voir plus » apparaît seulement si nécessaire et ouvre la légende sans perdre ta position.
+- La vidéo laisse place aux commentaires, la saisie reste visible et les réponses sont plus faciles à suivre.
+
+PLUS PERSONNEL
+- Plus d'intérêts, 8 nouvelles langues et des transitions plus fluides pour profils, QR, activité et archives.
+- Navigation, stabilité et cohérence affinées sur iOS.
+
+En résumé :
+Moments 2.22 apporte plus de contexte, moins de friction et une interface plus cohérente aux conversations et aux partages.
+</fr-FR>
+<it-IT>
+Novità in Moments (v2.22)
+
+Moments 2.22 rinnova le richieste di messaggi, rende la chat più espressiva e migliora la condivisione di storie, Moments, Reels e profili.
+
+Le novità più importanti di questa versione:
+
+RICHIESTE DI MESSAGGI
+- Continua una richiesta con un massimo di 5 messaggi mentre aspetti che venga accettata.
+- Limite di 10 nuovi destinatari al giorno, controlli della privacy e protezione dallo spam.
+
+UNA CHAT PIÙ ESPRESSIVA
+- Risposte e citazioni più chiare, con anteprime di Moments, storie e profili.
+- Grassetto, corsivo, barrato, monospazio, spoiler, citazioni e menzioni interattive.
+
+STORIE E CONTENUTI CONDIVISI
+- Le menzioni nelle storie arrivano direttamente nella conversazione.
+- Le storie condivise conservano sticker, overlay e composizione visiva.
+
+FEED, REELS E COMMENTI
+- “Altro” appare solo quando serve e apre la didascalia senza perdere il punto.
+- Il video lascia spazio ai commenti, il compositore resta visibile e le risposte sono più facili da seguire.
+
+PIÙ TUO
+- Più interessi, 8 nuove lingue e transizioni più fluide tra profili, QR, attività e archivio storie.
+- Navigazione, stabilità e coerenza rifinite su iOS.
+
+In sintesi:
+Moments 2.22 porta più contesto, meno attrito e un'interfaccia più coerente nelle conversazioni e nella condivisione.
+</it-IT>
+<pt-BR>
+Novidades do Moments (v2.22)
+
+O Moments 2.22 renova as solicitações de mensagem, deixa o chat mais expressivo e melhora o compartilhamento de stories, Moments, Reels e perfis.
+
+As mudanças mais importantes desta versão:
+
+SOLICITAÇÕES DE MENSAGEM
+- Continue uma solicitação com até 5 mensagens enquanto espera a outra pessoa aceitar.
+- Limite de 10 novos destinatários por dia, controles de privacidade e proteção contra spam.
+
+UM CHAT MAIS EXPRESSIVO
+- Respostas e citações mais claras, com previews de Moments, stories e perfis.
+- Negrito, itálico, tachado, monoespaçado, spoilers, citações e menções interativas.
+
+STORIES E CONTEÚDO COMPARTILHADO
+- Menções em stories chegam diretamente à conversa.
+- Stories compartilhados preservam stickers, overlays e composição visual.
+
+FEED, REELS E COMENTÁRIOS
+- “Ver mais” aparece só quando necessário e abre a legenda sem perder sua posição.
+- O vídeo abre espaço para os comentários, o compositor fica visível e as respostas são mais fáceis de acompanhar.
+
+MAIS SEU
+- Mais interesses, 8 novos idiomas e transições mais fluidas em perfis, QR, atividade e arquivo de stories.
+- Navegação, estabilidade e consistência refinadas no iOS.
+
+Em resumo:
+O Moments 2.22 traz mais contexto, menos atrito e uma interface mais consistente para conversas e compartilhamentos.
+</pt-BR>
+<pt-PT>
+Novidades do Moments (v2.22)
+
+O Moments 2.22 renova os pedidos de mensagem, torna o chat mais expressivo e melhora a partilha de stories, Moments, Reels e perfis.
+
+As alterações mais importantes desta versão:
+
+PEDIDOS DE MENSAGEM
+- Continua um pedido com até 5 mensagens enquanto esperas que a outra pessoa o aceite.
+- Limite de 10 novos destinatários por dia, controlos de privacidade e proteção contra spam.
+
+UM CHAT MAIS EXPRESSIVO
+- Respostas e citações mais claras, com previews de Moments, stories e perfis.
+- Negrito, itálico, rasurado, monoespaçado, spoilers, citações e menções interativas.
+
+STORIES E CONTEÚDO PARTILHADO
+- As menções em stories chegam diretamente à conversa.
+- As stories partilhadas preservam stickers, overlays e composição visual.
+
+FEED, REELS E COMENTÁRIOS
+- «Ver mais» aparece apenas quando necessário e abre a legenda sem perderes o lugar.
+- O vídeo dá espaço aos comentários, o compositor fica visível e as respostas são mais fáceis de acompanhar.
+
+MAIS TEU
+- Mais interesses, 8 novos idiomas e transições mais fluidas em perfis, QR, atividade e arquivo de stories.
+- Navegação, estabilidade e consistência refinadas no iOS.
+
+Em resumo:
+O Moments 2.22 traz mais contexto, menos atrito e uma interface mais consistente às conversas e partilhas.
+</pt-PT>
+<hi>
+Moments में नया (v2.22)
+
+Moments 2.22 मैसेज रिक्वेस्ट को नया रूप देता है, चैट को ज़्यादा अभिव्यक्तिशील बनाता है और स्टोरी, Moments, Reels व प्रोफ़ाइल शेयर करने के अनुभव को बेहतर करता है।
+
+इस वर्ज़न के सबसे महत्वपूर्ण बदलाव:
+
+मैसेज रिक्वेस्ट
+- स्वीकार होने की प्रतीक्षा में एक रिक्वेस्ट में अधिकतम 5 मैसेज भेजें।
+- हर दिन 10 नए प्राप्तकर्ताओं की सीमा, गोपनीयता नियंत्रण और स्पैम सुरक्षा।
+
+ज़्यादा अभिव्यक्तिशील चैट
+- Moments, स्टोरी और प्रोफ़ाइल के लिए साफ़ जवाब, उद्धरण और प्रीव्यू।
+- बोल्ड, इटैलिक, स्ट्राइकथ्रू, मोनोस्पेस, स्पॉइलर, कोट और इंटरैक्टिव मेंशन।
+
+स्टोरी और शेयर किया गया कंटेंट
+- स्टोरी मेंशन सीधे बातचीत में पहुँचते हैं।
+- शेयर की गई स्टोरी स्टिकर, ओवरले और विज़ुअल कम्पोज़िशन बनाए रखती हैं।
+
+फ़ीड, REELS और कमेंट
+- “और देखें” केवल ज़रूरत पर दिखता है और आपकी जगह खोए बिना कैप्शन खोलता है।
+- वीडियो कमेंट के लिए जगह बनाता है, कंपोज़र दिखता रहता है और जवाब समझना आसान है।
+
+और भी आपका
+- अधिक रुचियाँ, 8 नई भाषाएँ और प्रोफ़ाइल, QR, गतिविधि व स्टोरी आर्काइव में सहज ट्रांज़िशन।
+- iOS में नेविगेशन, स्थिरता और एकरूपता के सुधार।
+
+संक्षेप में:
+Moments 2.22 ज़्यादा संदर्भ, कम रुकावट और अधिक एकसमान इंटरफ़ेस के साथ बातचीत और शेयरिंग को बेहतर बनाता है।
+</hi>
+<id>
+Yang Baru di Moments (v2.22)
+
+Moments 2.22 memperbarui permintaan pesan, membuat chat lebih ekspresif, serta meningkatkan cara story, Moments, Reels, dan profil dibagikan.
+
+Perubahan terpenting dalam versi ini:
+
+PERMINTAAN PESAN
+- Lanjutkan permintaan hingga 5 pesan sambil menunggu orang lain menerimanya.
+- Batas 10 penerima baru per hari, kontrol privasi, dan perlindungan spam.
+
+CHAT YANG LEBIH EKSPRESIF
+- Balasan, kutipan, dan preview Moments, story, serta profil lebih jelas.
+- Teks tebal, miring, coret, monospace, spoiler, kutipan, dan mention interaktif.
+
+STORY DAN KONTEN YANG DIBAGIKAN
+- Mention dalam story langsung masuk ke percakapan.
+- Story yang dibagikan mempertahankan stiker, overlay, dan komposisi visualnya.
+
+FEED, REELS, DAN KOMENTAR
+- “Lihat selengkapnya” hanya muncul saat diperlukan dan membuka caption tanpa kehilangan posisi.
+- Video memberi ruang untuk komentar, kolom input tetap terlihat, dan balasan lebih mudah diikuti.
+
+MAKIN PERSONAL
+- Lebih banyak minat, 8 bahasa baru, serta transisi profil, QR, aktivitas, dan arsip story yang lebih mulus.
+- Navigasi, stabilitas, dan konsistensi iOS semakin baik.
+
+Singkatnya:
+Moments 2.22 menghadirkan lebih banyak konteks, lebih sedikit hambatan, dan antarmuka yang lebih konsisten.
+</id>
+<ja>
+Momentsの新機能（v2.22）
+
+Moments 2.22では、メッセージリクエストを刷新し、チャットの表現力を高め、ストーリー、Moments、Reels、プロフィールの共有体験を改善しました。
+
+このバージョンの主な変更点：
+
+メッセージリクエスト
+- 承認を待つ間も、1件のリクエストで最大5件のメッセージを送信できます。
+- 1日10人までの新規送信先制限、プライバシー管理、スパム対策を追加。
+
+もっと表現豊かなチャット
+- Moments、ストーリー、プロフィールへの返信、引用、プレビューを改善。
+- 太字、斜体、取り消し線、等幅表示、スポイラー、引用、操作できるメンションに対応。
+
+ストーリーと共有コンテンツ
+- ストーリーでのメンションが会話に直接届きます。
+- 共有したストーリーはステッカー、オーバーレイ、ビジュアル構成を維持します。
+
+フィード、REELS、コメント
+- 必要な場合だけ「もっと見る」を表示し、位置を保ったまま全文を開けます。
+- 動画がコメント用のスペースを作り、入力欄は表示されたままで返信も追いやすくなりました。
+
+もっと自分らしく
+- 興味を増やし、8つの新言語に対応。プロフィール、QR、アクティビティ、アーカイブの遷移も滑らかに。
+- iOSのナビゲーション、安定性、一貫性を改善しました。
+
+まとめ：
+Moments 2.22は、より多くの文脈と少ない摩擦で会話や共有を楽しめるアップデートです。
+</ja>
+<ko>
+Moments의 새로운 기능(v2.22)
+
+Moments 2.22는 메시지 요청을 새롭게 구성하고, 채팅 표현을 풍부하게 하며, 스토리·Moments·Reels·프로필 공유 방식을 개선했어요.
+
+이번 버전의 주요 변경 사항:
+
+메시지 요청
+- 상대방의 수락을 기다리는 동안 요청 하나에서 최대 5개의 메시지를 보낼 수 있어요.
+- 하루 신규 수신자 10명 제한, 개인정보 보호 설정, 스팸 방지 기능을 적용했어요.
+
+더 풍부한 채팅
+- Moments, 스토리, 프로필의 답장, 인용, 미리보기가 더 명확해졌어요.
+- 굵게, 기울임, 취소선, 고정폭, 스포일러, 인용, 대화형 멘션을 지원해요.
+
+스토리와 공유 콘텐츠
+- 스토리 멘션이 관련 대화로 바로 전달돼요.
+- 공유한 스토리는 스티커, 오버레이, 시각적 구성을 그대로 유지해요.
+
+피드, REELS, 댓글
+- 필요할 때만 ‘더 보기’가 나타나며 위치를 유지한 채 전문을 열어요.
+- 영상이 댓글 공간을 만들고 입력창은 계속 표시되며 답글도 쉽게 따라갈 수 있어요.
+
+더 나답게
+- 더 많은 관심사, 8개 새 언어, 프로필·QR·활동·스토리 보관함의 부드러운 전환.
+- iOS의 탐색, 안정성, 일관성을 개선했어요.
+
+요약:
+Moments 2.22는 더 많은 맥락과 적은 불편으로 대화하고 공유할 수 있는 업데이트예요.
+</ko>
+<nl-NL>
+Nieuw in Moments (v2.22)
+
+Moments 2.22 vernieuwt berichtverzoeken, maakt chat expressiever en verbetert hoe stories, Moments, Reels en profielen worden gedeeld.
+
+De belangrijkste veranderingen in deze versie:
+
+BERICHTVERZOEKEN
+- Ga verder met maximaal 5 berichten terwijl je wacht tot de ander het verzoek accepteert.
+- Een limiet van 10 nieuwe ontvangers per dag, privacy-instellingen en spambescherming.
+
+EEN EXPRESSIEVERE CHAT
+- Duidelijkere antwoorden, citaten en previews van Moments, stories en profielen.
+- Vet, cursief, doorgestreept, monospace, spoilers, citaten en interactieve vermeldingen.
+
+STORIES EN GEDEELDE INHOUD
+- Vermeldingen in stories komen rechtstreeks in het gesprek terecht.
+- Gedeelde stories behouden stickers, overlays en visuele compositie.
+
+FEED, REELS EN REACTIES
+- ‘Meer weergeven’ verschijnt alleen wanneer nodig en opent het bijschrift zonder je plek te verliezen.
+- De video maakt ruimte voor reacties, de invoer blijft zichtbaar en antwoorden zijn makkelijker te volgen.
+
+MEER VAN JOU
+- Meer interesses, 8 nieuwe talen en vloeiendere overgangen voor profielen, QR, activiteit en verhalenarchief.
+- Navigatie, stabiliteit en samenhang op iOS zijn verfijnd.
+
+Samengevat:
+Moments 2.22 draait om chatten en delen met meer context, minder wrijving en een consistentere interface.
+</nl-NL>
+<pl>
+Co nowego w Moments (v2.22)
+
+Moments 2.22 odświeża prośby o wiadomość, wzbogaca czat i poprawia udostępnianie relacji, Moments, Reels oraz profili.
+
+Najważniejsze zmiany w tej wersji:
+
+PROŚBY O WIADOMOŚĆ
+- Wyślij do 5 wiadomości w ramach prośby, czekając na jej zaakceptowanie.
+- Limit 10 nowych odbiorców dziennie, kontrola prywatności i ochrona przed spamem.
+
+BARDZIEJ WYRAZISTY CZAT
+- Czytelniejsze odpowiedzi, cytaty i podglądy Moments, relacji oraz profili.
+- Pogrubienie, kursywa, przekreślenie, tekst stałej szerokości, spoilery, cytaty i aktywne wzmianki.
+
+RELACJE I UDOSTĘPNIONE TREŚCI
+- Wzmianki w relacjach trafiają bezpośrednio do rozmowy.
+- Udostępnione relacje zachowują naklejki, warstwy i kompozycję wizualną.
+
+KANAŁ, REELS I KOMENTARZE
+- „Więcej” pojawia się tylko w razie potrzeby i otwiera podpis bez utraty miejsca.
+- Film robi miejsce na komentarze, pole wpisywania pozostaje widoczne, a odpowiedzi łatwiej śledzić.
+
+BARDZIEJ TWOJE
+- Więcej zainteresowań, 8 nowych języków i płynniejsze przejścia profili, QR, aktywności i archiwum relacji.
+- Ulepszona nawigacja, stabilność i spójność iOS.
+
+Podsumowując:
+Moments 2.22 zapewnia rozmowy i udostępnianie z większym kontekstem, mniejszymi przeszkodami i spójniejszym interfejsem.
+</pl>
+<tr>
+Moments'taki yenilikler (v2.22)
+
+Moments 2.22 mesaj isteklerini yeniliyor, sohbeti daha ifadeli hâle getiriyor ve hikâye, Moments, Reels ile profil paylaşımını geliştiriyor.
+
+Bu sürümdeki en önemli değişiklikler:
+
+MESAJ İSTEKLERİ
+- Diğer kişinin kabul etmesini beklerken bir istekte 5 mesaja kadar gönder.
+- Günde 10 yeni alıcı sınırı, gizlilik kontrolleri ve spam koruması.
+
+DAHA İFADELİ SOHBET
+- Moments, hikâye ve profiller için daha anlaşılır yanıtlar, alıntılar ve önizlemeler.
+- Kalın, italik, üstü çizili, eş aralıklı metin, spoiler, alıntı ve etkileşimli bahsetmeler.
+
+HİKÂYELER VE PAYLAŞILAN İÇERİK
+- Hikâye bahsetmeleri doğrudan ilgili sohbete ulaşır.
+- Paylaşılan hikâyeler çıkartmalarını, katmanlarını ve görsel düzenini korur.
+
+AKIŞ, REELS VE YORUMLAR
+- “Devamını gör” yalnızca gerektiğinde çıkar ve akıştaki yerini kaybetmeden açıklamayı açar.
+- Video yorumlara yer açar, yazma alanı görünür kalır ve yanıtları takip etmek kolaylaşır.
+
+DAHA ÇOK SEN
+- Daha fazla ilgi alanı, 8 yeni dil ve profil, QR, etkinlik ile hikâye arşivinde akıcı geçişler.
+- iOS'te gezinme, kararlılık ve tutarlılık iyileştirildi.
+
+Özetle:
+Moments 2.22 daha fazla bağlam, daha az sürtünme ve daha tutarlı bir arayüzle sohbet etmeye ve paylaşmaya odaklanıyor.
+</tr>
+<zh-Hant>
+Moments 最新功能（v2.22）
+
+Moments 2.22 全面更新訊息邀請，讓聊天更有表現力，也改善限時動態、Moments、Reels 與個人檔案的分享方式。
+
+此版本最重要的更新：
+
+訊息邀請
+- 等待對方接受期間，每個邀請最多可傳送 5 則訊息。
+- 每日最多 10 位新收件者，並加入隱私控制與垃圾訊息防護。
+
+更豐富的聊天
+- Moments、限時動態與個人檔案的回覆、引用和預覽更加清楚。
+- 支援粗體、斜體、刪除線、等寬字、劇透遮罩、引用和互動式提及。
+
+限時動態與共享內容
+- 限時動態中的提及會直接送達相關對話。
+- 分享的限時動態會保留貼圖、覆疊內容與視覺構圖。
+
+動態消息、REELS 與留言
+- 只有需要時才顯示「查看更多」，展開時不會失去閱讀位置。
+- 影片會騰出留言空間，輸入框保持可見，回覆也更容易閱讀。
+
+更符合你
+- 更多興趣、8 種新語言，以及更流暢的個人檔案、QR、活動與封存轉場。
+- 改善 iOS 的導覽、穩定性和一致性。
+
+總結：
+Moments 2.22 專注於提供更多脈絡、更少阻礙，以及更一致的聊天與分享介面。
+</zh-Hant>

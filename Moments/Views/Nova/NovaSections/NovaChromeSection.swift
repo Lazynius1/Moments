@@ -32,6 +32,7 @@ struct NovaHeader: View {
                         Color.clear
                             .momentsChromeGlass(in: Circle(), interactive: true)
                     }
+                    .contentShape(Circle())
             }
             .buttonStyle(.momentsPressIcon)
             .accessibilityLabel(NSLocalizedString("common.back", comment: "Back"))
@@ -46,6 +47,7 @@ struct NovaHeader: View {
                     Color.clear
                         .momentsChromeGlass(in: Circle(), interactive: true)
                 }
+                .contentShape(Circle())
             }
             .buttonStyle(.momentsPress(scale: 0.92, haptic: .none))
             .alert("nova.easterEgg.title", isPresented: $showDeveloperEasterEgg) {
@@ -84,6 +86,7 @@ struct NovaHeader: View {
                             Color.clear
                                 .momentsChromeGlass(in: Circle(), interactive: true)
                         }
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.momentsPressIcon)
 
@@ -100,6 +103,7 @@ struct NovaHeader: View {
                                 Color.clear
                                     .momentsChromeGlass(in: Circle(), interactive: true)
                             }
+                            .contentShape(Circle())
                     }
                     .buttonStyle(.momentsPressIcon)
                 }
@@ -107,14 +111,15 @@ struct NovaHeader: View {
                 Button(action: {
                     showConversationHistory = true
                 }) {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(NovaColors.textPrimary)
-                            .frame(width: 36, height: 36)
-                            .background {
-                                Color.clear
-                                    .momentsChromeGlass(in: Circle(), interactive: true)
-                            }
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(NovaColors.textPrimary)
+                        .frame(width: 36, height: 36)
+                        .background {
+                            Color.clear
+                                .momentsChromeGlass(in: Circle(), interactive: true)
+                        }
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.momentsPressIcon)
             }
@@ -123,7 +128,8 @@ struct NovaHeader: View {
         .padding(.vertical, 10)
         .background {
             Color.clear
-                .momentsChromeGlass(in: Capsule())
+                .momentsChromeGlass(in: Capsule(), interactive: false)
+                .allowsHitTesting(false)
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)

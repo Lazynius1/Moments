@@ -2,6 +2,14 @@ const b = require('../bootstrap');
 const { onDocumentCreated, admin } = b;
 
 const DEFAULT_MINIMUM_ACCOUNT_AGE = 16;
+const LEGACY_REGISTRATION_CUTOFF = new Date('2026-09-16T00:00:00.000Z');
+const REGISTRATION_COMPLIANCE_FIELDS = [
+  'privacyPolicyAccepted',
+  'privacyPolicyAcceptedAt',
+  'privacyPolicyVersion',
+  'birthDate',
+  'countryCode',
+];
 
 function minimumAgeForCountry(countryCode) {
   return String(countryCode || 'ZZ').toUpperCase() === 'IN' ? 18 : DEFAULT_MINIMUM_ACCOUNT_AGE;
@@ -17,7 +25,16 @@ function ageYearsFromBirthDate(birthDate, referenceDate = new Date()) {
   return years;
 }
 
-function isRegistrationCompliant(data) {
+function isLegacyRegistration(data, referenceDate = new Date()) {
+  return Boolean(data)
+    && referenceDate < LEGACY_REGISTRATION_CUTOFF
+    && REGISTRATION_COMPLIANCE_FIELDS.every(
+      (field) => !Object.prototype.hasOwnProperty.call(data, field)
+    );
+}
+
+function isRegistrationCompliant(data, referenceDate = new Date()) {
+  if (isLegacyRegistration(data, referenceDate)) return true;
   if (!data || data.privacyPolicyAccepted !== true) return false;
   if (!data.birthDate) return false;
   const countryCode = String(data.countryCode || '').trim().toUpperCase();
@@ -39,6 +56,9 @@ async function rollbackInvalidRegistration(db, userId, username) {
   try {
     await admin.auth().deleteUser(userId);
   } catch (error) {
+    if (error?.code === 'auth/user-not-found') {
+      return;
+    }
     console.warn(`onUserRegistrationCompliance: auth delete failed for ${userId}`, error);
   }
 }
@@ -51,7 +71,8 @@ const onUserRegistrationCompliance = onDocumentCreated('users/{userId}', async (
   const userId = event.params.userId;
   const data = snap.data();
 
-  if (isRegistrationCompliant(data)) {
+  const registrationDate = event.time ? new Date(event.time) : new Date();
+  if (isRegistrationCompliant(data, registrationDate)) {
     return;
   }
 

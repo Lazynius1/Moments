@@ -1134,6 +1134,7 @@
 "profileEditor.album.screenshots" = "Tangkapan layar";
 "profileEditor.error.updateProfile" = "Gagal memperbarui profil: %@";
 "profileEditor.error.uploadImage" = "Gagal mengunggah gambar: %@";
+"profileEditor.error.profileImageRejected" = "Foto ini tidak dapat digunakan sebagai foto profil.";
 "profileEditor.error.unauthenticated" = "Anda belum login";
 "profileEditor.error.saveProfile" = "Gagal menyimpan: %@";
 "profileEditor.crop.loadingImage" = "Memuat gambar...";
@@ -2675,7 +2676,7 @@
 /* Whats New v2.16 */
 "whatsNew.title" = "Yang baru di Moments!";
 "whatsNew.subtitle" = "Balas di chat, nikmati kartu berbagi yang lebih menarik, permintaan pesan yang diperbarui, dan composer dengan desain baru.";
-"whatsNew.button" = "Jelajahi Moments 2.21.1";
+"whatsNew.button" = "Jelajahi Moments 2.22";
 /* Best Friends */
 "bestFriends.title" = "Teman Dekat";
 "bestFriends.empty.title" = "Belum ada Teman Dekat";
@@ -4191,7 +4192,7 @@
 "permission.tracking.denied.title" = "Pelacakan dinonaktifkan";
 "permission.tracking.denied.subtitle" = "Aktifkan pelacakan di Pengaturan › Privasi › Pelacakan untuk mendapatkan iklan yang lebih relevan.";
 "permission.tracking.denied.openSettings" = "Buka Pengaturan";
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 "whatsNew.replyInChat.title" = "Balas di chat";
 "whatsNew.replyInChat.description" = "Geser gelembung untuk membalas. Ketuk kutipan untuk melihat pesan aslinya.";
 "whatsNew.quotePreviews.title" = "Kutipan di chat";
@@ -4200,6 +4201,17 @@
 "whatsNew.chatTimestamps.description" = "Geser baris secara horizontal untuk melihat waktunya, termasuk pada pesanmu sendiri.";
 "whatsNew.composerVoice.title" = "Kolom pesan";
 "whatsNew.composerVoice.description" = "Tampilan penulisan pesan baru dan pesan suara yang lebih mulus, dengan animasi pembatalan yang lebih jelas.";
+"whatsNew.richChat.title" = "Chat yang lebih ekspresif";
+"whatsNew.notificationsAndMentions.title" = "Notifikasi dan mention";
+"whatsNew.notificationsAndMentions.description" = "Notifikasi chat dan aktivitas sosial kini lebih jelas, dan mention story langsung masuk ke percakapan.";
+"whatsNew.richChat.description" = "Format teks, sembunyikan spoiler, dan ketuk mention untuk membuka profil. Membalas dan mengedit juga lebih jelas.";
+"whatsNew.feedCaptions.title" = "Caption yang pas";
+"whatsNew.feedCaptions.description" = "Lihat selengkapnya hanya muncul saat diperlukan dan membuka seluruh caption tanpa kehilangan posisi.";
+"whatsNew.reelComments.title" = "Komentar bersama Reel";
+"whatsNew.reelComments.description" = "Video memberi ruang untuk komentar, kolom input tetap terlihat, dan balasan lebih mudah diikuti.";
+"whatsNew.morePersonal.title" = "Makin personal";
+"whatsNew.morePersonal.description" = "Lebih banyak minat, 8 bahasa baru, serta transisi profil, QR, dan arsip story yang lebih mulus.";
+
 "whatsNew.section221.title" = "Moments 2.21";
 "whatsNew.messageRequestThreads.title" = "Permintaan pesan";
 "whatsNew.messageRequestThreads.description" = "Maksimal 5 pesan per percakapan selama kamu menunggu, dan 10 pesan per hari untuk mencegah spam. Tersedia folder Permintaan, Lama, dan Tersembunyi, serta filter kata tersembunyi di perangkat.";

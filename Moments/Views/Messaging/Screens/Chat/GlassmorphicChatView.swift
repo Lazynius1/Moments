@@ -210,10 +210,6 @@ struct GlassmorphicChatView: View {
         !searchMatchIds.isEmpty && currentSearchMatchIndex > 0
     }
 
-    var floatingNavigationBottomInset: CGFloat {
-        ChatComposerChromeMetrics.floatingControlBottomInset(composerChromeHeight: lastComposerHeight)
-    }
-
     var canSearchGoDown: Bool {
         guard isSearchVisible, !trimmedSearchQuery.isEmpty else { return false }
         if !searchMatchIds.isEmpty {

@@ -471,26 +471,30 @@ struct ChatMessageContextMenuOverlay: View {
                     .onTapGesture { dismissMenu() }
                     .accessibilityHidden(true)
 
-                liftedMessage(for: selection, presentedOffsetY: presentedOffsetY)
+                liftedMessage(for: selection)
+                    .offset(overlayOffset(for: CGPoint(x: anchor.midX, y: anchor.midY + presentedOffsetY)))
+                    .zIndex(1)
 
                 reactionsRail(for: selection, isAboveMessage: layout.reactionsAreAbove)
                     .fixedSize()
-                    .position(isPresented ? layout.reactionsCenter : restReactionsCenter)
+                    .offset(overlayOffset(for: isPresented ? layout.reactionsCenter : restReactionsCenter))
                     .scaleEffect(
                         isPresented ? 1 : 0.86,
                         anchor: layout.reactionsAreAbove ? .bottom : .top
                     )
                     .opacity(isPresented ? 1 : 0)
+                    .zIndex(3)
 
                 actionsMenu(for: selection.message, isCurrentUser: selection.message.senderId == currentUserId)
                     .fixedSize(horizontal: true, vertical: true)
-                    .position(isPresented ? layout.menuCenter : restMenuCenter)
+                    .offset(overlayOffset(for: isPresented ? layout.menuCenter : restMenuCenter))
                     .scaleEffect(
                         isPresented ? 1 : 0.92,
                         anchor: layout.menuCenter.y >= anchor.midY ? .top : .bottom
                     )
                     .opacity(isPresented && !areReactionsExpanded ? 1 : 0)
                     .allowsHitTesting(isPresented && !areReactionsExpanded)
+                    .zIndex(2)
             }
         }
         .onChange(of: selection?.rowId) { _, rowId in
@@ -512,8 +516,7 @@ struct ChatMessageContextMenuOverlay: View {
 
     @ViewBuilder
     private func liftedMessage(
-        for selection: ChatMessageMenuSelection,
-        presentedOffsetY: CGFloat
+        for selection: ChatMessageMenuSelection
     ) -> some View {
         let anchor = localAnchorFrame(selection.anchorFrame)
         ZStack {
@@ -536,7 +539,6 @@ struct ChatMessageContextMenuOverlay: View {
             isPresented ? ChatBubbleAnchorMetrics.menuSelectionScale : 1,
             anchor: selection.isOutgoing ? .bottomTrailing : .bottomLeading
         )
-        .position(x: anchor.midX, y: anchor.midY + presentedOffsetY)
         .shadow(
             color: .black.opacity(isPresented ? 0.28 : 0),
             radius: isPresented ? 28 : 0,
@@ -559,28 +561,28 @@ struct ChatMessageContextMenuOverlay: View {
                     )
                 }
 
-                Button {
-                    HapticManager.shared.lightImpact()
-                    skinToneSelection = nil
-                    withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.4, dampingFraction: 0.86)) {
-                        areReactionsExpanded.toggle()
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(primaryTextColor)
+                    .rotationEffect(.degrees(areReactionsExpanded ? 180 : 0))
+                    .frame(width: 36, height: 36)
+                    .background {
+                        Color.clear
+                            .momentsChromeGlass(in: Circle(), interactive: false)
                     }
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(primaryTextColor)
-                        .rotationEffect(.degrees(areReactionsExpanded ? 180 : 0))
-                        .frame(width: 36, height: 36)
-                        .background {
-                            Color.clear
-                                .momentsChromeGlass(in: Circle(), interactive: true)
-                        }
-                        .overlay(
+                    .overlay(
                         Circle()
                             .stroke(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08), lineWidth: 1)
                     )
-                }
-                .buttonStyle(.plain)
+                    .contentShape(Circle())
+                    .onTapGesture {
+                        HapticManager.shared.lightImpact()
+                        skinToneSelection = nil
+                        withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.4, dampingFraction: 0.86)) {
+                            areReactionsExpanded.toggle()
+                        }
+                    }
+                    .accessibilityAddTraits(.isButton)
             }
             .frame(height: 46)
             .padding(.horizontal, 10)
@@ -615,7 +617,7 @@ struct ChatMessageContextMenuOverlay: View {
         .frame(width: areReactionsExpanded ? min(containerSize.width - 24, 350) : nil)
         .momentsChromeGlass(
             in: RoundedRectangle(cornerRadius: 23, style: .continuous),
-            interactive: true
+            interactive: false
         )
         .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
@@ -907,6 +909,13 @@ struct ChatMessageContextMenuOverlay: View {
     private func showsMessageInfo(for message: EnhancedMessage, isCurrentUser: Bool) -> Bool {
         guard isCurrentUser else { return false }
         return readReceiptTime(for: message) != nil
+    }
+
+    private func overlayOffset(for point: CGPoint) -> CGSize {
+        CGSize(
+            width: point.x - containerSize.width / 2,
+            height: point.y - containerSize.height / 2
+        )
     }
 
     private func localAnchorFrame(_ globalFrame: CGRect) -> CGRect {

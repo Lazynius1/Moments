@@ -5,7 +5,7 @@ struct WhatsNewView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var appearAnimation = false
 
-    private var features2211: [WhatsNewFeature] {
+    private var features222: [WhatsNewFeature] {
         [
             WhatsNewFeature(
                 icon: .system("arrowshape.turn.up.left"),
@@ -28,6 +28,11 @@ struct WhatsNewView: View {
                 description: NSLocalizedString("whatsNew.composerVoice.description", comment: "")
             ),
             WhatsNewFeature(
+                icon: .system("bell.badge"),
+                title: NSLocalizedString("whatsNew.notificationsAndMentions.title", comment: ""),
+                description: NSLocalizedString("whatsNew.notificationsAndMentions.description", comment: "")
+            ),
+            WhatsNewFeature(
                 icon: .system("tray.full"),
                 title: NSLocalizedString("whatsNew.messageRequestThreads.title", comment: ""),
                 description: NSLocalizedString("whatsNew.messageRequestThreads.description", comment: "")
@@ -42,14 +47,34 @@ struct WhatsNewView: View {
                 title: NSLocalizedString("whatsNew.shareConfirmation.title", comment: ""),
                 description: NSLocalizedString("whatsNew.shareConfirmation.description", comment: "")
             ),
+            WhatsNewFeature(
+                icon: .system("textformat"),
+                title: NSLocalizedString("whatsNew.richChat.title", comment: ""),
+                description: NSLocalizedString("whatsNew.richChat.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("text.alignleft"),
+                title: NSLocalizedString("whatsNew.feedCaptions.title", comment: ""),
+                description: NSLocalizedString("whatsNew.feedCaptions.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("play.rectangle.on.rectangle"),
+                title: NSLocalizedString("whatsNew.reelComments.title", comment: ""),
+                description: NSLocalizedString("whatsNew.reelComments.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("character.bubble"),
+                title: NSLocalizedString("whatsNew.morePersonal.title", comment: ""),
+                description: NSLocalizedString("whatsNew.morePersonal.description", comment: "")
+            ),
         ]
     }
 
     private var sections: [WhatsNewSection] {
         [
             WhatsNewSection(
-                title: NSLocalizedString("whatsNew.section2211.title", comment: ""),
-                features: features2211
+                title: NSLocalizedString("whatsNew.section222.title", comment: ""),
+                features: features222
             ),
         ]
     }

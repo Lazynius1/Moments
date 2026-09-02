@@ -1134,6 +1134,7 @@
 "profileEditor.album.screenshots" = "Zrzuty ekranu";
 "profileEditor.error.updateProfile" = "Błąd aktualizacji profilu: %@";
 "profileEditor.error.uploadImage" = "Błąd przesyłania zdjęcia: %@";
+"profileEditor.error.profileImageRejected" = "Tego zdjęcia nie można użyć jako zdjęcia profilowego.";
 "profileEditor.error.unauthenticated" = "Użytkownik nie jest uwierzytelniony";
 "profileEditor.error.saveProfile" = "Błąd zapisywania: %@";
 "profileEditor.crop.loadingImage" = "Wczytywanie zdjęcia...";
@@ -2675,7 +2676,7 @@
 /* Whats New v2.16 */
 "whatsNew.title" = "Nowości w Moments!";
 "whatsNew.subtitle" = "Odpowiedzi na czacie, bogatsze karty udostępniania, odświeżone prośby o wiadomość i przeprojektowany edytor.";
-"whatsNew.button" = "Poznaj Moments 2.21.1";
+"whatsNew.button" = "Poznaj Moments 2.22";
 /* Best Friends */
 "bestFriends.title" = "Najlepsi znajomi";
 "bestFriends.empty.title" = "Brak najlepszych znajomych";
@@ -4191,7 +4192,7 @@
 "permission.tracking.denied.title" = "Śledzenie jest wyłączone";
 "permission.tracking.denied.subtitle" = "Włącz śledzenie w Ustawieniach › Prywatność › Śledzenie, aby wyświetlać trafniejsze reklamy.";
 "permission.tracking.denied.openSettings" = "Otwórz Ustawienia";
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 "whatsNew.replyInChat.title" = "Odpowiadanie na czacie";
 "whatsNew.replyInChat.description" = "Przesuń dymek, aby odpowiedzieć. Stuknij cytat, aby przejść do oryginalnej wiadomości.";
 "whatsNew.quotePreviews.title" = "Cytowanie na czacie";
@@ -4200,6 +4201,17 @@
 "whatsNew.chatTimestamps.description" = "Przesuń wiersz poziomo, aby wyświetlić godzinę — także przy własnych wiadomościach.";
 "whatsNew.composerVoice.title" = "Pole wpisywania wiadomości";
 "whatsNew.composerVoice.description" = "Przeprojektowany edytor i płynniejsze nagrywanie wiadomości głosowych, z wyraźniejszą animacją anulowania.";
+"whatsNew.richChat.title" = "Bardziej wyrazisty czat";
+"whatsNew.notificationsAndMentions.title" = "Powiadomienia i wzmianki";
+"whatsNew.notificationsAndMentions.description" = "Powiadomienia z czatu i aktywności są czytelniejsze, a wzmianki w relacjach trafiają prosto do rozmowy.";
+"whatsNew.richChat.description" = "Formatuj tekst, ukrywaj spoilery i otwieraj profile przez wzmianki. Odpowiadanie i edycja są też czytelniejsze.";
+"whatsNew.feedCaptions.title" = "Dopasowane podpisy";
+"whatsNew.feedCaptions.description" = "Więcej pojawia się tylko w razie potrzeby i rozwija cały tekst bez utraty miejsca.";
+"whatsNew.reelComments.title" = "Komentarze przy Reelu";
+"whatsNew.reelComments.description" = "Film robi miejsce na komentarze, pole wpisywania pozostaje widoczne, a odpowiedzi łatwiej śledzić.";
+"whatsNew.morePersonal.title" = "Jeszcze bardziej Twoje";
+"whatsNew.morePersonal.description" = "Więcej zainteresowań, 8 nowych języków i płynniejsze przejścia profili, QR oraz archiwum relacji.";
+
 "whatsNew.section221.title" = "Moments 2.21";
 "whatsNew.messageRequestThreads.title" = "Prośby o wiadomość";
 "whatsNew.messageRequestThreads.description" = "Do 5 wiadomości w jednej rozmowie, zanim ją zaakceptujesz, i 10 dziennie, aby ograniczyć spam. Na urządzeniu dostępne są foldery Prośby, Stare i Ukryte oraz filtry ukrytych słów.";

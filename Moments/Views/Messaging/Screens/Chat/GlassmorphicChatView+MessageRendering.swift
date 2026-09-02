@@ -251,43 +251,50 @@ extension GlassmorphicChatView {
                 }
             }
             .overlay(alignment: .bottomTrailing) {
-                ZStack(alignment: .bottomTrailing) {
-                    if floatingNavigationState.isVisible {
-                        ChatFloatingNavigationOverlay(
-                            state: floatingNavigationState,
-                            counterText: searchCounterText,
-                            isSearching: viewModel.isSearchingHistory,
-                            canSearchGoUp: canSearchGoUp,
-                            canSearchGoDown: canSearchGoDown,
-                            pendingIncomingCount: pendingIncomingMessages,
-                            accentColor: scrollToBottomAccentColor,
-                            badgeTextColor: scrollToBottomBadgeTextColor,
-                            colorScheme: colorScheme,
-                            reduceMotion: reduceMotion,
-                            onSearchPrevious: { moveSearchSelection(by: -1) },
-                            onSearchNext: advanceSearchSelection,
-                            onScrollToBottom: { scrollToBottomFromUserAction(animated: true) }
-                        )
-                        .padding(.trailing, 8)
-                        .padding(.bottom, floatingNavigationBottomInset + 20)
-                    }
-
-                    VoiceRecordingFloatingControlHost(
-                        isRecording: isRecordingVoice,
-                        isLocked: isVoiceRecordingLocked,
-                        isPreparing: isPreparingVoiceRecordingPreview,
-                        hasDraft: voiceRecordingDraft != nil,
-                        hasActiveInteraction: voiceRecordingInteractionId != nil,
-                        gestureState: voiceRecordingGestureState,
-                        primaryTint: adaptiveColors.primary,
-                        accentTint: adaptiveColors.accent,
-                        onPause: pauseVoiceRecording,
-                        onResume: resumeVoiceRecording
+                if floatingNavigationState.isVisible {
+                    ChatFloatingNavigationOverlay(
+                        state: floatingNavigationState,
+                        counterText: searchCounterText,
+                        isSearching: viewModel.isSearchingHistory,
+                        canSearchGoUp: canSearchGoUp,
+                        canSearchGoDown: canSearchGoDown,
+                        pendingIncomingCount: pendingIncomingMessages,
+                        accentColor: scrollToBottomAccentColor,
+                        badgeTextColor: scrollToBottomBadgeTextColor,
+                        colorScheme: colorScheme,
+                        reduceMotion: reduceMotion,
+                        onSearchPrevious: { moveSearchSelection(by: -1) },
+                        onSearchNext: advanceSearchSelection,
+                        onScrollToBottom: { scrollToBottomFromUserAction(animated: true) }
                     )
-                    .padding(.trailing, 16)
-                    .padding(.bottom, ChatComposerChromeMetrics.floatingControlBottomInset(composerChromeHeight: lastComposerHeight) + 20)
-                    .zIndex(100)
+                    .padding(.trailing, ChatComposerChromeMetrics.scrollDownButtonTrailingInset)
+                    .padding(
+                        .bottom,
+                        max(lastComposerHeight, ChatComposerChromeMetrics.estimatedComposerChromeHeight)
+                            + ChatComposerChromeMetrics.scrollDownButtonComposerGap
+                    )
                 }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                VoiceRecordingFloatingControlHost(
+                    isRecording: isRecordingVoice,
+                    isLocked: isVoiceRecordingLocked,
+                    isPreparing: isPreparingVoiceRecordingPreview,
+                    hasDraft: voiceRecordingDraft != nil,
+                    hasActiveInteraction: voiceRecordingInteractionId != nil,
+                    gestureState: voiceRecordingGestureState,
+                    primaryTint: adaptiveColors.primary,
+                    accentTint: adaptiveColors.accent,
+                    onPause: pauseVoiceRecording,
+                    onResume: resumeVoiceRecording
+                )
+                .padding(.trailing, 16)
+                .padding(
+                    .bottom,
+                    ChatComposerChromeMetrics.floatingControlBottomInset(
+                        composerChromeHeight: lastComposerHeight
+                    ) + 20
+                )
             }
     }
 }

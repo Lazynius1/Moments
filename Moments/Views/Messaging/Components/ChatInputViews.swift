@@ -766,7 +766,7 @@ struct VoiceRecordingFloatingControlHost: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        Group {
             if let mode {
                 VoiceRecordingFloatingControl(
                     mode: mode,
@@ -777,10 +777,9 @@ struct VoiceRecordingFloatingControlHost: View {
                 )
                 .offset(y: rideAlongOffsetY)
                 .transition(.opacity.combined(with: .scale(scale: 0.72, anchor: .bottom)))
+                .frame(width: 44, height: 72, alignment: .bottom)
             }
         }
-        .frame(width: 44, height: 72, alignment: .bottom)
-        .allowsHitTesting(mode != nil)
         .animation(.easeInOut(duration: 0.2), value: mode != nil)
     }
 }

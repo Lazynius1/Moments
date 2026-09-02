@@ -1180,6 +1180,7 @@
 "profileEditor.album.screenshots" = "Capturas de tela";
 "profileEditor.error.updateProfile" = "Erro ao atualizar perfil: %@";
 "profileEditor.error.uploadImage" = "Erro ao enviar imagem: %@";
+"profileEditor.error.profileImageRejected" = "Esta foto não pode ser usada como foto de perfil.";
 "profileEditor.error.unauthenticated" = "Usuário não autenticado";
 "profileEditor.error.saveProfile" = "Erro ao salvar: %@";
 "profileEditor.crop.loadingImage" = "Carregando imagem...";
@@ -2812,7 +2813,7 @@
 /* Whats New v2.14 */
 "whatsNew.title" = "Novidades no Moments!";
 "whatsNew.subtitle" = "Responder no chat, cartões enriquecidos, solicitações renovadas e compositor repensado.";
-"whatsNew.button" = "Explorar o Moments 2.21.1";
+"whatsNew.button" = "Explorar o Moments 2.22";
 
 
 
@@ -4422,9 +4423,9 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "permission.tracking.denied.subtitle" = "Ative o rastreamento em Ajustes › Privacidade › Rastreamento para ver anúncios mais relevantes.";
 "permission.tracking.denied.openSettings" = "Abrir Ajustes";
 
-// MARK: - What's New 2.21.1
+// MARK: - What's New 2.22
 
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 
 "whatsNew.replyInChat.title" = "Responder no chat";
 "whatsNew.replyInChat.description" = "Deslize na bolha para responder. Toque em uma citação para ir à mensagem original.";
@@ -4436,6 +4437,17 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "whatsNew.composerVoice.description" = "Compositor renovado e áudios mais fluidos, com animação mais clara ao cancelar.";
 
 // MARK: - What's New 2.21
+
+"whatsNew.richChat.title" = "Um chat mais expressivo";
+"whatsNew.notificationsAndMentions.title" = "Notificações e menções";
+"whatsNew.notificationsAndMentions.description" = "Os alertas de chat e atividade social estão mais claros, e as menções em stories chegam direto na conversa.";
+"whatsNew.richChat.description" = "Formate o texto, esconda spoilers e toque em menções para abrir perfis. Responder e editar também ficou mais claro.";
+"whatsNew.feedCaptions.title" = "Legendas que se encaixam";
+"whatsNew.feedCaptions.description" = "Ver mais aparece só quando necessário e abre a legenda completa sem perder sua posição.";
+"whatsNew.reelComments.title" = "Comentários com o Reel";
+"whatsNew.reelComments.description" = "O vídeo abre espaço para os comentários, o compositor fica visível e as respostas são mais fáceis de acompanhar.";
+"whatsNew.morePersonal.title" = "Mais seu";
+"whatsNew.morePersonal.description" = "Mais interesses, 8 novos idiomas e transições mais fluidas em perfis, QR e arquivo de stories.";
 
 "whatsNew.section221.title" = "Moments 2.21";
 

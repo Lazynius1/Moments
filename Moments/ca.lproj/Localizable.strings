@@ -1181,6 +1181,7 @@
 "profileEditor.album.screenshots" = "Captures";
 "profileEditor.error.updateProfile" = "Error al actualitzar el perfil: %@";
 "profileEditor.error.uploadImage" = "Error al pujar la imatge: %@";
+"profileEditor.error.profileImageRejected" = "Aquesta foto no es pot utilitzar com a foto de perfil.";
 "profileEditor.error.unauthenticated" = "Usuari no autenticat";
 "profileEditor.error.saveProfile" = "Error al desar: %@";
 "profileEditor.crop.loadingImage" = "Carregant imatge...";
@@ -2833,7 +2834,7 @@
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats a Moments!";
 "whatsNew.subtitle" = "Respondre al xat, compartir amb fitxes enriquides, sol·licituds renovades i compositor nou.";
-"whatsNew.button" = "Explorar Moments 2.21.1";
+"whatsNew.button" = "Explorar Moments 2.22";
 
 
 
@@ -4442,9 +4443,9 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "permission.tracking.denied.subtitle" = "Activa el seguiment a Configuració › Privadesa › Seguiment per veure anuncis més rellevants.";
 "permission.tracking.denied.openSettings" = "Obre Configuració";
 
-// MARK: - What's New 2.21.1
+// MARK: - What's New 2.22
 
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 
 "whatsNew.replyInChat.title" = "Respondre al xat";
 "whatsNew.replyInChat.description" = "Llisca a la bombolla per respondre. Toca una cita per saltar al missatge original.";
@@ -4456,6 +4457,17 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "whatsNew.composerVoice.description" = "Compositor renovat i notes de veu més fluides, amb animació més clara en cancel·lar.";
 
 // MARK: - What's New 2.21
+
+"whatsNew.richChat.title" = "Un xat amb més expressió";
+"whatsNew.notificationsAndMentions.title" = "Notificacions i mencions";
+"whatsNew.notificationsAndMentions.description" = "Els avisos de xat i activitat social són més clars, i les mencions en històries arriben directament a la conversa.";
+"whatsNew.richChat.description" = "Dona format al text, amaga spoilers i toca mencions per obrir perfils. Respondre i editar també és més clar.";
+"whatsNew.feedCaptions.title" = "Textos que encaixen";
+"whatsNew.feedCaptions.description" = "Veure'n més apareix només quan cal i obre el text complet sense perdre el lloc.";
+"whatsNew.reelComments.title" = "Comentaris amb el Reel";
+"whatsNew.reelComments.description" = "El vídeo deixa lloc als comentaris, el compositor es manté visible i les respostes se segueixen millor.";
+"whatsNew.morePersonal.title" = "Més teu";
+"whatsNew.morePersonal.description" = "Més interessos, 8 idiomes nous i transicions més fluides en perfils, QR i l'arxiu d'històries.";
 
 "whatsNew.section221.title" = "Moments 2.21";
 

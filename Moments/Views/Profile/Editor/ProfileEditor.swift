@@ -98,8 +98,8 @@ struct GridPhotoPickerView: View {
                     originalAsset: assetForCrop,
                     onSave: { croppedImage in
                         isShowingCropEditor = false
-                        currentProfileImage = croppedImage
                         uploadImageToFirebaseWithCleanup(image: croppedImage, userId: Auth.auth().currentUser?.uid ?? "") {
+                            currentProfileImage = croppedImage
                             onUploadSuccess?()
                             self.dismiss()
                         }
@@ -852,6 +852,9 @@ struct ModernEditProfileView: View {
     @State private var isShowingPhotoLibraryCrop: Bool = false
     @State private var isShowingCameraCapture: Bool = false
     @State private var currentProfileImage: UIImage?
+    @State private var pendingProfileImage: UIImage?
+    @State private var isProfileImageUploading: Bool = false
+    @State private var profileImageUploadError: String?
     @State private var isShowingInterestsPicker: Bool = false
     @State private var showingDeleteConfirmation: Bool = false
     @State private var activeSection: EditSection = .basic
@@ -927,7 +930,6 @@ struct ModernEditProfileView: View {
             }
             .fullScreenCover(isPresented: $isShowingPhotoLibraryCrop) {
                 ProfileLibraryCropEntryView { croppedImage in
-                    currentProfileImage = croppedImage
                     uploadCapturedProfileImage(croppedImage)
                 }
             }
@@ -936,7 +938,6 @@ struct ModernEditProfileView: View {
                     CameraCapture(mediaTypes: ["public.image"]) { media in
                         guard media.type == .image else { return }
                         let image = media.image
-                        currentProfileImage = image
                         uploadCapturedProfileImage(image)
                     }
                     .ignoresSafeArea()
@@ -952,6 +953,17 @@ struct ModernEditProfileView: View {
                 Button("common.cancel", role: .cancel) { }
             } message: {
                 Text("profileEditor.deletePhoto.confirm")
+            }
+            .alert(
+                Text("profileEditor.error"),
+                isPresented: Binding(
+                    get: { profileImageUploadError != nil },
+                    set: { if !$0 { profileImageUploadError = nil } }
+                )
+            ) {
+                Button("common.ok") { profileImageUploadError = nil }
+            } message: {
+                Text(profileImageUploadError ?? "")
             }
         }
         .momentsFloatingTabBarHidden()
@@ -1092,7 +1104,14 @@ struct ModernEditProfileView: View {
             
             VStack(spacing: 20) {
                 ZStack {
-                    if let currentImage = currentProfileImage {
+                    if let pendingImage = pendingProfileImage {
+                        Image(uiImage: pendingImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 110, height: 110)
+                            .clipShape(Circle())
+                            .opacity(0.42)
+                    } else if let currentImage = currentProfileImage {
                         Image(uiImage: currentImage)
                             .resizable()
                             .scaledToFill()
@@ -1118,6 +1137,14 @@ struct ModernEditProfileView: View {
                     Circle()
                         .stroke(colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.12), lineWidth: 1)
                         .frame(width: 118, height: 118)
+
+                    if isProfileImageUploading {
+                        ProgressView()
+                            .controlSize(.regular)
+                            .tint(.white)
+                            .padding(12)
+                            .background(.black.opacity(0.28), in: Circle())
+                    }
                     
                     VStack {
                         Spacer()
@@ -1130,12 +1157,15 @@ struct ModernEditProfileView: View {
                                     .padding(8)
                                     .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                             }
+                            .disabled(isProfileImageUploading)
                         }
                     }
                     .frame(width: 110, height: 110)
                 }
                 .onTapGesture {
-                    isShowingPhotoActions = true
+                    if !isProfileImageUploading {
+                        isShowingPhotoActions = true
+                    }
                 }
                 
                 Button(action: { isShowingPhotoActions = true }) {
@@ -1150,6 +1180,7 @@ struct ModernEditProfileView: View {
                     .padding(.vertical, 8)
                     .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                 }
+                .disabled(isProfileImageUploading)
             }
             .padding(.bottom, 10)
         }
@@ -1583,8 +1614,9 @@ struct ModernEditProfileView: View {
     private func uploadCapturedProfileImage(_ image: UIImage) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        isLoading = true
-        errorMessage = nil
+        pendingProfileImage = image
+        isProfileImageUploading = true
+        profileImageUploadError = nil
         
         firestoreService.fetchUserProfile(userId: userId) { result in
             let oldImagePath: String?
@@ -1600,12 +1632,15 @@ struct ModernEditProfileView: View {
                 case .success(let newPath):
                     self.firestoreService.updateProfilePicture(userId: userId, profileImagePath: newPath) { error in
                         DispatchQueue.main.async {
-                            self.isLoading = false
+                            self.isProfileImageUploading = false
                             
                             if let error = error {
-                                self.errorMessage = String(format: NSLocalizedString("profileEditor.error.updateProfile", comment: ""), error.localizedDescription)
+                                self.pendingProfileImage = nil
+                                self.profileImageUploadError = String(format: NSLocalizedString("profileEditor.error.updateProfile", comment: ""), error.localizedDescription)
                             } else {
                                 self.profileImagePath = newPath
+                                self.currentProfileImage = image
+                                self.pendingProfileImage = nil
                                 self.selectedPhoto = nil
                                 self.storageService.deleteProfileImage(userId: userId, oldImagePath: oldImagePath) { _ in }
                             }
@@ -1613,8 +1648,9 @@ struct ModernEditProfileView: View {
                     }
                 case .failure(let error):
                     DispatchQueue.main.async {
-                        self.isLoading = false
-                        self.errorMessage = String(format: NSLocalizedString("profileEditor.error.uploadImage", comment: ""), error.localizedDescription)
+                        self.isProfileImageUploading = false
+                        self.pendingProfileImage = nil
+                        self.profileImageUploadError = String(format: NSLocalizedString("profileEditor.error.uploadImage", comment: ""), error.localizedDescription)
                     }
                 }
             }

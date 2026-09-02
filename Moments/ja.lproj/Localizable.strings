@@ -1134,6 +1134,7 @@
 "profileEditor.album.screenshots" = "スクリーンショット";
 "profileEditor.error.updateProfile" = "プロフィールの更新に失敗しました：%@";
 "profileEditor.error.uploadImage" = "画像のアップロードに失敗しました：%@";
+"profileEditor.error.profileImageRejected" = "この写真はプロフィール写真として使用できません。";
 "profileEditor.error.unauthenticated" = "ログインしていません";
 "profileEditor.error.saveProfile" = "保存中にエラーが発生しました：%@";
 "profileEditor.crop.loadingImage" = "画像を読み込み中…";
@@ -2675,7 +2676,7 @@
 /* Whats New v2.16 */
 "whatsNew.title" = "Momentsの新機能！";
 "whatsNew.subtitle" = "チャットでの返信、より充実したシェアカード、新しくなったメッセージリクエスト、デザインを一新した投稿作成画面をお楽しみいただけます。";
-"whatsNew.button" = "Moments 2.21.1をチェック";
+"whatsNew.button" = "Moments 2.22をチェック";
 /* Best Friends */
 "bestFriends.title" = "親しい友達";
 "bestFriends.empty.title" = "親しい友達はいません";
@@ -4191,7 +4192,7 @@
 "permission.tracking.denied.title" = "トラッキングがオフです";
 "permission.tracking.denied.subtitle" = "より関連性の高い広告を表示するには、「設定」›「プライバシー」›「トラッキング」でトラッキングをオンにしてください。";
 "permission.tracking.denied.openSettings" = "設定を開く";
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 "whatsNew.replyInChat.title" = "チャットで返信";
 "whatsNew.replyInChat.description" = "吹き出しをスワイプして返信できます。引用をタップすると、元のメッセージに移動します。";
 "whatsNew.quotePreviews.title" = "チャットの引用";
@@ -4200,6 +4201,17 @@
 "whatsNew.chatTimestamps.description" = "行を横にスワイプすると、あなた自身のメッセージを含め、時刻を確認できます。";
 "whatsNew.composerVoice.title" = "メッセージ入力";
 "whatsNew.composerVoice.description" = "作成画面をリニューアルし、ボイスメッセージをよりスムーズに。キャンセル時のアニメーションもわかりやすくなりました。";
+"whatsNew.richChat.title" = "もっと表現豊かなチャット";
+"whatsNew.notificationsAndMentions.title" = "通知とメンション";
+"whatsNew.notificationsAndMentions.description" = "チャットとソーシャル通知が見やすくなり、ストーリーのメンションが会話に直接届くようになりました。";
+"whatsNew.richChat.description" = "文字装飾やスポイラーを使い、メンションからプロフィールを開けます。返信と編集もよりわかりやすくなりました。";
+"whatsNew.feedCaptions.title" = "ちょうどよいキャプション";
+"whatsNew.feedCaptions.description" = "必要なときだけ「もっと見る」を表示し、位置を保ったまま全文を開けます。";
+"whatsNew.reelComments.title" = "Reelと一緒にコメント";
+"whatsNew.reelComments.description" = "動画がコメント用のスペースを作り、入力欄は常に表示。返信も追いやすくなりました。";
+"whatsNew.morePersonal.title" = "もっと自分らしく";
+"whatsNew.morePersonal.description" = "興味を追加し、8言語に新対応。プロフィール、QR、ストーリーアーカイブの遷移も滑らかに。";
+
 "whatsNew.section221.title" = "Moments 2.21";
 "whatsNew.messageRequestThreads.title" = "メッセージリクエスト";
 "whatsNew.messageRequestThreads.description" = "スパム対策として、承認するまでの会話ごとのメッセージは最大5件、1日あたり最大10件です。リクエスト、古いメッセージ、非表示のフォルダに加え、端末上で非表示ワードのフィルタリングも利用できます。";

@@ -1180,6 +1180,7 @@
 "profileEditor.album.screenshots" = "Captures d’écran";
 "profileEditor.error.updateProfile" = "Erreur lors de la mise à jour du profil : %@";
 "profileEditor.error.uploadImage" = "Erreur lors de l’envoi de l’image : %@";
+"profileEditor.error.profileImageRejected" = "Cette photo ne peut pas être utilisée comme photo de profil.";
 "profileEditor.error.unauthenticated" = "Utilisateur non authentifié";
 "profileEditor.error.saveProfile" = "Erreur lors de l’enregistrement : %@";
 "profileEditor.crop.loadingImage" = "Chargement de l’image...";
@@ -2812,7 +2813,7 @@
 /* Whats New v2.14 */
 "whatsNew.title" = "Nouveautes sur Moments!";
 "whatsNew.subtitle" = "Répondre dans le chat, cartes enrichies, demandes renouvelées et composeur repensé.";
-"whatsNew.button" = "Découvrir Moments 2.21.1";
+"whatsNew.button" = "Découvrir Moments 2.22";
 
 
 
@@ -4422,9 +4423,9 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "permission.tracking.denied.subtitle" = "Active le suivi dans Réglages › Confidentialité › Suivi pour voir des publicités plus pertinentes.";
 "permission.tracking.denied.openSettings" = "Ouvrir les réglages";
 
-// MARK: - What's New 2.21.1
+// MARK: - What's New 2.22
 
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 
 "whatsNew.replyInChat.title" = "Répondre dans le chat";
 "whatsNew.replyInChat.description" = "Glisse sur la bulle pour répondre. Touche une citation pour aller au message d'origine.";
@@ -4436,6 +4437,17 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "whatsNew.composerVoice.description" = "Composeur repensé et notes vocales plus fluides, avec une animation d'annulation plus claire.";
 
 // MARK: - What's New 2.21
+
+"whatsNew.richChat.title" = "Un chat plus expressif";
+"whatsNew.notificationsAndMentions.title" = "Notifications et mentions";
+"whatsNew.notificationsAndMentions.description" = "Les alertes de chat et d'activité sociale sont plus claires, et les mentions en story arrivent directement dans la conversation.";
+"whatsNew.richChat.description" = "Mets le texte en forme, masque les spoilers et touche les mentions pour ouvrir les profils. Répondre et modifier est aussi plus clair.";
+"whatsNew.feedCaptions.title" = "Des légendes bien ajustées";
+"whatsNew.feedCaptions.description" = "Voir plus apparaît seulement si nécessaire et ouvre tout le texte sans perdre ta position.";
+"whatsNew.reelComments.title" = "Commentaires avec le Reel";
+"whatsNew.reelComments.description" = "La vidéo laisse place aux commentaires, la saisie reste visible et les réponses sont plus faciles à suivre.";
+"whatsNew.morePersonal.title" = "Encore plus personnel";
+"whatsNew.morePersonal.description" = "Plus d'intérêts, 8 nouvelles langues et des transitions plus fluides pour profils, QR et archives de stories.";
 
 "whatsNew.section221.title" = "Moments 2.21";
 

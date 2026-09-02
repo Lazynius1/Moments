@@ -38,15 +38,26 @@ service cloud.firestore {
         && birthDate <= request.time - duration.value(minimumAgeForCountry(countryCode), 'y');
     }
 
+    function hasLegacyRegistrationShape(data) {
+      return request.time < timestamp.date(2026, 9, 16)
+        && !("privacyPolicyAccepted" in data)
+        && !("privacyPolicyAcceptedAt" in data)
+        && !("privacyPolicyVersion" in data)
+        && !("birthDate" in data)
+        && !("countryCode" in data);
+    }
+
     function hasValidRegistrationCompliance(data) {
-      return data.privacyPolicyAccepted == true
+      return hasLegacyRegistrationShape(data) || (
+        data.privacyPolicyAccepted == true
         && data.privacyPolicyAcceptedAt is timestamp
         && data.privacyPolicyVersion is string
         && data.privacyPolicyVersion.size() > 0
         && data.birthDate is timestamp
         && data.countryCode is string
         && data.countryCode.size() == 2
-        && meetsRegionalMinimumAccountAge(data.birthDate, data.countryCode);
+        && meetsRegionalMinimumAccountAge(data.birthDate, data.countryCode)
+      );
     }
 
     // ✅ CORREGIDA: Función helper para verificar audiencia personalizada

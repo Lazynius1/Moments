@@ -1180,6 +1180,7 @@
 "profileEditor.album.screenshots" = "Screenshots";
 "profileEditor.error.updateProfile" = "Fehler beim Aktualisieren des Profils: %@";
 "profileEditor.error.uploadImage" = "Fehler beim Hochladen des Bildes: %@";
+"profileEditor.error.profileImageRejected" = "Dieses Foto kann nicht als Profilbild verwendet werden.";
 "profileEditor.error.unauthenticated" = "Nutzer nicht authentifiziert";
 "profileEditor.error.saveProfile" = "Fehler beim Speichern: %@";
 "profileEditor.crop.loadingImage" = "Bild wird geladen...";
@@ -2812,7 +2813,7 @@
 /* Whats New v2.14 */
 "whatsNew.title" = "Neu in Moments!";
 "whatsNew.subtitle" = "Im Chat antworten, reichere Teilen-Karten, erneuerte Anfragen und überarbeiteter Composer.";
-"whatsNew.button" = "Moments 2.21.1 entdecken";
+"whatsNew.button" = "Moments 2.22 entdecken";
 
 
 
@@ -4422,9 +4423,9 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "permission.tracking.denied.subtitle" = "Aktiviere das Tracking unter Einstellungen › Datenschutz › Tracking, um relevantere Werbung zu erhalten.";
 "permission.tracking.denied.openSettings" = "Einstellungen öffnen";
 
-// MARK: - What's New 2.21.1
+// MARK: - What's New 2.22
 
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 
 "whatsNew.replyInChat.title" = "Im Chat antworten";
 "whatsNew.replyInChat.description" = "Auf der Sprechblase wischen zum Antworten. Tippe auf ein Zitat, um zur Originalnachricht zu springen.";
@@ -4436,6 +4437,17 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "whatsNew.composerVoice.description" = "Überarbeiteter Composer und flüssigere Sprachnachrichten, mit klarerer Animation beim Abbrechen.";
 
 // MARK: - What's New 2.21
+
+"whatsNew.richChat.title" = "Ausdrucksstärkerer Chat";
+"whatsNew.notificationsAndMentions.title" = "Mitteilungen und Erwähnungen";
+"whatsNew.notificationsAndMentions.description" = "Chat- und Social-Mitteilungen sind klarer, und Story-Erwähnungen landen jetzt direkt in der Unterhaltung.";
+"whatsNew.richChat.description" = "Formatiere Text, verstecke Spoiler und öffne Profile über Erwähnungen. Antworten und Bearbeiten sind jetzt klarer.";
+"whatsNew.feedCaptions.title" = "Passende Captions";
+"whatsNew.feedCaptions.description" = "Mehr anzeigen erscheint nur bei Bedarf und öffnet den ganzen Text, ohne deine Position zu verlieren.";
+"whatsNew.reelComments.title" = "Kommentare beim Reel";
+"whatsNew.reelComments.description" = "Das Video macht Platz für Kommentare, die Eingabe bleibt sichtbar und Antworten sind leichter zu verfolgen.";
+"whatsNew.morePersonal.title" = "Mehr deins";
+"whatsNew.morePersonal.description" = "Mehr Interessen, 8 neue Sprachen und flüssigere Übergänge bei Profilen, QR und Story-Archiv.";
 
 "whatsNew.section221.title" = "Moments 2.21";
 

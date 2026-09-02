@@ -1134,6 +1134,7 @@
 "profileEditor.album.screenshots" = "Schermafbeeldingen";
 "profileEditor.error.updateProfile" = "Profiel bijwerken mislukt: %@";
 "profileEditor.error.uploadImage" = "Afbeelding uploaden mislukt: %@";
+"profileEditor.error.profileImageRejected" = "Deze foto kan niet als profielfoto worden gebruikt.";
 "profileEditor.error.unauthenticated" = "Je bent niet ingelogd";
 "profileEditor.error.saveProfile" = "Opslaan mislukt: %@";
 "profileEditor.crop.loadingImage" = "Afbeelding laden...";
@@ -2675,7 +2676,7 @@
 /* Whats New v2.16 */
 "whatsNew.title" = "Nieuw in Moments!";
 "whatsNew.subtitle" = "Reageer in chats, deel uitgebreidere kaarten, vernieuwde berichtverzoeken en een vernieuwde editor.";
-"whatsNew.button" = "Ontdek Moments 2.21.1";
+"whatsNew.button" = "Ontdek Moments 2.22";
 /* Best Friends */
 "bestFriends.title" = "Beste vrienden";
 "bestFriends.empty.title" = "Geen beste vrienden";
@@ -4191,7 +4192,7 @@
 "permission.tracking.denied.title" = "Tracking staat uit";
 "permission.tracking.denied.subtitle" = "Schakel tracking in via Instellingen › Privacy › Tracking voor relevantere advertenties.";
 "permission.tracking.denied.openSettings" = "Instellingen openen";
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 "whatsNew.replyInChat.title" = "Beantwoorden in chat";
 "whatsNew.replyInChat.description" = "Veeg over de berichtballon om te antwoorden. Tik op een citaat om naar het oorspronkelijke bericht te gaan.";
 "whatsNew.quotePreviews.title" = "Citaten in chat";
@@ -4200,6 +4201,17 @@
 "whatsNew.chatTimestamps.description" = "Veeg horizontaal over een bericht om de tijd te zien, ook bij je eigen berichten.";
 "whatsNew.composerVoice.title" = "Bericht invoeren";
 "whatsNew.composerVoice.description" = "Een vernieuwde tekstcomposer en soepelere spraakberichten, met een duidelijkere annuleeranimatie.";
+"whatsNew.richChat.title" = "Expressievere chat";
+"whatsNew.notificationsAndMentions.title" = "Meldingen en vermeldingen";
+"whatsNew.notificationsAndMentions.description" = "Chat- en sociale meldingen zijn duidelijker en vermeldingen in verhalen komen direct in het gesprek.";
+"whatsNew.richChat.description" = "Maak tekst op, verberg spoilers en tik op vermeldingen om profielen te openen. Antwoorden en bewerken zijn ook duidelijker.";
+"whatsNew.feedCaptions.title" = "Bijschriften die passen";
+"whatsNew.feedCaptions.description" = "Meer weergeven verschijnt alleen als het nodig is en opent alles zonder je plek te verliezen.";
+"whatsNew.reelComments.title" = "Reacties bij de Reel";
+"whatsNew.reelComments.description" = "De video maakt ruimte voor reacties, de invoer blijft zichtbaar en antwoorden zijn makkelijker te volgen.";
+"whatsNew.morePersonal.title" = "Meer van jou";
+"whatsNew.morePersonal.description" = "Meer interesses, 8 nieuwe talen en vloeiendere overgangen voor profielen, QR en je verhalenarchief.";
+
 "whatsNew.section221.title" = "Moments 2.21";
 "whatsNew.messageRequestThreads.title" = "Berichtverzoeken";
 "whatsNew.messageRequestThreads.description" = "Maximaal 5 berichten per gesprek terwijl je wacht, en 10 per dag om spam te voorkomen. Met de mappen Verzoeken, Oud en Verborgen, plus filters voor verborgen woorden op je apparaat.";

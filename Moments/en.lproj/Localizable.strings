@@ -1190,6 +1190,7 @@
 "profileEditor.album.screenshots" = "Screenshots";
 "profileEditor.error.updateProfile" = "Error updating profile: %@";
 "profileEditor.error.uploadImage" = "Error uploading image: %@";
+"profileEditor.error.profileImageRejected" = "This photo can't be used as your profile picture.";
 "profileEditor.error.unauthenticated" = "User not authenticated";
 "profileEditor.error.saveProfile" = "Error saving: %@";
 "profileEditor.crop.loadingImage" = "Loading image...";
@@ -2799,7 +2800,7 @@
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
 "whatsNew.subtitle" = "Reply in chat, richer share cards, renewed message requests, and a redesigned composer.";
-"whatsNew.button" = "Explore Moments 2.21.1";
+"whatsNew.button" = "Explore Moments 2.22";
 
 
 
@@ -4484,9 +4485,9 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "permission.tracking.denied.subtitle" = "Turn on tracking in Settings › Privacy › Tracking to get more relevant ads.";
 "permission.tracking.denied.openSettings" = "Open Settings";
 
-// MARK: - What's New 2.21.1
+// MARK: - What's New 2.22
 
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 
 "whatsNew.replyInChat.title" = "Reply in chat";
 "whatsNew.replyInChat.description" = "Swipe on the bubble to reply. Tap a quote to jump to the original message.";
@@ -4498,6 +4499,17 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "whatsNew.composerVoice.description" = "Redesigned composer and smoother voice notes, with a clearer cancel animation.";
 
 // MARK: - What's New 2.21
+
+"whatsNew.richChat.title" = "More expressive chat";
+"whatsNew.notificationsAndMentions.title" = "Notifications and mentions";
+"whatsNew.notificationsAndMentions.description" = "Chat and social alerts are clearer, and story mentions now arrive directly in the conversation.";
+"whatsNew.richChat.description" = "Format text, hide spoilers and tap mentions to open profiles. Replies and editing are clearer too.";
+"whatsNew.feedCaptions.title" = "Captions that fit";
+"whatsNew.feedCaptions.description" = "See more appears only when needed and expands the full caption without losing your place.";
+"whatsNew.reelComments.title" = "Comments with the Reel";
+"whatsNew.reelComments.description" = "The video makes room for comments, the composer stays visible and replies are easier to follow.";
+"whatsNew.morePersonal.title" = "More yours";
+"whatsNew.morePersonal.description" = "More interests, 8 new languages and smoother transitions across profiles, QR and your story archive.";
 
 "whatsNew.section221.title" = "Moments 2.21";
 

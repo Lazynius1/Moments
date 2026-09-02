@@ -1134,6 +1134,7 @@
 "profileEditor.album.screenshots" = "Ekran Görüntüleri";
 "profileEditor.error.updateProfile" = "Profil güncellenirken hata oluştu: %@";
 "profileEditor.error.uploadImage" = "Görsel yüklenirken hata oluştu: %@";
+"profileEditor.error.profileImageRejected" = "Bu fotoğraf profil fotoğrafı olarak kullanılamaz.";
 "profileEditor.error.unauthenticated" = "Kullanıcı doğrulanamadı";
 "profileEditor.error.saveProfile" = "Kaydedilirken hata oluştu: %@";
 "profileEditor.crop.loadingImage" = "Görsel yükleniyor...";
@@ -2675,7 +2676,7 @@
 /* Whats New v2.16 */
 "whatsNew.title" = "Moments'ta yenilikler!";
 "whatsNew.subtitle" = "Sohbette yanıt verme, daha zengin paylaşım kartları, yenilenen mesaj istekleri ve yeniden tasarlanan paylaşım ekranı.";
-"whatsNew.button" = "Moments 2.21.1'i keşfet";
+"whatsNew.button" = "Moments 2.22'yi keşfet";
 /* Best Friends */
 "bestFriends.title" = "Yakın Arkadaşlar";
 "bestFriends.empty.title" = "Yakın arkadaş yok";
@@ -4191,7 +4192,7 @@
 "permission.tracking.denied.title" = "İzleme kapalı";
 "permission.tracking.denied.subtitle" = "Daha alakalı reklamlar görmek için Ayarlar › Gizlilik › İzleme bölümünden izlemeyi aç.";
 "permission.tracking.denied.openSettings" = "Ayarları aç";
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 "whatsNew.replyInChat.title" = "Sohbette yanıtla";
 "whatsNew.replyInChat.description" = "Yanıtlamak için baloncuğu kaydır. Orijinal mesaja gitmek için alıntıya dokun.";
 "whatsNew.quotePreviews.title" = "Sohbette alıntılar";
@@ -4200,6 +4201,17 @@
 "whatsNew.chatTimestamps.description" = "Kendi mesajların da dahil olmak üzere, zamanı görmek için bir satırı yatay olarak kaydır.";
 "whatsNew.composerVoice.title" = "Mesaj yazma alanı";
 "whatsNew.composerVoice.description" = "Yenilenen mesaj yazma alanı ve daha akıcı sesli mesajlar; iptal animasyonu da artık daha anlaşılır.";
+"whatsNew.richChat.title" = "Daha ifadeli sohbet";
+"whatsNew.notificationsAndMentions.title" = "Bildirimler ve bahsetmeler";
+"whatsNew.notificationsAndMentions.description" = "Sohbet ve sosyal bildirimler daha anlaşılır; hikâye bahsetmeleri artık doğrudan konuşmaya geliyor.";
+"whatsNew.richChat.description" = "Metni biçimlendir, spoilerları gizle ve profilleri açmak için bahsetmelere dokun. Yanıtlama ve düzenleme de daha anlaşılır.";
+"whatsNew.feedCaptions.title" = "Yerine uyan açıklamalar";
+"whatsNew.feedCaptions.description" = "Devamını gör yalnızca gerektiğinde çıkar ve yerini kaybetmeden tüm metni açar.";
+"whatsNew.reelComments.title" = "Reel ile birlikte yorumlar";
+"whatsNew.reelComments.description" = "Video yorumlara yer açar, yazma alanı görünür kalır ve yanıtları takip etmek kolaylaşır.";
+"whatsNew.morePersonal.title" = "Daha çok sen";
+"whatsNew.morePersonal.description" = "Daha fazla ilgi alanı, 8 yeni dil ve profil, QR ile hikâye arşivinde daha akıcı geçişler.";
+
 "whatsNew.section221.title" = "Moments 2.21";
 "whatsNew.messageRequestThreads.title" = "Mesaj istekleri";
 "whatsNew.messageRequestThreads.description" = "Spam'i önlemek için, beklerken konuşma başına en fazla 5, günde 10 mesaj. İstekler, Eski ve Gizli klasörleri ile cihazdaki gizli kelime filtreleri.";

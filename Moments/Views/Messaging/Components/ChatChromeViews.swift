@@ -141,6 +141,18 @@ enum ChatComposerChromeMetrics {
     static let fadeEdgeSize: CGFloat = 60
     static let fadeAlphaSolid: CGFloat = 0.82
     static let estimatedComposerChromeHeight: CGFloat = 68
+    static let composerOuterHorizontalPadding: CGFloat = 16
+    static let composerInnerHorizontalPadding: CGFloat = 4
+    static let trailingControlSize: CGFloat = 44
+    static let scrollDownButtonSize: CGFloat = 40
+    static let scrollDownButtonComposerGap: CGFloat = 12
+
+    /// Centra el chevron sobre el círculo del mic del compositor.
+    static var scrollDownButtonTrailingInset: CGFloat {
+        composerOuterHorizontalPadding
+            + composerInnerHorizontalPadding
+            + (trailingControlSize - scrollDownButtonSize) / 2
+    }
 
     static func listBottomInset(composerChromeHeight: CGFloat) -> CGFloat {
         max(composerChromeHeight, estimatedComposerChromeHeight) + messageListGap
@@ -939,7 +951,7 @@ struct ChatScrollDownButton: View {
 
     var body: some View {
         Button(action: action) {
-            ZStack(alignment: .topTrailing) {
+            ZStack(alignment: .top) {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 17, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
@@ -950,17 +962,23 @@ struct ChatScrollDownButton: View {
 
                 if pendingCount > 0 {
                     Text(pendingCount > 99 ? "99+" : "\(pendingCount)")
-                        .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                         .foregroundStyle(badgeTextColor)
-                        .padding(.horizontal, 5)
-                        .frame(minWidth: 18, minHeight: 18)
-                        .background(accentColor)
-                        .clipShape(Capsule())
-                        .offset(x: 6, y: -4)
+                        .padding(.horizontal, 6)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .momentsChromeGlass(
+                            in: Capsule(),
+                            interactive: false,
+                            style: .tinted,
+                            tint: accentColor
+                        )
+                        .offset(y: -10)
+                        .allowsHitTesting(false)
                 }
             }
         }
         .buttonStyle(.plain)
+        .contentShape(Circle())
         .scaleEffect(didAppear ? 1 : 0.9)
         .opacity(didAppear ? 1 : 0)
         .onAppear {

@@ -1134,6 +1134,7 @@
 "profileEditor.album.screenshots" = "螢幕截圖";
 "profileEditor.error.updateProfile" = "更新個人檔案時發生錯誤：%@";
 "profileEditor.error.uploadImage" = "上傳圖片時發生錯誤：%@";
+"profileEditor.error.profileImageRejected" = "這張照片無法用作個人檔案相片。";
 "profileEditor.error.unauthenticated" = "使用者尚未驗證";
 "profileEditor.error.saveProfile" = "儲存時發生錯誤：%@";
 "profileEditor.crop.loadingImage" = "正在載入圖片…";
@@ -2675,7 +2676,7 @@
 /* Whats New v2.16 */
 "whatsNew.title" = "Moments 推出新功能！";
 "whatsNew.subtitle" = "現在可以在聊天室回覆，分享卡片更豐富，訊息邀請煥然一新，還有重新設計的發佈介面。";
-"whatsNew.button" = "探索 Moments 2.21.1";
+"whatsNew.button" = "探索 Moments 2.22";
 /* Best Friends */
 "bestFriends.title" = "摯友";
 "bestFriends.empty.title" = "尚無摯友";
@@ -4191,7 +4192,7 @@
 "permission.tracking.denied.title" = "追蹤功能已關閉";
 "permission.tracking.denied.subtitle" = "請前往「設定」›「隱私權」›「追蹤」開啟追蹤功能，以便取得更相關的廣告。";
 "permission.tracking.denied.openSettings" = "開啟設定";
-"whatsNew.section2211.title" = "Moments 2.21.1";
+"whatsNew.section222.title" = "Moments 2.22";
 "whatsNew.replyInChat.title" = "在聊天室回覆";
 "whatsNew.replyInChat.description" = "在訊息泡泡上滑動即可回覆。點選引用內容即可跳到原始訊息。";
 "whatsNew.quotePreviews.title" = "聊天室中的引用";
@@ -4200,6 +4201,17 @@
 "whatsNew.chatTimestamps.description" = "在訊息列上水平滑動即可顯示時間，你自己的訊息也適用。";
 "whatsNew.composerVoice.title" = "訊息輸入框";
 "whatsNew.composerVoice.description" = "重新設計的訊息編輯器，搭配更順暢的語音訊息，取消動畫也更清楚。";
+"whatsNew.richChat.title" = "更豐富的聊天表達";
+"whatsNew.notificationsAndMentions.title" = "通知與提及";
+"whatsNew.notificationsAndMentions.description" = "聊天與社交活動通知更清楚，限時動態中的提及也會直接送達對話。";
+"whatsNew.richChat.description" = "使用文字格式與劇透遮罩，點按提及即可開啟個人檔案。回覆和編輯也更清楚。";
+"whatsNew.feedCaptions.title" = "恰到好處的說明文字";
+"whatsNew.feedCaptions.description" = "只有需要時才顯示「查看更多」，展開完整文字後也不會失去閱讀位置。";
+"whatsNew.reelComments.title" = "Reel 與留言同時呈現";
+"whatsNew.reelComments.description" = "影片會騰出留言空間，輸入框保持可見，回覆也更容易閱讀。";
+"whatsNew.morePersonal.title" = "更符合你";
+"whatsNew.morePersonal.description" = "更多興趣、8 種新語言，以及更流暢的個人檔案、QR 與限時動態封存轉場。";
+
 "whatsNew.section221.title" = "Moments 2.21";
 "whatsNew.messageRequestThreads.title" = "訊息邀請";
 "whatsNew.messageRequestThreads.description" = "等待期間，每個對話最多可傳送 5 則訊息，每天最多 10 則，以防止垃圾訊息。邀請、舊訊息和隱藏資料夾，以及裝置端的隱藏字詞篩選器。";
