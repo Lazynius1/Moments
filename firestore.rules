@@ -22,20 +22,25 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(ownerId)).data.get('isActive', true);
     }
 
-    function meetsMinimumAccountAge(birthDate) {
-      return birthDate is timestamp
-        && birthDate <= request.time - duration.value(16, 'y');
-    }
-
     function minimumAgeForCountry(countryCode) {
       return countryCode == 'IN' ? 18 : 16;
+    }
+
+    // Firestore duration units do not include years; approximate with 365-day blocks.
+    function minimumAccountAgeDuration(countryCode) {
+      return duration.value(minimumAgeForCountry(countryCode) * 365, 'd');
+    }
+
+    function meetsMinimumAccountAge(birthDate) {
+      return birthDate is timestamp
+        && birthDate <= request.time - minimumAccountAgeDuration('ZZ');
     }
 
     function meetsRegionalMinimumAccountAge(birthDate, countryCode) {
       return birthDate is timestamp
         && countryCode is string
         && countryCode.size() == 2
-        && birthDate <= request.time - duration.value(minimumAgeForCountry(countryCode), 'y');
+        && birthDate <= request.time - minimumAccountAgeDuration(countryCode);
     }
 
     function hasLegacyRegistrationShape(data) {
