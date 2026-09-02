@@ -1,5 +1,6 @@
 import Foundation
 import Kingfisher
+import UIKit
 
 /// Un gestor centralizado para la precarga (prefetching) de imágenes usando Kingfisher.
 /// Este servicio evita que se envíen peticiones duplicadas a la red si una imagen ya se
@@ -46,11 +47,18 @@ class ImagePrefetchManager {
         
         // Comenzar la precarga de las nuevas URLs
         let retryStrategy = DelayRetryStrategy(maxRetryCount: 2, retryInterval: .seconds(2))
-        // Referencia débil para que el cierre de completado pueda desregistrarse sin crear un ciclo.
+        // Prefetch a tamaño de card típico (píxeles), no full-res.
+        let scale = UIApplication.shared.activeDisplayScale
+        let targetSize = CGSize(width: 1080 * scale / 3, height: 1920 * scale / 3)
         weak var weakPrefetcher: ImagePrefetcher?
         let prefetcher = ImagePrefetcher(
             urls: urlsToProcess,
-            options: [.retryStrategy(retryStrategy)],
+            options: [
+                .retryStrategy(retryStrategy),
+                .processor(DownsamplingImageProcessor(size: targetSize)),
+                .scaleFactor(scale),
+                .backgroundDecode
+            ],
             completionHandler: { [weak self] skipped, failed, completed in
             // Cuando termine (independientemente si falla, se salta porque ya estaba en caché, o termina bien),
             // limpiamos las URLs del Set para liberar memoria y permitir futuros prefetchs si se borra el caché.

@@ -30,7 +30,8 @@ class FeedViewModel {
     private var momentListeners: [String: ListenerRegistration] = [:]
     private var commentListeners: [String: ListenerRegistration] = [:]
     private let listenerVisibilityThreshold: CGFloat = 0.08
-    private let listenerIndexBuffer = 5
+    /// Vecinos alrededor del post visible (±2). Antes ±5 abría ~11 listeners por scroll.
+    private let listenerIndexBuffer = 2
     private var pendingUpdates: [String: DispatchWorkItem] = [:]
     private let updateDebounceTime: TimeInterval = 0.3
     private var lastUpdateHashes: [String: Int] = [:]
@@ -77,8 +78,12 @@ class FeedViewModel {
     }
 
     private func saveFeedToCache(moments: [Moment], type: FeedType, sync: Bool = false) {
-        if let data = try? JSONEncoder().encode(moments) {
-            UserDefaults.standard.set(data, forKey: getCacheKey(for: type))
+        let key = getCacheKey(for: type)
+        let snapshot = Array(moments.prefix(40))
+        Task.detached(priority: .utility) {
+            if let data = try? JSONEncoder().encode(snapshot) {
+                UserDefaults.standard.set(data, forKey: key)
+            }
         }
 
         // ✅ SwiftData: Guardar en DB local para experiencia offline

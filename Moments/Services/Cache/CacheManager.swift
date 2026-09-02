@@ -11,8 +11,17 @@ class CacheManager: ObservableObject {
     private let warningThreshold = 1500 * 1024 * 1024  // ✅ 1.5GB
     
     private init() {
-        startIntelligentCleanup()
         setupAppStateObservers()
+        // Diferir cleanup inicial: no enumerar disco en el mismo frame que crea @StateObject.
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 15) { [weak self] in
+            guard let self else { return }
+            if self.shouldPerformCleanup() {
+                self.performIntelligentCleanup()
+            }
+            DispatchQueue.main.async {
+                self.startPeriodicCleanupTimer()
+            }
+        }
     }
     
     private func setupAppStateObservers() {
@@ -42,23 +51,31 @@ class CacheManager: ObservableObject {
     }
     
     @objc private func checkCacheOnAppActivation() {
-        let currentSize = getCurrentCacheSize()
-        if currentSize > warningThreshold {
-            if currentSize > maxCacheSize {
-                performIntelligentCleanup()
+        DispatchQueue.global(qos: .utility).async {
+            let currentSize = self.getCurrentCacheSize()
+            if currentSize > self.warningThreshold {
+                if currentSize > self.maxCacheSize {
+                    self.performIntelligentCleanup()
+                }
+            }
+        }
+    }
+    
+    private func startPeriodicCleanupTimer() {
+        // Verificar cada 12 horas
+        Timer.scheduledTimer(withTimeInterval: 12 * 60 * 60, repeats: true) { _ in
+            DispatchQueue.global(qos: .utility).async {
+                self.performIntelligentCleanup()
             }
         }
     }
     
     private func startIntelligentCleanup() {
-        // Verificar cada 12 horas
-        Timer.scheduledTimer(withTimeInterval: 12 * 60 * 60, repeats: true) { _ in
-            self.performIntelligentCleanup()
-        }
-        
-        // Limpieza inicial si es necesario
+        // Legacy entry — el init ya programa cleanup diferido.
         if shouldPerformCleanup() {
-            performIntelligentCleanup()
+            DispatchQueue.global(qos: .utility).async {
+                self.performIntelligentCleanup()
+            }
         }
     }
     

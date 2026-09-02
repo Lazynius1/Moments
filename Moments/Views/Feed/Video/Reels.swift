@@ -67,15 +67,26 @@ struct ReelsViewer: View {
     let videos: [VideoMoment]
     let startIndex: Int
     let initialStartSeconds: Double
+    let handoffConsumerId: String?
+    let onWillDismiss: (() -> Void)?
     @State private var currentIndex: Int = 0
     @State private var scrollPosition: Int?
+    @State private var isDismissRequested = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     
-    init(videos: [VideoMoment], startIndex: Int = 0, initialStartSeconds: Double = 0) {
+    init(
+        videos: [VideoMoment],
+        startIndex: Int = 0,
+        initialStartSeconds: Double = 0,
+        handoffConsumerId: String? = nil,
+        onWillDismiss: (() -> Void)? = nil
+    ) {
         self.videos = videos
         self.startIndex = startIndex
         self.initialStartSeconds = initialStartSeconds
+        self.handoffConsumerId = handoffConsumerId
+        self.onWillDismiss = onWillDismiss
         let safeStart = videos.isEmpty ? 0 : min(max(0, startIndex), videos.count - 1)
         self._currentIndex = State(initialValue: safeStart)
         self._scrollPosition = State(initialValue: safeStart)
@@ -98,7 +109,8 @@ struct ReelsViewer: View {
                                 currentIndex: currentIndex,
                                 startIndex: startIndex,
                                 initialStartSeconds: initialStartSeconds,
-                                onClose: { dismiss() }
+                                handoffConsumerId: index == startIndex ? handoffConsumerId : nil,
+                                onClose: closeViewer
                             )
                             .id(index)
                         }
@@ -118,7 +130,7 @@ struct ReelsViewer: View {
                             }
 
                             HapticManager.shared.lightImpact()
-                            dismiss()
+                            closeViewer()
                         }
                 )
                 .onAppear {
@@ -140,6 +152,13 @@ struct ReelsViewer: View {
         }
         .preferredColorScheme(.dark)
         // Status bar visible: el chrome top se ancla bajo el safe area.
+    }
+
+    private func closeViewer() {
+        guard !isDismissRequested else { return }
+        isDismissRequested = true
+        onWillDismiss?()
+        dismiss()
     }
     
     // ✅ INSTANT PLAYBACK: Lógica de preloading para Reels
@@ -169,6 +188,7 @@ private struct ReelsPagerPage: View {
     let currentIndex: Int
     let startIndex: Int
     let initialStartSeconds: Double
+    let handoffConsumerId: String?
     let onClose: () -> Void
 
     var body: some View {
@@ -178,6 +198,7 @@ private struct ReelsPagerPage: View {
                     video: video,
                     isCurrentVideo: currentIndex == index,
                     startAtSeconds: index == startIndex ? initialStartSeconds : 0,
+                    handoffConsumerId: handoffConsumerId,
                     onClose: onClose
                 )
             } else {
@@ -208,6 +229,7 @@ struct ReelVideoView: View {
     let video: VideoMoment
     let isCurrentVideo: Bool
     let startAtSeconds: Double
+    var handoffConsumerId: String? = nil
     let onClose: () -> Void
     
     @StateObject private var playerManager = ReelVideoPlayerManager()
@@ -233,6 +255,7 @@ struct ReelVideoView: View {
     @State private var isDraggingProgress = false
     @State private var wasPlayingBeforeDrag = false
     @State private var isReelCaptionExpanded = false
+    @State private var isLayerReadyForDisplay = false
     
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject private var firestoreService: FirestoreService
@@ -242,6 +265,13 @@ struct ReelVideoView: View {
         let fallback = video.moment.username
         let live = liveAuthorUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         return live.isEmpty ? fallback : live
+    }
+
+    private var layerConsumerId: String {
+        if let handoffConsumerId, !handoffConsumerId.isEmpty {
+            return handoffConsumerId
+        }
+        return GlobalVideoManager.profileVideoConsumerId(for: video.moment)
     }
 
     private var bottomBarBackgroundColor: Color {
@@ -352,9 +382,13 @@ struct ReelVideoView: View {
                         VideoPlayerRepresentable(
                             player: player,
                             videoGravity: .resizeAspect,
+                            consumerId: layerConsumerId,
+                            layerRole: .reels,
+                            readinessDelay: startAtSeconds < 0.75 ? 0.09 : 0,
                             showControls: .constant(false), // Siempre oculto
                             progress: $playerManager.progress,
-                            isBuffering: $playerManager.isBuffering
+                            isBuffering: $playerManager.isBuffering,
+                            isReadyForDisplay: $isLayerReadyForDisplay
                         )
                         .aspectRatio(contentMode: videoContentMode)  // ✅ Dinámico según orientación
                         .frame(width: geometry.size.width, height: geometry.size.height)
@@ -367,15 +401,21 @@ struct ReelVideoView: View {
                             .ignoresSafeArea(.all)
                     }
 
-                    // Poster hasta readyToPlay (también en el reel adyacente al swipe).
-                    VideoPosterOverlay(
-                        posterURLString: video.posterURLString,
-                        isReadyToPlay: playerManager.isLoaded && playerManager.player != nil,
-                        contentMode: videoContentMode
-                    )
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
-                    .ignoresSafeArea(.all)
+                    // El handoff desde feed ya trae el mismo AVPlayer reproduciendo:
+                    // no interponer un póster, porque convertiría la continuidad en
+                    // un fotograma congelado. Los reels sin handoff sí lo necesitan.
+                    if handoffConsumerId == nil {
+                        VideoPosterOverlay(
+                            posterURLString: video.posterURLString,
+                            isReadyToPlay: playerManager.isLoaded
+                                && playerManager.player != nil
+                                && isLayerReadyForDisplay,
+                            contentMode: videoContentMode
+                        )
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                        .ignoresSafeArea(.all)
+                    }
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .scaleEffect(videoScale, anchor: .top)
@@ -941,7 +981,11 @@ struct ReelVideoView: View {
     
     // ... (resto de funciones existentes)
     private func setupVideo() {
-        playerManager.setupPlayer(with: video, startAtSeconds: startAtSeconds)
+        playerManager.setupPlayer(
+            with: video,
+            startAtSeconds: startAtSeconds,
+            consumerId: handoffConsumerId
+        )
     }
     
     private func loadVideoData() {
@@ -1286,10 +1330,16 @@ class ReelVideoPlayerManager: ObservableObject {
     private var adaptiveController: VideoAdaptiveTierController?
     private var stalledObserver: NSObjectProtocol?
     private var consumerId: String?
+    private var leaseGeneration: UInt64 = 0
     
-    func setupPlayer(with video: VideoMoment, startAtSeconds: Double = 0) {
+    func setupPlayer(with video: VideoMoment, startAtSeconds: Double = 0, consumerId handoffConsumerId: String? = nil) {
         let moment = video.moment
-        let newConsumerId = GlobalVideoManager.profileVideoConsumerId(for: moment)
+        let newConsumerId: String
+        if let handoffConsumerId, !handoffConsumerId.isEmpty {
+            newConsumerId = handoffConsumerId
+        } else {
+            newConsumerId = GlobalVideoManager.profileVideoConsumerId(for: moment)
+        }
 
         if let previousId = consumerId, previousId != newConsumerId {
             let preserve = GlobalVideoManager.shared.shouldPreserveSharedPlayer(consumerId: previousId)
@@ -1299,6 +1349,7 @@ class ReelVideoPlayerManager: ObservableObject {
         }
 
         consumerId = newConsumerId
+        leaseGeneration = VideoLayerLease.shared.generation
         pendingStartAtSeconds = startAtSeconds > 0 ? startAtSeconds : nil
 
         let mediaItem = moment.primaryVisibleMediaItem
@@ -1393,8 +1444,13 @@ class ReelVideoPlayerManager: ObservableObject {
     }
 
     private func teardownObserversOnly() {
-        player?.pause()
-        isPlaying = false
+        let preserve = consumerId.map {
+            GlobalVideoManager.shared.shouldPreserveSharedPlayer(consumerId: $0)
+        } ?? false
+        if !preserve {
+            player?.pause()
+            isPlaying = false
+        }
 
         if let timeObserver {
             player?.removeTimeObserver(timeObserver)
@@ -1542,15 +1598,15 @@ class ReelVideoPlayerManager: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             self?.player?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { completed in
-                if completed {
-                    self?.pendingStartAtSeconds = nil
-                    self?.player?.play()
-                }
+                guard completed, let self, self.isCurrentLeaseGeneration() else { return }
+                self.pendingStartAtSeconds = nil
+                self.player?.play()
             }
         }
     }
 
     private func applyPendingStartAndPlayIfNeeded() {
+        guard isCurrentLeaseGeneration() else { return }
         guard let player else {
             play()
             return
@@ -1563,10 +1619,21 @@ class ReelVideoPlayerManager: ObservableObject {
 
         let boundedStart = max(0, startAt)
         pendingStartAtSeconds = nil
-        let target = CMTime(seconds: boundedStart, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-            self?.play()
+        let current = CMTimeGetSeconds(player.currentTime())
+        if current.isFinite, abs(current - boundedStart) < 0.35 {
+            play()
+            return
         }
+        let target = CMTime(seconds: boundedStart, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        let generation = leaseGeneration
+        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            guard let self, self.leaseGeneration == generation, self.isCurrentLeaseGeneration() else { return }
+            self.play()
+        }
+    }
+
+    private func isCurrentLeaseGeneration() -> Bool {
+        leaseGeneration == VideoLayerLease.shared.generation
     }
     
     func togglePlayback() {
@@ -1582,6 +1649,7 @@ class ReelVideoPlayerManager: ObservableObject {
     }
     
     func play() {
+        guard isCurrentLeaseGeneration() else { return }
         guard let player = player, isLoaded else { return }
         player.currentItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = true
         player.play()
@@ -1643,13 +1711,14 @@ class ReelVideoPlayerManager: ObservableObject {
     }
     
     func cleanup(releaseFromPool: Bool = true) {
-        teardownObserversOnly()
-
         let shouldPreserve = consumerId.map {
             GlobalVideoManager.shared.shouldPreserveSharedPlayer(consumerId: $0)
         } ?? false
-        let actuallyRelease = releaseFromPool && !shouldPreserve
 
+        // Mismo AVPlayer que el feed: no pausar ni soltar el slot. El feed re-enlaza el layer.
+        teardownObserversOnly()
+
+        let actuallyRelease = releaseFromPool && !shouldPreserve
         if let consumerId, actuallyRelease {
             SharedVideoPlayerPool.shared.release(consumerId: consumerId)
         }

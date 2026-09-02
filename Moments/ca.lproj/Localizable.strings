@@ -3183,6 +3183,7 @@
 "feed.video.loading" = "Carregant vídeo...";
 "feed.video.loadError" = "No hem pogut carregar el vídeo";
 "feed.video.retry" = "Tornar a provar";
+"feed.video.watchAgain" = "Torna a veure";
 
 /* Feed Reels Video */
 "feed.reels.video.loading" = "Carregant vídeo...";

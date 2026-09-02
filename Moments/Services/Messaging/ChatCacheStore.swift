@@ -227,21 +227,20 @@ enum ChatCacheStore {
     /// Días en los que la media de mensajes recientes queda protegida frente a la cuota.
     private static let quotaProtectionDays = 7
 
-    @MainActor
+    /// Tras escribir media (poster, descarga). Corre en background.
     static func enforceQuota() {
+        runMaintenance()
+    }
+
+    /// Tras cambiar retención o limpiar persistencia. Corre en background.
+    static func enforceRetention() {
+        runMaintenance()
+    }
+
+    private static func enforceQuota(protectedKeys: Set<String>) {
         let maxBytes = ChatMediaDownloadPolicy.maxMediaBytes
         var total = totalMediaBytes()
         guard total > maxBytes else { return }
-
-        // Solo se protege la media de mensajes recientes: proteger todo lo cacheado
-        // dejaba la cuota sin efecto (nunca había nada evictable y el disco crecía
-        // sin tope). Lo evictado se re-descarga bajo demanda desde Storage.
-        let protectionCutoff = Calendar.current.date(
-            byAdding: .day,
-            value: -quotaProtectionDays,
-            to: Date()
-        ) ?? Date()
-        let protectedKeys = LocalPersistenceService.shared.cachedMessageKeys(since: protectionCutoff)
 
         var candidates = trackedFiles()
             .sorted { $0.modificationDate < $1.modificationDate }
@@ -265,13 +264,8 @@ enum ChatCacheStore {
         try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
     }
 
-    @MainActor
-    static func enforceRetention() {
-        let retentionDays = ChatMediaDownloadPolicy.retentionDays
-        guard retentionDays > 0 else { return }
-
-        let cutoff = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
-        let protectedKeys = LocalPersistenceService.shared.cachedMessageKeys(since: cutoff)
+    private static func enforceRetention(cutoff: Date?, protectedKeys: Set<String>) {
+        guard let cutoff = cutoff else { return }
 
         for tracked in trackedFiles() {
             if tracked.modificationDate >= cutoff { continue }
@@ -280,11 +274,33 @@ enum ChatCacheStore {
         }
     }
 
-    @MainActor
+    /// Ejecuta el mantenimiento de cuota y retención en background sin bloquear la UI ni el arranque.
     static func runMaintenance() {
-        migrateFromLegacyCachesIfNeeded()
-        enforceRetention()
-        enforceQuota()
+        Task.detached(priority: .background) {
+            let protectionCutoff = Calendar.current.date(
+                byAdding: .day,
+                value: -quotaProtectionDays,
+                to: Date()
+            ) ?? Date()
+
+            let retentionDays = ChatMediaDownloadPolicy.retentionDays
+            let retentionCutoff = retentionDays > 0 ? (Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()) : nil
+
+            let protectedQuotaKeys = await MainActor.run {
+                LocalPersistenceService.shared.cachedMessageKeys(since: protectionCutoff)
+            }
+
+            let protectedRetentionKeys: Set<String> = await MainActor.run {
+                if let retentionCutoff = retentionCutoff {
+                    return LocalPersistenceService.shared.cachedMessageKeys(since: retentionCutoff)
+                }
+                return []
+            }
+
+            migrateFromLegacyCachesIfNeeded()
+            enforceRetention(cutoff: retentionCutoff, protectedKeys: protectedRetentionKeys)
+            enforceQuota(protectedKeys: protectedQuotaKeys)
+        }
     }
 
     // MARK: - Private

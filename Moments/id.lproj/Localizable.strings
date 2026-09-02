@@ -2984,6 +2984,7 @@
 "feed.video.loading" = "Memuat video...";
 "feed.video.loadError" = "Video tidak dapat dimuat";
 "feed.video.retry" = "Coba lagi";
+"feed.video.watchAgain" = "Tonton lagi";
 /* Feed Reels Video */
 "feed.reels.video.loading" = "Memuat video...";
 "feed.reels.video.starting" = "Memulai...";

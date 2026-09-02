@@ -2984,6 +2984,7 @@
 "feed.video.loading" = "Ładowanie filmu…";
 "feed.video.loadError" = "Nie udało się wczytać filmu";
 "feed.video.retry" = "Spróbuj ponownie";
+"feed.video.watchAgain" = "Obejrzyj ponownie";
 /* Feed Reels Video */
 "feed.reels.video.loading" = "Ładowanie filmu…";
 "feed.reels.video.starting" = "Uruchamianie…";

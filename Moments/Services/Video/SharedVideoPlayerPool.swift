@@ -86,6 +86,15 @@ final class SharedVideoPlayerPool {
         return slots[index].player.currentItem != nil
     }
 
+    func currentTimeSeconds(for consumerId: String) -> Double {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let index = slots.firstIndex(where: { $0.consumerId == consumerId }) else { return 0 }
+        let seconds = CMTimeGetSeconds(slots[index].player.currentTime())
+        guard seconds.isFinite, seconds > 0 else { return 0 }
+        return seconds
+    }
+
     private func evictSlot(at index: Int) {
         let player = slots[index].player
         player.pause()

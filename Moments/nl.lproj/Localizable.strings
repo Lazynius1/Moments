@@ -2984,6 +2984,7 @@
 "feed.video.loading" = "Video laden...";
 "feed.video.loadError" = "We konden de video niet laden";
 "feed.video.retry" = "Opnieuw proberen";
+"feed.video.watchAgain" = "Opnieuw bekijken";
 /* Feed Reels Video */
 "feed.reels.video.loading" = "Video laden...";
 "feed.reels.video.starting" = "Starten...";

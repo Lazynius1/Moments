@@ -70,23 +70,30 @@ struct MomentsApp: App {
                                 // Nota: la configuración de cachés de imágenes (Kingfisher/URLCache)
                                 // se hace ahora en AppDelegate.didFinishLaunching, antes del primer frame.
 
-                                // ✅ SwiftData: Limpiar datos locales antiguos (>7 días)
-                                Task { @MainActor in
-                                    LocalPersistenceService.shared.cleanupOldData()
+                                // ✅ SwiftData: Limpiar datos locales antiguos (>7 días) — fuera del path crítico.
+                                Task.detached(priority: .utility) {
+                                    try? await Task.sleep(nanoseconds: 8_000_000_000)
+                                    await MainActor.run {
+                                        LocalPersistenceService.shared.cleanupOldData()
+                                    }
                                     ChatCacheStore.runMaintenance()
 
                                     if Auth.auth().currentUser != nil {
                                         await MessageIngestService.shared.drainPendingQueue()
-                                        MessageCatchUpService.shared.syncRecent(
-                                            conversations: LocalPersistenceService.shared.loadConversations()
-                                        )
+                                        await MainActor.run {
+                                            MessageCatchUpService.shared.syncRecent(
+                                                conversations: LocalPersistenceService.shared.loadConversations()
+                                            )
+                                        }
                                     }
 
                                     // Configure AffinityTracker with the shared SwiftData container
-                                    if let container = LocalPersistenceService.shared.container {
-                                        AffinityTracker.shared.setup(container: container)
-                                        AffinityTracker.shared.applyTimeDecayIfNeeded()
-                                        AffinityTracker.shared.cleanupVeryLowAffinities()
+                                    await MainActor.run {
+                                        if let container = LocalPersistenceService.shared.container {
+                                            AffinityTracker.shared.setup(container: container)
+                                            AffinityTracker.shared.applyTimeDecayIfNeeded()
+                                            AffinityTracker.shared.cleanupVeryLowAffinities()
+                                        }
                                     }
                                 }
                             }

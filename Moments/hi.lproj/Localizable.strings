@@ -2984,6 +2984,7 @@
 "feed.video.loading" = "वीडियो लोड हो रहा है...";
 "feed.video.loadError" = "वीडियो लोड नहीं हो सका";
 "feed.video.retry" = "फिर कोशिश करें";
+"feed.video.watchAgain" = "फिर से देखें";
 /* Feed Reels Video */
 "feed.reels.video.loading" = "वीडियो लोड हो रहा है...";
 "feed.reels.video.starting" = "शुरू हो रहा है...";

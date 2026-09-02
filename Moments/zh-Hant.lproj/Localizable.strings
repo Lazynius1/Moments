@@ -2984,6 +2984,7 @@
 "feed.video.loading" = "影片載入中…";
 "feed.video.loadError" = "無法載入影片";
 "feed.video.retry" = "重試";
+"feed.video.watchAgain" = "再看一次";
 /* Feed Reels Video */
 "feed.reels.video.loading" = "影片載入中…";
 "feed.reels.video.starting" = "準備中…";

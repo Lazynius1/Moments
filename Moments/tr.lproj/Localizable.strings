@@ -2984,6 +2984,7 @@
 "feed.video.loading" = "Video yükleniyor...";
 "feed.video.loadError" = "Video yüklenemedi";
 "feed.video.retry" = "Tekrar dene";
+"feed.video.watchAgain" = "Tekrar izle";
 /* Feed Reels Video */
 "feed.reels.video.loading" = "Video yükleniyor...";
 "feed.reels.video.starting" = "Başlatılıyor...";

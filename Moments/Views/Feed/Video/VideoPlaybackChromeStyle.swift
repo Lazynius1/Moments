@@ -53,3 +53,26 @@ struct SocialVideoPausedControls: View {
         .transition(.opacity.combined(with: .scale(scale: 0.92)))
     }
 }
+
+/// Oscurece solo el vídeo del post (no la pantalla) al terminar, como Instagram.
+struct FeedVideoEndedOverlay: View {
+    let onWatchAgain: () -> Void
+
+    var body: some View {
+        Button(action: onWatchAgain) {
+            ZStack {
+                Color.black.opacity(0.45)
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text(NSLocalizedString("feed.video.watchAgain", comment: "Watch again"))
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.35), radius: 8, y: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(NSLocalizedString("feed.video.watchAgain", comment: "Watch again"))
+    }
+}

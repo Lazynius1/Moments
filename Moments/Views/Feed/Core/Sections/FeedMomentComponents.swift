@@ -1096,6 +1096,15 @@ struct ModernPostCardView: View {
 }
 // ✅ COMPONENTES AUXILIARES (reusables)
 
+ struct ReelsSessionPresentation: Identifiable {
+    let id = UUID()
+    let videos: [VideoMoment]
+    let startIndex: Int
+    let startSeconds: Double
+    let handoffMedia: MediaItem?
+    let resumeConsumerId: String
+}
+
 // Enhanced Carousel View — ScrollView paging (sin lazy-swap ni TabView)
 struct EnhancedCarouselView: View {
     let mediaItems: [MediaItem]
@@ -1109,63 +1118,144 @@ struct EnhancedCarouselView: View {
     @Binding var isImmersive: Bool
 
     @State private var scrollPosition: Int?
+    @State private var reelsSession: ReelsSessionPresentation?
+    @State private var reelsHandoffMedia: MediaItem?
+    @State private var reelsResumeId: String = ""
+    @State private var isPreparingReelsDismiss = false
+    @Namespace private var reelsZoomNamespace
 
     private var isCarousel: Bool { mediaItems.count > 1 }
+
+    private var reelsZoomSourceID: String {
+        "feed-reels-\(currentMoment.id ?? "")"
+    }
 
     var body: some View {
         GeometryReader { geometry in
             let pageWidth = geometry.size.width
             let pageHeight = geometry.size.height
 
-            if isCarousel {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 0) {
-                        ForEach(Array(mediaItems.enumerated()), id: \.element.id) { index, item in
-                            MediaItemView(
-                                item: item,
-                                aspectRatio: aspectRatio,
-                                prefersUnifiedCarouselFrame: true,
-                                currentMoment: currentMoment,
-                                showTags: $showTags,
-                                onTagTap: onTagTap,
-                                reelsVideos: reelsVideos,
-                                allowsVideoPlayback: allowsVideoPlayback && index == currentIndex,
-                                isImmersive: $isImmersive
-                            )
-                            .frame(width: pageWidth, height: pageHeight)
-                            .id(index)
+            Group {
+                if isCarousel {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 0) {
+                            ForEach(Array(mediaItems.enumerated()), id: \.element.id) { index, item in
+                                MediaItemView(
+                                    item: item,
+                                    aspectRatio: aspectRatio,
+                                    prefersUnifiedCarouselFrame: true,
+                                    currentMoment: currentMoment,
+                                    showTags: $showTags,
+                                    onTagTap: onTagTap,
+                                    reelsVideos: reelsVideos,
+                                    allowsVideoPlayback: allowsVideoPlayback && index == currentIndex,
+                                    isImmersive: $isImmersive,
+                                    onPresentReels: presentReels
+                                )
+                                .frame(width: pageWidth, height: pageHeight)
+                                .id(index)
+                            }
                         }
+                        .scrollTargetLayout()
                     }
-                    .scrollTargetLayout()
+                    .scrollTargetBehavior(.paging)
+                    .scrollPosition(id: $scrollPosition)
+                    .scrollClipDisabled(false)
+                    .onAppear {
+                        scrollPosition = currentIndex
+                    }
+                    .onChange(of: currentIndex) { _, newValue in
+                        guard scrollPosition != newValue else { return }
+                        scrollPosition = newValue
+                    }
+                    .onChange(of: scrollPosition) { _, newValue in
+                        guard let newValue, newValue != currentIndex else { return }
+                        currentIndex = newValue
+                    }
+                } else if let item = mediaItems.first {
+                    MediaItemView(
+                        item: item,
+                        aspectRatio: aspectRatio,
+                        prefersUnifiedCarouselFrame: false,
+                        currentMoment: currentMoment,
+                        showTags: $showTags,
+                        onTagTap: onTagTap,
+                        reelsVideos: reelsVideos,
+                        allowsVideoPlayback: allowsVideoPlayback,
+                        isImmersive: $isImmersive,
+                        onPresentReels: presentReels
+                    )
+                    .frame(width: pageWidth, height: pageHeight)
                 }
-                .scrollTargetBehavior(.paging)
-                .scrollPosition(id: $scrollPosition)
-                .scrollClipDisabled(false)
-                .onAppear {
-                    scrollPosition = currentIndex
-                }
-                .onChange(of: currentIndex) { _, newValue in
-                    guard scrollPosition != newValue else { return }
-                    scrollPosition = newValue
-                }
-                .onChange(of: scrollPosition) { _, newValue in
-                    guard let newValue, newValue != currentIndex else { return }
-                    currentIndex = newValue
-                }
-            } else if let item = mediaItems.first {
-                MediaItemView(
-                    item: item,
-                    aspectRatio: aspectRatio,
-                    prefersUnifiedCarouselFrame: false,
-                    currentMoment: currentMoment,
-                    showTags: $showTags,
-                    onTagTap: onTagTap,
-                    reelsVideos: reelsVideos,
-                    allowsVideoPlayback: allowsVideoPlayback,
-                    isImmersive: $isImmersive
-                )
-                .frame(width: pageWidth, height: pageHeight)
             }
+            .frame(width: pageWidth, height: pageHeight)
+            // El origen del zoom es el marco visible del post, no una página del LazyHStack
+            // (eso hacía que Reels “saliera desde la derecha”).
+            .matchedTransitionSource(id: reelsZoomSourceID, in: reelsZoomNamespace) { source in
+                source.clipShape(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                )
+            }
+        }
+        .fullScreenCover(item: $reelsSession, onDismiss: dismissReels) { session in
+            ReelsViewer(
+                videos: session.videos,
+                startIndex: session.startIndex,
+                initialStartSeconds: session.startSeconds,
+                handoffConsumerId: session.resumeConsumerId,
+                onWillDismiss: prepareReelsDismiss
+            )
+            .environmentObject(FirestoreService.shared)
+            .navigationTransition(.zoom(sourceID: reelsZoomSourceID, in: reelsZoomNamespace))
+        }
+    }
+
+    private func presentReels(_ session: ReelsSessionPresentation) {
+        isPreparingReelsDismiss = false
+        reelsHandoffMedia = session.handoffMedia
+        reelsResumeId = session.resumeConsumerId
+        reelsSession = session
+    }
+
+    private func dismissReels() {
+        // Fallback para dismissals externos. En el cierre normal el feed ya recuperó
+        // el layer justo después de que UIKit capturase el frame de salida.
+        VideoLayerLease.shared.returnToFeed()
+        let handoffMedia = reelsHandoffMedia
+        let resumeId = reelsResumeId.isEmpty
+            ? GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
+            : reelsResumeId
+        GlobalVideoManager.shared.capturePlaybackPosition(forMomentId: resumeId)
+        if let momentId = currentMoment.id {
+            FeedVisibilityCoordinator.shared.pinActiveVideo(momentId: momentId)
+        }
+        DispatchQueue.main.async {
+            GlobalVideoManager.shared.completeReelsFeedHandoff(for: currentMoment, mediaItem: handoffMedia)
+            GlobalVideoManager.shared.playVideo(resumeId)
+            reelsHandoffMedia = nil
+            reelsResumeId = ""
+            isPreparingReelsDismiss = false
+        }
+    }
+
+    private func prepareReelsDismiss() {
+        guard !isPreparingReelsDismiss else { return }
+        isPreparingReelsDismiss = true
+
+        let resumeId = reelsResumeId.isEmpty
+            ? GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
+            : reelsResumeId
+        GlobalVideoManager.shared.capturePlaybackPosition(forMomentId: resumeId)
+        if let momentId = currentMoment.id {
+            FeedVisibilityCoordinator.shared.pinActiveVideo(momentId: momentId)
+        }
+
+        // `dismiss()` arranca de forma síncrona. Cedemos un instante para que el
+        // sistema capture el Reel visible y después reenganchamos el player al feed
+        // por debajo de esa captura, antes de que empiece a descubrirlo.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+            VideoLayerLease.shared.returnToFeed()
+            GlobalVideoManager.shared.playVideo(resumeId)
         }
     }
 }
@@ -1181,18 +1271,11 @@ struct MediaItemView: View {
     var reelsVideos: [VideoMoment]? = nil
     var allowsVideoPlayback: Bool = true
     @Binding var isImmersive: Bool
+    var onPresentReels: (ReelsSessionPresentation) -> Void
 
-    @State private var reelsSession: ReelsSessionPresentation? = nil
     @State private var isVisible = false
     @State private var loadedAspectRatio: CGFloat? = nil
     @ObservedObject private var videoIndex = VideoMomentsIndex.shared
-
-    private struct ReelsSessionPresentation: Identifiable {
-        let id = UUID()
-        let videos: [VideoMoment]
-        let startIndex: Int
-        let startSeconds: Double
-    }
 
     private var resolvedItemAspectRatio: CGFloat {
         if let loadedAspectRatio, loadedAspectRatio.isFinite, loadedAspectRatio > 0 {
@@ -1241,7 +1324,10 @@ struct MediaItemView: View {
                                     }
                                 }
                                 .setProcessor(
-                                    DownsamplingImageProcessor(size: geometry.size)
+                                    DownsamplingImageProcessor(size: CGSize(
+                                        width: geometry.size.width * displayScale,
+                                        height: geometry.size.height * displayScale
+                                    ))
                                 )
                                 .scaleFactor(displayScale)
                                 .resizable()
@@ -1258,7 +1344,10 @@ struct MediaItemView: View {
                                     }
                                 }
                                 .setProcessor(
-                                    DownsamplingImageProcessor(size: geometry.size)
+                                    DownsamplingImageProcessor(size: CGSize(
+                                        width: geometry.size.width * displayScale,
+                                        height: geometry.size.height * displayScale
+                                    ))
                                 )
                                 .scaleFactor(displayScale)
                                 .resizable()
@@ -1294,7 +1383,7 @@ struct MediaItemView: View {
                                 openReelsViewer()
                             }
                         },
-                        isImmersive: $isImmersive // ✅ NUEVO
+                        isImmersive: $isImmersive
                     )
                 }
 
@@ -1306,38 +1395,13 @@ struct MediaItemView: View {
             }
         }
         .clipped()
-        .opacity(prefersUnifiedCarouselFrame ? 1.0 : (isVisible ? 1.0 : 0.8))
-        .scaleEffect(prefersUnifiedCarouselFrame ? 1.0 : (isVisible ? 1.0 : 0.98))
-        .animation(prefersUnifiedCarouselFrame ? nil : .easeInOut(duration: 0.4), value: isVisible)
         .onAppear {
-            if prefersUnifiedCarouselFrame {
-                isVisible = true
-            } else {
-                withAnimation(.easeInOut(duration: 0.4)) {
-                    isVisible = true
-                }
-            }
+            isVisible = true
         }
         .onDisappear {
             if !prefersUnifiedCarouselFrame {
                 isVisible = false
             }
-        }
-        .fullScreenCover(item: $reelsSession, onDismiss: {
-            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
-                isImmersive = false
-            }
-            let handoffMedia: MediaItem? = prefersUnifiedCarouselFrame ? item : nil
-            GlobalVideoManager.shared.completeReelsFeedHandoff(for: currentMoment, mediaItem: handoffMedia)
-            // Reanudar el vídeo del feed que estaba activo antes de abrir Reels.
-            GlobalVideoManager.shared.playVideo(feedVideoConsumerId)
-        }) { session in
-            ReelsViewer(
-                videos: session.videos,
-                startIndex: session.startIndex,
-                initialStartSeconds: session.startSeconds
-            )
-            .environmentObject(FirestoreService.shared)
         }
     }
 
@@ -1367,23 +1431,20 @@ struct MediaItemView: View {
         guard !sessionVideos.isEmpty else { return }
         let start = resolvedReelsStartIndex
         let safeStart = min(max(0, start), sessionVideos.count - 1)
-        // Pausar todos los reproductores del feed para evitar doble reproducción
-        // (audio/decoders duplicados) mientras Reels está en primer plano.
         let handoffMedia: MediaItem? = prefersUnifiedCarouselFrame ? item : nil
+        guard VideoLayerLease.shared.beginReels(consumerId: feedVideoConsumerId) else { return }
         GlobalVideoManager.shared.markReelsFeedHandoff(for: currentMoment, mediaItem: handoffMedia)
-        GlobalVideoManager.shared.pauseAllVideos()
-        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
-            isImmersive = true
-        }
-        reelsSession = ReelsSessionPresentation(
-            videos: sessionVideos,
-            startIndex: safeStart,
-            startSeconds: currentPlaybackStartSeconds
+        GlobalVideoManager.shared.capturePlaybackPosition(forMomentId: feedVideoConsumerId)
+        GlobalVideoManager.shared.pauseAllVideos(except: feedVideoConsumerId)
+        onPresentReels(
+            ReelsSessionPresentation(
+                videos: sessionVideos,
+                startIndex: safeStart,
+                startSeconds: GlobalVideoManager.shared.playbackPosition(forMomentId: feedVideoConsumerId),
+                handoffMedia: handoffMedia,
+                resumeConsumerId: feedVideoConsumerId
+            )
         )
-    }
-
-    private var currentPlaybackStartSeconds: Double {
-        GlobalVideoManager.shared.playbackPosition(forMomentId: feedVideoConsumerId)
     }
 }
 
@@ -1503,6 +1564,7 @@ struct CroppedVideoPlayer: View {
     /// Solo la preferencia de mute de sesión — no observar `GlobalVideoManager` entero
     /// (activeVideoId / ticks de progreso re-renderizaban todas las celdas y cortaban el scroll).
     @State private var soundEnabledInSession = GlobalVideoManager.shared.userHasEnabledSoundInSession
+    @State private var hasFinishedPlayback = false
 
     private var videoConsumerId: String {
         if prefersUnifiedCarouselFrame {
@@ -1582,6 +1644,8 @@ struct CroppedVideoPlayer: View {
         ZStack {
             if !allowsVideoPlayback {
                 videoPosterFallback
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
             } else if usesBlurredFitLayout {
                 CarouselMediaBackdropView(item: item)
 
@@ -1743,9 +1807,19 @@ struct CroppedVideoPlayer: View {
                 }
             }
         }
+        // Oscurecer solo este post (el vídeo), no la pantalla — paridad IG.
+        .overlay {
+            if allowsVideoPlayback, hasFinishedPlayback {
+                FeedVideoEndedOverlay {
+                    GlobalVideoManager.shared.replayFromStart(videoConsumerId)
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: hasFinishedPlayback), value: hasFinishedPlayback)
         // Botón mute siempre visible en detalle — el ReelsViewer tiene el suyo propio.
         .overlay(alignment: .bottomLeading) {
-            if allowsVideoPlayback {
+            if allowsVideoPlayback, !hasFinishedPlayback {
                 muteToggleButton
                     .padding(.leading, 12)
                     .padding(.bottom, 12)
@@ -1753,12 +1827,16 @@ struct CroppedVideoPlayer: View {
         }
         .onAppear {
             isVisible = true
+            hasFinishedPlayback = GlobalVideoManager.shared.hasFinishedPlayback(videoConsumerId)
         }
         .onDisappear {
             isVisible = false
         }
         .onReceive(GlobalVideoManager.shared.$userHasEnabledSoundInSession) { enabled in
             soundEnabledInSession = enabled
+        }
+        .onReceive(GlobalVideoManager.shared.$finishedPlaybackIds) { ids in
+            hasFinishedPlayback = ids.contains(videoConsumerId)
         }
     }
 
@@ -2001,8 +2079,9 @@ extension ModernPostCardView: Equatable {
     }
 
     /// Evita que `.equatable()` deje una cola Reels obsoleta al crecer el feed.
+    /// Fingerprint ligero (count + lastId) en vez de join O(n) de todos los ids.
     private static func reelsVideosFingerprint(_ videos: [VideoMoment]?) -> String {
-        guard let videos else { return "" }
-        return videos.map(\.id).joined(separator: "|")
+        guard let videos, !videos.isEmpty else { return "" }
+        return "\(videos.count)|\(videos.last?.id ?? "")"
     }
 }

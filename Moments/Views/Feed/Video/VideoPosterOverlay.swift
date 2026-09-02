@@ -21,7 +21,7 @@ struct VideoPosterOverlay: View {
             }
         }
         .opacity(isReadyToPlay ? 0 : 1)
-        .animation(.easeOut(duration: 0.2), value: isReadyToPlay)
+        .animation(.easeOut(duration: 0.08), value: isReadyToPlay)
         .allowsHitTesting(!isReadyToPlay)
     }
 }

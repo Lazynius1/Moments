@@ -1,6 +1,7 @@
 // ModernVideoPlayer.swift
 import SwiftUI
 import AVFoundation
+import QuartzCore
 
 /// Reloj de tiempo de reproducción aislado: evita que `livePlaybackSeconds`
 /// invalide todas las celdas del feed que observan `GlobalVideoManager`.
@@ -107,8 +108,38 @@ class GlobalVideoManager: ObservableObject {
         return allPlayers[playerId] === manager
     }
     
+    /// Posts del feed cuyo vídeo ha llegado al final (overlay “Ver otra vez”). No @Published
+    /// en cada tick: solo cambia al terminar o al replay.
+    @Published private(set) var finishedPlaybackIds: Set<String> = []
+
+    func markPlaybackFinished(_ playerId: String) {
+        finishedPlaybackIds.insert(playerId)
+        allPlayers[playerId]?.hasFinishedPlayback = true
+    }
+
+    func clearPlaybackFinished(_ playerId: String) {
+        finishedPlaybackIds.remove(playerId)
+        allPlayers[playerId]?.hasFinishedPlayback = false
+    }
+
+    func hasFinishedPlayback(_ playerId: String) -> Bool {
+        finishedPlaybackIds.contains(playerId)
+    }
+
+    /// Replay IG del post: desde el principio, sin abrir Reels.
+    func replayFromStart(_ playerId: String) {
+        clearPlaybackFinished(playerId)
+        setPlaybackPosition(seconds: 0, forMomentId: playerId)
+        if let currentActive = activeVideoId, currentActive != playerId {
+            allPlayers[currentActive]?.pauseVideo()
+        }
+        activeVideoId = playerId
+        allPlayers[playerId]?.replayFromBeginning()
+    }
+
     func playVideo(_ playerId: String) {
         guard !isPlaybackHeld else { return }
+        guard !finishedPlaybackIds.contains(playerId) else { return }
         // ✅ PAUSAR todos los otros videos primero
         if let currentActive = activeVideoId, currentActive != playerId {
             allPlayers[currentActive]?.pauseVideo()
@@ -132,6 +163,21 @@ class GlobalVideoManager: ObservableObject {
         activeVideoId = nil
         for (_, manager) in allPlayers {
             manager.pauseVideo()
+        }
+    }
+
+    func pauseAllVideos(except consumerId: String) {
+        for (id, manager) in allPlayers where id != consumerId {
+            manager.pauseVideo()
+        }
+        activeVideoId = consumerId
+    }
+
+    /// Lee el tiempo real del AVPlayer del pool (no el diccionario stale).
+    func capturePlaybackPosition(forMomentId consumerId: String) {
+        let seconds = SharedVideoPlayerPool.shared.currentTimeSeconds(for: consumerId)
+        if seconds > 0.05 {
+            setPlaybackPosition(seconds: seconds, forMomentId: consumerId)
         }
     }
 
@@ -265,6 +311,7 @@ class GlobalVideoManager: ObservableObject {
             consumerId = Self.profileVideoConsumerId(for: moment)
         }
         preservedPlayerConsumerIds.insert(consumerId)
+        clearPlaybackFinished(consumerId)
     }
 
     func completeReelsFeedHandoff(for moment: Moment, mediaItem: MediaItem? = nil) {
@@ -308,6 +355,7 @@ struct ModernVideoPlayer: View {
     @State private var showMuteButton = true
     @State private var progress: Double = 0
     @State private var isBuffering = false
+    @State private var isLayerReadyForDisplay = false
     @State private var hasSetupPlayer = false
     @State private var isVisible = false
     @State private var setupRetries = 0
@@ -358,36 +406,41 @@ struct ModernVideoPlayer: View {
                     VideoPlayerRepresentable(
                         player: player,
                         videoGravity: usesSocialChrome ? .resizeAspectFill : .resizeAspect,
+                        consumerId: videoId,
+                        layerRole: .feed,
                         showControls: $showControls,
                         progress: $progress,
-                        isBuffering: $isBuffering
+                        isBuffering: $isBuffering,
+                        isReadyForDisplay: $isLayerReadyForDisplay
                     )
                     .aspectRatio(aspectRatio, contentMode: contentMode)
                     .clipped()
 
                     VideoPosterOverlay(
                         posterURLString: posterURLString,
-                        isReadyToPlay: playerManager.isReadyToPlay
+                        isReadyToPlay: globalManager.shouldPreserveSharedPlayer(consumerId: videoId)
+                            || (playerManager.isReadyToPlay && isLayerReadyForDisplay)
                     )
                 } else {
-                    ZStack {
-                        VideoPosterOverlay(
-                            posterURLString: posterURLString,
-                            isReadyToPlay: false
-                        )
+                    VideoPosterOverlay(
+                        posterURLString: posterURLString,
+                        isReadyToPlay: false
+                    )
+                    if hasLoadError {
                         modernLoadingView
                     }
                 }
                 
-                if usesSocialChrome {
-                    if !playerManager.isPlaying, allowsPauseInteraction {
-                        SocialVideoPausedControls(
-                            isMuted: playerManager.isMuted,
-                            onToggleMute: { globalManager.toggleMute(videoId) },
-                            onTogglePlay: { togglePlayback() }
-                        )
-                    }
-                } else {
+                if usesSocialChrome,
+                   !playerManager.hasFinishedPlayback,
+                   !playerManager.isPlaying,
+                   allowsPauseInteraction {
+                    SocialVideoPausedControls(
+                        isMuted: playerManager.isMuted,
+                        onToggleMute: { globalManager.toggleMute(videoId) },
+                        onTogglePlay: { togglePlayback() }
+                    )
+                } else if !usesSocialChrome {
                     controlsOverlay
 
                     if !hideMuteButton {
@@ -427,6 +480,11 @@ struct ModernVideoPlayer: View {
             }
         }
         .onDisappear {
+            // Feed → Reels: el cover no debe desmontar ni pausar este AVPlayer.
+            // Si lo hacemos, el vídeo se corta y al volver hay poster vacío / seek.
+            if globalManager.shouldPreserveSharedPlayer(consumerId: videoId) {
+                return
+            }
             isVisible = false
             activationGeneration += 1
             let isCurrent = globalManager.isRegisteredPlayer(videoId, manager: playerManager)
@@ -434,8 +492,7 @@ struct ModernVideoPlayer: View {
                 globalManager.pauseVideo(videoId)
                 globalManager.unregisterPlayer(videoId, manager: playerManager)
             }
-            let preservePool = globalManager.shouldPreserveSharedPlayer(consumerId: videoId)
-            playerManager.cleanup(releaseFromPool: !preservePool)
+            playerManager.cleanup(releaseFromPool: true)
             hasSetupPlayer = false
             hasLoadError = false
             setupRetries = 0
@@ -444,6 +501,11 @@ struct ModernVideoPlayer: View {
         }
         .onReceive(FeedVisibilityCoordinator.shared.$activeVideoMomentId) { activeId in
             applyActivationMode(activeId: activeId)
+        }
+        .onReceive(FeedVisibilityCoordinator.shared.$warmingVideoMomentId) { warmingId in
+            guard activationMode == .feedVisibility, isVisible else { return }
+            guard GlobalVideoManager.visibilityMatches(activeMomentId: warmingId, videoConsumerId: videoId) else { return }
+            preparePlayerIfNeeded()
         }
         .onReceive(globalManager.$isPlaybackHeld) { held in
             if !held {
@@ -693,6 +755,10 @@ struct ModernVideoPlayer: View {
     }
 
     private func preparePlayerIfNeeded() {
+        if hasSetupPlayer, playerManager.player?.currentItem == nil {
+            hasSetupPlayer = false
+            playerManager.cleanup(releaseFromPool: false)
+        }
         guard !hasSetupPlayer else {
             if !globalManager.isRegisteredPlayer(videoId, manager: playerManager) {
                 globalManager.registerPlayer(videoId, manager: playerManager)
@@ -720,6 +786,10 @@ struct ModernVideoPlayer: View {
     
     // ✅ NUEVO: Toggle playback que usa el manager global
     private func togglePlayback() {
+        if playerManager.hasFinishedPlayback {
+            globalManager.replayFromStart(videoId)
+            return
+        }
         preparePlayerIfNeeded()
         if playerManager.isPlaying {
             // Pausar este video
@@ -733,20 +803,10 @@ struct ModernVideoPlayer: View {
     private func updatePlaybackForVisibility(activeId: String?) {
         guard isVisible else { return }
         activationGeneration += 1
-        let generation = activationGeneration
 
         if GlobalVideoManager.visibilityMatches(activeMomentId: activeId, videoConsumerId: videoId) {
-            // Debounce: el primer AVPlayer/decoder no debe pelear con el gesto de scroll.
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 90_000_000)
-                guard generation == activationGeneration, isVisible else { return }
-                guard GlobalVideoManager.visibilityMatches(
-                    activeMomentId: FeedVisibilityCoordinator.shared.activeVideoMomentId,
-                    videoConsumerId: videoId
-                ) else { return }
-                preparePlayerIfNeeded()
-                globalManager.playVideo(videoId)
-            }
+            preparePlayerIfNeeded()
+            globalManager.playVideo(videoId)
         } else {
             globalManager.pauseVideo(videoId)
         }
@@ -787,6 +847,7 @@ class VideoPlayerManager: ObservableObject {
     @Published var isPlaying = false
     @Published var isMuted = true
     @Published var isReadyToPlay = false
+    @Published var hasFinishedPlayback = false
     @Published var duration: Double = 0
     @Published var currentTime: Double = 0
 
@@ -880,6 +941,10 @@ class VideoPlayerManager: ObservableObject {
         guard let seconds = pendingSeekSeconds, seconds > 0.05 else { return }
         guard item.status == .readyToPlay else { return }
         pendingSeekSeconds = nil
+        let current = CMTimeGetSeconds(player.currentTime())
+        if current.isFinite, abs(current - seconds) < 0.35 {
+            return
+        }
         player.seek(
             to: CMTime(seconds: seconds, preferredTimescale: 600),
             toleranceBefore: .zero,
@@ -981,10 +1046,20 @@ class VideoPlayerManager: ObservableObject {
     // ✅ NUEVO: Función para reproducir controlada externamente
     func resumeVideo() {
         guard let player = player else { return }
+        guard !hasFinishedPlayback else { return }
         // Solo el vídeo activo bufferiza en red mientras está pausado momentáneamente.
         player.currentItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = true
         player.play()
         isPlaying = true
+    }
+
+    func replayFromBeginning() {
+        hasFinishedPlayback = false
+        guard let player else { return }
+        player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
+            guard completed else { return }
+            self?.resumeVideo()
+        }
     }
     
     // ✅ NUEVO: Función para pausar controlada externamente
@@ -1046,16 +1121,21 @@ class VideoPlayerManager: ObservableObject {
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
         }
-        
+
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: playerItem,
             queue: .main
         ) { [weak self] _ in
-            // ✅ LOOP: Solo si sigue reproduciéndose
-            if self?.isPlaying == true {
-                self?.player?.seek(to: .zero)
-                self?.player?.play()
+            guard let self else { return }
+            // Reels posee el mismo AVPlayer: allí el bucle lo hace ReelVideoPlayerManager.
+            if let consumerId, GlobalVideoManager.shared.shouldPreserveSharedPlayer(consumerId: consumerId) {
+                return
+            }
+            self.isPlaying = false
+            self.hasFinishedPlayback = true
+            if let consumerId {
+                GlobalVideoManager.shared.markPlaybackFinished(consumerId)
             }
         }
     }
@@ -1117,6 +1197,9 @@ class VideoPlayerManager: ObservableObject {
         if let consumerId, releaseFromPool && isCurrent {
             SharedVideoPlayerPool.shared.release(consumerId: consumerId)
         }
+        if let consumerId {
+            GlobalVideoManager.shared.clearPlaybackFinished(consumerId)
+        }
         player = nil
         activeItem = nil
         self.consumerId = nil
@@ -1125,6 +1208,7 @@ class VideoPlayerManager: ObservableObject {
         
         isPlaying = false
         isReadyToPlay = false
+        hasFinishedPlayback = false
         lastPublishedTime = -1
     }
     
@@ -1133,31 +1217,138 @@ class VideoPlayerManager: ObservableObject {
     }
 }
 
-// ✅ MANTENER: VideoPlayerRepresentable (sin cambios)
+/// Un `AVPlayer` solo pinta en un `AVPlayerLayer`. Feed y Reels se turnan el enchufe.
+enum VideoLayerRole: Equatable {
+    case feed
+    case reels
+}
+
+final class VideoLayerLease {
+    static let shared = VideoLayerLease()
+    static let didChange = NSNotification.Name("VideoLayerLeaseDidChange")
+
+    private(set) var exclusiveConsumerId: String?
+    private(set) var owner: VideoLayerRole = .feed
+    private(set) var generation: UInt64 = 0
+    private var isTransitioning = false
+    private var canClaimReels = false
+    private var idleWork: DispatchWorkItem?
+    private var claimWork: DispatchWorkItem?
+    /// Duración aproximada del `.navigationTransition(.zoom)` — el corte del layer
+    /// va al final, cuando el destino ya cubre la pantalla.
+    private let zoomSettleSeconds: TimeInterval = 0.42
+
+    private init() {}
+
+    /// Si este consumer está en handoff, solo el dueño actual puede enganchar el layer.
+    func mayAttach(role: VideoLayerRole, consumerId: String) -> Bool {
+        guard !consumerId.isEmpty else { return true }
+        guard let exclusive = exclusiveConsumerId, exclusive == consumerId else { return true }
+        return owner == role
+    }
+
+    /// Tap del feed: reserva el handoff. Si ya hay una transición, se ignora.
+    @discardableResult
+    func beginReels(consumerId: String) -> Bool {
+        guard !isTransitioning else { return false }
+        isTransitioning = true
+        canClaimReels = true
+        idleWork?.cancel()
+        claimWork?.cancel()
+        claimWork = nil
+        exclusiveConsumerId = consumerId
+        generation &+= 1
+        // El feed sigue pintando durante el zoom; Reels reclama el layer al montar.
+        NotificationCenter.default.post(name: Self.didChange, object: nil)
+        return true
+    }
+
+    /// Reels ya tiene vista, pero espera al zoom para no cortar el vídeo a mitad.
+    func claimReels(consumerId: String) {
+        guard canClaimReels else { return }
+        guard exclusiveConsumerId == consumerId else { return }
+        guard claimWork == nil else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            guard self.canClaimReels, self.exclusiveConsumerId == consumerId else { return }
+            self.canClaimReels = false
+            self.claimWork = nil
+            self.owner = .reels
+            NotificationCenter.default.post(name: Self.didChange, object: nil)
+        }
+        claimWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + zoomSettleSeconds, execute: work)
+    }
+
+    /// Cerrar Reels: Reels suelta, el feed reengancha. Siempre, no “si SwiftUI actualiza”.
+    func returnToFeed() {
+        guard isTransitioning || exclusiveConsumerId != nil else { return }
+        claimWork?.cancel()
+        claimWork = nil
+        canClaimReels = false
+        owner = .feed
+        generation &+= 1
+        NotificationCenter.default.post(name: Self.didChange, object: nil)
+        idleWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            // exclusive se queda: un Reels zombie no puede reenganchar.
+            // El próximo beginReels lo sustituye.
+            self?.isTransitioning = false
+        }
+        idleWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
+    }
+}
+
+// VideoPlayerRepresentable: el layer obedece el lease (un dueño a la vez).
 struct VideoPlayerRepresentable: UIViewRepresentable {
     let player: AVPlayer
     let videoGravity: AVLayerVideoGravity
+    var consumerId: String = ""
+    var layerRole: VideoLayerRole = .feed
+    var readinessDelay: TimeInterval = 0
     @Binding var showControls: Bool
     @Binding var progress: Double
     @Binding var isBuffering: Bool
+    @Binding var isReadyForDisplay: Bool
     
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
-        let playerLayer = AVPlayerLayer(player: player)
+        let playerLayer = AVPlayerLayer()
         playerLayer.videoGravity = videoGravity
         view.layer.addSublayer(playerLayer)
         
         context.coordinator.playerLayer = playerLayer
+        context.coordinator.player = player
+        context.coordinator.consumerId = consumerId
+        context.coordinator.role = layerRole
+        context.coordinator.readinessDelay = readinessDelay
+        context.coordinator.isReadyForDisplay = $isReadyForDisplay
+        context.coordinator.observeReadyForDisplay(on: playerLayer)
         context.coordinator.setupObservers(player: player, progress: $progress, isBuffering: $isBuffering)
+        context.coordinator.startLeaseObserver()
+        if layerRole == .reels {
+            VideoLayerLease.shared.claimReels(consumerId: consumerId)
+        }
+        context.coordinator.applyAttachment()
         
         return view
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.player = player
+        context.coordinator.consumerId = consumerId
+        context.coordinator.role = layerRole
+        context.coordinator.readinessDelay = readinessDelay
+        context.coordinator.isReadyForDisplay = $isReadyForDisplay
         if let playerLayer = context.coordinator.playerLayer {
             playerLayer.frame = uiView.bounds
             playerLayer.videoGravity = videoGravity
         }
+        if layerRole == .reels {
+            VideoLayerLease.shared.claimReels(consumerId: consumerId)
+        }
+        context.coordinator.applyAttachment()
     }
     
     func makeCoordinator() -> Coordinator {
@@ -1166,9 +1357,83 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
     
     class Coordinator: NSObject {
         var playerLayer: AVPlayerLayer?
+        var player: AVPlayer?
+        var consumerId: String = ""
+        var role: VideoLayerRole = .feed
         private var timeObserver: Any?
         // Referencia fuerte al player observado para poder remover el observer con seguridad en deinit.
         private var observedPlayer: AVPlayer?
+        private var leaseObserver: NSObjectProtocol?
+        private var readyForDisplayObservation: NSKeyValueObservation?
+        private var readinessGeneration: UInt64 = 0
+        private var lastRequestedReadiness: Bool?
+        var readinessDelay: TimeInterval = 0
+        var isReadyForDisplay: Binding<Bool>?
+
+        func observeReadyForDisplay(on playerLayer: AVPlayerLayer) {
+            readyForDisplayObservation?.invalidate()
+            readyForDisplayObservation = playerLayer.observe(
+                \.isReadyForDisplay,
+                options: [.initial, .new]
+            ) { [weak self] layer, _ in
+                self?.publishReadyForDisplay(layer.isReadyForDisplay)
+            }
+        }
+
+        private func publishReadyForDisplay(_ isReady: Bool) {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                guard lastRequestedReadiness != isReady else { return }
+                lastRequestedReadiness = isReady
+                readinessGeneration &+= 1
+                let generation = readinessGeneration
+
+                let apply = { [weak self] in
+                    guard let self,
+                          readinessGeneration == generation,
+                          let binding = isReadyForDisplay,
+                          binding.wrappedValue != isReady else { return }
+                    binding.wrappedValue = isReady
+                }
+
+                if isReady, readinessDelay > 0 {
+                    DispatchQueue.main.asyncAfter(
+                        deadline: .now() + readinessDelay,
+                        execute: apply
+                    )
+                } else {
+                    apply()
+                }
+            }
+        }
+
+        func startLeaseObserver() {
+            guard leaseObserver == nil else { return }
+            leaseObserver = NotificationCenter.default.addObserver(
+                forName: VideoLayerLease.didChange,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.applyAttachment()
+            }
+        }
+
+        func applyAttachment() {
+            guard let playerLayer else { return }
+            let shouldAttach = VideoLayerLease.shared.mayAttach(role: role, consumerId: consumerId)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            if shouldAttach {
+                if let player, playerLayer.player !== player {
+                    publishReadyForDisplay(false)
+                    playerLayer.player = player
+                }
+            } else if playerLayer.player != nil {
+                playerLayer.player = nil
+            }
+            CATransaction.commit()
+            publishReadyForDisplay(shouldAttach && playerLayer.isReadyForDisplay)
+        }
         
         func setupObservers(player: AVPlayer, progress: Binding<Double>, isBuffering: Binding<Bool>) {
             if let timeObserver = timeObserver {
@@ -1205,6 +1470,10 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
             if let timeObserver = timeObserver {
                 observedPlayer?.removeTimeObserver(timeObserver)
             }
+            if let leaseObserver {
+                NotificationCenter.default.removeObserver(leaseObserver)
+            }
+            readyForDisplayObservation?.invalidate()
         }
     }
 }

@@ -61,7 +61,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         URLCache.shared = urlCache
 
         let kingfisherCache = KingfisherManager.shared.cache
-        kingfisherCache.memoryStorage.config.totalCostLimit = 20 * 1024 * 1024
+        // ~100MB en RAM: menos churn de decode al flingar el feed (20MB era demasiado agresivo).
+        kingfisherCache.memoryStorage.config.totalCostLimit = 100 * 1024 * 1024
         kingfisherCache.diskStorage.config.sizeLimit = 500 * 1024 * 1024
         kingfisherCache.diskStorage.config.expiration = .days(7)
 

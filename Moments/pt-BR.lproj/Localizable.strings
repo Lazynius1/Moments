@@ -3161,6 +3161,7 @@
 "feed.video.loading" = "Carregando vídeo...";
 "feed.video.loadError" = "Não foi possível carregar o vídeo";
 "feed.video.retry" = "Tentar novamente";
+"feed.video.watchAgain" = "Assistir novamente";
 
 /* Feed Reels Video */
 "feed.reels.video.loading" = "Carregando vídeo...";

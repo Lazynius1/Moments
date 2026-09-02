@@ -61,15 +61,14 @@ struct FeedListSection: View {
                                 FeedPostSkeletonView(colorScheme: colorScheme)
                             }
                         } else {
-                            // Sesión Reels del feed (no VideoMomentsIndex compartido con perfil/explore).
-                            let feedReelsVideos = viewModel.moments.videoMoments
+                            // Reels usa VideoMomentsIndex.shared (rebuild en onChange).
+                            // No pasar el array completo a cada card: invalidaba .equatable() al paginar.
                             ForEach(Array(viewModel.moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                                 feedMomentRow(
                                     index: index,
                                     moment: moment,
                                     availableHeight: availableHeight,
-                                    rowSpacing: max(15, screenHeight * 0.02),
-                                    reelsVideos: feedReelsVideos
+                                    rowSpacing: max(15, screenHeight * 0.02)
                                 )
                             }
                         }
@@ -141,16 +140,14 @@ struct FeedListSection: View {
         index: Int,
         moment: Moment,
         availableHeight: CGFloat,
-        rowSpacing: CGFloat,
-        reelsVideos: [VideoMoment]
+        rowSpacing: CGFloat
     ) -> some View {
         VStack(spacing: rowSpacing) {
             let isHiddenForPreview = !(hiddenMomentId ?? "").isEmpty && moment.id == hiddenMomentId
             feedMomentCard(
                 moment: moment,
                 availableHeight: availableHeight,
-                index: index,
-                reelsVideos: reelsVideos
+                index: index
             )
             .opacity(isHiddenForPreview ? 0 : 1)
             .allowsHitTesting(!isHiddenForPreview)
@@ -172,8 +169,7 @@ struct FeedListSection: View {
     private func feedMomentCard(
         moment: Moment,
         availableHeight: CGFloat,
-        index: Int,
-        reelsVideos: [VideoMoment]
+        index: Int
     ) -> some View {
         let isProtected = (moment.audience?.lowercased() ?? "") != "everyone"
 
@@ -196,7 +192,7 @@ struct FeedListSection: View {
                 onPeek: { imageURL, ratio, isPressing in
                     handleFeedPeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing, moment: moment)
                 },
-                reelsVideos: reelsVideos
+                reelsVideos: nil
             )
             .equatable()
             .onAppear { prefetchUpcomingMoments(from: index) }

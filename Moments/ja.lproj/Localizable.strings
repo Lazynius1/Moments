@@ -2984,6 +2984,7 @@
 "feed.video.loading" = "動画を読み込み中…";
 "feed.video.loadError" = "動画を読み込めませんでした";
 "feed.video.retry" = "再試行";
+"feed.video.watchAgain" = "もう一度見る";
 /* Feed Reels Video */
 "feed.reels.video.loading" = "動画を読み込み中…";
 "feed.reels.video.starting" = "開始しています…";

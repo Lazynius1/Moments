@@ -43,7 +43,7 @@ enum ChatVideoPosterGenerator {
                 try data.write(to: diskURL, options: .atomic)
                 let absolute = diskURL.absoluteString
                 memoryCache.setObject(absolute as NSString, forKey: cacheKey)
-                await MainActor.run { ChatCacheStore.enforceQuota() }
+                ChatCacheStore.enforceQuota()
                 return absolute
             } catch {
                 return nil
