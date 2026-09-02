@@ -1,0 +1,331 @@
+From c69908b1cbafae204c9d901e18781b85193286e3 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Wed, 2 Sep 2026 03:22:07 +0000
+Subject: [PATCH] Fix profile send-message ignoring message request v2 routes
+
+Profile and messaging entry points still relied on requiresMessageRequest,
+which the v2 direct-message router never sets. Outgoing request routes were
+written to presentationRoute instead, so tapping send message often did
+nothing.
+
+Add consumeProfileMessagePresentation to resolve conversation or pending chat
+from the completion value or presentationRoute, surface routing errors on
+profiles, and apply the same handling in feed preview and new conversation
+search.
+---
+ .../stories/FeedPostProfilePreviewOverlay.kt  | 27 +++-----
+ .../MessagingViewModelProfileMessaging.kt     | 61 ++++++++++++++++
+ .../views/messaging/screens/MessagingView.kt  | 41 +++++++++--
+ .../profile/userprofile/UserProfileView.kt    | 69 ++++++++++++-------
+ 4 files changed, 153 insertions(+), 45 deletions(-)
+ create mode 100644 app/src/main/java/com/moments/android/views/messaging/core/MessagingViewModelProfileMessaging.kt
+
+diff --git a/app/src/main/java/com/moments/android/views/feed/stories/FeedPostProfilePreviewOverlay.kt b/app/src/main/java/com/moments/android/views/feed/stories/FeedPostProfilePreviewOverlay.kt
+index 7c2046f..5977e5b 100644
+--- a/app/src/main/java/com/moments/android/views/feed/stories/FeedPostProfilePreviewOverlay.kt
++++ b/app/src/main/java/com/moments/android/views/feed/stories/FeedPostProfilePreviewOverlay.kt
+@@ -77,7 +77,8 @@ import com.moments.android.views.components.VerifiedBadge
+ import com.moments.android.views.messaging.components.ChatVideoPlayBadge
+ import com.moments.android.views.messaging.core.MessagingPresentationRoute
+ import com.moments.android.views.messaging.core.MessagingViewModel
+-import com.moments.android.views.messaging.core.PendingChatContextFactory
++import com.moments.android.views.messaging.core.ProfileMessagePresentation
++import com.moments.android.views.messaging.core.consumeProfileMessagePresentation
+ import com.moments.android.views.profile.core.GridPreviewThumbnailFrame
+ import com.moments.android.views.profile.core.gridPreviewSettings
+ import com.moments.android.views.profile.core.sections.ProfileAvatarNoteMetrics
+@@ -193,25 +194,19 @@ fun FeedPostProfilePreviewOverlay(
+                         LegacyNavigationBridge.conversation(conversationId)
+                         return@launch
+                     }
+-                    if (conversation != null) {
+-                        messagingViewModel.presentationRoute =
+-                            MessagingPresentationRoute.Conversation(conversation)
+-                        onPresentMessages()
+-                        return@launch
+-                    }
+-                    if (messagingViewModel.presentationRoute != null) {
+-                        onPresentMessages()
+-                        return@launch
+-                    }
+-                    if (!messagingViewModel.requiresMessageRequest) return@launch
+-                    val context = PendingChatContextFactory.outgoing(
++                    val presentation = messagingViewModel.consumeProfileMessagePresentation(
++                        conversation = conversation,
+                         user = user,
+                         currentUserId = currentUserId,
+                         followersCountOverride = profileViewModel.followers.size,
+                         momentsCountOverride = profileViewModel.moments.size,
+-                    )
+-                    messagingViewModel.presentationRoute =
+-                        MessagingPresentationRoute.PendingChat(context)
++                    ) ?: return@launch
++                    messagingViewModel.presentationRoute = when (val destination = presentation.destination) {
++                        is ProfileMessagePresentation.Destination.Conversation ->
++                            MessagingPresentationRoute.Conversation(destination.conversation)
++                        is ProfileMessagePresentation.Destination.PendingChat ->
++                            MessagingPresentationRoute.PendingChat(destination.context)
++                    }
+                     onPresentMessages()
+                 }
+             }
+diff --git a/app/src/main/java/com/moments/android/views/messaging/core/MessagingViewModelProfileMessaging.kt b/app/src/main/java/com/moments/android/views/messaging/core/MessagingViewModelProfileMessaging.kt
+new file mode 100644
+index 0000000..9820522
+--- /dev/null
++++ b/app/src/main/java/com/moments/android/views/messaging/core/MessagingViewModelProfileMessaging.kt
+@@ -0,0 +1,61 @@
++package com.moments.android.views.messaging.core
++
++import com.moments.android.models.AppUser
++
++data class ProfileMessagePresentation(
++    val destination: Destination,
++) {
++    sealed class Destination {
++        data class Conversation(val conversation: Conversation) : Destination()
++        data class PendingChat(val context: PendingChatContext) : Destination()
++    }
++}
++
++/**
++ * Resuelve la navegación de chat desde perfiles tras [MessagingViewModel.startConversation].
++ * El flujo v2 publica el destino en [MessagingViewModel.presentationRoute] y deja
++ * [MessagingViewModel.requiresMessageRequest] en `false`.
++ */
++suspend fun MessagingViewModel.consumeProfileMessagePresentation(
++    conversation: Conversation?,
++    user: AppUser,
++    currentUserId: String,
++    followersCountOverride: Int? = null,
++    momentsCountOverride: Int? = null,
++): ProfileMessagePresentation? {
++    conversation?.let {
++        presentationRoute = null
++        return ProfileMessagePresentation(ProfileMessagePresentation.Destination.Conversation(it))
++    }
++
++    when (val route = presentationRoute) {
++        is MessagingPresentationRoute.Conversation -> {
++            presentationRoute = null
++            return ProfileMessagePresentation(
++                ProfileMessagePresentation.Destination.Conversation(route.conversation),
++            )
++        }
++        is MessagingPresentationRoute.PendingChat -> {
++            presentationRoute = null
++            return ProfileMessagePresentation(
++                ProfileMessagePresentation.Destination.PendingChat(route.context),
++            )
++        }
++        null -> Unit
++    }
++
++    if (!errorMessage.isNullOrBlank()) {
++        return null
++    }
++
++    return ProfileMessagePresentation(
++        ProfileMessagePresentation.Destination.PendingChat(
++            PendingChatContextFactory.outgoing(
++                user = user,
++                currentUserId = currentUserId,
++                followersCountOverride = followersCountOverride,
++                momentsCountOverride = momentsCountOverride,
++            ),
++        ),
++    )
++}
+diff --git a/app/src/main/java/com/moments/android/views/messaging/screens/MessagingView.kt b/app/src/main/java/com/moments/android/views/messaging/screens/MessagingView.kt
+index ac4956f..27426f9 100644
+--- a/app/src/main/java/com/moments/android/views/messaging/screens/MessagingView.kt
++++ b/app/src/main/java/com/moments/android/views/messaging/screens/MessagingView.kt
+@@ -107,6 +107,8 @@ import com.moments.android.views.messaging.core.MessagingPresentationRoute
+ import com.moments.android.views.messaging.core.MessagingViewModel
+ import com.moments.android.views.messaging.core.PendingChatContext
+ import com.moments.android.views.messaging.core.PendingChatContextFactory
++import com.moments.android.views.messaging.core.ProfileMessagePresentation
++import com.moments.android.views.messaging.core.consumeProfileMessagePresentation
+ import com.moments.android.views.messaging.screens.chat.ChatStoryRoute
+ import com.moments.android.views.messaging.screens.chat.GlassmorphicChatView
+ import com.moments.android.views.messaging.services.ChatDraftEvent
+@@ -300,6 +302,10 @@ fun MessagingView(
+                         showingNewConversation = false
+                     }
+                 },
++                onPendingChat = { context ->
++                    pendingChatContext = context
++                    showingNewConversation = false
++                },
+             )
+             return
+         }
+@@ -466,10 +472,20 @@ fun MessagingView(
+                         viewModel.clearSearch()
+                         val current = uid ?: return@MessagingConversationList
+                         viewModel.startConversation(user = user, fromUserId = current) { conversation ->
+-                            if (conversation != null) viewModel.openConversation(conversation)
+-                            else if (viewModel.requiresMessageRequest) {
+-                                scope.launch {
+-                                    pendingChatContext = PendingChatContextFactory.outgoing(user, current)
++                            scope.launch {
++                                val presentation = viewModel.consumeProfileMessagePresentation(
++                                    conversation = conversation,
++                                    user = user,
++                                    currentUserId = current,
++                                ) ?: run {
++                                    viewModel.errorMessage?.let(::showToast)
++                                    return@launch
++                                }
++                                when (val destination = presentation.destination) {
++                                    is ProfileMessagePresentation.Destination.Conversation ->
++                                        viewModel.openConversation(destination.conversation)
++                                    is ProfileMessagePresentation.Destination.PendingChat ->
++                                        pendingChatContext = destination.context
+                                 }
+                             }
+                         }
+@@ -1184,9 +1200,11 @@ private fun GlassmorphicNewConversationView(
+     onDismiss: () -> Unit,
+     onConversationReady: (Conversation) -> Unit,
+     onNeedsRequest: (AppUser) -> Unit,
++    onPendingChat: (PendingChatContext) -> Unit,
+     modifier: Modifier = Modifier,
+ ) {
+     val colors = rememberAdaptiveColors()
++    val scope = rememberCoroutineScope()
+     var searchText by remember { mutableStateOf("") }
+     val uid = FirebaseAuth.getInstance().currentUser?.uid
+ 
+@@ -1256,8 +1274,19 @@ private fun GlassmorphicNewConversationView(
+                             .clickable {
+                                 val currentUserId = uid ?: return@clickable
+                                 viewModel.startConversation(user = user, fromUserId = currentUserId) { conversation ->
+-                                    if (conversation != null) onConversationReady(conversation)
+-                                    else if (viewModel.requiresMessageRequest) onNeedsRequest(user)
++                                    scope.launch {
++                                        val presentation = viewModel.consumeProfileMessagePresentation(
++                                            conversation = conversation,
++                                            user = user,
++                                            currentUserId = currentUserId,
++                                        ) ?: return@launch
++                                        when (val destination = presentation.destination) {
++                                            is ProfileMessagePresentation.Destination.Conversation ->
++                                                onConversationReady(destination.conversation)
++                                            is ProfileMessagePresentation.Destination.PendingChat ->
++                                                onPendingChat(destination.context)
++                                        }
++                                    }
+                                 }
+                             }
+                             .padding(horizontal = 12.dp, vertical = 6.dp),
+diff --git a/app/src/main/java/com/moments/android/views/profile/userprofile/UserProfileView.kt b/app/src/main/java/com/moments/android/views/profile/userprofile/UserProfileView.kt
+index 9d2be79..d962a77 100644
+--- a/app/src/main/java/com/moments/android/views/profile/userprofile/UserProfileView.kt
++++ b/app/src/main/java/com/moments/android/views/profile/userprofile/UserProfileView.kt
+@@ -65,10 +65,10 @@ import com.moments.android.services.privacy.FollowButtonState
+ import com.moments.android.utilities.HapticManager
+ import com.moments.android.views.messaging.components.ChatRecoveryGateView
+ import com.moments.android.views.messaging.core.Conversation
+-import com.moments.android.views.messaging.core.MessagingPresentationRoute
+ import com.moments.android.views.messaging.core.MessagingViewModel
+ import com.moments.android.views.messaging.core.PendingChatContext
+-import com.moments.android.views.messaging.core.PendingChatContextFactory
++import com.moments.android.views.messaging.core.ProfileMessagePresentation
++import com.moments.android.views.messaging.core.consumeProfileMessagePresentation
+ import com.moments.android.views.messaging.screens.chat.GlassmorphicChatView
+ import com.moments.android.views.profile.core.SocialConnectionTab
+ import com.moments.android.views.profile.core.SocialConnectionsRoute
+@@ -337,6 +337,8 @@ fun UserProfileView(
+     var openedProfileId by remember { mutableStateOf<String?>(null) }
+     var targetConversation by remember { mutableStateOf<Conversation?>(null) }
+     var pendingChatContext by remember { mutableStateOf<PendingChatContext?>(null) }
++    var messageFlowError by remember { mutableStateOf<String?>(null) }
++    var showMessageFlowError by remember { mutableStateOf(false) }
+ 
+     val zoomFeedKind = if (selectedTab == UserProfileTabType.TAGGED) {
+         ProfileMomentZoomFeedKind.USER_PROFILE_TAGGED
+@@ -380,31 +382,31 @@ fun UserProfileView(
+         }
+     }
+ 
+-    // Port de `openMessageFlow()` (HeaderSection / StateViews): conversación existente → chat;
+-    // si `requiresMessageRequest` → `PendingChatContextFactory.outgoing` → chat en modo solicitud.
++    // Port de `openMessageFlow()` (HeaderSection / StateViews): conversación o solicitud vía v2.
+     val openMessageFlow: () -> Unit = openMessage@{
+         val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@openMessage
+         val targetUser = viewModel.userProfile ?: return@openMessage
+         messagingViewModel.startConversation(targetUser, currentUserId) { conversation ->
+-            when (val route = messagingViewModel.presentationRoute) {
+-                is MessagingPresentationRoute.Conversation -> {
+-                    messagingViewModel.presentationRoute = null
+-                    targetConversation = route.conversation
+-                }
+-                is MessagingPresentationRoute.PendingChat -> {
+-                    messagingViewModel.presentationRoute = null
+-                    pendingChatContext = route.context
+-                }
+-                null -> if (conversation != null) {
+-                    targetConversation = conversation
+-                } else if (messagingViewModel.requiresMessageRequest) {
+-                    scope.launch {
+-                        pendingChatContext = PendingChatContextFactory.outgoing(
+-                            user = targetUser,
+-                            currentUserId = currentUserId,
+-                            followersCountOverride = viewModel.followers.size,
+-                            momentsCountOverride = viewModel.moments.size,
+-                        )
++            scope.launch {
++                val presentation = messagingViewModel.consumeProfileMessagePresentation(
++                    conversation = conversation,
++                    user = targetUser,
++                    currentUserId = currentUserId,
++                    followersCountOverride = viewModel.followers.size,
++                    momentsCountOverride = viewModel.moments.size,
++                )
++                when (val destination = presentation?.destination) {
++                    null -> {
++                        messagingViewModel.errorMessage?.takeIf { it.isNotBlank() }?.let { error ->
++                            messageFlowError = error
++                            showMessageFlowError = true
++                        }
++                    }
++                    is ProfileMessagePresentation.Destination.Conversation -> {
++                        targetConversation = destination.conversation
++                    }
++                    is ProfileMessagePresentation.Destination.PendingChat -> {
++                        pendingChatContext = destination.context
+                     }
+                 }
+             }
+@@ -678,6 +680,27 @@ fun UserProfileView(
+         )
+     }
+ 
++    if (showMessageFlowError) {
++        AlertDialog(
++            onDismissRequest = {
++                showMessageFlowError = false
++                messageFlowError = null
++            },
++            title = { Text(stringResource(R.string.user_profile_send_message)) },
++            text = { Text(messageFlowError.orEmpty()) },
++            confirmButton = {
++                TextButton(
++                    onClick = {
++                        showMessageFlowError = false
++                        messageFlowError = null
++                    },
++                ) {
++                    Text(stringResource(R.string.common_ok))
++                }
++            },
++        )
++    }
++
+     // Port de `.navigationDestination(isPresented: $navigateToChat)`.
+     targetConversation?.let { conversation ->
+         Dialog(
+-- 
+2.43.0
+
