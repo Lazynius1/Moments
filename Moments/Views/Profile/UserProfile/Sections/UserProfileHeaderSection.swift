@@ -169,6 +169,8 @@ struct UserModernProfileHeader: View {
     @Binding var showingQRCode: Bool
     let chatZoomNamespace: Namespace.ID
     @Environment(\.colorScheme) var colorScheme
+    @State private var messageFlowError: String?
+    @State private var showMessageFlowError = false
 
     var body: some View {
         VStack(spacing: 10) {
@@ -299,6 +301,18 @@ struct UserModernProfileHeader: View {
             }
         }
         .padding(.horizontal, 20)
+        .alert(
+            NSLocalizedString("userProfile.sendMessage", comment: "Send message"),
+            isPresented: $showMessageFlowError,
+            actions: {
+                Button(NSLocalizedString("common.ok", comment: "OK"), role: .cancel) {
+                    messageFlowError = nil
+                }
+            },
+            message: {
+                Text(messageFlowError ?? "")
+            }
+        )
     }
 
     private func openMessageFlow() {
@@ -306,17 +320,24 @@ struct UserModernProfileHeader: View {
               let targetUser = viewModel.userProfile else { return }
 
         messagingViewModel.startConversation(with: targetUser, from: currentUserId) { conversation in
-            if let conversation {
-                targetConversation = conversation
-                navigateToChat = true
-            } else if messagingViewModel.requiresMessageRequest {
-                Task { @MainActor in
-                    pendingChatContext = await PendingChatContextFactory.outgoing(
-                        to: targetUser,
-                        from: currentUserId,
-                        followersCountOverride: viewModel.followers.count,
-                        momentsCountOverride: viewModel.moments.count
-                    )
+            Task { @MainActor in
+                if let presentation = await messagingViewModel.consumeProfileMessagePresentation(
+                    conversation: conversation,
+                    for: targetUser,
+                    from: currentUserId,
+                    followersCountOverride: viewModel.followers.count,
+                    momentsCountOverride: viewModel.moments.count
+                ) {
+                    switch presentation.destination {
+                    case .conversation(let resolvedConversation):
+                        targetConversation = resolvedConversation
+                        navigateToChat = true
+                    case .pendingChat(let context):
+                        pendingChatContext = context
+                    }
+                } else if let error = messagingViewModel.errorMessage, !error.isEmpty {
+                    messageFlowError = error
+                    showMessageFlowError = true
                 }
             }
         }

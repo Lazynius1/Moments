@@ -244,22 +244,26 @@ struct FeedPostProfilePreviewOverlay: View {
                         return
                     }
 
-                    if let conversation {
-                        messagingViewModel.presentationRoute = .conversation(conversation)
+                    if let presentation = await messagingViewModel.consumeProfileMessagePresentation(
+                        conversation: conversation,
+                        for: user,
+                        from: currentUserId,
+                        followersCountOverride: profileViewModel.followers.count,
+                        momentsCountOverride: profileViewModel.moments.count
+                    ) {
+                        switch presentation.destination {
+                        case .conversation(let resolvedConversation):
+                            messagingViewModel.presentationRoute = .conversation(resolvedConversation)
+                        case .pendingChat(let context):
+                            messagingViewModel.presentationRoute = .pendingChat(context)
+                        }
                         LegacyNavigationBridge.showMessages()
                         return
                     }
 
-                    guard messagingViewModel.requiresMessageRequest else { return }
-
-                    let context = await PendingChatContextFactory.outgoing(
-                        to: user,
-                        from: currentUserId,
-                        followersCountOverride: profileViewModel.followers.count,
-                        momentsCountOverride: profileViewModel.moments.count
-                    )
-                    messagingViewModel.presentationRoute = .pendingChat(context)
-                    LegacyNavigationBridge.showMessages()
+                    if let error = messagingViewModel.errorMessage, !error.isEmpty {
+                        messagingViewModel.errorMessage = error
+                    }
                 }
             }
         }

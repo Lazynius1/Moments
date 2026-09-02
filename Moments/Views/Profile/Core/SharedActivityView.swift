@@ -20,6 +20,8 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
     @State private var showingUnfollowConfirmation = false
     @State private var followedYouAt: Date?
     @State private var followingSince: Date?
+    @State private var messageFlowError: String?
+    @State private var showMessageFlowError = false
 
     @Namespace private var localProfileZoomNamespace
 
@@ -169,6 +171,18 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
         } message: {
             Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
         }
+        .alert(
+            NSLocalizedString("userProfile.sendMessage", comment: "Send message"),
+            isPresented: $showMessageFlowError,
+            actions: {
+                Button(NSLocalizedString("common.ok", comment: "OK"), role: .cancel) {
+                    messageFlowError = nil
+                }
+            },
+            message: {
+                Text(messageFlowError ?? "")
+            }
+        )
         .onAppear {
             refreshRelationshipState()
             viewModel.prefetchRelationshipState(for: otherUser.id)
@@ -432,17 +446,23 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
         messagingViewModel.startConversation(with: otherUser, from: currentUserId) { conversation in
-            if let conversation {
-                targetConversation = conversation
-                navigateToChat = true
-            } else if messagingViewModel.requiresMessageRequest {
-                pendingChatContext = PendingChatContext(
-                    outgoingTo: otherUser,
-                    viewerFollowsOther: followingSince != nil,
-                    otherFollowsViewer: followedYouAt != nil,
-                    viewerFollowedAt: followingSince,
-                    otherFollowedViewerAt: followedYouAt
-                )
+            Task { @MainActor in
+                if let presentation = await messagingViewModel.consumeProfileMessagePresentation(
+                    conversation: conversation,
+                    for: otherUser,
+                    from: currentUserId
+                ) {
+                    switch presentation.destination {
+                    case .conversation(let resolvedConversation):
+                        targetConversation = resolvedConversation
+                        navigateToChat = true
+                    case .pendingChat(let context):
+                        pendingChatContext = context
+                    }
+                } else if let error = messagingViewModel.errorMessage, !error.isEmpty {
+                    messageFlowError = error
+                    showMessageFlowError = true
+                }
             }
         }
     }
