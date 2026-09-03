@@ -417,7 +417,7 @@ extension NativeAdManager: @preconcurrency NativeAdLoaderDelegate {
     }
 }
 
-/// Pool del feed: máx. 2 cargas a la vez, caché por slot, primer request tras 400 ms.
+/// Pool del feed: máx. 2 cargas a la vez, caché por slot (tope 8, LRU), primer request tras 400 ms.
 /// No relanza `loadAd` si el slot ya tiene anuncio, está cargando o falló.
 @MainActor
 final class FeedNativeAdPool: NSObject, ObservableObject {
@@ -433,10 +433,13 @@ final class FeedNativeAdPool: NSObject, ObservableObject {
     @Published private(set) var slots: [String: Slot] = [:]
 
     private let maxInFlight = 2
+    private let maxSlots = 8
     private var inFlight = 0
     private var pending: [String] = []
+    private var lru: [String] = []
     private var firstLoadScheduled = false
     private var firstLoadReady = false
+    private var initRetryScheduled = false
     private var loaders: [String: AdLoader] = [:]
 
     private override init() {
@@ -448,12 +451,14 @@ final class FeedNativeAdPool: NSObject, ObservableObject {
     }
 
     func request(_ key: String) {
+        touch(key)
         if let existing = slots[key], existing.nativeAd != nil || existing.isLoading || existing.hasError {
             return
         }
         if !pending.contains(key) {
             pending.append(key)
         }
+        trimPending()
         if !firstLoadScheduled {
             firstLoadScheduled = true
             Task { @MainActor in
@@ -468,6 +473,10 @@ final class FeedNativeAdPool: NSObject, ObservableObject {
     }
 
     func pump() {
+        guard AdMobConfiguration.shared.isInitialized else {
+            scheduleRetryUntilInitialized()
+            return
+        }
         while inFlight < maxInFlight, !pending.isEmpty {
             let key = pending.removeFirst()
             if let existing = slots[key], existing.nativeAd != nil || existing.isLoading {
@@ -478,19 +487,12 @@ final class FeedNativeAdPool: NSObject, ObservableObject {
     }
 
     private func startLoad(_ key: String) {
-        guard AdMobConfiguration.shared.isInitialized else {
-            pending.insert(key, at: 0)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.pump()
-            }
-            return
-        }
-
         inFlight += 1
         var loading = slots[key] ?? Slot()
         loading.isLoading = true
         loading.hasError = false
         slots[key] = loading
+        evictIfNeeded()
 
         if let preloaded = AdMobConfiguration.shared.getPreloadedNativeAd() {
             AdMobConfiguration.shared.clearPreloadedNativeAd()
@@ -516,7 +518,42 @@ final class FeedNativeAdPool: NSObject, ObservableObject {
         loaders[key] = nil
         inFlight = max(0, inFlight - 1)
         slots[key] = Slot(nativeAd: ad, isLoading: false, hasError: error && ad == nil)
+        evictIfNeeded()
         pump()
+    }
+
+    private func scheduleRetryUntilInitialized() {
+        guard !initRetryScheduled else { return }
+        initRetryScheduled = true
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            self.initRetryScheduled = false
+            self.pump()
+        }
+    }
+
+    private func touch(_ key: String) {
+        lru.removeAll { $0 == key }
+        lru.append(key)
+    }
+
+    private func trimPending() {
+        guard pending.count > maxSlots else { return }
+        pending.removeFirst(pending.count - maxSlots)
+    }
+
+    private func evictIfNeeded() {
+        while slots.count > maxSlots {
+            guard let victim = lru.first(where: { key in
+                slots[key]?.isLoading != true
+            }) ?? slots.first(where: { $0.value.isLoading == false })?.key else {
+                break
+            }
+            lru.removeAll { $0 == victim }
+            pending.removeAll { $0 == victim }
+            loaders[victim] = nil
+            slots[victim] = nil
+        }
     }
 
     private func key(for adLoader: AdLoader) -> String? {

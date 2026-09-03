@@ -12,6 +12,8 @@ final class FeedVisibilityCoordinator: ObservableObject {
 
     /// Snapshot actual (ids de momento / consumer). Lo usan listeners del feed.
     private(set) var visibilitySnapshot: [String: CGFloat] = [:]
+    /// Layout/fracción sin cambio de offset: el ViewModel re-sincroniza listeners.
+    let snapshotEdits = PassthroughSubject<Void, Never>()
 
     private let playThreshold: CGFloat = 0.32
     private let warmThreshold: CGFloat = 0.16
@@ -34,11 +36,13 @@ final class FeedVisibilityCoordinator: ObservableObject {
         guard abs(previous - fraction) >= reportEpsilon || (fraction == 0) != (previous == 0) else { return }
         visibilitySnapshot[momentId] = fraction
         pickWinner()
+        snapshotEdits.send()
     }
 
     func clear(momentId: String) {
         visibilitySnapshot.removeValue(forKey: momentId)
         pickWinner()
+        snapshotEdits.send()
     }
 
     /// Fija un único vídeo activo (p. ej. durante hero → detalle).
@@ -76,6 +80,7 @@ final class FeedVisibilityCoordinator: ObservableObject {
         }
         guard changed else { return }
         pickWinner()
+        snapshotEdits.send()
     }
 
     private func pickWinner() {
@@ -128,20 +133,45 @@ extension View {
     }
 
     /// Recalcula listeners con el snapshot actual (la fracción la reporta cada card).
+    /// También ante cambios de layout con el mismo contentOffset (tamaño, insets).
     func feedScrollVisibilityAnchor(
         transform: @escaping ([String: CGFloat]) -> [String: CGFloat] = { $0 },
         onSnapshot: (([String: CGFloat]) -> Void)? = nil
     ) -> some View {
         self
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y
+            .onScrollGeometryChange(for: FeedScrollVisibilityToken.self) { geometry in
+                FeedScrollVisibilityToken(geometry)
             } action: { _, _ in
-                let coordinator = FeedVisibilityCoordinator.shared
-                let snapshot = transform(coordinator.visibilitySnapshot)
-                if snapshot != coordinator.visibilitySnapshot {
-                    coordinator.applyTransformedSnapshot(snapshot)
-                }
-                onSnapshot?(snapshot)
+                Self.pushVisibilityToListeners(transform: transform, onSnapshot: onSnapshot)
             }
+            .onReceive(FeedVisibilityCoordinator.shared.snapshotEdits) { _ in
+                Self.pushVisibilityToListeners(transform: transform, onSnapshot: onSnapshot)
+            }
+    }
+
+    private static func pushVisibilityToListeners(
+        transform: ([String: CGFloat]) -> [String: CGFloat],
+        onSnapshot: (([String: CGFloat]) -> Void)?
+    ) {
+        let coordinator = FeedVisibilityCoordinator.shared
+        let snapshot = transform(coordinator.visibilitySnapshot)
+        if snapshot != coordinator.visibilitySnapshot {
+            coordinator.applyTransformedSnapshot(snapshot)
+        }
+        onSnapshot?(snapshot)
+    }
+}
+
+private struct FeedScrollVisibilityToken: Equatable {
+    var offsetY: Int
+    var contentHeight: Int
+    var containerHeight: Int
+    var insetTop: Int
+
+    init(_ geometry: ScrollGeometry) {
+        offsetY = Int(geometry.contentOffset.y.rounded())
+        contentHeight = Int(geometry.contentSize.height.rounded())
+        containerHeight = Int(geometry.containerSize.height.rounded())
+        insetTop = Int(geometry.contentInsets.top.rounded())
     }
 }
