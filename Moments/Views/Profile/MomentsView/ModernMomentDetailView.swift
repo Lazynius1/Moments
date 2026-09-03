@@ -533,9 +533,7 @@ struct ModernMomentDetailView: View {
                 }
                 .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
                 .padding(.bottom, 24)
-                .onPreferenceChange(MomentVisibilityPreference.self) { values in
-                    FeedVisibilityCoordinator.shared.update(all: mergedVisibilityValues(values))
-                }
+                .feedScrollVisibilityAnchor(transform: { mergedVisibilityValues($0) })
             }
             .scrollClipDisabled()
             .environment(\.profileDetailDirectVideoPlayback, restrictPlaybackToInitialIndex)

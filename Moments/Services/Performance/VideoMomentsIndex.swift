@@ -5,7 +5,7 @@ import Foundation
 final class VideoMomentsIndex: ObservableObject {
     static let shared = VideoMomentsIndex()
 
-    private(set) var videoMoments: [VideoMoment] = []
+    @Published private(set) var videoMoments: [VideoMoment] = []
 
     private init() {}
 
@@ -13,8 +13,9 @@ final class VideoMomentsIndex: ObservableObject {
         videoMoments = moments.videoMoments
     }
 
-    func reelsStartIndex(for momentId: String?) -> Int {
-        guard let momentId else { return 0 }
-        return videoMoments.firstIndex { $0.moment.id == momentId } ?? 0
+    /// `nil` si el momento no está en la cola — **no** caer a 0 (abriría otro vídeo).
+    func reelsStartIndex(for momentId: String?) -> Int? {
+        guard let momentId, !momentId.isEmpty else { return nil }
+        return videoMoments.firstIndex { $0.moment.id == momentId }
     }
 }

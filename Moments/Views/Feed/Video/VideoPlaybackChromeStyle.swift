@@ -54,7 +54,7 @@ struct SocialVideoPausedControls: View {
     }
 }
 
-/// Oscurece solo el vídeo del post (no la pantalla) al terminar, como Instagram.
+/// Oscurece solo el vídeo del post (no la pantalla) al terminar.
 struct FeedVideoEndedOverlay: View {
     let onWatchAgain: () -> Void
 

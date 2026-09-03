@@ -62,95 +62,232 @@ private struct ReelCommentsSheetObserver: UIViewRepresentable {
     }
 }
 
+private func flyingLerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat {
+    a + (b - a) * t
+}
+
+/// Convierte el progreso global del vuelo en una fase local suave y reversible.
+/// El vídeo lidera la transición y el chrome se incorpora después.
+private func flyingPhaseProgress(_ progress: CGFloat, from start: CGFloat, to end: CGFloat) -> CGFloat {
+    guard end > start else { return progress >= end ? 1 : 0 }
+    let x = min(max((progress - start) / (end - start), 0), 1)
+    return x * x * (3 - (2 * x))
+}
+
+/// Radio adaptativo: parte del de la card, crece a mitad del vuelo y cae a 0 al completar.
+private func flyingAdaptiveCornerRadius(_ t: CGFloat) -> CGFloat {
+    let card = FeedMomentCardLayout.mediaCornerRadius
+    let peak: CGFloat = 40
+    let x = min(max(t, 0), 1)
+    if x <= 0.001 { return card }
+    if x >= 0.995 { return 0 }
+    let bump = sin(.pi * x)
+    let base = flyingLerp(card, 0, x * x)
+    return max(0, base + (peak - card) * bump)
+}
+
+/// Marco interpolado card → pantalla (coordenadas locales del contenedor).
+private struct FlyingCardFrame {
+    let rect: CGRect
+    let cornerRadius: CGFloat
+
+    static func compute(
+        containerSize: CGSize,
+        sourceRect: CGRect,
+        containerOriginInGlobal: CGPoint,
+        progress: CGFloat
+    ) -> FlyingCardFrame {
+        let from = CGRect(
+            x: sourceRect.minX - containerOriginInGlobal.x,
+            y: sourceRect.minY - containerOriginInGlobal.y,
+            width: sourceRect.width,
+            height: sourceRect.height
+        )
+        let hasFrom = from.width > 8 && from.height > 8
+            && containerSize.width > 0 && containerSize.height > 0
+        let t = hasFrom ? progress : 1
+        guard hasFrom, t < 0.999 else {
+            return FlyingCardFrame(
+                rect: CGRect(origin: .zero, size: containerSize),
+                cornerRadius: 0
+            )
+        }
+        return FlyingCardFrame(
+            rect: CGRect(
+                x: flyingLerp(from.minX, 0, t),
+                y: flyingLerp(from.minY, 0, t),
+                width: flyingLerp(from.width, containerSize.width, t),
+                height: flyingLerp(from.height, containerSize.height, t)
+            ),
+            cornerRadius: flyingAdaptiveCornerRadius(t)
+        )
+    }
+}
+
+/// `Shape` animable: SwiftUI interpola el recorte en cada frame, en lugar de
+/// depender de que `frame` y `offset` dentro de una máscara hereden la animación.
+private struct FlyingCardMaskShape: Shape {
+    let sourceRect: CGRect
+    let containerOriginInGlobal: CGPoint
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let frame = FlyingCardFrame.compute(
+            containerSize: rect.size,
+            sourceRect: sourceRect,
+            containerOriginInGlobal: containerOriginInGlobal,
+            progress: progress
+        )
+        return Path(
+            roundedRect: frame.rect,
+            cornerRadius: frame.cornerRadius
+        )
+    }
+}
+
+/// Reels a tamaño real; la tarjeta crece y va revelando media + chrome (no escala todo junto).
+private struct FlyingCardClipModifier: ViewModifier {
+    let sourceRect: CGRect
+    let progress: CGFloat
+
+    func body(content: Content) -> some View {
+        GeometryReader { geo in
+            let origin = geo.frame(in: .global).origin
+            content
+                .frame(width: geo.size.width, height: geo.size.height)
+                .mask(
+                    FlyingCardMaskShape(
+                        sourceRect: sourceRect,
+                        containerOriginInGlobal: origin,
+                        progress: progress
+                    )
+                )
+        }
+        .ignoresSafeArea()
+    }
+}
+
+private extension View {
+    func flyingCardClip(sourceRect: CGRect, progress: CGFloat) -> some View {
+        modifier(FlyingCardClipModifier(sourceRect: sourceRect, progress: progress))
+    }
+}
+
 // ✅ PRIVACIDAD: ReelsViewer solo muestra videos que ya pasaron los filtros de privacidad
 struct ReelsViewer: View {
     let videos: [VideoMoment]
     let startIndex: Int
     let initialStartSeconds: Double
     let handoffConsumerId: String?
+    let sourceRectInWindow: CGRect
     let onWillDismiss: (() -> Void)?
+    let onClosed: (() -> Void)?
     @State private var currentIndex: Int = 0
     @State private var scrollPosition: Int?
     @State private var isDismissRequested = false
+    @State private var expandProgress: CGFloat
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) var colorScheme
-    
+
+    private var canFlyFromCard: Bool {
+        sourceRectInWindow.width > 8 && sourceRectInWindow.height > 8
+    }
+
     init(
         videos: [VideoMoment],
         startIndex: Int = 0,
         initialStartSeconds: Double = 0,
         handoffConsumerId: String? = nil,
-        onWillDismiss: (() -> Void)? = nil
+        sourceRectInWindow: CGRect = .zero,
+        onWillDismiss: (() -> Void)? = nil,
+        onClosed: (() -> Void)? = nil
     ) {
         self.videos = videos
         self.startIndex = startIndex
         self.initialStartSeconds = initialStartSeconds
         self.handoffConsumerId = handoffConsumerId
+        self.sourceRectInWindow = sourceRectInWindow
         self.onWillDismiss = onWillDismiss
+        self.onClosed = onClosed
         let safeStart = videos.isEmpty ? 0 : min(max(0, startIndex), videos.count - 1)
         self._currentIndex = State(initialValue: safeStart)
         self._scrollPosition = State(initialValue: safeStart)
+        let fly = sourceRectInWindow.width > 8 && sourceRectInWindow.height > 8
+        self._expandProgress = State(initialValue: fly ? 0 : 1)
     }
-    
+
     var body: some View {
         ZStack {
-            // Fondo negro puro para fullscreen
-            Color.black
-                .ignoresSafeArea(.all)
-            
             if !videos.isEmpty {
-                ScrollView(.vertical) {
-                    LazyVStack(spacing: 0) {
-                        // id por índice de sesión (lista congelada) — evita recrear páginas al swipe
-                        ForEach(Array(videos.enumerated()), id: \.offset) { index, video in
-                            ReelsPagerPage(
-                                index: index,
-                                video: video,
-                                currentIndex: currentIndex,
-                                startIndex: startIndex,
-                                initialStartSeconds: initialStartSeconds,
-                                handoffConsumerId: index == startIndex ? handoffConsumerId : nil,
-                                onClose: closeViewer
-                            )
-                            .id(index)
-                        }
-                    }
-                    .scrollTargetLayout()
-                }
-                .scrollTargetBehavior(.paging)
-                .scrollPosition(id: $scrollPosition)
-                .scrollIndicators(.hidden)
-                .ignoresSafeArea(.container, edges: .all)
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 30)
-                        .onEnded { value in
-                            guard abs(value.translation.width) > 100,
-                                  abs(value.translation.width) > abs(value.translation.height) else {
-                                return
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical) {
+                        LazyVStack(spacing: 0) {
+                            // id por índice de sesión (lista congelada) — evita recrear páginas al swipe
+                            ForEach(Array(videos.enumerated()), id: \.offset) { index, video in
+                                ReelsPagerPage(
+                                    index: index,
+                                    video: video,
+                                    currentIndex: currentIndex,
+                                    startIndex: startIndex,
+                                    initialStartSeconds: initialStartSeconds,
+                                    handoffConsumerId: index == startIndex ? handoffConsumerId : nil,
+                                    flyProgress: expandProgress,
+                                    onClose: closeViewer
+                                )
+                                .id(index)
                             }
-
-                            HapticManager.shared.lightImpact()
-                            closeViewer()
                         }
-                )
-                .onAppear {
-                    scrollPosition = currentIndex
-                    preloadUpcomingVideos(from: currentIndex)
-                }
-                .onChange(of: scrollPosition) { _, newIndex in
-                    guard let newIndex, newIndex != currentIndex else { return }
-                    guard videos.indices.contains(newIndex) else { return }
-                    currentIndex = newIndex
-                }
-                .onChange(of: currentIndex) { _, newIndex in
-                    preloadUpcomingVideos(from: newIndex)
-                }
-                .onDisappear {
-                    ReelPrebufferService.shared.discard()
+                        .scrollTargetLayout()
+                    }
+                    .scrollDisabled(expandProgress < 0.98)
+                    .scrollTargetBehavior(.paging)
+                    .scrollPosition(id: $scrollPosition)
+                    .scrollIndicators(.hidden)
+                    .ignoresSafeArea(.container, edges: .all)
+                    .flyingCardClip(sourceRect: sourceRectInWindow, progress: expandProgress)
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 30)
+                            .onEnded { value in
+                                guard expandProgress > 0.98,
+                                      abs(value.translation.width) > 100,
+                                      abs(value.translation.width) > abs(value.translation.height) else {
+                                    return
+                                }
+
+                                HapticManager.shared.lightImpact()
+                                closeViewer()
+                            }
+                    )
+                    .onAppear {
+                        scrollPosition = currentIndex
+                        // LazyVStack a veces no ancla el scrollPosition inicial → vídeo 0 en vez del tap.
+                        proxy.scrollTo(currentIndex, anchor: .top)
+                        preloadUpcomingVideos(from: currentIndex)
+                    }
+                    .onChange(of: scrollPosition) { _, newIndex in
+                        guard let newIndex, newIndex != currentIndex else { return }
+                        guard videos.indices.contains(newIndex) else { return }
+                        currentIndex = newIndex
+                    }
+                    .onChange(of: currentIndex) { _, newIndex in
+                        preloadUpcomingVideos(from: newIndex)
+                    }
+                    .onDisappear {
+                        ReelPrebufferService.shared.discard()
+                    }
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .onAppear {
+            guard canFlyFromCard, expandProgress < 1 else { return }
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.reelsFly) {
+                expandProgress = 1
+            }
+        }
         // Status bar visible: el chrome top se ancla bajo el safe area.
     }
 
@@ -158,7 +295,32 @@ struct ReelsViewer: View {
         guard !isDismissRequested else { return }
         isDismissRequested = true
         onWillDismiss?()
-        dismiss()
+        let finish: () -> Void = {
+            // El layer sigue en Reels hasta que el encoger termina.
+            FlyingVideoSurface.shared.land(consumerId: handoffConsumerId)
+            VideoLayerLease.shared.returnToFeed()
+            if let onClosed {
+                onClosed()
+            } else {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    dismiss()
+                }
+            }
+        }
+        guard canFlyFromCard,
+              expandProgress > 0.01,
+              currentIndex == startIndex,
+              !MotionPolicy.reduceMotion else {
+            finish()
+            return
+        }
+        withAnimation(MotionPolicy.Spring.reelsFly, completionCriteria: .logicallyComplete) {
+            expandProgress = 0
+        } completion: {
+            finish()
+        }
     }
     
     // ✅ INSTANT PLAYBACK: Lógica de preloading para Reels
@@ -189,6 +351,7 @@ private struct ReelsPagerPage: View {
     let startIndex: Int
     let initialStartSeconds: Double
     let handoffConsumerId: String?
+    var flyProgress: CGFloat = 1
     let onClose: () -> Void
 
     var body: some View {
@@ -199,6 +362,7 @@ private struct ReelsPagerPage: View {
                     isCurrentVideo: currentIndex == index,
                     startAtSeconds: index == startIndex ? initialStartSeconds : 0,
                     handoffConsumerId: handoffConsumerId,
+                    flyProgress: flyProgress,
                     onClose: onClose
                 )
             } else {
@@ -212,10 +376,11 @@ private struct ReelsPagerPage: View {
 
 private struct ReelsPosterPage: View {
     let video: VideoMoment
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
-            Color.black
+            AdaptiveColors(colorScheme: colorScheme).surfaceBackground
             VideoPosterOverlay(
                 posterURLString: video.posterURLString,
                 isReadyToPlay: false,
@@ -230,6 +395,7 @@ struct ReelVideoView: View {
     let isCurrentVideo: Bool
     let startAtSeconds: Double
     var handoffConsumerId: String? = nil
+    var flyProgress: CGFloat = 1
     let onClose: () -> Void
     
     @StateObject private var playerManager = ReelVideoPlayerManager()
@@ -261,6 +427,26 @@ struct ReelVideoView: View {
     @EnvironmentObject private var firestoreService: FirestoreService
     private let privacyService = PrivacyService()
 
+    private var chromeInteractive: Bool {
+        flyProgress > 0.98
+    }
+
+    private var topChromeProgress: CGFloat {
+        flyingPhaseProgress(flyProgress, from: 0.18, to: 0.58)
+    }
+
+    private var actionChromeProgress: CGFloat {
+        flyingPhaseProgress(flyProgress, from: 0.34, to: 0.76)
+    }
+
+    private var metadataChromeProgress: CGFloat {
+        flyingPhaseProgress(flyProgress, from: 0.42, to: 0.84)
+    }
+
+    private var commentChromeProgress: CGFloat {
+        flyingPhaseProgress(flyProgress, from: 0.60, to: 0.94)
+    }
+
     private var displayAuthorUsername: String {
         let fallback = video.moment.username
         let live = liveAuthorUsername.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -274,8 +460,19 @@ struct ReelVideoView: View {
         return GlobalVideoManager.profileVideoConsumerId(for: video.moment)
     }
 
+    private var canvasColor: Color {
+        AdaptiveColors(colorScheme: colorScheme).surfaceBackground
+    }
+
+    private var playerVideoGravity: AVLayerVideoGravity {
+        if handoffConsumerId != nil || flyProgress < 0.995 {
+            return .resizeAspectFill
+        }
+        return videoContentMode == .fill ? .resizeAspectFill : .resizeAspect
+    }
+
     private var bottomBarBackgroundColor: Color {
-        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+        canvasColor
     }
 
     private var chromePrimaryColor: Color {
@@ -381,24 +578,21 @@ struct ReelVideoView: View {
                     if let player = playerManager.player {
                         VideoPlayerRepresentable(
                             player: player,
-                            videoGravity: .resizeAspect,
+                            videoGravity: playerVideoGravity,
                             consumerId: layerConsumerId,
                             layerRole: .reels,
-                            readinessDelay: startAtSeconds < 0.75 ? 0.09 : 0,
+                            cornerRadius: 0,
+                            readinessDelay: handoffConsumerId == nil && startAtSeconds < 0.75 ? 0.09 : 0,
                             showControls: .constant(false), // Siempre oculto
                             progress: $playerManager.progress,
                             isBuffering: $playerManager.isBuffering,
                             isReadyForDisplay: $isLayerReadyForDisplay
                         )
-                        .aspectRatio(contentMode: videoContentMode)  // ✅ Dinámico según orientación
                         .frame(width: geometry.size.width, height: geometry.size.height)
-                        .background(Color.black)
                         .clipped()
-                        .ignoresSafeArea(.all)
-                    } else {
-                        Color.black
+                    } else if handoffConsumerId == nil {
+                        canvasColor
                             .frame(width: geometry.size.width, height: geometry.size.height)
-                            .ignoresSafeArea(.all)
                     }
 
                     // El handoff desde feed ya trae el mismo AVPlayer reproduciendo:
@@ -414,7 +608,6 @@ struct ReelVideoView: View {
                         )
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .clipped()
-                        .ignoresSafeArea(.all)
                     }
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
@@ -425,7 +618,7 @@ struct ReelVideoView: View {
                 // evitando que interfieran con los botones interactivos del overlay superior.
                 Color.black.opacity(0.001)
                     .ignoresSafeArea(.all)
-                    .allowsHitTesting(!showComments)
+                    .allowsHitTesting(!showComments && flyProgress > 0.95)
                     .onTapGesture {
                         let haptic = UIImpactFeedbackGenerator(style: .light)
                         haptic.impactOccurred()
@@ -488,6 +681,8 @@ struct ReelVideoView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                    .opacity(Double(topChromeProgress))
+                    .allowsHitTesting(chromeInteractive)
                     .zIndex(40)
                 }
                 
@@ -513,6 +708,8 @@ struct ReelVideoView: View {
                     .padding(.horizontal, 20)
                     // Bajo la status bar (safe area), con un pequeño respiro.
                     .padding(.top, safeTop + 8)
+                    .opacity(Double(topChromeProgress))
+                    .offset(y: -6 * (1 - topChromeProgress))
 
                     Spacer()
 
@@ -520,7 +717,7 @@ struct ReelVideoView: View {
                     // Esto elimina la "doble animación" que causaba que el header
                     // y el caption se movieran de forma desincronizada al expandir.
                     LinearGradient(
-                        colors: [Color.clear, Color.black.opacity(0.2), Color.black.opacity(0.78)],
+                        colors: [Color.clear, canvasColor.opacity(0.2), canvasColor.opacity(0.78)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -613,6 +810,8 @@ struct ReelVideoView: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.bottom, bottomChromeClearance + 6)
+                            .opacity(Double(metadataChromeProgress))
+                            .offset(y: 10 * (1 - metadataChromeProgress))
 
                             VStack(spacing: 12) {
                                 EpicReactionButton(
@@ -660,13 +859,15 @@ struct ReelVideoView: View {
                                 )
                             }
                             .padding(.bottom, bottomChromeClearance + 18)
+                            .opacity(Double(actionChromeProgress))
+                            .offset(x: 8 * (1 - actionChromeProgress))
                         }
                         .padding(.horizontal, 20)
                         .animation(.spring(response: 0.38, dampingFraction: 0.85), value: isReelCaptionExpanded)
                     }
                 }
                 .opacity(showComments ? 0 : 1)
-                .allowsHitTesting(!showComments)
+                .allowsHitTesting(!showComments && chromeInteractive)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .animation(.smooth(duration: 0.32), value: showComments)
@@ -759,6 +960,9 @@ struct ReelVideoView: View {
                     .padding(.bottom, chromeBottomPadding)
                     .background(bottomBarBackgroundColor)
                     .ignoresSafeArea(.container, edges: .bottom)
+                    .opacity(Double(commentChromeProgress))
+                    .offset(y: 8 * (1 - commentChromeProgress))
+                    .allowsHitTesting(chromeInteractive)
                 }
             }
             // Context menu SIEMPRE por encima del chrome inferior (overlay posterior + clearance).

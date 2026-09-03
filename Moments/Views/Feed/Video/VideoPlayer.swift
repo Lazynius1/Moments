@@ -2,6 +2,7 @@
 import SwiftUI
 import AVFoundation
 import QuartzCore
+import UIKit
 
 /// Reloj de tiempo de reproducción aislado: evita que `livePlaybackSeconds`
 /// invalide todas las celdas del feed que observan `GlobalVideoManager`.
@@ -62,7 +63,7 @@ class GlobalVideoManager: ObservableObject {
     }
 
     private func startVolumeObservation() {
-        // Patrón IG: subir volumen físico con vídeo activo → unmute de sesión.
+        // Subir volumen físico con vídeo activo → unmute de sesión.
         volumeObservation = AVAudioSession.sharedInstance().observe(
             \.outputVolume,
             options: [.old, .new]
@@ -126,7 +127,7 @@ class GlobalVideoManager: ObservableObject {
         finishedPlaybackIds.contains(playerId)
     }
 
-    /// Replay IG del post: desde el principio, sin abrir Reels.
+    /// Replay del post: desde el principio, sin abrir Reels.
     func replayFromStart(_ playerId: String) {
         clearPlaybackFinished(playerId)
         setPlaybackPosition(seconds: 0, forMomentId: playerId)
@@ -363,8 +364,7 @@ struct ModernVideoPlayer: View {
     @State private var hasLoadError = false
     /// Si HLS no arranca a tiempo, reintentar con el MP4 del tier.
     @State private var preferMp4Fallback = false
-    /// Cancela activaciones pendientes si el usuario sigue scrolleando.
-    @State private var activationGeneration = 0
+    @State private var leaseEpoch: UInt64 = 0
     
     private let maxSetupRetries = 2
     private let setupTimeoutSeconds: Double = 4.0
@@ -396,6 +396,12 @@ struct ModernVideoPlayer: View {
         self.consumesDetailHandoff = consumesDetailHandoff
     }
     
+    private var isFeedAsleep: Bool {
+        _ = leaseEpoch
+        return VideoLayerLease.shared.isFeedAsleep(consumerId: videoId)
+            || FlyingVideoSurface.shared.isFlying(videoId)
+    }
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -415,11 +421,14 @@ struct ModernVideoPlayer: View {
                     )
                     .aspectRatio(aspectRatio, contentMode: contentMode)
                     .clipped()
+                    .opacity(isFeedAsleep ? 0 : 1)
 
                     VideoPosterOverlay(
                         posterURLString: posterURLString,
-                        isReadyToPlay: globalManager.shouldPreserveSharedPlayer(consumerId: videoId)
-                            || (playerManager.isReadyToPlay && isLayerReadyForDisplay)
+                        isReadyToPlay: !isFeedAsleep && (
+                            globalManager.shouldPreserveSharedPlayer(consumerId: videoId)
+                                || (playerManager.isReadyToPlay && isLayerReadyForDisplay)
+                        )
                     )
                 } else {
                     VideoPosterOverlay(
@@ -432,6 +441,7 @@ struct ModernVideoPlayer: View {
                 }
                 
                 if usesSocialChrome,
+                   !isFeedAsleep,
                    !playerManager.hasFinishedPlayback,
                    !playerManager.isPlaying,
                    allowsPauseInteraction {
@@ -463,19 +473,17 @@ struct ModernVideoPlayer: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: VideoLayerLease.didChange)) { _ in
+            leaseEpoch = VideoLayerLease.shared.generation
+        }
         .onAppear {
             isVisible = true
-            // En feed: no montar AVPlayer en el mismo gesto del scroll.
-            // Solo preparamos al activarse (o en detalle con alwaysWhenVisible).
-            if activationMode == .alwaysWhenVisible {
-                Task { @MainActor in
-                    await Task.yield()
-                    guard isVisible else { return }
+            Task { @MainActor in
+                await Task.yield()
+                guard isVisible else { return }
+                if activationMode == .alwaysWhenVisible {
                     preparePlayerIfNeeded()
-                    applyActivationMode(activeId: FeedVisibilityCoordinator.shared.activeVideoMomentId)
                 }
-            } else {
-                // Si ya somos el activo al aparecer (p. ej. scroll lento), activar con debounce.
                 applyActivationMode(activeId: FeedVisibilityCoordinator.shared.activeVideoMomentId)
             }
         }
@@ -486,7 +494,6 @@ struct ModernVideoPlayer: View {
                 return
             }
             isVisible = false
-            activationGeneration += 1
             let isCurrent = globalManager.isRegisteredPlayer(videoId, manager: playerManager)
             if isCurrent {
                 globalManager.pauseVideo(videoId)
@@ -650,7 +657,10 @@ struct ModernVideoPlayer: View {
             }
             : nil
         let reuseExistingItem = handoff?.reuseExistingItem
-            ?? globalManager.canReuseSharedPlayer(consumerId: videoId)
+            ?? (
+                globalManager.canReuseSharedPlayer(consumerId: videoId)
+                    || FeedFirstVideoPrewarmer.isPrepared(consumerId: videoId)
+            )
         let startAtSeconds: Double? = {
             if let handoff, handoff.startAtSeconds > 0.05 {
                 return handoff.startAtSeconds
@@ -667,6 +677,7 @@ struct ModernVideoPlayer: View {
             moment: moment,
             initialTier: playbackSource?.tier
         )
+        FeedFirstVideoPrewarmer.consume(consumerId: videoId)
         hasSetupPlayer = true
         scheduleSetupTimeout(for: setupGeneration)
 
@@ -802,14 +813,21 @@ struct ModernVideoPlayer: View {
     
     private func updatePlaybackForVisibility(activeId: String?) {
         guard isVisible else { return }
-        activationGeneration += 1
 
-        if GlobalVideoManager.visibilityMatches(activeMomentId: activeId, videoConsumerId: videoId) {
-            preparePlayerIfNeeded()
-            globalManager.playVideo(videoId)
-        } else {
+        if !GlobalVideoManager.visibilityMatches(activeMomentId: activeId, videoConsumerId: videoId) {
             globalManager.pauseVideo(videoId)
+            return
         }
+
+        let deferFirstPlay = FeedFirstVideoPrewarmer.isPrepared(consumerId: videoId)
+        preparePlayerIfNeeded()
+        if deferFirstPlay {
+            DispatchQueue.main.async { [videoId] in
+                GlobalVideoManager.shared.playVideo(videoId)
+            }
+            return
+        }
+        globalManager.playVideo(videoId)
     }
     
     private func handleTap() {
@@ -1234,9 +1252,6 @@ final class VideoLayerLease {
     private var canClaimReels = false
     private var idleWork: DispatchWorkItem?
     private var claimWork: DispatchWorkItem?
-    /// Duración aproximada del `.navigationTransition(.zoom)` — el corte del layer
-    /// va al final, cuando el destino ya cubre la pantalla.
-    private let zoomSettleSeconds: TimeInterval = 0.42
 
     private init() {}
 
@@ -1247,7 +1262,12 @@ final class VideoLayerLease {
         return owner == role
     }
 
-    /// Tap del feed: reserva el handoff. Si ya hay una transición, se ignora.
+    /// El feed se queda en póster mientras Reels tiene el layer (ida y vuelta).
+    func isFeedAsleep(consumerId: String) -> Bool {
+        exclusiveConsumerId == consumerId && owner == .reels
+    }
+
+    /// Tap del feed: Reels es dueño al instante; el card del feed se apaga.
     @discardableResult
     func beginReels(consumerId: String) -> Bool {
         guard !isTransitioning else { return false }
@@ -1257,27 +1277,21 @@ final class VideoLayerLease {
         claimWork?.cancel()
         claimWork = nil
         exclusiveConsumerId = consumerId
+        owner = .reels
         generation &+= 1
-        // El feed sigue pintando durante el zoom; Reels reclama el layer al montar.
         NotificationCenter.default.post(name: Self.didChange, object: nil)
         return true
     }
 
-    /// Reels ya tiene vista, pero espera al zoom para no cortar el vídeo a mitad.
+    /// El layer ya voló a Reels (misma superficie). Dueño = Reels al instante.
     func claimReels(consumerId: String) {
         guard canClaimReels else { return }
         guard exclusiveConsumerId == consumerId else { return }
-        guard claimWork == nil else { return }
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            guard self.canClaimReels, self.exclusiveConsumerId == consumerId else { return }
-            self.canClaimReels = false
-            self.claimWork = nil
-            self.owner = .reels
-            NotificationCenter.default.post(name: Self.didChange, object: nil)
-        }
-        claimWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + zoomSettleSeconds, execute: work)
+        canClaimReels = false
+        claimWork?.cancel()
+        claimWork = nil
+        owner = .reels
+        NotificationCenter.default.post(name: Self.didChange, object: nil)
     }
 
     /// Cerrar Reels: Reels suelta, el feed reengancha. Siempre, no “si SwiftUI actualiza”.
@@ -1300,24 +1314,143 @@ final class VideoLayerLease {
     }
 }
 
+/// Un `AVPlayerLayer` que se reparenta de la card a Reels.
+/// No se crea una segunda superficie: el codec sigue pintando el mismo layer.
+final class FlyingVideoSurface {
+    static let shared = FlyingVideoSurface()
+
+    private struct Slot {
+        weak var host: UIView?
+        weak var layer: AVPlayerLayer?
+    }
+
+    private var feedSlots: [String: Slot] = [:]
+    private(set) var flyingConsumerId: String?
+
+    private init() {}
+
+    func isFlying(_ consumerId: String) -> Bool {
+        flyingConsumerId == consumerId
+    }
+
+    func registerFeed(consumerId: String, host: UIView, layer: AVPlayerLayer) {
+        guard !consumerId.isEmpty else { return }
+        guard flyingConsumerId != consumerId else { return }
+        feedSlots[consumerId] = Slot(host: host, layer: layer)
+    }
+
+    @discardableResult
+    func takeOff(consumerId: String, into overlayHost: PlayerLayerHostView) -> AVPlayerLayer? {
+        guard !consumerId.isEmpty,
+              VideoLayerLease.shared.mayAttach(role: .reels, consumerId: consumerId),
+              let slot = feedSlots[consumerId],
+              let layer = slot.layer else { return nil }
+        flyingConsumerId = consumerId
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.removeFromSuperlayer()
+        overlayHost.layer.addSublayer(layer)
+        overlayHost.hostedLayer = layer
+        // Conserva el gravity de la card; cambiarlo aquí es el salto al abrir/cerrar.
+        layer.frame = overlayHost.bounds
+        CATransaction.commit()
+        return layer
+    }
+
+    func land(consumerId: String?) {
+        let id = consumerId ?? flyingConsumerId
+        guard let id,
+              let slot = feedSlots[id],
+              let layer = slot.layer,
+              let host = slot.host else {
+            flyingConsumerId = nil
+            return
+        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.removeFromSuperlayer()
+        host.layer.addSublayer(layer)
+        (host as? PlayerLayerHostView)?.hostedLayer = layer
+        host.layoutIfNeeded()
+        layer.frame = host.bounds
+        CATransaction.commit()
+        flyingConsumerId = nil
+    }
+}
+
+final class PlayerLayerHostView: UIView {
+    var hostedLayer: AVPlayerLayer?
+    var appliedCornerRadius: CGFloat = 0
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isOpaque = false
+        backgroundColor = .clear
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        isOpaque = false
+        backgroundColor = .clear
+    }
+
+    func applyCornerRadius(_ radius: CGFloat) {
+        appliedCornerRadius = radius
+        let curve = CALayerCornerCurve.continuous
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.cornerRadius = radius
+        layer.cornerCurve = curve
+        layer.masksToBounds = radius > 0.5
+        hostedLayer?.cornerRadius = radius
+        hostedLayer?.cornerCurve = curve
+        hostedLayer?.masksToBounds = radius > 0.5
+        CATransaction.commit()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard let hostedLayer, hostedLayer.superlayer === layer else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        hostedLayer.frame = bounds
+        hostedLayer.cornerRadius = appliedCornerRadius
+        hostedLayer.cornerCurve = .continuous
+        hostedLayer.masksToBounds = appliedCornerRadius > 0.5
+        CATransaction.commit()
+    }
+}
+
 // VideoPlayerRepresentable: el layer obedece el lease (un dueño a la vez).
 struct VideoPlayerRepresentable: UIViewRepresentable {
     let player: AVPlayer
     let videoGravity: AVLayerVideoGravity
     var consumerId: String = ""
     var layerRole: VideoLayerRole = .feed
+    var cornerRadius: CGFloat = 0
     var readinessDelay: TimeInterval = 0
     @Binding var showControls: Bool
     @Binding var progress: Double
     @Binding var isBuffering: Bool
     @Binding var isReadyForDisplay: Bool
     
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        let playerLayer = AVPlayerLayer()
-        playerLayer.videoGravity = videoGravity
-        view.layer.addSublayer(playerLayer)
-        
+    func makeUIView(context: Context) -> PlayerLayerHostView {
+        let view = PlayerLayerHostView()
+        let playerLayer: AVPlayerLayer
+        if layerRole == .reels,
+           !consumerId.isEmpty,
+           let flying = FlyingVideoSurface.shared.takeOff(consumerId: consumerId, into: view) {
+            playerLayer = flying
+        } else {
+            playerLayer = AVPlayerLayer()
+            view.layer.addSublayer(playerLayer)
+            view.hostedLayer = playerLayer
+            if layerRole == .feed {
+                FlyingVideoSurface.shared.registerFeed(consumerId: consumerId, host: view, layer: playerLayer)
+            }
+            playerLayer.videoGravity = videoGravity
+        }
+
         context.coordinator.playerLayer = playerLayer
         context.coordinator.player = player
         context.coordinator.consumerId = consumerId
@@ -1331,24 +1464,32 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
             VideoLayerLease.shared.claimReels(consumerId: consumerId)
         }
         context.coordinator.applyAttachment()
-        
+        view.applyCornerRadius(cornerRadius)
+
         return view
     }
-    
-    func updateUIView(_ uiView: UIView, context: Context) {
+
+    func updateUIView(_ uiView: PlayerLayerHostView, context: Context) {
         context.coordinator.player = player
         context.coordinator.consumerId = consumerId
         context.coordinator.role = layerRole
         context.coordinator.readinessDelay = readinessDelay
         context.coordinator.isReadyForDisplay = $isReadyForDisplay
-        if let playerLayer = context.coordinator.playerLayer {
+        if layerRole == .feed, let playerLayer = context.coordinator.playerLayer {
+            FlyingVideoSurface.shared.registerFeed(consumerId: consumerId, host: uiView, layer: playerLayer)
+        }
+        if let playerLayer = context.coordinator.playerLayer, playerLayer.superlayer === uiView.layer {
+            if !FlyingVideoSurface.shared.isFlying(consumerId) {
+                playerLayer.videoGravity = videoGravity
+            }
             playerLayer.frame = uiView.bounds
-            playerLayer.videoGravity = videoGravity
+            uiView.hostedLayer = playerLayer
         }
         if layerRole == .reels {
             VideoLayerLease.shared.claimReels(consumerId: consumerId)
         }
         context.coordinator.applyAttachment()
+        uiView.applyCornerRadius(cornerRadius)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -1383,6 +1524,8 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
         private func publishReadyForDisplay(_ isReady: Bool) {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
+                // Reparentar el layer hace isReadyForDisplay=false un instante: no tapar con póster.
+                if !isReady, FlyingVideoSurface.shared.isFlying(consumerId) { return }
                 guard lastRequestedReadiness != isReady else { return }
                 lastRequestedReadiness = isReady
                 readinessGeneration &+= 1
@@ -1420,21 +1563,24 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
 
         func applyAttachment() {
             guard let playerLayer else { return }
+            if FlyingVideoSurface.shared.isFlying(consumerId), role == .feed {
+                return
+            }
             let shouldAttach = VideoLayerLease.shared.mayAttach(role: role, consumerId: consumerId)
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             if shouldAttach {
                 if let player, playerLayer.player !== player {
-                    publishReadyForDisplay(false)
                     playerLayer.player = player
                 }
-            } else if playerLayer.player != nil {
-                playerLayer.player = nil
             }
+            // Nunca player = nil en el handoff: un frame sin layer parpadea.
             CATransaction.commit()
-            publishReadyForDisplay(shouldAttach && playerLayer.isReadyForDisplay)
+            if shouldAttach {
+                publishReadyForDisplay(playerLayer.isReadyForDisplay)
+            }
         }
-        
+
         func setupObservers(player: AVPlayer, progress: Binding<Double>, isBuffering: Binding<Bool>) {
             if let timeObserver = timeObserver {
                 observedPlayer?.removeTimeObserver(timeObserver)

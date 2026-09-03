@@ -420,7 +420,7 @@ class FeedViewModel {
         Task {
             let mutedUserIds = await self.resolveMutedUserIdsAsync(viewerId: userId)
             self.cachedFollowingIds = await self.resolveFollowingIdsAsync(viewerId: userId)
-            if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "following", limit: 40) {
+            if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "following", limit: 20) {
                 let finalMoments = self.sortMomentsChronologically(
                     result.moments
                         .filter { $0.isArchived != true }
@@ -496,7 +496,7 @@ class FeedViewModel {
         Task {
             let mutedUserIds = await self.resolveMutedUserIdsAsync(viewerId: userId)
             self.cachedFollowingIds = await self.resolveFollowingIdsAsync(viewerId: userId)
-            if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "forYou", limit: 60) {
+            if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "forYou", limit: 20) {
                 let finalMoments = self.applyForYouClientTuning(
                     moments: result.moments
                         .filter { $0.isArchived != true }
@@ -653,7 +653,7 @@ class FeedViewModel {
                                     preserveOrder: false
                                 )
                                 let finalMoments = isInitialLoad
-                                    ? Array(tuned.prefix(60))
+                                    ? Array(tuned.prefix(20))
                                     : tuned
                                 onSuccess(finalMoments)
                             }
@@ -683,14 +683,14 @@ class FeedViewModel {
                 let finalMoments: [Moment]
                 switch feedType {
                 case .following:
-                    finalMoments = self.sortMomentsChronologically(fetchedMoments, limit: 40)
+                    finalMoments = self.sortMomentsChronologically(fetchedMoments, limit: 20)
                 case .forYou:
                     finalMoments = Array(self.applyForYouClientTuning(
                         moments: fetchedMoments,
                         followingIds: self.cachedFollowingIds,
                         viewerId: userId,
                         preserveOrder: false
-                    ).prefix(60))
+                    ).prefix(20))
                 }
             // Aplicar filtros de privacidad y actualizar UI
                 self.filterMomentsForPrivacy(viewerId: userId, moments: finalMoments) { filteredMoments in

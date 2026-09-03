@@ -30,13 +30,16 @@ class ImagePrefetchManager {
     func prefetch(urls: [URL]) {
         guard !urls.isEmpty else { return }
         
+        let imageURLs = urls.filter { !VideoPlaybackSelector.shared.isLikelyVideoURLString($0.absoluteString) }
+        guard !imageURLs.isEmpty else { return }
+
         let urlsToProcess: [URL] = queue.sync(flags: .barrier) {
             // Respetar el tope global de URLs en vuelo.
             let availableSlots = max(0, self.maxInFlightUrls - self.currentlyPrefetchingUrls.count)
             guard availableSlots > 0 else { return [] }
 
             // Filtramos las URLs que ya estamos precargando en estos momentos
-            let newUrls = urls.filter { !self.currentlyPrefetchingUrls.contains($0) }
+            let newUrls = imageURLs.filter { !self.currentlyPrefetchingUrls.contains($0) }
             let bounded = Array(newUrls.prefix(availableSlots))
             bounded.forEach { self.currentlyPrefetchingUrls.insert($0) }
             return bounded

@@ -174,7 +174,7 @@ struct FeedPostProfilePreviewOverlay: View {
 
         let cardWidth = max(300, proxy.size.width - horizontalInset * 2)
         let contentWidth = cardWidth - cardPadding * 2
-        // Como IG (2 filas), pero 4 thumbs por fila → 4+4, máximo 8.
+        // 2 filas, 4 thumbs por fila → 4+4, máximo 8.
         let gridColumns: CGFloat = 4
         let maxGridRows: CGFloat = 2
         let gridCellSize = (contentWidth - gridSpacing * (gridColumns - 1)) / gridColumns

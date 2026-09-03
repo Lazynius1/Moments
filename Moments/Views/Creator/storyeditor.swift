@@ -19,7 +19,7 @@ struct StoryEditingView: View {
     let initialChainTitle: String?
     let initialChainPosition: Int?
 
-    // Modo chat (cámara del chat estilo IG): en vez de publicar historia, devuelve
+    // Modo chat (cámara del chat): en vez de publicar historia, devuelve
     // el media y la metadata visual para enviarlos como mensaje con el modo elegido.
     var chatRecipientUserId: String? = nil
     var onChatSend: ((Data, EnhancedCameraPickerView.MediaType, ChatMediaSendMode, ChatMediaOverlayPayload?) -> Void)? = nil
@@ -905,7 +905,7 @@ struct StoryEditingView: View {
         .zIndex(5000)
     }
 
-    // En modo chat las herramientas van en horizontal (estilo IG DM);
+    // En modo chat las herramientas van en horizontal (DM);
     // en modo historia mantienen la columna vertical clásica.
     @ViewBuilder
     private func sideToolbarView() -> some View {

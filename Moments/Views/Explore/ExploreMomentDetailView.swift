@@ -261,56 +261,67 @@ struct ExploreMomentDetailView: View {
         let screenHeight = UIApplication.shared.activeWindowSize.height
         let feedCardHeight = screenHeight * 0.58
         let exploreReelsVideos = moments.videoMoments
+        let adAfterIndices = FeedAdPlacement.indicesAfterWhichToShowAd(
+            momentIds: moments.map { $0.id ?? "" },
+            minGap: 3,
+            maxGap: 5
+        )
 
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: max(15, screenHeight * 0.02)) {
                     ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
-                        ScreenshotProtectedView(
-                            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                        ) {
-                            ModernPostCardView(
-                                moment: moment,
-                                availableHeight: feedCardHeight,
-                                colorScheme: colorScheme,
-                                onComment: { selectedMoment = moment },
-                                onNearEnd: {},
-                                onHashtagTap: { hashtag in
-                                    selectedHashtag = "#\(hashtag)"
-                                    showExploreWithHashtag = true
-                                },
-                                onLocationTap: { locationName, coordinate in
-                                    selectedLocationName = locationName
-                                    selectedLocationCoordinate = coordinate
-                                    showingLocationMap = true
-                                },
-                                onContextMenu: { tappedMoment in
-                                    contextMenuMoment = tappedMoment
-                                    showContextMenu = true
-                                },
-                                onTagTap: { userId in
-                                    openUserProfile(userId: userId)
-                                },
-                                onOpenUserProfile: { userId in
-                                    openUserProfile(userId: userId)
-                                },
-                                onAuthorAvatarTap: { userId, hasStory in
-                                    handleAuthorAvatarTap(userId: userId, hasStory: hasStory)
-                                },
-                                profileZoomNamespace: profileZoomNamespace,
-                                onPeek: { imageURL, ratio, isPressing in
-                                    handlePeek(
-                                        imageURL: imageURL,
-                                        ratio: ratio,
-                                        isPressing: isPressing,
-                                        moment: moment
-                                    )
-                                },
-                                reelsVideos: exploreReelsVideos
-                            )
-                            .equatable()
-                            .environmentObject(firestoreService)
-                            .environment(feedViewModel)
+                        VStack(spacing: max(15, screenHeight * 0.02)) {
+                            ScreenshotProtectedView(
+                                isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                            ) {
+                                ModernPostCardView(
+                                    moment: moment,
+                                    availableHeight: feedCardHeight,
+                                    colorScheme: colorScheme,
+                                    onComment: { selectedMoment = moment },
+                                    onNearEnd: {},
+                                    onHashtagTap: { hashtag in
+                                        selectedHashtag = "#\(hashtag)"
+                                        showExploreWithHashtag = true
+                                    },
+                                    onLocationTap: { locationName, coordinate in
+                                        selectedLocationName = locationName
+                                        selectedLocationCoordinate = coordinate
+                                        showingLocationMap = true
+                                    },
+                                    onContextMenu: { tappedMoment in
+                                        contextMenuMoment = tappedMoment
+                                        showContextMenu = true
+                                    },
+                                    onTagTap: { userId in
+                                        openUserProfile(userId: userId)
+                                    },
+                                    onOpenUserProfile: { userId in
+                                        openUserProfile(userId: userId)
+                                    },
+                                    onAuthorAvatarTap: { userId, hasStory in
+                                        handleAuthorAvatarTap(userId: userId, hasStory: hasStory)
+                                    },
+                                    profileZoomNamespace: profileZoomNamespace,
+                                    onPeek: { imageURL, ratio, isPressing in
+                                        handlePeek(
+                                            imageURL: imageURL,
+                                            ratio: ratio,
+                                            isPressing: isPressing,
+                                            moment: moment
+                                        )
+                                    },
+                                    reelsVideos: exploreReelsVideos
+                                )
+                                .equatable()
+                                .environmentObject(firestoreService)
+                                .environment(feedViewModel)
+                            }
+
+                            if adAfterIndices.contains(index) {
+                                SmartNativeAdView(slotId: "explore-\(moment.id ?? "\(index)")")
+                            }
                         }
                         .id(index)
                         .onAppear {
@@ -321,9 +332,7 @@ struct ExploreMomentDetailView: View {
                 }
                 .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
                 .padding(.bottom, 24)
-                .onPreferenceChange(MomentVisibilityPreference.self) { values in
-                    FeedVisibilityCoordinator.shared.update(all: values)
-                }
+                .feedScrollVisibilityAnchor()
             }
             .scrollClipDisabled()
             .environment(feedViewModel)

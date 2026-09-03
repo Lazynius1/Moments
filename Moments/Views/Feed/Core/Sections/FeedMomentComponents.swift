@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import FirebaseAuth
 import Kingfisher
 import AVKit
@@ -529,13 +530,8 @@ struct ModernPostCardView: View {
             .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
         }
         .background {
-            GeometryReader { geometry in
-                Color.clear
-                    .onAppear { postCardAnchorCapture.globalFrame = geometry.frame(in: .global) }
-                    .onChange(of: geometry.frame(in: .global)) { _, newValue in
-                        postCardAnchorCapture.globalFrame = newValue
-                    }
-            }
+            // Frame al long-press vía UIView (no GeometryReader en .global cada scroll).
+            FeedStoryCircleAnchorProbe(capture: postCardAnchorCapture)
         }
         .feedMomentVisibility(momentId: GlobalVideoManager.profileVideoConsumerId(for: moment))
         .onAppear {
@@ -614,16 +610,7 @@ struct ModernPostCardView: View {
                 onLongPress: authorProfileLongPressAction
             ))
             .background {
-                ZStack {
-                    FeedStoryCircleAnchorProbe(capture: authorAvatarAnchorCapture)
-                    GeometryReader { geometry in
-                        Color.clear
-                            .onAppear { authorAvatarAnchorCapture.globalFrame = geometry.frame(in: .global) }
-                            .onChange(of: geometry.frame(in: .global)) { _, newValue in
-                                authorAvatarAnchorCapture.globalFrame = newValue
-                            }
-                    }
-                }
+                FeedStoryCircleAnchorProbe(capture: authorAvatarAnchorCapture)
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -1103,6 +1090,65 @@ struct ModernPostCardView: View {
     let startSeconds: Double
     let handoffMedia: MediaItem?
     let resumeConsumerId: String
+    let sourceRectInWindow: CGRect
+}
+
+/// Overlay en la ventana (no `fullScreenCover`): el card se expande encima del feed.
+@MainActor
+enum ReelsFeedOverlay {
+    private static var overlayWindow: UIWindow?
+    private static var previousKeyWindow: UIWindow?
+    private static var onClosed: (() -> Void)?
+
+    static func present(
+        _ session: ReelsSessionPresentation,
+        onWillDismiss: (() -> Void)?,
+        onClosed: @escaping () -> Void
+    ) {
+        dismiss(invokeClosed: false)
+        Self.onClosed = onClosed
+        guard let scene = UIApplication.shared.activeKeyWindow?.windowScene else {
+            onClosed()
+            return
+        }
+
+        let viewer = ReelsViewer(
+            videos: session.videos,
+            startIndex: session.startIndex,
+            initialStartSeconds: session.startSeconds,
+            handoffConsumerId: session.resumeConsumerId,
+            sourceRectInWindow: session.sourceRectInWindow,
+            onWillDismiss: onWillDismiss,
+            onClosed: { dismiss(invokeClosed: true) }
+        )
+        .environmentObject(FirestoreService.shared)
+
+        let host = UIHostingController(rootView: viewer)
+        host.view.backgroundColor = .clear
+        host.modalPresentationStyle = .overFullScreen
+
+        let window = UIWindow(windowScene: scene)
+        window.windowLevel = .statusBar + 1
+        window.backgroundColor = .clear
+        window.rootViewController = host
+        previousKeyWindow = UIApplication.shared.activeKeyWindow
+        overlayWindow = window
+        window.makeKeyAndVisible()
+    }
+
+    static func dismiss(invokeClosed: Bool) {
+        let callback = onClosed
+        onClosed = nil
+        let previous = previousKeyWindow
+        previousKeyWindow = nil
+        overlayWindow?.isHidden = true
+        overlayWindow?.rootViewController = nil
+        overlayWindow = nil
+        previous?.makeKey()
+        if invokeClosed {
+            callback?()
+        }
+    }
 }
 
 // Enhanced Carousel View — ScrollView paging (sin lazy-swap ni TabView)
@@ -1118,17 +1164,12 @@ struct EnhancedCarouselView: View {
     @Binding var isImmersive: Bool
 
     @State private var scrollPosition: Int?
-    @State private var reelsSession: ReelsSessionPresentation?
     @State private var reelsHandoffMedia: MediaItem?
     @State private var reelsResumeId: String = ""
     @State private var isPreparingReelsDismiss = false
-    @Namespace private var reelsZoomNamespace
+    @State private var cardFrameInWindow: CGRect = .zero
 
     private var isCarousel: Bool { mediaItems.count > 1 }
-
-    private var reelsZoomSourceID: String {
-        "feed-reels-\(currentMoment.id ?? "")"
-    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -1189,24 +1230,9 @@ struct EnhancedCarouselView: View {
                 }
             }
             .frame(width: pageWidth, height: pageHeight)
-            // El origen del zoom es el marco visible del post, no una página del LazyHStack
-            // (eso hacía que Reels “saliera desde la derecha”).
-            .matchedTransitionSource(id: reelsZoomSourceID, in: reelsZoomNamespace) { source in
-                source.clipShape(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                )
-            }
-        }
-        .fullScreenCover(item: $reelsSession, onDismiss: dismissReels) { session in
-            ReelsViewer(
-                videos: session.videos,
-                startIndex: session.startIndex,
-                initialStartSeconds: session.startSeconds,
-                handoffConsumerId: session.resumeConsumerId,
-                onWillDismiss: prepareReelsDismiss
-            )
-            .environmentObject(FirestoreService.shared)
-            .navigationTransition(.zoom(sourceID: reelsZoomSourceID, in: reelsZoomNamespace))
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .global)
+            } action: { cardFrameInWindow = $0 }
         }
     }
 
@@ -1214,13 +1240,22 @@ struct EnhancedCarouselView: View {
         isPreparingReelsDismiss = false
         reelsHandoffMedia = session.handoffMedia
         reelsResumeId = session.resumeConsumerId
-        reelsSession = session
+        let stamped = ReelsSessionPresentation(
+            videos: session.videos,
+            startIndex: session.startIndex,
+            startSeconds: session.startSeconds,
+            handoffMedia: session.handoffMedia,
+            resumeConsumerId: session.resumeConsumerId,
+            sourceRectInWindow: cardFrameInWindow
+        )
+        ReelsFeedOverlay.present(
+            stamped,
+            onWillDismiss: prepareReelsDismiss,
+            onClosed: dismissReels
+        )
     }
 
     private func dismissReels() {
-        // Fallback para dismissals externos. En el cierre normal el feed ya recuperó
-        // el layer justo después de que UIKit capturase el frame de salida.
-        VideoLayerLease.shared.returnToFeed()
         let handoffMedia = reelsHandoffMedia
         let resumeId = reelsResumeId.isEmpty
             ? GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
@@ -1249,19 +1284,12 @@ struct EnhancedCarouselView: View {
         if let momentId = currentMoment.id {
             FeedVisibilityCoordinator.shared.pinActiveVideo(momentId: momentId)
         }
-
-        // `dismiss()` arranca de forma síncrona. Cedemos un instante para que el
-        // sistema capture el Reel visible y después reenganchamos el player al feed
-        // por debajo de esa captura, antes de que empiece a descubrirlo.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
-            VideoLayerLease.shared.returnToFeed()
-            GlobalVideoManager.shared.playVideo(resumeId)
-        }
     }
 }
 
 struct MediaItemView: View {
     @Environment(\.displayScale) private var displayScale
+    @Environment(FeedViewModel.self) private var feedViewModel
     let item: MediaItem
     let aspectRatio: CGFloat
     let prefersUnifiedCarouselFrame: Bool
@@ -1413,24 +1441,34 @@ struct MediaItemView: View {
         }
     }
 
-    private var resolvedReelsVideos: [VideoMoment] {
-        reelsVideos ?? videoIndex.videoMoments
-    }
-
-    private var resolvedReelsStartIndex: Int {
-        guard let momentId = currentMoment.id else { return 0 }
+    /// Congela la cola al tap. Nunca cae a índice 0 si el momento no está en la lista
+    /// (antes abría otro vídeo). Con `reelsVideos == nil` (feed) usa el FeedViewModel vivo
+    /// en vez del singleton, que explore/perfil/maps pueden haber pisado.
+    private func freezeReelsSession() -> (videos: [VideoMoment], startIndex: Int)? {
+        let momentId = currentMoment.id
+        let videos: [VideoMoment]
         if let reelsVideos {
-            return reelsVideos.firstIndex { $0.moment.id == momentId } ?? 0
+            videos = reelsVideos
+        } else {
+            let fromFeed = feedViewModel.moments.videoMoments
+            videos = fromFeed.isEmpty ? videoIndex.videoMoments : fromFeed
         }
-        return videoIndex.reelsStartIndex(for: momentId)
+
+        if let momentId, !momentId.isEmpty,
+           let idx = videos.firstIndex(where: { $0.moment.id == momentId }) {
+            return (videos, idx)
+        }
+
+        let alone = VideoMoment(moment: currentMoment)
+        guard !alone.videoUrl.isEmpty else { return nil }
+        // Lista de otra superficie o filtrado: al menos abrir el vídeo del tap.
+        return ([alone], 0)
     }
 
     private func openReelsViewer() {
-        // Congelar la cola al abrir: el feed puede regenerar `videoMoments` mientras swipas.
-        let sessionVideos = resolvedReelsVideos
-        guard !sessionVideos.isEmpty else { return }
-        let start = resolvedReelsStartIndex
-        let safeStart = min(max(0, start), sessionVideos.count - 1)
+        guard let session = freezeReelsSession() else { return }
+        let sessionVideos = session.videos
+        let safeStart = min(max(0, session.startIndex), sessionVideos.count - 1)
         let handoffMedia: MediaItem? = prefersUnifiedCarouselFrame ? item : nil
         guard VideoLayerLease.shared.beginReels(consumerId: feedVideoConsumerId) else { return }
         GlobalVideoManager.shared.markReelsFeedHandoff(for: currentMoment, mediaItem: handoffMedia)
@@ -1442,7 +1480,8 @@ struct MediaItemView: View {
                 startIndex: safeStart,
                 startSeconds: GlobalVideoManager.shared.playbackPosition(forMomentId: feedVideoConsumerId),
                 handoffMedia: handoffMedia,
-                resumeConsumerId: feedVideoConsumerId
+                resumeConsumerId: feedVideoConsumerId,
+                sourceRectInWindow: .zero
             )
         )
     }
@@ -1560,6 +1599,7 @@ struct CroppedVideoPlayer: View {
     @Binding var isImmersive: Bool // ✅ NUEVO
 
     @Environment(\.profileDetailDirectVideoPlayback) private var profileDetailDirectVideoPlayback
+    @ObservedObject private var feedVisibility = FeedVisibilityCoordinator.shared
     @State private var isVisible = false
     /// Solo la preferencia de mute de sesión — no observar `GlobalVideoManager` entero
     /// (activeVideoId / ticks de progreso re-renderizaban todas las celdas y cortaban el scroll).
@@ -1576,6 +1616,19 @@ struct CroppedVideoPlayer: View {
 
     private var detailVideoActivationMode: VideoPlaybackActivationMode {
         profileDetailDirectVideoPlayback ? .alwaysWhenVisible : .feedVisibility
+    }
+
+    /// No montar AVPlayer hasta activo / warming (o detalle con playback directo).
+    private var shouldMountPlayer: Bool {
+        guard allowsVideoPlayback else { return false }
+        if profileDetailDirectVideoPlayback { return true }
+        return GlobalVideoManager.visibilityMatches(
+            activeMomentId: feedVisibility.activeVideoMomentId,
+            videoConsumerId: videoConsumerId
+        ) || GlobalVideoManager.visibilityMatches(
+            activeMomentId: feedVisibility.warmingVideoMomentId,
+            videoConsumerId: videoConsumerId
+        )
     }
 
     /// URL del tier adaptativo (misma que prebuffer), no el `item.url` crudo.
@@ -1649,20 +1702,28 @@ struct CroppedVideoPlayer: View {
             } else if usesBlurredFitLayout {
                 CarouselMediaBackdropView(item: item)
 
-                ModernVideoPlayer(
-                    url: playbackURLString,
-                    aspectRatio: resolvedItemAspectRatio,
-                    videoId: videoConsumerId,
-                    chromeStyle: .socialReels,
-                    posterURLString: currentMoment.videoPosterURLString(for: item),
-                    mediaItem: item,
-                    moment: currentMoment,
-                    activationMode: detailVideoActivationMode,
-                    consumesDetailHandoff: profileDetailDirectVideoPlayback
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.vertical, 10)
-                .padding(.horizontal, 6)
+                if shouldMountPlayer {
+                    ModernVideoPlayer(
+                        url: playbackURLString,
+                        aspectRatio: resolvedItemAspectRatio,
+                        videoId: videoConsumerId,
+                        chromeStyle: .socialReels,
+                        posterURLString: currentMoment.videoPosterURLString(for: item),
+                        mediaItem: item,
+                        moment: currentMoment,
+                        activationMode: detailVideoActivationMode,
+                        consumesDetailHandoff: profileDetailDirectVideoPlayback
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 6)
+                } else {
+                    videoPosterFallback
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 6)
+                        .clipped()
+                }
 
                 VStack {
                     HStack {
@@ -1681,18 +1742,24 @@ struct CroppedVideoPlayer: View {
             } else if isReelsFormat {
                 // ✅ REELS en feed: player + poster hasta readyToPlay
                 ZStack {
-                    ModernVideoPlayer(
-                        url: playbackURLString,
-                        aspectRatio: aspectRatio,
-                        videoId: videoConsumerId,
-                        chromeStyle: .socialReels,
-                        allowsPauseInteraction: false,
-                        posterURLString: currentMoment.videoPosterURLString(for: item),
-                        mediaItem: item,
-                        moment: currentMoment,
-                        activationMode: detailVideoActivationMode,
-                        consumesDetailHandoff: profileDetailDirectVideoPlayback
-                    )
+                    if shouldMountPlayer {
+                        ModernVideoPlayer(
+                            url: playbackURLString,
+                            aspectRatio: aspectRatio,
+                            videoId: videoConsumerId,
+                            chromeStyle: .socialReels,
+                            allowsPauseInteraction: false,
+                            posterURLString: currentMoment.videoPosterURLString(for: item),
+                            mediaItem: item,
+                            moment: currentMoment,
+                            activationMode: detailVideoActivationMode,
+                            consumesDetailHandoff: profileDetailDirectVideoPlayback
+                        )
+                    } else {
+                        videoPosterFallback
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .clipped()
+                    }
 
                     // ✅ OVERLAY con gradiente sutil nativo
                     LinearGradient(
@@ -1764,17 +1831,23 @@ struct CroppedVideoPlayer: View {
             } else {
                 // ✅ VIDEOS HORIZONTALES: Mantener diseño actual
                 ZStack {
-                    ModernVideoPlayer(
-                        url: playbackURLString,
-                        aspectRatio: feedDisplayRatio,
-                        videoId: videoConsumerId,
-                        chromeStyle: .socialReels,
-                        posterURLString: currentMoment.videoPosterURLString(for: item),
-                        mediaItem: item,
-                        moment: currentMoment,
-                        activationMode: detailVideoActivationMode,
-                        consumesDetailHandoff: profileDetailDirectVideoPlayback
-                    )
+                    if shouldMountPlayer {
+                        ModernVideoPlayer(
+                            url: playbackURLString,
+                            aspectRatio: feedDisplayRatio,
+                            videoId: videoConsumerId,
+                            chromeStyle: .socialReels,
+                            posterURLString: currentMoment.videoPosterURLString(for: item),
+                            mediaItem: item,
+                            moment: currentMoment,
+                            activationMode: detailVideoActivationMode,
+                            consumesDetailHandoff: profileDetailDirectVideoPlayback
+                        )
+                    } else {
+                        videoPosterFallback
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .clipped()
+                    }
 
                     // ✅ INDICADORES sutiles para videos horizontales
                     VStack {
@@ -1807,7 +1880,13 @@ struct CroppedVideoPlayer: View {
                 }
             }
         }
-        // Oscurecer solo este post (el vídeo), no la pantalla — paridad IG.
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if allowsVideoPlayback, !shouldMountPlayer {
+                onTap()
+            }
+        }
+        // Oscurecer solo este post (el vídeo), no la pantalla.
         .overlay {
             if allowsVideoPlayback, hasFinishedPlayback {
                 FeedVideoEndedOverlay {

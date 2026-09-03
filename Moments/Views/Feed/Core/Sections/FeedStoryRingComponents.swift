@@ -197,16 +197,7 @@ struct RealStoryCircle: View {
         }
         .frame(width: 64)
         .background {
-            ZStack {
-                FeedStoryCircleAnchorProbe(capture: anchorCapture)
-                GeometryReader { geometry in
-                    Color.clear
-                        .onAppear { anchorCapture.globalFrame = geometry.frame(in: .global) }
-                        .onChange(of: geometry.frame(in: .global)) { _, newValue in
-                            anchorCapture.globalFrame = newValue
-                        }
-                }
-            }
+            FeedStoryCircleAnchorProbe(capture: anchorCapture)
         }
     }
 }

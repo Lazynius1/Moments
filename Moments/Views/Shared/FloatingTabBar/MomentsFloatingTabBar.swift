@@ -27,7 +27,7 @@ struct MomentsFloatingTabBar: View {
         badgeService.unreadMessagesCount > 0 ? "paperplane.fill" : "paperplane"
     }
 
-    /// Paperplane (+ fill si hay no leídos) con puntito IG rojo cuando unread > 0.
+    /// Paperplane (+ fill si hay no leídos) con puntito rojo cuando unread > 0.
     private var messagesTabImage: UIImage {
         let base = UIImage(systemName: messagesSymbolName, withConfiguration: symbolConfig) ?? UIImage()
         let tint = colorScheme == .dark ? UIColor.white : UIColor(Color(hex: "0B1215"))
@@ -91,7 +91,7 @@ struct MomentsFloatingTabBar: View {
         return indices
     }
 
-    /// Puntito estilo Instagram (7pt) abajo-trailing — lejos de la punta del paperplane.
+    /// Puntito (7pt) abajo-trailing — lejos de la punta del paperplane.
     private static func withUnreadDot(_ image: UIImage) -> UIImage {
         let pad: CGFloat = 4
         let dot: CGFloat = 7

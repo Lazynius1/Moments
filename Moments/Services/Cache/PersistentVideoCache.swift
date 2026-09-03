@@ -62,6 +62,9 @@ class PersistentVideoCache {
     
     /// Descarga un video en segundo plano para cachearlo (sin duplicar descargas)
     func downloadAndCache(url: URL) {
+        // HLS se streamea (playlist + segmentos). Nunca persistir el master como `.mp4`.
+        if VideoPlaybackSelector.shared.isHLSURLString(url.absoluteString) { return }
+
         let key = url.absoluteString
 
         // Si ya está en cache, no descargar

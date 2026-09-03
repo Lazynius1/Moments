@@ -51,6 +51,11 @@ struct FeedListSection: View {
                     let segmentedToggleHeight = feedSelectorHeight
                     let tabbarHeight = 50.0
                     let availableHeight = screenHeight - headerHeight - segmentedToggleHeight - tabbarHeight - 60
+                    let adAfterIndices = FeedAdPlacement.indicesAfterWhichToShowAd(
+                        momentIds: viewModel.moments.map { $0.id ?? "" },
+                        minGap: selectedFeedType == .forYou ? 3 : 5,
+                        maxGap: selectedFeedType == .forYou ? 5 : 7
+                    )
 
                     LazyVStack(spacing: max(15, screenHeight * 0.02)) {
                         Spacer()
@@ -68,7 +73,8 @@ struct FeedListSection: View {
                                     index: index,
                                     moment: moment,
                                     availableHeight: availableHeight,
-                                    rowSpacing: max(15, screenHeight * 0.02)
+                                    rowSpacing: max(15, screenHeight * 0.02),
+                                    showAdAfter: adAfterIndices.contains(index)
                                 )
                             }
                         }
@@ -79,8 +85,7 @@ struct FeedListSection: View {
                         }
                     }
                     .padding(.vertical, 15)
-                    .onPreferenceChange(MomentVisibilityPreference.self) { values in
-                        FeedVisibilityCoordinator.shared.update(all: values)
+                    .feedScrollVisibilityAnchor { values in
                         viewModel.syncMomentListeners(visibilityByMomentId: values)
                     }
                 }
@@ -130,8 +135,14 @@ struct FeedListSection: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onChange(of: viewModel.moments.count) { _, _ in
+        // IDs, no solo count: For You ↔ Following con el mismo tamaño dejaba el índice de Reels viejo.
+        .onChange(of: viewModel.moments.map(\.feedViewIdentity)) { _, _ in
             VideoMomentsIndex.shared.rebuild(from: viewModel.moments)
+            FeedFirstVideoPrewarmer.prepareFirstVideo(in: viewModel.moments)
+        }
+        .onAppear {
+            VideoMomentsIndex.shared.rebuild(from: viewModel.moments)
+            FeedFirstVideoPrewarmer.prepareFirstVideo(in: viewModel.moments)
         }
     }
 
@@ -140,7 +151,8 @@ struct FeedListSection: View {
         index: Int,
         moment: Moment,
         availableHeight: CGFloat,
-        rowSpacing: CGFloat
+        rowSpacing: CGFloat,
+        showAdAfter: Bool
     ) -> some View {
         VStack(spacing: rowSpacing) {
             let isHiddenForPreview = !(hiddenMomentId ?? "").isEmpty && moment.id == hiddenMomentId
@@ -158,9 +170,8 @@ struct FeedListSection: View {
                 value: isHiddenForPreview
             )
 
-            let adInterval = selectedFeedType == .forYou ? 3 : 5
-            if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
-                SmartNativeAdView()
+            if showAdAfter {
+                SmartNativeAdView(slotId: "feed-\(moment.id ?? "\(index)")")
             }
         }
     }
@@ -250,10 +261,7 @@ struct FeedListSection: View {
         let endIndex = min(nextIndex + 8, viewModel.moments.count)
         let upcoming = Array(viewModel.moments[nextIndex..<endIndex])
 
-        let imageURLs = upcoming.compactMap { moment -> URL? in
-            guard let firstMedia = moment.mediaItems?.first?.url else { return nil }
-            return URL(string: firstMedia)
-        }
+        let imageURLs = VideoPlaybackSelector.shared.imagePrefetchURLs(from: upcoming, maxMoments: 8)
         if !imageURLs.isEmpty {
             ImagePrefetchManager.shared.prefetch(urls: imageURLs)
         }

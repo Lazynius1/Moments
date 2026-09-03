@@ -1462,7 +1462,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         case .ended, .cancelled:
             let completedByThreshold = vanishDidCrossThreshold
                 && ChatVanishSwipeMetrics.effectiveLiftForCompletion(currentVanishLift) > 0
-            // Flick estilo IG: un tirón rápido y decidido completa aunque el dedo no llegue
+            // Flick rápido y decidido completa aunque el dedo no llegue al borde
             // a la distancia del umbral.
             let completedByFlick = gesture.velocity(in: collectionView).y < -1400
                 && ChatVanishSwipeMetrics.progress(lift: currentVanishLift) >= 0.5

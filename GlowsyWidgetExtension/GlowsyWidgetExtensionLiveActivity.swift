@@ -21,7 +21,7 @@ func liveActivityPreviewImage(fileName: String?) -> UIImage? {
     return UIImage(data: data)
 }
 
-// MARK: - Thumbnail con anillo de progreso (estilo Instagram)
+// MARK: - Thumbnail con anillo de progreso
 
 /// Miniatura real de lo que se sube, con el anillo de progreso dibujado alrededor del borde.
 /// Si no hay miniatura (p. ej. vídeo sin frame extraído aún), cae al icono genérico.

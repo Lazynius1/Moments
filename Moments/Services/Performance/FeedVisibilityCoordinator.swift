@@ -10,51 +10,40 @@ final class FeedVisibilityCoordinator: ObservableObject {
     /// El siguiente vídeo que entra en viewport: se monta el player sin reproducir.
     @Published private(set) var warmingVideoMomentId: String?
 
-    private var visibilityByMomentId: [String: CGFloat] = [:]
+    /// Snapshot actual (ids de momento / consumer). Lo usan listeners del feed.
+    private(set) var visibilitySnapshot: [String: CGFloat] = [:]
+
     private let playThreshold: CGFloat = 0.32
     private let warmThreshold: CGFloat = 0.16
-    /// Ignora micro-cambios de GeometryReader durante el scroll (evita pickWinner cada frame).
+    /// Ignora micro-cambios de fracción (evita pickWinner cada frame).
     private let reportEpsilon: CGFloat = 0.05
 
     private init() {}
 
     func update(all values: [String: CGFloat]) {
-        // Snapshot vacío: PreferenceKey en transiciones (p. ej. Reels cover), no “nada visible”.
-        guard !values.isEmpty else { return }
+        applyVisibility(values, allowEmpty: false)
+    }
 
-        var changed = false
-        for (id, fraction) in values {
-            let previous = visibilityByMomentId[id] ?? -1
-            if abs(previous - fraction) >= reportEpsilon || (fraction == 0) != (previous == 0) {
-                visibilityByMomentId[id] = fraction
-                changed = true
-            }
-        }
-        // Quitar ids que ya no reportan (scrolleados fuera).
-        let incoming = Set(values.keys)
-        for stale in visibilityByMomentId.keys where !incoming.contains(stale) {
-            visibilityByMomentId.removeValue(forKey: stale)
-            changed = true
-        }
-        guard changed else { return }
-        pickWinner()
+    /// Snapshot ya transformado (p. ej. perfil fuerza el post abierto a 1.0).
+    func applyTransformedSnapshot(_ values: [String: CGFloat]) {
+        applyVisibility(values, allowEmpty: true)
     }
 
     func report(momentId: String, fraction: CGFloat) {
-        let previous = visibilityByMomentId[momentId] ?? -1
+        let previous = visibilitySnapshot[momentId] ?? -1
         guard abs(previous - fraction) >= reportEpsilon || (fraction == 0) != (previous == 0) else { return }
-        visibilityByMomentId[momentId] = fraction
+        visibilitySnapshot[momentId] = fraction
         pickWinner()
     }
 
     func clear(momentId: String) {
-        visibilityByMomentId.removeValue(forKey: momentId)
+        visibilitySnapshot.removeValue(forKey: momentId)
         pickWinner()
     }
 
     /// Fija un único vídeo activo (p. ej. durante hero → detalle).
     func pinActiveVideo(momentId: String) {
-        visibilityByMomentId = [momentId: 1.0]
+        visibilitySnapshot = [momentId: 1.0]
         activeVideoMomentId = momentId
         warmingVideoMomentId = nil
     }
@@ -69,11 +58,31 @@ final class FeedVisibilityCoordinator: ObservableObject {
         return warmingVideoMomentId == momentId
     }
 
+    private func applyVisibility(_ values: [String: CGFloat], allowEmpty: Bool) {
+        if values.isEmpty && !allowEmpty { return }
+
+        var changed = false
+        for (id, fraction) in values {
+            let previous = visibilitySnapshot[id] ?? -1
+            if abs(previous - fraction) >= reportEpsilon || (fraction == 0) != (previous == 0) {
+                visibilitySnapshot[id] = fraction
+                changed = true
+            }
+        }
+        let incoming = Set(values.keys)
+        for stale in visibilitySnapshot.keys where !incoming.contains(stale) {
+            visibilitySnapshot.removeValue(forKey: stale)
+            changed = true
+        }
+        guard changed else { return }
+        pickWinner()
+    }
+
     private func pickWinner() {
         let signpostID = PerformanceSignposts.makeID()
         PerformanceSignposts.begin("FeedPickActiveVideo", id: signpostID)
 
-        let ranked = visibilityByMomentId.sorted { $0.value > $1.value }
+        let ranked = visibilitySnapshot.sorted { $0.value > $1.value }
         let playCandidate = ranked.first { $0.value >= playThreshold }?.key
         if let playCandidate, activeVideoMomentId != playCandidate {
             activeVideoMomentId = playCandidate
@@ -93,38 +102,46 @@ final class FeedVisibilityCoordinator: ObservableObject {
 
 // MARK: - Visibility reporting
 
-struct MomentVisibilityPreference: PreferenceKey {
-    static var defaultValue: [String: CGFloat] = [:]
-
-    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
-        value.merge(nextValue()) { _, new in new }
-    }
-}
-
 struct FeedMomentVisibilityReporter: ViewModifier {
     let momentId: String
 
     func body(content: Content) -> some View {
-        content.background(
-            GeometryReader { proxy in
+        content
+            .onGeometryChange(for: CGFloat.self) { proxy in
                 let frame = proxy.frame(in: .global)
                 let screen = CGRect(origin: .zero, size: UIApplication.shared.activeWindowSize)
                 let intersection = frame.intersection(screen)
-                let fraction: CGFloat = frame.height > 0
-                    ? max(0, min(1, intersection.height / frame.height))
-                    : 0
-
-                Color.clear.preference(
-                    key: MomentVisibilityPreference.self,
-                    value: [momentId: fraction]
-                )
+                guard frame.height > 0 else { return 0 }
+                return max(0, min(1, intersection.height / frame.height))
+            } action: { _, fraction in
+                FeedVisibilityCoordinator.shared.report(momentId: momentId, fraction: fraction)
             }
-        )
+            .onDisappear {
+                FeedVisibilityCoordinator.shared.clear(momentId: momentId)
+            }
     }
 }
 
 extension View {
     func feedMomentVisibility(momentId: String) -> some View {
         modifier(FeedMomentVisibilityReporter(momentId: momentId))
+    }
+
+    /// Recalcula listeners con el snapshot actual (la fracción la reporta cada card).
+    func feedScrollVisibilityAnchor(
+        transform: @escaping ([String: CGFloat]) -> [String: CGFloat] = { $0 },
+        onSnapshot: (([String: CGFloat]) -> Void)? = nil
+    ) -> some View {
+        self
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y
+            } action: { _, _ in
+                let coordinator = FeedVisibilityCoordinator.shared
+                let snapshot = transform(coordinator.visibilitySnapshot)
+                if snapshot != coordinator.visibilitySnapshot {
+                    coordinator.applyTransformedSnapshot(snapshot)
+                }
+                onSnapshot?(snapshot)
+            }
     }
 }

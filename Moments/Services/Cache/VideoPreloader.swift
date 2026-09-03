@@ -44,32 +44,51 @@ class VideoPreloader {
         }
     }
     
+    /// Carga playlist/tracks fuera del main. El `AVPlayerItem` se crea después, en main.
+    func warmAsset(for urlString: String) async {
+        if cachedAsset(for: urlString) != nil { return }
+        guard let url = URL(string: urlString) else { return }
+
+        let isHLS = VideoPlaybackSelector.shared.isHLSURLString(urlString)
+        let asset: AVURLAsset
+        if !isHLS, let localURL = PersistentVideoCache.shared.cachedURL(for: urlString) {
+            asset = AVURLAsset(url: localURL)
+        } else {
+            asset = AVURLAsset(url: url)
+        }
+
+        _ = try? await asset.load(.isPlayable)
+        _ = try? await asset.load(.duration)
+        _ = try? await asset.load(.tracks)
+        setCachedAsset(asset, for: urlString)
+    }
+
     func preloadAssets(urls: [String]) {
         PerformanceSignposts.event("VideoPreloadBatch")
         queue.async { [weak self] in
             guard let self = self else { return }
 
-            // Cargar nuevos
             for urlString in urls.prefix(self.maxCacheSize) {
-                if self.cachedAsset(for: urlString) == nil, let url = URL(string: urlString) {
-                    // ✅ OFFLINE: Si ya está en disco, cargamos de local
-                    if let localURL = PersistentVideoCache.shared.cachedURL(for: urlString) {
-                        let asset = AVURLAsset(url: localURL)
-                        self.setCachedAsset(asset, for: urlString)
-                    } else {
-                        // Si no está en disco, lo cargamos remoto y lo mandamos a descargar
-                        let asset = AVURLAsset(url: url)
-                        Task {
-                            _ = try? await asset.load(.duration)
-                            _ = try? await asset.load(.isPlayable)
-                            _ = try? await asset.load(.tracks)
-                        }
-                        self.setCachedAsset(asset, for: urlString)
-                        
-                        // ✅ Descargar para futuras sesiones
-                        PersistentVideoCache.shared.downloadAndCache(url: url)
-                    }
+                if self.cachedAsset(for: urlString) != nil { continue }
+                guard let url = URL(string: urlString) else { continue }
+
+                let isHLS = VideoPlaybackSelector.shared.isHLSURLString(urlString)
+                // HLS nunca desde disco: un `.m3u8` guardado como `.mp4` rompe segmentos relativos.
+                if !isHLS, let localURL = PersistentVideoCache.shared.cachedURL(for: urlString) {
+                    let asset = AVURLAsset(url: localURL)
+                    self.setCachedAsset(asset, for: urlString)
+                    continue
                 }
+
+                // Stream: calienta playlist (y el player bajará los primeros segmentos).
+                // No downloadAndCache — el MP4 es fallback de reproducción, no caché del feed.
+                let asset = AVURLAsset(url: url)
+                Task {
+                    _ = try? await asset.load(.isPlayable)
+                    _ = try? await asset.load(.duration)
+                    _ = try? await asset.load(.tracks)
+                }
+                self.setCachedAsset(asset, for: urlString)
             }
         }
     }
@@ -86,11 +105,11 @@ class VideoPreloader {
             )
             return item
         }
-        
-        // ✅ OFFLINE: Buscar en disco fuera del cache de memoria si no se precargó
-        if let localURL = PersistentVideoCache.shared.cachedURL(for: urlString) {
+
+        let isHLS = VideoPlaybackSelector.shared.isHLSURLString(urlString)
+        if !isHLS, let localURL = PersistentVideoCache.shared.cachedURL(for: urlString) {
             let item = AVPlayerItem(url: localURL)
-            item.preferredForwardBufferDuration = 0.5 // Inicio inmediato desde disco
+            item.preferredForwardBufferDuration = 0.5
             return item
         }
         
@@ -106,10 +125,6 @@ class VideoPreloader {
             playerItem: item,
             tier: VideoPlaybackSelector.shared.recommendedTier()
         )
-        
-        // ✅ Descargar para futuras sesiones
-        PersistentVideoCache.shared.downloadAndCache(url: url)
-        
         return item
     }
 }

@@ -219,7 +219,7 @@ struct FeedView: View {
                 }
 
                 // Precalentar pipeline de vídeo fuera del primer scroll a un reel.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                DispatchQueue.main.async {
                     FeedVideoPipelineWarmer.prewarmIfNeeded()
                 }
             }
@@ -567,23 +567,20 @@ struct FeedView: View {
         Task {
             await withTaskGroup(of: Void.self) { group in
                 group.addTask {
-                    // ✅ Usar la preferencia guardada del usuario
                     await self.viewModel.fetchMoments(userId: userId, feedType: self.selectedFeedType)
                 }
                 group.addTask {
                     await self.viewModel.fetchUserData(userId: userId)
                 }
                 group.addTask {
-                    await self.messagingViewModel.fetchConversations(for: userId)
-                }
-                group.addTask {
                     await self.storyRingCoordinator.loadStoryUsers(userId: userId, firestoreService: self.firestoreService)
                 }
             }
             prefetchImages()
-            
-            // ✅ NUEVO: Marcar como cargado
             hasLoadedInitialData = true
+
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            await self.messagingViewModel.fetchConversations(for: userId)
         }
     }
     
@@ -617,12 +614,6 @@ struct FeedView: View {
                 await self.viewModel.refreshMoments(userId: userId)
             }
             group.addTask {
-                await self.notificationsViewModel.refreshNotifications()
-            }
-            group.addTask {
-                await self.messagingViewModel.fetchConversations(for: userId)
-            }
-            group.addTask {
                 await self.storyRingCoordinator.loadStoryUsers(
                     userId: userId,
                     allowInstantCache: false,
@@ -631,6 +622,16 @@ struct FeedView: View {
             }
         }
         prefetchImages()
+
+        try? await Task.sleep(nanoseconds: 400_000_000)
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await self.notificationsViewModel.refreshNotifications()
+            }
+            group.addTask {
+                await self.messagingViewModel.fetchConversations(for: userId)
+            }
+        }
     }
     
     // ✅ OPTIMIZADO: Prefetching mejorado
@@ -638,9 +639,7 @@ struct FeedView: View {
         let moments = Array(viewModel.moments.prefix(12))
         VideoMomentsIndex.shared.rebuild(from: viewModel.moments)
 
-        let momentUrls = moments
-            .compactMap { $0.imagePath }
-            .compactMap { URL(string: $0) }
+        let momentUrls = VideoPlaybackSelector.shared.imagePrefetchURLs(from: moments, maxMoments: 12)
         ImagePrefetchManager.shared.prefetch(urls: momentUrls)
 
         let videoURLs = VideoPlaybackSelector.shared.preloadURLStrings(from: moments, maxMoments: 6)
@@ -648,6 +647,7 @@ struct FeedView: View {
             VideoPreloader.shared.preloadAssets(urls: videoURLs)
         }
         FeedVideoPipelineWarmer.prewarmIfNeeded()
+        FeedFirstVideoPrewarmer.prepareFirstVideo(in: moments)
     }
 }
 

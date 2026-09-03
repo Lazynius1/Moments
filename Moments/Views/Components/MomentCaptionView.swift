@@ -10,7 +10,7 @@ enum MomentCaptionPresentationStyle {
 
 /// Normalización de caption para cards (feed/reels).
 enum MomentCaptionText {
-    /// Estilo IG: colapsa saltos a espacios para que hashtags fluyan en líneas suaves.
+    /// Colapsa saltos a espacios para que hashtags fluyan en líneas suaves.
     static func flowing(_ content: String) -> String {
         content
             .replacingOccurrences(of: #"\s*\n+\s*"#, with: " ", options: .regularExpression)
@@ -34,7 +34,7 @@ struct MomentCaptionView: View {
         moment.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Feed/Reels: flujo continuo (IG). Detail: respeta saltos del autor.
+    /// Feed/Reels: flujo continuo. Detail: respeta saltos del autor.
     private var cardContent: String {
         switch style {
         case .feed, .reels:

@@ -69,6 +69,8 @@ enum MotionPolicy {
         /// Feedback expresivo (double-tap, celebraciones).
         static var delight: Animation { .spring(response: 0.45, dampingFraction: 0.8) }
         static var toast: Animation { .easeOut(duration: 0.2) }
+        /// Feed card ↔ Reels: mismo muelle al abrir y al cerrar.
+        static var reelsFly: Animation { .spring(response: 0.22, dampingFraction: 1) }
 
         static func repeatingPulse(duration: TimeInterval = 1.2) -> Animation? {
             reduceMotion ? nil : .easeInOut(duration: duration).repeatForever(autoreverses: true)

@@ -4,6 +4,40 @@ import UIKit
 import AppTrackingTransparency
 import AdSupport
 
+/// Huecos variables y estables (hash del moment id). No `Hasher` de Swift: cambia entre lanzamientos.
+enum FeedAdPlacement {
+    /// For You / Explore: 3...5 posts. Following: 5...7.
+    static func indicesAfterWhichToShowAd(
+        momentIds: [String],
+        minGap: Int,
+        maxGap: Int
+    ) -> Set<Int> {
+        let minG = max(1, minGap)
+        let maxG = max(minG, maxGap)
+        let lastEligible = momentIds.count - 2
+        guard lastEligible >= 0 else { return [] }
+
+        var result = Set<Int>()
+        var cursor = 0
+        while cursor <= lastEligible {
+            let span = minG + (stableHash(momentIds[cursor]) % (maxG - minG + 1))
+            let adAfter = cursor + span - 1
+            if adAfter > lastEligible { break }
+            result.insert(adAfter)
+            cursor = adAfter + 1
+        }
+        return result
+    }
+
+    private static func stableHash(_ string: String) -> Int {
+        var hash = 5381
+        for byte in string.utf8 {
+            hash = ((hash << 5) &+ hash) &+ Int(byte)
+        }
+        return abs(hash)
+    }
+}
+
 // MARK: - SwiftUI Native Ad View
 struct SwiftUINativeAdView: View {
     @StateObject private var adManager = NativeAdManager()
@@ -26,27 +60,30 @@ struct SwiftUINativeAdView: View {
 
 // MARK: - Smart Native Ad View para Plus Users
 struct SmartNativeAdView: View {
+    var slotId: String = "feed"
     @EnvironmentObject var authService: AuthService
-    @StateObject private var nativeAdManager = NativeAdManager()
+    @ObservedObject private var pool = FeedNativeAdPool.shared
     @State private var showingPrivacyConsent = false
 
     var body: some View {
         Group {
             if shouldShowAds {
+                let slot = pool.slot(slotId)
                 VStack(spacing: 0) {
-                    if nativeAdManager.isLoading {
+                    if slot.isLoading {
                         IntegratedAdLoadingView()
-                    } else if let nativeAd = nativeAdManager.nativeAd {
+                    } else if let nativeAd = slot.nativeAd {
                         IntegratedNativeAdView(nativeAd: nativeAd)
-                    } else if nativeAdManager.hasError {
+                    } else if slot.hasError {
                         EmptyView()
                     }
                 }
                 .onAppear {
-                    nativeAdManager.loadAd()
-                    
-                    // Verificar si necesitamos mostrar el flujo de privacidad (Intro + UMP + ATT)
-                    if AdMobConfiguration.shared.shouldShowConsentFlow {
+                    pool.request(slotId)
+
+                    if AdMobConfiguration.shared.shouldShowConsentFlow,
+                       !FeedNativeAdPool.didOfferConsentThisSession {
+                        FeedNativeAdPool.didOfferConsentThisSession = true
                         showingPrivacyConsent = true
                     }
                 }
@@ -57,11 +94,9 @@ struct SmartNativeAdView: View {
         .fullScreenCover(isPresented: $showingPrivacyConsent) {
             TrackingPermissionView(stage: .primer) {
                 showingPrivacyConsent = false
-                // Pequeño retraso para permitir que el fullScreenCover se cierre
-                // antes de que UMP intente mostrar su propio diálogo
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     AdMobConfiguration.shared.startConsentFlow {
-                        nativeAdManager.loadAd()
+                        FeedNativeAdPool.shared.pump()
                     }
                 }
             }

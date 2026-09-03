@@ -417,6 +417,132 @@ extension NativeAdManager: @preconcurrency NativeAdLoaderDelegate {
     }
 }
 
+/// Pool del feed: máx. 2 cargas a la vez, caché por slot, primer request tras 400 ms.
+/// No relanza `loadAd` si el slot ya tiene anuncio, está cargando o falló.
+@MainActor
+final class FeedNativeAdPool: NSObject, ObservableObject {
+    static let shared = FeedNativeAdPool()
+    static var didOfferConsentThisSession = false
+
+    struct Slot {
+        var nativeAd: NativeAd?
+        var isLoading = false
+        var hasError = false
+    }
+
+    @Published private(set) var slots: [String: Slot] = [:]
+
+    private let maxInFlight = 2
+    private var inFlight = 0
+    private var pending: [String] = []
+    private var firstLoadScheduled = false
+    private var firstLoadReady = false
+    private var loaders: [String: AdLoader] = [:]
+
+    private override init() {
+        super.init()
+    }
+
+    func slot(_ key: String) -> Slot {
+        slots[key] ?? Slot()
+    }
+
+    func request(_ key: String) {
+        if let existing = slots[key], existing.nativeAd != nil || existing.isLoading || existing.hasError {
+            return
+        }
+        if !pending.contains(key) {
+            pending.append(key)
+        }
+        if !firstLoadScheduled {
+            firstLoadScheduled = true
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                self.firstLoadReady = true
+                self.pump()
+            }
+            return
+        }
+        guard firstLoadReady else { return }
+        pump()
+    }
+
+    func pump() {
+        while inFlight < maxInFlight, !pending.isEmpty {
+            let key = pending.removeFirst()
+            if let existing = slots[key], existing.nativeAd != nil || existing.isLoading {
+                continue
+            }
+            startLoad(key)
+        }
+    }
+
+    private func startLoad(_ key: String) {
+        guard AdMobConfiguration.shared.isInitialized else {
+            pending.insert(key, at: 0)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.pump()
+            }
+            return
+        }
+
+        inFlight += 1
+        var loading = slots[key] ?? Slot()
+        loading.isLoading = true
+        loading.hasError = false
+        slots[key] = loading
+
+        if let preloaded = AdMobConfiguration.shared.getPreloadedNativeAd() {
+            AdMobConfiguration.shared.clearPreloadedNativeAd()
+            finish(key, ad: preloaded, error: false)
+            return
+        }
+
+        let adUnitID = AdMobConfiguration.getNativeAdUnitId().trimmingCharacters(in: .whitespacesAndNewlines)
+        let rootVC = UIApplication.shared.topViewController()
+        let loader = AdLoader(
+            adUnitID: adUnitID,
+            rootViewController: rootVC,
+            adTypes: [.native],
+            options: [AdMobConfiguration.shared.createNativeAdOptions()]
+        )
+        loader.delegate = self
+        loaders[key] = loader
+        loader.load(AdMobConfiguration.shared.createAdRequest())
+    }
+
+    private func finish(_ key: String, ad: NativeAd?, error: Bool) {
+        guard slots[key]?.isLoading == true || loaders[key] != nil else { return }
+        loaders[key] = nil
+        inFlight = max(0, inFlight - 1)
+        slots[key] = Slot(nativeAd: ad, isLoading: false, hasError: error && ad == nil)
+        pump()
+    }
+
+    private func key(for adLoader: AdLoader) -> String? {
+        loaders.first(where: { $0.value === adLoader })?.key
+    }
+}
+
+extension FeedNativeAdPool: @preconcurrency AdLoaderDelegate {
+    func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
+        AppLog.debug("❌ AdMob pool: \(error.localizedDescription)")
+        Task { @MainActor [weak self] in
+            guard let self, let key = self.key(for: adLoader) else { return }
+            self.finish(key, ad: nil, error: true)
+        }
+    }
+}
+
+extension FeedNativeAdPool: @preconcurrency NativeAdLoaderDelegate {
+    func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
+        Task { @MainActor [weak self] in
+            guard let self, let key = self.key(for: adLoader) else { return }
+            self.finish(key, ad: nativeAd, error: false)
+        }
+    }
+}
+
 // MARK: - Plus Ad Manager
 @MainActor
 class PlusAdManager: ObservableObject {

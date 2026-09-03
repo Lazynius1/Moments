@@ -130,6 +130,54 @@ final class VideoPlaybackSelector {
         return nil
     }
 
+    func isHLSURLString(_ raw: String) -> Bool {
+        raw.lowercased().contains(".m3u8")
+    }
+
+    /// MP4 / HLS / contenedores de vídeo: no van a Kingfisher/Coil.
+    func isLikelyVideoURLString(_ raw: String) -> Bool {
+        let s = raw.lowercased()
+        return isHLSURLString(s)
+            || s.contains(".mp4")
+            || s.contains(".mov")
+            || s.contains(".webm")
+            || s.contains(".m4v")
+    }
+
+    /// Prefetch de feed: foto = URL de imagen; vídeo = póster. Nunca `.mp4` / `.m3u8`.
+    func imagePrefetchURLs(from moments: [Moment], maxMoments: Int = 8) -> [URL] {
+        var collected: [URL] = []
+        var seen = Set<String>()
+
+        for moment in moments.prefix(maxMoments) {
+            let candidates: [String?]
+            if let item = moment.primaryVisibleMediaItem {
+                switch item.type {
+                case .image:
+                    candidates = [item.url, moment.imagePath, moment.thumbnailUrl]
+                case .video:
+                    candidates = [
+                        posterURLString(for: item, moment: moment),
+                        moment.imagePath,
+                        moment.thumbnailUrl
+                    ]
+                }
+            } else {
+                candidates = [moment.imagePath, moment.thumbnailUrl]
+            }
+
+            for raw in candidates {
+                guard let normalized = normalizedURLString(raw),
+                      !isLikelyVideoURLString(normalized),
+                      seen.insert(normalized).inserted,
+                      let url = URL(string: normalized) else { continue }
+                collected.append(url)
+                break
+            }
+        }
+        return collected
+    }
+
     func preloadURLStrings(from moments: [Moment], maxMoments: Int = 6) -> [String] {
         var collected: [String] = []
         var seen = Set<String>()

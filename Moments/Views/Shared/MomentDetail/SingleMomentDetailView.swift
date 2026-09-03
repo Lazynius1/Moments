@@ -262,9 +262,7 @@ struct SingleMomentDetailView: View {
                     )
                 }
             )
-            .onPreferenceChange(MomentVisibilityPreference.self) { values in
-                FeedVisibilityCoordinator.shared.update(all: values)
-            }
+            .feedScrollVisibilityAnchor()
         }
         .profileGridNavigationChrome(colorScheme: colorScheme)
         .scrollClipDisabled()
