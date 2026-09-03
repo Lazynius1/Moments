@@ -258,10 +258,9 @@ struct ExploreMomentDetailView: View {
     }
 
     private func exploreMomentsScrollView() -> some View {
-        let screenHeight = UIApplication.shared.activeWindowSize.height
-        let feedCardHeight = screenHeight * 0.58
-        let exploreReelsVideos = moments.videoMoments
-        let adAfterIndices = FeedAdPlacement.indicesAfterWhichToShowAd(
+                    let screenHeight = UIApplication.shared.activeWindowSize.height
+                    let feedCardHeight = screenHeight * 0.58
+                    let adAfterIndices = FeedAdPlacement.indicesAfterWhichToShowAd(
             momentIds: moments.map { $0.id ?? "" },
             minGap: 3,
             maxGap: 5
@@ -270,7 +269,7 @@ struct ExploreMomentDetailView: View {
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: max(15, screenHeight * 0.02)) {
-                    ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
+                    ForEach(Array(moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                         VStack(spacing: max(15, screenHeight * 0.02)) {
                             ScreenshotProtectedView(
                                 isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
@@ -312,7 +311,7 @@ struct ExploreMomentDetailView: View {
                                             moment: moment
                                         )
                                     },
-                                    reelsVideos: exploreReelsVideos
+                                    reelsVideos: nil
                                 )
                                 .equatable()
                                 .environmentObject(firestoreService)
@@ -420,10 +419,7 @@ struct ExploreMomentDetailView: View {
         let endIndex = min(nextIndex + 8, moments.count)
         let upcoming = Array(moments[nextIndex..<endIndex])
 
-        let imageURLs = upcoming.compactMap { moment -> URL? in
-            guard let urlString = moment.previewImageURLString else { return nil }
-            return URL(string: urlString)
-        }
+        let imageURLs = VideoPlaybackSelector.shared.imagePrefetchURLs(from: upcoming, maxMoments: 8)
         if !imageURLs.isEmpty {
             ImagePrefetchManager.shared.prefetch(urls: imageURLs)
         }

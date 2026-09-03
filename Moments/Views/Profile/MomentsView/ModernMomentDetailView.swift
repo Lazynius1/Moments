@@ -104,13 +104,11 @@ struct ModernMomentDetailView: View {
 
                 modernMomentsScrollView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear
-                                .onAppear { containerSize = proxy.size }
-                                .onChange(of: proxy.size) { _, newValue in containerSize = newValue }
-                        }
-                    )
+                    .onGeometryChange(for: CGSize.self) { proxy in
+                        proxy.size
+                    } action: { _, newValue in
+                        containerSize = newValue
+                    }
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                     .gesture(profileDetailDismissDragGesture)
@@ -429,8 +427,7 @@ struct ModernMomentDetailView: View {
     private func detailMomentRow(
         index: Int,
         moment: Moment,
-        feedCardHeight: CGFloat,
-        reelsVideos: [VideoMoment]
+        feedCardHeight: CGFloat
     ) -> some View {
         let isProtected = (moment.audience?.lowercased() ?? "") != "everyone"
 
@@ -467,7 +464,7 @@ struct ModernMomentDetailView: View {
                 onPeek: { imageURL, ratio, isPressing in
                     handleDetailPeek(moment: moment, imageURL: imageURL, ratio: ratio, isPressing: isPressing)
                 },
-                reelsVideos: reelsVideos
+                reelsVideos: nil
             )
             .equatable()
             .environmentObject(firestoreService)
@@ -476,6 +473,21 @@ struct ModernMomentDetailView: View {
         .id(index)
         .onAppear {
             currentIndex = index
+            prefetchUpcomingMoments(from: index)
+        }
+    }
+
+    private func prefetchUpcomingMoments(from index: Int) {
+        let nextIndex = index + 1
+        guard nextIndex < moments.count else { return }
+        let upcoming = Array(moments[nextIndex..<min(nextIndex + 8, moments.count)])
+        let imageURLs = VideoPlaybackSelector.shared.imagePrefetchURLs(from: upcoming, maxMoments: 8)
+        if !imageURLs.isEmpty {
+            ImagePrefetchManager.shared.prefetch(urls: imageURLs)
+        }
+        let videoURLs = VideoPlaybackSelector.shared.preloadURLStrings(from: upcoming, maxMoments: 4)
+        if !videoURLs.isEmpty {
+            VideoPreloader.shared.preloadAssets(urls: videoURLs)
         }
     }
 
@@ -517,17 +529,15 @@ struct ModernMomentDetailView: View {
     private func modernMomentsScrollView() -> some View {
         let screenHeight = containerSize.height > 0 ? containerSize.height : activeWindowHeight()
         let feedCardHeight = screenHeight * 0.58
-        let profileReelsVideos = moments.videoMoments
 
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: max(15, screenHeight * 0.02)) {
-                    ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
+                    ForEach(Array(moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                         detailMomentRow(
                             index: index,
                             moment: moment,
-                            feedCardHeight: feedCardHeight,
-                            reelsVideos: profileReelsVideos
+                            feedCardHeight: feedCardHeight
                         )
                     }
                 }

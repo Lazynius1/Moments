@@ -311,6 +311,7 @@
 "feed.following" = "追蹤中";
 "feed.follow" = "追蹤";
 "feed.seeMore" = "查看更多";
+"feed.seeMoreInline" = "更多";
 "feed.seeLess" = "顯示較少";
 "feed.loadingMoment" = "正在載入動態…";
 "feed.empty.following.title" = "還沒有動態";

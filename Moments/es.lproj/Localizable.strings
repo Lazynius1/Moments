@@ -336,6 +336,7 @@
 "feed.following" = "Siguiendo";
 "feed.follow" = "Seguir";
 "feed.seeMore" = "ver más";
+"feed.seeMoreInline" = "más";
 "feed.seeLess" = "ver menos";
 "feed.loadingMoment" = "Cargando momento...";
 "feed.empty.following.title" = "Aún no hay momentos";

@@ -1130,6 +1130,7 @@
 "feed.following" = "A seguir";
 "feed.follow" = "Seguir";
 "feed.seeMore" = "ver mais";
+"feed.seeMoreInline" = "mais";
 "feed.seeLess" = "ver menos";
 "feed.loadingMoment" = "A carregar moment...";
 "feed.empty.following.title" = "Ainda não há Moments";

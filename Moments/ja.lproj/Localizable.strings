@@ -311,6 +311,7 @@
 "feed.following" = "フォロー中";
 "feed.follow" = "フォロー";
 "feed.seeMore" = "さらに表示";
+"feed.seeMoreInline" = "もっと見る";
 "feed.seeLess" = "表示を減らす";
 "feed.loadingMoment" = "モーメントを読み込み中…";
 "feed.empty.following.title" = "モーメントはまだありません";

@@ -311,6 +311,7 @@
 "feed.following" = "Takip ediliyor";
 "feed.follow" = "Takip et";
 "feed.seeMore" = "daha fazlasını gör";
+"feed.seeMoreInline" = "daha fazla";
 "feed.seeLess" = "daha azını gör";
 "feed.loadingMoment" = "An yükleniyor...";
 "feed.empty.following.title" = "Henüz hiç an yok";

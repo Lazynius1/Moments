@@ -311,6 +311,7 @@
 "feed.following" = "Mengikuti";
 "feed.follow" = "Ikuti";
 "feed.seeMore" = "lihat selengkapnya";
+"feed.seeMoreInline" = "selengkapnya";
 "feed.seeLess" = "lihat lebih sedikit";
 "feed.loadingMoment" = "Memuat momen...";
 "feed.empty.following.title" = "Belum ada momen";

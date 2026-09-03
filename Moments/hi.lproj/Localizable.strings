@@ -311,6 +311,7 @@
 "feed.following" = "फ़ॉलो कर रहे हैं";
 "feed.follow" = "फ़ॉलो करें";
 "feed.seeMore" = "और देखें";
+"feed.seeMoreInline" = "और देखें";
 "feed.seeLess" = "कम देखें";
 "feed.loadingMoment" = "मोमेंट लोड हो रहा है...";
 "feed.empty.following.title" = "अभी कोई मोमेंट नहीं है";

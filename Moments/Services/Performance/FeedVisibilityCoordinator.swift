@@ -132,6 +132,21 @@ extension View {
         modifier(FeedMomentVisibilityReporter(momentId: momentId))
     }
 
+    /// Chrome de detalle: offset de scroll sin GeometryReader + PreferenceKey en el LazyVStack.
+    func feedDetailChromeScrollOffset(
+        contentMinY: Binding<CGFloat>,
+        initialContentMinY: Binding<CGFloat>
+    ) -> some View {
+        onScrollGeometryChange(for: CGFloat.self) { geometry in
+            -geometry.contentOffset.y
+        } action: { _, minY in
+            contentMinY.wrappedValue = minY
+            if !initialContentMinY.wrappedValue.isFinite || initialContentMinY.wrappedValue > 10_000 {
+                initialContentMinY.wrappedValue = minY
+            }
+        }
+    }
+
     /// Recalcula listeners con el snapshot actual (la fracción la reporta cada card).
     /// También ante cambios de layout con el mismo contentOffset (tamaño, insets).
     func feedScrollVisibilityAnchor(

@@ -245,7 +245,7 @@ struct SingleMomentDetailView: View {
                         onPeek: { imageURL, ratio, isPressing in
                             handlePeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing)
                         },
-                        reelsVideos: [moment].videoMoments
+                        reelsVideos: nil
                     )
                     .equatable()
                     .environmentObject(firestoreService)
@@ -254,25 +254,11 @@ struct SingleMomentDetailView: View {
             }
             .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
             .padding(.bottom, 24)
-            .background(
-                GeometryReader { geometry in
-                    Color.clear.preference(
-                        key: ScrollOffsetPreferenceKey.self,
-                        value: geometry.frame(in: .named("singleMomentScroll")).minY
-                    )
-                }
-            )
             .feedScrollVisibilityAnchor()
         }
         .profileGridNavigationChrome(colorScheme: colorScheme)
         .scrollClipDisabled()
-        .coordinateSpace(name: "singleMomentScroll")
-        .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-            contentMinY = value
-            if !initialContentMinY.isFinite || initialContentMinY > 10_000 {
-                initialContentMinY = value
-            }
-        }
+        .feedDetailChromeScrollOffset(contentMinY: $contentMinY, initialContentMinY: $initialContentMinY)
         .environment(feedViewModel)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

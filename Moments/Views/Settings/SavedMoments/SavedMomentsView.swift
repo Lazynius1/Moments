@@ -846,7 +846,6 @@ struct ModernSavedMomentsDetailView: View {
     @StateObject private var firestoreService = FirestoreService()
     @State private var currentIndex: Int
     @State private var commentsRoute: SavedMomentCommentsRoute?
-    @State private var scrollOffset: CGFloat = 0
     @State private var showingRemoveAlert = false
     @State private var momentToRemove: Moment?
     @State private var peekImageURL: String? = nil
@@ -872,7 +871,7 @@ struct ModernSavedMomentsDetailView: View {
 
             ZStack(alignment: .top) {
                 // ✅ Fondo moderno igual que el feed
-                ModernDetailBackground(scrollOffset: scrollOffset)
+                ModernDetailBackground(scrollOffset: 0)
                     .ignoresSafeArea(.all)
 
                 // ✅ ScrollView con momentos guardados
@@ -965,22 +964,20 @@ struct ModernSavedMomentsDetailView: View {
 
     // ✅ ScrollView principal para momentos guardados
     private func modernSavedMomentsScrollView(geometry: GeometryProxy, safeAreaBottom: CGFloat, topContentInset: CGFloat) -> some View {
-        let savedReelsVideos = moments.videoMoments
-
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 40) {
                     Color.clear
                         .frame(height: topContentInset)
 
-                    ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
+                    ForEach(Array(moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                         ScreenshotProtectedView(
                             isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
                         ) {
                             ModernSavedDetailMomentCard(
                                 moment: moment,
                                 availableHeight: geometry.size.height - 200,
-                                reelsVideos: savedReelsVideos,
+                                reelsVideos: nil,
                                 onComment: {
                                     commentsRoute = SavedMomentCommentsRoute(moment: moment)
                                 },
@@ -1018,31 +1015,39 @@ struct ModernSavedMomentsDetailView: View {
                         }
                         .id(index)
                         .environmentObject(firestoreService)
+                        .feedMomentVisibility(momentId: GlobalVideoManager.profileVideoConsumerId(for: moment))
                         .onAppear {
                             if index != currentIndex {
                                 currentIndex = index
                             }
+                            prefetchUpcomingSavedMoments(from: index)
                         }
                     }
                 }
                 .padding(.top, 0)
                 .padding(.bottom, safeAreaBottom + 40)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .preference(key: SavedDetailScrollOffsetKey.self, value: geo.frame(in: .named("scroll")).minY)
-                    }
-                )
-            }
-            .coordinateSpace(name: "scroll")
-            .onPreferenceChange(SavedDetailScrollOffsetKey.self) { value in
-                scrollOffset = value
+                .feedScrollVisibilityAnchor()
             }
             .onAppear {
+                VideoMomentsIndex.shared.rebuild(from: moments)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     proxy.scrollTo(initialIndex, anchor: .center)
                 }
             }
+        }
+    }
+
+    private func prefetchUpcomingSavedMoments(from index: Int) {
+        let nextIndex = index + 1
+        guard nextIndex < moments.count else { return }
+        let upcoming = Array(moments[nextIndex..<min(nextIndex + 8, moments.count)])
+        let imageURLs = VideoPlaybackSelector.shared.imagePrefetchURLs(from: upcoming, maxMoments: 8)
+        if !imageURLs.isEmpty {
+            ImagePrefetchManager.shared.prefetch(urls: imageURLs)
+        }
+        let videoURLs = VideoPlaybackSelector.shared.preloadURLStrings(from: upcoming, maxMoments: 4)
+        if !videoURLs.isEmpty {
+            VideoPreloader.shared.preloadAssets(urls: videoURLs)
         }
     }
 }
@@ -1541,12 +1546,6 @@ struct ModernSavedDetailMomentCard: View {
         }
     }
 
-}
-struct SavedDetailScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
 }
 
 // MARK: - ✅ AsyncProfileImageView específico para guardados

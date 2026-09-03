@@ -3,7 +3,7 @@ import FirebaseAuth
 import Kingfisher
 import MapKit
 
-private extension Moment {
+extension Moment {
     var feedViewIdentity: String {
         if let id, !id.isEmpty {
             return "\(authorId)_\(id)"

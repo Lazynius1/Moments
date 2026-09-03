@@ -311,6 +311,7 @@
 "feed.following" = "팔로잉";
 "feed.follow" = "팔로우";
 "feed.seeMore" = "더 보기";
+"feed.seeMoreInline" = "더 보기";
 "feed.seeLess" = "간략히 보기";
 "feed.loadingMoment" = "모먼트 불러오는 중...";
 "feed.empty.following.title" = "아직 모먼트가 없습니다";

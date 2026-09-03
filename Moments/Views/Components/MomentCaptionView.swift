@@ -27,8 +27,9 @@ struct MomentCaptionView: View {
     var isReelsCaptionExpanded: Binding<Bool> = .constant(false)
 
     @State private var showFullCaption = false
-    @State private var limitedCaptionHeight: CGFloat = 0
-    @State private var fullCaptionHeight: CGFloat = 0
+    @State private var displayText = ""
+    @State private var showSeeMore = false
+    @State private var captionWidth: CGFloat = 0
 
     private var trimmedContent: String {
         moment.content.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -45,11 +46,19 @@ struct MomentCaptionView: View {
     }
 
     private var previewContent: String {
-        cardContent
+        displayText.isEmpty ? cardContent : displayText
     }
 
-    private var needsExpansion: Bool {
-        fullCaptionHeight > limitedCaptionHeight + 0.5
+    private var lineLimit: Int {
+        style == .detail ? 4 : 3
+    }
+
+    private var bodyFontSize: CGFloat {
+        style == .detail ? 15 : 14
+    }
+
+    private var seeMoreSuffix: String {
+        "... " + NSLocalizedString("feed.seeMoreInline", comment: "more")
     }
 
     private var baseTextColor: Color {
@@ -96,11 +105,11 @@ struct MomentCaptionView: View {
 
     private var feedOrDetailCaption: some View {
         MomentCaptionContextTransition(isRequested: $showFullCaption) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 0) {
                 MomentHashtagText(
                     content: previewContent,
-                    textFont: .system(size: style == .detail ? 15 : 14),
-                    hashtagFont: .system(size: style == .detail ? 15 : 14, weight: .semibold),
+                    textFont: .system(size: bodyFontSize),
+                    hashtagFont: .system(size: bodyFontSize, weight: .semibold),
                     baseColor: baseTextColor,
                     hashtagColor: hashtagTextColor,
                     mentionColor: mentionTextColor,
@@ -109,73 +118,39 @@ struct MomentCaptionView: View {
                     shadowRadius: 0,
                     shadowX: 0,
                     shadowY: 0,
-                    lineLimit: style == .detail ? 4 : 3,
+                    lineLimit: lineLimit,
+                    actionText: showSeeMore ? seeMoreSuffix : nil,
+                    actionURL: showSeeMore ? URL(string: "action://seeMore") : nil,
+                    actionFont: .system(size: bodyFontSize),
+                    actionColor: secondaryTextColor,
                     onHashtagTap: onHashtagTap,
-                    onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
+                    onMentionTap: MomentMentionNavigation.openProfile(forUsername:),
+                    onActionTap: { _ in requestFullCaption() }
                 )
-                .onGeometryChange(for: CGFloat.self) { proxy in
-                    proxy.size.height
-                } action: { height in
-                    limitedCaptionHeight = height
-                }
-                .background(alignment: .topLeading) {
-                    MomentHashtagText(
-                        content: cardContent,
-                        textFont: .system(size: style == .detail ? 15 : 14),
-                        hashtagFont: .system(size: style == .detail ? 15 : 14, weight: .semibold),
-                        baseColor: baseTextColor,
-                        hashtagColor: hashtagTextColor,
-                        mentionColor: mentionTextColor,
-                        textAlignment: .leading,
-                        shadowColor: .clear,
-                        shadowRadius: 0,
-                        shadowX: 0,
-                        shadowY: 0,
-                        onHashtagTap: { _ in },
-                        onMentionTap: nil
-                    )
-                    .fixedSize(horizontal: false, vertical: true)
-                    .hidden()
-                    .allowsHitTesting(false)
-                    .onGeometryChange(for: CGFloat.self) { proxy in
-                        proxy.size.height
-                    } action: { height in
-                        fullCaptionHeight = height
-                    }
-                }
-                .onChange(of: cardContent) { _, _ in
-                    limitedCaptionHeight = 0
-                    fullCaptionHeight = 0
-                }
-
-                if needsExpansion {
-                    Button {
+                .onTapGesture {
+                    if showSeeMore {
                         requestFullCaption()
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text(NSLocalizedString("feed.seeMore", comment: "See more"))
-                                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-
-                            Image(systemName: "text.alignleft")
-                                .font(.system(size: 10, weight: .semibold))
-                        }
-                        .foregroundStyle(secondaryTextColor)
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 6)
-                        .momentsChromeGlass(in: Capsule(), interactive: true)
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    .highPriorityGesture(
-                        TapGesture().onEnded {
-                            requestFullCaption()
-                        }
-                    )
+                }
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.width
+                } action: { _, width in
+                    guard abs(captionWidth - width) > 0.5 else { return }
+                    captionWidth = width
+                    refreshInlineSeeMore(width: width)
+                }
+                .onChange(of: cardContent) { _, newValue in
+                    displayText = newValue
+                    showSeeMore = false
+                    refreshInlineSeeMore(width: captionWidth)
+                }
+                .onAppear {
+                    if displayText.isEmpty {
+                        displayText = cardContent
+                    }
+                    refreshInlineSeeMore(width: captionWidth)
                 }
             }
-            // Sin esto el Text usa solo su ideal width y el VStack del post (alignment .center)
-            // lo deja flotando con hueco grande a la izquierda — Android ya hace fillMaxWidth().
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
             .padding(.top, style == .detail ? 0 : 2)
@@ -196,6 +171,72 @@ struct MomentCaptionView: View {
         HapticManager.shared.lightImpact()
         showFullCaption = true
     }
+
+    private func refreshInlineSeeMore(width: CGFloat) {
+        guard width > 1 else { return }
+        let full = cardContent
+        let suffix = seeMoreSuffix
+        let font = UIFont.systemFont(ofSize: bodyFontSize)
+        let visible = captionVisibleCharacterCount(text: full, width: width, maxLines: lineLimit, font: font)
+        if visible >= full.count {
+            displayText = full
+            showSeeMore = false
+            return
+        }
+
+        var cut = captionCutToLastVisibleWord(
+            full: full,
+            visibleEndExclusive: visible,
+            suffixCharCount: suffix.count
+        )
+        var steps = 0
+        while steps < 24,
+              captionVisibleCharacterCount(text: cut + suffix, width: width, maxLines: lineLimit, font: font) < (cut + suffix).count {
+            let next = dropLastCaptionWord(cut)
+            if next.isEmpty || next == cut { break }
+            cut = next
+            steps += 1
+        }
+        displayText = cut
+        showSeeMore = true
+    }
+}
+
+private func captionVisibleCharacterCount(text: String, width: CGFloat, maxLines: Int, font: UIFont) -> Int {
+    guard width > 1, !text.isEmpty else { return text.count }
+    let storage = NSTextStorage(string: text, attributes: [.font: font])
+    let manager = NSLayoutManager()
+    let container = NSTextContainer(size: CGSize(width: width, height: .greatestFiniteMagnitude))
+    container.maximumNumberOfLines = maxLines
+    container.lineFragmentPadding = 0
+    container.lineBreakMode = .byWordWrapping
+    manager.addTextContainer(container)
+    storage.addLayoutManager(manager)
+    manager.ensureLayout(for: container)
+    let glyphRange = manager.glyphRange(for: container)
+    let charRange = manager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+    return charRange.length
+}
+
+private func captionCutToLastVisibleWord(full: String, visibleEndExclusive: Int, suffixCharCount: Int) -> String {
+    let limit = min(max(visibleEndExclusive - suffixCharCount, 0), full.count)
+    if limit <= 0 { return "" }
+    let end = full.index(full.startIndex, offsetBy: limit)
+    var prefix = String(full[..<end]).trimmingCharacters(in: .whitespacesAndNewlines)
+    if let breakAt = prefix.lastIndex(where: { $0 == " " || $0 == "\n" || $0 == "\t" }),
+       breakAt > prefix.startIndex {
+        prefix = String(prefix[..<breakAt]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    return prefix
+}
+
+private func dropLastCaptionWord(_ text: String) -> String {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let breakAt = trimmed.lastIndex(where: { $0 == " " || $0 == "\n" || $0 == "\t" }),
+       breakAt > trimmed.startIndex {
+        return String(trimmed[..<breakAt]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    return trimmed.isEmpty ? trimmed : String(trimmed.dropLast())
 }
 
 // MARK: - Reels (2 líneas colapsado, expandido con scroll cap ~10 líneas)

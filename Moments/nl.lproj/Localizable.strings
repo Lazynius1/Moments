@@ -311,6 +311,7 @@
 "feed.following" = "Volgend";
 "feed.follow" = "Volgen";
 "feed.seeMore" = "meer weergeven";
+"feed.seeMoreInline" = "meer";
 "feed.seeLess" = "minder weergeven";
 "feed.loadingMoment" = "Moment laden...";
 "feed.empty.following.title" = "Nog geen momenten";

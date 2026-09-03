@@ -320,6 +320,7 @@
 "feed.following" = "Segui già";
 "feed.follow" = "Segui";
 "feed.seeMore" = "vedi altro";
+"feed.seeMoreInline" = "altro";
 "feed.seeLess" = "vedi meno";
 "feed.loadingMoment" = "Caricamento momento...";
 "feed.empty.following.title" = "Nessun momento per ora";

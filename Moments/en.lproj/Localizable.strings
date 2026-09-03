@@ -327,6 +327,7 @@
 "feed.following" = "Following";
 "feed.follow" = "Follow";
 "feed.seeMore" = "see more";
+"feed.seeMoreInline" = "more";
 "feed.seeLess" = "see less";
 "feed.loadingMoment" = "Loading moment...";
 "feed.empty.following.title" = "No moments yet";

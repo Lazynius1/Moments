@@ -311,6 +311,7 @@
 "feed.following" = "Obserwujesz";
 "feed.follow" = "Obserwuj";
 "feed.seeMore" = "pokaż więcej";
+"feed.seeMoreInline" = "więcej";
 "feed.seeLess" = "pokaż mniej";
 "feed.loadingMoment" = "Ładowanie momentu...";
 "feed.empty.following.title" = "Nie ma jeszcze żadnych momentów";

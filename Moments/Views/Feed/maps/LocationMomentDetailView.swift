@@ -332,10 +332,7 @@ struct LocationMomentDetailView: View {
         let endIndex = min(nextIndex + 8, moments.count)
         let upcoming = Array(moments[nextIndex..<endIndex])
 
-        let imageURLs = upcoming.compactMap { moment -> URL? in
-            guard let urlString = moment.previewImageURLString else { return nil }
-            return URL(string: urlString)
-        }
+        let imageURLs = VideoPlaybackSelector.shared.imagePrefetchURLs(from: upcoming, maxMoments: 8)
         if !imageURLs.isEmpty {
             ImagePrefetchManager.shared.prefetch(urls: imageURLs)
         }
@@ -382,7 +379,6 @@ struct LocationMomentDetailView: View {
     private func locationMomentsScrollView() -> some View {
         let screenHeight = UIApplication.shared.activeWindowSize.height
         let feedCardHeight = screenHeight * 0.58
-        let locationReelsVideos = moments.videoMoments
 
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
@@ -390,7 +386,7 @@ struct LocationMomentDetailView: View {
                     Color.clear
                         .frame(height: ProfileHeaderCollapseMetrics.feedStyleDetailTopInset)
 
-                    ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
+                    ForEach(Array(moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                         let isAvailable = momentAvailability[moment.mapAvailabilityKey] ?? true
 
                         ScreenshotProtectedView(
@@ -429,7 +425,7 @@ struct LocationMomentDetailView: View {
                                         moment: moment
                                     )
                                 },
-                                reelsVideos: locationReelsVideos
+                                reelsVideos: nil
                             )
                             .equatable()
                             .environmentObject(firestoreService)
@@ -451,25 +447,11 @@ struct LocationMomentDetailView: View {
                 }
                 .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
                 .padding(.bottom, 24)
-                .background(
-                    GeometryReader { geometry in
-                        Color.clear.preference(
-                            key: LocationDetailScrollOffsetPreferenceKey.self,
-                            value: geometry.frame(in: .named("locationDetailScroll")).minY
-                        )
-                    }
-                )
                 .feedScrollVisibilityAnchor()
             }
             .profileGridNavigationChrome(colorScheme: colorScheme)
             .scrollClipDisabled()
-            .coordinateSpace(name: "locationDetailScroll")
-            .onPreferenceChange(LocationDetailScrollOffsetPreferenceKey.self) { value in
-                contentMinY = value
-                if !initialContentMinY.isFinite || initialContentMinY > 10_000 {
-                    initialContentMinY = value
-                }
-            }
+            .feedDetailChromeScrollOffset(contentMinY: $contentMinY, initialContentMinY: $initialContentMinY)
             .environment(feedViewModel)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
@@ -582,15 +564,6 @@ struct LocationMomentDetailView: View {
     }
 }
 
-private struct LocationDetailScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = .greatestFiniteMagnitude
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-// MARK: - ✅ Tarjeta de momento de ubicación REFACTORIZADA
 enum LocationMomentCardLayout {
     case standalone
     case feed
