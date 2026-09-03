@@ -1843,6 +1843,11 @@
 "userProfile.unfollow.confirm.message" = "İstediğin zaman bu profili tekrar takip edebilirsin.";
 "userProfile.unfollow.confirm.private.message" = "Bu profil gizli. Takipten çıkarsan, seni tekrar kabul etmediği sürece Moments'larını, hikâyelerini veya öne çıkanlarını göremezsin.";
 "userProfile.unfollow.confirm.action" = "Takipten çık";
+
+"userProfile.cancelRequest.confirm.title" = "İstek iptal edilsin mi?";
+"userProfile.cancelRequest.confirm.message" = "Takip isteğiniz geri çekilecek.";
+"userProfile.cancelRequest.confirm.action" = "İsteği iptal et";
+
 "userProfile.relationship.sheet.title" = "Takip ediliyor: %@";
 "userProfile.relationship.sheet.subtitle" = "Moments'larını nasıl göreceğini ayarla.";
 "userProfile.relationship.bestFriends" = "Yakın arkadaşlar";

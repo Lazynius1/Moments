@@ -235,6 +235,7 @@ struct SuggestedUserCard: View {
     var profileZoomNamespace: Namespace.ID? = nil
     let onFollow: () -> Void
     let onTap: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
@@ -379,6 +380,7 @@ struct SearchResultCard: View {
     var profileZoomNamespace: Namespace.ID? = nil
     let onFollow: () -> Void
     let onTap: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
@@ -428,26 +430,12 @@ struct SearchResultCard: View {
 
                 Spacer()
 
-                if buttonState.isActionable {
-                    FollowButton(
-                        user: user,
-                        buttonState: buttonState,
-                        onTap: onFollow
-                    )
-                } else {
-                    HStack(spacing: 6) {
-                        Image(systemName: buttonState == .following ? "checkmark" :
-                              buttonState == .requestPending ? "clock" :
-                              buttonState == .requestPendingCancellable ? "xmark.circle" : "xmark")
-                        Text(buttonState.buttonText)
-                    }
-                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
-                }
+                ModernFollowButton(
+                    state: buttonState,
+                    isLoading: false,
+                    colorScheme: colorScheme,
+                    action: onFollow
+                )
             }
             .padding(20)
         }
@@ -490,6 +478,8 @@ struct FollowButton: View {
             return NSLocalizedString("explore.button.blocked", comment: "Blocked")
         case .following:
             return NSLocalizedString("userProfile.followButton.following", comment: "Following")
+        case .mutuals:
+            return NSLocalizedString("audience.type.mutuals", comment: "")
         case .canFollow:
             return NSLocalizedString("explore.button.follow", comment: "Follow")
         case .canRequestFollow:
@@ -505,6 +495,8 @@ struct FollowButton: View {
         switch buttonState {
         case .following:
             return "checkmark"
+        case .mutuals:
+            return "person.2.fill"
         case .canFollow, .canRequestFollow:
             return "plus"
         case .requestPending:

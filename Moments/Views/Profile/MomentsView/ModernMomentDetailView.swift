@@ -467,6 +467,7 @@ struct ModernMomentDetailView: View {
                 reelsVideos: nil
             )
             .equatable()
+            .feedMomentVisibility(momentId: GlobalVideoManager.profileVideoConsumerId(for: moment))
             .environmentObject(firestoreService)
             .environment(feedViewModel)
         }

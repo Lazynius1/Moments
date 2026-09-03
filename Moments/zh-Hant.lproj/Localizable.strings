@@ -1843,6 +1843,11 @@
 "userProfile.unfollow.confirm.message" = "你隨時都可以再次追蹤此個人檔案。";
 "userProfile.unfollow.confirm.private.message" = "此個人檔案為私人帳號。取消追蹤後，除非對方再次接受你的追蹤要求，否則你將無法查看對方的動態、限時動態或精選動態。";
 "userProfile.unfollow.confirm.action" = "取消追蹤";
+
+"userProfile.cancelRequest.confirm.title" = "取消申請？";
+"userProfile.cancelRequest.confirm.message" = "你的追蹤申請將會被撤回。";
+"userProfile.cancelRequest.confirm.action" = "取消申請";
+
 "userProfile.relationship.sheet.title" = "追蹤 %@";
 "userProfile.relationship.sheet.subtitle" = "調整對方動態在你這裡的顯示方式。";
 "userProfile.relationship.bestFriends" = "摯友";

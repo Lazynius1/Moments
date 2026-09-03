@@ -244,10 +244,8 @@ struct ShareActionButton: View {
     let isPrimary: Bool
     let action: () -> Void
     
-    @State private var isPressed = false
-    
     var body: some View {
-        MomentRowButton(action: action) {
+        MomentRowButton(feedback: .menu, action: action) {
             HStack(spacing: 16) {
                 Group {
                     if usesStoryRingIcon {
@@ -280,6 +278,7 @@ struct ShareActionButton: View {
             }
             .padding(.vertical, 14)
             .padding(.horizontal, 4)
+            .contentShape(Rectangle())
         }
     }
 }

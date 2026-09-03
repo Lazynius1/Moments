@@ -1843,6 +1843,11 @@
 "userProfile.unfollow.confirm.message" = "Je kunt dit profiel altijd weer volgen.";
 "userProfile.unfollow.confirm.private.message" = "Dit profiel is privé. Als je stopt met volgen, kun je hun momenten, verhalen en highlights niet meer zien, tenzij ze je opnieuw accepteren.";
 "userProfile.unfollow.confirm.action" = "Ontvolgen";
+
+"userProfile.cancelRequest.confirm.title" = "Verzoek intrekken?";
+"userProfile.cancelRequest.confirm.message" = "Je volgverzoek wordt ingetrokken.";
+"userProfile.cancelRequest.confirm.action" = "Verzoek intrekken";
+
 "userProfile.relationship.sheet.title" = "Je volgt %@";
 "userProfile.relationship.sheet.subtitle" = "Bepaal hoe hun momenten aan jou worden getoond.";
 "userProfile.relationship.bestFriends" = "Beste vrienden";

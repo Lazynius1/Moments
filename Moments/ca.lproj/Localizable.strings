@@ -1914,6 +1914,11 @@
 "userProfile.unfollow.confirm.message" = "Pots tornar a seguir aquest perfil quan vulguis.";
 "userProfile.unfollow.confirm.private.message" = "Aquest perfil es privat. Si deixes de seguir-lo, no podràs veure els seus moments, històries ni destacats tret que et torni a acceptar.";
 "userProfile.unfollow.confirm.action" = "Deixar de seguir";
+
+"userProfile.cancelRequest.confirm.title" = "Cancel·lar sol·licitud?";
+"userProfile.cancelRequest.confirm.message" = "La teva sol·licitud de seguiment serà retirada.";
+"userProfile.cancelRequest.confirm.action" = "Cancel·lar sol·licitud";
+
 "userProfile.relationship.sheet.title" = "Seguint %@";
 "userProfile.relationship.sheet.subtitle" = "Controla com apareixen els seus moments per a tu.";
 "userProfile.relationship.bestFriends" = "Millors amics";

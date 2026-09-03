@@ -198,10 +198,12 @@ struct SuggestedUserRow: View {
             
             Spacer()
             
-            // Botón de seguir
-            SuggestedUserFollowButton(
+            ModernFollowButton(
                 state: buttonState,
-                onFollow: onFollow
+                isLoading: false,
+                colorScheme: colorScheme,
+                style: .compact,
+                action: onFollow
             )
         }
         .padding(.vertical, 10)
@@ -240,6 +242,8 @@ struct SuggestedUserFollowButton: View {
             return NSLocalizedString("followButton.follow", comment: "Follow button")
         case .following:
             return NSLocalizedString("userProfile.followButton.following", comment: "Following button")
+        case .mutuals:
+            return NSLocalizedString("audience.type.mutuals", comment: "")
         case .requestPending:
             return NSLocalizedString("feed.follow.requested", comment: "Requested button")
         case .requestPendingCancellable:
@@ -259,6 +263,8 @@ struct SuggestedUserFollowButton: View {
             return "person.badge.plus"
         case .following:
             return "person.fill.checkmark"
+        case .mutuals:
+            return "person.2.fill"
         case .requestPending:
             return "clock"
         case .requestPendingCancellable:
@@ -281,7 +287,7 @@ struct SuggestedUserFollowButton: View {
         switch state {
         case .canFollow, .canRequestFollow:
             return Color(hex: "007AFF").opacity(0.8)
-        case .following:
+        case .following, .mutuals:
             return Color.red.opacity(0.2)
         case .requestPending:
             return Color.orange.opacity(0.8)
@@ -296,7 +302,7 @@ struct SuggestedUserFollowButton: View {
         switch state {
         case .canFollow, .canRequestFollow:
             return Color.white.opacity(0.2)
-        case .following:
+        case .following, .mutuals:
             return Color.red.opacity(0.3)
         case .requestPending:
             return Color.white.opacity(0.2)
@@ -311,7 +317,7 @@ struct SuggestedUserFollowButton: View {
         switch state {
         case .canFollow, .canRequestFollow:
             return Color(hex: "007AFF").opacity(0.3)
-        case .following:
+        case .following, .mutuals:
             return Color.red.opacity(0.2)
         case .requestPending:
             return Color.orange.opacity(0.3)
@@ -324,7 +330,7 @@ struct SuggestedUserFollowButton: View {
     
     private var buttonShadowRadius: CGFloat {
         switch state {
-        case .following:
+        case .following, .mutuals:
             return 2
         case .requestPendingCancellable:
             return 4

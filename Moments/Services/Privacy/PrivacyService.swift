@@ -402,9 +402,12 @@ class PrivacyService {
                 return
             }
             
-            self?.firestoreService.isFollowing(currentUserId: viewerId, targetUserId: targetUserId) { isFollowing in
+            self?.firestoreService.isFollowing(currentUserId: viewerId, targetUserId: targetUserId) { [weak self] isFollowing in
                 if isFollowing {
-                    completion(.following)
+                    // Comprobar si es mutual (colección users/{viewerId}/mutuals/{targetUserId})
+                    self?.firestoreService.isMutualConnection(userId: viewerId, otherUserId: targetUserId) { isMutual in
+                        completion(isMutual ? .mutuals : .following)
+                    }
                     return
                 }
                 
@@ -568,11 +571,27 @@ enum FollowButtonState {
     case ownProfile
     case blocked
     case following
+    case mutuals
     case canFollow
     case canRequestFollow
     case requestPending
     case requestPendingCancellable
-    
+
+    /// True si el estado representa una relación de seguimiento activa (following o mutuals).
+    var isFollowingOrMutual: Bool {
+        self == .following || self == .mutuals
+    }
+
+    /// Follow / Request (o cancelar solicitud). En Reels el chip solo se muestra en estos casos.
+    var showsProspectFollow: Bool {
+        switch self {
+        case .canFollow, .canRequestFollow, .requestPendingCancellable:
+            return true
+        default:
+            return false
+        }
+    }
+
     var buttonText: String {
         switch self {
         case .ownProfile:
@@ -581,6 +600,8 @@ enum FollowButtonState {
             return NSLocalizedString("userProfile.followButton.blocked", comment: "Blocked")
         case .following:
             return NSLocalizedString("userProfile.followButton.following", comment: "Following")
+        case .mutuals:
+            return NSLocalizedString("audience.type.mutuals", comment: "Mutuals")
         case .canFollow:
             return NSLocalizedString("userProfile.followButton.canFollow", comment: "Follow")
         case .canRequestFollow:
@@ -596,25 +617,22 @@ enum FollowButtonState {
         switch self {
         case .ownProfile, .blocked, .requestPending:
             return false
-        case .following, .canFollow, .canRequestFollow, .requestPendingCancellable:
+        case .following, .mutuals, .canFollow, .canRequestFollow, .requestPendingCancellable:
             return true
         }
     }
     
-    // ✅ NUEVA PROPIEDAD: Color del botón
     var buttonColor: String {
         switch self {
         case .ownProfile:
             return "gray"
         case .blocked:
             return "red"
-        case .following:
+        case .following, .mutuals:
             return "green"
         case .canFollow, .canRequestFollow:
             return "blue"
-        case .requestPending:
-            return "orange"
-        case .requestPendingCancellable:
+        case .requestPending, .requestPendingCancellable:
             return "orange"
         }
     }

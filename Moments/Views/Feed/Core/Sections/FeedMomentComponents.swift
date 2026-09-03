@@ -207,7 +207,6 @@ struct ModernPostCardView: View {
     @State private var followButtonState: FollowButtonState = .canFollow
     @State private var isSaved: Bool = false
     @State private var isFollowLoading: Bool = false
-    @State private var showingUnfollowConfirmation = false
     @State private var isSaveLoading: Bool = false
     @State private var commentCount: Int = 0
     @State private var hasLoadedInitialData: Bool = false
@@ -577,19 +576,6 @@ struct ModernPostCardView: View {
 
             }
         }
-        .confirmationDialog(
-            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
-            isPresented: $showingUnfollowConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
-                performFollowToggle()
-            }
-
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
-        } message: {
-            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
-        }
     }
 
     // Header del post con círculo de historia
@@ -674,7 +660,7 @@ struct ModernPostCardView: View {
                     state: followButtonState,
                     isLoading: isFollowLoading,
                     colorScheme: colorScheme,
-                    action: toggleFollow
+                    action: performFollowToggle
                 )
             }
         }
@@ -980,15 +966,6 @@ struct ModernPostCardView: View {
         }
     }
 
-    private func toggleFollow() {
-        if followButtonState == .following {
-            showingUnfollowConfirmation = true
-            return
-        }
-
-        performFollowToggle()
-    }
-
     private func performFollowToggle() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         guard followButtonState.isActionable else { return }
@@ -996,7 +973,7 @@ struct ModernPostCardView: View {
         let previousState = followButtonState
         let optimisticState: FollowButtonState = {
             switch previousState {
-            case .following:
+            case .following, .mutuals:
                 return .canFollow
             case .canRequestFollow:
                 return .requestPendingCancellable
@@ -1016,7 +993,7 @@ struct ModernPostCardView: View {
 
         isFollowLoading = true
 
-        if previousState == .following {
+        if previousState.isFollowingOrMutual {
             firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: moment.authorId) { error in
                 DispatchQueue.main.async {
                     self.isFollowLoading = false

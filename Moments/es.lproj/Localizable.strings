@@ -1925,6 +1925,11 @@
 "userProfile.unfollow.confirm.message" = "Puedes volver a seguir este perfil cuando quieras.";
 "userProfile.unfollow.confirm.private.message" = "Este perfil es privado. Si dejas de seguirlo, no podrás ver sus momentos, historias ni destacados a menos que vuelva a aceptarte.";
 "userProfile.unfollow.confirm.action" = "Dejar de seguir";
+
+"userProfile.cancelRequest.confirm.title" = "¿Cancelar solicitud?";
+"userProfile.cancelRequest.confirm.message" = "Tu solicitud de seguimiento será retirada.";
+"userProfile.cancelRequest.confirm.action" = "Cancelar solicitud";
+
 "userProfile.relationship.sheet.title" = "Siguiendo a %@";
 "userProfile.relationship.sheet.subtitle" = "Controla cómo aparecen sus momentos para ti.";
 "userProfile.relationship.bestFriends" = "Mejores amigos";

@@ -16,7 +16,6 @@ struct ModernExploreDetailHeader: View {
     @State private var liveUsername: String = ""
     @State private var followButtonState: FollowButtonState = .canFollow
     @State private var isFollowLoading = false
-    @State private var showingUnfollowConfirmation = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,18 +44,6 @@ struct ModernExploreDetailHeader: View {
         .onChange(of: moment?.authorId) { _, _ in
             resolveAuthorUsername()
             refreshFollowState()
-        }
-        .confirmationDialog(
-            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
-            isPresented: $showingUnfollowConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
-                performFollowToggle()
-            }
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
-        } message: {
-            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
         }
     }
 
@@ -147,7 +134,7 @@ struct ModernExploreDetailHeader: View {
                     state: followButtonState,
                     isLoading: isFollowLoading,
                     colorScheme: colorScheme,
-                    action: toggleFollow
+                    action: performFollowToggle
                 )
             }
         }
@@ -197,14 +184,6 @@ struct ModernExploreDetailHeader: View {
         }
     }
 
-    private func toggleFollow() {
-        if followButtonState == .following {
-            showingUnfollowConfirmation = true
-            return
-        }
-        performFollowToggle()
-    }
-
     private func performFollowToggle() {
         guard let moment,
               let currentUserId = Auth.auth().currentUser?.uid else { return }
@@ -213,7 +192,7 @@ struct ModernExploreDetailHeader: View {
         let previousState = followButtonState
         let optimisticState: FollowButtonState = {
             switch previousState {
-            case .following: return .canFollow
+            case .following, .mutuals: return .canFollow
             case .canRequestFollow: return .requestPendingCancellable
             case .requestPendingCancellable: return .canRequestFollow
             case .canFollow: return .following
@@ -227,7 +206,7 @@ struct ModernExploreDetailHeader: View {
         FollowStateStore.shared.setState(optimisticState, for: moment.authorId)
         isFollowLoading = true
 
-        if previousState == .following {
+        if previousState.isFollowingOrMutual {
             firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: moment.authorId) { error in
                 DispatchQueue.main.async {
                     isFollowLoading = false

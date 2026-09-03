@@ -199,25 +199,13 @@ extension EnhancedNotificationRow {
                     }
                     .buttonStyle(PlainButtonStyle())
                 } else {
-                    Button(action: {
-                        toggleFollow()
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: notificationFollowIcon)
-                                .font(.system(size: 12, weight: .semibold))
-
-                            Text(notificationFollowTitle)
-                                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                        }
-                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                            .foregroundStyle(colorScheme == .dark ? .white : .black)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .momentsChromeGlass(in: Capsule(), interactive: followButtonState.isActionable)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .disabled(!followButtonState.isActionable)
-                    .opacity(notificationFollowIsPassive ? 0.78 : 1)
+                    ModernFollowButton(
+                        state: followButtonState,
+                        isLoading: false,
+                        colorScheme: colorScheme,
+                        style: .compact,
+                        action: performFollowToggle
+                    )
                 }
 
             case .echoSuggestion:

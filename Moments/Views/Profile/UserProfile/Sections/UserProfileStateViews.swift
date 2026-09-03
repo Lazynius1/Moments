@@ -167,28 +167,14 @@ struct UserModernPrivateProfileView: View {
 
                 // ── Botones de acción ──────────────────────────────────────
                 HStack(spacing: 10) {
-                    Button(action: {
-                        HapticManager.shared.mediumImpact()
-                        onFollowAction()
-                    }) {
-                        HStack(spacing: 7) {
-                            Image(systemName: followButtonIcon)
-                                .font(.system(size: 13, weight: .medium))
-                            Text(followButtonText)
-                                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                            if followButtonState == .following {
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 10, weight: .bold))
-                            }
-                        }
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
-                        .momentsChromeGlass(in: Capsule(), interactive: followButtonState.isActionable)
-                    }
-                    .disabled(!followButtonState.isActionable)
+                    ModernFollowButton(
+                        state: followButtonState,
+                        isLoading: false,
+                        colorScheme: colorScheme,
+                        style: .profileHeader,
+                        destructiveConfirmation: .none,
+                        action: onFollowAction
+                    )
 
                     Button(action: openMessageFlow) {
                         HStack(spacing: 6) {
@@ -337,6 +323,7 @@ struct UserModernPrivateProfileView: View {
         case .ownProfile: return NSLocalizedString("userProfile.followButton.ownProfile", comment: "Own profile")
         case .blocked: return NSLocalizedString("userProfile.followButton.blocked", comment: "Blocked")
         case .following: return NSLocalizedString("userProfile.followButton.following", comment: "Following")
+        case .mutuals: return NSLocalizedString("audience.type.mutuals", comment: "")
         case .canFollow: return NSLocalizedString("userProfile.followButton.canFollow", comment: "Follow")
         case .canRequestFollow: return NSLocalizedString("userProfile.followButton.canRequestFollow", comment: "Request follow")
         case .requestPending: return NSLocalizedString("userProfile.followButton.requestPending", comment: "Request sent")
@@ -349,6 +336,7 @@ struct UserModernPrivateProfileView: View {
         case .ownProfile: return "person.circle.fill"
         case .blocked: return "slash.circle"
         case .following: return "checkmark.circle.fill"
+        case .mutuals: return "person.2.fill"
         case .canFollow: return "person.badge.plus"
         case .canRequestFollow: return "envelope.circle"
         case .requestPending: return "clock.circle"

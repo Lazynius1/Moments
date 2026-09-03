@@ -403,7 +403,7 @@ struct VisitsRelationshipButton<VM: UserListViewModel>: View {
         guard !isFollowLoading else { return }
 
         switch followState {
-        case .following:
+        case .following, .mutuals:
             showingUnfollowConfirmation = true
         case .canFollow, .canRequestFollow:
             isFollowLoading = true

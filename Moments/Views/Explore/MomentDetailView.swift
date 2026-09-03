@@ -1283,7 +1283,7 @@ class MomentDetailViewModel: ObservableObject {
                   let userId = notification.userInfo?["userId"] as? String,
                   userId == self.moment.authorId,
                   let state = notification.userInfo?["state"] as? FollowButtonState else { return }
-            self.isFollowing = (state == .following)
+            self.isFollowing = state.isFollowingOrMutual
         }
         loadAuthorProfile()
         setupReactionListener()

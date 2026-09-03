@@ -2,27 +2,20 @@ import SwiftUI
 import FirebaseAuth
 
 enum NovaInputBarLayout {
-    static let bottomPaddingWithoutKeyboard: CGFloat = 8
-    /// Aire visible entre sheet y tab bar.
-    static let sheetAboveTabBarGap: CGFloat = 12
-    /// Tab bar sobre home indicator (pill flotante iOS 26 incluye margen extra).
-    static var tabBarClearance: CGFloat {
-        if #available(iOS 26.0, *) {
-            74
-        } else {
-            52
-        }
-    }
+    /// Misma separación inferior que el compositor de chat (`ChatComposerChromeMetrics.panelHomeGap`).
+    static let bottomPaddingWithoutKeyboard: CGFloat = ChatComposerChromeMetrics.panelHomeGap
+    /// Aire visible entre sheet e input (como `ChatInputBarLayout.sheetAboveInputGap`).
+    static let sheetAboveInputGap: CGFloat = 12
 
     static func bottomPadding(keyboardHeight: CGFloat, safeAreaBottom: CGFloat) -> CGFloat {
         keyboardHeight > 0
-            ? keyboardHeight - safeAreaBottom + bottomPaddingWithoutKeyboard
+            ? keyboardHeight - safeAreaBottom + ChatComposerChromeMetrics.panelKeyboardGap
             : bottomPaddingWithoutKeyboard
     }
 
-    /// Borde inferior del sheet, por encima de la tab bar.
+    /// Borde inferior del sheet, por encima del input (Nova ya no tiene tab bar).
     static func attachmentSheetBottomInset(safeAreaBottom: CGFloat) -> CGFloat {
-        safeAreaBottom + tabBarClearance + sheetAboveTabBarGap
+        safeAreaBottom + sheetAboveInputGap
     }
 }
 
@@ -122,7 +115,7 @@ struct EnhancedInputBar: View {
                     .transition(MotionPolicy.reduceMotion ? .opacity : .scale.combined(with: .opacity))
                 }
 
-                HStack(alignment: .center, spacing: 10) {
+                HStack(alignment: .bottom, spacing: 10) {
                     NovaAttachmentPlusButton(isMenuOpen: isMenuOpen, action: toggleAttachmentMenu)
 
                     TextField(
@@ -131,12 +124,12 @@ struct EnhancedInputBar: View {
                         axis: .vertical
                     )
                     .lineLimit(1...6)
-                    .font(.system(size: legacyPoppinsSize(16)))
+                    .font(.system(size: legacyPoppinsSize(15)))
                     .foregroundStyle(NovaColors.textPrimary)
                     .padding(.leading, 14)
                     .padding(.trailing, 12)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .focused($isTextFieldFocused)
                     .onChange(of: isTextFieldFocused) { _, focused in
                         onFocusChange?(focused)
@@ -149,14 +142,18 @@ struct EnhancedInputBar: View {
                     }
                     .background {
                         Color.clear
-                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                    .stroke(
-                                        isTextFieldFocused ? NovaColors.textPrimary.opacity(0.14) : Color.clear,
-                                        lineWidth: 1
-                                    )
-                            }
+                            .momentsChromeGlass(
+                                in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+                                interactive: true
+                            )
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(
+                                colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05),
+                                lineWidth: 0.8
+                            )
+                            .allowsHitTesting(false)
                     }
 
                     if !viewModel.inputText.isEmpty {
@@ -178,8 +175,10 @@ struct EnhancedInputBar: View {
                         .transition(MotionPolicy.reduceMotion ? .opacity : .scale.combined(with: .opacity))
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 4)
                 .padding(.vertical, 4)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
         }
         .background(Color.clear)
@@ -313,10 +312,3 @@ struct SmartSuggestionChip: View {
     }
 }
 
-// MARK: - Utilities y Extensions
-struct NovaScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = .zero
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}

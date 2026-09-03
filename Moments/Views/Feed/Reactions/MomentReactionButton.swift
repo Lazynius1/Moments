@@ -473,7 +473,6 @@ struct ReactionsListSheet: View {
     @State private var isLoading = true
     @State private var followStates: [String: FollowButtonState] = [:] // Estado de seguir para cada usuario
     @State private var followLoadingStates: [String: Bool] = [:] // Estados de carga para seguir
-    @State private var pendingUnfollowUserId: String?
     @State private var searchText = ""
 
     @EnvironmentObject private var firestoreService: FirestoreService
@@ -537,27 +536,6 @@ struct ReactionsListSheet: View {
                 }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .confirmationDialog(
-            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
-            isPresented: Binding(
-                get: { pendingUnfollowUserId != nil },
-                set: { if !$0 { pendingUnfollowUserId = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
-                if let userId = pendingUnfollowUserId {
-                    pendingUnfollowUserId = nil
-                    performFollowAction(for: userId)
-                }
-            }
-
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
-                pendingUnfollowUserId = nil
-            }
-        } message: {
-            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
-        }
         .onReceive(NotificationCenter.default.publisher(for: FollowStateStore.didChangeNotification)) { notification in
             guard let userId = notification.userInfo?["userId"] as? String,
                   let state = notification.userInfo?["state"] as? FollowButtonState else { return }
@@ -581,9 +559,9 @@ struct ReactionsListSheet: View {
                 .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 24)
+        .padding(.horizontal, 12)
+        .padding(.top, 12)
+        .padding(.bottom, 12)
     }
 
     // MARK: - Loading View
@@ -658,58 +636,41 @@ struct ReactionsListSheet: View {
     // MARK: - Reactions List
     private var reactionsList: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: 8) {
                 ForEach(filteredReactionGroups, id: \.type.rawValue) { group in
                     reactionGroupView(group: group)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
     }
 
     // MARK: - Reaction Group View
     private func reactionGroupView(group: ReactionGroup) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header del grupo con icono y contador
-            HStack(spacing: 10) {
-                ZStack {
-                    Circle()
-                        .fill(group.type.color.opacity(0.2))
-                        .frame(width: 32, height: 32)
-                    
-                    Text(group.type.filledIcon)
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(group.type.color)
-                }
-                
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(group.type.displayName)
-                        .font(.system(size: legacyPoppinsSize(14), weight: .bold))
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    
-                    Text(String(format: NSLocalizedString(
-                        group.count == 1 ? "reactions.peopleCount.single" : "reactions.peopleCount",
-                        comment: "People reaction count"
-                    ), group.count))
-                        .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
-                }
-                
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text(group.type.filledIcon)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(group.type.color)
+
+                Text("\(group.count)")
+                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+
                 Spacer()
             }
-            
-            // Lista de usuarios
+
             VStack(spacing: 0) {
                 ForEach(Array(group.users.prefix(10).enumerated()), id: \.element) { index, userId in
-                    userRowView(userId: userId, reactionType: group.type)
+                    userRowView(userId: userId)
                     if index < min(group.users.count, 10) - 1 {
                         Divider()
                             .opacity(colorScheme == .dark ? 0.18 : 0.12)
                             .padding(.leading, 52)
                     }
                 }
-                
+
                 if group.users.count > 10 {
                     Text(String(format: NSLocalizedString("reactions.more", comment: "More reactions"), group.users.count - 10))
                         .font(.system(size: legacyPoppinsSize(11)))
@@ -719,19 +680,17 @@ struct ReactionsListSheet: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.vertical, 8)
     }
 
     // MARK: - User Row View
-    private func userRowView(userId: String, reactionType: ReactionType) -> some View {
+    private func userRowView(userId: String) -> some View {
         HStack(spacing: 12) {
-            // Avatar del usuario con estilo moderno
             ZStack {
                 Circle()
                     .fill(Color.gray.opacity(0.15))
                     .frame(width: 40, height: 40)
-                
+
                 AsyncImage(url: URL(string: userProfiles[userId]?.profileImagePath ?? "")) { image in
                     image
                         .resizable()
@@ -744,35 +703,22 @@ struct ReactionsListSheet: View {
                 .frame(width: 36, height: 36)
                 .clipShape(Circle())
             }
-            
-            // Información del usuario
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
-                    Text(userProfiles[userId]?.username ?? NSLocalizedString("messaging.user.default", comment: "Default user"))
-                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    
-                    if userProfiles[userId]?.isVerified == true {
-                        VerifiedBadge(size: 12)
-                    }
+
+            HStack(spacing: 4) {
+                Text(userProfiles[userId]?.username ?? NSLocalizedString("messaging.user.default", comment: "Default user"))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+
+                if userProfiles[userId]?.isVerified == true {
+                    VerifiedBadge(size: 12)
                 }
-                
-                Text(String(format: NSLocalizedString("reactions.userReacted", comment: "User reacted with"), reactionType.displayName))
-                    .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
             }
-            
+
             Spacer()
-            
-            // Botón de seguir/dejar de seguir
+
             followButton(for: userId)
-            
-            // Icono pequeño de la reacción
-            Text(reactionType.filledIcon)
-                .font(.system(size: 16))
-                .foregroundStyle(reactionType.color)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .contentShape(Rectangle())
     }
 
@@ -832,44 +778,17 @@ struct ReactionsListSheet: View {
         if userId == Auth.auth().currentUser?.uid {
             EmptyView()
         } else {
-            Button(action: {
-                handleFollowAction(for: userId)
-            }) {
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(0.8)
-                        .tint(colorScheme == .dark ? .white : .black)
-                } else {
-                    HStack(spacing: 6) {
-                        Image(systemName: followIcon(for: state))
-                            .font(.system(size: 12, weight: .medium))
-                        Text(followTitle(for: state))
-                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                    }
-                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 12), interactive: state.isActionable)
-                }
-            }
-            .disabled(isLoading || !state.isActionable)
-            .opacity(isPassiveFollowState(state) ? 0.78 : 1)
-            .buttonStyle(.momentsPressSubtle)
-            .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isLoading), value: isLoading)
+            ModernFollowButton(
+                state: state,
+                isLoading: isLoading,
+                colorScheme: colorScheme,
+                style: .compact,
+                action: { performFollowAction(for: userId) }
+            )
         }
     }
     
     // MARK: - Follow Actions
-    private func handleFollowAction(for userId: String) {
-        if followStates[userId] == .following {
-            pendingUnfollowUserId = userId
-            return
-        }
-
-        performFollowAction(for: userId)
-    }
-
     private func performFollowAction(for userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
@@ -879,7 +798,7 @@ struct ReactionsListSheet: View {
         // Actualizar estado de carga
         followLoadingStates[userId] = true
         
-        if currentState == .following {
+        if currentState.isFollowingOrMutual {
             // Dejar de seguir
             firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: userId) { error in
                 DispatchQueue.main.async {
@@ -941,47 +860,6 @@ struct ReactionsListSheet: View {
         }
     }
 
-    private func followTitle(for state: FollowButtonState) -> String {
-        switch state {
-        case .following:
-            return NSLocalizedString("userProfile.followButton.following", comment: "")
-        case .canRequestFollow:
-            return NSLocalizedString("feed.follow.request", comment: "")
-        case .requestPending:
-            return NSLocalizedString("feed.follow.requested", comment: "")
-        case .requestPendingCancellable:
-            return NSLocalizedString("feed.follow.cancelRequest", comment: "")
-        case .blocked:
-            return NSLocalizedString("userProfile.followButton.blocked", comment: "")
-        default:
-            return NSLocalizedString("userProfile.followButton.canFollow", comment: "")
-        }
-    }
-
-    private func followIcon(for state: FollowButtonState) -> String {
-        switch state {
-        case .following:
-            return "person.fill.checkmark"
-        case .canRequestFollow:
-            return "person.crop.circle.badge.plus"
-        case .requestPending:
-            return "clock"
-        case .requestPendingCancellable:
-            return "xmark.circle"
-        case .blocked:
-            return "slash.circle"
-        default:
-            return "person.badge.plus"
-        }
-    }
-
-    private func isPassiveFollowState(_ state: FollowButtonState) -> Bool {
-        if case .requestPending = state {
-            return true
-        }
-        return false
-    }
-    
     // MARK: - Search Bar
     private var searchBarView: some View {
         HStack {
@@ -1007,8 +885,8 @@ struct ReactionsListSheet: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .momentsChromeGlass(in: Capsule())
-        .padding(.horizontal, 16)
-        .padding(.bottom, 16)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
     }
     
     // MARK: - Adaptive Colors

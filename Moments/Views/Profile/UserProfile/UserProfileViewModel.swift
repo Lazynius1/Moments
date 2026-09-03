@@ -74,7 +74,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             Task { @MainActor [weak self] in
                 guard let self, changedUserId == self.userId else { return }
                 self.followButtonState = state
-                self.isFollowing = (state == .following)
+                self.isFollowing = state.isFollowingOrMutual
             }
         }
     }
@@ -671,7 +671,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         if let cachedState = FollowStateStore.shared.state(for: userId) {
             followButtonState = cachedState
-            isFollowing = (cachedState == .following)
+            isFollowing = cachedState.isFollowingOrMutual
         }
 
         privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { [weak self] state in
@@ -679,7 +679,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 guard let self else { return }
                 let reconciledState = FollowStateStore.shared.reconciledState(state, for: self.userId)
                 self.followButtonState = reconciledState
-                self.isFollowing = (reconciledState == .following)
+                self.isFollowing = reconciledState.isFollowingOrMutual
                 FollowStateStore.shared.setState(reconciledState, for: self.userId)
             }
         }
@@ -1008,16 +1008,16 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             return .ownProfile
         }
 
-        if viewerFollowingIds.contains(userId) {
-            return .following
-        }
-
         if userId == self.userId {
             return followButtonState
         }
 
         if let cached = FollowStateStore.shared.state(for: userId) {
             return cached
+        }
+
+        if viewerFollowingIds.contains(userId) {
+            return .following
         }
 
         let knownUser = followers.first(where: { $0.id == userId })
@@ -1034,11 +1034,6 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     func prefetchRelationshipState(for userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               currentUserId != userId else { return }
-
-        if viewerFollowingIds.contains(userId) {
-            FollowStateStore.shared.setState(.following, for: userId)
-            return
-        }
 
         privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { state in
             let reconciled = FollowStateStore.shared.reconciledState(state, for: userId)

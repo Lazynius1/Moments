@@ -428,6 +428,7 @@ struct LocationMomentDetailView: View {
                                 reelsVideos: nil
                             )
                             .equatable()
+                            .feedMomentVisibility(momentId: GlobalVideoManager.profileVideoConsumerId(for: moment))
                             .environmentObject(firestoreService)
                             .environment(feedViewModel)
                         }
@@ -1368,35 +1369,15 @@ struct FollowButtonForLocation: View {
     let colorScheme: ColorScheme
     @State private var followButtonState: FollowButtonState = .canFollow
     @State private var isLoading = false
-    @State private var showingUnfollowConfirmation = false
-
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
 
     var body: some View {
-        Button(action: toggleFollow) {
-            HStack(spacing: 6) {
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(0.8)
-                        .tint(adaptiveColors.primary)
-                } else {
-                    Image(systemName: followIcon)
-                        .font(.system(size: 10, weight: .semibold))
-                }
-
-                Text(followTitle)
-                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-            }
-            .foregroundStyle(adaptiveColors.primary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14), interactive: followButtonState.isActionable)
-        }
-        .disabled(isLoading || !followButtonState.isActionable)
-        .opacity(isPassiveState ? 0.78 : 1)
+        ModernFollowButton(
+            state: followButtonState,
+            isLoading: isLoading,
+            colorScheme: colorScheme,
+            style: .compact,
+            action: performFollowToggle
+        )
         .scaleEffect(isLoading ? 0.95 : 1.0)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isLoading), value: isLoading)
         .onAppear {
@@ -1407,19 +1388,6 @@ struct FollowButtonForLocation: View {
                   userId == targetUserId,
                   let state = notification.userInfo?["state"] as? FollowButtonState else { return }
             followButtonState = state
-        }
-        .confirmationDialog(
-            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
-            isPresented: $showingUnfollowConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
-                performFollowToggle()
-            }
-
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
-        } message: {
-            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
         }
     }
 
@@ -1439,15 +1407,6 @@ struct FollowButtonForLocation: View {
         }
     }
 
-    private func toggleFollow() {
-        if followButtonState == .following {
-            showingUnfollowConfirmation = true
-            return
-        }
-
-        performFollowToggle()
-    }
-
     private func performFollowToggle() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
@@ -1455,7 +1414,7 @@ struct FollowButtonForLocation: View {
 
         let firestoreService = FirestoreService()
 
-        if followButtonState == .following {
+        if followButtonState.isFollowingOrMutual {
             firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
                 DispatchQueue.main.async {
                     self.isLoading = false
@@ -1493,47 +1452,6 @@ struct FollowButtonForLocation: View {
                 }
             }
         }
-    }
-
-    private var followTitle: String {
-        switch followButtonState {
-        case .following:
-            return NSLocalizedString("userProfile.followButton.following", comment: "")
-        case .canRequestFollow:
-            return NSLocalizedString("feed.follow.request", comment: "")
-        case .requestPending:
-            return NSLocalizedString("feed.follow.requested", comment: "")
-        case .requestPendingCancellable:
-            return NSLocalizedString("feed.follow.cancelRequest", comment: "")
-        case .blocked:
-            return NSLocalizedString("userProfile.followButton.blocked", comment: "")
-        default:
-            return NSLocalizedString("userProfile.followButton.canFollow", comment: "")
-        }
-    }
-
-    private var followIcon: String {
-        switch followButtonState {
-        case .following:
-            return "person.fill.checkmark"
-        case .canRequestFollow:
-            return "person.crop.circle.badge.plus"
-        case .requestPending:
-            return "clock"
-        case .requestPendingCancellable:
-            return "xmark.circle"
-        case .blocked:
-            return "slash.circle"
-        default:
-            return "person.fill.badge.plus"
-        }
-    }
-
-    private var isPassiveState: Bool {
-        if case .requestPending = followButtonState {
-            return true
-        }
-        return false
     }
 }
 

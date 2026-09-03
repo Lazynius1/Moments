@@ -1843,6 +1843,11 @@
 "userProfile.unfollow.confirm.message" = "원할 때 언제든 이 프로필을 다시 팔로우할 수 있어요.";
 "userProfile.unfollow.confirm.private.message" = "이 프로필은 비공개예요. 팔로우를 취소하면 상대방이 다시 승인하기 전까지 모먼트, 스토리 또는 하이라이트를 볼 수 없어요.";
 "userProfile.unfollow.confirm.action" = "팔로우 취소";
+
+"userProfile.cancelRequest.confirm.title" = "요청을 취소할까요?";
+"userProfile.cancelRequest.confirm.message" = "팔로우 요청이 철회됩니다.";
+"userProfile.cancelRequest.confirm.action" = "요청 취소";
+
 "userProfile.relationship.sheet.title" = "%@님 팔로우 중";
 "userProfile.relationship.sheet.subtitle" = "이 사람의 모먼트가 표시되는 방식을 관리해요.";
 "userProfile.relationship.bestFriends" = "친한 친구";

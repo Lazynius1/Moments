@@ -1843,6 +1843,11 @@
 "userProfile.unfollow.confirm.message" = "Możesz ponownie obserwować ten profil, kiedy tylko zechcesz.";
 "userProfile.unfollow.confirm.private.message" = "Ten profil jest prywatny. Jeśli przestaniesz go obserwować, nie zobaczysz momentów, relacji ani wyróżnionych relacji tego profilu, dopóki ponownie nie zaakceptuje Twojej prośby.";
 "userProfile.unfollow.confirm.action" = "Przestań obserwować";
+
+"userProfile.cancelRequest.confirm.title" = "Anulować prośbę?";
+"userProfile.cancelRequest.confirm.message" = "Twoja prośba o obserwowanie zostanie wycofana.";
+"userProfile.cancelRequest.confirm.action" = "Anuluj prośbę";
+
 "userProfile.relationship.sheet.title" = "Obserwujesz %@";
 "userProfile.relationship.sheet.subtitle" = "Zdecyduj, jak wyświetlają Ci się momenty tego profilu.";
 "userProfile.relationship.bestFriends" = "Bliscy znajomi";

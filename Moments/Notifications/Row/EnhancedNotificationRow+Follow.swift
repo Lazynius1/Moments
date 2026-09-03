@@ -109,20 +109,11 @@ extension EnhancedNotificationRow {
         }
     }
 
-    func toggleFollow() {
-        if followButtonState == .following {
-            showingUnfollowConfirmation = true
-            return
-        }
-
-        performFollowToggle()
-    }
-
     func performFollowToggle() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let targetUserId = group.notifications.first?.senderId else { return }
         
-        if followButtonState == .following {
+        if followButtonState.isFollowingOrMutual {
             viewModel.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
                 if error == nil {
                     DispatchQueue.main.async {
@@ -151,46 +142,5 @@ extension EnhancedNotificationRow {
                 }
             }
         }
-    }
-
-    var notificationFollowTitle: String {
-        switch followButtonState {
-        case .following:
-            return NSLocalizedString("userProfile.followButton.following", comment: "")
-        case .canRequestFollow:
-            return NSLocalizedString("feed.follow.request", comment: "")
-        case .requestPending:
-            return NSLocalizedString("feed.follow.requested", comment: "")
-        case .requestPendingCancellable:
-            return NSLocalizedString("feed.follow.cancelRequest", comment: "")
-        case .blocked:
-            return NSLocalizedString("userProfile.followButton.blocked", comment: "")
-        default:
-            return NSLocalizedString("userProfile.followButton.canFollow", comment: "")
-        }
-    }
-
-    var notificationFollowIcon: String {
-        switch followButtonState {
-        case .following:
-            return "person.fill.checkmark"
-        case .canRequestFollow:
-            return "person.crop.circle.badge.plus"
-        case .requestPending:
-            return "clock"
-        case .requestPendingCancellable:
-            return "xmark.circle"
-        case .blocked:
-            return "slash.circle"
-        default:
-            return "person.badge.plus"
-        }
-    }
-
-    var notificationFollowIsPassive: Bool {
-        if case .requestPending = followButtonState {
-            return true
-        }
-        return false
     }
 }

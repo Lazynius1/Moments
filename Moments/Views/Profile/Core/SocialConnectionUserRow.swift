@@ -168,7 +168,6 @@ struct SocialConnectionUserRow<ViewModel: UserListViewModel>: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var followState: FollowButtonState = .canFollow
     @State private var isFollowLoading = false
-    @State private var showingUnfollowConfirmation = false
     @State private var showingRemoveFollowerConfirmation = false
     @State private var isPressed = false
 
@@ -223,6 +222,11 @@ struct SocialConnectionUserRow<ViewModel: UserListViewModel>: View {
         configuration.showsRelationshipButton && followState != .ownProfile
     }
 
+    /// Badge en avatar solo si no hay botón de relación (p. ej. Followers propios).
+    private var showsAvatarMutualBadge: Bool {
+        isMutual && !supportsRelationshipManagement
+    }
+
     var body: some View {
         HStack(spacing: SocialConnectionRowMetrics.contentSpacing) {
             ZStack(alignment: .topLeading) {
@@ -237,7 +241,7 @@ struct SocialConnectionUserRow<ViewModel: UserListViewModel>: View {
                     onTap: handleAvatarTap
                 )
 
-                if isMutual {
+                if showsAvatarMutualBadge {
                     avatarView
                         .reversedMask(alignment: .topLeading) {
                             Circle()
@@ -277,19 +281,6 @@ struct SocialConnectionUserRow<ViewModel: UserListViewModel>: View {
             guard let changedUserId = notification.userInfo?["userId"] as? String,
                   changedUserId == user.id else { return }
             refreshFollowState()
-        }
-        .confirmationDialog(
-            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
-            isPresented: $showingUnfollowConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
-                viewModel.unfollowUser(userId: user.id)
-                viewModel.prefetchRelationshipState(for: user.id)
-            }
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
-        } message: {
-            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
         }
         .confirmationDialog(
             NSLocalizedString("socialConnections.removeFollower.confirm.title", comment: ""),
@@ -422,8 +413,9 @@ struct SocialConnectionUserRow<ViewModel: UserListViewModel>: View {
         guard !isFollowLoading else { return }
 
         switch followState {
-        case .following:
-            showingUnfollowConfirmation = true
+        case .following, .mutuals:
+            viewModel.unfollowUser(userId: user.id)
+            viewModel.prefetchRelationshipState(for: user.id)
         case .canFollow, .canRequestFollow:
             performFollow()
         case .requestPendingCancellable:

@@ -221,7 +221,7 @@ struct FeedPostProfilePreviewOverlay: View {
 
     private func handleFollowAction(viewModel: UserProfileViewModel, userId: String) {
         switch viewModel.followButtonState {
-        case .following:
+        case .following, .mutuals:
             unfollowViewModel = viewModel
             showUnfollowConfirmation = true
         case .canFollow, .canRequestFollow:
@@ -471,7 +471,6 @@ private struct FeedPostProfilePreviewCard: View {
                     isLoading: false,
                     colorScheme: colorScheme,
                     style: .compact,
-                    isMutual: viewModel.isMutualRelationship,
                     action: { onFollow(viewModel) }
                 )
             }

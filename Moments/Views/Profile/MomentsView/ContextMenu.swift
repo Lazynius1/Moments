@@ -188,21 +188,29 @@ struct ModernContextMenuOverlay: View {
     private var canShare: Bool {
         privacyService.canShareMoment(moment)
     }
-    
+
+    /// MomentsFloatingTabBar ancla al borde físico: height 54 + pad 4×2 + bottom 18.
+    /// El menú vive en safe area → levantar lo que la pill invade + hueco mínimo.
+    private var contextMenuBottomPadding: CGFloat {
+        let tabBarFromPhysicalBottom: CGFloat = 54 + 8 + 18
+        let safeBottom = keyWindowSafeAreaInsets().bottom
+        let gapAboveTabBar: CGFloat = 8
+        return max(20, tabBarFromPhysicalBottom - safeBottom + gapAboveTabBar)
+    }
+
     var body: some View {
         ZStack {
-            Color.black.opacity(viewState == .preparingStory ? 0.4 : 0.01)
+            Color.black.opacity(viewState == .preparingStory ? 0.4 : (viewState == .main || viewState == .sharing ? 0.3 : 0.01))
                 .ignoresSafeArea()
-                .overlay(
-                    Color.black.opacity(viewState == .main || viewState == .sharing ? 0.3 : 0.0)
-                )
+                .contentShape(Rectangle())
                 .onTapGesture {
                     handleBack()
                 }
-            
+
             VStack {
-                Spacer()
-                
+                Spacer(minLength: 0)
+                    .allowsHitTesting(false)
+
                 ZStack {
                     switch viewState {
                     case .main:
@@ -251,6 +259,7 @@ struct ModernContextMenuOverlay: View {
                             insertion: .move(edge: .bottom).combined(with: .opacity),
                             removal: .move(edge: .bottom).combined(with: .opacity)
                         ))
+                        .allowsHitTesting(viewState == .main)
 
                     case .hiddenLayerMetrics:
                         HiddenLayerMetricsListView(
@@ -275,6 +284,7 @@ struct ModernContextMenuOverlay: View {
                             insertion: .move(edge: .trailing).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
+                        .allowsHitTesting(viewState == .hiddenLayerMetrics)
 
                     case .hiddenLayerMetricDetail:
                         HiddenLayerMetricDetailView(
@@ -296,6 +306,7 @@ struct ModernContextMenuOverlay: View {
                             insertion: .move(edge: .trailing).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
+                        .allowsHitTesting(viewState == .hiddenLayerMetricDetail)
                         
                     case .sharing:
                         MainActionsView(
@@ -322,6 +333,7 @@ struct ModernContextMenuOverlay: View {
                             insertion: .move(edge: .trailing).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
+                        .allowsHitTesting(viewState == .sharing)
                         
                     case .messaging:
                         ModernShareSheet(
@@ -341,6 +353,7 @@ struct ModernContextMenuOverlay: View {
                             insertion: .move(edge: .trailing).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
+                        .allowsHitTesting(viewState == .messaging)
                         
                     case .preparingStory:
                         PreparingStoryOverlay(errorMessage: errorMessage, onCancel: {
@@ -349,6 +362,7 @@ struct ModernContextMenuOverlay: View {
                             }
                         })
                         .transition(.opacity)
+                        .allowsHitTesting(viewState == .preparingStory)
 
                     case .reporting:
                         ModernReportContent(
@@ -371,6 +385,7 @@ struct ModernContextMenuOverlay: View {
                             insertion: .move(edge: .trailing).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
+                        .allowsHitTesting(viewState == .reporting)
                         
                     }
                 }
@@ -380,7 +395,9 @@ struct ModernContextMenuOverlay: View {
                 )
                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
                 .padding(.horizontal, 12)
-                .padding(.bottom, 20)
+                // MomentsFloatingTabBar: frame 54 + padding 4×2 + bottom 18 sobre el borde físico.
+                // Este overlay respeta safe area → levantar solo lo que la tab invade + un hueco.
+                .padding(.bottom, contextMenuBottomPadding)
             }
         }
         .onAppear {
@@ -1412,6 +1429,7 @@ struct ContextMenuButton: View {
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 4)
+            .contentShape(Rectangle())
         }
     }
 }

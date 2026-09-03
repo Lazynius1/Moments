@@ -1843,6 +1843,11 @@
 "userProfile.unfollow.confirm.message" = "いつでもこのプロフィールを再度フォローできます。";
 "userProfile.unfollow.confirm.private.message" = "このプロフィールは非公開です。フォローを解除すると、再度承認されるまで、この人のモーメント、ストーリーズ、ハイライトは表示されません。";
 "userProfile.unfollow.confirm.action" = "フォローを解除";
+
+"userProfile.cancelRequest.confirm.title" = "リクエストを取り消しますか？";
+"userProfile.cancelRequest.confirm.message" = "フォローリクエストが取り下げられます。";
+"userProfile.cancelRequest.confirm.action" = "リクエストを取り消す";
+
 "userProfile.relationship.sheet.title" = "%@をフォロー中";
 "userProfile.relationship.sheet.subtitle" = "この人のモーメントの表示方法を設定します。";
 "userProfile.relationship.bestFriends" = "親しい友達";

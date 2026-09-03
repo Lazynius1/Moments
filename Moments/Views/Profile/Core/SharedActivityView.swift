@@ -426,7 +426,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
 
     private func handleRelationshipAction() {
         switch relationshipState {
-        case .following:
+        case .following, .mutuals:
             showingUnfollowConfirmation = true
         case .canFollow, .canRequestFollow:
             let nextState: FollowButtonState = relationshipState == .canRequestFollow ? .requestPendingCancellable : .following

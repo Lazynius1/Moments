@@ -1843,6 +1843,11 @@
 "userProfile.unfollow.confirm.message" = "आप जब चाहें, इस प्रोफ़ाइल को फिर से फ़ॉलो कर सकते हैं।";
 "userProfile.unfollow.confirm.private.message" = "यह प्रोफ़ाइल प्राइवेट है। अगर आप अनफ़ॉलो करते हैं, तो उनके मोमेंट्स, स्टोरीज़ या हाइलाइट्स तभी दिखेंगे जब वे आपको फिर से स्वीकार करेंगे।";
 "userProfile.unfollow.confirm.action" = "अनफ़ॉलो करें";
+
+"userProfile.cancelRequest.confirm.title" = "अनुरोध रद्द करें?";
+"userProfile.cancelRequest.confirm.message" = "आपका फ़ॉलो अनुरोध वापस ले लिया जाएगा।";
+"userProfile.cancelRequest.confirm.action" = "अनुरोध रद्द करें";
+
 "userProfile.relationship.sheet.title" = "%@ को फ़ॉलो कर रहे हैं";
 "userProfile.relationship.sheet.subtitle" = "चुनें कि उनके मोमेंट्स आपको कैसे दिखें।";
 "userProfile.relationship.bestFriends" = "बेस्ट फ्रेंड्स";

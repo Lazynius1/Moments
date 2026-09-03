@@ -259,24 +259,14 @@ struct UserModernProfileHeader: View {
             }
 
             HStack(spacing: 10) {
-                Button(action: onFollowAction) {
-                    HStack(spacing: 7) {
-                        Text(followButtonText)
-                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-
-                        if viewModel.followButtonState == .following {
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 10, weight: .bold))
-                        }
-                    }
-                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
-                    .momentsChromeGlass(in: Capsule(), interactive: viewModel.followButtonState.isActionable)
-                }
-                .disabled(!viewModel.followButtonState.isActionable)
+                ModernFollowButton(
+                    state: viewModel.followButtonState,
+                    isLoading: false,
+                    colorScheme: colorScheme,
+                    style: .profileHeader,
+                    destructiveConfirmation: .none,
+                    action: onFollowAction
+                )
                 .scaleEffect(viewModel.followButtonState.isActionable ? 1.0 : 0.95)
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: viewModel.followButtonState), value: viewModel.followButtonState)
 
@@ -351,6 +341,8 @@ struct UserModernProfileHeader: View {
             return NSLocalizedString("userProfile.followButton.blocked", comment: "Blocked")
         case .following:
             return NSLocalizedString("userProfile.followButton.following", comment: "Following")
+        case .mutuals:
+            return NSLocalizedString("audience.type.mutuals", comment: "")
         case .canFollow:
             return NSLocalizedString("userProfile.followButton.canFollow", comment: "Follow")
         case .canRequestFollow:
@@ -364,7 +356,7 @@ struct UserModernProfileHeader: View {
 
     private var followButtonColor: Color {
         switch viewModel.followButtonState {
-        case .following, .requestPending: return Color.gray.opacity(0.6)
+        case .following, .mutuals, .requestPending: return Color.gray.opacity(0.6)
         case .requestPendingCancellable: return Color.orange.opacity(0.8)
         case .canFollow, .canRequestFollow: return UserProfileColors.accent
         case .ownProfile, .blocked: return Color.gray.opacity(0.4)
@@ -375,6 +367,8 @@ struct UserModernProfileHeader: View {
         switch viewModel.followButtonState {
         case .following:
             return "person.fill.checkmark"
+        case .mutuals:
+            return "person.2.fill"
         case .canFollow:
             return "person.badge.plus"
         case .canRequestFollow:

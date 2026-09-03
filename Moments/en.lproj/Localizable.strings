@@ -1933,6 +1933,11 @@
 "userProfile.unfollow.confirm.message" = "You can follow this profile again whenever you want.";
 "userProfile.unfollow.confirm.private.message" = "This profile is private. If you unfollow, you won't be able to see their moments, stories, or highlights unless they accept you again.";
 "userProfile.unfollow.confirm.action" = "Unfollow";
+
+"userProfile.cancelRequest.confirm.title" = "Cancel Request?";
+"userProfile.cancelRequest.confirm.message" = "Your follow request will be withdrawn.";
+"userProfile.cancelRequest.confirm.action" = "Cancel Request";
+
 "userProfile.relationship.sheet.title" = "Following %@";
 "userProfile.relationship.sheet.subtitle" = "Control how their moments appear for you.";
 "userProfile.relationship.bestFriends" = "Best friends";

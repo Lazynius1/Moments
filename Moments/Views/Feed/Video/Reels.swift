@@ -418,6 +418,8 @@ struct ReelVideoView: View {
     @State private var storyAudiences: [String?] = []
     @State private var storyRoute: ReelsStoryRoute?
     @State private var liveAuthorUsername: String = ""
+    @State private var followButtonState: FollowButtonState?
+    @State private var isFollowLoading = false
     @State private var isDraggingProgress = false
     @State private var wasPlayingBeforeDrag = false
     @State private var isReelCaptionExpanded = false
@@ -451,6 +453,11 @@ struct ReelVideoView: View {
         let fallback = video.moment.username
         let live = liveAuthorUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         return live.isEmpty ? fallback : live
+    }
+
+    private var shouldShowReelsFollowButton: Bool {
+        guard video.moment.authorId != Auth.auth().currentUser?.uid else { return false }
+        return followButtonState?.showsProspectFollow == true
     }
 
     private var layerConsumerId: String {
@@ -760,25 +767,38 @@ struct ReelVideoView: View {
                                     .buttonStyle(.momentsPress(scale: 0.94, haptic: .none))
 
                                     VStack(alignment: .leading, spacing: 3) {
-                                        Button(action: {
-                                            if !video.moment.authorId.isEmpty {
-                                                profileRoute = FeedProfileSheetRoute(userId: video.moment.authorId)
-                                            }
-                                        }) {
-                                            HStack(spacing: 6) {
-                                                Text(displayAuthorUsername)
-                                                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                                    .foregroundStyle(chromePrimaryColor)
-                                                    .lineLimit(1)
+                                        HStack(spacing: 8) {
+                                            Button(action: {
+                                                if !video.moment.authorId.isEmpty {
+                                                    profileRoute = FeedProfileSheetRoute(userId: video.moment.authorId)
+                                                }
+                                            }) {
+                                                HStack(spacing: 6) {
+                                                    Text(displayAuthorUsername)
+                                                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                                                        .foregroundStyle(chromePrimaryColor)
+                                                        .lineLimit(1)
 
-                                                if video.moment.authorId == Auth.auth().currentUser?.uid {
-                                                    CurrentUserVerifiedBadge(size: 14)
-                                                } else {
-                                                    VerifiedBadgeView(userId: video.moment.authorId, size: 14)
+                                                    if video.moment.authorId == Auth.auth().currentUser?.uid {
+                                                        CurrentUserVerifiedBadge(size: 14)
+                                                    } else {
+                                                        VerifiedBadgeView(userId: video.moment.authorId, size: 14)
+                                                    }
                                                 }
                                             }
+                                            .buttonStyle(.plain)
+                                            .layoutPriority(1)
+
+                                            if shouldShowReelsFollowButton {
+                                                ModernFollowButton(
+                                                    state: followButtonState ?? .canFollow,
+                                                    isLoading: isFollowLoading,
+                                                    colorScheme: colorScheme,
+                                                    style: .compact,
+                                                    action: performFollowToggle
+                                                )
+                                            }
                                         }
-                                        .buttonStyle(.plain)
 
                                         HStack(spacing: 8) {
                                             Text(formatTimeAgo(video.moment.timestamp))
@@ -1011,6 +1031,7 @@ struct ReelVideoView: View {
             Text("reels.delete.message")
         }
         .onAppear {
+            loadFollowStatus()
             if isCurrentVideo {
                 setupVideo()
                 loadVideoData()
@@ -1019,6 +1040,12 @@ struct ReelVideoView: View {
                 preloadNextVideos()
             }
             checkIfSaved()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: FollowStateStore.didChangeNotification)) { notification in
+            guard let userId = notification.userInfo?["userId"] as? String,
+                  userId == video.moment.authorId,
+                  let state = notification.userInfo?["state"] as? FollowButtonState else { return }
+            followButtonState = state
         }
         .onChange(of: firestoreService.savedMomentIds) { _, ids in
             guard let momentId = video.moment.id else { return }
@@ -1029,6 +1056,7 @@ struct ReelVideoView: View {
                 setupVideo()
                 loadVideoData()
                 refreshAuthorUsername()
+                loadFollowStatus()
                 checkIfSaved()
             } else {
                 // Pausar inmediatamente cuando no está activo
@@ -1091,6 +1119,93 @@ struct ReelVideoView: View {
             self.storyCount = snapshot.storyCount
             self.storyViewedStatus = snapshot.storyViewedStatus
             self.storyAudiences = snapshot.storyAudiences
+        }
+    }
+
+    private func loadFollowStatus() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        let authorId = video.moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !authorId.isEmpty, authorId != currentUserId else {
+            followButtonState = .ownProfile
+            return
+        }
+
+        if let cachedState = FollowStateStore.shared.state(for: authorId) {
+            followButtonState = cachedState
+        }
+
+        privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: authorId) { state in
+            DispatchQueue.main.async {
+                let reconciledState = FollowStateStore.shared.reconciledState(state, for: authorId)
+                self.followButtonState = reconciledState
+                FollowStateStore.shared.setState(reconciledState, for: authorId)
+            }
+        }
+    }
+
+    private func performFollowToggle() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        let authorId = video.moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !authorId.isEmpty else { return }
+        guard let previousState = followButtonState, previousState.isActionable else { return }
+
+        let optimisticState: FollowButtonState = {
+            switch previousState {
+            case .following, .mutuals:
+                return .canFollow
+            case .canRequestFollow:
+                return .requestPendingCancellable
+            case .requestPendingCancellable:
+                return .canRequestFollow
+            case .canFollow:
+                return .following
+            default:
+                return previousState
+            }
+        }()
+
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+            self.followButtonState = optimisticState
+        }
+        FollowStateStore.shared.setState(optimisticState, for: authorId)
+        isFollowLoading = true
+
+        if previousState.isFollowingOrMutual {
+            firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: authorId) { error in
+                DispatchQueue.main.async {
+                    self.isFollowLoading = false
+                    if error != nil {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+                            self.followButtonState = previousState
+                        }
+                        FollowStateStore.shared.setState(previousState, for: authorId)
+                    }
+                }
+            }
+        } else if previousState == .requestPendingCancellable {
+            firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: authorId) { error in
+                DispatchQueue.main.async {
+                    self.isFollowLoading = false
+                    if error != nil {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+                            self.followButtonState = previousState
+                        }
+                        FollowStateStore.shared.setState(previousState, for: authorId)
+                    }
+                }
+            }
+        } else {
+            firestoreService.followUser(currentUserId: currentUserId, targetUserId: authorId) { error in
+                DispatchQueue.main.async {
+                    self.isFollowLoading = false
+                    if error != nil {
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+                            self.followButtonState = previousState
+                        }
+                        FollowStateStore.shared.setState(previousState, for: authorId)
+                    }
+                }
+            }
         }
     }
 

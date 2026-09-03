@@ -672,7 +672,7 @@ struct UserProfileView: View {
 
     private func handleFollowAction() {
         switch viewModel.followButtonState {
-        case .following:
+        case .following, .mutuals:
             viewModel.loadRelationshipManagementState()
             showingRelationshipSheet = true
         case .canFollow, .canRequestFollow:

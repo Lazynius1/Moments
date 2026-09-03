@@ -86,6 +86,9 @@ struct TabBarView: View {
                         // VStack + ignoresSafeArea: ancla al borde físico, no al safe area.
                         VStack(spacing: 0) {
                             Spacer(minLength: 0)
+                                // Sin esto, el Spacer a pantalla completa se come taps
+                                // del context menu / sheets del feed.
+                                .allowsHitTesting(false)
                             MomentsFloatingTabBar(
                                 selectedTab: $selectedTab,
                                 showCreatorView: $showCreatorView,

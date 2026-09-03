@@ -13,7 +13,6 @@ struct NovaView: View {
 
 private struct NovaSecureContent: View {
     @StateObject private var viewModel = NovaAgent()
-    @State private var scrollOffset: CGFloat = 0
     @State private var keyboardHeight: CGFloat = 0
     @State private var showConversationHistory = false
     @State private var isKeyboardVisible = false
@@ -160,10 +159,7 @@ private struct NovaSecureContent: View {
                 )
             }
         }
-        .coordinateSpace(name: "scroll")
-        .onPreferenceChange(NovaScrollOffsetPreferenceKey.self) { value in
-            scrollOffset = value
-        }
+        .scrollClipDisabled(false)
     }
 
     private var lastAssistantMessageId: UUID? {
@@ -184,7 +180,7 @@ private struct NovaSecureContent: View {
         let scrollToBottom = {
             if let lastMessage = viewModel.conversationHistory.last {
                 withAnimation(.easeInOut(duration: 0.4)) {
-                    proxy.scrollTo("\(lastMessage.id)_\(lastMessage.isHistorical ? "historical" : "new")", anchor: .bottom)
+                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
                 }
             }
         }
@@ -199,7 +195,7 @@ private struct NovaSecureContent: View {
                     onEdit: (viewModel.canRetouchLastExchange && message.id == lastUserMessageId)
                         ? { viewModel.beginEditingLastUserMessage() } : nil
                 )
-                .id("\(message.id)_\(message.isHistorical ? "historical" : "new")")
+                .id(message.id)
             }
 
             if viewModel.isLoading && viewModel.pendingAction == nil {
@@ -210,13 +206,8 @@ private struct NovaSecureContent: View {
         .padding(.horizontal, 20)
         .padding(.top, topOverlayHeight)
         .padding(.bottom, keyboardHeight > 0 ? keyboardHeight + bottomOverlayHeight : bottomOverlayHeight + safeAreaBottom)
-        .background {
-            GeometryReader { geo in
-                Color.clear
-                    .preference(key: NovaScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("scroll")).minY)
-            }
-        }
-        .onChange(of: viewModel.conversationHistory) { _, _ in
+        
+        .onChange(of: viewModel.conversationHistory.count) { _, _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 scrollToBottom()
             }

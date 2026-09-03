@@ -1843,6 +1843,11 @@
 "userProfile.unfollow.confirm.message" = "Kamu bisa mengikuti profil ini lagi kapan saja.";
 "userProfile.unfollow.confirm.private.message" = "Profil ini bersifat privat. Jika kamu berhenti mengikuti, kamu tidak akan bisa melihat momen, story, atau highlight mereka sampai mereka menerima permintaanmu lagi.";
 "userProfile.unfollow.confirm.action" = "Berhenti mengikuti";
+
+"userProfile.cancelRequest.confirm.title" = "Batalkan permintaan?";
+"userProfile.cancelRequest.confirm.message" = "Permintaan mengikuti kamu akan ditarik.";
+"userProfile.cancelRequest.confirm.action" = "Batalkan permintaan";
+
 "userProfile.relationship.sheet.title" = "Mengikuti %@";
 "userProfile.relationship.sheet.subtitle" = "Atur bagaimana momen mereka muncul untukmu.";
 "userProfile.relationship.bestFriends" = "Teman dekat";

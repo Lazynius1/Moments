@@ -27,7 +27,6 @@ struct NotificationGroupedFollowersOverlay: View {
     @State private var loadingStates: [String: Bool] = [:]
     @Namespace private var profileZoomNamespace
     @State private var storyRoute: GroupedFollowerStoryRoute?
-    @State private var unfollowTargetId: String?
 
     private var items: [GroupedFollowerItem] {
         var seen = Set<String>()
@@ -96,27 +95,6 @@ struct NotificationGroupedFollowersOverlay: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloseStoryViewer"))) { _ in
             storyRoute = nil
-        }
-        .confirmationDialog(
-            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
-            isPresented: Binding(
-                get: { unfollowTargetId != nil },
-                set: { if !$0 { unfollowTargetId = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
-                if let userId = unfollowTargetId {
-                    performFollowToggle(for: userId)
-                }
-                unfollowTargetId = nil
-            }
-
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
-                unfollowTargetId = nil
-            }
-        } message: {
-            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
         }
     }
 
@@ -204,30 +182,13 @@ struct NotificationGroupedFollowersOverlay: View {
 
     @ViewBuilder
     private func followButton(for userId: String, state: FollowButtonState, isLoading: Bool) -> some View {
-        Button {
-            if state == .following {
-                unfollowTargetId = userId
-            } else {
-                performFollowToggle(for: userId)
-            }
-        } label: {
-            if isLoading {
-                ProgressView()
-                    .scaleEffect(0.75)
-            } else {
-                Text(compactFollowTitle(for: state))
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(primaryTextColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .momentsChromeGlass(in: Capsule(), interactive: state.isActionable)
-            }
-        }
-        .buttonStyle(.plain)
-        .disabled(isLoading || !state.isActionable)
-        .opacity(isPassiveFollowState(state) ? 0.78 : 1)
+        ModernFollowButton(
+            state: state,
+            isLoading: isLoading,
+            colorScheme: colorScheme,
+            style: .compact,
+            action: { performFollowToggle(for: userId) }
+        )
     }
 
     private func dismissOverlay() {
@@ -260,7 +221,7 @@ struct NotificationGroupedFollowersOverlay: View {
         let currentState = followStates[userId] ?? .canFollow
         loadingStates[userId] = true
 
-        if currentState == .following {
+        if currentState.isFollowingOrMutual {
             viewModel.unfollowUser(currentUserId: currentUserId, targetUserId: userId) { error in
                 DispatchQueue.main.async {
                     loadingStates[userId] = false
@@ -292,28 +253,6 @@ struct NotificationGroupedFollowersOverlay: View {
                 }
             }
         }
-    }
-
-    private func compactFollowTitle(for state: FollowButtonState) -> String {
-        switch state {
-        case .following:
-            return NSLocalizedString("userProfile.followButton.following", comment: "")
-        case .canRequestFollow:
-            return NSLocalizedString("feed.follow.request", comment: "")
-        case .requestPending:
-            return NSLocalizedString("feed.follow.requested", comment: "")
-        case .requestPendingCancellable:
-            return NSLocalizedString("feed.follow.cancelRequest", comment: "")
-        case .blocked:
-            return NSLocalizedString("userProfile.followButton.blocked", comment: "")
-        default:
-            return NSLocalizedString("userProfile.followButton.canFollow", comment: "")
-        }
-    }
-
-    private func isPassiveFollowState(_ state: FollowButtonState) -> Bool {
-        if case .requestPending = state { return true }
-        return false
     }
 
     private func openProfile(userId: String) {

@@ -24,7 +24,6 @@ struct EnhancedNotificationRow: View {
     @State var followButtonState: FollowButtonState = .canFollow
     @State var isPressed: Bool = false
     @State var senderUsernameOverride: String?
-    @State var showingUnfollowConfirmation = false
 
     var hasMultipleGroupedFollowActors: Bool {
         guard let type = group.notifications.first?.type else { return false }
@@ -104,19 +103,6 @@ struct EnhancedNotificationRow: View {
         .fullScreenCover(isPresented: $showStories) {
             StoriesView(startWithUserId: .constant(group.notifications.first?.senderId ?? ""))
                 .environmentObject(FirestoreService.shared)
-        }
-        .confirmationDialog(
-            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
-            isPresented: $showingUnfollowConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
-                performFollowToggle()
-            }
-
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
-        } message: {
-            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
         }
         .onAppear {
             resolveSenderDisplayData()

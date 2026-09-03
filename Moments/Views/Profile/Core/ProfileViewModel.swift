@@ -683,7 +683,11 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
             return .ownProfile
         }
 
-        if following.contains(where: { $0.id == userId }) || mutuals.contains(where: { $0.id == userId }) {
+        if mutuals.contains(where: { $0.id == userId }) {
+            return .mutuals
+        }
+
+        if following.contains(where: { $0.id == userId }) {
             return .following
         }
 
@@ -706,8 +710,17 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               currentUserId != userId else { return }
 
-        if following.contains(where: { $0.id == userId }) || mutuals.contains(where: { $0.id == userId }) {
-            FollowStateStore.shared.setState(.following, for: userId)
+        if mutuals.contains(where: { $0.id == userId }) {
+            FollowStateStore.shared.setState(.mutuals, for: userId)
+            return
+        }
+
+        if following.contains(where: { $0.id == userId }) {
+            // Puede ser mutual aunque aún no esté en la lista local → resolver.
+            privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { state in
+                let reconciled = FollowStateStore.shared.reconciledState(state, for: userId)
+                FollowStateStore.shared.setState(reconciled, for: userId)
+            }
             return
         }
 
