@@ -4609,3 +4609,23 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "interest.philosophy" = "Filosofia";
 "interest.chess" = "Scacchi";
 "interest.board_games" = "Giochi da tavolo";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "Ciao, %@.";
+"nova.welcome.editorial.question" = "A cosa stai pensando?";
+"nova.welcome.editorial.question.create" = "Cosa ti piacerebbe creare?";
+"nova.welcome.editorial.question.solve" = "Cosa vorresti risolvere?";
+"nova.welcome.editorial.question.begin" = "Da dove cominciamo?";
+"nova.welcome.editorial.support" = "Posso aiutarti a scrivere, decidere, imparare o creare qualcosa in Moments.";
+"nova.welcome.editorial.privacy" = "Ricordo le tue preferenze · Privato";
+"nova.ai.disclaimer" = "Nova può commettere errori. Verifica le informazioni importanti.";
+"nova.welcome.today.title" = "Oggi con Nova";
+"nova.welcome.memory.title" = "Un ricordo di Nova";
+"nova.welcome.continue.title" = "Continua";
+"nova.welcome.spark.title" = "Spunto del giorno";
+"nova.welcome.editorial.organize.title" = "Aiutami a mettere in ordine un'idea";
+"nova.welcome.editorial.organize.prompt" = "Aiutami a organizzare un'idea che ho";
+"nova.welcome.editorial.write.title" = "Scrivi qualcosa con me";
+"nova.welcome.editorial.write.prompt" = "Aiutami a scrivere qualcosa";
+"nova.welcome.editorial.moments.title" = "Cosa posso fare in Moments?";
+"nova.welcome.editorial.moments.prompt" = "In cosa puoi aiutarmi su Moments?";

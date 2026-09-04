@@ -92,8 +92,7 @@ struct EnhancedChatBubble: View {
                     }
                 }
             } else {
-                HStack {
-                    VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
                             Circle()
                                 .fill(NovaColors.materialBackground)
@@ -162,14 +161,7 @@ struct EnhancedChatBubble: View {
 
                         // ⭐ CONTENIDO - LÓGICA COMPLETAMENTE REVISADA
                         EnhancedFormattedText(text: displayedText)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 16)
-                            .background(NovaColors.cardBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(NovaColors.borderColor, lineWidth: 1)
-                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
                         if !message.groundingSources.isEmpty || message.searchSuggestionsHTML != nil {
                             NovaGroundingFooter(
@@ -178,10 +170,8 @@ struct EnhancedChatBubble: View {
                             )
                             .padding(.horizontal, 8)
                         }
-                    }
-
-                    Spacer(minLength: 50)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .onAppear {
@@ -439,21 +429,17 @@ struct EnhancedFormattedText: View {
     let text: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             let sections = parseText(text)
 
-            ForEach(sections.indices, id: \.self) { index in
-                let section = sections[index]
-
+            ForEach(sections) { section in
                 switch section.type {
                 case .header:
-                    HeaderView(text: section.content)
+                    HeaderView(text: section.content, level: section.headingLevel ?? 2)
                 case .bulletPoint:
                     BulletPointView(text: section.content)
                 case .numberedList:
                     NumberedListView(text: section.content, number: section.number ?? 1)
-                case .link:
-                    LinkView(text: section.content, url: section.url ?? "")
                 case .codeBlock:
                     CodeBlockView(text: section.content, language: section.url)
                 case .quote:
@@ -463,18 +449,45 @@ struct EnhancedFormattedText: View {
                 }
             }
         }
+        .textSelection(.enabled)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func parseText(_ text: String) -> [TextSection] {
         var sections: [TextSection] = []
         let lines = text.components(separatedBy: "\n")
         var codeBuffer: [String] = []
+        var paragraphBuffer: [String] = []
         var codeLanguage = ""
         var inCodeBlock = false
 
+        func append(
+            _ type: TextSection.SectionType,
+            _ content: String,
+            number: Int? = nil,
+            url: String? = nil,
+            headingLevel: Int? = nil
+        ) {
+            sections.append(TextSection(
+                id: sections.count,
+                type: type,
+                content: content,
+                url: url,
+                number: number,
+                headingLevel: headingLevel
+            ))
+        }
+
+        func flushParagraph() {
+            guard !paragraphBuffer.isEmpty else { return }
+            append(.regular, paragraphBuffer.joined(separator: " "))
+            paragraphBuffer.removeAll(keepingCapacity: true)
+        }
+
         func flushCodeBlock() {
+            flushParagraph()
             let body = codeBuffer.joined(separator: "\n")
-            sections.append(TextSection(type: .codeBlock, content: body, url: codeLanguage.isEmpty ? nil : codeLanguage))
+            append(.codeBlock, body, url: codeLanguage.isEmpty ? nil : codeLanguage)
             codeBuffer = []
             codeLanguage = ""
             inCodeBlock = false
@@ -484,6 +497,7 @@ struct EnhancedFormattedText: View {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
 
             if trimmedLine.hasPrefix("```") {
+                flushParagraph()
                 if inCodeBlock {
                     flushCodeBlock()
                 } else {
@@ -499,48 +513,39 @@ struct EnhancedFormattedText: View {
             }
 
             if trimmedLine.isEmpty {
+                flushParagraph()
                 continue
             }
 
-            // Headers (## Texto)
-            if trimmedLine.hasPrefix("##") || trimmedLine.hasPrefix("#") {
-                let content = trimmedLine.replacingOccurrences(of: "##", with: "")
-                                         .replacingOccurrences(of: "#", with: "")
-                                         .trimmingCharacters(in: .whitespaces)
-                sections.append(TextSection(type: .header, content: content))
+            if let range = trimmedLine.range(of: #"^#{1,6}\s+"#, options: .regularExpression) {
+                flushParagraph()
+                let marker = trimmedLine[..<range.upperBound]
+                let level = marker.prefix { $0 == "#" }.count
+                append(.header, String(trimmedLine[range.upperBound...]), headingLevel: level)
             }
-            // Bullet points (•, -, * Texto)
-            else if trimmedLine.hasPrefix("•") || trimmedLine.hasPrefix("-") || (trimmedLine.hasPrefix("*") && !trimmedLine.hasPrefix("**")) {
-                let content = trimmedLine.replacingOccurrences(of: "•", with: "")
-                                         .replacingOccurrences(of: "-", with: "")
-                                         .replacingOccurrences(of: "*", with: "")
-                                         .trimmingCharacters(in: .whitespaces)
-                sections.append(TextSection(type: .bulletPoint, content: content))
+            else if let range = trimmedLine.range(of: #"^(?:•|-|\*)\s+"#, options: .regularExpression) {
+                flushParagraph()
+                append(.bulletPoint, String(trimmedLine[range.upperBound...]))
             }
-            // Numbered lists (1. Texto)
             else if let match = trimmedLine.range(of: #"^\d+[\.\)]\s"#, options: .regularExpression) {
+                flushParagraph()
                 let numberStr = capturedNumber(from: trimmedLine)
                 let content = String(trimmedLine[match.upperBound...]).trimmingCharacters(in: .whitespaces)
-                sections.append(TextSection(type: .numberedList, content: content, number: Int(numberStr)))
+                append(.numberedList, content, number: Int(numberStr))
             }
-            // Links [texto](url)
-            else if trimmedLine.contains("[") && trimmedLine.contains("](") {
-                sections.append(contentsOf: parseLinksInLine(trimmedLine))
-            }
-            // Quotes (> texto)
             else if trimmedLine.hasPrefix(">") {
-                let content = trimmedLine.replacingOccurrences(of: ">", with: "").trimmingCharacters(in: .whitespaces)
-                sections.append(TextSection(type: .quote, content: content))
+                flushParagraph()
+                append(.quote, String(trimmedLine.dropFirst()).trimmingCharacters(in: .whitespaces))
             }
-            // Regular text
             else {
-                sections.append(TextSection(type: .regular, content: trimmedLine))
+                paragraphBuffer.append(trimmedLine)
             }
         }
 
         if inCodeBlock, !codeBuffer.isEmpty {
             flushCodeBlock()
         }
+        flushParagraph()
 
         return sections
     }
@@ -553,87 +558,56 @@ struct EnhancedFormattedText: View {
         return "1"
     }
 
-    private func parseLinksInLine(_ line: String) -> [TextSection] {
-        var sections: [TextSection] = []
-        let remainingText = line
-
-        let linkPattern = #"\[([^\]]+)\]\(([^)]+)\)"#
-        let regex = try! NSRegularExpression(pattern: linkPattern, options: [])
-
-        let matches = regex.matches(in: remainingText, options: [], range: NSRange(location: 0, length: remainingText.utf16.count))
-
-        var lastIndex = 0
-
-        for match in matches {
-            // Add text before link
-            if match.range.location > lastIndex {
-                let beforeText = String(remainingText[remainingText.index(remainingText.startIndex, offsetBy: lastIndex)..<remainingText.index(remainingText.startIndex, offsetBy: match.range.location)])
-                if !beforeText.isEmpty {
-                    sections.append(TextSection(type: .regular, content: beforeText))
-                }
-            }
-
-            // Add link
-            let linkText = String(remainingText[Range(match.range(at: 1), in: remainingText)!])
-            let linkURL = String(remainingText[Range(match.range(at: 2), in: remainingText)!])
-            sections.append(TextSection(type: .link, content: linkText, url: linkURL))
-
-            lastIndex = match.range.location + match.range.length
-        }
-
-        // Add remaining text
-        if lastIndex < remainingText.count {
-            let remainingString = String(remainingText[remainingText.index(remainingText.startIndex, offsetBy: lastIndex)...])
-            if !remainingString.isEmpty {
-                sections.append(TextSection(type: .regular, content: remainingString))
-            }
-        }
-
-        return sections
-    }
 }
 
 // MARK: - Modelos de Datos para Parsing
-struct TextSection {
+struct TextSection: Identifiable {
     enum SectionType {
-        case header, bulletPoint, numberedList, link, codeBlock, quote, regular
+        case header, bulletPoint, numberedList, codeBlock, quote, regular
     }
 
+    let id: Int
     let type: SectionType
     let content: String
     let url: String?
     let number: Int?
+    let headingLevel: Int?
 
-    init(type: SectionType, content: String, url: String? = nil, number: Int? = nil) {
+    init(
+        id: Int,
+        type: SectionType,
+        content: String,
+        url: String? = nil,
+        number: Int? = nil,
+        headingLevel: Int? = nil
+    ) {
+        self.id = id
         self.type = type
         self.content = content
         self.url = url
         self.number = number
+        self.headingLevel = headingLevel
     }
 }
 
 // MARK: - Componentes de Vista para Formato
 struct HeaderView: View {
     let text: String
+    let level: Int
+
+    private var fontSize: CGFloat {
+        switch level {
+        case 1: return legacyPoppinsSize(23)
+        case 2: return legacyPoppinsSize(20)
+        default: return legacyPoppinsSize(17)
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(text)
-                .font(.system(size: legacyPoppinsSize(20), weight: .bold))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [NovaColors.primary, NovaColors.accent],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-
-            RoundedRectangle(cornerRadius: 2)
-                .fill(NovaColors.primary.opacity(0.3))
-                .frame(width: 40, height: 3)
-        }
-        .padding(.top, 12)
-        .padding(.bottom, 4)
+        Text(novaInlineMarkdown(text, fontSize: fontSize))
+            .font(.system(size: fontSize, weight: .bold))
+            .foregroundStyle(NovaColors.textPrimary)
+            .padding(.top, level <= 2 ? 10 : 6)
     }
 }
 
@@ -642,18 +616,17 @@ struct BulletPointView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Circle()
-                .fill(NovaColors.primary)
-                .frame(width: 6, height: 6)
-                .padding(.top, 8)
+            Text("•")
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                .foregroundStyle(NovaColors.textPrimary)
 
-            Text(text)
+            Text(novaInlineMarkdown(text, fontSize: legacyPoppinsSize(16)))
                 .font(.system(size: legacyPoppinsSize(16)))
                 .foregroundStyle(NovaColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -663,50 +636,17 @@ struct NumberedListView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Text("\(number)")
-                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 20, height: 20)
-                .background(NovaColors.primary)
-                .clipShape(Circle())
+            Text("\(number).")
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                .foregroundStyle(NovaColors.textPrimary)
 
-            Text(text)
+            Text(novaInlineMarkdown(text, fontSize: legacyPoppinsSize(16)))
                 .font(.system(size: legacyPoppinsSize(16)))
                 .foregroundStyle(NovaColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Spacer()
         }
-    }
-}
-
-struct LinkView: View {
-    let text: String
-    let url: String
-
-    var body: some View {
-        Link(destination: URL(string: url) ?? URL(string: "https://google.com")!) {
-            HStack(spacing: 8) {
-                Image(systemName: "link")
-                    .font(.system(size: 14))
-
-                Text(text)
-                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                    .underline()
-
-                Image(systemName: "arrow.up.right.square")
-                    .font(.system(size: 12))
-            }
-            .foregroundStyle(NovaColors.primary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(NovaColors.primary.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(NovaColors.primary.opacity(0.3), lineWidth: 1)
-            )
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -777,10 +717,10 @@ struct QuoteView: View {
     var body: some View {
         HStack(spacing: 12) {
             Rectangle()
-                .fill(NovaColors.accent)
-                .frame(width: 4)
+                .fill(NovaColors.textSecondary)
+                .frame(width: 3)
 
-            Text(text)
+            Text(novaInlineMarkdown(text, fontSize: legacyPoppinsSize(16)))
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundStyle(NovaColors.textSecondary)
                 .italic()
@@ -795,59 +735,45 @@ struct RegularTextView: View {
     let text: String
 
     var body: some View {
-        Text(parseInlineFormatting(text))
+        Text(novaInlineMarkdown(text, fontSize: legacyPoppinsSize(16)))
             .font(.system(size: legacyPoppinsSize(16)))
             .foregroundStyle(NovaColors.textPrimary)
             .lineSpacing(4)
+            .fixedSize(horizontal: false, vertical: true)
     }
+}
 
-    private func parseInlineFormatting(_ text: String) -> AttributedString {
-        var attributedString = AttributedString(text)
+private func novaInlineMarkdown(_ text: String, fontSize: CGFloat) -> AttributedString {
+    var attributed = (try? AttributedString(
+        markdown: text,
+        options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+    )) ?? AttributedString(text)
 
-        // 1. Negritas **texto**
-        applyRegex(pattern: #"\*\*([^*]+)\*\*"#, to: &attributedString, originalText: text) { matchText in
-            var attr = AttributedString(matchText.replacingOccurrences(of: "**", with: ""))
-            attr.font = .system(size: 16, weight: .bold)
-            return attr
-        }
-
-        // 2. Cursivas *texto* (evitando negritas ya procesadas)
-        applyRegex(pattern: #"(?<!\*)\*([^*]+)\*(?!\*)"#, to: &attributedString, originalText: text) { matchText in
-            var attr = AttributedString(matchText.replacingOccurrences(of: "*", with: ""))
-            attr.font = .system(size: 16).italic()
-            return attr
-        }
-
-        // 3. Código inline `texto`
-        applyRegex(pattern: #"`([^`]+)`"#, to: &attributedString, originalText: text) { matchText in
-            var attr = AttributedString(matchText.replacingOccurrences(of: "`", with: ""))
-            attr.font = .system(size: 14, design: .monospaced)
-            attr.backgroundColor = NovaColors.secondaryBackground
-            return attr
-        }
-
-        return attributedString
+    let runs = attributed.runs.map { run in
+        (range: run.range, intent: run.inlinePresentationIntent, link: run.link)
     }
-
-    private func applyRegex(pattern: String, to attributedString: inout AttributedString, originalText: String, transform: (String) -> AttributedString) {
-        let regex = try? NSRegularExpression(pattern: pattern)
-        let matches = regex?.matches(in: originalText, range: NSRange(location: 0, length: originalText.utf16.count)) ?? []
-
-        // Procesar en reversa
-        for match in matches.reversed() {
-            let matchText = (originalText as NSString).substring(with: match.range)
-            _ = attributedString.startIndex
-
-            // Aproximación simplificada para encontrar o rango en AttributedString
-            // Nota: En una app de producción real, esto requiere un mapeo más robusto de índices
-            if let rangeInOriginal = Range(match.range, in: originalText) {
-                // Buscamos o tramo literal para facer o replace
-                // (Moi simplificado, pero funciona para a maioría de casos de chat)
-                let substring = originalText[rangeInOriginal]
-                if let attrRange = attributedString.range(of: substring) {
-                    attributedString.replaceSubrange(attrRange, with: transform(matchText))
-                }
+    for run in runs {
+        if let intent = run.intent {
+            var font = Font.system(size: fontSize)
+            if intent.contains(.stronglyEmphasized) {
+                font = .system(size: fontSize, weight: .bold)
+            }
+            if intent.contains(.emphasized) {
+                font = font.italic()
+            }
+            if intent.contains(.code) {
+                font = .system(size: max(13, fontSize - 1), design: .monospaced)
+                attributed[run.range].backgroundColor = NovaColors.secondaryBackground
+            }
+            attributed[run.range].font = font
+            if intent.contains(.strikethrough) {
+                attributed[run.range].strikethroughStyle = .single
             }
         }
+        if run.link != nil {
+            attributed[run.range].foregroundColor = NovaColors.primary
+            attributed[run.range].underlineStyle = .single
+        }
     }
+    return attributed
 }

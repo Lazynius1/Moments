@@ -4364,3 +4364,23 @@
 "interest.philosophy" = "दर्शनशास्त्र";
 "interest.chess" = "शतरंज";
 "interest.board_games" = "बोर्ड गेम्स";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "नमस्ते, %@।";
+"nova.welcome.editorial.question" = "आप क्या सोच रहे हैं?";
+"nova.welcome.editorial.question.create" = "आप क्या बनाना चाहेंगे?";
+"nova.welcome.editorial.question.solve" = "आप क्या हल करना चाहेंगे?";
+"nova.welcome.editorial.question.begin" = "हम कहाँ से शुरू करें?";
+"nova.welcome.editorial.support" = "मैं आपको लिखने, निर्णय लेने, सीखने या Moments में कुछ बनाने में मदद कर सकता हूँ।";
+"nova.welcome.editorial.privacy" = "मैं आपकी पसंद याद रखता हूँ · निजी";
+"nova.ai.disclaimer" = "Nova गलतियाँ कर सकता है। महत्वपूर्ण जानकारी की जाँच करें।";
+"nova.welcome.today.title" = "आज Nova के साथ";
+"nova.welcome.memory.title" = "Nova की एक याद";
+"nova.welcome.continue.title" = "जारी रखें";
+"nova.welcome.spark.title" = "आज की प्रेरणा";
+"nova.welcome.editorial.organize.title" = "एक विचार व्यवस्थित करने में मेरी मदद करें";
+"nova.welcome.editorial.organize.prompt" = "मेरे एक विचार को व्यवस्थित करने में मेरी मदद करें";
+"nova.welcome.editorial.write.title" = "मेरे साथ कुछ लिखें";
+"nova.welcome.editorial.write.prompt" = "कुछ लिखने में मेरी मदद करें";
+"nova.welcome.editorial.moments.title" = "Moments में क्या-क्या किया जा सकता है?";
+"nova.welcome.editorial.moments.prompt" = "Moments में आप मेरी किस तरह मदद कर सकते हैं?";

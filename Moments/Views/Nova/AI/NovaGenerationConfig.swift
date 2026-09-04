@@ -31,6 +31,16 @@ enum NovaGenerationConfig {
         )
     }
 
+    static var welcomeSpark: GenerationConfig {
+        GenerationConfig(
+            temperature: 1.25,
+            topP: 0.95,
+            topK: 64,
+            maxOutputTokens: 64,
+            thinkingConfig: ThinkingConfig(thinkingBudget: 0)
+        )
+    }
+
     static let safetySettings: [SafetySetting] = [
         SafetySetting(harmCategory: .harassment, threshold: .blockMediumAndAbove),
         SafetySetting(harmCategory: .hateSpeech, threshold: .blockMediumAndAbove),

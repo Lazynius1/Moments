@@ -4364,3 +4364,23 @@
 "interest.philosophy" = "Filosofie";
 "interest.chess" = "Schaken";
 "interest.board_games" = "Bordspellen";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "Hallo, %@.";
+"nova.welcome.editorial.question" = "Waar denk je aan?";
+"nova.welcome.editorial.question.create" = "Wat zou je willen maken?";
+"nova.welcome.editorial.question.solve" = "Wat zou je willen oplossen?";
+"nova.welcome.editorial.question.begin" = "Waar zullen we beginnen?";
+"nova.welcome.editorial.support" = "Ik kan je helpen schrijven, beslissen, leren of dingen maken in Moments.";
+"nova.welcome.editorial.privacy" = "Ik onthoud je voorkeuren · Privé";
+"nova.ai.disclaimer" = "Nova kan fouten maken. Controleer belangrijke informatie.";
+"nova.welcome.today.title" = "Vandaag met Nova";
+"nova.welcome.memory.title" = "Een herinnering van Nova";
+"nova.welcome.continue.title" = "Doorgaan";
+"nova.welcome.spark.title" = "Vonkje van de dag";
+"nova.welcome.editorial.organize.title" = "Help me een idee te ordenen";
+"nova.welcome.editorial.organize.prompt" = "Help me een idee dat ik heb te ordenen";
+"nova.welcome.editorial.write.title" = "Schrijf iets met me";
+"nova.welcome.editorial.write.prompt" = "Help me iets te schrijven";
+"nova.welcome.editorial.moments.title" = "Wat kan ik doen in Moments?";
+"nova.welcome.editorial.moments.prompt" = "Waarmee kun je me helpen in Moments?";

@@ -7,6 +7,7 @@ enum NovaInputBarLayout {
     static let bottomPaddingWithoutKeyboard: CGFloat = ChatComposerChromeMetrics.panelHomeGap
     /// Aire visible entre sheet e input (como `ChatInputBarLayout.sheetAboveInputGap`).
     static let sheetAboveInputGap: CGFloat = 12
+    static let disclaimerRowHeight: CGFloat = 18
 
     static func bottomPadding(keyboardVisible: Bool) -> CGFloat {
         ChatComposerChromeMetrics.panelBottomGap(keyboardVisible: keyboardVisible)
@@ -16,6 +17,7 @@ enum NovaInputBarLayout {
     static func attachmentSheetBottomInset() -> CGFloat {
         bottomPaddingWithoutKeyboard
             + ChatComposerChromeMetrics.estimatedComposerChromeHeight
+            + disclaimerRowHeight
             + sheetAboveInputGap
     }
 }

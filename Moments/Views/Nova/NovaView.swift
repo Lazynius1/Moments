@@ -21,6 +21,13 @@ private struct NovaSecureContent: View {
     @State private var plusButtonAnchorFrame: CGRect = .zero
     @Environment(\.colorScheme) private var colorScheme
 
+    private var isShowingWelcome: Bool {
+        viewModel.userData != nil
+            && !viewModel.isLoading
+            && viewModel.conversationHistory.isEmpty
+            && viewModel.showSuggestedOptions
+    }
+
     var body: some View {
         GeometryReader { geometry in
             novaRootContent(in: geometry)
@@ -79,17 +86,18 @@ private struct NovaSecureContent: View {
         safeAreaTop: CGFloat,
         safeAreaBottom: CGFloat
     ) -> some View {
-        let topOverlayHeight: CGFloat = 132
-        let bottomOverlayHeight: CGFloat = 88
+        let topOverlayHeight: CGFloat = 92
+        let bottomOverlayHeight: CGFloat = 108
         let topFadeBase = colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
         let bottomFadeBase = colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
         let tabBarFadeOffset: CGFloat = 92
 
         ZStack {
-            if viewModel.userData != nil && !viewModel.isLoading && viewModel.conversationHistory.isEmpty && viewModel.showSuggestedOptions {
+            if isShowingWelcome {
                 ModernWelcomeSection(
                     viewModel: viewModel,
-                    showSuggestedOptions: $viewModel.showSuggestedOptions
+                    showSuggestedOptions: $viewModel.showSuggestedOptions,
+                    onOpenMemory: { isShowingMemory = true }
                 )
                 .transition(MotionPolicy.Transition.enterPop)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -109,17 +117,12 @@ private struct NovaSecureContent: View {
             novaTopFadeGradient(base: topFadeBase, safeAreaTop: safeAreaTop)
         }
         .overlay(alignment: .top) {
-            VStack(spacing: 8) {
-                NovaHeader(
-                    viewModel: viewModel,
-                    showConversationHistory: $showConversationHistory,
-                    showSuggestedOptions: $viewModel.showSuggestedOptions,
-                    isShowingMemory: $isShowingMemory
-                )
-
-                NovaEncryptionBadge()
-                    .padding(.horizontal, 20)
-            }
+            NovaHeader(
+                viewModel: viewModel,
+                showConversationHistory: $showConversationHistory,
+                showSuggestedOptions: $viewModel.showSuggestedOptions,
+                isShowingMemory: $isShowingMemory
+            )
             .padding(.top, 2)
         }
         .overlay(alignment: .bottom) {
@@ -268,17 +271,26 @@ private struct NovaSecureContent: View {
 
     @ViewBuilder
     private func novaInputBarOverlay() -> some View {
-        EnhancedInputBar(
-            viewModel: viewModel,
-            showSuggestedOptions: $viewModel.showSuggestedOptions,
-            activeAttachmentSheet: $activeAttachmentSheet,
-            isKeyboardVisible: keyboardScrollCoordinator.isVisible,
-            onFocusChange: { focused in
-                if focused && !viewModel.conversationHistory.isEmpty {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {}
+        VStack(spacing: 4) {
+            Text("nova.ai.disclaimer")
+                .font(.system(size: legacyPoppinsSize(10)))
+                .foregroundStyle(NovaColors.textTertiary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .padding(.horizontal, 24)
+
+            EnhancedInputBar(
+                viewModel: viewModel,
+                showSuggestedOptions: $viewModel.showSuggestedOptions,
+                activeAttachmentSheet: $activeAttachmentSheet,
+                isKeyboardVisible: keyboardScrollCoordinator.isVisible,
+                onFocusChange: { focused in
+                    if focused && !viewModel.conversationHistory.isEmpty {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {}
+                    }
                 }
-            }
-        )
+            )
+        }
         .onPreferenceChange(NovaPlusButtonAnchorKey.self) { frame in
             plusButtonAnchorFrame = frame
         }

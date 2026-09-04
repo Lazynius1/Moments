@@ -54,6 +54,12 @@ final class NovaAIService {
         return response.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
+    func generateWelcomeSpark(prompt: String) async throws -> String {
+        let model = makeUtilityModel(config: NovaGenerationConfig.welcomeSpark)
+        let response = try await model.generateContent(prompt)
+        return response.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
     func compactHistory(_ transcript: String) async throws -> String {
         let model = makeUtilityModel(config: NovaGenerationConfig.structuredJSON)
         let prompt = "\(NovaPromptCatalog.historyCompactionPrompt)\n\n\(transcript)"

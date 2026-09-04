@@ -4629,3 +4629,23 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "interest.philosophy" = "Filosofia";
 "interest.chess" = "Escacs";
 "interest.board_games" = "Jocs de taula";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "Hola, %@.";
+"nova.welcome.editorial.question" = "En què estàs pensant?";
+"nova.welcome.editorial.question.create" = "Què t'agradaria crear?";
+"nova.welcome.editorial.question.solve" = "Què t'agradaria resoldre?";
+"nova.welcome.editorial.question.begin" = "Per on comencem?";
+"nova.welcome.editorial.support" = "Puc ajudar-te a escriure, decidir, aprendre o fer coses a Moments.";
+"nova.welcome.editorial.privacy" = "Recordo les teves preferències · Privat";
+"nova.ai.disclaimer" = "Nova pot cometre errors. Verifica la informació important.";
+"nova.welcome.today.title" = "Avui amb Nova";
+"nova.welcome.memory.title" = "Un record de Nova";
+"nova.welcome.continue.title" = "Continuar";
+"nova.welcome.spark.title" = "Espurna del dia";
+"nova.welcome.editorial.organize.title" = "Ajuda'm a ordenar una idea";
+"nova.welcome.editorial.organize.prompt" = "Ajuda'm a ordenar una idea que tinc";
+"nova.welcome.editorial.write.title" = "Escriu alguna cosa amb mi";
+"nova.welcome.editorial.write.prompt" = "Ajuda'm a escriure alguna cosa";
+"nova.welcome.editorial.moments.title" = "Què puc fer a Moments?";
+"nova.welcome.editorial.moments.prompt" = "En què em pots ajudar dins de Moments?";

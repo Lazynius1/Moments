@@ -24,6 +24,8 @@ final class NovaAgent: ObservableObject {
     @Published var userContext: NovaUserContext?
     @Published var hasMemoryLoaded = false
     @Published var conversationTitles: [ConversationTitle] = []
+    @Published var welcomeSpark: String?
+    @Published var isWelcomeSparkLoading = false
     @Published var agentStatus: NovaAgentStatus = .idle
     @Published var activeToolDisplayName: String?
     @Published var pendingAction: NovaPendingAction?
@@ -73,6 +75,7 @@ final class NovaAgent: ObservableObject {
                     await self.loadConversationTitles()
                     self.bootstrapChatSession()
                     self.isLoading = false
+                    self.generateWelcomeSpark()
                 case .failure:
                     self.isLoading = false
                 }
@@ -142,27 +145,94 @@ final class NovaAgent: ObservableObject {
         conversationTitles = await conversationStore.loadConversationTitles(for: userId)
     }
 
+    private func generateWelcomeSpark() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard !isWelcomeSparkLoading, welcomeSpark == nil else { return }
+
+        let today = NovaWelcomeSparkStore.todayKey()
+        let cached = NovaWelcomeSparkStore.load(userId: userId)
+        if let cached,
+           cached.day == today,
+           (8...180).contains(cached.text.count) {
+            welcomeSpark = cached.text
+            return
+        }
+
+        isWelcomeSparkLoading = true
+        let prompt = NovaPromptCatalog.welcomeSparkPrompt(
+            locale: NovaLocaleContext.appLocaleIdentifier,
+            context: welcomeSparkContext(previousSpark: cached?.text)
+        )
+
+        Task { [weak self] in
+            guard let self else { return }
+            defer { isWelcomeSparkLoading = false }
+
+            do {
+                let generated = try await ai.generateWelcomeSpark(prompt: prompt)
+                let cleaned = generated
+                    .replacingOccurrences(of: "\n", with: " ")
+                    .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"“”")))
+                if (8...180).contains(cleaned.count) {
+                    welcomeSpark = cleaned
+                    NovaWelcomeSparkStore.save(userId: userId, day: today, text: cleaned)
+                }
+            } catch {
+                LogConfig.log("Nova welcome spark failed: \(error.localizedDescription)", category: "Nova")
+            }
+        }
+    }
+
+    private func welcomeSparkContext(previousSpark: String?) -> [String] {
+        var lines: [String] = []
+
+        let facts = userMemory?.facts
+            .filter { fact in
+                let content = fact.normalizedContent
+                return !content.hasPrefix("preferred name:")
+                    && !content.hasPrefix("pronouns:")
+            }
+            .sorted { $0.relevanceScore > $1.relevanceScore }
+            .prefix(5) ?? []
+        if let fact = facts.randomElement() {
+            lines.append("- Soft cue: \(fact.content)")
+        }
+
+        if let interest = userData?.interests.randomElement() {
+            lines.append("- Interest flavor: \(interest)")
+        }
+
+        for title in conversationTitles.prefix(3) {
+            lines.append("- Do not reopen this recent topic: \(title.title)")
+        }
+
+        if let previousSpark, !previousSpark.isEmpty {
+            lines.append("- Do not repeat or rephrase yesterday's spark: \(previousSpark)")
+        }
+
+        return lines
+    }
+
     func startNewConversation() {
         Task {
-            await finalizeConversationIfNeeded()
-            currentConversationId = nil
-            lastFinalizedFingerprint = nil
-            internalHistorySummary = nil
-            stagedMomentImage = nil
-            conversationHistory.removeAll()
-            chatSession = nil
-
-            conversationHistory.append(
-                ChatMessage(
-                    text: NSLocalizedString("nova.chat.encryptionNotice", comment: "Encryption notice"),
-                    isUser: false,
-                    isSystem: true
-                )
-            )
-
+            await resetConversationDraft()
+            appendEncryptionNotice()
             bootstrapChatSession()
             showSuggestedOptions = true
-            agentStatus = .idle
+        }
+    }
+
+    func openConversationFromSpark() {
+        let spark = welcomeSpark?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !spark.isEmpty else { return }
+
+        Task {
+            await resetConversationDraft()
+            appendEncryptionNotice()
+            conversationHistory.append(ChatMessage(text: spark, isUser: false))
+            await rebuildChatFromHistoryAsync()
+            showSuggestedOptions = false
         }
     }
 
@@ -666,15 +736,56 @@ final class NovaAgent: ObservableObject {
     }
 
     private func modelHistory(from messages: [ChatMessage]) -> [ModelContent] {
-        messages.compactMap { message in
+        var mapped: [ModelContent] = []
+        var startsWithUser = false
+
+        for message in messages {
             if message.isUser {
-                return ModelContent(role: "user", parts: NovaAIService.userParts(text: message.text, image: message.image))
+                if mapped.isEmpty { startsWithUser = true }
+                mapped.append(
+                    ModelContent(role: "user", parts: NovaAIService.userParts(text: message.text, image: message.image))
+                )
+                continue
             }
 
             let trimmed = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return nil }
-            return ModelContent(role: "model", parts: [TextPart(trimmed)])
+            guard !trimmed.isEmpty else { continue }
+            mapped.append(ModelContent(role: "model", parts: [TextPart(trimmed)]))
         }
+
+        guard !mapped.isEmpty, !startsWithUser else { return mapped }
+        mapped.insert(
+            ModelContent(role: "user", parts: [TextPart(NovaPromptCatalog.assistantOpeningSeed)]),
+            at: 0
+        )
+        return mapped
+    }
+
+    private func resetConversationDraft() async {
+        sendTask?.cancel()
+        sendTask = nil
+        await finalizeConversationIfNeeded()
+        currentConversationId = nil
+        lastFinalizedFingerprint = nil
+        internalHistorySummary = nil
+        stagedMomentImage = nil
+        conversationHistory.removeAll()
+        chatSession = nil
+        inputText = ""
+        selectedImage = nil
+        agentStatus = .idle
+        activeToolDisplayName = nil
+        isLoading = false
+    }
+
+    private func appendEncryptionNotice() {
+        conversationHistory.append(
+            ChatMessage(
+                text: NSLocalizedString("nova.chat.encryptionNotice", comment: "Encryption notice"),
+                isUser: false,
+                isSystem: true
+            )
+        )
     }
 
     private func loadMemoryAndContext(userId: String) async {

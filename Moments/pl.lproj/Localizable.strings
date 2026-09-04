@@ -4364,3 +4364,23 @@
 "interest.philosophy" = "Filozofia";
 "interest.chess" = "Szachy";
 "interest.board_games" = "Gry planszowe";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "Cześć, %@.";
+"nova.welcome.editorial.question" = "O czym myślisz?";
+"nova.welcome.editorial.question.create" = "Co chcesz stworzyć?";
+"nova.welcome.editorial.question.solve" = "Co chcesz rozwiązać?";
+"nova.welcome.editorial.question.begin" = "Od czego zaczynamy?";
+"nova.welcome.editorial.support" = "Mogę pomóc Ci pisać, podejmować decyzje, uczyć się lub tworzyć w Moments.";
+"nova.welcome.editorial.privacy" = "Pamiętam Twoje preferencje · Prywatne";
+"nova.ai.disclaimer" = "Nova może popełniać błędy. Sprawdź ważne informacje.";
+"nova.welcome.today.title" = "Dzisiaj z Novą";
+"nova.welcome.memory.title" = "Wspomnienie od Novy";
+"nova.welcome.continue.title" = "Kontynuuj";
+"nova.welcome.spark.title" = "Iskra dnia";
+"nova.welcome.editorial.organize.title" = "Pomóż mi uporządkować pomysł";
+"nova.welcome.editorial.organize.prompt" = "Pomóż mi uporządkować mój pomysł";
+"nova.welcome.editorial.write.title" = "Napisz coś ze mną";
+"nova.welcome.editorial.write.prompt" = "Pomóż mi coś napisać";
+"nova.welcome.editorial.moments.title" = "Co mogę robić w Moments?";
+"nova.welcome.editorial.moments.prompt" = "W czym możesz mi pomóc w Moments?";

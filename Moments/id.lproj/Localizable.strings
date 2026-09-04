@@ -4364,3 +4364,23 @@
 "interest.philosophy" = "Filsafat";
 "interest.chess" = "Catur";
 "interest.board_games" = "Permainan papan";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "Halo, %@.";
+"nova.welcome.editorial.question" = "Apa yang sedang kamu pikirkan?";
+"nova.welcome.editorial.question.create" = "Apa yang ingin kamu buat?";
+"nova.welcome.editorial.question.solve" = "Apa yang ingin kamu selesaikan?";
+"nova.welcome.editorial.question.begin" = "Kita mulai dari mana?";
+"nova.welcome.editorial.support" = "Aku bisa membantumu menulis, mengambil keputusan, belajar, atau membuat sesuatu di Moments.";
+"nova.welcome.editorial.privacy" = "Aku mengingat preferensimu · Pribadi";
+"nova.ai.disclaimer" = "Nova dapat membuat kesalahan. Periksa informasi penting.";
+"nova.welcome.today.title" = "Hari ini bersama Nova";
+"nova.welcome.memory.title" = "Sebuah ingatan dari Nova";
+"nova.welcome.continue.title" = "Lanjutkan";
+"nova.welcome.spark.title" = "Percikan hari ini";
+"nova.welcome.editorial.organize.title" = "Bantu aku menata sebuah ide";
+"nova.welcome.editorial.organize.prompt" = "Bantu aku menata ide yang aku punya";
+"nova.welcome.editorial.write.title" = "Tulis sesuatu bersamaku";
+"nova.welcome.editorial.write.prompt" = "Bantu aku menulis sesuatu";
+"nova.welcome.editorial.moments.title" = "Apa yang bisa kulakukan di Moments?";
+"nova.welcome.editorial.moments.prompt" = "Apa yang bisa kamu bantu aku lakukan di Moments?";

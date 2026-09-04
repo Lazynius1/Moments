@@ -4364,3 +4364,23 @@
 "interest.philosophy" = "哲學";
 "interest.chess" = "西洋棋";
 "interest.board_games" = "桌遊";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "你好，%@。";
+"nova.welcome.editorial.question" = "你在想什麼？";
+"nova.welcome.editorial.question.create" = "你想創作什麼？";
+"nova.welcome.editorial.question.solve" = "你想解決什麼問題？";
+"nova.welcome.editorial.question.begin" = "我們從哪裡開始？";
+"nova.welcome.editorial.support" = "我可以協助你寫作、做決定、學習，或在 Moments 中創作。";
+"nova.welcome.editorial.privacy" = "我會記住你的偏好 · 私密";
+"nova.ai.disclaimer" = "Nova 可能會出錯。請核實重要資訊。";
+"nova.welcome.today.title" = "今天與 Nova";
+"nova.welcome.memory.title" = "Nova 的回憶";
+"nova.welcome.continue.title" = "繼續";
+"nova.welcome.spark.title" = "今日靈感";
+"nova.welcome.editorial.organize.title" = "幫我整理一個想法";
+"nova.welcome.editorial.organize.prompt" = "幫我整理心中的一個想法";
+"nova.welcome.editorial.write.title" = "和我一起寫點東西";
+"nova.welcome.editorial.write.prompt" = "幫我寫點東西";
+"nova.welcome.editorial.moments.title" = "我可以在 Moments 中做什麼？";
+"nova.welcome.editorial.moments.prompt" = "你能在 Moments 中幫我做什麼？";

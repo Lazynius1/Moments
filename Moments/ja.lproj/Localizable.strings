@@ -4364,3 +4364,23 @@
 "interest.philosophy" = "哲学";
 "interest.chess" = "チェス";
 "interest.board_games" = "ボードゲーム";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "こんにちは、%@。";
+"nova.welcome.editorial.question" = "何を考えていますか？";
+"nova.welcome.editorial.question.create" = "何を作りたいですか？";
+"nova.welcome.editorial.question.solve" = "何を解決したいですか？";
+"nova.welcome.editorial.question.begin" = "どこから始めましょう？";
+"nova.welcome.editorial.support" = "文章を書くこと、決断すること、学ぶこと、Momentsで何かを作ることをお手伝いできます。";
+"nova.welcome.editorial.privacy" = "あなたの好みを記憶します · 非公開";
+"nova.ai.disclaimer" = "Novaは誤った回答をすることがあります。重要な情報は確認してください。";
+"nova.welcome.today.title" = "今日のNova";
+"nova.welcome.memory.title" = "Novaの記憶";
+"nova.welcome.continue.title" = "続ける";
+"nova.welcome.spark.title" = "今日のひらめき";
+"nova.welcome.editorial.organize.title" = "アイデアの整理を手伝って";
+"nova.welcome.editorial.organize.prompt" = "考えているアイデアの整理を手伝って";
+"nova.welcome.editorial.write.title" = "一緒に何かを書いて";
+"nova.welcome.editorial.write.prompt" = "何かを書くのを手伝って";
+"nova.welcome.editorial.moments.title" = "Momentsでは何ができますか？";
+"nova.welcome.editorial.moments.prompt" = "Momentsでどんなことを手伝えますか？";

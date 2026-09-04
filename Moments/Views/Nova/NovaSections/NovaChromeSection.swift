@@ -7,7 +7,6 @@ struct NovaHeader: View {
     @Binding var showConversationHistory: Bool
     @Binding var showSuggestedOptions: Bool
     @Binding var isShowingMemory: Bool
-    @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) private var dismiss
 
     // ✨ ESTADOS PARA EASTER EGG
@@ -17,12 +16,8 @@ struct NovaHeader: View {
     @State private var logoScale: CGFloat = 1.0
     @State private var logoPulse = false
 
-    private var subtitleText: String {
-        NSLocalizedString("nova.chrome.subtitle", comment: "Nova header subtitle")
-    }
-
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             Button(action: { dismiss() }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .semibold))
@@ -38,18 +33,17 @@ struct NovaHeader: View {
             .accessibilityLabel(NSLocalizedString("common.back", comment: "Back"))
 
             Button(action: handleLogoTap) {
-                ZStack {
-                    NovaBrandIcon(size: 22, color: NovaColors.textPrimary)
-                        .scaleEffect(logoScale * (logoPulse ? 1.06 : 1.0))
-                }
-                .frame(width: 40, height: 40)
-                .background {
-                    Color.clear
-                        .momentsChromeGlass(in: Circle(), interactive: true)
-                }
-                .contentShape(Circle())
+                Image("NovaTabIcon")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(NovaColors.textPrimary)
+                    .frame(width: 34, height: 34)
+                    .scaleEffect(logoScale * (logoPulse ? 1.06 : 1.0))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.momentsPress(scale: 0.92, haptic: .none))
+            .accessibilityLabel(Text("nova.name"))
             .alert("nova.easterEgg.title", isPresented: $showDeveloperEasterEgg) {
                 Button("nova.easterEgg.primaryButton") {
                     resetEasterEgg()
@@ -62,26 +56,18 @@ struct NovaHeader: View {
                 Text(NSLocalizedString("nova.easterEgg.message", comment: "Easter egg message about Álvaro"))
             }
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("nova.name")
-                    .font(.system(size: legacyPoppinsSize(20), weight: .bold))
-                    .foregroundStyle(NovaColors.textPrimary)
+            Text("nova.name")
+                .font(.system(size: legacyPoppinsSize(22), weight: .bold))
+                .foregroundStyle(NovaColors.textPrimary)
 
-                Text(subtitleText)
-                    .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundStyle(NovaColors.textSecondary)
-            }
+            Spacer(minLength: 8)
 
-            Spacer()
-
-            // Botones de acción
-            HStack(spacing: 8) {
-                // Botón de memoria
-                Button(action: { isShowingMemory = true }) {
-                    Image(systemName: "brain.head.profile")
+            HStack(spacing: 10) {
+                Button(action: { showConversationHistory = true }) {
+                    Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(NovaColors.textPrimary)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 42, height: 42)
                         .background {
                             Color.clear
                                 .momentsChromeGlass(in: Circle(), interactive: true)
@@ -89,6 +75,7 @@ struct NovaHeader: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.momentsPressIcon)
+                .accessibilityLabel(Text("nova.recentConversations"))
 
                 if !viewModel.conversationHistory.isEmpty {
                     Button(action: {
@@ -98,7 +85,7 @@ struct NovaHeader: View {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(NovaColors.textPrimary)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 42, height: 42)
                             .background {
                                 Color.clear
                                     .momentsChromeGlass(in: Circle(), interactive: true)
@@ -106,15 +93,14 @@ struct NovaHeader: View {
                             .contentShape(Circle())
                     }
                     .buttonStyle(.momentsPressIcon)
+                    .accessibilityLabel(Text("nova.newConversation"))
                 }
 
-                Button(action: {
-                    showConversationHistory = true
-                }) {
-                    Image(systemName: "clock.arrow.circlepath")
+                Button(action: { isShowingMemory = true }) {
+                    Image(systemName: "brain.head.profile")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(NovaColors.textPrimary)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 42, height: 42)
                         .background {
                             Color.clear
                                 .momentsChromeGlass(in: Circle(), interactive: true)
@@ -122,17 +108,11 @@ struct NovaHeader: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.momentsPressIcon)
+                .accessibilityLabel(Text("nova.memory.title"))
             }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .background {
-            Color.clear
-                .momentsChromeGlass(in: Capsule(), interactive: false)
-                .allowsHitTesting(false)
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
+        .padding(.top, 10)
         .onAppear {
             if logoTapCount >= 4 {
                 logoPulse = true
@@ -233,89 +213,409 @@ struct NovaBackground: View {
 struct ModernWelcomeSection: View {
     @ObservedObject var viewModel: NovaAgent
     @Binding var showSuggestedOptions: Bool
+    let onOpenMemory: () -> Void
 
-    private var eyebrowText: String {
-        NSLocalizedString("nova.welcome.eyebrow", comment: "Welcome eyebrow")
+    @ScaledMetric(relativeTo: .largeTitle) private var greetingSize: CGFloat = 45
+
+    private var rotatingQuestions: [String] {
+        [
+            localized("nova.welcome.editorial.question", fallback: "What are you thinking about?"),
+            localized("nova.welcome.editorial.question.create", fallback: "What would you like to create?"),
+            localized("nova.welcome.editorial.question.solve", fallback: "What would you like to solve?"),
+            localized("nova.welcome.editorial.question.begin", fallback: "Where should we begin?")
+        ]
     }
 
-    private var supportText: String {
-        NSLocalizedString("nova.welcome.support", comment: "Welcome support text")
+    private var suggestions: [NovaEditorialSuggestion] {
+        [
+            NovaEditorialSuggestion(
+                id: "organize",
+                titleKey: "nova.welcome.editorial.organize.title",
+                titleFallback: "Help me organize an idea",
+                promptKey: "nova.welcome.editorial.organize.prompt",
+                promptFallback: "Help me organize an idea I have"
+            ),
+            NovaEditorialSuggestion(
+                id: "write",
+                titleKey: "nova.welcome.editorial.write.title",
+                titleFallback: "Write something with me",
+                promptKey: "nova.welcome.editorial.write.prompt",
+                promptFallback: "Help me write something"
+            ),
+            NovaEditorialSuggestion(
+                id: "moments",
+                titleKey: "nova.welcome.editorial.moments.title",
+                titleFallback: "What can I do in Moments?",
+                promptKey: "nova.welcome.editorial.moments.prompt",
+                promptFallback: "What can you help me do in Moments?"
+            )
+        ]
+    }
+
+    private var highlightedMemory: NovaFact? {
+        viewModel.userMemory?.facts
+            .filter { fact in
+                let content = fact.normalizedContent
+                return !content.hasPrefix("preferred name:")
+                    && !content.hasPrefix("pronouns:")
+            }
+            .sorted { lhs, rhs in
+                let lhsPersonal = lhs.type == .personal
+                let rhsPersonal = rhs.type == .personal
+                if lhsPersonal != rhsPersonal { return lhsPersonal }
+                if lhs.importance != rhs.importance { return lhs.importance > rhs.importance }
+                return lhs.timestamp > rhs.timestamp
+            }
+            .first
+    }
+
+    private var latestConversation: ConversationTitle? {
+        viewModel.conversationTitles.max { $0.lastUpdated < $1.lastUpdated }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 28)
+        GeometryReader { geometry in
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Color.clear
+                        .frame(height: 92)
+                        .accessibilityHidden(true)
 
-            VStack(spacing: 24) {
-                Text(eyebrowText)
-                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                    Color.clear
+                        .frame(height: 22)
+                        .accessibilityHidden(true)
+
+                    Text(
+                        String(
+                            format: localized(
+                                "nova.welcome.editorial.greeting",
+                                fallback: "Hello, %@."
+                            ),
+                            viewModel.currentUserDisplayName
+                        )
+                    )
+                    .font(.system(size: greetingSize, weight: .regular, design: .serif))
+                    .foregroundStyle(NovaColors.textPrimary)
+                    .minimumScaleFactor(0.78)
+                    .lineLimit(1)
+
+                    NovaTypewriterQuestion(
+                        phrases: rotatingQuestions,
+                        fontSize: greetingSize
+                    )
+                    .padding(.top, 2)
+
+                    Text(
+                        localized(
+                            "nova.welcome.editorial.support",
+                            fallback: "I can help you write, decide, learn, or make things in Moments."
+                        )
+                    )
+                    .font(.system(size: legacyPoppinsSize(16)))
                     .foregroundStyle(NovaColors.textSecondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(NovaColors.materialBackground)
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule()
-                            .stroke(NovaColors.borderColor, lineWidth: 1)
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 20)
+                    .padding(.bottom, 22)
+
+                    if showSuggestedOptions {
+                        VStack(spacing: 0) {
+                            ForEach(suggestions) { suggestion in
+                                NovaEditorialSuggestionRow(suggestion: suggestion) {
+                                    viewModel.inputText = suggestion.prompt
+                                    showSuggestedOptions = false
+                                    viewModel.sendMessage()
+                                }
+                            }
+                        }
+                    }
+
+                    NovaWelcomeTodaySection(
+                        memory: highlightedMemory,
+                        conversation: latestConversation,
+                        dailySpark: viewModel.welcomeSpark,
+                        onOpenMemory: onOpenMemory,
+                        onContinueConversation: { conversationId in
+                            Task { await viewModel.loadConversation(conversationId) }
+                        },
+                        onUseSpark: {
+                            viewModel.openConversationFromSpark()
+                        }
                     )
+                    .padding(.top, 22)
 
-                VStack(spacing: 12) {
-                    Text("\(NSLocalizedString("nova.hello", comment: "Hello message")) \(viewModel.currentUserDisplayName)")
-                        .font(.system(size: legacyPoppinsSize(34), weight: .bold))
-                        .foregroundStyle(NovaColors.textPrimary)
-                        .multilineTextAlignment(.center)
+                    Spacer(minLength: 24)
 
-                    Text("nova.introduction")
-                        .font(.system(size: legacyPoppinsSize(16)))
-                        .foregroundStyle(NovaColors.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(3)
-                        .padding(.horizontal, 8)
-                }
-
-                VStack(spacing: 10) {
                     HStack(spacing: 8) {
-                        Image(systemName: "brain.head.profile")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(NovaColors.textSecondary)
+                        Image(systemName: "lock")
+                            .font(.system(size: 12, weight: .medium))
 
-                        Text(supportText)
-                            .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundStyle(NovaColors.textSecondary)
-                            .multilineTextAlignment(.leading)
+                        Text(
+                            localized(
+                                "nova.welcome.editorial.privacy",
+                                fallback: "I remember your preferences · Private"
+                            )
+                        )
+                        .font(.system(size: legacyPoppinsSize(13)))
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(NovaColors.materialBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18)
-                            .stroke(NovaColors.borderColor, lineWidth: 1)
-                    )
-
-                    if let userData = viewModel.userData, !userData.interests.isEmpty {
-                        Text(userData.interests.prefix(3).joined(separator: " • "))
-                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                            .foregroundStyle(NovaColors.textTertiary)
-                            .multilineTextAlignment(.center)
-                    }
+                    .foregroundStyle(NovaColors.textTertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 136)
                 }
-
-                if showSuggestedOptions {
-                    SmartSuggestionChips(
-                        viewModel: viewModel,
-                        showSuggestedOptions: $showSuggestedOptions,
-                        type: .welcome
-                    )
-                }
+                .padding(.horizontal, 28)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: geometry.size.height,
+                    alignment: .topLeading
+                )
             }
-            .frame(maxWidth: 380)
-            .padding(.horizontal, 24)
-
-            Spacer(minLength: 24)
+            .scrollIndicators(.hidden)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func localized(_ key: String, fallback: String) -> String {
+        NSLocalizedString(key, tableName: nil, bundle: .main, value: fallback, comment: "")
+    }
+}
+
+private struct NovaWelcomeTodaySection: View {
+    let memory: NovaFact?
+    let conversation: ConversationTitle?
+    let dailySpark: String?
+    let onOpenMemory: () -> Void
+    let onContinueConversation: (String) -> Void
+    let onUseSpark: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("nova.welcome.today.title")
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                .foregroundStyle(NovaColors.textTertiary)
+                .textCase(.uppercase)
+                .tracking(0.7)
+                .padding(.bottom, 10)
+
+            NovaWelcomeTodayRow(
+                icon: memory == nil ? "brain.head.profile" : "sparkles",
+                eyebrow: String(localized: "nova.welcome.memory.title"),
+                title: memory?.content ?? NSLocalizedString(
+                    "nova.memory.empty.subtitle",
+                    comment: "Empty Nova memory subtitle"
+                ),
+                detail: nil,
+                action: onOpenMemory
+            )
+
+            if let conversation {
+                NovaWelcomeTodayRow(
+                    icon: "arrow.uturn.forward",
+                    eyebrow: String(localized: "nova.welcome.continue.title"),
+                    title: conversation.title,
+                    detail: conversation.lastUpdated.timeAgoDisplay(),
+                    action: { onContinueConversation(conversation.id) }
+                )
+            }
+
+            NovaWelcomeTodayRow(
+                icon: "sparkle",
+                eyebrow: String(localized: "nova.welcome.spark.title"),
+                title: dailySpark ?? "…",
+                detail: nil,
+                action: onUseSpark
+            )
+            .disabled(dailySpark == nil)
+            .opacity(dailySpark == nil ? 0.58 : 1)
+        }
+    }
+}
+
+private struct NovaWelcomeTodayRow: View {
+    let icon: String
+    let eyebrow: String
+    let title: String
+    let detail: String?
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(NovaColors.textSecondary)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(eyebrow)
+                        .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
+                        .foregroundStyle(NovaColors.textTertiary)
+
+                    Text(title)
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+                        .foregroundStyle(NovaColors.textPrimary)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 8)
+
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: legacyPoppinsSize(10)))
+                        .foregroundStyle(NovaColors.textTertiary)
+                        .lineLimit(1)
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(NovaColors.textTertiary)
+                    .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+            .contentShape(Rectangle())
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(NovaColors.borderColor.opacity(0.5))
+                    .frame(height: 0.7)
+                    .allowsHitTesting(false)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct NovaTypewriterQuestion: View {
+    let phrases: [String]
+    let fontSize: CGFloat
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var displayedText = ""
+    @State private var phraseIndex = 0
+    @State private var cursorVisible = true
+
+    var body: some View {
+        Text(attributedText)
+            .font(.system(size: fontSize, weight: .regular, design: .serif))
+            .foregroundStyle(NovaColors.textPrimary)
+            .minimumScaleFactor(0.68)
+            .lineLimit(2)
+            .frame(minHeight: fontSize * 2.12, alignment: .topLeading)
+            .accessibilityLabel(currentPhrase)
+            .task(id: reduceMotion) {
+                await runTypewriter()
+            }
+            .task(id: reduceMotion) {
+                await runCursorBlink()
+            }
+    }
+
+    private var currentPhrase: String {
+        guard !phrases.isEmpty else { return "" }
+        return phrases[phraseIndex % phrases.count]
+    }
+
+    private var attributedText: AttributedString {
+        var text = AttributedString(displayedText)
+        var cursor = AttributedString("│")
+        cursor.foregroundColor = NovaColors.textPrimary.opacity(cursorVisible ? 0.82 : 0)
+        text.append(cursor)
+        return text
+    }
+
+    @MainActor
+    private func runTypewriter() async {
+        guard !phrases.isEmpty else { return }
+
+        if reduceMotion {
+            displayedText = currentPhrase
+            return
+        }
+
+        while !Task.isCancelled {
+            let phrase = currentPhrase
+            displayedText = ""
+
+            for character in phrase {
+                guard !Task.isCancelled else { return }
+                displayedText.append(character)
+                try? await Task.sleep(for: .milliseconds(65))
+            }
+
+            try? await Task.sleep(for: .milliseconds(1_650))
+            guard !Task.isCancelled else { return }
+
+            while !displayedText.isEmpty {
+                guard !Task.isCancelled else { return }
+                displayedText.removeLast()
+                try? await Task.sleep(for: .milliseconds(38))
+            }
+
+            try? await Task.sleep(for: .milliseconds(260))
+            guard !Task.isCancelled else { return }
+            phraseIndex = (phraseIndex + 1) % phrases.count
+        }
+    }
+
+    @MainActor
+    private func runCursorBlink() async {
+        cursorVisible = !reduceMotion
+        guard !reduceMotion else { return }
+
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(480))
+            guard !Task.isCancelled else { return }
+            cursorVisible.toggle()
+        }
+    }
+}
+
+private struct NovaEditorialSuggestion: Identifiable {
+    let id: String
+    let titleKey: String
+    let titleFallback: String
+    let promptKey: String
+    let promptFallback: String
+
+    var title: String {
+        NSLocalizedString(titleKey, tableName: nil, bundle: .main, value: titleFallback, comment: "")
+    }
+
+    var prompt: String {
+        NSLocalizedString(promptKey, tableName: nil, bundle: .main, value: promptFallback, comment: "")
+    }
+}
+
+private struct NovaEditorialSuggestionRow: View {
+    let suggestion: NovaEditorialSuggestion
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Text(suggestion.title)
+                    .font(.system(size: legacyPoppinsSize(16), weight: .regular))
+                    .foregroundStyle(NovaColors.textPrimary)
+                    .multilineTextAlignment(.leading)
+
+                Spacer(minLength: 12)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(NovaColors.textSecondary)
+                    .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+            .contentShape(Rectangle())
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(NovaColors.borderColor.opacity(0.62))
+                    .frame(height: 0.7)
+                    .allowsHitTesting(false)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(Text(suggestion.prompt))
     }
 }
 

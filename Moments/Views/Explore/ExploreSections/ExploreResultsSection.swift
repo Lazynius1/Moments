@@ -105,23 +105,20 @@ struct SmartSearchResultsView: View {
         }
     }
 
-    // ✅ Resultados de usuarios
+    // ✅ Resultados de usuarios — mismos MiniUserCard que `.mixed` (sin SearchResultCard)
     private var usersResultsView: some View {
-        VStack(spacing: 16) {
-            LazyVStack(spacing: 12) {
-                ForEach(users) { user in
-                    SearchResultCard(
-                        user: user,
-                        buttonState: userButtonStates[user.id] ?? .canFollow,
-                        commonInterests: Set(user.interests).intersection(Set(currentUserInterests)).count,
-                        profileZoomNamespace: profileZoomNamespace,
-                        onFollow: { onFollowUser(user.id) },
-                        onTap: { onUserTap(user) }
-                    )
-                }
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 80), spacing: 16, alignment: .top)],
+            spacing: 16
+        ) {
+            ForEach(users) { user in
+                MiniUserCard(
+                    user: user,
+                    onTap: { onUserTap(user) }
+                )
             }
-            .padding(.horizontal, 24)
         }
+        .padding(.horizontal, 24)
     }
 
     // ✅ Resultados de momentos

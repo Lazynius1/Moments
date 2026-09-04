@@ -4609,3 +4609,23 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "interest.philosophy" = "Filosofia";
 "interest.chess" = "Xadrez";
 "interest.board_games" = "Jogos de tabuleiro";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "Olá, %@.";
+"nova.welcome.editorial.question" = "No que você está pensando?";
+"nova.welcome.editorial.question.create" = "O que você gostaria de criar?";
+"nova.welcome.editorial.question.solve" = "O que você gostaria de resolver?";
+"nova.welcome.editorial.question.begin" = "Por onde começamos?";
+"nova.welcome.editorial.support" = "Posso ajudar você a escrever, decidir, aprender ou criar coisas no Moments.";
+"nova.welcome.editorial.privacy" = "Lembro das suas preferências · Privado";
+"nova.ai.disclaimer" = "A Nova pode cometer erros. Confira as informações importantes.";
+"nova.welcome.today.title" = "Hoje com a Nova";
+"nova.welcome.memory.title" = "Uma lembrança da Nova";
+"nova.welcome.continue.title" = "Continuar";
+"nova.welcome.spark.title" = "Faísca do dia";
+"nova.welcome.editorial.organize.title" = "Ajude-me a organizar uma ideia";
+"nova.welcome.editorial.organize.prompt" = "Ajude-me a organizar uma ideia que tenho";
+"nova.welcome.editorial.write.title" = "Escreva algo comigo";
+"nova.welcome.editorial.write.prompt" = "Ajude-me a escrever algo";
+"nova.welcome.editorial.moments.title" = "O que posso fazer no Moments?";
+"nova.welcome.editorial.moments.prompt" = "No que você pode me ajudar no Moments?";

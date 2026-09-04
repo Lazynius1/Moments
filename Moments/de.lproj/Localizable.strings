@@ -4609,3 +4609,23 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "interest.philosophy" = "Philosophie";
 "interest.chess" = "Schach";
 "interest.board_games" = "Brettspiele";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "Hallo, %@.";
+"nova.welcome.editorial.question" = "Woran denkst du?";
+"nova.welcome.editorial.question.create" = "Was möchtest du erschaffen?";
+"nova.welcome.editorial.question.solve" = "Was möchtest du lösen?";
+"nova.welcome.editorial.question.begin" = "Womit sollen wir anfangen?";
+"nova.welcome.editorial.support" = "Ich kann dir helfen, zu schreiben, Entscheidungen zu treffen, zu lernen oder Dinge in Moments zu erstellen.";
+"nova.welcome.editorial.privacy" = "Ich merke mir deine Präferenzen · Privat";
+"nova.ai.disclaimer" = "Nova kann Fehler machen. Überprüfe wichtige Informationen.";
+"nova.welcome.today.title" = "Heute mit Nova";
+"nova.welcome.memory.title" = "Eine Erinnerung von Nova";
+"nova.welcome.continue.title" = "Fortsetzen";
+"nova.welcome.spark.title" = "Funke des Tages";
+"nova.welcome.editorial.organize.title" = "Hilf mir, eine Idee zu ordnen";
+"nova.welcome.editorial.organize.prompt" = "Hilf mir, eine Idee zu ordnen, die ich habe";
+"nova.welcome.editorial.write.title" = "Schreib etwas mit mir";
+"nova.welcome.editorial.write.prompt" = "Hilf mir, etwas zu schreiben";
+"nova.welcome.editorial.moments.title" = "Was kann ich in Moments machen?";
+"nova.welcome.editorial.moments.prompt" = "Wobei kannst du mir in Moments helfen?";

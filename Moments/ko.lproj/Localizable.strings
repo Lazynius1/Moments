@@ -4364,3 +4364,23 @@
 "interest.philosophy" = "철학";
 "interest.chess" = "체스";
 "interest.board_games" = "보드게임";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "%@님, 안녕하세요.";
+"nova.welcome.editorial.question" = "무슨 생각을 하고 계신가요?";
+"nova.welcome.editorial.question.create" = "무엇을 만들고 싶으신가요?";
+"nova.welcome.editorial.question.solve" = "어떤 문제를 해결하고 싶으신가요?";
+"nova.welcome.editorial.question.begin" = "어디서부터 시작할까요?";
+"nova.welcome.editorial.support" = "글쓰기, 결정, 학습 또는 Moments에서 무언가를 만드는 일을 도와드릴 수 있어요.";
+"nova.welcome.editorial.privacy" = "선호 사항을 기억해요 · 비공개";
+"nova.ai.disclaimer" = "Nova는 실수할 수 있습니다. 중요한 정보는 확인해 주세요.";
+"nova.welcome.today.title" = "오늘의 Nova";
+"nova.welcome.memory.title" = "Nova의 기억";
+"nova.welcome.continue.title" = "계속하기";
+"nova.welcome.spark.title" = "오늘의 영감";
+"nova.welcome.editorial.organize.title" = "아이디어를 정리할 수 있게 도와줘";
+"nova.welcome.editorial.organize.prompt" = "내 아이디어를 정리할 수 있게 도와줘";
+"nova.welcome.editorial.write.title" = "나와 함께 글을 써줘";
+"nova.welcome.editorial.write.prompt" = "글쓰기를 도와줘";
+"nova.welcome.editorial.moments.title" = "Moments에서 무엇을 할 수 있나요?";
+"nova.welcome.editorial.moments.prompt" = "Moments에서 어떤 도움을 받을 수 있나요?";

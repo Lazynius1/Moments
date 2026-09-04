@@ -4364,3 +4364,23 @@
 "interest.philosophy" = "Felsefe";
 "interest.chess" = "Satranç";
 "interest.board_games" = "Masa Oyunları";
+
+/* Nova Editorial Welcome */
+"nova.welcome.editorial.greeting" = "Merhaba, %@.";
+"nova.welcome.editorial.question" = "Ne düşünüyorsun?";
+"nova.welcome.editorial.question.create" = "Ne yaratmak istersin?";
+"nova.welcome.editorial.question.solve" = "Neyi çözmek istersin?";
+"nova.welcome.editorial.question.begin" = "Nereden başlayalım?";
+"nova.welcome.editorial.support" = "Yazmana, karar vermene, öğrenmene veya Moments'ta bir şeyler oluşturmana yardımcı olabilirim.";
+"nova.welcome.editorial.privacy" = "Tercihlerini hatırlıyorum · Özel";
+"nova.ai.disclaimer" = "Nova hata yapabilir. Önemli bilgileri doğrula.";
+"nova.welcome.today.title" = "Bugün Nova ile";
+"nova.welcome.memory.title" = "Nova'dan bir anı";
+"nova.welcome.continue.title" = "Devam et";
+"nova.welcome.spark.title" = "Günün ilhamı";
+"nova.welcome.editorial.organize.title" = "Bir fikri düzenlememe yardım et";
+"nova.welcome.editorial.organize.prompt" = "Aklımdaki bir fikri düzenlememe yardım et";
+"nova.welcome.editorial.write.title" = "Benimle bir şeyler yaz";
+"nova.welcome.editorial.write.prompt" = "Bir şey yazmama yardım et";
+"nova.welcome.editorial.moments.title" = "Moments'ta neler yapabilirim?";
+"nova.welcome.editorial.moments.prompt" = "Moments'ta bana nasıl yardımcı olabilirsin?";
