@@ -660,6 +660,7 @@ struct ModernPostCardView: View {
                     state: followButtonState,
                     isLoading: isFollowLoading,
                     colorScheme: colorScheme,
+                    targetUserId: moment.authorId,
                     action: performFollowToggle
                 )
             }
@@ -856,15 +857,16 @@ struct ModernPostCardView: View {
         commentCount = moment.commentCount
 
         if moment.authorId != currentUserId {
-            if let cachedState = FollowStateStore.shared.state(for: moment.authorId) {
+            let authorId = moment.authorId
+            if let cachedState = FollowStateStore.shared.state(for: authorId) {
                 followButtonState = cachedState
             }
 
-            privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: moment.authorId) { state in
+            FollowStateStore.shared.resolve(viewerId: currentUserId, targetUserId: authorId) { state in
+                guard let state else { return }
                 DispatchQueue.main.async {
-                    let reconciledState = FollowStateStore.shared.reconciledState(state, for: self.moment.authorId)
-                    self.followButtonState = reconciledState
-                    FollowStateStore.shared.setState(reconciledState, for: self.moment.authorId)
+                    guard self.moment.authorId == authorId else { return }
+                    self.followButtonState = state
                 }
             }
         }

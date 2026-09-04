@@ -434,6 +434,7 @@ struct SearchResultCard: View {
                     state: buttonState,
                     isLoading: false,
                     colorScheme: colorScheme,
+                    targetUserId: user.id,
                     action: onFollow
                 )
             }

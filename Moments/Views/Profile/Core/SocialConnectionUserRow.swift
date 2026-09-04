@@ -400,6 +400,7 @@ struct SocialConnectionUserRow<ViewModel: UserListViewModel>: View {
             state: followState,
             isLoading: isFollowLoading,
             colorScheme: colorScheme,
+            targetUserId: user.id,
             style: .compact,
             action: performRelationshipAction
         )

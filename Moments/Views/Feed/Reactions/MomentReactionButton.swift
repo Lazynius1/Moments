@@ -476,7 +476,6 @@ struct ReactionsListSheet: View {
     @State private var searchText = ""
 
     @EnvironmentObject private var firestoreService: FirestoreService
-    private let privacyService = PrivacyService()
 
     struct ReactionGroup {
         let type: ReactionType
@@ -782,6 +781,7 @@ struct ReactionsListSheet: View {
                 state: state,
                 isLoading: isLoading,
                 colorScheme: colorScheme,
+                targetUserId: userId,
                 style: .compact,
                 action: { performFollowAction(for: userId) }
             )
@@ -849,11 +849,10 @@ struct ReactionsListSheet: View {
                     followStates[userId] = cachedState
                 }
 
-                privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { state in
+                FollowStateStore.shared.resolve(viewerId: currentUserId, targetUserId: userId) { state in
+                    guard let state else { return }
                     DispatchQueue.main.async {
-                        let reconciledState = FollowStateStore.shared.reconciledState(state, for: userId)
-                        followStates[userId] = reconciledState
-                        FollowStateStore.shared.setState(reconciledState, for: userId)
+                        followStates[userId] = state
                     }
                 }
             }

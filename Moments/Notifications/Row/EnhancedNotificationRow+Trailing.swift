@@ -203,6 +203,7 @@ extension EnhancedNotificationRow {
                         state: followButtonState,
                         isLoading: false,
                         colorScheme: colorScheme,
+                        targetUserId: group.notifications.first?.senderId,
                         style: .compact,
                         action: performFollowToggle
                     )

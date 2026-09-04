@@ -1375,6 +1375,7 @@ struct FollowButtonForLocation: View {
             state: followButtonState,
             isLoading: isLoading,
             colorScheme: colorScheme,
+            targetUserId: targetUserId,
             style: .compact,
             action: performFollowToggle
         )
@@ -1398,11 +1399,10 @@ struct FollowButtonForLocation: View {
             followButtonState = cachedState
         }
 
-        PrivacyService().getFollowButtonState(viewerId: currentUserId, targetUserId: targetUserId) { state in
+        FollowStateStore.shared.resolve(viewerId: currentUserId, targetUserId: targetUserId) { state in
+            guard let state else { return }
             DispatchQueue.main.async {
-                let reconciledState = FollowStateStore.shared.reconciledState(state, for: self.targetUserId)
-                self.followButtonState = reconciledState
-                FollowStateStore.shared.setState(reconciledState, for: self.targetUserId)
+                self.followButtonState = state
             }
         }
     }

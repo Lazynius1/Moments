@@ -437,18 +437,17 @@ class ExploreViewModel: ObservableObject {
             userButtonStates[userId] = cachedState
         }
 
-        privacyService.getFollowButtonState(
+        FollowStateStore.shared.resolve(
             viewerId: currentUserId,
             targetUserId: userId
         ) { [weak self] state in
+            guard let state else { return }
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                let reconciledState = FollowStateStore.shared.reconciledState(state, for: userId)
-                self.userButtonStates[userId] = reconciledState
-                FollowStateStore.shared.setState(reconciledState, for: userId)
+                self.userButtonStates[userId] = state
 
                 // ✅ Si el estado es "siguiendo", agregar a followedUserIds y eliminar de sugerencias
-                if reconciledState == .following {
+                if state.isFollowingOrMutual {
                     self.followedUserIds.insert(userId)
                     // Eliminar de la lista de sugerencias
                     if let index = self.suggestedUsers.firstIndex(where: { $0.id == userId }) {

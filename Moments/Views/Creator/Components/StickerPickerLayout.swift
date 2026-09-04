@@ -71,7 +71,9 @@ struct StickerPillFlowLayout: Layout {
         var currentHeight: CGFloat = 0
 
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
+            // `.unspecified` + Text.lineLimit(1) a veces devuelve el ancho mínimo
+            // (ellipsis). Proponer el ancho del contenedor da el tamaño ideal.
+            let size = subview.sizeThatFits(ProposedViewSize(width: maxWidth, height: nil))
             let proposedWidth = currentItems.isEmpty ? size.width : currentWidth + spacing + size.width
 
             if proposedWidth > maxWidth, !currentItems.isEmpty {

@@ -202,6 +202,7 @@ struct SuggestedUserRow: View {
                 state: buttonState,
                 isLoading: false,
                 colorScheme: colorScheme,
+                targetUserId: user.id,
                 style: .compact,
                 action: onFollow
             )
@@ -349,7 +350,6 @@ class SuggestedUsersViewModel: ObservableObject {
     @Published var currentUserInterests: [String] = []
     
     private let firestoreService = FirestoreService()
-    private let privacyService = PrivacyService()
     private var currentUserId: String?
     private var blockedUsers: Set<String> = []
     private var followedUserIds: Set<String> = [] // Usuarios ya seguidos
@@ -591,18 +591,17 @@ class SuggestedUsersViewModel: ObservableObject {
             userButtonStates[userId] = cachedState
         }
         
-        privacyService.getFollowButtonState(
+        FollowStateStore.shared.resolve(
             viewerId: currentUserId,
             targetUserId: userId
-        ) { [weak self] (state: FollowButtonState) in
+        ) { [weak self] state in
+            guard let state else { return }
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                let reconciledState = FollowStateStore.shared.reconciledState(state, for: userId)
-                self.userButtonStates[userId] = reconciledState
-                FollowStateStore.shared.setState(reconciledState, for: userId)
+                self.userButtonStates[userId] = state
                 
                 // Si el estado es "siguiendo", agregar a followedUserIds y eliminar de sugerencias
-                if reconciledState == .following {
+                if state.isFollowingOrMutual {
                     self.followedUserIds.insert(userId)
                     // Eliminar de la lista de sugerencias
                     if let index = self.users.firstIndex(where: { $0.id == userId }) {

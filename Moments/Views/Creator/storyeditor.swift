@@ -402,7 +402,7 @@ struct StoryEditingView: View {
                     stickerPickerDetent = .medium
                 }
                 .presentationDetents([.medium, .large], selection: $stickerPickerDetent)
-                .presentationDragIndicator(.visible)
+                .presentationDragIndicator(.hidden)
                 .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingEmojiPicker) {

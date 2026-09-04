@@ -171,6 +171,7 @@ struct UserModernPrivateProfileView: View {
                         state: followButtonState,
                         isLoading: false,
                         colorScheme: colorScheme,
+                        targetUserId: userId,
                         style: .profileHeader,
                         destructiveConfirmation: .none,
                         action: onFollowAction

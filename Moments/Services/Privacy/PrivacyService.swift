@@ -435,6 +435,83 @@ class PrivacyService {
             }
         }
     }
+
+    /// Variante estricta para la caché compartida: cualquier lectura fallida se
+    /// propaga y nunca se convierte en un estado de relación aparentemente válido.
+    func resolveFollowButtonState(
+        viewerId: String,
+        targetUserId: String,
+        completion: @escaping (Result<FollowButtonState, Error>) -> Void
+    ) {
+        guard viewerId != targetUserId else {
+            completion(.success(.ownProfile))
+            return
+        }
+
+        firestoreService.checkIfBlocked(
+            currentUserId: viewerId,
+            targetUserId: targetUserId
+        ) { [weak self] isBlockedByViewer, isViewerBlocked, error in
+            guard let self else { return }
+            if let error {
+                completion(.failure(error))
+                return
+            }
+            if isBlockedByViewer || isViewerBlocked {
+                completion(.success(.blocked))
+                return
+            }
+
+            self.db.collection("users").document(viewerId)
+                .collection("following").document(targetUserId)
+                .getDocument { [weak self] followingSnapshot, error in
+                    guard let self else { return }
+                    if let error {
+                        completion(.failure(error))
+                        return
+                    }
+
+                    if followingSnapshot?.exists == true {
+                        self.db.collection("users").document(viewerId)
+                            .collection("mutuals").document(targetUserId)
+                            .getDocument { mutualSnapshot, error in
+                                if let error {
+                                    completion(.failure(error))
+                                } else {
+                                    completion(.success(mutualSnapshot?.exists == true ? .mutuals : .following))
+                                }
+                            }
+                        return
+                    }
+
+                    self.db.collection("users").document(viewerId)
+                        .collection("sentFollowRequests")
+                        .whereField("recipientId", isEqualTo: targetUserId)
+                        .whereField("status", isEqualTo: FollowRequestStatus.pending.rawValue)
+                        .limit(to: 1)
+                        .getDocuments { [weak self] requestSnapshot, error in
+                            guard let self else { return }
+                            if let error {
+                                completion(.failure(error))
+                                return
+                            }
+                            if requestSnapshot?.documents.isEmpty == false {
+                                completion(.success(.requestPendingCancellable))
+                                return
+                            }
+
+                            self.fetchPrivacySettings(userId: targetUserId) { result in
+                                switch result {
+                                case .success(let settings):
+                                    completion(.success(settings.isPrivate ? .canRequestFollow : .canFollow))
+                                case .failure(let error):
+                                    completion(.failure(error))
+                                }
+                            }
+                        }
+                }
+        }
+    }
     
     // ✅ NUEVA FUNCIÓN: Verificar si dos usuarios pueden interactuar (sin bloqueos)
     func canUsersInteract(user1Id: String, user2Id: String, completion: @escaping (Bool) -> Void) {
@@ -563,122 +640,6 @@ struct VisibleConnectionTypes {
     let canViewFollowers: Bool     // Puede ver los seguidores del target
     let canViewFollowing: Bool     // Puede ver a quién sigue el target
     let canViewMutuals: Bool       // Puede ver conexiones mutuas
-}
-
-// MARK: - Follow Button States
-
-enum FollowButtonState {
-    case ownProfile
-    case blocked
-    case following
-    case mutuals
-    case canFollow
-    case canRequestFollow
-    case requestPending
-    case requestPendingCancellable
-
-    /// True si el estado representa una relación de seguimiento activa (following o mutuals).
-    var isFollowingOrMutual: Bool {
-        self == .following || self == .mutuals
-    }
-
-    /// Follow / Request (o cancelar solicitud). En Reels el chip solo se muestra en estos casos.
-    var showsProspectFollow: Bool {
-        switch self {
-        case .canFollow, .canRequestFollow, .requestPendingCancellable:
-            return true
-        default:
-            return false
-        }
-    }
-
-    var buttonText: String {
-        switch self {
-        case .ownProfile:
-            return NSLocalizedString("userProfile.followButton.ownProfile", comment: "Own profile")
-        case .blocked:
-            return NSLocalizedString("userProfile.followButton.blocked", comment: "Blocked")
-        case .following:
-            return NSLocalizedString("userProfile.followButton.following", comment: "Following")
-        case .mutuals:
-            return NSLocalizedString("audience.type.mutuals", comment: "Mutuals")
-        case .canFollow:
-            return NSLocalizedString("userProfile.followButton.canFollow", comment: "Follow")
-        case .canRequestFollow:
-            return NSLocalizedString("userProfile.followButton.canRequestFollow", comment: "Request follow")
-        case .requestPending:
-            return NSLocalizedString("userProfile.followButton.requestPending", comment: "Request sent")
-        case .requestPendingCancellable:
-            return NSLocalizedString("userProfile.followButton.cancelRequest", comment: "Cancel request")
-        }
-    }
-    
-    var isActionable: Bool {
-        switch self {
-        case .ownProfile, .blocked, .requestPending:
-            return false
-        case .following, .mutuals, .canFollow, .canRequestFollow, .requestPendingCancellable:
-            return true
-        }
-    }
-    
-    var buttonColor: String {
-        switch self {
-        case .ownProfile:
-            return "gray"
-        case .blocked:
-            return "red"
-        case .following, .mutuals:
-            return "green"
-        case .canFollow, .canRequestFollow:
-            return "blue"
-        case .requestPending, .requestPendingCancellable:
-            return "orange"
-        }
-    }
-}
-
-final class FollowStateStore {
-    static let shared = FollowStateStore()
-    static let didChangeNotification = Foundation.Notification.Name("FollowStateStoreDidChange")
-
-    private var statesByUserId: [String: FollowButtonState] = [:]
-    private let lock = NSLock()
-
-    private init() {}
-
-    func state(for userId: String) -> FollowButtonState? {
-        lock.lock()
-        defer { lock.unlock() }
-        return statesByUserId[userId]
-    }
-
-    func setState(_ state: FollowButtonState, for userId: String) {
-        lock.lock()
-        statesByUserId[userId] = state
-        lock.unlock()
-
-        NotificationCenter.default.post(
-            name: Self.didChangeNotification,
-            object: nil,
-            userInfo: ["userId": userId, "state": state]
-        )
-    }
-
-    func reconciledState(_ authoritativeState: FollowButtonState, for userId: String) -> FollowButtonState {
-        lock.lock()
-        let cachedState = statesByUserId[userId]
-        lock.unlock()
-
-        // Follow requests can take a beat to appear in every read path. If the user
-        // just requested access, do not immediately downgrade the UI back to Request.
-        if (cachedState == .requestPending || cachedState == .requestPendingCancellable) &&
-            authoritativeState == .canRequestFollow {
-            return cachedState ?? .canRequestFollow
-        }
-
-        return authoritativeState
-    }
 }
 
 // MARK: - Extensión del PrivacyService para manejar audiencias de contenido

@@ -28,7 +28,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
     private let firestoreService = FirestoreService()
     private let storageService = StorageService()
-    private let privacyService = PrivacyService()
     // ✅ UserDefaults compartido con el widget (App Group "group.com.glowsyapp")
     private let widgetUserDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
 
@@ -717,17 +716,19 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
         if following.contains(where: { $0.id == userId }) {
             // Puede ser mutual aunque aún no esté en la lista local → resolver.
-            privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { state in
-                let reconciled = FollowStateStore.shared.reconciledState(state, for: userId)
-                FollowStateStore.shared.setState(reconciled, for: userId)
-            }
+            FollowStateStore.shared.resolve(
+                viewerId: currentUserId,
+                targetUserId: userId,
+                completion: { _ in }
+            )
             return
         }
 
-        privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { state in
-            let reconciled = FollowStateStore.shared.reconciledState(state, for: userId)
-            FollowStateStore.shared.setState(reconciled, for: userId)
-        }
+        FollowStateStore.shared.resolve(
+            viewerId: currentUserId,
+            targetUserId: userId,
+            completion: { _ in }
+        )
     }
 
     // ✅ NUEVA FUNCIÓN: Verificar estado de seguimiento real

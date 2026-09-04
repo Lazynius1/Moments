@@ -186,6 +186,7 @@ struct NotificationGroupedFollowersOverlay: View {
             state: state,
             isLoading: isLoading,
             colorScheme: colorScheme,
+            targetUserId: userId,
             style: .compact,
             action: { performFollowToggle(for: userId) }
         )
@@ -205,11 +206,10 @@ struct NotificationGroupedFollowersOverlay: View {
                 followStates[item.id] = cached
             }
 
-            PrivacyService().getFollowButtonState(viewerId: currentUserId, targetUserId: item.id) { state in
+            FollowStateStore.shared.resolve(viewerId: currentUserId, targetUserId: item.id) { state in
+                guard let state else { return }
                 DispatchQueue.main.async {
-                    let reconciled = FollowStateStore.shared.reconciledState(state, for: item.id)
-                    followStates[item.id] = reconciled
-                    FollowStateStore.shared.setState(reconciled, for: item.id)
+                    followStates[item.id] = state
                 }
             }
         }

@@ -134,6 +134,7 @@ struct ModernExploreDetailHeader: View {
                     state: followButtonState,
                     isLoading: isFollowLoading,
                     colorScheme: colorScheme,
+                    targetUserId: moment.authorId,
                     action: performFollowToggle
                 )
             }
@@ -175,11 +176,11 @@ struct ModernExploreDetailHeader: View {
             followButtonState = cached
         }
 
-        PrivacyService().getFollowButtonState(viewerId: currentUserId, targetUserId: moment.authorId) { state in
+        FollowStateStore.shared.resolve(viewerId: currentUserId, targetUserId: moment.authorId) { state in
+            guard let state else { return }
             DispatchQueue.main.async {
                 guard self.moment?.authorId == moment.authorId else { return }
                 self.followButtonState = state
-                FollowStateStore.shared.setState(state, for: moment.authorId)
             }
         }
     }

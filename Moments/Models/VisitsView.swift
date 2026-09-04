@@ -366,6 +366,7 @@ struct VisitsRelationshipButton<VM: UserListViewModel>: View {
                     state: followState,
                     isLoading: isFollowLoading,
                     colorScheme: colorScheme,
+                    targetUserId: user.id,
                     action: performRelationshipAction
                 )
             }

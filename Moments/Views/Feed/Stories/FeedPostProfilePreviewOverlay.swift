@@ -470,6 +470,7 @@ private struct FeedPostProfilePreviewCard: View {
                     state: viewModel.followButtonState,
                     isLoading: false,
                     colorScheme: colorScheme,
+                    targetUserId: viewModel.userId,
                     style: .compact,
                     action: { onFollow(viewModel) }
                 )

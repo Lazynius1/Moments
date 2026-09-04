@@ -1490,6 +1490,46 @@ final class LocalPersistenceService: ObservableObject {
             return false
         }
     }
+
+    /// Snapshot positivo de la relación guardada para arranque/offline.
+    /// La ausencia no significa "no sigue": puede que la lista aún no se haya cacheado.
+    func cachedFollowRelationship(viewerId: String, targetUserId: String) -> (isFollowing: Bool, isMutual: Bool) {
+        guard let context = modelContext else { return (false, false) }
+        let predicate = #Predicate<CachedConnection> {
+            $0.userId == viewerId && $0.targetId == targetUserId
+        }
+        let descriptor = FetchDescriptor<CachedConnection>(predicate: predicate)
+        let connections = (try? context.fetch(descriptor)) ?? []
+        return (
+            connections.contains { $0.type == "following" },
+            connections.contains { $0.type == "mutual" }
+        )
+    }
+
+    /// Mantiene el snapshot de conexiones existente alineado con una resolución confirmada.
+    func updateCachedFollowRelationship(
+        viewerId: String,
+        targetUserId: String,
+        isFollowing: Bool,
+        isMutual: Bool
+    ) {
+        guard let context = modelContext else { return }
+        let predicate = #Predicate<CachedConnection> {
+            $0.userId == viewerId && $0.targetId == targetUserId
+        }
+        let descriptor = FetchDescriptor<CachedConnection>(predicate: predicate)
+        let existing = (try? context.fetch(descriptor)) ?? []
+        existing
+            .filter { $0.type == "following" || $0.type == "mutual" }
+            .forEach { context.delete($0) }
+        if isFollowing {
+            context.insert(CachedConnection(userId: viewerId, targetId: targetUserId, type: "following"))
+        }
+        if isMutual {
+            context.insert(CachedConnection(userId: viewerId, targetId: targetUserId, type: "mutual"))
+        }
+        saveContext()
+    }
     
     // MARK: - 🔎 SEARCH HISTORY: Save & Load
     

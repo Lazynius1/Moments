@@ -674,13 +674,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             isFollowing = cachedState.isFollowingOrMutual
         }
 
-        privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { [weak self] state in
+        FollowStateStore.shared.resolve(viewerId: currentUserId, targetUserId: userId) { [weak self] state in
+            guard let state else { return }
             DispatchQueue.main.async {
                 guard let self else { return }
-                let reconciledState = FollowStateStore.shared.reconciledState(state, for: self.userId)
-                self.followButtonState = reconciledState
-                self.isFollowing = reconciledState.isFollowingOrMutual
-                FollowStateStore.shared.setState(reconciledState, for: self.userId)
+                self.followButtonState = state
+                self.isFollowing = state.isFollowingOrMutual
             }
         }
     }
@@ -1035,10 +1034,11 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               currentUserId != userId else { return }
 
-        privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { state in
-            let reconciled = FollowStateStore.shared.reconciledState(state, for: userId)
-            FollowStateStore.shared.setState(reconciled, for: userId)
-        }
+        FollowStateStore.shared.resolve(
+            viewerId: currentUserId,
+            targetUserId: userId,
+            completion: { _ in }
+        )
     }
 
     func checkIfFollowing() {

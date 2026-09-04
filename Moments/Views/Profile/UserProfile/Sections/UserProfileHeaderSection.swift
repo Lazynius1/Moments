@@ -263,6 +263,7 @@ struct UserModernProfileHeader: View {
                     state: viewModel.followButtonState,
                     isLoading: false,
                     colorScheme: colorScheme,
+                    targetUserId: viewModel.userId,
                     style: .profileHeader,
                     destructiveConfirmation: .none,
                     action: onFollowAction

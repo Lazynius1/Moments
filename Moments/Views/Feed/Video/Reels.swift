@@ -794,6 +794,7 @@ struct ReelVideoView: View {
                                                     state: followButtonState ?? .canFollow,
                                                     isLoading: isFollowLoading,
                                                     colorScheme: colorScheme,
+                                                    targetUserId: video.moment.authorId,
                                                     style: .compact,
                                                     action: performFollowToggle
                                                 )
@@ -1134,11 +1135,10 @@ struct ReelVideoView: View {
             followButtonState = cachedState
         }
 
-        privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: authorId) { state in
+        FollowStateStore.shared.resolve(viewerId: currentUserId, targetUserId: authorId) { state in
+            guard let state else { return }
             DispatchQueue.main.async {
-                let reconciledState = FollowStateStore.shared.reconciledState(state, for: authorId)
-                self.followButtonState = reconciledState
-                FollowStateStore.shared.setState(reconciledState, for: authorId)
+                self.followButtonState = state
             }
         }
     }

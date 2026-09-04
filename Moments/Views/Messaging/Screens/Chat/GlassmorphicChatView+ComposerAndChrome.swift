@@ -693,8 +693,10 @@ extension GlassmorphicChatView {
                             return
                         }
                         guard let media = sharedMedia(from: message) else { return }
-                        selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: message)
-                        selectedChatMedia = media
+                        chatMediaViewerPresentation = ChatMediaViewerPresentation(
+                            media: media,
+                            mediaItems: sharedMediaItemsForOverlay(selecting: message)
+                        )
                     },
                     onStopLiveLocation: { messageId in
                         viewModel.stopLiveLocation(messageId: messageId)
@@ -911,8 +913,10 @@ extension GlassmorphicChatView {
                     return
                 }
                 guard let media = sharedMedia(from: opened) else { return }
-                selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: opened)
-                selectedChatMedia = media
+                chatMediaViewerPresentation = ChatMediaViewerPresentation(
+                    media: media,
+                    mediaItems: sharedMediaItemsForOverlay(selecting: opened)
+                )
             },
             onOpenCluster: { clusterMessages in
                 let ids = clusterMessages.map(\.id)

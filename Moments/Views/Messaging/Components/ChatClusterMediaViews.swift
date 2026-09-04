@@ -589,8 +589,8 @@ struct ClusterGallerySelection: Identifiable, Hashable {
 // MARK: - Fullscreen cluster gallery
 
 struct ClusterGalleryDetailRoute: Identifiable, Hashable {
-    let index: Int
-    var id: Int { index }
+    let messageId: String
+    var id: String { messageId }
 }
 
 /// Host del detalle en push: `dismiss()` hace pop al grid en el stack padre (como perfil).
@@ -750,6 +750,14 @@ struct ClusterGalleryView<Detail: View>: View {
         }
         .onChange(of: galleryMessageIds) { oldIds, newIds in
             selectedIds = selectedIds.intersection(Set(visibleMessages.compactMap(\.id)))
+            if let activeRoute = modalPath.last,
+               !newIds.contains(activeRoute.messageId) {
+                modalPath.removeLast()
+            }
+            if let activeRoute = pushedDetailRoute,
+               !newIds.contains(activeRoute.messageId) {
+                pushedDetailRoute = nil
+            }
             if newIds.isEmpty, !oldIds.isEmpty {
                 closeGallery()
             } else if selectedIds.isEmpty {
@@ -812,9 +820,7 @@ struct ClusterGalleryView<Detail: View>: View {
     }
 
     private func messageForDetailRoute(_ route: ClusterGalleryDetailRoute) -> EnhancedMessage? {
-        guard !visibleMessages.isEmpty else { return nil }
-        let index = min(max(route.index, 0), visibleMessages.count - 1)
-        return visibleMessages[index]
+        visibleMessages.first { $0.id == route.messageId }
     }
 
     @ToolbarContentBuilder
@@ -900,8 +906,8 @@ struct ClusterGalleryView<Detail: View>: View {
             ScrollView(showsIndicators: false) {
                 if scope == .conversationShared, selectedTab == .links {
                     LazyVStack(spacing: spacing) {
-                        ForEach(Array(visibleMessages.enumerated()), id: \.element.id) { index, message in
-                            linkGridCell(message, index: index)
+                        ForEach(visibleMessages) { message in
+                            linkGridCell(message)
                         }
                     }
                     .padding(.horizontal, spacing)
@@ -952,14 +958,13 @@ struct ClusterGalleryView<Detail: View>: View {
 
     private func mediaCard(_ message: EnhancedMessage) -> some View {
         let ratio = aspectRatio(for: message)
-        let index = visibleMessages.firstIndex(where: { $0.id == message.id }) ?? 0
         let isSelected = selectedIds.contains(message.id)
 
         return Button {
             if isSelectionMode {
                 toggleSelection(message.id)
             } else {
-                openMessageDetail(at: index, message: message)
+                openMessageDetail(message)
             }
         } label: {
             mediaCardLabel(message: message, aspectRatio: ratio, isSelected: isSelected)
@@ -1038,7 +1043,7 @@ struct ClusterGalleryView<Detail: View>: View {
             .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
     }
 
-    private func linkGridCell(_ message: EnhancedMessage, index: Int) -> some View {
+    private func linkGridCell(_ message: EnhancedMessage) -> some View {
         let isSelected = selectedIds.contains(message.id)
         let linkRawUrl = extractURL(from: message.content ?? "")
         let linkHost = URL(string: linkRawUrl)?.host ?? ""
@@ -1048,7 +1053,7 @@ struct ClusterGalleryView<Detail: View>: View {
             if isSelectionMode {
                 toggleSelection(message.id)
             } else {
-                openMessageDetail(at: index, message: message)
+                openMessageDetail(message)
             }
         } label: {
             linkCard(message: message, linkHost: linkHost, linkContent: linkContent)
@@ -1117,7 +1122,7 @@ struct ClusterGalleryView<Detail: View>: View {
         )
     }
 
-    private func openMessageDetail(at index: Int, message: EnhancedMessage) {
+    private func openMessageDetail(_ message: EnhancedMessage) {
         if scope == .conversationShared, selectedTab == .links {
             if let content = message.content {
                 ChatLinkOpener.openFirstLink(in: content)
@@ -1125,7 +1130,7 @@ struct ClusterGalleryView<Detail: View>: View {
             return
         }
 
-        let route = ClusterGalleryDetailRoute(index: index)
+        let route = ClusterGalleryDetailRoute(messageId: message.id)
         let open = {
             switch presentation {
             case .modal:

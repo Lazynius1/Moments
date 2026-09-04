@@ -13,9 +13,8 @@ struct NovaView: View {
 
 private struct NovaSecureContent: View {
     @StateObject private var viewModel = NovaAgent()
-    @State private var keyboardHeight: CGFloat = 0
+    @StateObject private var keyboardScrollCoordinator = ChatKeyboardScrollCoordinator()
     @State private var showConversationHistory = false
-    @State private var isKeyboardVisible = false
     @State private var isShowingMemory = false
     @State private var memorySheetDetent: PresentationDetent = .medium
     @State private var activeAttachmentSheet: NovaAttachmentSheetKind?
@@ -26,7 +25,9 @@ private struct NovaSecureContent: View {
         GeometryReader { geometry in
             novaRootContent(in: geometry)
         }
+        .ignoresSafeArea(.container, edges: .bottom)
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .onAppear {
             viewModel.fetchUserData()
         }
@@ -59,21 +60,9 @@ private struct NovaSecureContent: View {
                 hideKeyboard()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
-            if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                keyboardHeight = keyboardFrame.height
-                isKeyboardVisible = true
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            keyboardHeight = 0
-            isKeyboardVisible = false
-        }
         .onChange(of: activeAttachmentSheet) { _, newValue in
             guard newValue != nil else { return }
             hideKeyboard()
-            keyboardHeight = 0
-            isKeyboardVisible = false
         }
         .sheet(isPresented: $isShowingMemory) {
             NovaMemoryManagementView()
@@ -113,6 +102,9 @@ private struct NovaSecureContent: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Igual que `mainChatStack`: primero extendemos el host hasta el borde
+        // físico y después anclamos fades y compositor sobre ese espacio.
+        .ignoresSafeArea(.container, edges: .bottom)
         .overlay(alignment: .top) {
             novaTopFadeGradient(base: topFadeBase, safeAreaTop: safeAreaTop)
         }
@@ -138,9 +130,8 @@ private struct NovaSecureContent: View {
             )
         }
         .overlay(alignment: .bottom) {
-            novaInputBarOverlay(safeAreaBottom: safeAreaBottom)
+            novaInputBarOverlay()
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: keyboardHeight)
     }
 
     @ViewBuilder
@@ -205,23 +196,21 @@ private struct NovaSecureContent: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, topOverlayHeight)
-        .padding(.bottom, keyboardHeight > 0 ? keyboardHeight + bottomOverlayHeight : bottomOverlayHeight + safeAreaBottom)
+        .padding(
+            .bottom,
+            bottomOverlayHeight + (keyboardScrollCoordinator.isVisible ? 0 : safeAreaBottom)
+        )
         
         .onChange(of: viewModel.conversationHistory.count) { _, _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 scrollToBottom()
             }
         }
-        .onChange(of: keyboardHeight) { _, height in
-            if height > 0 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    scrollToBottom()
-                }
-            }
-        }
-        .onChange(of: isKeyboardVisible) { _, visible in
+        .onChange(of: keyboardScrollCoordinator.isVisible) { _, visible in
             if visible && !viewModel.conversationHistory.isEmpty {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                DispatchQueue.main.asyncAfter(
+                    deadline: .now() + keyboardScrollCoordinator.animationDuration + 0.05
+                ) {
                     scrollToBottom()
                 }
             }
@@ -273,16 +262,17 @@ private struct NovaSecureContent: View {
         .frame(height: safeAreaBottom + 46)
         .ignoresSafeArea(edges: .bottom)
         .offset(y: tabBarFadeOffset)
-        .opacity(keyboardHeight > 0 ? 0 : 1)
+        .opacity(keyboardScrollCoordinator.isVisible ? 0 : 1)
         .allowsHitTesting(false)
     }
 
     @ViewBuilder
-    private func novaInputBarOverlay(safeAreaBottom: CGFloat) -> some View {
+    private func novaInputBarOverlay() -> some View {
         EnhancedInputBar(
             viewModel: viewModel,
             showSuggestedOptions: $viewModel.showSuggestedOptions,
             activeAttachmentSheet: $activeAttachmentSheet,
+            isKeyboardVisible: keyboardScrollCoordinator.isVisible,
             onFocusChange: { focused in
                 if focused && !viewModel.conversationHistory.isEmpty {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {}
@@ -292,10 +282,12 @@ private struct NovaSecureContent: View {
         .onPreferenceChange(NovaPlusButtonAnchorKey.self) { frame in
             plusButtonAnchorFrame = frame
         }
-        .padding(.bottom, NovaInputBarLayout.bottomPadding(
-            keyboardHeight: keyboardHeight,
-            safeAreaBottom: safeAreaBottom
-        ))
+        .padding(
+            .bottom,
+            NovaInputBarLayout.bottomPadding(
+                keyboardVisible: keyboardScrollCoordinator.isVisible
+            )
+        )
     }
 
     @ViewBuilder

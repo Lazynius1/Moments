@@ -467,8 +467,11 @@ struct StickerPickerView: View {
                         .font(.system(size: 15.5, weight: .semibold))
                         .foregroundStyle(pillTextColor)
                         .lineLimit(1)
+                        // El flow layout propone un ancho mínimo; sin esto "Emoji" queda en "Em…"
+                        .fixedSize(horizontal: true, vertical: false)
                 }
             }
+            .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, category == .emojiSlider ? 10 : 14)
             .frame(height: category == .emojiSlider ? 44 : 46)
             .frame(minWidth: category == .emojiSlider ? 148 : nil)

@@ -1904,7 +1904,7 @@ struct FullScreenMediaView: View {
     @State private var expandedVideoURL: URL?
     @State private var showExpandedVideo = false
     @State private var dragOffset: CGFloat = 0
-    @State private var selectedIndex: Int
+    @State private var selectedMediaId: String
     @State private var showingReactionBarForMessageId: String? = nil
     @State private var ephemeralRemaining: TimeInterval = 0
     @State private var ephemeralTimer: Timer?
@@ -1930,9 +1930,7 @@ struct FullScreenMediaView: View {
         self.onClose = onClose
         self.onSendReply = onSendReply
 
-        let source = mediaItems.isEmpty ? [media] : mediaItems
-        let index = source.firstIndex(where: { $0.id == media.id }) ?? 0
-        _selectedIndex = State(initialValue: index)
+        _selectedMediaId = State(initialValue: media.id)
     }
 
     private var pagedMedia: [SharedMedia] {
@@ -1940,8 +1938,7 @@ struct FullScreenMediaView: View {
     }
 
     private var currentMedia: SharedMedia {
-        let safeIndex = min(max(selectedIndex, 0), max(pagedMedia.count - 1, 0))
-        return pagedMedia[safeIndex]
+        pagedMedia.first(where: { $0.id == selectedMediaId }) ?? media
     }
 
     private var isOwnMedia: Bool {
@@ -2059,7 +2056,7 @@ struct FullScreenMediaView: View {
             Text(saveResultMessage)
         }
         .permissionPrimerGate(photosSaveGate)
-        .onChange(of: selectedIndex) { _, _ in
+        .onChange(of: selectedMediaId) { _, _ in
             videoCurrentTime = 0
             videoDuration = 0
             isVideoPaused = false
@@ -2097,13 +2094,13 @@ struct FullScreenMediaView: View {
     @ViewBuilder
     private var mediaContentLayer: some View {
         if pagedMedia.count > 1 {
-            TabView(selection: $selectedIndex) {
-                ForEach(Array(pagedMedia.enumerated()), id: \.element.id) { index, item in
-                    mediaRenderer(for: item, isActive: index == selectedIndex)
+            TabView(selection: $selectedMediaId) {
+                ForEach(pagedMedia) { item in
+                    mediaRenderer(for: item, isActive: item.id == selectedMediaId)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
                         .id("\(item.id)-\(fullscreenReactionToken(for: item.id))")
-                        .tag(index)
+                        .tag(item.id)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))

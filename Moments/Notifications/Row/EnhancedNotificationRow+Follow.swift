@@ -100,11 +100,10 @@ extension EnhancedNotificationRow {
             followButtonState = cachedState
         }
         
-        PrivacyService().getFollowButtonState(viewerId: currentUserId, targetUserId: targetUserId) { state in
+        FollowStateStore.shared.resolve(viewerId: currentUserId, targetUserId: targetUserId) { state in
+            guard let state else { return }
             DispatchQueue.main.async {
-                let reconciledState = FollowStateStore.shared.reconciledState(state, for: targetUserId)
-                self.followButtonState = reconciledState
-                FollowStateStore.shared.setState(reconciledState, for: targetUserId)
+                self.followButtonState = state
             }
         }
     }

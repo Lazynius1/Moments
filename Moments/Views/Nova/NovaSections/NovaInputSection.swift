@@ -3,19 +3,20 @@ import FirebaseAuth
 
 enum NovaInputBarLayout {
     /// Misma separación inferior que el compositor de chat (`ChatComposerChromeMetrics.panelHomeGap`).
+    /// El input ignora el safe area inferior, igual que chat.
     static let bottomPaddingWithoutKeyboard: CGFloat = ChatComposerChromeMetrics.panelHomeGap
     /// Aire visible entre sheet e input (como `ChatInputBarLayout.sheetAboveInputGap`).
     static let sheetAboveInputGap: CGFloat = 12
 
-    static func bottomPadding(keyboardHeight: CGFloat, safeAreaBottom: CGFloat) -> CGFloat {
-        keyboardHeight > 0
-            ? keyboardHeight - safeAreaBottom + ChatComposerChromeMetrics.panelKeyboardGap
-            : bottomPaddingWithoutKeyboard
+    static func bottomPadding(keyboardVisible: Bool) -> CGFloat {
+        ChatComposerChromeMetrics.panelBottomGap(keyboardVisible: keyboardVisible)
     }
 
-    /// Borde inferior del sheet, por encima del input (Nova ya no tiene tab bar).
-    static func attachmentSheetBottomInset(safeAreaBottom: CGFloat) -> CGFloat {
-        safeAreaBottom + sheetAboveInputGap
+    /// Borde inferior del sheet, por encima del input (Nova no usa safeAreaInset del compositor).
+    static func attachmentSheetBottomInset() -> CGFloat {
+        bottomPaddingWithoutKeyboard
+            + ChatComposerChromeMetrics.estimatedComposerChromeHeight
+            + sheetAboveInputGap
     }
 }
 
@@ -32,13 +33,18 @@ struct NovaPlusButtonAnchorKey: PreferenceKey {
 
 struct NovaAttachmentPlusButton: View {
     let isMenuOpen: Bool
+    let usesStandaloneGlass: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             ZStack {
                 Color.clear
-                    .momentsChromeGlass(in: Circle(), interactive: true)
+                    .momentsChromeGlass(
+                        in: Circle(),
+                        interactive: true,
+                        isEnabled: usesStandaloneGlass
+                    )
 
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .semibold))
@@ -68,6 +74,7 @@ struct EnhancedInputBar: View {
     @ObservedObject var viewModel: NovaAgent
     @Binding var showSuggestedOptions: Bool
     @Binding var activeAttachmentSheet: NovaAttachmentSheetKind?
+    let isKeyboardVisible: Bool
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.colorScheme) var colorScheme
 
@@ -75,6 +82,18 @@ struct EnhancedInputBar: View {
 
     private var isMenuOpen: Bool {
         activeAttachmentSheet == .menu
+    }
+
+    private var usesUnifiedComposerSurface: Bool {
+        isKeyboardVisible || !viewModel.inputText.isEmpty
+    }
+
+    private var inputFieldShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+    }
+
+    private var unifiedComposerShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 26, style: .continuous)
     }
 
     private func toggleAttachmentMenu() {
@@ -115,8 +134,12 @@ struct EnhancedInputBar: View {
                     .transition(MotionPolicy.reduceMotion ? .opacity : .scale.combined(with: .opacity))
                 }
 
-                HStack(alignment: .bottom, spacing: 10) {
-                    NovaAttachmentPlusButton(isMenuOpen: isMenuOpen, action: toggleAttachmentMenu)
+                HStack(alignment: .bottom, spacing: usesUnifiedComposerSurface ? 0 : 10) {
+                    NovaAttachmentPlusButton(
+                        isMenuOpen: isMenuOpen,
+                        usesStandaloneGlass: !usesUnifiedComposerSurface,
+                        action: toggleAttachmentMenu
+                    )
 
                     TextField(
                         NSLocalizedString("nova.input.placeholder", comment: "Ask Nova something placeholder"),
@@ -126,6 +149,8 @@ struct EnhancedInputBar: View {
                     .lineLimit(1...6)
                     .font(.system(size: legacyPoppinsSize(15)))
                     .foregroundStyle(NovaColors.textPrimary)
+                    // Misma cápsula que chat en reposo: tipografía 15 + pad 8 → min 44.
+                    // Sin el padding interior extra del compositor unificado (Nova no lo usa).
                     .padding(.leading, 14)
                     .padding(.trailing, 12)
                     .padding(.vertical, 8)
@@ -143,16 +168,18 @@ struct EnhancedInputBar: View {
                     .background {
                         Color.clear
                             .momentsChromeGlass(
-                                in: RoundedRectangle(cornerRadius: 22, style: .continuous),
-                                interactive: true
+                                in: inputFieldShape,
+                                interactive: true,
+                                isEnabled: !usesUnifiedComposerSurface
                             )
                     }
                     .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        inputFieldShape
                             .stroke(
                                 colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05),
                                 lineWidth: 0.8
                             )
+                            .opacity(usesUnifiedComposerSurface ? 0 : 1)
                             .allowsHitTesting(false)
                     }
 
@@ -160,7 +187,6 @@ struct EnhancedInputBar: View {
                         Button(action: {
                             viewModel.sendMessage()
                             showSuggestedOptions = false
-                            isTextFieldFocused = false
                         }) {
                             Image(systemName: "paperplane.fill")
                                 .font(.system(size: 18, weight: .semibold))
@@ -168,15 +194,36 @@ struct EnhancedInputBar: View {
                                 .frame(width: 44, height: 44)
                                 .background {
                                     Color.clear
-                                        .momentsChromeGlass(in: Circle(), interactive: true)
+                                        .momentsChromeGlass(
+                                            in: Circle(),
+                                            interactive: true,
+                                            isEnabled: !usesUnifiedComposerSurface
+                                        )
                                 }
                         }
                         .accessibilityLabel(Text("nova.input.send.accessibility"))
                         .transition(MotionPolicy.reduceMotion ? .opacity : .scale.combined(with: .opacity))
                     }
                 }
+                // Igual que chat: reserva desde reposo la geometría de la cápsula
+                // fusionada para que el teclado no cambie también la altura del composer.
                 .padding(.horizontal, 4)
                 .padding(.vertical, 4)
+                .momentsChromeGlass(
+                    in: unifiedComposerShape,
+                    interactive: false,
+                    isEnabled: usesUnifiedComposerSurface,
+                    style: .native
+                )
+                .overlay {
+                    unifiedComposerShape
+                        .stroke(
+                            colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05),
+                            lineWidth: 0.8
+                        )
+                        .opacity(usesUnifiedComposerSurface ? 1 : 0)
+                        .allowsHitTesting(false)
+                }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
@@ -184,6 +231,7 @@ struct EnhancedInputBar: View {
         .background(Color.clear)
         .animation(MotionPolicy.animation(.easeInOut(duration: 0.25), value: viewModel.inputText.isEmpty), value: viewModel.inputText.isEmpty)
         .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isMenuOpen)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: usesUnifiedComposerSurface), value: usesUnifiedComposerSurface)
     }
 }
 
@@ -311,4 +359,3 @@ struct SmartSuggestionChip: View {
         }
     }
 }
-

@@ -43,6 +43,15 @@ struct ViewOnceViewerPresentation: Identifiable {
     }
 }
 
+/// Snapshot atómico del medio pulsado y de las páginas disponibles en ese instante.
+/// Evita presentar un medio nuevo con la colección de una presentación anterior.
+struct ChatMediaViewerPresentation: Identifiable {
+    let media: SharedMedia
+    let mediaItems: [SharedMedia]
+
+    var id: String { media.id }
+}
+
 // MARK: - Glassmorphic Chat View
 // Actualizar GlassmorphicChatView para incluir navegación
 struct GlassmorphicChatView: View {
@@ -166,8 +175,7 @@ struct GlassmorphicChatView: View {
 
     // ✅ REACCIONES: Nuevo estado para Overlay
     @State var reactionMessageOverlay: EnhancedMessage? = nil
-    @State var selectedChatMedia: SharedMedia?
-    @State var selectedChatMediaItems: [SharedMedia] = []
+    @State var chatMediaViewerPresentation: ChatMediaViewerPresentation?
     @State var locationDetailMessage: EnhancedMessage?
 
     var adaptiveColors: AdaptiveColors {
@@ -597,8 +605,8 @@ struct GlassmorphicChatView: View {
 
     var chatViewWithOverlays: some View {
         chatViewWithLifecycleObservers
-            .fullScreenCover(item: $selectedChatMedia) { media in
-                selectedChatMediaCover(media: media)
+            .fullScreenCover(item: $chatMediaViewerPresentation) { presentation in
+                selectedChatMediaCover(presentation: presentation)
             }
             .fullScreenCover(isPresented: Binding(
                 get: { locationDetailMessage != nil },
@@ -702,10 +710,10 @@ struct GlassmorphicChatView: View {
     }
 
     @ViewBuilder
-    func selectedChatMediaCover(media: SharedMedia) -> some View {
+    func selectedChatMediaCover(presentation: ChatMediaViewerPresentation) -> some View {
         FullScreenMediaView(
-            media: media,
-            mediaItems: selectedChatMediaItems,
+            media: presentation.media,
+            mediaItems: presentation.mediaItems,
             currentUserId: viewModel.currentUserId,
             otherParticipantName: otherParticipantDisplayName,
             displayReactions: { messageId in
@@ -721,8 +729,7 @@ struct GlassmorphicChatView: View {
                 showingReactionEmojiPicker = true
             },
             onClose: {
-                selectedChatMedia = nil
-                selectedChatMediaItems = []
+                chatMediaViewerPresentation = nil
             },
             onSendReply: { media, text, completion in
                 sendReplyToSharedMedia(media, text: text, completion: completion)

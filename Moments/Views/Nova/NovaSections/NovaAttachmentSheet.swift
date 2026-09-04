@@ -273,9 +273,7 @@ struct NovaAttachmentSheetOverlay: View {
     var body: some View {
         if let kind = activeSheet, kind != .menu {
             GeometryReader { proxy in
-                let bottomPadding = NovaInputBarLayout.attachmentSheetBottomInset(
-                    safeAreaBottom: proxy.safeAreaInsets.bottom
-                )
+                let bottomPadding = NovaInputBarLayout.attachmentSheetBottomInset()
                 let sheetHeight = NovaAttachmentSheetMetrics.sheetHeight(
                     for: kind,
                     containerHeight: proxy.size.height
