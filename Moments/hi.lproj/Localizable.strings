@@ -4384,3 +4384,9 @@
 "nova.welcome.editorial.write.prompt" = "कुछ लिखने में मेरी मदद करें";
 "nova.welcome.editorial.moments.title" = "Moments में क्या-क्या किया जा सकता है?";
 "nova.welcome.editorial.moments.prompt" = "Moments में आप मेरी किस तरह मदद कर सकते हैं?";
+
+// Caption translation
+"caption.translatePost" = "इस पोस्ट का अनुवाद करें";
+"caption.translating" = "अनुवाद हो रहा है…";
+"caption.showOriginal" = "मूल दिखाएँ";
+"caption.translationRetry" = "अनुवाद नहीं हो सका। फिर से कोशिश करें";

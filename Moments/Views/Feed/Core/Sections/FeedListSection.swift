@@ -57,7 +57,7 @@ struct FeedListSection: View {
                         maxGap: selectedFeedType == .forYou ? 5 : 7
                     )
 
-                    LazyVStack(spacing: max(15, screenHeight * 0.02)) {
+                    LazyVStack(spacing: 12) {
                         Spacer()
                             .frame(height: feedContentTopInset)
 
@@ -73,7 +73,7 @@ struct FeedListSection: View {
                                     index: index,
                                     moment: moment,
                                     availableHeight: availableHeight,
-                                    rowSpacing: max(15, screenHeight * 0.02),
+                                    rowSpacing: 12,
                                     showAdAfter: adAfterIndices.contains(index)
                                 )
                             }

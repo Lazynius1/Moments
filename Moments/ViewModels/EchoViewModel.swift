@@ -231,8 +231,10 @@ class EchoViewModel: ObservableObject {
                 self.currentVerticalIndex = 0 // ✅ Reset vertical index when changing person / Reset a 0
                 self.ripplePhase = 0
                 
-                // 2. Solo activar video si el primer momento de la nueva persona es video
-                if let firstMoment = self.groupedPerspectives[index].moments.first, firstMoment.mediaType == "video" {
+                // 2. Solo activar video si el primer momento de la nueva persona es video y está disponible
+                if let firstMoment = self.groupedPerspectives[index].moments.first,
+                   firstMoment.mediaType == "video",
+                   self.momentAvailability[firstMoment.momentId] != false {
                     self.isVideoPlaying = true
                 }
             }
@@ -256,8 +258,9 @@ class EchoViewModel: ObservableObject {
             withAnimation(.easeOut(duration: 0.22)) {
                 self.currentVerticalIndex = index
                 
-                // 2. Solo activar video si el siguiente momento es un video
-                if moments[index].mediaType == "video" {
+                // 2. Solo activar video si el siguiente momento es un video y está disponible
+                if moments[index].mediaType == "video",
+                   self.momentAvailability[moments[index].momentId] != false {
                     self.isVideoPlaying = true
                 }
             }
@@ -271,7 +274,7 @@ class EchoViewModel: ObservableObject {
         
         for momentRef in allMoments {
             if momentRef.authorId == currentUserId {
-                self.momentAvailability[momentRef.momentId] = true
+                setMoment(momentRef.momentId, available: true)
                 continue
             }
             validateSingleMoment(momentRef: momentRef, viewerId: currentUserId, privacyService: privacyService)
@@ -286,33 +289,40 @@ class EchoViewModel: ObservableObject {
                 guard let self = self else { return }
                 
                 guard snapshot?.exists == true else {
-                    DispatchQueue.main.async { self.momentAvailability[momentRef.momentId] = false }
+                    DispatchQueue.main.async { self.setMoment(momentRef.momentId, available: false) }
                     return
                 }
 
                 if let moment = try? snapshot?.data(as: Moment.self), moment.isArchived == true {
-                    DispatchQueue.main.async { self.momentAvailability[momentRef.momentId] = false }
+                    DispatchQueue.main.async { self.setMoment(momentRef.momentId, available: false) }
                     return
                 }
                 
                 let audience = momentRef.audience ?? "everyone"
                 
                 if audience == "everyone" || audience == "mutuals" {
-                    DispatchQueue.main.async { self.momentAvailability[momentRef.momentId] = true }
+                    DispatchQueue.main.async { self.setMoment(momentRef.momentId, available: true) }
                 } else if audience == "bestFriends" {
                     privacyService.checkIfBestFriend(userId: momentRef.authorId, friendId: viewerId) { isBestFriend in
-                        DispatchQueue.main.async { self.momentAvailability[momentRef.momentId] = isBestFriend }
+                        DispatchQueue.main.async { self.setMoment(momentRef.momentId, available: isBestFriend) }
                     }
                 } else if audience == "custom" || audience == "customList" {
                     let moment = try? snapshot?.data(as: Moment.self)
                     if let moment = moment {
                         privacyService.canUserViewMomentEnhanced(moment, viewerId: viewerId) { canView in
-                            DispatchQueue.main.async { self.momentAvailability[momentRef.momentId] = canView }
+                            DispatchQueue.main.async { self.setMoment(momentRef.momentId, available: canView) }
                         }
                     } else {
-                        DispatchQueue.main.async { self.momentAvailability[momentRef.momentId] = false }
+                        DispatchQueue.main.async { self.setMoment(momentRef.momentId, available: false) }
                     }
                 }
             }
+    }
+
+    private func setMoment(_ momentId: String, available: Bool) {
+        momentAvailability[momentId] = available
+        if !available, currentMoment?.momentId == momentId {
+            isVideoPlaying = false
+        }
     }
 }

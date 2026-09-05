@@ -4629,3 +4629,9 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "nova.welcome.editorial.write.prompt" = "Hilf mir, etwas zu schreiben";
 "nova.welcome.editorial.moments.title" = "Was kann ich in Moments machen?";
 "nova.welcome.editorial.moments.prompt" = "Wobei kannst du mir in Moments helfen?";
+
+// Caption translation
+"caption.translatePost" = "Diesen Beitrag übersetzen";
+"caption.translating" = "Wird übersetzt…";
+"caption.showOriginal" = "Original anzeigen";
+"caption.translationRetry" = "Übersetzung fehlgeschlagen. Erneut versuchen";

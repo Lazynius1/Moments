@@ -4384,3 +4384,9 @@
 "nova.welcome.editorial.write.prompt" = "幫我寫點東西";
 "nova.welcome.editorial.moments.title" = "我可以在 Moments 中做什麼？";
 "nova.welcome.editorial.moments.prompt" = "你能在 Moments 中幫我做什麼？";
+
+// Caption translation
+"caption.translatePost" = "翻譯這則貼文";
+"caption.translating" = "翻譯中…";
+"caption.showOriginal" = "顯示原文";
+"caption.translationRetry" = "無法翻譯。重試";

@@ -4629,3 +4629,9 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "nova.welcome.editorial.write.prompt" = "Aidez-moi à écrire quelque chose";
 "nova.welcome.editorial.moments.title" = "Que puis-je faire dans Moments ?";
 "nova.welcome.editorial.moments.prompt" = "Que pouvez-vous m’aider à faire dans Moments ?";
+
+// Caption translation
+"caption.translatePost" = "Traduire cette publication";
+"caption.translating" = "Traduction en cours…";
+"caption.showOriginal" = "Afficher l’original";
+"caption.translationRetry" = "Échec de la traduction. Réessayer";

@@ -4629,3 +4629,9 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "nova.welcome.editorial.write.prompt" = "Aiutami a scrivere qualcosa";
 "nova.welcome.editorial.moments.title" = "Cosa posso fare in Moments?";
 "nova.welcome.editorial.moments.prompt" = "In cosa puoi aiutarmi su Moments?";
+
+// Caption translation
+"caption.translatePost" = "Traduci questo post";
+"caption.translating" = "Traduzione in corso…";
+"caption.showOriginal" = "Mostra originale";
+"caption.translationRetry" = "Traduzione non riuscita. Riprova";

@@ -4616,3 +4616,9 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "messageRequests.hiddenWords.automatic.description" = "Hides requests using safety signals without server-side content analysis.";
 "messageRequests.hiddenWords.custom" = "Words and phrases";
 "messageRequests.hiddenWords.custom.description" = "Enter one per line or separate them with commas. Matching happens locally.";
+
+// Caption translation
+"caption.translatePost" = "Translate this post";
+"caption.translating" = "Translating…";
+"caption.showOriginal" = "Show original";
+"caption.translationRetry" = "Couldn’t translate. Try again";

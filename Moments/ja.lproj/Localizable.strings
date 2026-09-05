@@ -4384,3 +4384,9 @@
 "nova.welcome.editorial.write.prompt" = "何かを書くのを手伝って";
 "nova.welcome.editorial.moments.title" = "Momentsでは何ができますか？";
 "nova.welcome.editorial.moments.prompt" = "Momentsでどんなことを手伝えますか？";
+
+// Caption translation
+"caption.translatePost" = "この投稿を翻訳";
+"caption.translating" = "翻訳中…";
+"caption.showOriginal" = "原文を表示";
+"caption.translationRetry" = "翻訳できませんでした。再試行";

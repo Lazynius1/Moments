@@ -4384,3 +4384,9 @@
 "nova.welcome.editorial.write.prompt" = "Help me iets te schrijven";
 "nova.welcome.editorial.moments.title" = "Wat kan ik doen in Moments?";
 "nova.welcome.editorial.moments.prompt" = "Waarmee kun je me helpen in Moments?";
+
+// Caption translation
+"caption.translatePost" = "Dit bericht vertalen";
+"caption.translating" = "Vertalen…";
+"caption.showOriginal" = "Origineel weergeven";
+"caption.translationRetry" = "Vertalen mislukt. Opnieuw proberen";

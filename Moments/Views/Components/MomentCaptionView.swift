@@ -26,6 +26,26 @@ struct MomentCaptionView: View {
     let onHashtagTap: (String) -> Void
     var isReelsCaptionExpanded: Binding<Bool> = .constant(false)
 
+    @State private var translatedCaption: String?
+    @State private var translationKey = ""
+    @State private var showingTranslation = false
+    @State private var translating = false
+    @State private var revealProgress: Double = 1
+    @State private var changingTranslation = false
+    @Environment(\.accessibilityReduceMotion) private var reduceTranslationMotion
+    @State private var translationFailed = false
+    @State private var canTranslate = false
+    @State private var translationRequested = false
+    @Environment(\.locale) private var locale
+
+    private var targetLanguage: String {
+        Bundle.main.preferredLocalizations.first ?? locale.identifier
+    }
+    private var requestKey: String { targetLanguage + "\u{0}" + trimmedContent }
+    private var visibleContent: String {
+        showingTranslation && translationKey == requestKey ? (translatedCaption ?? trimmedContent) : trimmedContent
+    }
+
     @State private var showFullCaption = false
     @State private var displayText = ""
     @State private var showSeeMore = false
@@ -39,9 +59,9 @@ struct MomentCaptionView: View {
     private var cardContent: String {
         switch style {
         case .feed, .reels:
-            return MomentCaptionText.flowing(trimmedContent)
+            return MomentCaptionText.flowing(visibleContent)
         case .detail:
-            return trimmedContent
+            return visibleContent
         }
     }
 
@@ -80,6 +100,7 @@ struct MomentCaptionView: View {
     @ViewBuilder
     var body: some View {
         if !trimmedContent.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
             if style == .reels {
                 ReelsCaptionBody(
                     content: cardContent,
@@ -90,9 +111,90 @@ struct MomentCaptionView: View {
                     mentionTextColor: mentionTextColor,
                     onHashtagTap: onHashtagTap
                 )
+                .modifier(CaptionTranslationEffect(isTranslating: translating, text: cardContent, revealProgress: revealProgress, showingTranslation: showingTranslation))
+                .animation(reduceTranslationMotion ? nil : .easeInOut(duration: 0.3), value: showingTranslation)
+                translationControl
             } else {
                 feedOrDetailCaption
             }
+            }
+            .task(id: requestKey) {
+                guard translationKey != requestKey else { return }
+                translationKey = requestKey
+                translatedCaption = nil
+                showingTranslation = false
+                translating = false
+                translationRequested = false
+                translationFailed = false
+                canTranslate = CaptionTranslationService.needsTranslation(trimmedContent, target: targetLanguage)
+            }
+            .task(id: translationRequested) {
+                guard translationRequested else { return }
+                let key = requestKey
+                translating = true
+                translationFailed = false
+                do {
+                    let result = try await CaptionTranslationService.shared.translate(trimmedContent, target: targetLanguage)
+                    try Task.checkCancellation()
+                    guard key == requestKey else { return }
+                    translatedCaption = result
+                    translationKey = key
+                    try await revealTranslation(true)
+                } catch {
+                    guard !Task.isCancelled, key == requestKey else { return }
+                    translationFailed = true
+                }
+                translating = false
+                translationRequested = false
+            }
+        }
+    }
+
+    @ViewBuilder private var translationControl: some View {
+        if canTranslate {
+            Button {
+                if translatedCaption != nil {
+                    Task { try? await revealTranslation(!showingTranslation) }
+                } else {
+                    translationRequested = true
+                }
+            } label: {
+                Group {
+                    if translating { CaptionTranslatingLabel() }
+                    else if translationFailed { Text("caption.translationRetry") }
+                    else if showingTranslation { Text("caption.showOriginal") }
+                    else { Text("caption.translatePost") }
+                }
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(style == .reels ? Color.white.opacity(0.72) : secondaryTextColor)
+                .padding(.top, 3)
+                .padding(.bottom, 2)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(translating || translationRequested || changingTranslation)
+        }
+    }
+
+    @MainActor private func revealTranslation(_ show: Bool) async throws {
+        guard !changingTranslation else { return }
+        changingTranslation = true
+        defer {
+            changingTranslation = false
+            if Task.isCancelled { revealProgress = 1 }
+        }
+        if !reduceTranslationMotion {
+            withAnimation(.easeOut(duration: 0.13)) { revealProgress = 0 }
+            try await Task.sleep(for: .milliseconds(130))
+        }
+        withAnimation(reduceTranslationMotion ? nil : .easeInOut(duration: 0.3)) {
+            showingTranslation = show
+        }
+        if !reduceTranslationMotion {
+            try await Task.sleep(for: .milliseconds(16))
+        }
+        withAnimation(reduceTranslationMotion ? nil : .easeOut(duration: show ? 0.38 : 0.18)) {
+            revealProgress = 1
         }
     }
 
@@ -127,6 +229,7 @@ struct MomentCaptionView: View {
                     onMentionTap: MomentMentionNavigation.openProfile(forUsername:),
                     onActionTap: { _ in requestFullCaption() }
                 )
+                .modifier(CaptionTranslationEffect(isTranslating: translating, text: cardContent, revealProgress: revealProgress, showingTranslation: showingTranslation))
                 .onTapGesture {
                     if showSeeMore {
                         requestFullCaption()
@@ -150,6 +253,7 @@ struct MomentCaptionView: View {
                     }
                     refreshInlineSeeMore(width: captionWidth)
                 }
+                translationControl
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
@@ -157,11 +261,15 @@ struct MomentCaptionView: View {
         } destination: { close, reportContentHeight in
             MomentCaptionReaderCard(
                 moment: moment,
-                content: trimmedContent,
+                content: visibleContent,
                 colorScheme: colorScheme,
                 onHashtagTap: onHashtagTap,
                 onClose: close,
-                onContentHeightChange: reportContentHeight
+                onContentHeightChange: reportContentHeight,
+                translationControl: { AnyView(translationControl) },
+                isTranslating: translating,
+                revealProgress: revealProgress,
+                showingTranslation: showingTranslation
             )
         }
     }
@@ -609,6 +717,13 @@ private struct MomentCaptionContextDestination<Destination: View>: View {
     }
 }
 
+private struct CaptionTranslatingLabel: View {
+    var body: some View {
+        Text("caption.translating")
+            .modifier(CaptionTranslationEffect(isTranslating: true, text: ""))
+    }
+}
+
 private struct MomentCaptionReaderCard: View {
     let moment: Moment
     let content: String
@@ -616,6 +731,10 @@ private struct MomentCaptionReaderCard: View {
     let onHashtagTap: (String) -> Void
     let onClose: () -> Void
     let onContentHeightChange: (CGFloat) -> Void
+    let translationControl: () -> AnyView
+    let isTranslating: Bool
+    let revealProgress: Double
+    let showingTranslation: Bool
 
     private var baseTextColor: Color {
         colorScheme == .dark ? .white.opacity(0.94) : .black.opacity(0.86)
@@ -639,6 +758,7 @@ private struct MomentCaptionReaderCard: View {
                         .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                         .foregroundStyle(baseTextColor)
 
+                    VStack(alignment: .leading, spacing: 0) {
                     MomentHashtagText(
                         content: content,
                         textFont: .system(size: 16),
@@ -654,6 +774,9 @@ private struct MomentCaptionReaderCard: View {
                         onHashtagTap: onHashtagTap,
                         onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
                     )
+                    .modifier(CaptionTranslationEffect(isTranslating: isTranslating, text: content, revealProgress: revealProgress, showingTranslation: showingTranslation))
+                    translationControl()
+                    }
                 }
             }
             .padding(20)

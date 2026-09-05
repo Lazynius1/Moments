@@ -4384,3 +4384,9 @@
 "nova.welcome.editorial.write.prompt" = "글쓰기를 도와줘";
 "nova.welcome.editorial.moments.title" = "Moments에서 무엇을 할 수 있나요?";
 "nova.welcome.editorial.moments.prompt" = "Moments에서 어떤 도움을 받을 수 있나요?";
+
+// Caption translation
+"caption.translatePost" = "이 게시물 번역하기";
+"caption.translating" = "번역 중…";
+"caption.showOriginal" = "원문 보기";
+"caption.translationRetry" = "번역하지 못했습니다. 다시 시도";

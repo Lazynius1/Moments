@@ -4384,3 +4384,9 @@
 "nova.welcome.editorial.write.prompt" = "Bantu aku menulis sesuatu";
 "nova.welcome.editorial.moments.title" = "Apa yang bisa kulakukan di Moments?";
 "nova.welcome.editorial.moments.prompt" = "Apa yang bisa kamu bantu aku lakukan di Moments?";
+
+// Caption translation
+"caption.translatePost" = "Terjemahkan postingan ini";
+"caption.translating" = "Menerjemahkan…";
+"caption.showOriginal" = "Tampilkan teks asli";
+"caption.translationRetry" = "Tidak dapat menerjemahkan. Coba lagi";

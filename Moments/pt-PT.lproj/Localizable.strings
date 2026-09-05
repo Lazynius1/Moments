@@ -5439,3 +5439,9 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "nova.welcome.editorial.write.prompt" = "Ajuda-me a escrever algo";
 "nova.welcome.editorial.moments.title" = "O que posso fazer no Moments?";
 "nova.welcome.editorial.moments.prompt" = "Em que me podes ajudar no Moments?";
+
+// Caption translation
+"caption.translatePost" = "Traduzir esta publicação";
+"caption.translating" = "A traduzir…";
+"caption.showOriginal" = "Mostrar original";
+"caption.translationRetry" = "Não foi possível traduzir. Tentar novamente";

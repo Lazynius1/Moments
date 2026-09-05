@@ -4649,3 +4649,9 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "nova.welcome.editorial.write.prompt" = "Ajuda'm a escriure alguna cosa";
 "nova.welcome.editorial.moments.title" = "Què puc fer a Moments?";
 "nova.welcome.editorial.moments.prompt" = "En què em pots ajudar dins de Moments?";
+
+// Caption translation
+"caption.translatePost" = "Tradueix aquesta publicació";
+"caption.translating" = "S’està traduint…";
+"caption.showOriginal" = "Mostra l’original";
+"caption.translationRetry" = "No s’ha pogut traduir. Torna-ho a provar";

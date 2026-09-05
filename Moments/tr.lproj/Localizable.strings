@@ -4384,3 +4384,9 @@
 "nova.welcome.editorial.write.prompt" = "Bir şey yazmama yardım et";
 "nova.welcome.editorial.moments.title" = "Moments'ta neler yapabilirim?";
 "nova.welcome.editorial.moments.prompt" = "Moments'ta bana nasıl yardımcı olabilirsin?";
+
+// Caption translation
+"caption.translatePost" = "Bu gönderiyi çevir";
+"caption.translating" = "Çevriliyor…";
+"caption.showOriginal" = "Orijinali göster";
+"caption.translationRetry" = "Çeviri yapılamadı. Tekrar dene";

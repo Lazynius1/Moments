@@ -49,7 +49,7 @@ struct EchoViewerUI: View {
                         if let currentMoment = viewModel.currentMoment {
                             let isAvailable = viewModel.momentAvailability[currentMoment.momentId] ?? true
                             
-                            perspectiveView(for: currentMoment)
+                            perspectiveView(for: currentMoment, isAvailable: isAvailable)
                                 .blur(radius: isAvailable ? 0 : 20)
                                 .overlay {
                                     if !isAvailable { unavailableOverlay }
@@ -272,7 +272,7 @@ struct EchoViewerUI: View {
 
     // MARK: - Components
     
-    private func perspectiveView(for moment: EchoMomentRef) -> some View {
+    private func perspectiveView(for moment: EchoMomentRef, isAvailable: Bool) -> some View {
         GeometryReader { proxy in
             let isHorizontal = isHorizontal(aspectRatio: moment.aspectRatio)
             ZStack {
@@ -291,7 +291,7 @@ struct EchoViewerUI: View {
                     .frame(width: proxy.size.width, height: proxy.size.height)
                     .clipped()
                 
-                if moment.mediaType == "video", let url = URL(string: moment.mediaUrl) {
+                if isAvailable, moment.mediaType == "video", let url = URL(string: moment.mediaUrl) {
                     GlassmorphicStoryVideoPlayer(
                         url: url,
                         isPlaying: $viewModel.isVideoPlaying,

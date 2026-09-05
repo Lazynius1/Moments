@@ -4637,3 +4637,9 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "whatsNew.note.android.title" = "¡Moments ya está en Android!";
 "whatsNew.note.android.description" = "Tras un buen tiempo en el taller, la app ya está disponible también en Google Play.\n\n¿Tienes amigos o familiares con Android? Ya puedes avisarles: por fin pueden unirse a Moments. ¡Diles que busquen la app en Google Play y que se sumen!\n\nDe vuelta en iOS: con el salto completado, sigo dándole caña por aquí (aunque en realidad nunca me fui). ¡Construyamos Moments juntos! 🚀";
 "whatsNew.note.closing" = "¡Gracias por seguir con nosotros en este camino! ⚡🤖";
+
+// Caption translation
+"caption.translatePost" = "Traducir este post";
+"caption.translating" = "Traduciendo…";
+"caption.showOriginal" = "Mostrar original";
+"caption.translationRetry" = "No se pudo traducir. Reintentar";

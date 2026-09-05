@@ -4384,3 +4384,9 @@
 "nova.welcome.editorial.write.prompt" = "Pomóż mi coś napisać";
 "nova.welcome.editorial.moments.title" = "Co mogę robić w Moments?";
 "nova.welcome.editorial.moments.prompt" = "W czym możesz mi pomóc w Moments?";
+
+// Caption translation
+"caption.translatePost" = "Przetłumacz ten post";
+"caption.translating" = "Tłumaczenie…";
+"caption.showOriginal" = "Pokaż oryginał";
+"caption.translationRetry" = "Nie udało się przetłumaczyć. Spróbuj ponownie";
