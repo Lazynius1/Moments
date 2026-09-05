@@ -4655,3 +4655,5 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "caption.translating" = "S’està traduint…";
 "caption.showOriginal" = "Mostra l’original";
 "caption.translationRetry" = "No s’ha pogut traduir. Torna-ho a provar";
+
+"chat.translateMessage" = "Tradueix el missatge";

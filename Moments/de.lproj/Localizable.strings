@@ -4635,3 +4635,5 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "caption.translating" = "Wird übersetzt…";
 "caption.showOriginal" = "Original anzeigen";
 "caption.translationRetry" = "Übersetzung fehlgeschlagen. Erneut versuchen";
+
+"chat.translateMessage" = "Nachricht übersetzen";

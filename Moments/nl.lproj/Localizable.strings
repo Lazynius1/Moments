@@ -4390,3 +4390,5 @@
 "caption.translating" = "Vertalen…";
 "caption.showOriginal" = "Origineel weergeven";
 "caption.translationRetry" = "Vertalen mislukt. Opnieuw proberen";
+
+"chat.translateMessage" = "Bericht vertalen";

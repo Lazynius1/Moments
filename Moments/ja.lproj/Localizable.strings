@@ -4390,3 +4390,5 @@
 "caption.translating" = "翻訳中…";
 "caption.showOriginal" = "原文を表示";
 "caption.translationRetry" = "翻訳できませんでした。再試行";
+
+"chat.translateMessage" = "メッセージを翻訳";

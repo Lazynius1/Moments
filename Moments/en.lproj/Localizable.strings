@@ -4622,3 +4622,5 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "caption.translating" = "Translating…";
 "caption.showOriginal" = "Show original";
 "caption.translationRetry" = "Couldn’t translate. Try again";
+
+"chat.translateMessage" = "Translate message";

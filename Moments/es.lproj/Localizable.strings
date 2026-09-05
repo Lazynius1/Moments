@@ -4643,3 +4643,5 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "caption.translating" = "Traduciendo…";
 "caption.showOriginal" = "Mostrar original";
 "caption.translationRetry" = "No se pudo traducir. Reintentar";
+
+"chat.translateMessage" = "Traducir mensaje";

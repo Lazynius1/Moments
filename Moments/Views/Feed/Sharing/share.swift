@@ -1294,6 +1294,20 @@ enum SharedDMPostCardMetrics {
     static let maximumMediaHeight: CGFloat = 240
     static let cornerRadius: CGFloat = 18
     static let mediaCornerRadius: CGFloat = 10
+    static let headerHeight: CGFloat = 48
+    static let captionBlockHeight: CGFloat = 40
+
+    static func mediaHeight(aspectRatio: CGFloat) -> CGFloat {
+        guard aspectRatio > 0.01 else { return defaultMediaHeight }
+        let naturalHeight = mediaWidth / aspectRatio
+        return min(max(naturalHeight, minimumMediaHeight), maximumMediaHeight)
+    }
+
+    static func cardHeight(aspectRatio: CGFloat, hasCaption: Bool) -> CGFloat {
+        var height = headerHeight + mediaVerticalInset * 2 + mediaHeight(aspectRatio: aspectRatio)
+        if hasCaption { height += captionBlockHeight }
+        return height
+    }
 }
 
 /// Convierte una cadena de proporción ("9:16", "4:5", "1.0") en width/height.

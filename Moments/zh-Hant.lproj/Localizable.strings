@@ -4390,3 +4390,5 @@
 "caption.translating" = "翻譯中…";
 "caption.showOriginal" = "顯示原文";
 "caption.translationRetry" = "無法翻譯。重試";
+
+"chat.translateMessage" = "翻譯訊息";

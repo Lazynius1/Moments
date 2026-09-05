@@ -135,11 +135,14 @@ struct GlassmorphicMessageRow: View {
                                 )
                             }
 
-                            messageBubbleWithReactions(
-                                repliedMessage: repliedMessage,
-                                otherParticipantId: otherUserId,
-                                otherParticipantName: otherParticipantName
-                            )
+                            incomingTextTranslation { displayedText in
+                                messageBubbleWithReactions(
+                                    displayedText: displayedText,
+                                    repliedMessage: repliedMessage,
+                                    otherParticipantId: otherUserId,
+                                    otherParticipantName: otherParticipantName
+                                )
+                            }
                         }
                         // Hug al contenido: sin esto el hueco vacío de la fila sigue siendo “fila”.
                         .fixedSize(horizontal: true, vertical: false)
@@ -178,8 +181,24 @@ struct GlassmorphicMessageRow: View {
         .chatTimestampRevealGesture(state: timestampRevealState)
     }
 
+    private var isIncomingTextBubble: Bool {
+        !isCurrentUser && !message.isDeleted && message.type == .text && message.storyReplyData == nil
+    }
+
+    @ViewBuilder
+    private func incomingTextTranslation<Bubble: View>(
+        @ViewBuilder bubble: @escaping (String) -> Bubble
+    ) -> some View {
+        if isIncomingTextBubble, let content = message.content, !content.isEmpty {
+            ChatTranslationContainer(text: content, isOutgoing: false, content: bubble)
+        } else {
+            bubble(message.content ?? "")
+        }
+    }
+
     @ViewBuilder
     private func messageBubbleWithReactions(
+        displayedText: String,
         repliedMessage: EnhancedMessage?,
         otherParticipantId: String?,
         otherParticipantName: String
@@ -187,6 +206,7 @@ struct GlassmorphicMessageRow: View {
         let cornerRadius = ChatBubbleAnchorMetrics.cornerRadius(for: message)
         let isVanishProtected = message.isVanishModeMessage == true
         let bubble = GlassmorphicMessageBubble(
+            translatedTextOverride: displayedText,
             message: message,
             reactions: resolvedReactions,
             onReaction: onReaction,
@@ -339,6 +359,7 @@ struct DeletedMessageBubble: View {
 
 // MARK: - Updated Glassmorphic Message Bubble
 struct GlassmorphicMessageBubble: View {
+    var translatedTextOverride: String? = nil
     @ObservedObject var message: EnhancedMessage
     let reactions: [String: [String]]?
     let onReaction: (String) -> Void
@@ -402,7 +423,7 @@ struct GlassmorphicMessageBubble: View {
     private func textMessageBody(_ content: String) -> some View {
         // El reply ya se muestra apilado encima de la burbuja, no embebido dentro.
         ChatTextBubbleView(
-            text: content,
+            text: translatedTextOverride ?? content,
             isOutgoing: isCurrentUser,
             messageId: message.id,
             groupPosition: groupPosition,

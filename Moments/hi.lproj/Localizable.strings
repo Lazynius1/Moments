@@ -4390,3 +4390,5 @@
 "caption.translating" = "अनुवाद हो रहा है…";
 "caption.showOriginal" = "मूल दिखाएँ";
 "caption.translationRetry" = "अनुवाद नहीं हो सका। फिर से कोशिश करें";
+
+"chat.translateMessage" = "संदेश का अनुवाद करें";

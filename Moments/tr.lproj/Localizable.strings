@@ -4390,3 +4390,5 @@
 "caption.translating" = "Çevriliyor…";
 "caption.showOriginal" = "Orijinali göster";
 "caption.translationRetry" = "Çeviri yapılamadı. Tekrar dene";
+
+"chat.translateMessage" = "Mesajı çevir";

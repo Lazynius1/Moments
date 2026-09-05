@@ -4390,3 +4390,5 @@
 "caption.translating" = "Menerjemahkan…";
 "caption.showOriginal" = "Tampilkan teks asli";
 "caption.translationRetry" = "Tidak dapat menerjemahkan. Coba lagi";
+
+"chat.translateMessage" = "Terjemahkan pesan";

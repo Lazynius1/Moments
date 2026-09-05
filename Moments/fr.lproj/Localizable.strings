@@ -4635,3 +4635,5 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "caption.translating" = "Traduction en cours…";
 "caption.showOriginal" = "Afficher l’original";
 "caption.translationRetry" = "Échec de la traduction. Réessayer";
+
+"chat.translateMessage" = "Traduire le message";

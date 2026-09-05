@@ -68,10 +68,13 @@ private final class ChatExtractSlotView: UIView {
         isExtracted = true
         restoredUserInteraction = hostedView.isUserInteractionEnabled
         hostedView.isUserInteractionEnabled = false
+        // Keep the in-list size. Stretching to the overlay reflows text
+        // ("hola" → "hol a") because the bubble uses width-driven wrapping.
+        let size = hostedView.bounds.size
         hostedView.translatesAutoresizingMaskIntoConstraints = true
+        hostedView.autoresizingMask = []
         overlay.addSubview(hostedView)
-        hostedView.frame = overlay.bounds
-        hostedView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        hostedView.frame = CGRect(origin: .zero, size: size)
     }
 
     func putBack() {
@@ -128,7 +131,8 @@ private struct ChatExtractableContent<Content: View>: UIViewRepresentable {
             width: min(proposal.width ?? screenCap, screenCap),
             height: proposal.height ?? .greatestFiniteMagnitude
         )
-        return context.coordinator.hostingController.sizeThatFits(in: target)
+        let fitted = context.coordinator.hostingController.sizeThatFits(in: target)
+        return CGSize(width: ceil(fitted.width), height: ceil(fitted.height))
     }
 
     final class Coordinator {

@@ -8,23 +8,18 @@ enum ChatRowHeightEstimator {
     private static let replyBlockHeight: CGFloat = 46
     private static let reactionsRowHeight: CGFloat = 28
 
-    private static let mediaDefaultAspect: CGFloat = 4.0 / 5.0
-    private static let mediaMinHeight: CGFloat = 140
-    private static let mediaMaxHeight: CGFloat = 420
-    private static let gifDefaultAspect: CGFloat = 200.0 / 150.0
-
+    private static let photoVideoHeight: CGFloat = 272
+    private static let stickerSize: CGFloat = 140
     private static let voiceNoteHeight: CGFloat = 68
     private static let locationHeight: CGFloat = 217
     private static let liveLocationExtraHeight: CGFloat = 40
     private static let fileHeight: CGFloat = 72
     private static let viewOncePillHeight: CGFloat = 50
     private static let viewOnceRowVerticalPadding: CGFloat = 10
-    private static let ephemeralHeight: CGFloat = 150
-    private static let sharedMomentPreviewHeight: CGFloat = 320
-    /// Story share DM card 180×320 + vertical padding.
+    /// `DeletedMessageBubble`: icono 16 + padding vertical 10×2.
+    private static let deletedRowHeight: CGFloat = 50
+    /// Story share 180×320 más el padding vertical de la burbuja (como HEAD).
     private static let sharedStoryPreviewHeight: CGFloat = 336
-    /// Shared profile DM card (~70% feed preview, 4×1 grid, no follow/footer).
-    private static let sharedProfilePreviewHeight: CGFloat = 248
     private static let storyReplyTextHeight: CGFloat = 244
     private static let storyReplyEphemeralHeight: CGFloat = 368
     private static let chatNoticeHeight: CGFloat = 36
@@ -39,6 +34,35 @@ enum ChatRowHeightEstimator {
     private static let outgoingRequestControlsHeight: CGFloat = 76
 
     static let fallbackHeight: CGFloat = 60
+
+    /// Hueco fijo para cards/media que aún no han medido (evita apelotonar).
+    /// Borrados y texto se autoajustan: la píldora no hereda la altura del audio/card.
+    static func usesReservedHeight(_ row: ChatRenderRow) -> Bool {
+        switch row {
+        case .message(let item):
+            switch item {
+            case .mediaCluster(let messages):
+                return !messages.allSatisfy(\.isDeleted)
+            case .single(let message):
+                if message.isDeleted { return false }
+                if message.storyReplyData != nil { return true }
+                switch message.type {
+                case .text, .chatNotice:
+                    return false
+                case .image, .video, .audio, .gif, .sticker, .location, .file,
+                     .ephemeral, .sharedMoment, .sharedStory, .sharedProfile,
+                     .viewOnceImage, .viewOnceVideo:
+                    return true
+                }
+            }
+        case .pendingRequestMessage(let message):
+            if message.hasStoryReplyContext { return true }
+            return message.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .conversationIntro, .requestDisclaimer, .incomingRequestActions,
+             .outgoingRequestControls, .header, .buzz, .typing, .historyStart:
+            return true
+        }
+    }
 
     static func estimatedHeight(for row: ChatRenderRow, containerWidth: CGFloat) -> CGFloat {
         let bubbleWidth = max(120, containerWidth * maxBubbleWidthFraction)
@@ -87,7 +111,10 @@ enum ChatRowHeightEstimator {
         case .single(let message):
             return estimatedHeight(for: message, bubbleWidth: bubbleWidth)
         case .mediaCluster(let messages):
-            return estimatedClusterHeight(count: messages.count)
+            if messages.allSatisfy(\.isDeleted) {
+                return deletedRowHeight
+            }
+            return estimatedClusterHeight(count: messages.filter { !$0.isDeleted }.count)
         }
     }
 
@@ -100,6 +127,9 @@ enum ChatRowHeightEstimator {
     }
 
     private static func estimatedHeight(for message: EnhancedMessage, bubbleWidth: CGFloat) -> CGFloat {
+        if message.isDeleted {
+            return deletedRowHeight
+        }
         if message.storyReplyData != nil {
             return message.type == .ephemeral ? storyReplyEphemeralHeight : storyReplyTextHeight
         }
@@ -107,9 +137,18 @@ enum ChatRowHeightEstimator {
         case .text:
             return textHeight(for: message, bubbleWidth: bubbleWidth)
         case .image, .video:
-            return mediaHeight(for: message, bubbleWidth: bubbleWidth, fallbackAspect: mediaDefaultAspect)
-        case .gif, .sticker:
-            return mediaHeight(for: message, bubbleWidth: bubbleWidth, fallbackAspect: gifDefaultAspect)
+            var height = photoVideoHeight
+            if let caption = message.content, !caption.isEmpty {
+                height += textHeight(for: message, bubbleWidth: bubbleWidth) - textVerticalPadding
+            }
+            if let reactions = message.reactions, !reactions.isEmpty {
+                height += reactionsRowHeight
+            }
+            return height
+        case .gif:
+            return ChatGifLayout.displaySize(width: message.mediaWidth, height: message.mediaHeight).height
+        case .sticker:
+            return stickerSize
         case .audio:
             return voiceNoteHeight
         case .location:
@@ -119,16 +158,29 @@ enum ChatRowHeightEstimator {
         case .viewOnceImage, .viewOnceVideo:
             return viewOnceHeight(for: message)
         case .ephemeral:
-            return ephemeralHeight
+            return ChatEphemeralLayout.standard.height
         case .sharedMoment:
-            return sharedMomentPreviewHeight
+            return sharedMomentRowHeight(for: message)
         case .sharedStory:
-            return sharedStoryPreviewHeight + (message.sharedStoryData?["isStoryMention"] == "true" ? 28 : 0)
+            return sharedStoryPreviewHeight
         case .sharedProfile:
-            return sharedProfilePreviewHeight
+            return SharedProfileDMCardMetrics.cardHeight
         case .chatNotice:
             return chatNoticeHeight
         }
+    }
+
+    private static func sharedMomentRowHeight(for message: EnhancedMessage) -> CGFloat {
+        let data = message.sharedMomentData ?? [:]
+        let aspect = parseSharedAspectRatio(data["momentAspectRatio"])
+        let isVideo = !(data["momentVideoUrl"] ?? "").isEmpty
+        if sharedMomentLooksLikeReel(isVideo: isVideo, aspectRatio: aspect) {
+            return sharedStoryPreviewHeight
+        }
+        let hasCaption = !(data["momentContent"] ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty
+        return SharedDMPostCardMetrics.cardHeight(aspectRatio: aspect, hasCaption: hasCaption)
     }
 
     private static func textHeight(for message: EnhancedMessage, bubbleWidth: CGFloat) -> CGFloat {
@@ -148,26 +200,6 @@ enum ChatRowHeightEstimator {
         if message.replyTo != nil { height += replyBlockHeight }
         if let reactions = message.reactions, !reactions.isEmpty { height += reactionsRowHeight }
         return max(height, fallbackHeight * 0.7)
-    }
-
-    private static func mediaHeight(for message: EnhancedMessage, bubbleWidth: CGFloat, fallbackAspect: CGFloat) -> CGFloat {
-        let aspect: CGFloat
-        if let width = message.mediaWidth, let height = message.mediaHeight, width > 0, height > 0 {
-            aspect = CGFloat(width) / CGFloat(height)
-        } else {
-            aspect = fallbackAspect
-        }
-
-        var height = bubbleWidth / max(aspect, 0.35)
-        height = min(max(height, mediaMinHeight), mediaMaxHeight)
-
-        if let caption = message.content, !caption.isEmpty {
-            height += textHeight(for: message, bubbleWidth: bubbleWidth) - textVerticalPadding
-        }
-        if let reactions = message.reactions, !reactions.isEmpty {
-            height += reactionsRowHeight
-        }
-        return height
     }
 
     private static func viewOnceHeight(for message: EnhancedMessage) -> CGFloat {

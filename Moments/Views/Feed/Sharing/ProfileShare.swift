@@ -282,6 +282,25 @@ private struct SharedProfileNavItem: Identifiable {
 // MARK: - Compact card (~70% feed preview, grid 4×1, sin follow/footer)
 // Privacidad: reevaluación live para el viewer (bloqueos, audiencia, follows).
 
+// Compact card (~70% feed preview, grid 4×1, sin follow/footer).
+enum SharedProfileDMCardMetrics {
+    static let width: CGFloat = 280
+    static let padding: CGFloat = 11
+    static let gridSpacing: CGFloat = 2
+    static let stackSpacing: CGFloat = 10
+    static let headerHeight: CGFloat = 62
+    static let statsHeight: CGFloat = 28
+
+    static var gridRowHeight: CGFloat {
+        let contentWidth = width - padding * 2
+        return max(0, (contentWidth - gridSpacing * 3) / 4)
+    }
+
+    static var cardHeight: CGFloat {
+        padding * 2 + headerHeight + stackSpacing + gridRowHeight + stackSpacing + statsHeight
+    }
+}
+
 struct SharedProfilePreviewCard: View {
     let sharedProfileData: [String: String]
     let onOpenProfile: () -> Void

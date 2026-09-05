@@ -5445,3 +5445,5 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "caption.translating" = "A traduzir…";
 "caption.showOriginal" = "Mostrar original";
 "caption.translationRetry" = "Não foi possível traduzir. Tentar novamente";
+
+"chat.translateMessage" = "Traduzir mensagem";
