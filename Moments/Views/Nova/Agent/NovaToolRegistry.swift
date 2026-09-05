@@ -46,6 +46,7 @@ enum NovaToolRegistry {
                 name: "create_moment",
                 description: """
                 Publish a moment with the photo attached in this chat message. After success, the upload starts automatically.
+                Call this only when the user clearly asks to publish/upload/post/share the photo as a Moment — not for caption ideas, photo questions, or chat about the image.
                 Do not tell the user to confirm in chat — in-app approval is handled separately.
                 Moments cannot be text-only — media must be attached via the chat (+ button) before calling.
                 audience: everyone | mutuals | bestFriends | onlyMe | custom | customList.

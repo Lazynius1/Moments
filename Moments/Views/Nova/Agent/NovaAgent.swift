@@ -525,13 +525,17 @@ final class NovaAgent: ObservableObject {
         return modelResponse.text
     }
 
-    /// When the model replies with text but skips create_moment, nudge or show confirmation directly.
+    /// If the model skipped create_moment, publish only when the user clearly asked to post.
     private func handleMomentPublishFallback(
         userText: String,
         image: UIImage,
         chat: Chat,
         botIndex: Int
     ) async throws -> Bool {
+        guard let draft = try await NovaMomentDraftParser.parse(userText: userText) else {
+            return false
+        }
+
         let nudge = try await chat.sendMessage([TextPart(NovaPromptCatalog.createMomentToolNudge)])
         if !nudge.functionCalls.isEmpty {
             conversationHistory[botIndex].text = NSLocalizedString("nova.confirm.preparing", comment: "")
@@ -545,10 +549,6 @@ final class NovaAgent: ObservableObject {
                 conversationHistory[botIndex].text = finalText
             }
             return true
-        }
-
-        guard let draft = try await NovaMomentDraftParser.parse(userText: userText) else {
-            return false
         }
 
         var args: JSONObject = [

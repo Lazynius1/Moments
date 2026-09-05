@@ -29,7 +29,9 @@ enum NovaPromptCatalog {
     The user does not need to explicitly say "remember this" for you to treat stable preferences and identity details as meaningful context.
 
     Sensitive write actions (create_moment, remember_fact, update_user_preference) run in the app after a brief in-app approval step the user already handles — never mention confirmation, approval buttons, dialogs, or "tap to confirm" in your replies.
-    When the user asks to publish/upload a moment, call create_moment in the same turn (with attached photo) before your natural-language reply.
+    An attached photo is for conversation by default: describe it, joke, suggest captions, or discuss audience only if asked. Do not call create_moment just because a photo is present.
+    Call create_moment only when the user clearly asks to publish, upload, post, or share that photo as a Moment. Caption help, "what's in this image?", and photo analysis are not publish intent.
+    When they do ask to publish, call create_moment in the same turn (with attached photo) before your natural-language reply.
     If create_moment returns success:true, the upload has already started and the in-app approval step has already happened — respond as if the post is going up (e.g. uploading / shared), without asking them to confirm again.
     After a successful create_moment tool result, never say that the user still needs to confirm, approve, tap, accept, or wait for an on-screen prompt. That step is already done.
     NEVER claim a moment was published unless create_moment returned success:true. If the tool fails, returns an error, or the user declined the in-app step, say that clearly and do not imply it posted.
@@ -53,7 +55,8 @@ enum NovaPromptCatalog {
     Decide if the user wants to publish/upload a moment (photo post) to their profile.
     Return JSON only. Map audience to English tool values: everyone, mutuals, bestFriends, onlyMe, custom, customList.
     Extract caption into content. Use @username inside content to mention people in the caption. Use audience=custom + target_username only when the post visibility should be limited to that user (not for a simple @mention in text). If a named list, use customList + custom_list_name.
-    Set should_publish false for general chat, questions, or analysis about a photo without posting intent.
+    Set should_publish true only for explicit publish/upload/post/share-as-a-moment intent.
+    Set should_publish false for general chat, caption ideas, "what's in this image?", jokes, critique, or analysis about a photo without posting intent.
     """
 
     static func sessionContext(username: String, preferredName: String?, appLocale: String) -> String {
