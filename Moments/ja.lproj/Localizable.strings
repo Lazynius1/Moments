@@ -4392,3 +4392,13 @@
 "caption.translationRetry" = "翻訳できませんでした。再試行";
 
 "chat.translateMessage" = "メッセージを翻訳";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "興味がない";
+"forYou.feedback.subtitle" = "似た投稿の表示を減らす";
+"forYou.feedback.saving" = "設定を保存中…";
+"forYou.feedback.hidden" = "投稿を非表示にしました。似たコンテンツの表示を減らします。";
+"forYou.feedback.restored" = "設定を元に戻しました。";
+"forYou.feedback.failed" = "設定を保存できませんでした。もう一度お試しください。";
+"forYou.feedback.undo" = "元に戻す";
+"forYou.feedback.dismiss" = "閉じる";

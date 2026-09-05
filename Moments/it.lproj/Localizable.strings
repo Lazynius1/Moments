@@ -4637,3 +4637,13 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "caption.translationRetry" = "Traduzione non riuscita. Riprova";
 
 "chat.translateMessage" = "Traduci messaggio";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "Non mi interessa";
+"forYou.feedback.subtitle" = "Mostra meno post simili";
+"forYou.feedback.saving" = "Salvataggio della preferenza…";
+"forYou.feedback.hidden" = "Post nascosto. Vedrai meno contenuti simili.";
+"forYou.feedback.restored" = "Preferenza annullata.";
+"forYou.feedback.failed" = "Impossibile salvare la preferenza. Riprova.";
+"forYou.feedback.undo" = "Annulla";
+"forYou.feedback.dismiss" = "Chiudi";

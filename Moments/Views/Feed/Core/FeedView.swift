@@ -154,8 +154,14 @@ struct FeedView: View {
                 selectedPendingEchoId: $selectedPendingEchoId,
                 notificationSummaryService: notificationSummaryService,
                 badgeService: badgeService,
-                colorScheme: colorScheme
+                colorScheme: colorScheme,
+                onNotInterested: selectedFeedType == .forYou ? { ForYouPreferences.shared.hide($0) } : nil
             )
+            VStack {
+                Spacer().allowsHitTesting(false)
+                ForYouFeedbackNotice().padding(.bottom, 100)
+            }
+            .zIndex(1500)
 
             FeedStoryRingPreviewOverlay(
                 selection: $storyRingPreviewSelection,

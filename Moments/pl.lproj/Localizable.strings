@@ -4392,3 +4392,13 @@
 "caption.translationRetry" = "Nie udało się przetłumaczyć. Spróbuj ponownie";
 
 "chat.translateMessage" = "Przetłumacz wiadomość";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "Nie interesuje mnie to";
+"forYou.feedback.subtitle" = "Pokazuj mniej podobnych postów";
+"forYou.feedback.saving" = "Zapisywanie preferencji…";
+"forYou.feedback.hidden" = "Post ukryty. Zobaczysz mniej podobnych treści.";
+"forYou.feedback.restored" = "Cofnięto preferencję.";
+"forYou.feedback.failed" = "Nie udało się zapisać preferencji. Spróbuj ponownie.";
+"forYou.feedback.undo" = "Cofnij";
+"forYou.feedback.dismiss" = "Zamknij";

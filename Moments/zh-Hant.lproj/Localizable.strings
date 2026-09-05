@@ -4392,3 +4392,13 @@
 "caption.translationRetry" = "無法翻譯。重試";
 
 "chat.translateMessage" = "翻譯訊息";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "不感興趣";
+"forYou.feedback.subtitle" = "減少顯示類似貼文";
+"forYou.feedback.saving" = "正在儲存偏好設定…";
+"forYou.feedback.hidden" = "已隱藏貼文。將減少顯示類似內容。";
+"forYou.feedback.restored" = "已復原偏好設定。";
+"forYou.feedback.failed" = "無法儲存偏好設定。請再試一次。";
+"forYou.feedback.undo" = "復原";
+"forYou.feedback.dismiss" = "關閉";

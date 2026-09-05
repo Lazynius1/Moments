@@ -5447,3 +5447,13 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "caption.translationRetry" = "Não foi possível traduzir. Tentar novamente";
 
 "chat.translateMessage" = "Traduzir mensagem";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "Não me interessa";
+"forYou.feedback.subtitle" = "Ver menos publicações semelhantes";
+"forYou.feedback.saving" = "A guardar preferência…";
+"forYou.feedback.hidden" = "Publicação ocultada. Verás menos conteúdo semelhante.";
+"forYou.feedback.restored" = "Preferência anulada.";
+"forYou.feedback.failed" = "Não foi possível guardar a preferência. Tenta novamente.";
+"forYou.feedback.undo" = "Anular";
+"forYou.feedback.dismiss" = "Fechar";

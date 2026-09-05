@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Represents the locally computed affinity score towards another user.
-/// This data never leaves the device and is used solely to intelligently sort feeds and suggestions.
+/// Raw interaction counts stay local. A bounded aggregate score can personalize the shared feed ranking.
 @Model
 final class UserAffinity {
     /// Unique composite key: ownerUserId + targetUserId

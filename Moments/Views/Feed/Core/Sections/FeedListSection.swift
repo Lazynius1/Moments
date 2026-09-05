@@ -13,6 +13,7 @@ extension Moment {
 }
 
 struct FeedListSection: View {
+    @ObservedObject private var recommendations = ForYouPreferences.shared
     @Bindable var viewModel: FeedViewModel
     @Binding var isFeedHeaderHidden: Bool
     @Binding var selectedMoment: Moment?
@@ -42,6 +43,12 @@ struct FeedListSection: View {
     var hiddenMomentId: String? = nil
     let profileZoomNamespace: Namespace.ID
 
+    private var displayedMoments: [Moment] {
+        guard selectedFeedType == .forYou else { return viewModel.moments }
+        let hidden = recommendations.hiddenKeys()
+        return viewModel.moments.filter { !hidden.contains(recommendations.momentKey($0)) }
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             ZStack {
@@ -52,7 +59,7 @@ struct FeedListSection: View {
                     let tabbarHeight = 50.0
                     let availableHeight = screenHeight - headerHeight - segmentedToggleHeight - tabbarHeight - 60
                     let adAfterIndices = FeedAdPlacement.indicesAfterWhichToShowAd(
-                        momentIds: viewModel.moments.map { $0.id ?? "" },
+                        momentIds: displayedMoments.map { $0.id ?? "" },
                         minGap: selectedFeedType == .forYou ? 3 : 5,
                         maxGap: selectedFeedType == .forYou ? 5 : 7
                     )
@@ -60,15 +67,16 @@ struct FeedListSection: View {
                     LazyVStack(spacing: 12) {
                         Spacer()
                             .frame(height: feedContentTopInset)
+                            .id("feed-top")
 
-                        if viewModel.isLoading && viewModel.moments.isEmpty {
+                        if viewModel.isLoading && displayedMoments.isEmpty {
                             ForEach(0..<4, id: \.self) { _ in
                                 FeedPostSkeletonView(colorScheme: colorScheme)
                             }
                         } else {
                             // Reels usa VideoMomentsIndex.shared (rebuild en onChange).
                             // No pasar el array completo a cada card: invalidaba .equatable() al paginar.
-                            ForEach(Array(viewModel.moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
+                            ForEach(Array(displayedMoments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                                 feedMomentRow(
                                     index: index,
                                     moment: moment,
@@ -87,9 +95,11 @@ struct FeedListSection: View {
                     .padding(.vertical, 15)
                     .feedScrollVisibilityAnchor { values in
                         viewModel.syncMomentListeners(visibilityByMomentId: values)
+                        recommendations.updateVisibility(moments: displayedMoments, fractions: values, enabled: selectedFeedType == .forYou)
                     }
                 }
                 .adoptForFloatingTabBar()
+                .id(selectedFeedType)
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 8)
                         .onChanged { value in
@@ -105,14 +115,14 @@ struct FeedListSection: View {
                         }
                 )
 
-                if viewModel.moments.isEmpty && !viewModel.isLoading {
+                if displayedMoments.isEmpty && !viewModel.isLoading {
                     ModernEmptyFeedView(feedType: selectedFeedType)
                         .zIndex(10)
                 }
             }
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    proxy.scrollTo(0, anchor: .top)
+                    proxy.scrollTo("feed-top", anchor: .top)
                 }
             }
             .momentRefresh {
@@ -125,7 +135,7 @@ struct FeedListSection: View {
             .momentsScrollEdgeChrome()
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ScrollFeedToTop"))) { _ in
                 MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
-                    proxy.scrollTo(0, anchor: .top)
+                    proxy.scrollTo("feed-top", anchor: .top)
                 }
                 if let userId = Auth.auth().currentUser?.uid {
                     Task {
@@ -133,16 +143,28 @@ struct FeedListSection: View {
                     }
                 }
             }
+            .onChange(of: selectedFeedType) { _, _ in
+                recommendations.clearVisibility()
+                isFeedHeaderHidden = false
+                DispatchQueue.main.async { proxy.scrollTo("feed-top", anchor: .top) }
+            }
+            .onDisappear { recommendations.clearVisibility() }
+            .onChange(of: recommendations.revision) { _, _ in
+                if selectedFeedType == .forYou, displayedMoments.count < 3,
+                   let userId = Auth.auth().currentUser?.uid {
+                    viewModel.loadMoreMoments(userId: userId)
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // IDs, no solo count: For You ↔ Following con el mismo tamaño dejaba el índice de Reels viejo.
-        .onChange(of: viewModel.moments.map(\.feedViewIdentity)) { _, _ in
-            VideoMomentsIndex.shared.rebuild(from: viewModel.moments)
-            FeedFirstVideoPrewarmer.prepareFirstVideo(in: viewModel.moments)
+        .onChange(of: displayedMoments.map(\.feedViewIdentity)) { _, _ in
+            VideoMomentsIndex.shared.rebuild(from: displayedMoments)
+            FeedFirstVideoPrewarmer.prepareFirstVideo(in: displayedMoments)
         }
         .onAppear {
-            VideoMomentsIndex.shared.rebuild(from: viewModel.moments)
-            FeedFirstVideoPrewarmer.prepareFirstVideo(in: viewModel.moments)
+            VideoMomentsIndex.shared.rebuild(from: displayedMoments)
+            FeedFirstVideoPrewarmer.prepareFirstVideo(in: displayedMoments)
         }
     }
 
@@ -213,7 +235,7 @@ struct FeedListSection: View {
     }
 
     private func handleFeedNearEnd(for moment: Moment) {
-        guard moment.id == viewModel.moments.last?.id,
+        guard moment.id == displayedMoments.last?.id,
               let userId = Auth.auth().currentUser?.uid else { return }
         viewModel.loadMoreMoments(userId: userId)
     }
@@ -256,10 +278,10 @@ struct FeedListSection: View {
 
     private func prefetchUpcomingMoments(from index: Int) {
         let nextIndex = index + 1
-        guard nextIndex < viewModel.moments.count else { return }
+        guard nextIndex < displayedMoments.count else { return }
 
-        let endIndex = min(nextIndex + 8, viewModel.moments.count)
-        let upcoming = Array(viewModel.moments[nextIndex..<endIndex])
+        let endIndex = min(nextIndex + 8, displayedMoments.count)
+        let upcoming = Array(displayedMoments[nextIndex..<endIndex])
 
         let imageURLs = VideoPlaybackSelector.shared.imagePrefetchURLs(from: upcoming, maxMoments: 8)
         if !imageURLs.isEmpty {

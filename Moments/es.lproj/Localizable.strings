@@ -4645,3 +4645,13 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "caption.translationRetry" = "No se pudo traducir. Reintentar";
 
 "chat.translateMessage" = "Traducir mensaje";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "No me interesa";
+"forYou.feedback.subtitle" = "Ver menos publicaciones similares";
+"forYou.feedback.saving" = "Guardando preferencia…";
+"forYou.feedback.hidden" = "Publicación oculta. Verás menos contenido similar.";
+"forYou.feedback.restored" = "Preferencia deshecha.";
+"forYou.feedback.failed" = "No se pudo guardar tu preferencia. Inténtalo de nuevo.";
+"forYou.feedback.undo" = "Deshacer";
+"forYou.feedback.dismiss" = "Cerrar";

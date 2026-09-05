@@ -47,8 +47,8 @@ extension UserDefaults {
     
     var selectedFeedType: FeedType {
         get {
-            let rawValue = string(forKey: Keys.selectedFeedType) ?? FeedType.following.rawValue
-            return FeedType(rawValue: rawValue) ?? .following
+            let rawValue = string(forKey: Keys.selectedFeedType) ?? FeedType.forYou.rawValue
+            return FeedType(rawValue: rawValue) ?? .forYou
         }
         set {
             set(newValue.rawValue, forKey: Keys.selectedFeedType)

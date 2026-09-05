@@ -145,6 +145,19 @@ class AffinityTracker {
     }
     
     // MARK: - Time Decay
+
+    /// Bounded, normalized on the shared backend; never sends private message content.
+    func recommendationScores() -> [String: Double] {
+        guard let owner = Auth.auth().currentUser?.uid, let container = modelContainer else { return [:] }
+        let context = ModelContext(container)
+        let descriptor = FetchDescriptor<UserAffinity>(predicate: #Predicate { $0.ownerUserId == owner })
+        guard let records = try? context.fetch(descriptor) else { return [:] }
+        let now = Date()
+        return Dictionary(uniqueKeysWithValues: records.map { affinity in
+            let age = max(0, now.timeIntervalSince(affinity.lastInteractionDate)) / 86400
+            return (affinity.targetUserId, min(100, affinity.score * pow(0.5, age / 14)))
+        }.filter { $0.1 > 0.01 }.sorted { $0.1 > $1.1 }.prefix(200))
+    }
     
     /// Reduces the scores of older interactions. Called occasionally (e.g., app launch).
     func applyTimeDecayIfNeeded() {

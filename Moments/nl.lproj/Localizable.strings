@@ -4392,3 +4392,13 @@
 "caption.translationRetry" = "Vertalen mislukt. Opnieuw proberen";
 
 "chat.translateMessage" = "Bericht vertalen";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "Niet geïnteresseerd";
+"forYou.feedback.subtitle" = "Minder soortgelijke berichten tonen";
+"forYou.feedback.saving" = "Voorkeur opslaan…";
+"forYou.feedback.hidden" = "Bericht verborgen. Je ziet minder soortgelijke inhoud.";
+"forYou.feedback.restored" = "Voorkeur ongedaan gemaakt.";
+"forYou.feedback.failed" = "Je voorkeur kon niet worden opgeslagen. Probeer het opnieuw.";
+"forYou.feedback.undo" = "Ongedaan maken";
+"forYou.feedback.dismiss" = "Sluiten";

@@ -4637,3 +4637,13 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "caption.translationRetry" = "Übersetzung fehlgeschlagen. Erneut versuchen";
 
 "chat.translateMessage" = "Nachricht übersetzen";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "Kein Interesse";
+"forYou.feedback.subtitle" = "Weniger ähnliche Beiträge anzeigen";
+"forYou.feedback.saving" = "Einstellung wird gespeichert…";
+"forYou.feedback.hidden" = "Beitrag ausgeblendet. Du siehst weniger ähnliche Inhalte.";
+"forYou.feedback.restored" = "Einstellung rückgängig gemacht.";
+"forYou.feedback.failed" = "Die Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen.";
+"forYou.feedback.undo" = "Rückgängig";
+"forYou.feedback.dismiss" = "Schließen";

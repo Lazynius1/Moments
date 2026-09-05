@@ -930,6 +930,8 @@ class AuthService: ObservableObject {
                     }
 
                     if isActive, let userData = userData {
+                        // New accounts start with discovery before they follow anyone.
+                        UserDefaults.standard.selectedFeedType = .forYou
                         // ✅ ÉXITO: Primero establecemos estado autenticado
                         OnboardingDraftStore.clear()
                         self.isLoggedIn = true
@@ -967,6 +969,7 @@ class AuthService: ObservableObject {
                         self.retryUserFetchForNewUser(userId: user.uid) { success, user, suspended in
                             DispatchQueue.main.async {
                                 if success, let user = user {
+                                    UserDefaults.standard.selectedFeedType = .forYou
                                     OnboardingDraftStore.clear()
                                     self.isLoggedIn = true
                                     self.currentUser = user

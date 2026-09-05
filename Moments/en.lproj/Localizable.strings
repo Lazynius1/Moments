@@ -4624,3 +4624,13 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "caption.translationRetry" = "Couldn’t translate. Try again";
 
 "chat.translateMessage" = "Translate message";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "Not interested";
+"forYou.feedback.subtitle" = "Show fewer similar posts";
+"forYou.feedback.saving" = "Saving preference…";
+"forYou.feedback.hidden" = "Post hidden. We’ll show fewer similar posts.";
+"forYou.feedback.restored" = "Preference undone.";
+"forYou.feedback.failed" = "Couldn’t save your preference. Please try again.";
+"forYou.feedback.undo" = "Undo";
+"forYou.feedback.dismiss" = "Dismiss";

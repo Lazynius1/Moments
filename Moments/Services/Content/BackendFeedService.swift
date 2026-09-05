@@ -270,6 +270,11 @@ class BackendFeedService {
                 "feedType": feedType,
                 "limit": limit
             ]
+            if feedType == "forYou" {
+                body["rankingVersion"] = 2
+                body["affinityScores"] = AffinityTracker.shared.recommendationScores()
+                body["seenMoments"] = ForYouPreferences.shared.seenMoments()
+            }
             if let cursor = cursor {
                 var cursorPayload: [String: Any] = [
                     "timestamp": cursor.timestamp,

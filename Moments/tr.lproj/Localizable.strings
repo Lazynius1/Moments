@@ -4392,3 +4392,13 @@
 "caption.translationRetry" = "Çeviri yapılamadı. Tekrar dene";
 
 "chat.translateMessage" = "Mesajı çevir";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "İlgilenmiyorum";
+"forYou.feedback.subtitle" = "Benzer gönderileri daha az göster";
+"forYou.feedback.saving" = "Tercih kaydediliyor…";
+"forYou.feedback.hidden" = "Gönderi gizlendi. Benzer içerikleri daha az göreceksin.";
+"forYou.feedback.restored" = "Tercih geri alındı.";
+"forYou.feedback.failed" = "Tercih kaydedilemedi. Tekrar dene.";
+"forYou.feedback.undo" = "Geri al";
+"forYou.feedback.dismiss" = "Kapat";

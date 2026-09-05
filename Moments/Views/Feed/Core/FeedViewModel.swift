@@ -18,6 +18,7 @@ class FeedViewModel {
     var followers: [FollowerRecord] = []
 
     // Propiedades para el selector de feed
+    private var feedGeneration = 0
     var currentFeedType: FeedType = .following
     var forYouMoments: [Moment] = []
     var followingMoments: [Moment] = []
@@ -135,10 +136,15 @@ class FeedViewModel {
 
     func fetchMoments(userId: String, feedType: FeedType? = nil) {
         let targetFeedType = feedType ?? currentFeedType
+        feedGeneration += 1
+        let generation = feedGeneration
+        currentFeedType = targetFeedType
+        isLoadingMore = false
         let cached = loadFeedFromCache(type: targetFeedType)
 
         // ✅ Actualizar en main thread
         DispatchQueue.main.async {
+            guard self.feedGeneration == generation else { return }
             self.currentFeedType = targetFeedType
             self.isLoading = true
             self.errorMessage = nil
@@ -163,6 +169,7 @@ class FeedViewModel {
 
         guard NetworkMonitor.shared.isConnected else {
             DispatchQueue.main.async {
+                guard self.feedGeneration == generation else { return }
                 if !cached.isEmpty {
                     self.moments = cached
                     VideoMomentsIndex.shared.rebuild(from: cached)
@@ -185,6 +192,7 @@ class FeedViewModel {
         resolveMutedUserIds(viewerId: userId) { [weak self] mutedUserIds in
             DispatchQueue.main.async {
                 guard let self = self else { return }
+                guard self.feedGeneration == generation else { return }
                 // ✅ Reconciliar caché con usuarios silenciados cuando hay red.
                 let visibleCached = cached.filter { !mutedUserIds.contains($0.authorId) }
                 if !visibleCached.isEmpty {
@@ -222,6 +230,7 @@ class FeedViewModel {
         isLoadingMore = true
 
         let feed = currentFeedType
+        let generation = feedGeneration
 
         // 🚀 If initial load was from backend, keep using backend for pagination
         if feedLoadedFromBackend[feed] == true {
@@ -247,6 +256,7 @@ class FeedViewModel {
                     cursor: cursor,
                     limit: 20
                 ) {
+                    guard self.feedGeneration == generation else { return }
                     let newMoments = result.moments
                         .filter { $0.isArchived != true }
                         .filter { !mutedUserIds.contains($0.authorId) }
@@ -267,6 +277,7 @@ class FeedViewModel {
                     let uniqueNew = tunedNew.filter { !existingIds.contains($0.id) }
 
                     await MainActor.run {
+                        guard self.feedGeneration == generation else { return }
                         if let nextCursor = result.nextCursor {
                             self.backendCursors[feed] = nextCursor
                         } else {
@@ -296,6 +307,7 @@ class FeedViewModel {
                 // Backend loadMore failed — fall through to legacy
                 LogConfig.log("🔄 LoadMore: backend failed, falling back to legacy", category: "Feed")
                 await MainActor.run {
+                    guard self.feedGeneration == generation else { return }
                     self.feedLoadedFromBackend[feed] = false
                     self.loadMoreMomentsLegacy(userId: userId)
                 }
@@ -343,7 +355,10 @@ class FeedViewModel {
     }
 
     func switchFeedType(to feedType: FeedType, userId: String) {
+        feedGeneration += 1
         currentFeedType = feedType
+        isLoading = false
+        isLoadingMore = false
         clearListeners()
 
         switch feedType {
@@ -416,6 +431,7 @@ class FeedViewModel {
     }
 
     private func fetchFollowingMoments(userId: String) {
+        let generation = feedGeneration
         // 🚀 Backend-first: try Cloud Function, fallback to legacy
         Task {
             let mutedUserIds = await self.resolveMutedUserIdsAsync(viewerId: userId)
@@ -428,6 +444,7 @@ class FeedViewModel {
                 )
 
                 await MainActor.run {
+                    guard self.feedGeneration == generation else { return }
                     self.isLoading = false
                     self.followingMoments = finalMoments
                     self.moments = finalMoments
@@ -451,6 +468,7 @@ class FeedViewModel {
             }
 
             // ❌ Backend failed or circuit open — use legacy
+            guard self.feedGeneration == generation else { return }
             LogConfig.log("🔄 Feed: fallback to LEGACY", category: "Feed")
             await MainActor.run {
                 self.feedLoadedFromBackend[.following] = false
@@ -463,28 +481,32 @@ class FeedViewModel {
 
     /// Legacy feed: fetch from Firestore + client-side privacy filter
     private func fetchFollowingMomentsLegacy(userId: String) {
+        let generation = feedGeneration
         firestoreService.fetchFollowing(userId: userId) { [weak self] result in
+            guard let self, self.feedGeneration == generation else { return }
             switch result {
             case .success(let followingUsers):
                 let targetUserIds = followingUsers.map { $0.id }
-                self?.cachedFollowingIds = Set(targetUserIds)
+                self.cachedFollowingIds = Set(targetUserIds)
 
                 if targetUserIds.isEmpty {
                     DispatchQueue.main.async {
-                        self?.isLoading = false
-                        self?.followingMoments = []
-                        self?.moments = []
+                        guard self.feedGeneration == generation else { return }
+                        self.isLoading = false
+                        self.followingMoments = []
+                        self.moments = []
                     }
                 } else {
-                    self?.fetchMomentsFromUsers(userIds: targetUserIds, userId: userId, feedType: .following)
+                    self.fetchMomentsFromUsers(userIds: targetUserIds, userId: userId, feedType: .following)
                 }
 
             case .failure(_):
                 DispatchQueue.main.async {
-                    self?.isLoading = false
-                    self?.followingMoments = []
-                    self?.moments = []
-                    self?.errorMessage = NSLocalizedString("feed.loading.content", comment: "Error loading content")
+                    guard self.feedGeneration == generation else { return }
+                    self.isLoading = false
+                    self.followingMoments = []
+                    self.moments = []
+                    self.errorMessage = NSLocalizedString("feed.loading.content", comment: "Error loading content")
                 }
             }
         }
@@ -492,6 +514,7 @@ class FeedViewModel {
 
 
     private func fetchForYouMoments(userId: String) {
+        let generation = feedGeneration
         // 🚀 Backend-first: try Cloud Function, fallback to legacy
         Task {
             let mutedUserIds = await self.resolveMutedUserIdsAsync(viewerId: userId)
@@ -507,6 +530,7 @@ class FeedViewModel {
                 )
 
                 await MainActor.run {
+                    guard self.feedGeneration == generation else { return }
                     self.isLoading = false
                     self.forYouMoments = finalMoments
                     self.moments = finalMoments
@@ -529,6 +553,7 @@ class FeedViewModel {
                 return
             }
 
+            guard self.feedGeneration == generation else { return }
             LogConfig.log("🔄 ForYou feed: fallback to LEGACY", category: "Feed")
             await MainActor.run {
                 self.feedLoadedFromBackend[.forYou] = false
@@ -541,10 +566,12 @@ class FeedViewModel {
 
     /// Legacy forYou: discovery outside following graph
     private func fetchForYouMomentsLegacy(userId: String) {
+        let generation = feedGeneration
         forYouLegacyGlobalStreamCursor = nil
         loadLegacyForYouPage(userId: userId, existingMomentIds: [], isInitialLoad: true) { [weak self] finalMoments in
             guard let self else { return }
             DispatchQueue.main.async {
+                guard self.feedGeneration == generation else { return }
                 self.isLoading = false
                 self.forYouMoments = finalMoments
                 self.moments = finalMoments
@@ -556,8 +583,9 @@ class FeedViewModel {
             }
         } onFailure: { [weak self] error in
             DispatchQueue.main.async {
-                self?.isLoading = false
-                self?.errorMessage = error.localizedDescription
+                guard let self, self.feedGeneration == generation else { return }
+                self.isLoading = false
+                self.errorMessage = error.localizedDescription
             }
         }
     }
@@ -668,6 +696,7 @@ class FeedViewModel {
     }
 
     private func fetchMomentsFromUsers(userIds: [String], userId: String, feedType: FeedType) {
+        let generation = feedGeneration
         let limitPerUser = feedType == .forYou ? 8 : 12
         let totalLimit = feedType == .forYou ? 120 : 80
 
@@ -695,6 +724,7 @@ class FeedViewModel {
             // Aplicar filtros de privacidad y actualizar UI
                 self.filterMomentsForPrivacy(viewerId: userId, moments: finalMoments) { filteredMoments in
                 DispatchQueue.main.async {
+                guard self.feedGeneration == generation else { return }
                         self.isLoading = false
 
                     switch feedType {
@@ -719,6 +749,7 @@ class FeedViewModel {
             }
             case .failure(let error):
                 DispatchQueue.main.async {
+                guard self.feedGeneration == generation else { return }
                     self.isLoading = false
                     self.errorMessage = error.localizedDescription
                 }
@@ -727,6 +758,7 @@ class FeedViewModel {
     }
 
     private func fetchMoreMomentsFromUsers(userIds: [String], userId: String, feedType: FeedType) {
+        let generation = feedGeneration
         let limitPerUser = feedType == .forYou ? 8 : 12
         let totalLimit = feedType == .forYou ? 120 : 80
         let existingMomentIds = Set(moments.compactMap { $0.id })
@@ -760,6 +792,7 @@ class FeedViewModel {
                 }
                 self.filterMomentsForPrivacy(viewerId: userId, moments: finalSortedNewMoments) { filteredMoments in
                 DispatchQueue.main.async {
+                guard self.feedGeneration == generation else { return }
                         self.isLoadingMore = false
 
                     if feedType == .forYou {
@@ -778,6 +811,7 @@ class FeedViewModel {
             }
             case .failure:
                 DispatchQueue.main.async {
+                guard self.feedGeneration == generation else { return }
                     self.isLoadingMore = false
                 }
             }
@@ -785,6 +819,7 @@ class FeedViewModel {
     }
 
     private func fetchMoreForYouMoments(userId: String) {
+        let generation = feedGeneration
         let existingMomentIds = Set(moments.compactMap(\.id))
         loadLegacyForYouPage(
             userId: userId,
@@ -793,6 +828,7 @@ class FeedViewModel {
         ) { [weak self] newMoments in
             guard let self else { return }
             DispatchQueue.main.async {
+                guard self.feedGeneration == generation else { return }
                 self.isLoadingMore = false
                 guard !newMoments.isEmpty else { return }
                 self.forYouMoments.append(contentsOf: newMoments)
@@ -804,7 +840,8 @@ class FeedViewModel {
             }
         } onFailure: { [weak self] _ in
             DispatchQueue.main.async {
-                self?.isLoadingMore = false
+                guard let self, self.feedGeneration == generation else { return }
+                self.isLoadingMore = false
             }
         }
     }

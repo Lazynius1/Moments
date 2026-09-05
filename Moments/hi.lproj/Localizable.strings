@@ -4392,3 +4392,13 @@
 "caption.translationRetry" = "अनुवाद नहीं हो सका। फिर से कोशिश करें";
 
 "chat.translateMessage" = "संदेश का अनुवाद करें";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "दिलचस्पी नहीं है";
+"forYou.feedback.subtitle" = "ऐसी पोस्ट कम दिखाएँ";
+"forYou.feedback.saving" = "पसंद सहेजी जा रही है…";
+"forYou.feedback.hidden" = "पोस्ट छिपा दी गई है। ऐसी सामग्री कम दिखाई जाएगी।";
+"forYou.feedback.restored" = "पसंद वापस कर दी गई है।";
+"forYou.feedback.failed" = "पसंद सहेजी नहीं जा सकी। फिर से कोशिश करें।";
+"forYou.feedback.undo" = "पहले जैसा करें";
+"forYou.feedback.dismiss" = "बंद करें";

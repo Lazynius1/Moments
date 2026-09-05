@@ -4657,3 +4657,13 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "caption.translationRetry" = "No s’ha pogut traduir. Torna-ho a provar";
 
 "chat.translateMessage" = "Tradueix el missatge";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "No m’interessa";
+"forYou.feedback.subtitle" = "Veure menys publicacions similars";
+"forYou.feedback.saving" = "Desant la preferència…";
+"forYou.feedback.hidden" = "Publicació oculta. Veuràs menys contingut similar.";
+"forYou.feedback.restored" = "Preferència desfeta.";
+"forYou.feedback.failed" = "No s’ha pogut desar la preferència. Torna-ho a provar.";
+"forYou.feedback.undo" = "Desfer";
+"forYou.feedback.dismiss" = "Tancar";

@@ -4392,3 +4392,13 @@
 "caption.translationRetry" = "Tidak dapat menerjemahkan. Coba lagi";
 
 "chat.translateMessage" = "Terjemahkan pesan";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "Tidak tertarik";
+"forYou.feedback.subtitle" = "Tampilkan lebih sedikit postingan serupa";
+"forYou.feedback.saving" = "Menyimpan preferensi…";
+"forYou.feedback.hidden" = "Postingan disembunyikan. Konten serupa akan ditampilkan lebih sedikit.";
+"forYou.feedback.restored" = "Preferensi dibatalkan.";
+"forYou.feedback.failed" = "Preferensi tidak dapat disimpan. Coba lagi.";
+"forYou.feedback.undo" = "Urungkan";
+"forYou.feedback.dismiss" = "Tutup";

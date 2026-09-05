@@ -20,6 +20,7 @@ struct FeedOverlaysSection: View {
     @ObservedObject var badgeService: NotificationBadgeService
 
     let colorScheme: ColorScheme
+    var onNotInterested: ((Moment) -> Void)? = nil
 
     var body: some View {
         Group {
@@ -62,7 +63,8 @@ struct FeedOverlaysSection: View {
                     onDelete: {
                         showDeleteAlert = true
                     },
-                    onReport: {}
+                    onReport: {},
+                    onNotInterested: onNotInterested.map { action in { action(moment) } }
                 )
                 .transition(.asymmetric(
                     insertion: .move(edge: .bottom).combined(with: .opacity),

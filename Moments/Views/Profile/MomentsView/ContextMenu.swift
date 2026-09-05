@@ -178,6 +178,7 @@ struct ModernContextMenuOverlay: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
     let onReport: () -> Void
+    var onNotInterested: (() -> Void)? = nil
     
     private let privacyService = PrivacyService()
     
@@ -253,6 +254,9 @@ struct ModernContextMenuOverlay: View {
                                 withAnimation(.easeOut(duration: 0.3)) {
                                     isPresented = false
                                 }
+                            },
+                            onNotInterested: onNotInterested.map { action in
+                                { isPresented = false; action() }
                             }
                         )
                         .transition(.asymmetric(
@@ -729,6 +733,7 @@ struct ModernContextMenuContent: View {
     let onShare: () -> Void
     let onReport: () -> Void
     let onCancel: () -> Void
+    var onNotInterested: (() -> Void)? = nil
     
     @Environment(\.colorScheme) var colorScheme
     
@@ -809,6 +814,15 @@ struct ModernContextMenuContent: View {
                 
                 // ✅ Reportar (solo si no es mi momento)
                 if !isMyMoment {
+                    if let onNotInterested {
+                        ContextMenuButton(
+                            icon: "eye.slash",
+                            title: NSLocalizedString("forYou.feedback.notInterested", comment: "Not interested"),
+                            subtitle: NSLocalizedString("forYou.feedback.subtitle", comment: "Show fewer similar posts"),
+                            iconColor: colorScheme == .dark ? .white : .black,
+                            action: onNotInterested
+                        )
+                    }
                     Divider()
                         .background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1))
                         .padding(.vertical, 8)

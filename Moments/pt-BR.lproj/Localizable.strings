@@ -4637,3 +4637,13 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "caption.translationRetry" = "Não foi possível traduzir. Tentar novamente";
 
 "chat.translateMessage" = "Traduzir mensagem";
+
+// For You recommendation feedback
+"forYou.feedback.notInterested" = "Não tenho interesse";
+"forYou.feedback.subtitle" = "Ver menos publicações semelhantes";
+"forYou.feedback.saving" = "Salvando preferência…";
+"forYou.feedback.hidden" = "Publicação ocultada. Você verá menos conteúdo semelhante.";
+"forYou.feedback.restored" = "Preferência desfeita.";
+"forYou.feedback.failed" = "Não foi possível salvar a preferência. Tente novamente.";
+"forYou.feedback.undo" = "Desfazer";
+"forYou.feedback.dismiss" = "Fechar";

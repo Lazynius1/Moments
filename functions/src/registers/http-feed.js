@@ -217,6 +217,20 @@ const getFeedPage = onRequest(
       // ── 1. Build viewer context ──
       const viewerCtx = await buildViewerContext(uid);
 
+      if (body.action === 'forYouFeedback') {
+        const { recordFeedback } = require('../helpers/for-you-feed');
+        await recordFeedback(db, uid, body, viewerCtx);
+        res.status(200).json({ accepted: true });
+        return;
+      }
+
+      if (feedType === 'forYou' && (body.rankingVersion === 2 || String(cursor?.momentId || '').startsWith('fy2_'))) {
+        const { rankedPage } = require('../helpers/for-you-feed');
+        const page = await rankedPage({ db, uid, viewerCtx, body, limit });
+        res.status(200).json({ ...page, source: 'backend-ranked-v2' });
+        return;
+      }
+
       if (feedType === 'forYou') {
         const forYouResult = await processForYouFeedPage({
           db,
@@ -417,7 +431,7 @@ const getFeedPage = onRequest(
 
     } catch (error) {
       console.error('❌ getFeedPage error:', error);
-      res.status(500).json({ error: 'Feed fetch failed', details: error.message });
+      res.status(error.status || 500).json({ error: 'Feed fetch failed' });
     }
   }
 );
