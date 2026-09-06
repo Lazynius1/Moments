@@ -2,6 +2,22 @@ import SwiftUI
 import UIKit
 import FirebaseAuth
 
+/// Medidas de la pill flotante. Overlays en safe area (menú, toasts) usan `overlayBottomPadding`.
+enum MomentsFloatingTabBarMetrics {
+    static let barHeight: CGFloat = 54
+    static let chromePadding: CGFloat = 4
+    static let physicalBottomInset: CGFloat = 18
+    static let overlayGap: CGFloat = 8
+
+    static var heightFromPhysicalBottom: CGFloat {
+        barHeight + chromePadding * 2 + physicalBottomInset
+    }
+
+    static func overlayBottomPadding(safeAreaBottom: CGFloat) -> CGFloat {
+        max(20, heightFromPhysicalBottom - safeAreaBottom + overlayGap)
+    }
+}
+
 /// Floating pill Moments — Home · Mensajes · Creator · Explorar · Perfil.
 /// UISegmentedControl (gota arrastrable) + glass tinted. Perfil = UIImage (foto+ring).
 struct MomentsFloatingTabBar: View {

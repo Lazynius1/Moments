@@ -159,7 +159,13 @@ struct FeedView: View {
             )
             VStack {
                 Spacer().allowsHitTesting(false)
-                ForYouFeedbackNotice().padding(.bottom, 100)
+                ForYouFeedbackNotice()
+                    .padding(
+                        .bottom,
+                        MomentsFloatingTabBarMetrics.overlayBottomPadding(
+                            safeAreaBottom: keyWindowSafeAreaInsets().bottom
+                        )
+                    )
             }
             .zIndex(1500)
 

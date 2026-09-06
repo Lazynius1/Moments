@@ -13,6 +13,8 @@ final class ForYouPreferences: ObservableObject {
     @Published private(set) var notice: String?
     private var noticeOwner: String?
     private var visibilityTasks: [String: Task<Void, Never>] = [:]
+    private var noticeDismissTask: Task<Void, Never>?
+    private static let noticeDuration: Duration = .seconds(5)
 
     private func key(_ suffix: String, owner: String) -> String { "forYou.\(owner).\(suffix)" }
     func momentKey(_ moment: Moment) -> String { "\(moment.authorId)/\(moment.id ?? "")" }
@@ -73,7 +75,22 @@ final class ForYouPreferences: ObservableObject {
         send(moment, hiding: false)
     }
 
-    func dismissNotice() { if !isBusy { notice = nil; undoMoment = nil } }
+    func dismissNotice() {
+        guard !isBusy else { return }
+        noticeDismissTask?.cancel()
+        noticeDismissTask = nil
+        notice = nil
+        undoMoment = nil
+    }
+
+    private func scheduleNoticeDismiss() {
+        noticeDismissTask?.cancel()
+        noticeDismissTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.noticeDuration)
+            guard !Task.isCancelled else { return }
+            self?.dismissNotice()
+        }
+    }
 
     private func send(_ moment: Moment, hiding: Bool) {
         guard !isBusy, let user = Auth.auth().currentUser, let momentId = moment.id else { return }
@@ -88,6 +105,7 @@ final class ForYouPreferences: ObservableObject {
         isBusy = true
         noticeOwner = uid
         undoMoment = nil
+        noticeDismissTask?.cancel()
         notice = NSLocalizedString("forYou.feedback.saving", comment: "Saving recommendation preference")
         Task {
             do {
@@ -107,6 +125,7 @@ final class ForYouPreferences: ObservableObject {
                 if Auth.auth().currentUser?.uid == uid {
                     notice = NSLocalizedString(hiding ? "forYou.feedback.hidden" : "forYou.feedback.restored", comment: "Recommendation feedback saved")
                     undoMoment = hiding ? moment : nil
+                    scheduleNoticeDismiss()
                 }
             } catch {
                 UserDefaults.standard.set(original, forKey: storageKey)
@@ -115,6 +134,7 @@ final class ForYouPreferences: ObservableObject {
                     notice = NSLocalizedString("forYou.feedback.failed", comment: "Recommendation feedback failed")
                     // A failed undo can be retried without losing its target.
                     undoMoment = hiding ? nil : moment
+                    scheduleNoticeDismiss()
                 }
             }
             isBusy = false

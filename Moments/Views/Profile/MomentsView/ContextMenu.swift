@@ -193,10 +193,9 @@ struct ModernContextMenuOverlay: View {
     /// MomentsFloatingTabBar ancla al borde físico: height 54 + pad 4×2 + bottom 18.
     /// El menú vive en safe area → levantar lo que la pill invade + hueco mínimo.
     private var contextMenuBottomPadding: CGFloat {
-        let tabBarFromPhysicalBottom: CGFloat = 54 + 8 + 18
-        let safeBottom = keyWindowSafeAreaInsets().bottom
-        let gapAboveTabBar: CGFloat = 8
-        return max(20, tabBarFromPhysicalBottom - safeBottom + gapAboveTabBar)
+        MomentsFloatingTabBarMetrics.overlayBottomPadding(
+            safeAreaBottom: keyWindowSafeAreaInsets().bottom
+        )
     }
 
     var body: some View {
