@@ -66,11 +66,8 @@ struct ExploreView: View {
             .navigationDestination(isPresented: $showDiscoverMap) {
                 DiscoverMapView(isPresented: $showDiscoverMap)
             }
-            .sheet(isPresented: $showSuggestedUsersView) {
+            .navigationDestination(isPresented: $showSuggestedUsersView) {
                 SuggestedUsersView()
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-                    .interactiveDismissDisabled(false)
             }
     }
 
@@ -206,9 +203,9 @@ struct ExploreView: View {
     private var mainContent: some View {
         ZStack(alignment: .top) {
             Group {
-                if viewModel.isLoading && viewModel.moments.isEmpty && viewModel.errorMessage == nil {
+                if searchText.isEmpty && viewModel.isLoading && viewModel.moments.isEmpty && viewModel.errorMessage == nil {
                     LoadingStateView()
-                } else if let errorMessage = viewModel.errorMessage, viewModel.moments.isEmpty {
+                } else if let errorMessage = viewModel.errorMessage, viewModel.moments.isEmpty, searchText.isEmpty {
                     ErrorStateView(message: errorMessage) {
                         viewModel.fetchMomentsByInterests()
                     }
@@ -239,15 +236,18 @@ struct ExploreView: View {
                             zoomNamespace: zoomNamespace,
                             onMomentTap: handleMomentTap
                         )
-                        .padding(.bottom, 80)
                     }
+                    ExplorePagingFooter(isLoading: viewModel.isLoadingMoreExplore, failed: viewModel.explorePageFailed,
+                        hasMore: viewModel.hasMoreExplore, onLoadMore: viewModel.loadMoreExplore,
+                        onRetry: viewModel.loadMoreExplore)
+                        .padding(.bottom, 80)
                 } else {
                     searchResultsSection
                 }
             }
         }
         .momentRefresh {
-            viewModel.refreshAllContent()
+            if searchText.isEmpty { viewModel.refreshAllContent() } else { viewModel.retrySearch() }
             // Mantener la gota visible mientras arranca la recarga.
             try? await Task.sleep(nanoseconds: 900_000_000)
         }
@@ -257,10 +257,6 @@ struct ExploreView: View {
         private var suggestedUsersSection: some View {
             SuggestedUsersSection(
                 users: viewModel.suggestedUsers,
-                moments: viewModel.moments, // ✅ Passing visible moments
-                currentUserInterests: viewModel.currentUserInterests,
-                userButtonStates: viewModel.userButtonStates,
-                onFollowUser: viewModel.followUser,
                 onUserTap: { user in
                     selectedProfileRoute = FeedProfileSheetRoute(userId: user.id)
                     viewModel.checkCanViewContent(for: user.id) { _ in }
@@ -270,7 +266,6 @@ struct ExploreView: View {
                 },
                 profileZoomNamespace: profileZoomNamespace
             )
-            .padding(.horizontal, 12)
             .onAppear {
                 for user in viewModel.suggestedUsers {
                     viewModel.checkUserButtonState(for: user.id)
@@ -304,6 +299,7 @@ struct ExploreView: View {
             presentation: MomentZoomPresentationKind,
             zoomIDPrefix: String
         ) {
+            ForYouPreferences.shared.recordOpenedMoment(moment)
             let resolvedIndex = moments.firstIndex(where: { $0.id == moment.id }) ?? index
             zoomDestination = MomentZoomDestination(
                 zoomSourceID: ProfileMomentZoomNavigation.sourceID(
@@ -328,6 +324,16 @@ struct ExploreView: View {
         private var searchResultsSection: some View {
             SmartSearchResultsView(
                 searchQuery: searchText,
+                isLoading: viewModel.isSearching,
+                failed: viewModel.searchFailed,
+                hasMore: viewModel.hasMoreSearchResults,
+                filter: searchText.hasPrefix("#") ? "hashtag" : searchText.hasPrefix("@") ? "username" : viewModel.searchFilter,
+                onFilter: { filter in
+                    if searchText.hasPrefix("#") || searchText.hasPrefix("@") { searchText = String(searchText.dropFirst()) }
+                    viewModel.setSearchFilter(filter)
+                },
+                onLoadMore: viewModel.loadMoreSearchResults,
+                onRetry: viewModel.retrySearch,
                 users: viewModel.searchedUsers,
                 moments: viewModel.filteredMoments,
                 userButtonStates: viewModel.userButtonStates,

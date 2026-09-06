@@ -4634,3 +4634,13 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "forYou.feedback.failed" = "Couldn’t save your preference. Please try again.";
 "forYou.feedback.undo" = "Undo";
 "forYou.feedback.dismiss" = "Dismiss";
+
+// Global Explore search
+"explore.global.filter.mixed" = "All";
+"explore.global.filter.username" = "People";
+"explore.global.filter.hashtag" = "Hashtags";
+"explore.global.filter.location" = "Places";
+"explore.global.loading" = "Loading results";
+"explore.global.error" = "Could not load results. Try again.";
+"explore.global.retry" = "Try again";
+"explore.global.more" = "Load more";

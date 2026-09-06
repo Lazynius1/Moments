@@ -4667,3 +4667,13 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "forYou.feedback.failed" = "No s’ha pogut desar la preferència. Torna-ho a provar.";
 "forYou.feedback.undo" = "Desfer";
 "forYou.feedback.dismiss" = "Tancar";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Tot";
+"explore.global.filter.username" = "Persones";
+"explore.global.filter.hashtag" = "Hashtags";
+"explore.global.filter.location" = "Llocs";
+"explore.global.loading" = "Carregant resultats";
+"explore.global.error" = "No s’han pogut carregar els resultats. Torna-ho a provar.";
+"explore.global.retry" = "Torna-ho a provar";
+"explore.global.more" = "Carrega’n més";

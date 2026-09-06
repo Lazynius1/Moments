@@ -199,58 +199,50 @@ struct NotificationsView: View {
         
     }
     
-    // ✅ TAB BAR ADAPTATIVO
     @ViewBuilder private var tabBarView: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 18) {
-                ForEach(NotificationTab.allCases, id: \.self) { tab in
-                    Button(action: {
-                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
-                            viewModel.selectedTab = tab
-                        }
-                    }) {
-                        VStack(spacing: 7) {
-                            HStack(spacing: 6) {
-                                Text(NSLocalizedString(tab.rawValue, comment: "Notification tab"))
-                                    .font(.system(size: 14, weight: viewModel.selectedTab == tab ? .semibold : .medium))
-                                    .foregroundStyle(
-                                    viewModel.selectedTab == tab ?
-                                        (colorScheme == .dark ? .white : .black) :
-                                        .gray.opacity(0.82)
-                                    )
-                                
-                                // Badge para solicitudes pendientes
-                                if tab == .requests && viewModel.pendingRequestsCount > 0 {
-                                    Text("\(viewModel.pendingRequestsCount)")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 18, height: 18)
-                                        .background(Color.red)
-                                        .clipShape(Circle())
-                                }
-                            }
-                            
-                            if viewModel.selectedTab == tab {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(
-                                        colorScheme == .dark ? Color.white : Color.black
-                                    )
-                                    .frame(height: 2)
-                                    .matchedGeometryEffect(id: "tab", in: tabAnimation)
-                            } else {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(Color.clear)
-                                    .frame(height: 2)
-                            }
+        MomentsFillScrollTabRow(items: Array(NotificationTab.allCases)) { tab in
+            Button {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
+                    viewModel.selectedTab = tab
+                }
+            } label: {
+                VStack(spacing: 7) {
+                    HStack(spacing: 6) {
+                        Text(NSLocalizedString(tab.rawValue, comment: "Notification tab"))
+                            .font(.system(size: 14, weight: viewModel.selectedTab == tab ? .semibold : .medium))
+                            .foregroundStyle(
+                                viewModel.selectedTab == tab ?
+                                    (colorScheme == .dark ? .white : .black) :
+                                    .gray.opacity(0.82)
+                            )
+                            .lineLimit(1)
+
+                        if tab == .requests && viewModel.pendingRequestsCount > 0 {
+                            Text("\(viewModel.pendingRequestsCount)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 18, height: 18)
+                                .background(Color.red)
+                                .clipShape(Circle())
                         }
                     }
-                    .buttonStyle(PlainButtonStyle())
+
+                    if viewModel.selectedTab == tab {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(colorScheme == .dark ? Color.white : Color.black)
+                            .frame(height: 2)
+                            .matchedGeometryEffect(id: "tab", in: tabAnimation)
+                    } else {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.clear)
+                            .frame(height: 2)
+                    }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 10)
+            .buttonStyle(.plain)
         }
+        .padding(.top, 8)
+        .padding(.bottom, 10)
         .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
         .overlay(alignment: .bottom) {
             Rectangle()

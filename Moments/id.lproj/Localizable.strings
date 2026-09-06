@@ -4402,3 +4402,13 @@
 "forYou.feedback.failed" = "Preferensi tidak dapat disimpan. Coba lagi.";
 "forYou.feedback.undo" = "Urungkan";
 "forYou.feedback.dismiss" = "Tutup";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Semua";
+"explore.global.filter.username" = "Orang";
+"explore.global.filter.hashtag" = "Tagar";
+"explore.global.filter.location" = "Tempat";
+"explore.global.loading" = "Memuat hasil";
+"explore.global.error" = "Hasil tidak dapat dimuat. Coba lagi.";
+"explore.global.retry" = "Coba lagi";
+"explore.global.more" = "Muat lebih banyak";

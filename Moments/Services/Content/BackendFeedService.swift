@@ -2,6 +2,11 @@ import Foundation
 import FirebaseAuth
 import FirebaseCore
 
+struct BackendSearchResponse: Decodable {
+    let moments: [BackendMoment]
+    let nextCursor: String?
+}
+
 // MARK: - Backend Feed Response
 struct BackendFeedResponse: Codable {
     let moments: [BackendMoment]
@@ -340,6 +345,43 @@ class BackendFeedService {
             recordFailure()
             return nil
         }
+    }
+
+    func searchMoments(query: String, mode: String, cursor: String?) async -> (moments: [Moment], nextCursor: String?)? {
+        var body: [String: Any] = ["query": query, "mode": mode, "limit": 24]
+        if let cursor { body["cursor"] = cursor }
+        guard let data = await requestExploreEndpoint("searchMoments", body: body),
+              let response = try? JSONDecoder().decode(BackendSearchResponse.self, from: data) else { return nil }
+        return (response.moments.map { $0.toMoment() }, response.nextCursor)
+    }
+
+    func fetchExplorePage(cursor: FeedCursor?) async -> (moments: [Moment], nextCursor: FeedCursor?)? {
+        var body: [String: Any] = ["limit": 24,
+            "affinityScores": AffinityTracker.shared.recommendationScores(),
+            "seenMoments": ForYouPreferences.shared.seenMoments()]
+        if let cursor { body["cursor"] = ["timestamp": cursor.timestamp, "momentId": cursor.momentId] }
+        guard let data = await requestExploreEndpoint("getExplorePage", body: body),
+              let response = try? JSONDecoder().decode(BackendFeedResponse.self, from: data) else { return nil }
+        return (response.moments.map { $0.toMoment() }, response.nextCursor)
+    }
+
+    private func requestExploreEndpoint(_ name: String, body: [String: Any]) async -> Data? {
+        guard let user = Auth.auth().currentUser,
+              let project = FirebaseApp.app()?.options.projectID,
+              let url = URL(string: "https://europe-southwest1-\(project).cloudfunctions.net/\(name)") else { return nil }
+        do {
+            let token = try await user.getIDToken()
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request.timeoutInterval = 60
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard !Task.isCancelled, Auth.auth().currentUser?.uid == user.uid,
+                  (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+            return data
+        } catch { return nil }
     }
 
     /// Fetch tagged moments from backend with full audience/privacy filtering.

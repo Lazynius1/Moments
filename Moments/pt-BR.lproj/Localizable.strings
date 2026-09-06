@@ -4647,3 +4647,13 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "forYou.feedback.failed" = "Não foi possível salvar a preferência. Tente novamente.";
 "forYou.feedback.undo" = "Desfazer";
 "forYou.feedback.dismiss" = "Fechar";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Tudo";
+"explore.global.filter.username" = "Pessoas";
+"explore.global.filter.hashtag" = "Hashtags";
+"explore.global.filter.location" = "Lugares";
+"explore.global.loading" = "Carregando resultados";
+"explore.global.error" = "Não foi possível carregar os resultados. Tente novamente.";
+"explore.global.retry" = "Tentar novamente";
+"explore.global.more" = "Carregar mais";

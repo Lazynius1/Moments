@@ -4647,3 +4647,13 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "forYou.feedback.failed" = "Die Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen.";
 "forYou.feedback.undo" = "Rückgängig";
 "forYou.feedback.dismiss" = "Schließen";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Alle";
+"explore.global.filter.username" = "Personen";
+"explore.global.filter.hashtag" = "Hashtags";
+"explore.global.filter.location" = "Orte";
+"explore.global.loading" = "Ergebnisse werden geladen";
+"explore.global.error" = "Die Ergebnisse konnten nicht geladen werden. Versuche es erneut.";
+"explore.global.retry" = "Erneut versuchen";
+"explore.global.more" = "Mehr laden";

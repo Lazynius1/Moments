@@ -61,6 +61,21 @@ final class ForYouPreferences: ObservableObject {
         }
     }
 
+    /// Opening a discovery result is an explicit view; incognito stays untracked.
+    func recordOpenedMoment(_ moment: Moment) {
+        guard let uid = Auth.auth().currentUser?.uid, moment.id != nil,
+              !IncognitoModeService.isActiveSnapshot else { return }
+        let id = momentKey(moment)
+        var seen = seenMoments()
+        let now = Date().timeIntervalSince1970 * 1000
+        if now - (seen[id] ?? 0) > 86_400_000 {
+            AffinityTracker.shared.trackInteraction(type: .momentView, with: moment.authorId)
+        }
+        seen[id] = now
+        let trimmed = Dictionary(uniqueKeysWithValues: seen.sorted { $0.value > $1.value }.prefix(500).map { ($0.key, $0.value) })
+        UserDefaults.standard.set(trimmed, forKey: key("seen", owner: uid))
+    }
+
     func clearVisibility() {
         visibilityTasks.values.forEach { $0.cancel() }
         visibilityTasks.removeAll()
@@ -81,6 +96,19 @@ final class ForYouPreferences: ObservableObject {
         noticeDismissTask = nil
         notice = nil
         undoMoment = nil
+    }
+
+    func clearAccountData(owner: String) {
+        noticeDismissTask?.cancel()
+        noticeDismissTask = nil
+        clearVisibility()
+        UserDefaults.standard.removeObject(forKey: key("hidden", owner: owner))
+        UserDefaults.standard.removeObject(forKey: key("seen", owner: owner))
+        notice = nil
+        undoMoment = nil
+        noticeOwner = nil
+        isBusy = false
+        revision += 1
     }
 
     private func scheduleNoticeDismiss() {

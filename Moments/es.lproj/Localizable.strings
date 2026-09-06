@@ -4655,3 +4655,13 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "forYou.feedback.failed" = "No se pudo guardar tu preferencia. Inténtalo de nuevo.";
 "forYou.feedback.undo" = "Deshacer";
 "forYou.feedback.dismiss" = "Cerrar";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Todo";
+"explore.global.filter.username" = "Personas";
+"explore.global.filter.hashtag" = "Hashtags";
+"explore.global.filter.location" = "Lugares";
+"explore.global.loading" = "Cargando resultados";
+"explore.global.error" = "No se pudieron cargar los resultados. Inténtalo de nuevo.";
+"explore.global.retry" = "Reintentar";
+"explore.global.more" = "Cargar más";

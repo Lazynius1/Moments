@@ -7,40 +7,24 @@ struct SuggestedUsersView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     @State private var selectedProfileRoute: FeedProfileSheetRoute?
+    @State private var hasLoadedInitialUsers = false
     @Namespace private var profileZoomNamespace
     
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Header con título
-                headerView
-                
-                // Contenido principal
-                contentView
-            }
-            .onAppear {
+        contentView
+            .navigationTitle(NSLocalizedString("explore.suggestedUsers.title", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
+            .task {
+                guard !hasLoadedInitialUsers else { return }
+                hasLoadedInitialUsers = true
                 viewModel.loadInitialUsers()
             }
             .userProfileNavigationDestination(
                 item: $selectedProfileRoute,
                 namespace: profileZoomNamespace
             )
-        }
     }
-    
-    // MARK: - Header View
-    private var headerView: some View {
-        VStack(alignment: .center, spacing: 2) {
-            Text("explore.suggestedUsers.title")
-                .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                .foregroundStyle(.primary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 20)
-        .padding(.bottom, 16)
-    }
-    
-    
+
     // MARK: - Content View
     private var contentView: some View {
         Group {
@@ -70,11 +54,11 @@ struct SuggestedUsersView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 0) {
                         ForEach(viewModel.users) { user in
-                            SuggestedUserRow(
+                            SuggestedDiscoveryRow(
                                 user: user,
-                                commonInterests: Set(user.interests).intersection(Set(viewModel.currentUserInterests)).count,
+                                viewerInterests: viewModel.currentUserInterests,
                                 buttonState: viewModel.userButtonStates[user.id] ?? .canFollow,
                                 profileZoomNamespace: profileZoomNamespace,
                                 onFollow: { viewModel.followUser(user.id) },
@@ -117,6 +101,76 @@ struct SuggestedUsersView: View {
 }
 
 // MARK: - Fila de Usuario Sugerido
+private struct SuggestedDiscoveryRow: View {
+    let user: AppUser
+    let viewerInterests: [String]
+    let buttonState: FollowButtonState
+    var profileZoomNamespace: Namespace.ID?
+    let onFollow: () -> Void
+    let onTap: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var sharedInterests: [String] {
+        let own = Set(viewerInterests.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
+        var seen = Set<String>()
+        return user.interests.filter {
+            let key = $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return own.contains(key) && seen.insert(key).inserted
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Button(action: onTap) {
+                    ProfileImageeView(imagePath: user.profileImagePath, size: 52)
+                        .userProfileZoomSource(userId: user.id, namespace: profileZoomNamespace, cornerRadius: 26)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(user.username))
+                Button(action: onTap) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text(user.username).font(.body.weight(.semibold)).lineLimit(1)
+                            if user.isVerified { VerifiedBadge(size: 12) }
+                        }
+                        if !sharedInterests.isEmpty {
+                            Text(String(format: NSLocalizedString("explore.suggestedUsers.commonInterests", comment: ""), sharedInterests.count))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                ModernFollowButton(state: buttonState, isLoading: false, colorScheme: colorScheme,
+                    targetUserId: user.id, style: .compact, action: onFollow)
+            }
+            Button(action: onTap) {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let bio = user.bio?.trimmingCharacters(in: .whitespacesAndNewlines), !bio.isEmpty {
+                        Text(bio).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                    let interests = sharedInterests.isEmpty ? user.interests : sharedInterests
+                    if !interests.isEmpty {
+                        Text(interests.prefix(3).joined(separator: " · "))
+                            .font(.subheadline)
+                            .foregroundStyle(sharedInterests.isEmpty ? Color.secondary : Color.accentColor)
+                            .lineLimit(2)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Divider().padding(.top, 6)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity)
+    }
+}
+
 struct SuggestedUserRow: View {
     let user: AppUser
     let commonInterests: Int

@@ -4402,3 +4402,13 @@
 "forYou.feedback.failed" = "無法儲存偏好設定。請再試一次。";
 "forYou.feedback.undo" = "復原";
 "forYou.feedback.dismiss" = "關閉";
+
+// Global Explore search
+"explore.global.filter.mixed" = "全部";
+"explore.global.filter.username" = "用戶";
+"explore.global.filter.hashtag" = "主題標籤";
+"explore.global.filter.location" = "地點";
+"explore.global.loading" = "正在載入結果";
+"explore.global.error" = "無法載入結果，請再試一次。";
+"explore.global.retry" = "重試";
+"explore.global.more" = "載入更多";

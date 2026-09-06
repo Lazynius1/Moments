@@ -4402,3 +4402,13 @@
 "forYou.feedback.failed" = "Nie udało się zapisać preferencji. Spróbuj ponownie.";
 "forYou.feedback.undo" = "Cofnij";
 "forYou.feedback.dismiss" = "Zamknij";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Wszystko";
+"explore.global.filter.username" = "Osoby";
+"explore.global.filter.hashtag" = "Hashtagi";
+"explore.global.filter.location" = "Miejsca";
+"explore.global.loading" = "Wczytywanie wyników";
+"explore.global.error" = "Nie udało się wczytać wyników. Spróbuj ponownie.";
+"explore.global.retry" = "Spróbuj ponownie";
+"explore.global.more" = "Wczytaj więcej";

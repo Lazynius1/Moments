@@ -4647,3 +4647,13 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "forYou.feedback.failed" = "Impossible d’enregistrer ta préférence. Réessaie.";
 "forYou.feedback.undo" = "Annuler";
 "forYou.feedback.dismiss" = "Fermer";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Tout";
+"explore.global.filter.username" = "Personnes";
+"explore.global.filter.hashtag" = "Hashtags";
+"explore.global.filter.location" = "Lieux";
+"explore.global.loading" = "Chargement des résultats";
+"explore.global.error" = "Impossible de charger les résultats. Réessaie.";
+"explore.global.retry" = "Réessayer";
+"explore.global.more" = "Charger plus";

@@ -477,6 +477,17 @@ service cloud.firestore {
                 get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true);
             }
 
+            // Ranking Para ti / Explore: solo Cloud Functions (admin).
+            match /recommendationHidden/{docId} {
+              allow read, write: if false;
+            }
+            match /recommendationSessions/{docId} {
+              allow read, write: if false;
+            }
+            match /exploreRecommendationSessions/{docId} {
+              allow read, write: if false;
+            }
+
             // ✅ NUEVA: Historial de conversaciones de Nova por usuario
             match /novaConversations/{conversationId} {
               allow read: if request.auth != null && request.auth.uid == userId;

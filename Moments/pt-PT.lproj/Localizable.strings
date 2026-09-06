@@ -5457,3 +5457,13 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "forYou.feedback.failed" = "Não foi possível guardar a preferência. Tenta novamente.";
 "forYou.feedback.undo" = "Anular";
 "forYou.feedback.dismiss" = "Fechar";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Tudo";
+"explore.global.filter.username" = "Pessoas";
+"explore.global.filter.hashtag" = "Hashtags";
+"explore.global.filter.location" = "Locais";
+"explore.global.loading" = "A carregar resultados";
+"explore.global.error" = "Não foi possível carregar os resultados. Tenta novamente.";
+"explore.global.retry" = "Tentar novamente";
+"explore.global.more" = "Carregar mais";

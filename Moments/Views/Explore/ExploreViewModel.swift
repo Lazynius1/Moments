@@ -30,6 +30,24 @@ class ExploreViewModel: ObservableObject {
     private var followStateObserver: NSObjectProtocol?
     private var searchWorkItem: DispatchWorkItem?
     private var activeSearchQuery: String = ""
+    @Published var isSearchingMoments = false
+    @Published var isSearchingUsers = false
+    @Published var searchFailed = false
+    @Published var hasMoreSearchResults = false
+    @Published var searchFilter = "mixed"
+    @Published var isLoadingMoreExplore = false
+    @Published var hasMoreExplore = false
+    @Published var explorePageFailed = false
+    private var searchTask: Task<Void, Never>?
+    private var searchGeneration = 0
+    private var searchCursor: String?
+    private var contentSearchQuery = ""
+    private var contentSearchMode = "mixed"
+    private var exploreTask: Task<Void, Never>?
+    private var exploreGeneration = 0
+    private var exploreCursor: FeedCursor?
+    var isSearching: Bool { isSearchingMoments || isSearchingUsers }
+
 
     init() {
         followStateObserver = NotificationCenter.default.addObserver(
@@ -52,6 +70,8 @@ class ExploreViewModel: ObservableObject {
             NotificationCenter.default.removeObserver(followStateObserver)
         }
         searchWorkItem?.cancel()
+        searchTask?.cancel()
+        exploreTask?.cancel()
     }
 
 
@@ -63,6 +83,7 @@ class ExploreViewModel: ObservableObject {
         }
 
         self.currentUserId = userId
+        loadExplorePage(reset: true)
         isLoading = true
         errorMessage = nil
 
@@ -70,7 +91,7 @@ class ExploreViewModel: ObservableObject {
         let cachedMoments = LocalPersistenceService.shared.loadExploreMoments()
         if !cachedMoments.isEmpty && self.moments.isEmpty {
             self.moments = cachedMoments
-            self.filteredMoments = cachedMoments
+            if activeSearchQuery.isEmpty { self.filteredMoments = cachedMoments }
             self.isLoading = false // UI instantánea con datos cacheados
         }
 
@@ -182,8 +203,7 @@ class ExploreViewModel: ObservableObject {
             }
 
             // Cargar momentos de una muestra diversa de usuarios
-            let userIds = Array(sortedUsers.prefix(100).map { $0.id })
-            self.loadMomentsFromUsers(userIds: userIds)
+            // Recommendations are loaded independently by the ranked backend.
         }
     }
 
@@ -209,100 +229,6 @@ class ExploreViewModel: ObservableObject {
 
                 completion(users)
             }
-    }
-
-    // MARK: - ✅ FUNCIÓN ACTUALIZADA: Cargar momentos con filtrado específico para Explore
-    private func loadMomentsFromUsers(userIds: [String]) {
-
-
-        self.firestoreService.fetchMomentsFromUsers(userIds: userIds) { [weak self] result in
-            guard let self = self else { return }
-
-            switch result {
-            case .success(let allMoments):
-
-
-                // ✅ USAR LA FUNCIÓN DE FILTRADO ESPECÍFICA PARA EXPLORE
-                self.filterMomentsForExploreVisibility(moments: allMoments) { filteredMoments in
-                    DispatchQueue.main.async {
-                        self.isLoading = false
-                        self.moments = filteredMoments
-                        self.filteredMoments = filteredMoments
-
-                        // ✅ SwiftData: Guardar en caché local para offline
-                        Task { @MainActor in
-                            // Usamos sync: true para purgar momentos que ya no son tendencia/interés
-                            LocalPersistenceService.shared.saveExploreMoments(filteredMoments, sync: true)
-                        }
-
-                        // ✅ Ya no necesitamos llamar a loadConnectionsOptionally aquí
-                        // porque se cargan en paralelo al inicio de la vista
-                    }
-                }
-
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.errorMessage = String(
-                        format: NSLocalizedString("errors.momentsLoadFailed", comment: "Moments load failed"),
-                        error.localizedDescription
-                    )
-                }
-            }
-        }
-    }
-
-    // MARK: - ✅ FUNCIÓN DE FILTRADO ESPECÍFICA PARA EXPLORE
-    private func filterMomentsForExploreVisibility(moments: [Moment], completion: @escaping ([Moment]) -> Void) {
-        guard let currentUserId = self.currentUserId else {
-            completion([])
-            return
-        }
-
-        let group = DispatchGroup()
-        var visibleMoments: [Moment] = []
-        let syncQueue = DispatchQueue(label: "explore.moments.filter", attributes: .concurrent)
-
-
-
-        for moment in moments {
-            // Excluir momentos del propio usuario (Explore es para descubrir contenido de otros)
-            guard moment.authorId != currentUserId else {
-                continue
-            }
-
-            // Excluir usuarios bloqueados (filtro básico)
-            guard !blockedUsers.contains(moment.authorId) else {
-                continue
-            }
-
-            group.enter()
-
-            // ✅ USAR LA NUEVA FUNCIÓN ESPECÍFICA PARA EXPLORE
-            privacyService.canUserViewMomentInExplore(moment, viewerId: currentUserId) { canView in
-                if canView {
-                    syncQueue.sync {
-                        visibleMoments.append(moment)
-                    }
-                }
-                group.leave()
-            }
-        }
-
-        group.notify(queue: .main) {
-            // ✅ SEGURO: Obtener la lista final de manera thread-safe
-            let finalVisibleMoments = syncQueue.sync {
-                visibleMoments
-            }
-
-            // Mantener el orden original por timestamp
-            let orderedVisibleMoments = moments.filter { moment in
-                finalVisibleMoments.contains { $0.id == moment.id }
-            }
-
-
-            completion(orderedVisibleMoments)
-        }
     }
 
     // MARK: - Cargar conexiones PRIMERO (antes de mostrar usuarios sugeridos)
@@ -596,6 +522,10 @@ extension ExploreViewModel {
 
     // ✅ FUNCIÓN PARA LIMPIAR DATOS
     func clearData() {
+        smartSearch(query: "")
+        exploreGeneration += 1
+        exploreTask?.cancel()
+        hasMoreExplore = false
         moments = []
         filteredMoments = []
         searchedUsers = []
@@ -667,34 +597,14 @@ extension ExploreViewModel {
 }
 
 extension ExploreViewModel {
-    // ✅ FUNCIÓN para buscar por hashtag
     func searchByHashtag(_ hashtag: String) {
-
-
-        // Limpiar búsqueda de usuarios
-        searchedUsers = []
-
-        // Buscar momentos que contengan el hashtag
-        let filteredByHashtag = moments.filter { moment in
-            moment.content.lowercased().contains("#\(hashtag.lowercased())")
-        }
-
-        filteredMoments = filteredByHashtag
-
+        searchFilter = "hashtag"
+        smartSearch(query: "#" + hashtag.trimmingCharacters(in: CharacterSet(charactersIn: "#")))
     }
 
-    // ✅ FUNCIÓN para explorar por ubicación
     func exploreByLocation(_ locationName: String) {
-
-
-        // Filtrar momentos de esa ubicación
-        let filteredByLocation = moments.filter { moment in
-            (moment.location ?? "").lowercased().contains(locationName.lowercased())
-        }
-
-        filteredMoments = filteredByLocation
-        searchedUsers = []
-
+        searchFilter = "location"
+        smartSearch(query: locationName)
     }
 
     // ✅ FUNCIÓN para refrescar todo
@@ -721,36 +631,99 @@ struct ExploreHapticFeedback {
 
 extension ExploreViewModel {
 
-    // ✅ NUEVA FUNCIÓN: Búsqueda inteligente que reemplaza searchUsers
-    func smartSearch(query: String) {
-        activeSearchQuery = query
-        searchWorkItem?.cancel()
+    func setSearchFilter(_ filter: String) {
+        searchFilter = filter
+        smartSearch(query: activeSearchQuery)
+    }
 
-        if query.isEmpty {
-            searchedUsers = []
-            filteredMoments = self.moments
+    func smartSearch(query: String) {
+        activeSearchQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        searchWorkItem?.cancel()
+        searchTask?.cancel()
+        searchTask = nil
+        searchGeneration += 1
+        let generation = searchGeneration
+        searchCursor = nil
+        hasMoreSearchResults = false
+        searchFailed = false
+        searchedUsers = []
+        filteredMoments = []
+        isSearchingMoments = false
+        isSearchingUsers = false
+        guard !activeSearchQuery.isEmpty else {
+            filteredMoments = moments
             return
         }
-
+        let raw = activeSearchQuery
+        let mode = raw.hasPrefix("#") ? "hashtag" : raw.hasPrefix("@") ? "username" : searchFilter
+        let clean = (raw.hasPrefix("#") || raw.hasPrefix("@")) ? String(raw.dropFirst()) : raw
+        contentSearchQuery = clean
+        contentSearchMode = mode
+        guard !clean.isEmpty else { return }
+        isSearchingMoments = mode != "username"
+        isSearchingUsers = mode == "username" || mode == "mixed"
         let workItem = DispatchWorkItem { [weak self] in
-            guard let self, self.activeSearchQuery == query else { return }
-
-            switch self.detectSearchType(query: query) {
-            case .hashtag(let hashtag):
-                self.searchHashtags(hashtag: hashtag)
-            case .username(let username):
-                self.searchUsers(username: username)
-            case .location(let location):
-                self.searchLocations(location: location)
-            case .mixed(let cleanQuery):
-                self.searchEverything(query: cleanQuery)
-            }
+            guard let self, self.searchGeneration == generation else { return }
+            if self.isSearchingUsers { self.searchUsers(username: clean) }
+            if self.isSearchingMoments { self.loadMoreSearchResults() }
         }
-
         searchWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
-        // NOTA: El historial se guarda explícitamente en .onSubmit o al tocar un resultado
-        // para evitar que cada pulsación de tecla genere una entrada en el historial.
+    }
+
+    func retrySearch() { smartSearch(query: activeSearchQuery) }
+
+    func loadMoreSearchResults() {
+        guard searchTask == nil || !isSearchingMoments else { return }
+        guard contentSearchMode != "username", !contentSearchQuery.isEmpty else { return }
+        let generation = searchGeneration
+        let uid = Auth.auth().currentUser?.uid
+        isSearchingMoments = true
+        searchFailed = false
+        searchTask = Task { [weak self] in
+            guard let self else { return }
+            let page = await BackendFeedService.shared.searchMoments(query: contentSearchQuery, mode: contentSearchMode, cursor: searchCursor)
+            guard !Task.isCancelled, self.searchGeneration == generation, Auth.auth().currentUser?.uid == uid else { return }
+            self.isSearchingMoments = false
+            self.searchTask = nil
+            guard let page else { self.searchFailed = true; return }
+            var keys = Set(self.filteredMoments.map { "\($0.authorId)/\($0.id ?? "")" })
+            self.filteredMoments += page.moments.filter { keys.insert("\($0.authorId)/\($0.id ?? "")").inserted }
+            self.searchCursor = page.nextCursor
+            self.hasMoreSearchResults = page.nextCursor != nil
+        }
+    }
+
+    func loadMoreExplore() { loadExplorePage(reset: false) }
+
+    private func loadExplorePage(reset: Bool) {
+        if !reset && (isLoadingMoreExplore || (!hasMoreExplore && !explorePageFailed)) { return }
+        if reset {
+            exploreGeneration += 1
+            exploreTask?.cancel()
+            exploreCursor = nil
+            hasMoreExplore = false
+        }
+        let generation = exploreGeneration
+        let replacesResults = reset || exploreCursor == nil
+        let uid = Auth.auth().currentUser?.uid
+        isLoadingMoreExplore = true
+        explorePageFailed = false
+        exploreTask = Task { [weak self] in
+            guard let self else { return }
+            let page = await BackendFeedService.shared.fetchExplorePage(cursor: self.exploreCursor)
+            guard !Task.isCancelled, self.exploreGeneration == generation, Auth.auth().currentUser?.uid == uid else { return }
+            self.isLoading = false
+            self.isLoadingMoreExplore = false
+            guard let page else { self.explorePageFailed = true; return }
+            if replacesResults { self.moments = [] }
+            var keys = Set(self.moments.map { "\($0.authorId)/\($0.id ?? "")" })
+            self.moments += page.moments.filter { keys.insert("\($0.authorId)/\($0.id ?? "")").inserted }
+            if self.activeSearchQuery.isEmpty { self.filteredMoments = self.moments }
+            self.exploreCursor = page.nextCursor
+            self.hasMoreExplore = page.nextCursor != nil
+            LocalPersistenceService.shared.saveExploreMoments(Array(self.moments.prefix(120)), sync: true)
+        }
     }
 
     // ✅ DETECTAR tipo de búsqueda
@@ -769,150 +742,29 @@ extension ExploreViewModel {
             return .username(username)
         }
 
-        // 3. Ubicación: contiene palabras clave
-        let locationKeywords = ["en ", "lugar ", "city ", "ciudad ", "beach ", "playa ", "restaurant ", "cafe "]
-        if locationKeywords.contains(where: { trimmedQuery.lowercased().contains($0) }) {
-            return .location(trimmedQuery)
-        }
-
         // 4. Mixto: buscar en todo
         return .mixed(trimmedQuery)
     }
 
-    // ✅ BUSCAR usuarios (función original mejorada CON FILTRADO COMPLETO)
     private func searchUsers(username: String) {
-        filteredMoments = [] // Limpiar momentos
-        let cleanUsername = username.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanUsername.isEmpty else {
-            searchedUsers = []
-            return
-        }
-
-        firestoreService.searchUsers(query: cleanUsername, limit: 20) { [weak self] result in
-            guard let self = self else { return }
-
-            switch result {
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self.errorMessage = String(
-                        format: NSLocalizedString("errors.searchUsersFailed", comment: "Search users failed"),
-                        error.localizedDescription
-                    )
-                }
-            case .success(let users):
-                let currentUserId = self.currentUserId ?? ""
-                let filteredUsers = users.filter { user in
-                    guard user.id != currentUserId else { return false }
-                    guard !self.blockedUsers.contains(user.id) else { return false }
-                    guard !user.blockedUsers.contains(currentUserId) else { return false }
-                    return true
-                }
-
-                DispatchQueue.main.async {
-                    self.searchedUsers = filteredUsers
+        let generation = searchGeneration
+        let uid = Auth.auth().currentUser?.uid
+        firestoreService.searchUsers(query: username.lowercased(), limit: 20) { [weak self] result in
+            Task { @MainActor in
+                guard let self, self.searchGeneration == generation, Auth.auth().currentUser?.uid == uid else { return }
+                self.isSearchingUsers = false
+                switch result {
+                case .failure:
+                    self.searchFailed = true
+                case .success(let users):
+                    self.searchedUsers = users.filter { $0.id != uid && !self.blockedUsers.contains($0.id) && !$0.blockedUsers.contains(uid ?? "") }
                 }
             }
-        }
-    }
-    private func searchHashtags(hashtag: String) {
-
-
-        // Debug de cada momento
-        for _ in moments.enumerated() {
-
-
-        }
-
-        searchedUsers = []
-
-        let candidateMoments = moments.filter { moment in
-            // 1. Debe contener el hashtag
-            guard moment.content.lowercased().contains("#\(hashtag)") else {
-
-                return false
-            }
-
-            // 2. No debe ser de usuarios bloqueados
-            guard !blockedUsers.contains(moment.authorId) else {
-
-                return false
-            }
-
-            // 3. No debe ser tuyo (explore es para descubrir)
-            guard moment.authorId != currentUserId else {
-
-                return false
-            }
-
-
-            return true
-        }
-
-        filteredMoments = candidateMoments
-
-    }
-
-    // ✅ BUSCAR por ubicaciones CON FILTRADO DE PRIVACIDAD
-    private func searchLocations(location: String) {
-        searchedUsers = [] // Limpiar usuarios
-
-        // ✅ FILTRAR: momentos visibles en la lista cargada + sin bloqueos
-        let candidateMoments = moments.filter { moment in
-            // 1. Debe tener ubicación que coincida
-            guard let momentLocation = moment.location else { return false }
-            guard momentLocation.lowercased().contains(location.lowercased()) else { return false }
-
-            // 2. No debe ser de usuarios bloqueados
-            guard !blockedUsers.contains(moment.authorId) else { return false }
-
-            // 3. No debe ser tuyo (explore es para descubrir)
-            guard moment.authorId != currentUserId else { return false }
-
-            return true
-        }
-
-        filteredMoments = candidateMoments
-
-    }
-
-    // ✅ BÚSQUEDA MIXTA: usuarios + hashtags + ubicaciones CON FILTRADO
-    private func searchEverything(query: String) {
-        let lowercaseQuery = query.lowercased()
-
-        // 1. Buscar usuarios (ya tiene filtrado correcto)
-        searchUsers(username: lowercaseQuery)
-
-        // 2. Buscar momentos CON FILTRADO DE PRIVACIDAD
-        let candidateMoments = moments.filter { moment in
-            // Verificar coincidencias
-            let contentMatch = moment.content.lowercased().contains(lowercaseQuery)
-            let locationMatch = (moment.location ?? "").lowercased().contains(lowercaseQuery)
-            let usernameMatch = moment.username.lowercased().contains(lowercaseQuery)
-
-            // Debe tener alguna coincidencia
-            guard contentMatch || locationMatch || usernameMatch else { return false }
-
-            // ✅ FILTROS DE PRIVACIDAD:
-            // 1. No debe ser de usuarios bloqueados
-            guard !blockedUsers.contains(moment.authorId) else { return false }
-
-            // 2. No debe ser tuyo (explore es para descubrir)
-            guard moment.authorId != currentUserId else { return false }
-
-            return true
-        }
-
-        DispatchQueue.main.async {
-            self.filteredMoments = candidateMoments
-
         }
     }
 }
 
-// MARK: - 🎯 Tipos de búsqueda
+// Search history categories.
 enum SearchType {
-    case hashtag(String)     // #viaje
-    case username(String)    // @juan
-    case location(String)    // Madrid, playa, etc.
-    case mixed(String)       // búsqueda general
+    case hashtag(String), username(String), location(String), mixed(String)
 }

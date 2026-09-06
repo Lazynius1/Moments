@@ -4647,3 +4647,13 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "forYou.feedback.failed" = "Impossibile salvare la preferenza. Riprova.";
 "forYou.feedback.undo" = "Annulla";
 "forYou.feedback.dismiss" = "Chiudi";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Tutto";
+"explore.global.filter.username" = "Persone";
+"explore.global.filter.hashtag" = "Hashtag";
+"explore.global.filter.location" = "Luoghi";
+"explore.global.loading" = "Caricamento dei risultati";
+"explore.global.error" = "Impossibile caricare i risultati. Riprova.";
+"explore.global.retry" = "Riprova";
+"explore.global.more" = "Carica altro";

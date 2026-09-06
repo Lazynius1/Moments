@@ -4402,3 +4402,13 @@
 "forYou.feedback.failed" = "설정을 저장하지 못했어요. 다시 시도해 주세요.";
 "forYou.feedback.undo" = "실행 취소";
 "forYou.feedback.dismiss" = "닫기";
+
+// Global Explore search
+"explore.global.filter.mixed" = "전체";
+"explore.global.filter.username" = "사람";
+"explore.global.filter.hashtag" = "해시태그";
+"explore.global.filter.location" = "장소";
+"explore.global.loading" = "결과 불러오는 중";
+"explore.global.error" = "결과를 불러오지 못했어요. 다시 시도해 주세요.";
+"explore.global.retry" = "다시 시도";
+"explore.global.more" = "더 불러오기";

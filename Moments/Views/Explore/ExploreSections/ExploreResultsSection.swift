@@ -3,6 +3,13 @@ import SwiftUI
 // MARK: - 🎨 Componente de resultados de búsqueda mejorado
 struct SmartSearchResultsView: View {
     let searchQuery: String
+    var isLoading = false
+    var failed = false
+    var hasMore = false
+    var filter = "mixed"
+    var onFilter: (String) -> Void = { _ in }
+    var onLoadMore: () -> Void = {}
+    var onRetry: () -> Void = {}
     let users: [AppUser]
     let moments: [Moment]
     let userButtonStates: [String: FollowButtonState]
@@ -14,7 +21,8 @@ struct SmartSearchResultsView: View {
     let onMomentTap: (Moment, Int, [Moment]) -> Void
 
     var searchType: SearchDisplayType {
-        if searchQuery.hasPrefix("#") {
+        if moments.isEmpty && users.isEmpty { return .empty }
+        if searchQuery.hasPrefix("#") || filter == "hashtag" {
             return .hashtag
         } else if searchQuery.hasPrefix("@") {
             return .users
@@ -31,8 +39,20 @@ struct SmartSearchResultsView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            // Header con tipo de búsqueda
-            searchHeader
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(["mixed", "username", "hashtag", "location"], id: \.self) { value in
+                        Button { onFilter(value) } label: {
+                            Text(LocalizedStringKey("explore.global.filter." + value))
+                                .font(.subheadline.weight(.medium))
+                                .padding(.horizontal, 14).padding(.vertical, 9)
+                                .background(filter == value ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08), in: Capsule())
+                        }
+                        .accessibilityAddTraits(filter == value ? .isSelected : [])
+                    }
+                }.padding(.horizontal, 24)
+            }
+            if !users.isEmpty || !moments.isEmpty { searchHeader }
 
             // Resultados según el tipo
             switch searchType {
@@ -49,8 +69,10 @@ struct SmartSearchResultsView: View {
                 mixedResultsView
 
             case .empty:
-                EmptySearchView()
+                if !isLoading && !failed && !hasMore { EmptySearchView() }
             }
+            ExplorePagingFooter(isLoading: isLoading, failed: failed, hasMore: hasMore,
+                onLoadMore: onLoadMore, onRetry: onRetry)
         }
     }
 
@@ -395,5 +417,29 @@ struct RecentSearchesView: View {
         case "hashtag": return NSLocalizedString("search.type.hashtag", comment: "")
         default: return NSLocalizedString("search.type.recent", comment: "")
         }
+    }
+}
+
+struct ExplorePagingFooter: View {
+    let isLoading: Bool
+    let failed: Bool
+    let hasMore: Bool
+    let onLoadMore: () -> Void
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if isLoading {
+                ProgressView().accessibilityLabel(Text("explore.global.loading"))
+            } else if failed {
+                Text("explore.global.error").foregroundStyle(.secondary)
+                Button("explore.global.retry", action: onRetry)
+            } else if hasMore {
+                Button("explore.global.more", action: onLoadMore)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
     }
 }

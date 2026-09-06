@@ -166,209 +166,65 @@ struct ErrorStateView: View {
     }
 }
 
-// MARK: - Sección de Usuarios Sugeridos
+// MARK: - Suggested people: a quiet avatar row above the grid
 struct SuggestedUsersSection: View {
     let users: [AppUser]
-    let moments: [Moment] // ✅ Recibimos momentos ya filtrados
-    let currentUserInterests: [String]
-    let userButtonStates: [String: FollowButtonState]
-    let onFollowUser: (String) -> Void
     let onUserTap: (AppUser) -> Void
     let onShowMore: () -> Void
     var profileZoomNamespace: Namespace.ID? = nil
 
     var body: some View {
         if !users.isEmpty {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("explore.suggestedUsers.title")
-                            .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                            .foregroundStyle(.primary)
-
-                        Text("explore.suggestedUsers.subtitle")
-                            .font(.system(size: legacyPoppinsSize(13)))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Button("explore.suggestedUsers.seeMore") {
-                        onShowMore()
-                    }
-                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    Text("explore.suggestedUsers.title")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: 8)
+                    Button("explore.suggestedUsers.seeMore", action: onShowMore)
+                        .font(.subheadline)
+                        .frame(minHeight: 44)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
                 }
-                .padding(.horizontal, 10)
-                .padding(.top, 10)
+                .padding(.horizontal, 20)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
+                    HStack(alignment: .top, spacing: 8) {
                         ForEach(users) { user in
-                            // ✅ Buscar el último momento visible de este usuario
-                            let latestMoment = moments.first(where: { $0.authorId == user.id })
-
-                            SuggestedUserCard(
-                                user: user,
-                                backgroundMoment: latestMoment,
-                                commonInterests: Set(user.interests).intersection(Set(currentUserInterests)).count,
-                                buttonState: userButtonStates[user.id] ?? .canFollow,
-                                profileZoomNamespace: profileZoomNamespace,
-                                onFollow: { onFollowUser(user.id) },
-                                onTap: { onUserTap(user) }
-                            )
+                            SuggestedUserAvatar(user: user, profileZoomNamespace: profileZoomNamespace) {
+                                onUserTap(user)
+                            }
                         }
                     }
-                    .padding(.horizontal, 10)
                 }
             }
         }
     }
 }
 
-// MARK: - Tarjeta de Usuario Sugerido
-struct SuggestedUserCard: View {
+private struct SuggestedUserAvatar: View {
     let user: AppUser
-    let backgroundMoment: Moment? // ✅ Momento para el fondo
-    let commonInterests: Int
-    let buttonState: FollowButtonState
-    var profileZoomNamespace: Namespace.ID? = nil
-    let onFollow: () -> Void
+    var profileZoomNamespace: Namespace.ID?
     let onTap: () -> Void
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ZStack {
-            // ✅ FONDO: Imagen del momento o Gradiente
-            GeometryReader { geometry in
-                // ✅ NUEVO: Priorizar thumbnailUrl (video) o imagePath (imagen) para el fondo
-                let url = backgroundMoment?.previewImageURLString.flatMap { getImageURL(from: $0) }
-
-                if let bgUrl = url {
-                    KFImage(bgUrl)
-                        .placeholder {
-                            defaultBackground
-                        }
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 132, height: 176)
-                        .clipped()
-                        .blur(radius: 4)
-                        .overlay(
-                            // Overlay oscuro para legibilidad
-                            LinearGradient(
-                                colors: [.black.opacity(0.50), .black.opacity(0.18)],
-                                startPoint: .bottom,
-                                endPoint: .top
-                            )
-                        )
-                } else {
-                    defaultBackground
-                }
+        Button(action: onTap) {
+            VStack(spacing: 6) {
+                ProfileImageeView(imagePath: user.profileImagePath, size: 44)
+                    .userProfileZoomSource(userId: user.id, namespace: profileZoomNamespace, cornerRadius: 22)
+                Text(user.username)
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
             }
-
-            // ✅ CONTENIDO
-            VStack(spacing: 9) {
-                Spacer()
-
-                // Profile Image with Glow
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.3))
-                        .frame(width: 48, height: 48)
-                        .blur(radius: 6)
-
-                    ProfileImageeView(imagePath: user.profileImagePath, size: 42)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white, lineWidth: 1.5)
-                        )
-                        .userProfileZoomSource(
-                            userId: user.id,
-                            namespace: profileZoomNamespace,
-                            cornerRadius: 21
-                        )
-                }
-
-                VStack(spacing: 3) {
-                    HStack(spacing: 4) {
-                        Text(user.username)
-                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                            .foregroundStyle(.white) // ✅ Texto blanco siempre
-                            .lineLimit(1)
-                            .shadow(radius: 2)
-
-                        VerifiedBadgeView(userId: user.id, size: 10)
-                    }
-
-                    if commonInterests > 0 {
-                        Text(String(format: NSLocalizedString("explore.commonInterests", comment: "Common interests"), commonInterests))
-                            .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                            .foregroundStyle(.white.opacity(0.82))
-                            .lineLimit(1)
-                    } else {
-                        Text(NSLocalizedString("explore.suggestedUsers.suggestedForYou", comment: ""))
-                             .font(.system(size: legacyPoppinsSize(10), weight: .medium))
-                             .foregroundStyle(.white.opacity(0.82))
-                    }
-                }
-
-                Button(action: onFollow) {
-                    Text(buttonTitle)
-                        .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                        .momentsChromeGlass(in: Capsule(), interactive: buttonState.isActionable)
-                }
-                .disabled(!buttonState.isActionable)
-                .opacity(isPassiveButtonState ? 0.78 : 1)
-            }
-            .padding(10)
-            .padding(.bottom, 8)
+            .frame(width: 76)
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
         }
-        .frame(width: 132, height: 176)
-        .background(Color.black) // Fallback color
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.white.opacity(0.24), lineWidth: 0.8)
-        )
-        .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 3)
-        .contentShape(RoundedRectangle(cornerRadius: 18))
-        .onTapGesture { onTap() }
-    }
-
-    private var defaultBackground: some View {
-        (Color.primary.opacity(0.06))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial.opacity(0.55))
-            )
-    }
-
-    private var buttonTitle: String {
-        switch buttonState {
-        case .following:
-            return NSLocalizedString("userProfile.followButton.following", comment: "")
-        case .canRequestFollow:
-            return NSLocalizedString("feed.follow.request", comment: "")
-        case .requestPending:
-            return NSLocalizedString("feed.follow.requested", comment: "")
-        case .requestPendingCancellable:
-            return NSLocalizedString("feed.follow.cancelRequest", comment: "")
-        case .blocked:
-            return NSLocalizedString("userProfile.followButton.blocked", comment: "")
-        default:
-            return NSLocalizedString("userProfile.followButton.canFollow", comment: "")
-        }
-    }
-
-    private var isPassiveButtonState: Bool {
-        if case .requestPending = buttonState {
-            return true
-        }
-        return false
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(user.username))
     }
 }
 

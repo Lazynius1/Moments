@@ -1552,6 +1552,7 @@ async function buildDataExportPayload(userId, exportType, requestedFormat, pin) 
     payload.savedMoments = await fetchUserSubcollection(userId, 'savedMoments');
     payload.visits = await fetchUserSubcollection(userId, 'visits');
     payload.visitSummaries = await fetchUserSubcollection(userId, 'visitSummaries');
+    payload.recommendationHidden = await fetchUserSubcollection(userId, 'recommendationHidden');
     payload.comments = await fetchUserComments(userId);
     payload.reactions = stripInternalFields(await fetchUserReactions(userId), ['processed']);
 
@@ -1724,7 +1725,7 @@ function buildReadmeContent(payload, requestedFormat, exportType) {
   if (exportType !== 'mediaOnly') {
     lines.push(
       '- comments_and_reactions/comments.json, reactions.json',
-      '- activity/notifications.json, visits.json, visit_summaries.json'
+      '- activity/notifications.json, visits.json, visit_summaries.json, recommendation_hidden.json'
     );
   }
   lines.push(
@@ -2209,6 +2210,7 @@ async function buildExportZipParts(payload, requestedFormat, exportType, userId)
   if (payload.notifications) metaZip.file('activity/notifications.json', JSON.stringify(payload.notifications, null, 2));
   if (payload.visits) metaZip.file('activity/visits.json', JSON.stringify(payload.visits, null, 2));
   if (payload.visitSummaries) metaZip.file('activity/visit_summaries.json', JSON.stringify(payload.visitSummaries, null, 2));
+  if (payload.recommendationHidden) metaZip.file('activity/recommendation_hidden.json', JSON.stringify(payload.recommendationHidden, null, 2));
 
   metaZip.file('conversations/media_manifest.json', JSON.stringify(conversationMediaManifest, null, 2));
   if (payload.nova) {

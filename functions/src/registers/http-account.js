@@ -414,7 +414,10 @@ const deleteMyAccount = onRequest(
         runNamedCleanup('loginActivity.userId', () => deleteQueryDocs(db.collection('loginActivity').where('userId', '==', uid))),
         runNamedCleanup('novamemory.userId', () => deleteQueryDocs(db.collection('novamemory').where('userId', '==', uid))),
         runNamedCleanup('visitorsummaries.userId', () => deleteQueryDocs(db.collection('visitorsummaries').where('userId', '==', uid))),
-        runNamedCleanup('visits.userId', () => deleteQueryDocs(db.collection('visits').where('userId', '==', uid)))
+        runNamedCleanup('visits.userId', () => deleteQueryDocs(db.collection('visits').where('userId', '==', uid))),
+        runNamedCleanup('recommendationHidden', () => deleteQueryDocs(userRef.collection('recommendationHidden'))),
+        runNamedCleanup('recommendationSessions', () => deleteQueryDocs(userRef.collection('recommendationSessions'))),
+        runNamedCleanup('exploreRecommendationSessions', () => deleteQueryDocs(userRef.collection('exploreRecommendationSessions')))
       ]);
 
       const conversationsSnap = await runNamedCleanup('conversations.participants', () => db.collection('conversations')

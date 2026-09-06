@@ -4402,3 +4402,13 @@
 "forYou.feedback.failed" = "Tercih kaydedilemedi. Tekrar dene.";
 "forYou.feedback.undo" = "Geri al";
 "forYou.feedback.dismiss" = "Kapat";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Tümü";
+"explore.global.filter.username" = "Kişiler";
+"explore.global.filter.hashtag" = "Etiketler";
+"explore.global.filter.location" = "Yerler";
+"explore.global.loading" = "Sonuçlar yükleniyor";
+"explore.global.error" = "Sonuçlar yüklenemedi. Tekrar dene.";
+"explore.global.retry" = "Tekrar dene";
+"explore.global.more" = "Daha fazla yükle";

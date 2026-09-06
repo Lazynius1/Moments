@@ -830,6 +830,7 @@ class AccountManagementService {
                 }
 
                 do {
+                    ForYouPreferences.shared.clearAccountData(owner: user.uid)
                     try Auth.auth().signOut()
                     completion(.success(()))
                 } catch {

@@ -4402,3 +4402,13 @@
 "forYou.feedback.failed" = "Je voorkeur kon niet worden opgeslagen. Probeer het opnieuw.";
 "forYou.feedback.undo" = "Ongedaan maken";
 "forYou.feedback.dismiss" = "Sluiten";
+
+// Global Explore search
+"explore.global.filter.mixed" = "Alles";
+"explore.global.filter.username" = "Personen";
+"explore.global.filter.hashtag" = "Hashtags";
+"explore.global.filter.location" = "Plaatsen";
+"explore.global.loading" = "Resultaten laden";
+"explore.global.error" = "De resultaten konden niet worden geladen. Probeer het opnieuw.";
+"explore.global.retry" = "Opnieuw proberen";
+"explore.global.more" = "Meer laden";

@@ -4402,3 +4402,13 @@
 "forYou.feedback.failed" = "設定を保存できませんでした。もう一度お試しください。";
 "forYou.feedback.undo" = "元に戻す";
 "forYou.feedback.dismiss" = "閉じる";
+
+// Global Explore search
+"explore.global.filter.mixed" = "すべて";
+"explore.global.filter.username" = "ユーザー";
+"explore.global.filter.hashtag" = "ハッシュタグ";
+"explore.global.filter.location" = "場所";
+"explore.global.loading" = "結果を読み込み中";
+"explore.global.error" = "結果を読み込めませんでした。もう一度お試しください。";
+"explore.global.retry" = "再試行";
+"explore.global.more" = "さらに読み込む";

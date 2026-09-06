@@ -4402,3 +4402,13 @@
 "forYou.feedback.failed" = "पसंद सहेजी नहीं जा सकी। फिर से कोशिश करें।";
 "forYou.feedback.undo" = "पहले जैसा करें";
 "forYou.feedback.dismiss" = "बंद करें";
+
+// Global Explore search
+"explore.global.filter.mixed" = "सभी";
+"explore.global.filter.username" = "लोग";
+"explore.global.filter.hashtag" = "हैशटैग";
+"explore.global.filter.location" = "स्थान";
+"explore.global.loading" = "नतीजे लोड हो रहे हैं";
+"explore.global.error" = "नतीजे लोड नहीं हो सके। फिर से कोशिश करें।";
+"explore.global.retry" = "फिर से कोशिश करें";
+"explore.global.more" = "और लोड करें";

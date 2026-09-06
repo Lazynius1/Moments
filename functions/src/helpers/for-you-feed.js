@@ -13,12 +13,14 @@ async function getDocuments(db, refs) {
   return docs;
 }
 
-async function visibleEntries(db, uid, viewerCtx, docs) {
+async function visibleEntries(db, uid, viewerCtx, docs, surface = 'feed') {
   const h = require('./feed');
   const candidates = docs.filter(doc => {
     if (!doc.exists) return false;
     const data = doc.data();
-    return h.isMomentPathAuthorConsistent(doc, data) && !data.isArchived
+    return (surface !== 'explore' || (data.isModerationHidden !== true && (Array.isArray(data.mediaItems) && data.mediaItems.length
+      ? data.mediaItems.some(item => item.url && !item.isHiddenByModeration) : data.imagePath || data.videoUrl)))
+      && h.isMomentPathAuthorConsistent(doc, data) && !data.isArchived
       && !h.isExcludedForYouAuthor(data.authorId, uid, viewerCtx)
       && !viewerCtx.mutedUsers.has(data.authorId)
       && !(h.tsToMillis(data.scheduledDate) > Date.now());
@@ -74,10 +76,10 @@ async function recordFeedback(db, uid, body, viewerCtx) {
   });
 }
 
-async function rankedPage({ db, uid, viewerCtx, body, limit, attempt = 0 }) {
+async function rankedPage({ db, uid, viewerCtx, body, limit, surface = 'feed', attempt = 0 }) {
   const h = require('./feed');
   const admin = require('../bootstrap').admin;
-  const sessions = db.collection(`users/${uid}/recommendationSessions`);
+  const sessions = db.collection(`users/${uid}/${surface === 'explore' ? 'exploreRecommendationSessions' : 'recommendationSessions'}`);
   const match = /^fy2_([a-f0-9]{32})_(\d{1,5})(?:_\d+)?$/.exec(body.cursor?.momentId || '');
   let session, ref, offset = 0;
   if (match) {
@@ -127,7 +129,7 @@ async function rankedPage({ db, uid, viewerCtx, body, limit, attempt = 0 }) {
     const previous = new Set(session.keys);
     const unique = [...new Map(candidateDocs.map(doc => [doc.ref.path, doc])).values()]
       .filter(doc => !previous.has(keyFor(doc.data().authorId, doc.id)));
-    const entries = await visibleEntries(db, uid, viewerCtx, unique);
+    const entries = await visibleEntries(db, uid, viewerCtx, unique, surface);
     const ordered = orderPool(entries, { ...session, now: session.createdAt,
       followers: new Set(session.followers), secondDegree: new Set(session.secondDegree) },
     session.keys.at(-1)?.split('/')[0], session.keys.length);
@@ -148,7 +150,7 @@ async function rankedPage({ db, uid, viewerCtx, body, limit, attempt = 0 }) {
       const [authorId, momentId] = key.split('/');
       return db.doc(`users/${authorId}/moments/${momentId}`);
     }));
-    const entries = await visibleEntries(db, uid, viewerCtx, docs);
+    const entries = await visibleEntries(db, uid, viewerCtx, docs, surface);
     const visible = new Map(entries.map(entry => [entry.key, entry]));
     for (const key of keys) {
       const entry = visible.get(key);
@@ -165,7 +167,7 @@ async function rankedPage({ db, uid, viewerCtx, body, limit, attempt = 0 }) {
   });
   if (!saved) {
     if (attempt >= 2) throw error('Please retry the page', 409);
-    return rankedPage({ db, uid, viewerCtx, body, limit, attempt: attempt + 1 });
+    return rankedPage({ db, uid, viewerCtx, body, limit, surface, attempt: attempt + 1 });
   }
   const hasMore = offset < session.keys.length || (session.keys.length < 4000 && session.streams.some(stream => !stream.done));
   return { moments: result, nextCursor: hasMore ? { timestamp: session.createdAt,
