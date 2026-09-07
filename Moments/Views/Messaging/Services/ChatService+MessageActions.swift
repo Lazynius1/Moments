@@ -171,9 +171,8 @@ extension ChatService {
             ? ["starredBy": FieldValue.arrayUnion([userId])]
             : ["starredBy": FieldValue.arrayRemove([userId])]
 
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
             .updateData(fieldUpdate, completion: completion)
     }

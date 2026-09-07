@@ -62,6 +62,16 @@ class NotificationNavigationService: ObservableObject {
             return
         }
         
+        if type == "group_invitation" {
+            AppRouter.shared.navigate(to: .showMessages)
+            return
+        }
+        if type == "group_message", let groupId = userInfo["groupId"] as? String, !groupId.isEmpty {
+            Task { @MainActor in
+                AppRouter.shared.navigate(to: .conversation(id: groupId))
+            }
+            return
+        }
         switch normalizedType(type) {
         case "reaction":
             if let momentId = firstString(in: userInfo, keys: ["momentId", "targetId"]),

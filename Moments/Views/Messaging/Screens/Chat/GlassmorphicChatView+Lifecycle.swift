@@ -42,6 +42,7 @@ extension GlassmorphicChatView {
 
     // MARK: - Helper Methods
     func setupOnlineStatusObserver() {
+        guard !viewModel.conversation.isGroup else { return }
         let otherUserId = viewModel.conversation.otherParticipantId
 
         statusListener = onlineStatusService.observeUserStatus(userId: otherUserId) { status, lastSeen in
@@ -129,7 +130,7 @@ extension GlassmorphicChatView {
     func presentViewOnceViewer(message: EnhancedMessage, isReplaySession: Bool) {
         let authorName = message.senderId == viewModel.currentUserId
             ? NSLocalizedString("chat.reply.you", comment: "You")
-            : otherParticipantDisplayName
+            : (viewModel.conversation.isGroup ? groupSenderName(message.senderId) : otherParticipantDisplayName)
         viewOnceViewerPresentation = ViewOnceViewerPresentation(
             message: message,
             authorName: authorName,
@@ -163,6 +164,7 @@ extension GlassmorphicChatView {
     }
 
     func refreshOtherParticipantUsername() {
+        guard !viewModel.conversation.isGroup else { return }
         let otherUserId = viewModel.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !otherUserId.isEmpty else {
             liveOtherParticipantUsername = ""
@@ -179,6 +181,7 @@ extension GlassmorphicChatView {
     }
 
     func refreshOtherParticipantAvailability() {
+        guard !viewModel.conversation.isGroup else { return }
         let otherUserId = viewModel.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !otherUserId.isEmpty, NetworkMonitor.shared.isConnected else { return }
 
@@ -195,6 +198,7 @@ extension GlassmorphicChatView {
     }
 
     func refreshOtherParticipantBlockAvailability(userId: String) {
+        guard !viewModel.conversation.isGroup else { return }
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
         firestoreService.checkIfBlocked(currentUserId: currentUserId, targetUserId: userId) { isBlockedByCurrentUser, isCurrentUserBlocked, _ in

@@ -9,6 +9,7 @@ extension ChatService {
         let readBy = data["readBy"] as? [String] ?? []
         let docIsRead = data["isRead"] as? Bool ?? false
         if let currentUid = Auth.auth().currentUser?.uid, senderId != currentUid {
+            if GroupChatScope.isGroup(data["conversationId"] as? String) { return readBy.contains(currentUid) }
             return docIsRead || readBy.contains(currentUid)
         }
         return docIsRead
@@ -148,6 +149,7 @@ extension ChatService {
     }
 
     private static func applySnapshotMetadata(to message: inout EnhancedMessage, from data: [String: Any]) {
+        let data = GroupChatScope.recipientMetadata(data, conversationId: message.conversationId)
         message.isRead = Self.resolvedIncomingIsRead(from: data, senderId: message.senderId)
         if let statusRaw = data["status"] as? String,
            let status = MessageStatus(rawValue: statusRaw) {

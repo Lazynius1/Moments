@@ -146,6 +146,7 @@ extension ChatService {
         conversationId: String,
         decryptedContentOverride: String? = nil
     ) async -> EnhancedMessage {
+        let data = GroupChatScope.recipientMetadata(data, conversationId: conversationId)
         let id = data["id"] as? String ?? docId
         let senderId = data["senderId"] as? String ?? ""
         let typeString = data["type"] as? String ?? MessageType.text.rawValue

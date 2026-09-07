@@ -162,6 +162,14 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let userInfo = notification.request.content.userInfo
 
+        if let type = userInfo["type"] as? String, type == "group_message" || type == "group_invitation" {
+            Task { @MainActor in
+                let isOpen = type == "group_message" && (userInfo["groupId"] as? String) == ChatSessionEngine.shared.activeConversationId
+                completionHandler(isOpen ? [] : [.banner, .sound])
+            }
+            return
+        }
+
         if userInfo["type"] as? String == "message_request_v2" {
             completionHandler([.banner, .sound])
             return

@@ -30,9 +30,8 @@ extension ChatService {
 
             while hasMore, matchingMessages.count < limit {
                 do {
-                    var firestoreQuery = db.collection("conversations")
-                        .document(conversationId)
-                        .collection("messages")
+                    var firestoreQuery = db.messagingThread(conversationId)
+                        .messagingMessages
                         .order(by: "timestamp", descending: true)
                         .limit(to: Self.remoteSearchBatchSize)
 

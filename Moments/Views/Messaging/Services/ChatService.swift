@@ -117,6 +117,8 @@ class ChatService: ObservableObject {
     }
     
     func removeConversationsListener(for userId: String) {
+        activeListeners.removeValue(forKey: "group_conversations_\(userId)")?.remove()
+
         let listenerKey = "conversations_\(userId)"
         activeListeners[listenerKey]?.remove()
         activeListeners.removeValue(forKey: listenerKey)
@@ -141,9 +143,8 @@ class ChatService: ObservableObject {
         let attachListener = { [weak self] in
             guard let self else { return }
             guard self.isCurrentListenerGeneration(generation, for: conversationId) else { return }
-            let listener = self.db.collection("conversations")
-                .document(conversationId)
-                .collection("messages")
+            let listener = self.db.messagingThread(conversationId)
+                .messagingMessages
                 .order(by: "timestamp", descending: false)
                 .limit(toLast: limit)
                 .addSnapshotListener { [weak self] snapshot, error in
@@ -180,9 +181,8 @@ class ChatService: ObservableObject {
             guard let self else { return }
             await preloadConversationKey(for: conversationId)
             do {
-                let snapshot = try await db.collection("conversations")
-                    .document(conversationId)
-                    .collection("messages")
+                let snapshot = try await db.messagingThread(conversationId)
+                    .messagingMessages
                     .order(by: "timestamp", descending: false)
                     .limit(toLast: limit)
                     .getDocuments()
@@ -211,9 +211,8 @@ class ChatService: ObservableObject {
             await preloadConversationKey(for: conversationId)
 
             do {
-                let document = try await db.collection("conversations")
-                    .document(conversationId)
-                    .collection("messages")
+                let document = try await db.messagingThread(conversationId)
+                    .messagingMessages
                     .document(messageId)
                     .getDocument()
 
@@ -266,9 +265,8 @@ class ChatService: ObservableObject {
             guard let self else { return }
             await preloadConversationKey(for: conversationId)
             do {
-                let collection = db.collection("conversations")
-                    .document(conversationId)
-                    .collection("messages")
+                let collection = db.messagingThread(conversationId)
+                    .messagingMessages
 
                 let snapshot: QuerySnapshot
                 if cursor.messageId.isEmpty {
@@ -329,9 +327,8 @@ class ChatService: ObservableObject {
             guard let self else { return }
             await preloadConversationKey(for: conversationId)
             do {
-                let collection = db.collection("conversations")
-                    .document(conversationId)
-                    .collection("messages")
+                let collection = db.messagingThread(conversationId)
+                    .messagingMessages
 
                 let snapshot: QuerySnapshot
                 if cursor.messageId.isEmpty {
@@ -866,9 +863,8 @@ class ChatService: ObservableObject {
         longitude: Double,
         completion: ((Error?) -> Void)? = nil
     ) {
-        let ref = db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        let ref = db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
         Task {
             let payload = ChatLocationPayload(lat: latitude, lng: longitude)
@@ -894,9 +890,8 @@ class ChatService: ObservableObject {
         messageId: String,
         completion: ((Error?) -> Void)? = nil
     ) {
-        let ref = db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        let ref = db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
         ref.updateData([
             "liveLocationStoppedAt": FieldValue.serverTimestamp()
@@ -917,9 +912,8 @@ class ChatService: ObservableObject {
     /// Lee desde Firestore el estado actual de una sesión de ubicación en vivo,
     /// para validar antes de reanudar tras reabrir la app.
     func fetchLiveLocationStatus(conversationId: String, messageId: String) async -> LiveLocationStatus? {
-        let ref = db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        let ref = db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
         do {
             let snapshot = try await ref.getDocument()
@@ -1117,9 +1111,8 @@ class ChatService: ObservableObject {
             }
         }
         
-        let messageRef = db.collection("conversations")
-            .document(message.conversationId)
-            .collection("messages")
+        let messageRef = db.messagingThread(message.conversationId)
+            .messagingMessages
             .document(message.id)
         
         // Create message data that matches the EnhancedMessage structure
@@ -1282,7 +1275,7 @@ class ChatService: ObservableObject {
             completion(.success(pendingMessage))
         }
 
-        messageRef.setData(messageData) { [weak self] error in
+        persistChatMessage(messageRef, data: messageData) { [weak self] error in
             if ackState.timedOut {
                 // El ack llegó tarde: la cola offline ya es dueña del reintento.
                 // Si al final entró, retirar la acción para no re-escribir el doc.
@@ -1362,9 +1355,8 @@ class ChatService: ObservableObject {
         Task {
             do {
                 let encryptedContent = try await encryptMessageContent(newContent, for: conversationId)
-                try await db.collection("conversations")
-                    .document(conversationId)
-                    .collection("messages")
+                try await db.messagingThread(conversationId)
+                    .messagingMessages
                     .document(messageId)
                     .updateData([
                         "content": encryptedContent,
@@ -1378,9 +1370,8 @@ class ChatService: ObservableObject {
     }
     
     func deleteMessage(conversationId: String, messageId: String, completion: @escaping (Error?) -> Void) {
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
             .updateData([
                 "isDeleted": true,
@@ -1393,9 +1384,8 @@ class ChatService: ObservableObject {
     }
     
     func deleteMessageForMe(conversationId: String, messageId: String, userId: String, completion: @escaping (Error?) -> Void) {
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
             .updateData([
                 "deletedFor": FieldValue.arrayUnion([userId])
@@ -1406,9 +1396,8 @@ class ChatService: ObservableObject {
     
     func deleteMessageWithCleanup(conversationId: String, messageId: String, completion: @escaping (Error?) -> Void) {
         
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
             .getDocument { [weak self] snapshot, error in
                 guard let self = self else { return }
@@ -1435,9 +1424,8 @@ class ChatService: ObservableObject {
                 }
                 
                 // Mark message as deleted first
-                Firestore.firestore().collection("conversations")
-                    .document(conversationId)
-                    .collection("messages")
+                Firestore.firestore().messagingThread(conversationId)
+                    .messagingMessages
                     .document(messageId)
                     .updateData([
                         "isDeleted": true,
@@ -1479,11 +1467,10 @@ class ChatService: ObservableObject {
             LocalPersistenceService.shared.toggleMessageReactionLocally(messageId: messageId, emoji: emoji, userId: userId)
         }
 
-        let reactionRef = db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        let reactionRef = db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
-            .collection("messageReactions")
+            .collection(GroupChatScope.reactions(conversationId))
             .document(userId)
 
         reactionRef.getDocument { snapshot, error in
@@ -1531,11 +1518,11 @@ class ChatService: ObservableObject {
                 "byUserId": byUserId
             ]
         ]
-        db.collection("conversations").document(conversationId).updateData(payload, completion: completion)
+        db.messagingThread(conversationId).updateData(payload, completion: completion)
     }
 
     func clearLastMessageReaction(conversationId: String, completion: @escaping (Error?) -> Void) {
-        db.collection("conversations").document(conversationId).updateData([
+        db.messagingThread(conversationId).updateData([
             "lastMessageReaction": FieldValue.delete()
         ], completion: completion)
     }
@@ -1623,8 +1610,7 @@ class ChatService: ObservableObject {
     // ✅ NUEVA FUNCIÓN: Restaurar conversación eliminada (estilo nativo)
     func restoreConversation(conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
         
-        db.collection("conversations")
-            .document(conversationId)
+        db.messagingThread(conversationId)
             .updateData([
                 "deletedFor": FieldValue.arrayRemove([userId])
             ]) { error in
@@ -1639,9 +1625,8 @@ class ChatService: ObservableObject {
     // ✅ NUEVA FUNCIÓN: Marcar todos los mensajes como eliminados para un usuario
     private func markAllMessagesAsDeletedForUser(conversationId: String, userId: String, completion: ((Error?) -> Void)? = nil) {
         
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        db.messagingThread(conversationId)
+            .messagingMessages
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion?(error)
@@ -1678,8 +1663,7 @@ class ChatService: ObservableObject {
     // ✅ NUEVAS FUNCIONES: Pin y Mute conversaciones
     func pinConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
         
-        db.collection("conversations")
-            .document(conversationId)
+        db.messagingThread(conversationId)
             .updateData([
                 "pinnedByUserIds": FieldValue.arrayUnion([userId]),
                 "pinnedByTimestamps.\(userId)": FieldValue.serverTimestamp()
@@ -1694,8 +1678,7 @@ class ChatService: ObservableObject {
     
     func unpinConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
         
-        db.collection("conversations")
-            .document(conversationId)
+        db.messagingThread(conversationId)
             .updateData([
                 "pinnedByUserIds": FieldValue.arrayRemove([userId]),
                 "pinnedByTimestamps.\(userId)": FieldValue.delete()
@@ -1710,8 +1693,7 @@ class ChatService: ObservableObject {
     
     func muteConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
         
-        db.collection("conversations")
-            .document(conversationId)
+        db.messagingThread(conversationId)
             .updateData([
                 "mutedByUserIds": FieldValue.arrayUnion([userId]),
                 "mutedByTimestamps.\(userId)": FieldValue.serverTimestamp()
@@ -1726,8 +1708,7 @@ class ChatService: ObservableObject {
     
     func unmuteConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
         
-        db.collection("conversations")
-            .document(conversationId)
+        db.messagingThread(conversationId)
             .updateData([
                 "mutedByUserIds": FieldValue.arrayRemove([userId]),
                 "mutedByTimestamps.\(userId)": FieldValue.delete()
@@ -1741,8 +1722,7 @@ class ChatService: ObservableObject {
     }
 
     func archiveConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
-        db.collection("conversations")
-            .document(conversationId)
+        db.messagingThread(conversationId)
             .updateData([
                 "archivedByUserIds": FieldValue.arrayUnion([userId]),
                 "archivedByTimestamps.\(userId)": FieldValue.serverTimestamp()
@@ -1755,8 +1735,7 @@ class ChatService: ObservableObject {
     }
 
     func unarchiveConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
-        db.collection("conversations")
-            .document(conversationId)
+        db.messagingThread(conversationId)
             .updateData([
                 "archivedByUserIds": FieldValue.arrayRemove([userId]),
                 "archivedByTimestamps.\(userId)": FieldValue.delete()
@@ -1768,7 +1747,7 @@ class ChatService: ObservableObject {
             }
     }
     
-    func fetchConversations(for userId: String, completion: @escaping (Result<[Conversation], Error>) -> Void) {
+    func fetchDirectConversations(for userId: String, completion: @escaping (Result<[Conversation], Error>) -> Void) {
         // Evitar listeners de listas de conversación huérfanos (p. ej. cambio de cuenta)
         let staleConversationKeys = activeListeners.keys.filter { $0.hasPrefix("conversations_") && $0 != "conversations_\(userId)" }
         for key in staleConversationKeys {
@@ -1996,7 +1975,7 @@ class ChatService: ObservableObject {
         let generation = beginListenerGeneration(for: listenerKey)
         activeListeners[listenerKey]?.remove()
 
-        let listener = db.collection("conversations").document(conversationId)
+        let listener = db.messagingThread(conversationId)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard self?.isCurrentListenerGeneration(generation, for: listenerKey) == true else { return }
                 guard error == nil, let data = snapshot?.data() else { return }
@@ -2040,7 +2019,7 @@ class ChatService: ObservableObject {
             let userSettings = userSnapshot?.data()
             let globalEnabled = userSettings?["showReadReceipts"] as? Bool ?? true
             
-            Firestore.firestore().collection("conversations").document(conversationId).getDocument { convSnapshot, convError in
+            Firestore.firestore().messagingThread(conversationId).getDocument { convSnapshot, convError in
                 let convData = convSnapshot?.data()
                 let preferences = convData?["readReceiptPreferences"] as? [String: Bool] ?? [:]
                 
@@ -2056,9 +2035,8 @@ class ChatService: ObservableObject {
                 let batch = Firestore.firestore().batch()
                 
                 for messageId in messageIds {
-                    let messageRef = Firestore.firestore().collection("conversations")
-                        .document(conversationId)
-                        .collection("messages")
+                    let messageRef = Firestore.firestore().messagingThread(conversationId)
+                        .messagingMessages
                         .document(messageId)
                     
                     var messageUpdate: [String: Any] = [
@@ -2074,7 +2052,7 @@ class ChatService: ObservableObject {
                     batch.updateData(messageUpdate, forDocument: messageRef)
                 }
                 
-                let conversationRef = Firestore.firestore().collection("conversations").document(conversationId)
+                let conversationRef = Firestore.firestore().messagingThread(conversationId)
                 var conversationUpdate: [String: Any] = [
                     "readStatus.\(readerId)": true,
                     "lastReadAt.\(readerId)": FieldValue.serverTimestamp()
@@ -2092,8 +2070,7 @@ class ChatService: ObservableObject {
     }
 
     func markConversationAsRead(conversationId: String, userId: String, completion: ((Error?) -> Void)? = nil) {
-        db.collection("conversations")
-            .document(conversationId)
+        db.messagingThread(conversationId)
             .updateData([
                 "readStatus.\(userId)": true,
                 "lastReadAt.\(userId)": FieldValue.serverTimestamp()
@@ -2132,9 +2109,8 @@ class ChatService: ObservableObject {
                 for conversationDoc in documents {
                     let conversationId = conversationDoc.documentID
                     
-                    Firestore.firestore().collection("conversations")
-                        .document(conversationId)
-                        .collection("messages")
+                    Firestore.firestore().messagingThread(conversationId)
+                        .messagingMessages
                         .whereField("senderId", isNotEqualTo: currentUserId)
                         .whereField("status", isEqualTo: MessageStatus.sent.rawValue)
                         .getDocuments { [weak self] messagesSnapshot, messagesError in
@@ -2163,9 +2139,8 @@ class ChatService: ObservableObject {
         }
         
         // Verificar que el mensaje no sea nuestro antes de marcar como entregado
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
             .getDocument { [weak self] snapshot, error in
                 guard let data = snapshot?.data(),
@@ -2193,9 +2168,8 @@ class ChatService: ObservableObject {
     func updateMessageStatus(conversationId: String, messageId: String, status: MessageStatus, completion: @escaping (Error?) -> Void) {
         
         // ✅ Actualizar SOLO el status en Firestore (NO tocar timestamp para evitar reordenamiento)
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
             .updateData([
                 "status": status.rawValue
@@ -2246,8 +2220,7 @@ class ChatService: ObservableObject {
     
     // MARK: - Typing Indicators
     func startTyping(conversationId: String, userId: String) {
-        let typingRef = db.collection("conversations")
-            .document(conversationId)
+        let typingRef = db.messagingThread(conversationId)
             .collection("typing")
             .document(userId)
         
@@ -2267,8 +2240,7 @@ class ChatService: ObservableObject {
     func stopTyping(conversationId: String, userId: String) {
         typingTimer?.invalidate()
         
-        let typingRef = db.collection("conversations")
-            .document(conversationId)
+        let typingRef = db.messagingThread(conversationId)
             .collection("typing")
             .document(userId)
         
@@ -2280,8 +2252,7 @@ class ChatService: ObservableObject {
         let typingKey = "typing_\(conversationId)"
         activeListeners[typingKey]?.remove()
         
-        let listener = db.collection("conversations")
-            .document(conversationId)
+        let listener = db.messagingThread(conversationId)
             .collection("typing")
             .addSnapshotListener { [weak self] snapshot, error in
                 if error != nil {
@@ -2310,7 +2281,10 @@ class ChatService: ObservableObject {
         messageType: MessageType? = nil,
         completion: @escaping (Error?) -> Void
     ) {
-        db.collection("conversations").document(conversationId).getDocument { snapshot, error in
+        // Group metadata/unread state is committed atomically by sendGroupMessage.
+        if GroupChatScope.isGroup(conversationId) { completion(nil); return }
+
+        db.messagingThread(conversationId).getDocument { snapshot, error in
             if let error = error {
                 completion(error)
                 return
@@ -2350,7 +2324,7 @@ class ChatService: ObservableObject {
                 updateData["deletedFor"] = FieldValue.arrayRemove([senderId])
             }
             
-            Firestore.firestore().collection("conversations").document(conversationId).updateData(updateData) { error in
+            Firestore.firestore().messagingThread(conversationId).updateData(updateData) { error in
                 completion(error)
             }
         }
@@ -2368,7 +2342,7 @@ class ChatService: ObservableObject {
         let viewOncePending: Bool
     }
 
-    private func hydrateConversationPreviews(_ conversations: [Conversation]) async -> [Conversation] {
+    func hydrateConversationPreviews(_ conversations: [Conversation]) async -> [Conversation] {
         guard !conversations.isEmpty else { return [] }
         var hydratedConversations: [Conversation] = []
         hydratedConversations.reserveCapacity(conversations.count)
@@ -2532,9 +2506,8 @@ class ChatService: ObservableObject {
         }
 
         do {
-            let snapshot = try await db.collection("conversations")
-                .document(conversationId)
-                .collection("messages")
+            let snapshot = try await db.messagingThread(conversationId)
+                .messagingMessages
                 .order(by: "timestamp", descending: true)
                 .limit(to: 5)
                 .getDocuments()

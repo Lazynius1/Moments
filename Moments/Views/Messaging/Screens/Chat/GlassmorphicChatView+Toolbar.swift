@@ -138,7 +138,10 @@ extension GlassmorphicChatView {
 
     @ViewBuilder
     var chatToolbarAvatar: some View {
-        if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+        if viewModel.conversation.isGroup {
+            Image(systemName: "person.3.fill").frame(width: 40, height: 40)
+                .background(adaptiveColors.primary.opacity(0.07), in: Circle())
+        } else if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
             ProfileUnavailableAvatar(size: 40)
                 .userProfileZoomSource(
                     userId: viewModel.conversation.otherParticipantId,
@@ -181,7 +184,7 @@ extension GlassmorphicChatView {
                     .truncationMode(.tail)
                     .layoutPriority(1)
 
-                if !isOtherParticipantUnavailable {
+                if !viewModel.conversation.isGroup && !isOtherParticipantUnavailable {
                     VerifiedBadgeView(userId: viewModel.conversation.otherParticipantId, size: 14)
                 }
 
@@ -198,7 +201,10 @@ extension GlassmorphicChatView {
 
     @ViewBuilder
     var chatToolbarSubtitle: some View {
-        if isOtherParticipantBlockedByCurrentUser {
+        if viewModel.conversation.isGroup {
+            Text(String(format: NSLocalizedString("groups.memberCount", comment: ""), viewModel.conversation.participants.count))
+                .font(.system(size: 11)).foregroundStyle(adaptiveColors.secondary)
+        } else if isOtherParticipantBlockedByCurrentUser {
             Text("chat.blockedByMe.subtitle")
                 .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(adaptiveColors.secondary)
@@ -239,6 +245,7 @@ extension GlassmorphicChatView {
 
 
     func openProfileOrStoryFromHeader() {
+        if viewModel.conversation.isGroup { showingConversationSettings = true; return }
         if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
             openOtherParticipantProfile()
         } else if hasStory && !isOtherParticipantBlockedByCurrentUser {

@@ -8,6 +8,11 @@ import CoreLocation
 import MapKit
 
 extension GlassmorphicChatView {
+    func groupSenderName(_ id: String) -> String {
+        UserCacheService.shared.getCachedUser(userId: id)?.username
+            ?? GroupDirectory.shared.groups[viewModel.conversation.id ?? ""]?.allMemberNames[id]
+            ?? NSLocalizedString("messaging.user.default", comment: "")
+    }
     var isPendingChat: Bool {
         pendingChatContext != nil
     }
@@ -19,6 +24,7 @@ extension GlassmorphicChatView {
     }
 
     func openOtherParticipantProfile() {
+        if viewModel.conversation.isGroup { showingConversationSettings = true; return }
         openChatProfile(userId: viewModel.conversation.otherParticipantId)
     }
 
@@ -611,6 +617,16 @@ extension GlassmorphicChatView {
     // ✅ REFACTORIZADO: Renderizar cada item del chat por separado para evitar errores del compilador
     @ViewBuilder
     func renderMessageItem(_ item: MessageItem, in messages: [EnhancedMessage], proxy: ScrollViewProxy?) -> some View {
+        if viewModel.conversation.isGroup {
+            let first: EnhancedMessage? = {
+                switch item { case .single(let message): return message; case .mediaCluster(let messages): return messages.first }
+            }()
+            if let first, first.senderId != viewModel.currentUserId {
+                Text(groupSenderName(first.senderId)).font(.caption.weight(.semibold)).foregroundStyle(adaptiveColors.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 58).padding(.top, 4)
+            }
+        }
+
         let rowId = ChatRenderRow.message(item).id
         let isMenuSelected = messageMenuSelection?.rowId == rowId
         let isBubbleHighlighted = isMessageItemHighlighted(item)
@@ -634,7 +650,7 @@ extension GlassmorphicChatView {
                                 noticeKey: noticeKey,
                                 actorUserId: liveMessage.senderId,
                                 currentUserId: viewModel.currentUserId,
-                                otherParticipantName: otherParticipantDisplayName,
+                                otherParticipantName: viewModel.conversation.isGroup ? groupSenderName(liveMessage.senderId) : otherParticipantDisplayName,
                                 onChangeTimer: { showVanishTimerSheet = true },
                                 onTurnOn: { viewModel.toggleVanishMode() }
                             )
@@ -653,9 +669,9 @@ extension GlassmorphicChatView {
                     isCurrentUser: liveMessage.senderId == viewModel.currentUserId,
                     showAvatar: shouldShowAvatar(for: liveMessage, in: messages),
                     groupPosition: messageGroupPosition(for: liveMessage, in: messages),
-                    otherUserId: viewModel.conversation.otherParticipantId,
+                    otherUserId: viewModel.conversation.isGroup ? liveMessage.senderId : viewModel.conversation.otherParticipantId,
                     isOtherParticipantUnavailable: isOtherParticipantUnavailable,
-                    otherParticipantName: otherParticipantDisplayName,
+                    otherParticipantName: viewModel.conversation.isGroup ? groupSenderName(liveMessage.senderId) : otherParticipantDisplayName,
                     repliedMessage: liveMessage.replyTo.flatMap { viewModel.messagesById[$0] },
                     isMenuSelected: isMenuSelected,
                     isBubbleFlashing: isBubbleFlashing(liveMessage.id),
@@ -665,7 +681,7 @@ extension GlassmorphicChatView {
                         pulseBubbleHighlight(liveMessage.id)
                     },
                     onAvatarTap: {
-                        openOtherParticipantProfile()
+                        if viewModel.conversation.isGroup { openChatProfile(userId: liveMessage.senderId) } else { openOtherParticipantProfile() }
                     },
                     onReplyTap: { targetId in
                         jumpTo(targetId, proxy: proxy)
@@ -740,12 +756,12 @@ extension GlassmorphicChatView {
                     GlassmorphicClusterRow(
                     messages: liveCluster,
                     repliedMessage: liveCluster.first?.replyTo.flatMap { viewModel.messagesById[$0] },
-                    otherParticipantName: otherParticipantDisplayName,
+                    otherParticipantName: viewModel.conversation.isGroup ? groupSenderName(liveCluster.first?.senderId ?? "") : otherParticipantDisplayName,
                     isCurrentUser: liveCluster.first?.senderId == viewModel.currentUserId,
                     showAvatar: shouldShowAvatar(for: liveCluster.first!, in: messages),
-                    otherUserId: viewModel.conversation.otherParticipantId,
+                    otherUserId: viewModel.conversation.isGroup ? (liveCluster.first?.senderId ?? viewModel.conversation.otherParticipantId) : viewModel.conversation.otherParticipantId,
                     isOtherParticipantUnavailable: isOtherParticipantUnavailable,
-                    onAvatarTap: { openOtherParticipantProfile() },
+                    onAvatarTap: { if viewModel.conversation.isGroup, let id = liveCluster.first?.senderId { openChatProfile(userId: id) } else { openOtherParticipantProfile() } },
                     onMessageViewed: { messageId in
                         if let index = viewModel.messageIndexById[messageId] {
                             viewModel.messages[index].isViewed = true

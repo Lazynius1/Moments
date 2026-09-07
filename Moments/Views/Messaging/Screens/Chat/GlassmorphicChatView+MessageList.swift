@@ -281,7 +281,7 @@ extension GlassmorphicChatView {
                 }
             },
             composerBottomInset: ChatComposerChromeMetrics.listBottomInset(composerChromeHeight: lastComposerHeight),
-            isVanishGestureEnabled: hasCompletedInitialScroll && !isSearchVisible,
+            isVanishGestureEnabled: !viewModel.conversation.isGroup && hasCompletedInitialScroll && !isSearchVisible,
             isVanishModeActive: viewModel.vanishModeActive,
             onVanishPullReleased: { result in
                 handleVanishPullReleased(result)

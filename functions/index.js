@@ -13,6 +13,7 @@ const registers = [
   require('./src/registers/http-account'),
   require('./src/registers/http-feed'),
   require('./src/registers/http-search'),
+  require('./src/registers/http-groups'),
   require('./src/registers/http-messaging'),
   require('./src/registers/http-account-batch'),
   require('./src/registers/http-auth-cleanup'),

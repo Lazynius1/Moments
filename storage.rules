@@ -399,6 +399,26 @@ service firebase.storage {
                       && (canWritePendingRequestMedia(threadId) || isConversationParticipant(threadId));
     }
 
+    // Complete encrypted media pipeline: photos, voice, files, video/chunks and thumbnails.
+    match /groupChat/{groupId}/{ownerId}/{messageId}/{fileName} {
+      function member() {
+        return isActiveUser() && request.auth.uid in
+          firestore.get(/databases/(default)/documents/groupConversations/$(groupId)).data.participants;
+      }
+      function mayReadMedia() {
+        let message = firestore.get(/databases/(default)/documents/groupConversations/$(groupId)/groupMessages/$(messageId)).data;
+        return message.get('isDeleted', false) == false
+          && (!message.get('isViewOnce', false)
+            || (request.auth.uid in message.get('recipientIds', []) && !(request.auth.uid in message.get('consumedBy', []))));
+      }
+      allow read: if member() && (request.auth.uid == ownerId || mayReadMedia());
+      allow create: if member() && request.auth.uid == ownerId
+        && request.resource.contentType == 'application/octet-stream'
+        && request.resource.size < 85 * 1024 * 1024;
+      allow delete: if member() && request.auth.uid == ownerId;
+      allow update: if false;
+    }
+
     match /messageRequests/{requestId}/{fileName} {
       allow read, write, delete: if false;
     }

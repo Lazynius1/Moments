@@ -22,6 +22,7 @@ struct ConversationSettingsView: View {
     @State private var showClearMediaConfirmation = false
     @State private var sharedTab: SharedContentTab = .media
     @State private var showChatPreferences = false
+    @State private var showGroupMembers = false
     @State private var showVanishPreferences = false
     @State private var showingUserProfile = false
     @State private var showBlockConfirmationFromHeader = false
@@ -61,6 +62,12 @@ struct ConversationSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                if conversation.isGroup {
+                    Button { showGroupMembers = true } label: {
+                        Label(NSLocalizedString("groups.members", comment: ""), systemImage: "person.3")
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 14)
+                    }.buttonStyle(.plain)
+                }
                 settingsListSection
                     .padding(.horizontal, 16)
 
@@ -81,7 +88,7 @@ struct ConversationSettingsView: View {
                     notificationsEnabled: viewModel.notificationsEnabled,
                     onProfile: {
                         HapticManager.shared.lightImpact()
-                        showingUserProfile = true
+                        if conversation.isGroup { showGroupMembers = true } else { showingUserProfile = true }
                     },
                     onSearch: {
                         HapticManager.shared.lightImpact()
@@ -163,6 +170,7 @@ struct ConversationSettingsView: View {
                     action: { dismiss() }
                 )
             }
+            if !conversation.isGroup {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button(role: .destructive) {
@@ -184,6 +192,7 @@ struct ConversationSettingsView: View {
                         .padding(.horizontal, 12)
                 }
             }
+            }
         }
         .toolbar(.hidden, for: .tabBar)
         .momentsFloatingTabBarHidden()
@@ -193,6 +202,9 @@ struct ConversationSettingsView: View {
                 .toolbar(.hidden, for: .tabBar)
                 .momentsFloatingTabBarHidden()
                 .chatInteractivePopEnabled()
+        }
+        .navigationDestination(isPresented: $showGroupMembers) {
+            if let id = conversation.id { GroupManagementView(groupId: id) }
         }
         .navigationDestination(isPresented: $showChatPreferences) {
             ConversationChatPreferencesView(viewModel: viewModel)
@@ -328,6 +340,7 @@ struct ConversationSettingsView: View {
     // MARK: - Header (ver ConversationSettingsHeroHeader)
 
     private func refreshOtherParticipantUsername() {
+        guard !conversation.isGroup else { return }
         let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !otherUserId.isEmpty else {
             liveOtherParticipantUsername = ""
@@ -394,6 +407,7 @@ struct ConversationSettingsView: View {
 
             dividerLine.padding(.leading, 38)
 
+            if !conversation.isGroup {
             // Mensajes temporales row
             Button {
                 HapticManager.shared.lightImpact()
@@ -426,6 +440,7 @@ struct ConversationSettingsView: View {
 
             dividerLine.padding(.leading, 38)
 
+            }
             // Chat preferences row
             Button {
                 HapticManager.shared.lightImpact()
@@ -669,6 +684,7 @@ struct ConversationSettingsView: View {
 
     // MARK: - Helper Methods
     private func setupOnlineStatusObserver() {
+        guard !conversation.isGroup else { return }
         let otherUserId = conversation.otherParticipantId
 
         statusListener = onlineStatusService.observeUserStatus(userId: otherUserId) { status, lastSeen in
@@ -904,6 +920,7 @@ class ConversationSettingsViewModel: ObservableObject {
 
     private let chatService = ChatService.shared
     private let firestoreService = FirestoreService()
+    var isGroup: Bool { currentConversation?.isGroup == true }
     private var currentConversation: Conversation?
     private let typingIndicatorLegacyKey = "chat_typing_indicator_enabled"
 
@@ -1480,7 +1497,7 @@ class ConversationSettingsViewModel: ObservableObject {
               let conversationId = currentConversation?.id else { return }
 
         let db = Firestore.firestore()
-        let conversationRef = db.collection("conversations").document(conversationId)
+        let conversationRef = db.messagingThread(conversationId)
 
         // Guardar la preferencia explícita para este chat
         conversationRef.updateData([
@@ -1495,7 +1512,7 @@ class ConversationSettingsViewModel: ObservableObject {
               let conversationId = currentConversation?.id else { return }
 
         let db = Firestore.firestore()
-        db.collection("conversations").document(conversationId).updateData([
+        db.messagingThread(conversationId).updateData([
             "forwardingPreferences.\(currentUserId)": forwardingEnabled
         ])
 
@@ -1529,7 +1546,7 @@ class ConversationSettingsViewModel: ObservableObject {
               let conversationId = currentConversation?.id else { return }
 
         let db = Firestore.firestore()
-        db.collection("conversations").document(conversationId).updateData([
+        db.messagingThread(conversationId).updateData([
             "buzzPreferences.\(currentUserId)": buzzEnabled
         ])
 
@@ -1570,7 +1587,7 @@ class ConversationSettingsViewModel: ObservableObject {
         // 1. Cargar el usuario para el ajuste global
         firestoreService.fetchUser(userId: currentUserId) { [weak self] userResult in
             // 2. Cargar la conversación para el ajuste específico
-            db.collection("conversations").document(conversationId).getDocument { [weak self] convSnapshot, convError in
+            db.messagingThread(conversationId).getDocument { [weak self] convSnapshot, convError in
                 DispatchQueue.main.async {
                     guard let self = self else { return }
 
@@ -1618,6 +1635,13 @@ class ConversationSettingsViewModel: ObservableObject {
     }
 
     func clearConversation() {
+        if let conversation = currentConversation, conversation.isGroup,
+           let id = conversation.id, let uid = Auth.auth().currentUser?.uid {
+            Firestore.firestore().messagingThread(id).updateData([
+                "deletedFor": FieldValue.arrayUnion([uid]), "lastDeletedAt.\(uid)": FieldValue.serverTimestamp()
+            ])
+            return
+        }
         guard let currentUserId = Auth.auth().currentUser?.uid,
               currentConversation?.id != nil else { return }
 
@@ -2582,6 +2606,7 @@ struct ConversationChatPreferencesView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     sectionHeader("conversationSettings.preferences.group.notifications")
 
+                    if !viewModel.isGroup {
                     toggleRow(
                         title: "conversationSettings.privacy.buzz.title",
                         desc: "conversationSettings.privacy.buzz.description",
@@ -2590,6 +2615,7 @@ struct ConversationChatPreferencesView: View {
 
                     dividerLine
 
+                    }
                     toggleRow(
                         title: "conversationSettings.privacy.messagePreview.title",
                         desc: "conversationSettings.privacy.messagePreview.description",

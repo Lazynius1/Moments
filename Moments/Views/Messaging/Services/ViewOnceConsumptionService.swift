@@ -26,7 +26,7 @@ final class ViewOnceConsumptionService {
             "reason": reason.rawValue
         ]
 
-        functions.httpsCallable("consumeViewOnceMessage").call(payload) { _, error in
+        functions.httpsCallable(GroupChatScope.isGroup(conversationId) ? "consumeGroupViewOnceMessage" : "consumeViewOnceMessage").call(payload) { _, error in
             completion(error)
         }
     }

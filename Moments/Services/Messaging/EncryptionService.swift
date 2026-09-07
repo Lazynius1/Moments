@@ -2025,6 +2025,13 @@ class EncryptionService: ObservableObject {
         )
     }
 
+    /// Group-only entry point. It does not resolve, cache or mutate any direct conversation.
+    func unwrapGroupKey(_ envelope: [String: Any]) throws -> SymmetricKey {
+        guard let uid = Auth.auth().currentUser?.uid,
+              let wrapped = WrappedConversationKey(map: envelope) else { throw EncryptionError.keyNotFound }
+        return try unwrapConversationKey(wrapped, for: uid)
+    }
+
     private func unwrapConversationKey(_ wrappedKey: WrappedConversationKey, for userId: String) throws -> SymmetricKey {
         let keyTag = chatIdentityKeyPrefix + userId
         let privateKeyData = try retrieveDataFromKeychain(tag: keyTag)
@@ -2164,6 +2171,14 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🚀 FIRESTORE OPERATIONS Optimizadas
     private func getConversationKeyFromFirestore(conversationId: String) async throws -> SymmetricKey {
+        if GroupChatScope.isGroup(conversationId) {
+            guard let uid = Auth.auth().currentUser?.uid else { throw EncryptionError.keyNotFound }
+            let data = try await db.collection("groupConversations").document(conversationId).getDocument().data()
+            guard let maps = data?["wrappedKeys"] as? [String: [String: Any]], let map = maps[uid] else { throw EncryptionError.keyNotFound }
+            let key = try unwrapGroupKey(map)
+            await cacheConversationKey(conversationId: conversationId, key: key)
+            return key
+        }
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             throw EncryptionError.keyNotFound
         }

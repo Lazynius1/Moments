@@ -267,7 +267,7 @@ class EnhancedChatViewModel: ObservableObject {
         self.currentUserId = Auth.auth().currentUser?.uid ?? ""
         self.forwardingPreferences = conversation.forwardingPreferences ?? [:]
         self.buzzPreferences = conversation.buzzPreferences ?? [:]
-        self.vanishModeActive = conversation.vanishModeActive ?? false
+        self.vanishModeActive = conversation.isGroup ? false : (conversation.vanishModeActive ?? false)
         self.vanishMessageTimer = VanishMessageTimer(storedValue: conversation.vanishMessageTimer)
 
         // ✅ Configurar listener para actualizaciones de estado locales
@@ -431,7 +431,7 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     var canSendBuzz: Bool {
-        ChatMessagePolicy.canSendBuzz(
+        !conversation.isGroup && ChatMessagePolicy.canSendBuzz(
             participants: conversation.participants,
             currentUserId: currentUserId,
             buzzPreferences: buzzPreferences
@@ -1951,6 +1951,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
+        if !conversation.isGroup {
         chatService.listenToBuzzEvents(
             conversationId: conversationId,
             cutoffDate: effectiveDeletedAtCutoff(),
@@ -1977,6 +1978,8 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
+        }
+
         typingIndicatorEnabled = resolvedTypingIndicatorPreference(for: conversationId)
         applyTypingPreference(conversationId: conversationId)
     }
@@ -1985,6 +1988,7 @@ class EnhancedChatViewModel: ObservableObject {
     /// fresco de la lista para que el saneado de leídos no trabaje con datos viejos.
     func mergeConversationReadMetadata(from fresh: Conversation) {
         guard let freshId = fresh.id, freshId == conversation.id else { return }
+        if fresh.isGroup { conversation = fresh; return }
         if let lastReadAt = fresh.lastReadAt, lastReadAt != conversation.lastReadAt {
             conversation.lastReadAt = lastReadAt
         }
@@ -2518,6 +2522,7 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     private func trackSuccessfulDirectMessage() {
+        guard !conversation.isGroup else { return }
         let targetUserId = conversation.otherParticipantId
         guard !targetUserId.isEmpty else { return }
         Task { @MainActor in
@@ -3028,6 +3033,7 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     func toggleVanishMode(completion: ((Error?) -> Void)? = nil) {
+        guard !conversation.isGroup else { completion?(nil); return }
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             completion?(NSError(domain: "ChatViewModel", code: -1))
             return
@@ -3072,6 +3078,7 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     func setVanishMessageTimer(_ timer: VanishMessageTimer?, completion: ((Error?) -> Void)? = nil) {
+        guard !conversation.isGroup else { completion?(nil); return }
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             completion?(NSError(domain: "ChatViewModel", code: -1))
             return

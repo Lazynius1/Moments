@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseFirestore
+import FirebaseAuth
 
 extension ChatService {
     // MARK: - Conversations and Sharing
@@ -284,9 +285,8 @@ extension ChatService {
     func cleanupConsumedViewOnceMessages(conversationId: String) {
         guard !conversationId.isEmpty else { return }
 
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        db.messagingThread(conversationId)
+            .messagingMessages
             .whereField("isViewOnce", isEqualTo: true)
             .whereField("isDeleted", isEqualTo: false)
             .limit(to: 50)
@@ -295,7 +295,13 @@ extension ChatService {
                 guard error == nil, let documents = snapshot?.documents else { return }
 
                 for document in documents {
-                    let data = document.data()
+                    var data = document.data()
+                    if GroupChatScope.isGroup(conversationId) {
+                        guard let uid = Auth.auth().currentUser?.uid, (data["recipientIds"] as? [String] ?? []).contains(uid) else { continue }
+                        data["isViewed"] = (data["viewedBy"] as? [String] ?? []).contains(uid)
+                        data["viewedBy"] = (data["viewedBy"] as? [String] ?? []).filter { $0 == uid }
+                        data["replayedBy"] = (data["replayedBy"] as? [String] ?? []).filter { $0 == uid }
+                    }
                     guard let reason = self.consumptionReasonForConsumedViewOnce(data) else { continue }
 
                     let messageId = data["id"] as? String ?? document.documentID
@@ -428,9 +434,8 @@ extension ChatService {
         viewerId: String,
         completion: @escaping (Error?) -> Void
     ) {
-        let messageRef = db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        let messageRef = db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
 
         db.runTransaction({ transaction, errorPointer -> Any? in
@@ -472,9 +477,8 @@ extension ChatService {
         viewerId: String,
         completion: @escaping (Error?) -> Void
     ) {
-        db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
+        db.messagingThread(conversationId)
+            .messagingMessages
             .document(messageId)
             .updateData(["replayedBy": FieldValue.arrayUnion([viewerId])]) { error in
                 completion(error)
@@ -487,12 +491,11 @@ extension ChatService {
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
         nonisolated(unsafe) let message = message
-        let messageRef = db.collection("conversations")
-            .document(message.conversationId)
-            .collection("messages")
+        let messageRef = db.messagingThread(message.conversationId)
+            .messagingMessages
             .document(message.id)
 
-        messageRef.setData(customData) { [weak self] error in
+        persistChatMessage(messageRef, data: customData) { [weak self] error in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 if let error = error {

@@ -1753,6 +1753,85 @@ service cloud.firestore {
     }
 
     // CONVERSATIONS (E2E)
+    // Group storage is isolated from all direct-message collection-group queries.
+    match /groupInvitations/{invitationId} {
+      allow read: if request.auth != null && resource.data.recipientId == request.auth.uid
+        && canParticipateInConversations(request.auth.uid);
+      allow write: if false;
+    }
+
+    match /groupConversations/{groupId} {
+      function isGroupMember() {
+        return request.auth != null && canParticipateInConversations(request.auth.uid)
+          && request.auth.uid in get(/databases/$(database)/documents/groupConversations/$(groupId)).data.participants;
+      }
+      function ownMap(field) {
+        return request.resource.data.get(field, {}).diff(resource.data.get(field, {})).affectedKeys().hasOnly([request.auth.uid]);
+      }
+      function ownList(field) {
+        return request.resource.data.get(field, []).toSet().difference(resource.data.get(field, []).toSet()).hasOnly([request.auth.uid])
+          && resource.data.get(field, []).toSet().difference(request.resource.data.get(field, []).toSet()).hasOnly([request.auth.uid]);
+      }
+      allow read: if request.auth != null && canParticipateInConversations(request.auth.uid)
+        && request.auth.uid in resource.data.participants;
+      allow create, delete: if false;
+      allow update: if isGroupMember()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'readStatus', 'lastReadAt', 'lastMessageSeenAt', 'readReceiptPreferences', 'forwardingPreferences',
+          'mutedByUserIds', 'mutedByTimestamps', 'pinnedByUserIds', 'pinnedByTimestamps',
+          'archivedByUserIds', 'archivedByTimestamps', 'deletedFor', 'lastDeletedAt', 'lastMessageReaction'
+        ])
+        && ownMap('readStatus') && ownMap('lastReadAt') && ownMap('lastMessageSeenAt')
+        && ownMap('readReceiptPreferences') && ownMap('forwardingPreferences')
+        && ownList('mutedByUserIds') && ownMap('mutedByTimestamps')
+        && ownList('pinnedByUserIds') && ownMap('pinnedByTimestamps')
+        && ownList('archivedByUserIds') && ownMap('archivedByTimestamps')
+        && ownList('deletedFor') && ownMap('lastDeletedAt')
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessageReaction'])
+          || request.resource.data.get('lastMessageReaction', {}).get('byUserId', '') == request.auth.uid
+          || resource.data.get('lastMessageReaction', {}).get('byUserId', '') == request.auth.uid);
+      match /typing/{userId} {
+        allow read: if isGroupMember();
+        allow create, update: if isGroupMember() && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['userId', 'isTyping', 'timestamp']);
+        allow delete: if isGroupMember() && request.auth.uid == userId;
+      }
+      match /groupMessages/{messageId} {
+        allow read: if isGroupMember();
+        allow create, delete: if false;
+        allow update: if isGroupMember() && (
+          (resource.data.senderId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'content', 'editedAt', 'isDeleted', 'deletedAt', 'mediaUrl', 'thumbnailUrl', 'mediaObjectPath',
+              'thumbnailObjectPath', 'mediaEncryption', 'thumbnailEncryption', 'textOverlayLive', 'textOverlays',
+              'stickers', 'drawingData', 'status', 'latitude', 'longitude', 'liveLocationStoppedAt', 'isLiveLocation', 'locationUpdatedAt'
+            ]))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedFor']) && ownList('deletedFor'))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['starredBy']) && ownList('starredBy'))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'readAtBy', 'isRead', 'status', 'deliveredTo', 'deliveredAtBy'])
+              && ownList('readBy') && ownMap('readAtBy') && ownList('deliveredTo') && ownMap('deliveredAtBy')
+              && (!resource.data.get('isRead', false) || request.resource.data.get('isRead', false))
+              && request.resource.data.get('status', '') in ['sent', 'delivered', 'read'])
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isViewed', 'viewedBy', 'replayedBy'])
+              && resource.data.get('isViewOnce', false) == true && request.auth.uid in resource.data.get('recipientIds', [])
+              && ownList('viewedBy') && ownList('replayedBy') && request.resource.data.isViewed == true)
+        );
+        match /groupMessageReactions/{userId} {
+          allow read: if isGroupMember();
+          allow create, update: if isGroupMember() && request.auth.uid == userId
+            && request.resource.data.keys().hasOnly(['conversationId', 'messageId', 'userId', 'emoji', 'timestamp'])
+            && request.resource.data.conversationId == groupId && request.resource.data.messageId == messageId
+            && request.resource.data.userId == userId && request.resource.data.emoji is string
+            && request.resource.data.emoji.size() > 0 && request.resource.data.emoji.size() <= 64;
+          allow delete: if isGroupMember() && request.auth.uid == userId;
+        }
+      }
+    }
+    match /{path=**}/groupMessageReactions/{userId} {
+      allow read: if request.auth != null && canParticipateInConversations(request.auth.uid)
+        && request.auth.uid in get(/databases/$(database)/documents/groupConversations/$(resource.data.conversationId)).data.participants;
+    }
+
     match /conversations/{conversationId} {
       allow read: if request.auth != null &&
                     request.auth.uid in resource.data.participants &&

@@ -607,6 +607,16 @@ class MessagingViewModel: ObservableObject {
         LocalPersistenceService.shared.saveConversations(conversations + archivedConversations, sync: true)
         LocalPersistenceService.shared.deleteConversationCache(conversationId: conversationId)
 
+        if conversation.isGroup {
+            Firestore.firestore().messagingThread(conversationId).updateData([
+                "deletedFor": FieldValue.arrayUnion([currentUserId]),
+                "lastDeletedAt.\(currentUserId)": FieldValue.serverTimestamp()
+            ]) { [weak self] error in
+                if let error { Task { @MainActor in self?.errorMessage = error.localizedDescription } }
+            }
+            return
+        }
+
         chatService.deleteConversationsBetweenUsers(
             user1Id: currentUserId,
             user2Id: conversation.otherParticipantId
@@ -635,8 +645,7 @@ class MessagingViewModel: ObservableObject {
         }
 
         Firestore.firestore()
-            .collection("conversations")
-            .document(conversationId)
+            .messagingThread(conversationId)
             .updateData(["readStatus.\(Auth.auth().currentUser?.uid ?? "")": false]) { [weak self] error in
                 if let error = error {
                     DispatchQueue.main.async {

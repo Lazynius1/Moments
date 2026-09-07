@@ -458,7 +458,9 @@ extension ChatService {
         originalContentType: String,
         objectPath: String? = nil
     ) -> StorageUploadTarget {
-        let path = objectPath ?? StoragePathBuilder.build(
+        let path = GroupChatScope.isGroup(conversationId)
+            ? "groupChat/\(conversationId)/\(userId)/\(messageId)/\(fileId).enc"
+            : objectPath ?? StoragePathBuilder.build(
             userId: userId,
             domain: .chatMedia(
                 conversationId: conversationId,

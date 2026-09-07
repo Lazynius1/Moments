@@ -75,12 +75,8 @@ struct MessagingView: View {
     @State private var isSearching: Bool = false
     @FocusState private var isSearchFocused: Bool
     @StateObject private var navigationService = NotificationNavigationService.shared
-    // ✅ HISTORIAS: Estados para anillos de historias
-    // ✅ SOLICITUDES: Estado para mostrar solicitudes
     @State private var showingMessageRequests = false
     @State private var pendingRequestCount = 0
-
-    // ✅ NUEVO: Estado para el selector de estados online
     @StateObject private var onlineStatusService = OnlineStatusService()
     @State private var showingStatusSelector = false
     @State private var conversationMenuSelection: ConversationMenuSelection?
@@ -95,7 +91,6 @@ struct MessagingView: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
-    // ✅ NUEVO: Instancia de PrivacyService para verificar historias
     private let privacyService = PrivacyService()
     @State private var pendingConversationResolveTask: Task<Void, Never>? = nil
 
@@ -228,7 +223,10 @@ struct MessagingView: View {
         ZStack {
             GlassmorphicBackground(adaptiveColors: adaptiveColors)
 
-            conversationList
+            VStack(spacing: 0) {
+                GroupInvitationRows { conversation in selectedConversation = conversation }
+                conversationList
+            }
 
             GeometryReader { proxy in
                 ConversationContextMenuOverlay(
@@ -1678,6 +1676,7 @@ struct GlassmorphicNewConversationView: View {
     @Namespace private var profileZoomNamespace
     @State private var searchText = ""
     @State private var showingUserProfile: AppUser?
+    @State private var showingGroupCreation = false
     let onConversationCreated: (NewConversationRoute?) -> Void
 
     private var adaptiveColors: AdaptiveColors {
@@ -1689,6 +1688,10 @@ struct GlassmorphicNewConversationView: View {
             GlassmorphicBackground(adaptiveColors: adaptiveColors)
 
             VStack(spacing: 0) {
+                Button { showingGroupCreation = true } label: {
+                    Label(NSLocalizedString("groups.create", comment: ""), systemImage: "person.3.fill")
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 14)
+                }.buttonStyle(.plain)
                 newConversationToField
                 newConversationUserList
             }
@@ -1699,6 +1702,9 @@ struct GlassmorphicNewConversationView: View {
         .toolbar(.hidden, for: .tabBar)
         .momentsFloatingTabBarHidden()
         .toolbar { newConversationToolbarContent }
+        .navigationDestination(isPresented: $showingGroupCreation) {
+            NewGroupView { conversation in onConversationCreated(.conversation(conversation)) }
+        }
         .navigationDestination(item: $showingUserProfile) { user in
             UserProfileView(userId: user.id)
                 .userProfileZoomDestination(userId: user.id, namespace: profileZoomNamespace)

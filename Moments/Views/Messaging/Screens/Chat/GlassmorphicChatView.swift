@@ -55,6 +55,7 @@ struct ChatMediaViewerPresentation: Identifiable {
 // MARK: - Glassmorphic Chat View
 // Actualizar GlassmorphicChatView para incluir navegación
 struct GlassmorphicChatView: View {
+    @ObservedObject private var groupDirectory = GroupDirectory.shared
     @ObservedObject var session: ConversationChatSession
     @StateObject var onlineStatusService = OnlineStatusService()
     @StateObject var keyboardScrollCoordinator = ChatKeyboardScrollCoordinator()
@@ -183,6 +184,7 @@ struct GlassmorphicChatView: View {
     }
 
     var otherParticipantDisplayName: String {
+        if viewModel.conversation.isGroup, let group = groupDirectory.groups[viewModel.conversation.id ?? ""] { return group.name }
         let fallback = viewModel.conversation.otherParticipantUsername ?? "Usuario"
         let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         return live.isEmpty ? fallback : live
@@ -286,6 +288,9 @@ struct GlassmorphicChatView: View {
         chatRootContent
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .onChange(of: Set(groupDirectory.groups.keys)) { previous, current in
+                if let id = viewModel.conversation.id, viewModel.conversation.isGroup, previous.contains(id), !current.contains(id) { dismiss() }
+            }
             .toolbar(isSearchVisible ? .hidden : .visible, for: .navigationBar)
             .toolbar { chatToolbarContent }
             .safeAreaInset(edge: .top, spacing: 0) {

@@ -20,7 +20,7 @@ extension ChatService {
         activeListeners[listenerKey]?.remove()
         activeListeners[listenerKey] = nil
 
-        let listener = db.collectionGroup("messageReactions")
+        let listener = db.collectionGroup(GroupChatScope.reactions(conversationId))
             .whereField("conversationId", isEqualTo: conversationId)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self else { return }
@@ -58,7 +58,7 @@ extension ChatService {
         var aggregated: [String: [String: [String]]] = [:]
         for chunk in chunkMessageIds(ids, size: 10) {
             do {
-                let snapshot = try await db.collectionGroup("messageReactions")
+                let snapshot = try await db.collectionGroup(GroupChatScope.reactions(conversationId))
                     .whereField("conversationId", isEqualTo: conversationId)
                     .whereField("messageId", in: chunk)
                     .getDocuments()

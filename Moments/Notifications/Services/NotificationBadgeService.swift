@@ -15,6 +15,9 @@ class NotificationBadgeService: ObservableObject {
     
     private let widgetUserDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
     
+    private var groupMessageListener: ListenerRegistration?
+    private var directMessageCount = 0
+    private var groupMessageCount = 0
     private var messageListener: ListenerRegistration?
     private var widgetReloadWorkItem: DispatchWorkItem?
     private var cancellables = Set<AnyCancellable>()
@@ -38,6 +41,8 @@ class NotificationBadgeService: ObservableObject {
         if currentUserId != userId {
             messageListener?.remove()
             messageListener = nil
+            groupMessageListener?.remove(); groupMessageListener = nil
+            directMessageCount = 0; groupMessageCount = 0
             cancellables.removeAll()
             currentUserId = userId
         }
@@ -119,11 +124,23 @@ class NotificationBadgeService: ObservableObject {
                 
                 let count = self.countUnreadMessages(in: docs, userId: userId)
                 DispatchQueue.main.async {
-                    self.unreadMessagesCount = count
-                    self.widgetUserDefaults?.set(count, forKey: "widget_unread_messages")
+                    self.directMessageCount = count
+                    self.unreadMessagesCount = count + self.groupMessageCount
+                    self.widgetUserDefaults?.set(self.unreadMessagesCount, forKey: "widget_unread_messages")
                 }
             }
         
+        group.enter()
+        Firestore.firestore().collection("groupConversations").whereField("participants", arrayContains: userId)
+            .getDocuments { [weak self] snapshot, _ in
+                defer { group.leave() }
+                guard let self, let docs = snapshot?.documents, Auth.auth().currentUser?.uid == userId else { return }
+                DispatchQueue.main.async {
+                    self.groupMessageCount = self.countUnreadMessages(in: docs, userId: userId)
+                    self.unreadMessagesCount = self.directMessageCount + self.groupMessageCount
+                    self.widgetUserDefaults?.set(self.unreadMessagesCount, forKey: "widget_unread_messages")
+                }
+            }
         group.notify(queue: .main) {
             self.updateAppBadge()
             self.scheduleWidgetReload()
@@ -132,6 +149,17 @@ class NotificationBadgeService: ObservableObject {
     }
     
     private func setupMessageListener(userId: String) {
+        groupMessageListener?.remove()
+        groupMessageListener = Firestore.firestore().collection("groupConversations").whereField("participants", arrayContains: userId)
+            .addSnapshotListener { [weak self] snapshot, _ in
+                guard let self, let docs = snapshot?.documents, Auth.auth().currentUser?.uid == userId else { return }
+                DispatchQueue.main.async {
+                    self.groupMessageCount = self.countUnreadMessages(in: docs, userId: userId)
+                    self.unreadMessagesCount = self.directMessageCount + self.groupMessageCount
+                    self.widgetUserDefaults?.set(self.unreadMessagesCount, forKey: "widget_unread_messages")
+                    self.updateAppBadge(); self.scheduleWidgetReload()
+                }
+            }
         messageListener?.remove()
         messageListener = Firestore.firestore()
             .collection("conversations")
@@ -141,8 +169,9 @@ class NotificationBadgeService: ObservableObject {
                 
                 let count = self.countUnreadMessages(in: docs, userId: userId)
                 DispatchQueue.main.async {
-                    self.unreadMessagesCount = count
-                    self.widgetUserDefaults?.set(count, forKey: "widget_unread_messages")
+                    self.directMessageCount = count
+                    self.unreadMessagesCount = count + self.groupMessageCount
+                    self.widgetUserDefaults?.set(self.unreadMessagesCount, forKey: "widget_unread_messages")
                     self.updateAppBadge()
                     self.scheduleWidgetReload()
                 }
@@ -194,6 +223,8 @@ class NotificationBadgeService: ObservableObject {
     }
     
     func cleanup() {
+        groupMessageListener?.remove(); groupMessageListener = nil
+        directMessageCount = 0; groupMessageCount = 0
         messageListener?.remove()
         messageListener = nil
         cancellables.removeAll()
