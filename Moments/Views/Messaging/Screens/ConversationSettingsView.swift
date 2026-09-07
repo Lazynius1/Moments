@@ -22,9 +22,9 @@ struct ConversationSettingsView: View {
     @State private var showClearMediaConfirmation = false
     @State private var sharedTab: SharedContentTab = .media
     @State private var showChatPreferences = false
-    @State private var showGroupMembers = false
     @State private var showVanishPreferences = false
     @State private var showingUserProfile = false
+    @State private var groupManagementId: String?
     @State private var showBlockConfirmationFromHeader = false
     @State private var showReportSheetFromHeader = false
     @State private var isLargeHeader = false
@@ -32,6 +32,7 @@ struct ConversationSettingsView: View {
     @State private var scrollPhase: ScrollPhase = .idle
     @State private var safeAreaTopValue: CGFloat = 0
     @State private var lastHeaderScrollOffset: CGFloat = 0
+    @State private var tracksHeroScroll = false
 
     private enum SharedContentTab: Hashable {
         case media
@@ -49,7 +50,8 @@ struct ConversationSettingsView: View {
     }
 
     private var headerPresence: PresenceDisplay? {
-        onlineStatusService.presenceDisplay(
+        guard !conversation.isGroup else { return nil }
+        return onlineStatusService.presenceDisplay(
             for: otherUserStatus,
             lastSeen: otherUserLastSeen
         )
@@ -63,7 +65,7 @@ struct ConversationSettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 if conversation.isGroup {
-                    Button { showGroupMembers = true } label: {
+                    Button { groupManagementId = conversation.id } label: {
                         Label(NSLocalizedString("groups.members", comment: ""), systemImage: "person.3")
                             .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 14)
                     }.buttonStyle(.plain)
@@ -78,79 +80,49 @@ struct ConversationSettingsView: View {
                     .padding(.top, 8)
             }
             .padding(.bottom, 32)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                ConversationSettingsHeroHeader(
-                    isLargeHeader: $isLargeHeader,
-                    topInset: $headerTopInset,
-                    avatarURL: conversation.otherParticipantProfileImagePath,
-                    displayName: otherParticipantDisplayName,
-                    presence: headerPresence,
-                    notificationsEnabled: viewModel.notificationsEnabled,
-                    onProfile: {
-                        HapticManager.shared.lightImpact()
-                        if conversation.isGroup { showGroupMembers = true } else { showingUserProfile = true }
-                    },
-                    onSearch: {
-                        HapticManager.shared.lightImpact()
-                        onSearchRequested?()
-                    },
-                    onMuteToggle: {
-                        HapticManager.shared.lightImpact()
-                        viewModel.notificationsEnabled.toggle()
-                        viewModel.toggleNotifications()
-                    }
-                )
-            }
         }
+        .modifier(ConversationSettingsDirectHeroInset(enabled: true) {
+            ConversationSettingsHeroHeader(
+                isLargeHeader: $isLargeHeader,
+                topInset: $headerTopInset,
+                isGroup: conversation.isGroup,
+                avatarURL: conversation.otherParticipantProfileImagePath,
+                displayName: otherParticipantDisplayName,
+                presence: headerPresence,
+                notificationsEnabled: viewModel.notificationsEnabled,
+                onProfile: {
+                    HapticManager.shared.lightImpact()
+                    if conversation.isGroup {
+                        groupManagementId = conversation.id
+                    } else {
+                        showingUserProfile = true
+                    }
+                },
+                onSearch: {
+                    HapticManager.shared.lightImpact()
+                    onSearchRequested?()
+                },
+                onMuteToggle: {
+                    HapticManager.shared.lightImpact()
+                    viewModel.notificationsEnabled.toggle()
+                    viewModel.toggleNotifications()
+                }
+            )
+        })
         .background {
             Color(hex: colorScheme == .dark ? "0B1215" : "FAF9F6")
                 .ignoresSafeArea()
         }
-        .onScrollGeometryChange(for: CGFloat.self) {
-            $0.contentInsets.top
-        } action: { _, newValue in
-            headerTopInset = newValue
-        }
-        .onScrollGeometryChange(for: CGFloat.self) {
-            $0.contentOffset.y + $0.contentInsets.top
-        } action: { _, newValue in
-            lastHeaderScrollOffset = newValue
-            // Expandir/colapsar también en decelerating (el rubber-band a veces no es solo .interacting).
-            guard scrollPhase == .interacting || scrollPhase == .decelerating else { return }
-            let shouldExpand = newValue < -22
-            let shouldCollapse = newValue > 28
-            let next: Bool
-            if isLargeHeader {
-                next = shouldCollapse ? false : true
-            } else {
-                next = shouldExpand ? true : false
-            }
-            guard next != isLargeHeader else { return }
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
-                isLargeHeader = next
-            }
-        }
-        .onScrollPhaseChange { _, newPhase in
-            scrollPhase = newPhase
-            guard newPhase == .idle else { return }
-            // No colapsar por el rebote del rubber-band tras expandir.
-            if isLargeHeader {
-                guard lastHeaderScrollOffset > 28 else { return }
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
-                    isLargeHeader = false
-                }
-            } else if lastHeaderScrollOffset < -18 {
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
-                    isLargeHeader = true
-                }
-            }
-        }
-        .onGeometryChange(for: CGFloat.self) {
-            $0.safeAreaInsets.top
-        } action: { newValue in
-            safeAreaTopValue = newValue
-        }
-        // Solo en hero grande: extender bajo status bar. Compacto = layout original bajo la nav.
+        .modifier(
+            ConversationSettingsHeroGeometryModifier(
+                enabled: tracksHeroScroll,
+                headerTopInset: $headerTopInset,
+                lastHeaderScrollOffset: $lastHeaderScrollOffset,
+                scrollPhase: $scrollPhase,
+                isLargeHeader: $isLargeHeader,
+                safeAreaTopValue: $safeAreaTopValue
+            )
+        )
         .safeAreaPadding(.top, isLargeHeader ? safeAreaTopValue : 0)
         .ignoresSafeArea(.container, edges: isLargeHeader ? .top : [])
         .navigationTitle("")
@@ -203,8 +175,8 @@ struct ConversationSettingsView: View {
                 .momentsFloatingTabBarHidden()
                 .chatInteractivePopEnabled()
         }
-        .navigationDestination(isPresented: $showGroupMembers) {
-            if let id = conversation.id { GroupManagementView(groupId: id) }
+        .navigationDestination(item: $groupManagementId) { id in
+            GroupManagementView(groupId: id)
         }
         .navigationDestination(isPresented: $showChatPreferences) {
             ConversationChatPreferencesView(viewModel: viewModel)
@@ -218,7 +190,9 @@ struct ConversationSettingsView: View {
                 .momentsFloatingTabBarHidden()
         }
         .navigationDestination(isPresented: $showingUserProfile) {
-            UserProfileView(userId: conversation.otherParticipantId)
+            if !conversation.isGroup {
+                UserProfileView(userId: conversation.otherParticipantId)
+            }
         }
         .sheet(isPresented: $showReportSheetFromHeader) {
             ReportBottomSheet(
@@ -240,9 +214,15 @@ struct ConversationSettingsView: View {
         }
         .onAppear {
             viewModel.loadConversationData(conversation: conversation)
-            setupOnlineStatusObserver()
-            refreshOtherParticipantUsername()
             refreshMediaUsage()
+            if !conversation.isGroup {
+                setupOnlineStatusObserver()
+                refreshOtherParticipantUsername()
+            }
+            Task { @MainActor in
+                await Task.yield()
+                tracksHeroScroll = true
+            }
         }
         .onDisappear {
             statusListener?.remove()
@@ -2856,6 +2836,80 @@ struct ConversationVanishModeView: View {
             .fill(adaptiveColors.tertiary.opacity(colorScheme == .dark ? 0.16 : 0.12))
             .frame(height: 0.5)
             .padding(.leading, 16)
+    }
+}
+
+private struct ConversationSettingsDirectHeroInset<Header: View>: ViewModifier {
+    let enabled: Bool
+    @ViewBuilder var header: () -> Header
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content.safeAreaInset(edge: .top, spacing: 0, content: header)
+        } else {
+            content
+        }
+    }
+}
+
+/// El hero colapsable lee geometry. Se activa tras el primer layout
+/// para no publicar estado durante la presentación.
+private struct ConversationSettingsHeroGeometryModifier: ViewModifier {
+    let enabled: Bool
+    @Binding var headerTopInset: CGFloat
+    @Binding var lastHeaderScrollOffset: CGFloat
+    @Binding var scrollPhase: ScrollPhase
+    @Binding var isLargeHeader: Bool
+    @Binding var safeAreaTopValue: CGFloat
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .onScrollGeometryChange(for: CGFloat.self) {
+                    $0.contentInsets.top
+                } action: { _, newValue in
+                    guard abs(headerTopInset - newValue) > 0.5 else { return }
+                    headerTopInset = newValue
+                }
+                .onScrollGeometryChange(for: CGFloat.self) {
+                    $0.contentOffset.y + $0.contentInsets.top
+                } action: { _, newValue in
+                    lastHeaderScrollOffset = newValue
+                    guard scrollPhase == .interacting || scrollPhase == .decelerating else { return }
+                    let shouldExpand = newValue < -22
+                    let shouldCollapse = newValue > 28
+                    let next = isLargeHeader ? (shouldCollapse ? false : true) : (shouldExpand ? true : false)
+                    guard next != isLargeHeader else { return }
+                    withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
+                        isLargeHeader = next
+                    }
+                }
+                .onScrollPhaseChange { _, newPhase in
+                    guard scrollPhase != newPhase else { return }
+                    scrollPhase = newPhase
+                    guard newPhase == .idle else { return }
+                    if isLargeHeader {
+                        guard lastHeaderScrollOffset > 28 else { return }
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
+                            isLargeHeader = false
+                        }
+                    } else if lastHeaderScrollOffset < -18 {
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
+                            isLargeHeader = true
+                        }
+                    }
+                }
+                .onGeometryChange(for: CGFloat.self) {
+                    $0.safeAreaInsets.top
+                } action: { newValue in
+                    guard abs(safeAreaTopValue - newValue) > 0.5 else { return }
+                    safeAreaTopValue = newValue
+                }
+        } else {
+            content
+        }
     }
 }
 

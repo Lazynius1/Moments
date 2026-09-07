@@ -598,9 +598,25 @@ const uploadModeratedProfileImage = onRequest(
         return;
       }
 
+      const conversationId = typeof body.conversationId === 'string' ? body.conversationId.trim() : '';
+      let objectName = `users/${uid}/profile/avatar/${crypto.randomUUID()}.jpg`;
+      let pictureType = 'profile_picture';
+      if (conversationId) {
+        if (!/^group-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversationId)) {
+          res.status(400).json({ error: 'invalidGroup' });
+          return;
+        }
+        const group = await admin.firestore().doc(`groupConversations/${conversationId}`).get();
+        const admins = group.data()?.adminIds || [];
+        if (!group.exists || !admins.includes(uid)) {
+          res.status(403).json({ error: 'adminRequired' });
+          return;
+        }
+        objectName = `groupConversations/${conversationId}/avatar/${crypto.randomUUID()}.jpg`;
+        pictureType = 'group_picture';
+      }
+
       const bucket = admin.storage().bucket();
-      const fileName = `${crypto.randomUUID()}.jpg`;
-      const objectName = `users/${uid}/profile/avatar/${fileName}`;
       const downloadToken = crypto.randomUUID();
       await bucket.file(objectName).save(imageBuffer, {
         resumable: false,
@@ -610,7 +626,7 @@ const uploadModeratedProfileImage = onRequest(
           metadata: {
             firebaseStorageDownloadTokens: downloadToken,
             ownerId: uid,
-            type: 'profile_picture',
+            type: pictureType,
             moderationStatus: 'approved',
             moderationProvider: decision.provider || decision.details?.provider || 'unknown'
           }

@@ -60,15 +60,18 @@ extension ChatService {
               let participants = data["participants"] as? [String], participants.contains(userId) else { return nil }
         let date = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
         let cutoffs = (data["lastDeletedAt"] as? [String: Timestamp] ?? [:]).mapValues { $0.dateValue() }
+        let joinedAt = (data["memberJoinedAt"] as? [String: Timestamp] ?? [:]).mapValues { $0.dateValue() }
         if (data["deletedFor"] as? [String] ?? []).contains(userId), date <= (cutoffs[userId] ?? .distantFuture) { return nil }
         let keys = (data["wrappedKeys"] as? [String: [String: Any]] ?? [:]).compactMapValues(WrappedConversationKey.init(map:))
         var conversation = Conversation(id: doc.documentID, participants: participants, lastMessage: "", timestamp: date,
             readStatus: data["readStatus"] as? [String: Bool] ?? [:], otherParticipantId: doc.documentID,
-            otherParticipantUsername: data["groupName"] as? String, otherParticipantProfileImagePath: nil,
+            otherParticipantUsername: data["groupName"] as? String, otherParticipantProfileImagePath: data["groupImagePath"] as? String,
             pinnedByUserIds: data["pinnedByUserIds"] as? [String], mutedByUserIds: data["mutedByUserIds"] as? [String],
             archivedByUserIds: data["archivedByUserIds"] as? [String], encryptionVersion: "3.0",
             conversationKeyVersion: data["conversationKeyVersion"] as? Int, wrappedKeys: keys)
         conversation.lastDeletedAt = cutoffs
+        conversation.memberJoinedAt = joinedAt
+        rememberHistoryCutoffs(conversationId: doc.documentID, deletedAt: cutoffs[userId], joinedAt: joinedAt[userId])
         conversation.lastReadAt = (data["lastReadAt"] as? [String: Timestamp] ?? [:]).mapValues { $0.dateValue() }
         conversation.lastMessageSeenAt = (data["lastMessageSeenAt"] as? [String: Timestamp] ?? [:]).mapValues { $0.dateValue() }
         conversation.lastMessageSenderId = data["lastMessageSenderId"] as? String

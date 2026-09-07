@@ -17,6 +17,7 @@ enum MessageItem: Identifiable {
 /// Fila renderizable del chat: cabecera de fecha o un mensaje/cluster.
 enum ChatRenderRow: Identifiable {
     case conversationIntro(PendingChatContext?)
+    case groupIntro
     case requestDisclaimer(PendingChatContext?)
     case pendingRequestMessage(PendingChatTimelineMessage)
     case incomingRequestActions(isLoading: Bool)
@@ -30,6 +31,7 @@ enum ChatRenderRow: Identifiable {
     var id: String {
         switch self {
         case .conversationIntro(let context): return "row:synthetic:conversation-intro:\(context?.id ?? "normal")"
+        case .groupIntro: return "row:synthetic:group-intro"
         case .requestDisclaimer(let context): return "row:synthetic:request-disclaimer:\(context?.id ?? "normal")"
         case .pendingRequestMessage(let message): return "row:pending-request:\(message.id)"
         case .incomingRequestActions: return "row:synthetic:incoming-request-actions"

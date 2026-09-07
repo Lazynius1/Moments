@@ -47,12 +47,20 @@ class StorageService {
     // MARK: - Profile
 
     func uploadProfileImage(userId: String, image: UIImage, completion: @escaping (Result<String, Error>) -> Void) {
+        uploadModeratedAvatar(image: image, conversationId: nil, completion: completion)
+    }
+
+    func uploadGroupImage(groupId: String, image: UIImage, completion: @escaping (Result<String, Error>) -> Void) {
+        uploadModeratedAvatar(image: image, conversationId: groupId, completion: completion)
+    }
+
+    private func uploadModeratedAvatar(image: UIImage, conversationId: String?, completion: @escaping (Result<String, Error>) -> Void) {
         guard let imageData = image.storageUploadJPEGData(compressionQuality: 0.75, maxPixelDimension: 1080) else {
             completion(.failure(StorageError.invalidData))
             return
         }
 
-        guard Auth.auth().currentUser?.uid == userId,
+        guard Auth.auth().currentUser != nil,
               let projectID = FirebaseApp.app()?.options.projectID,
               let url = URL(string: "https://europe-southwest1-\(projectID).cloudfunctions.net/uploadModeratedProfileImage") else {
             completion(.failure(StorageError.uploadFailed))
@@ -72,9 +80,9 @@ class StorageService {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
             do {
-                request.httpBody = try JSONSerialization.data(withJSONObject: [
-                    "imageBase64": imageData.base64EncodedString()
-                ])
+                var body: [String: Any] = ["imageBase64": imageData.base64EncodedString()]
+                if let conversationId { body["conversationId"] = conversationId }
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
             } catch {
                 completion(.failure(StorageError.invalidData))
                 return

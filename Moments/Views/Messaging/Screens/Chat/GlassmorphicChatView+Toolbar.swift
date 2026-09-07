@@ -27,7 +27,7 @@ extension GlassmorphicChatView {
 
         ToolbarItem(placement: .principal) {
             Button {
-                showingConversationSettings = true
+                openConversationSettings(from: "toolbarTitle")
             } label: {
                 chatToolbarTitleStack
                     .contentShape(Rectangle())
@@ -139,8 +139,12 @@ extension GlassmorphicChatView {
     @ViewBuilder
     var chatToolbarAvatar: some View {
         if viewModel.conversation.isGroup {
-            Image(systemName: "person.3.fill").frame(width: 40, height: 40)
-                .background(adaptiveColors.primary.opacity(0.07), in: Circle())
+            GroupChatAvatar(
+                name: otherParticipantDisplayName,
+                image: GroupDirectory.shared.groups[viewModel.conversation.id ?? ""]?.image
+                    ?? viewModel.conversation.otherParticipantProfileImagePath ?? "",
+                size: 40
+            )
         } else if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
             ProfileUnavailableAvatar(size: 40)
                 .userProfileZoomSource(
@@ -178,11 +182,12 @@ extension GlassmorphicChatView {
             HStack(spacing: 4) {
                 Text(otherParticipantDisplayName)
                     .font(.system(size: 17, weight: .semibold))
-                    .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: adaptiveColors.secondary)
+                    .strikethrough(!viewModel.conversation.isGroup && isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: adaptiveColors.secondary)
                     .foregroundStyle(adaptiveColors.primary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                     .truncationMode(.tail)
-                    .layoutPriority(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 if !viewModel.conversation.isGroup && !isOtherParticipantUnavailable {
                     VerifiedBadgeView(userId: viewModel.conversation.otherParticipantId, size: 14)
@@ -245,7 +250,10 @@ extension GlassmorphicChatView {
 
 
     func openProfileOrStoryFromHeader() {
-        if viewModel.conversation.isGroup { showingConversationSettings = true; return }
+        if viewModel.conversation.isGroup {
+            openConversationSettings(from: "toolbarAvatar")
+            return
+        }
         if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
             openOtherParticipantProfile()
         } else if hasStory && !isOtherParticipantBlockedByCurrentUser {

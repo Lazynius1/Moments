@@ -190,6 +190,7 @@ enum PendingChatContextFactory {
     private static let conversationIntroCache = ConversationIntroContextCache()
 
     static func conversationIntro(for conversation: Conversation, currentUserId: String) async -> PendingChatContext? {
+        guard !conversation.isGroup else { return nil }
         let otherUserId = conversation.otherParticipantId
         guard !currentUserId.isEmpty, !otherUserId.isEmpty else { return nil }
 
@@ -632,6 +633,35 @@ enum MessagingPresentationRoute: Equatable {
     case pendingChat(PendingChatContext)
 }
 
+/// Cota inferior de mensajes visibles. `inclusive` es el aviso de unión al grupo;
+/// el borrado “para mí” sigue siendo exclusivo (`timestamp > date`).
+struct MessageHistoryCutoff: Equatable {
+    let date: Date
+    let inclusive: Bool
+
+    func allows(_ timestamp: Date) -> Bool {
+        inclusive ? timestamp >= date : timestamp > date
+    }
+
+    /// Para APIs que solo filtran con `timestamp > cutoff` (caché local).
+    var exclusiveDate: Date {
+        inclusive ? date.addingTimeInterval(-0.001) : date
+    }
+
+    static func combining(deletedAt: Date?, joinedAt: Date?) -> MessageHistoryCutoff? {
+        switch (deletedAt, joinedAt) {
+        case let (deleted?, joined?) where deleted >= joined:
+            return MessageHistoryCutoff(date: deleted, inclusive: false)
+        case let (_, joined?):
+            return MessageHistoryCutoff(date: joined, inclusive: true)
+        case let (deleted?, nil):
+            return MessageHistoryCutoff(date: deleted, inclusive: false)
+        default:
+            return nil
+        }
+    }
+}
+
 struct Conversation: Identifiable, Codable, Hashable {
     @DocumentID var id: String?
     let participants: [String]
@@ -661,6 +691,8 @@ struct Conversation: Identifiable, Codable, Hashable {
     /// Timestamp del momento en que cada usuario borró la conversación (punto de corte).
     /// Los mensajes y buzz events con timestamp ≤ este valor se ocultan para ese usuario.
     var lastDeletedAt: [String: Date]?
+    /// Momento en que cada miembro se unió al grupo. Los mensajes anteriores no se muestran.
+    var memberJoinedAt: [String: Date]?
     /// Última vez que cada usuario marcó la conversación como leída (server timestamp).
     /// Mensajes entrantes con timestamp ≤ este valor cuentan como leídos para ese usuario.
     var lastReadAt: [String: Date]?
@@ -763,6 +795,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.buzzPreferences = [:]
         self.forwardingPreferences = [:]
         self.lastDeletedAt = nil
+        self.memberJoinedAt = nil
         self.lastReadAt = nil
         self.vanishModeActive = false
         self.vanishModeEnabledBy = nil
@@ -799,8 +832,9 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.readReceiptPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .readReceiptPreferences) ?? [:]
         self.buzzPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .buzzPreferences) ?? [:]
         self.forwardingPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .forwardingPreferences) ?? [:]
-        // lastDeletedAt/lastReadAt se hidratan manualmente desde Firestore (Timestamp → Date)
+        // lastDeletedAt/lastReadAt/memberJoinedAt se hidratan manualmente desde Firestore (Timestamp → Date)
         self.lastDeletedAt = nil
+        self.memberJoinedAt = nil
         self.lastReadAt = nil
         self.vanishModeActive = try container.decodeIfPresent(Bool.self, forKey: .vanishModeActive) ?? false
         self.vanishModeEnabledBy = try container.decodeIfPresent(String.self, forKey: .vanishModeEnabledBy)
@@ -899,6 +933,10 @@ struct Conversation: Identifiable, Codable, Hashable {
     /// Mensajes y buzz events con `timestamp <= deletedAtCutoff` deben ocultarse para ese usuario.
     func deletedAtCutoff(for userId: String) -> Date? {
         lastDeletedAt?[userId]
+    }
+
+    func messageHistoryCutoff(for userId: String) -> MessageHistoryCutoff? {
+        MessageHistoryCutoff.combining(deletedAt: lastDeletedAt?[userId], joinedAt: memberJoinedAt?[userId])
     }
 
     // Propiedad calculada para obtener el número de mensajes no leídos
@@ -1965,6 +2003,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     }
 
     static func chatNoticePreviewText(for token: String) -> String {
+        if let text = GroupChatScope.noticeText(token) { return text }
         if VanishMessageTimer.parseEnabledNotice(token) != nil || token == "chat.vanish.enabled" {
             return NSLocalizedString("chat.vanish.notice.preview.enabled", comment: "Disappearing messages turned on")
         }

@@ -22,6 +22,19 @@ extension GlassmorphicChatView {
             .padding(.top, 18)
             .padding(.bottom, 8)
             .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+        case .groupIntro:
+            ChatGroupConversationIntroRow(
+                group: GroupDirectory.shared.groups[viewModel.conversation.id ?? ""],
+                fallbackName: otherParticipantDisplayName,
+                fallbackImage: viewModel.conversation.otherParticipantProfileImagePath ?? "",
+                memberCount: viewModel.conversation.participants.count,
+                adaptiveColors: adaptiveColors,
+                onTap: { openConversationSettings(from: "groupIntro") }
+            )
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
+            .padding(.bottom, 8)
+            .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
         case .requestDisclaimer(let context):
             ChatRequestDisclaimerRow(
                 textKey: context == nil ? "chat.intro.disclaimer.normal" : pendingChatDisclaimerKey,
@@ -111,9 +124,17 @@ extension GlassmorphicChatView {
             ChatIncomingTypingIndicatorRow()
                 .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
         case .historyStart:
-            ChatHistoryStartHeader(adaptiveColors: adaptiveColors)
+            ChatHistoryStartHeader(textKey: historyStartTextKey, adaptiveColors: adaptiveColors)
                 .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
         }
+    }
+
+    var historyStartTextKey: LocalizedStringKey {
+        guard viewModel.conversation.isGroup else { return "chat.historyStart" }
+        if viewModel.conversation.memberJoinedAt?[viewModel.currentUserId] != nil {
+            return "groups.historyStartJoined"
+        }
+        return "groups.historyStart"
     }
 
     func isOutgoingItem(_ item: MessageItem) -> Bool {

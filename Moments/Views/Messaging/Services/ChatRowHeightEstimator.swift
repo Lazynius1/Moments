@@ -58,7 +58,7 @@ enum ChatRowHeightEstimator {
         case .pendingRequestMessage(let message):
             if message.hasStoryReplyContext { return true }
             return message.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case .conversationIntro, .requestDisclaimer, .incomingRequestActions,
+        case .conversationIntro, .groupIntro, .requestDisclaimer, .incomingRequestActions,
              .outgoingRequestControls, .header, .buzz, .typing, .historyStart:
             return true
         }
@@ -69,6 +69,8 @@ enum ChatRowHeightEstimator {
         switch row {
         case .conversationIntro:
             return conversationIntroHeight
+        case .groupIntro:
+            return 240
         case .requestDisclaimer:
             return requestDisclaimerHeight
         case .pendingRequestMessage(let message):

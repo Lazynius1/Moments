@@ -143,8 +143,10 @@ class ChatService: ObservableObject {
         let attachListener = { [weak self] in
             guard let self else { return }
             guard self.isCurrentListenerGeneration(generation, for: conversationId) else { return }
+            let cutoff = self.resolvedHistoryCutoff(conversationId: conversationId, cutoffDate: cutoffDate)
             let listener = self.db.messagingThread(conversationId)
                 .messagingMessages
+                .applyingHistoryCutoff(cutoff)
                 .order(by: "timestamp", descending: false)
                 .limit(toLast: limit)
                 .addSnapshotListener { [weak self] snapshot, error in
@@ -183,6 +185,7 @@ class ChatService: ObservableObject {
             do {
                 let snapshot = try await db.messagingThread(conversationId)
                     .messagingMessages
+                    .applyingHistoryCutoff(resolvedHistoryCutoff(conversationId: conversationId, cutoffDate: cutoffDate))
                     .order(by: "timestamp", descending: false)
                     .limit(toLast: limit)
                     .getDocuments()
@@ -267,6 +270,7 @@ class ChatService: ObservableObject {
             do {
                 let collection = db.messagingThread(conversationId)
                     .messagingMessages
+                    .applyingHistoryCutoff(resolvedHistoryCutoff(conversationId: conversationId, cutoffDate: cutoffDate))
 
                 let snapshot: QuerySnapshot
                 if cursor.messageId.isEmpty {
@@ -329,6 +333,7 @@ class ChatService: ObservableObject {
             do {
                 let collection = db.messagingThread(conversationId)
                     .messagingMessages
+                    .applyingHistoryCutoff(resolvedHistoryCutoff(conversationId: conversationId, cutoffDate: cutoffDate))
 
                 let snapshot: QuerySnapshot
                 if cursor.messageId.isEmpty {
@@ -399,14 +404,7 @@ class ChatService: ObservableObject {
         await preloadConversationKey(for: conversationId)
 
         // Punto de corte temporal: ocultar mensajes que el usuario ya había borrado antes de restauración
-        let cutoffDateToUse: Date?
-        if let cutoffDate = cutoffDate {
-            cutoffDateToUse = cutoffDate
-        } else {
-            cutoffDateToUse = await MainActor.run {
-                conversationCutoffs[conversationId]
-            }
-        }
+        let cutoffDateToUse = resolvedHistoryCutoff(conversationId: conversationId, cutoffDate: cutoffDate)?.exclusiveDate
         
         var messages: [EnhancedMessage]
 
@@ -1558,6 +1556,7 @@ class ChatService: ObservableObject {
     // ✅ Mapa en memoria: conversationId -> fecha de corte temporal del usuario actual
     // Se pobla al cargar el listener de conversaciones y se consulta en handleMessagesSnapshot.
     private var conversationCutoffs: [String: Date] = [:]
+    private var conversationJoinCutoffs: [String: Date] = [:]
     private var archivedConversationIds: Set<String> = []
 
     func isConversationArchived(_ conversationId: String, for userId: String) -> Bool {
@@ -1567,6 +1566,30 @@ class ChatService: ObservableObject {
     /// Punto de corte en memoria (fallback cuando el modelo `Conversation` no trae `lastDeletedAt`).
     func deletedAtCutoff(for conversationId: String) -> Date? {
         conversationCutoffs[conversationId]
+    }
+
+    func joinedAtCutoff(for conversationId: String) -> Date? {
+        conversationJoinCutoffs[conversationId]
+    }
+
+    func rememberHistoryCutoffs(conversationId: String, deletedAt: Date?, joinedAt: Date?) {
+        if let deletedAt {
+            conversationCutoffs[conversationId] = deletedAt
+        } else {
+            conversationCutoffs.removeValue(forKey: conversationId)
+        }
+        if let joinedAt {
+            conversationJoinCutoffs[conversationId] = joinedAt
+        } else {
+            conversationJoinCutoffs.removeValue(forKey: conversationId)
+        }
+    }
+
+    func resolvedHistoryCutoff(conversationId: String, cutoffDate: Date? = nil) -> MessageHistoryCutoff? {
+        MessageHistoryCutoff.combining(
+            deletedAt: cutoffDate ?? conversationCutoffs[conversationId],
+            joinedAt: conversationJoinCutoffs[conversationId]
+        )
     }
 
     func deleteConversationsBetweenUsers(user1Id: String, user2Id: String, completion: @escaping (Error?) -> Void) {
@@ -2382,6 +2405,7 @@ class ChatService: ObservableObject {
             hydrated.buzzPreferences = conversation.buzzPreferences
             hydrated.forwardingPreferences = conversation.forwardingPreferences
             hydrated.lastDeletedAt = conversation.lastDeletedAt
+            hydrated.memberJoinedAt = conversation.memberJoinedAt
             hydrated.lastReadAt = conversation.lastReadAt
             hydrated.lastMessageSenderId = resolvedSenderId
             hydrated.lastMessageSeenAt = conversation.lastMessageSeenAt
@@ -2508,6 +2532,7 @@ class ChatService: ObservableObject {
         do {
             let snapshot = try await db.messagingThread(conversationId)
                 .messagingMessages
+                .applyingHistoryCutoff(resolvedHistoryCutoff(conversationId: conversationId))
                 .order(by: "timestamp", descending: true)
                 .limit(to: 5)
                 .getDocuments()

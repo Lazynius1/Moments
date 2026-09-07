@@ -32,6 +32,7 @@ extension ChatService {
                 do {
                     var firestoreQuery = db.messagingThread(conversationId)
                         .messagingMessages
+                        .applyingHistoryCutoff(resolvedHistoryCutoff(conversationId: conversationId))
                         .order(by: "timestamp", descending: true)
                         .limit(to: Self.remoteSearchBatchSize)
 

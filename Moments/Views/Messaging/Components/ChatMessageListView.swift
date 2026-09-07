@@ -179,6 +179,7 @@ struct ChatMessageListView: UIViewControllerRepresentable {
     let transaction: ChatListUpdateTransaction
     let controller: ChatMessageListController
     @Binding var isAtBottom: Bool
+    var suspendUpdates: Bool = false
     var onReachedTop: () -> Void
     var composerBottomInset: CGFloat = 0
     var isVanishGestureEnabled: Bool = true
@@ -199,8 +200,9 @@ struct ChatMessageListView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ viewController: ChatMessageListViewController, context: Context) {
+        if suspendUpdates { return }
         configure(viewController)
-        viewController.apply(transaction: transaction, animated: true)
+        viewController.apply(transaction: transaction, animated: transaction.kind != .initial)
     }
 
     private func configure(_ viewController: ChatMessageListViewController) {
@@ -763,6 +765,12 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         rebuildMessageIdToRowIdIndex(rows)
 
         guard newIds != oldIds || !hasLoadedInitial || !changedRowIds.isEmpty else { return }
+        if isInitial {
+            // Marcar ya: `dataSource.apply` es async y SwiftUI puede llamar
+            // updateUIViewController varias veces en el primer layout (intro de grupo).
+            // Sin esto se reaplicaba el snapshot initial 8 veces y el chrome quedaba frozen.
+            hasLoadedInitial = true
+        }
         orderedItemIds = newIds
         rowHeightCache?.invalidate(changedRowIds)
         rowHeightCache?.seedEstimates(for: rows, containerWidth: collectionView.bounds.width)
@@ -850,7 +858,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             self.collectionView.layoutIfNeeded()
             self.updateBottomAnchorInset()
             if normalizedKind == .initial {
-                self.hasLoadedInitial = true
                 self.applyInitialScrollPolicy(animated: false)
             } else if wasAtBottom, self.scrollNavigationTargetRowId == nil {
                 if normalizedKind == .appendMessages {
@@ -1678,6 +1685,8 @@ private extension ChatRenderRow {
         case .conversationIntro(let context):
             hasher.combine(5)
             hasher.combine(context)
+        case .groupIntro:
+            hasher.combine(10)
         case .requestDisclaimer(let context):
             hasher.combine(6)
             hasher.combine(context?.id)

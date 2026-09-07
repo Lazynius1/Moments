@@ -204,17 +204,16 @@ extension GlassmorphicChatView {
 
     func handleComposerHeightChangeInList(_ height: CGFloat) {
         let chromeHeight = max(height, ChatComposerChromeMetrics.estimatedComposerChromeHeight)
-        guard hasCompletedInitialScroll, isPinnedToBottom else {
+        deferListStateUpdate {
+            guard abs(chromeHeight - lastComposerHeight) > 0.5 else { return }
             lastComposerHeight = chromeHeight
-            return
-        }
-        guard abs(chromeHeight - lastComposerHeight) > 0.5 else { return }
-        lastComposerHeight = chromeHeight
-        composerSnapTask?.cancel()
-        composerSnapTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 50_000_000)
-            guard !Task.isCancelled else { return }
-            scheduleListBottomSnap(reason: .composerResized)
+            guard hasCompletedInitialScroll, isPinnedToBottom else { return }
+            composerSnapTask?.cancel()
+            composerSnapTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 50_000_000)
+                guard !Task.isCancelled else { return }
+                scheduleListBottomSnap(reason: .composerResized)
+            }
         }
     }
 

@@ -608,6 +608,10 @@ struct ChatNoticeTimelineRow: View {
     var onTurnOn: (() -> Void)?
 
     var body: some View {
+        if let text = GroupChatScope.noticeText(noticeKey) {
+            Text(text).font(.caption).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.vertical, 8)
+        } else {
         ChatDisappearingNoticeRow(
             noticeToken: noticeKey,
             actorUserId: actorUserId,
@@ -616,5 +620,6 @@ struct ChatNoticeTimelineRow: View {
             onChangeTimer: onChangeTimer,
             onTurnOn: onTurnOn
         )
+        }
     }
 }

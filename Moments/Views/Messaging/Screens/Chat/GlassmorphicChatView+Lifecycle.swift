@@ -42,7 +42,7 @@ extension GlassmorphicChatView {
 
     // MARK: - Helper Methods
     func setupOnlineStatusObserver() {
-        guard !viewModel.conversation.isGroup else { return }
+        if viewModel.conversation.isGroup { return }
         let otherUserId = viewModel.conversation.otherParticipantId
 
         statusListener = onlineStatusService.observeUserStatus(userId: otherUserId) { status, lastSeen in
@@ -164,7 +164,7 @@ extension GlassmorphicChatView {
     }
 
     func refreshOtherParticipantUsername() {
-        guard !viewModel.conversation.isGroup else { return }
+        if viewModel.conversation.isGroup { return }
         let otherUserId = viewModel.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !otherUserId.isEmpty else {
             liveOtherParticipantUsername = ""
@@ -181,7 +181,7 @@ extension GlassmorphicChatView {
     }
 
     func refreshOtherParticipantAvailability() {
-        guard !viewModel.conversation.isGroup else { return }
+        if viewModel.conversation.isGroup { return }
         let otherUserId = viewModel.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !otherUserId.isEmpty, NetworkMonitor.shared.isConnected else { return }
 
@@ -252,17 +252,25 @@ extension GlassmorphicChatView {
     }
 
     func shouldShowAvatar(for message: EnhancedMessage, in messages: [EnhancedMessage]) -> Bool {
+        if message.type.isChatNotice { return false }
         let source = viewModel.messages
         guard let index = viewModel.messageIndexById[message.id], index < source.count else { return true }
         if index == source.count - 1 { return true }
-        return source[index + 1].senderId != message.senderId
+        let next = source[index + 1]
+        if next.type.isChatNotice { return true }
+        return next.senderId != message.senderId
     }
 
     func messageGroupPosition(for message: EnhancedMessage, in messages: [EnhancedMessage]) -> ChatMessageGroupPosition {
+        if message.type.isChatNotice { return .single }
         let source = viewModel.messages
         guard let index = viewModel.messageIndexById[message.id], index < source.count else { return .single }
-        let prevSameSender = index > 0 && source[index - 1].senderId == message.senderId
-        let nextSameSender = index < source.count - 1 && source[index + 1].senderId == message.senderId
+        let prevSameSender = index > 0
+            && source[index - 1].senderId == message.senderId
+            && !source[index - 1].type.isChatNotice
+        let nextSameSender = index < source.count - 1
+            && source[index + 1].senderId == message.senderId
+            && !source[index + 1].type.isChatNotice
 
         switch (prevSameSender, nextSameSender) {
         case (false, false): return .single

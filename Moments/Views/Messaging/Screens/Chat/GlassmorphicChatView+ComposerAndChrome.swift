@@ -24,8 +24,20 @@ extension GlassmorphicChatView {
     }
 
     func openOtherParticipantProfile() {
-        if viewModel.conversation.isGroup { showingConversationSettings = true; return }
+        if viewModel.conversation.isGroup {
+            openConversationSettings(from: "openOtherParticipantProfile")
+            return
+        }
         openChatProfile(userId: viewModel.conversation.otherParticipantId)
+    }
+
+    func openConversationSettings(from _: String) {
+        // Congelar la lista del chat antes del present. En grupos el push nativo
+        // relayoutaba la intro (celda SwiftUI en UICollectionView) y congelaba el chrome.
+        isChatListSuspended = true
+        DispatchQueue.main.async {
+            showingConversationSettings = true
+        }
     }
 
     var pendingChatCanType: Bool {
@@ -617,16 +629,6 @@ extension GlassmorphicChatView {
     // ✅ REFACTORIZADO: Renderizar cada item del chat por separado para evitar errores del compilador
     @ViewBuilder
     func renderMessageItem(_ item: MessageItem, in messages: [EnhancedMessage], proxy: ScrollViewProxy?) -> some View {
-        if viewModel.conversation.isGroup {
-            let first: EnhancedMessage? = {
-                switch item { case .single(let message): return message; case .mediaCluster(let messages): return messages.first }
-            }()
-            if let first, first.senderId != viewModel.currentUserId {
-                Text(groupSenderName(first.senderId)).font(.caption.weight(.semibold)).foregroundStyle(adaptiveColors.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 58).padding(.top, 4)
-            }
-        }
-
         let rowId = ChatRenderRow.message(item).id
         let isMenuSelected = messageMenuSelection?.rowId == rowId
         let isBubbleHighlighted = isMessageItemHighlighted(item)
@@ -1124,6 +1126,7 @@ extension GlassmorphicChatView {
 
     // ✅ ACTUALIZADO: Función para verificar historias del usuario (con filtrado de privacidad como en reels)
     func checkUserStories() {
+        if viewModel.conversation.isGroup { return }
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         let otherUserId = viewModel.conversation.otherParticipantId
         guard !otherUserId.isEmpty else { return }

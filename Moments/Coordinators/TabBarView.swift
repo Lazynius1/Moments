@@ -34,6 +34,7 @@ struct TabBarView: View {
     @StateObject private var firestoreService = FirestoreService.shared
     @StateObject private var tabBarMinimize = TabBarMinimizeController()
     @StateObject private var messagingViewModel = MessagingViewModel()
+    @State private var groupInviteLink: GroupInviteLink?
     @State private var selectedTab: Int = 0
     @State private var previousSelectedTab: Int = 0
     @State private var showCreatorView: Bool = false
@@ -152,6 +153,9 @@ struct TabBarView: View {
             } else {
                 InAppNotificationService.shared.stopListening()
             }
+        }
+        .sheet(item: Binding(get: { shouldShowMainApp ? groupInviteLink : nil }, set: { groupInviteLink = $0 })) { link in
+            GroupJoinLinkView(link: link) { AppRouter.shared.navigate(to: .conversation(id: link.groupId)) }
         }
         .onOpenURL { url in
             IncognitoModeService.shared.handlePendingAppGroupActionIfNeeded()
@@ -375,6 +379,7 @@ struct ModernTabView: View {
 
     // ✅ NUEVO: Manejador de Deep Links extraído para evitar errores de compilador
     private func handleDeepLink(_ url: URL) {
+        if let link = GroupInviteLink(url) { groupInviteLink = link; return }
         // ✅ 1. Manejar esquemas personalizados (moments:// o glowsy://)
         if let scheme = url.scheme, (scheme == "moments" || scheme == "glowsy") {
             handleCustomScheme(url)

@@ -1405,7 +1405,16 @@ struct GlassmorphicConversationRow: View {
 
     @ViewBuilder
     private var conversationAvatar: some View {
-        if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+        if conversation.isGroup {
+            Button(action: onTap) {
+                GroupChatAvatar(
+                    name: conversation.otherParticipantUsername ?? "",
+                    image: conversation.otherParticipantProfileImagePath ?? "",
+                    size: 56
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+        } else if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
             // Sin historia → abrir conversación (no perfil)
             Button(action: onTap) {
                 ProfileUnavailableAvatar(size: 56)
@@ -1466,10 +1475,10 @@ struct GlassmorphicConversationRow: View {
         let label = HStack(spacing: 4) {
             Text(displayUsername)
                 .font(.system(size: 16, weight: .semibold))
-                .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
-                .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(isOtherParticipantUnavailable ? 0.72 : 1.0))
+                .strikethrough(!conversation.isGroup && isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(!conversation.isGroup && isOtherParticipantUnavailable ? 0.72 : 1.0))
 
-            if !isOtherParticipantUnavailable {
+            if !conversation.isGroup && !isOtherParticipantUnavailable {
                 VerifiedBadgeView(userId: conversation.otherParticipantId, size: 14)
             }
 
@@ -1603,6 +1612,10 @@ struct GlassmorphicConversationRow: View {
     }
 
     private func refreshOtherParticipantUsername() {
+        if conversation.isGroup {
+            liveOtherParticipantUsername = ""
+            return
+        }
         let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !otherUserId.isEmpty else {
             liveOtherParticipantUsername = ""
@@ -1619,6 +1632,7 @@ struct GlassmorphicConversationRow: View {
     }
 
     private func refreshOtherParticipantAvailability() {
+        guard !conversation.isGroup else { return }
         let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !otherUserId.isEmpty, NetworkMonitor.shared.isConnected else { return }
 

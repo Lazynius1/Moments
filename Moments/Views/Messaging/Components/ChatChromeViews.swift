@@ -278,10 +278,11 @@ struct ChatHistoryLoadingIndicator: View {
 
 /// Marca sutil al llegar al inicio del historial disponible.
 struct ChatHistoryStartHeader: View {
+    var textKey: LocalizedStringKey = "chat.historyStart"
     let adaptiveColors: AdaptiveColors
 
     var body: some View {
-        Text("chat.historyStart")
+        Text(textKey)
             .font(.system(size: legacyPoppinsSize(12)))
             .foregroundStyle(adaptiveColors.secondary.opacity(0.85))
             .multilineTextAlignment(.center)
@@ -438,6 +439,77 @@ struct ChatConversationIntroRow: View {
 
     private func yearString(from date: Date) -> String {
         String(Calendar.current.component(.year, from: date))
+    }
+}
+
+struct ChatGroupConversationIntroRow: View {
+    let group: GroupConversation?
+    let fallbackName: String
+    let fallbackImage: String
+    let memberCount: Int
+    let adaptiveColors: AdaptiveColors
+    var onTap: () -> Void = {}
+
+    private var name: String {
+        let trimmed = group?.name.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? fallbackName : trimmed
+    }
+
+    private var creatorName: String {
+        guard let group else { return "" }
+        let id = group.createdBy
+        let named = group.allMemberNames[id]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !named.isEmpty { return named }
+        return group.members.first(where: { $0.id == id })?.name
+            ?? NSLocalizedString("messaging.user.default", comment: "")
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            GroupChatAvatar(name: name, image: group?.image ?? fallbackImage, size: 96)
+
+            VStack(spacing: 5) {
+                Text(name)
+                    .font(.system(size: legacyPoppinsSize(25), weight: .bold))
+                    .foregroundStyle(adaptiveColors.primary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+                    .multilineTextAlignment(.center)
+
+                Text(String(format: NSLocalizedString("groups.memberCount", comment: ""), group?.members.count ?? memberCount))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                    .foregroundStyle(adaptiveColors.secondary)
+
+                if !creatorName.isEmpty {
+                    Text(String(format: NSLocalizedString("groups.intro.createdBy", comment: ""), creatorName))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                        .foregroundStyle(adaptiveColors.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                if let createdAt = group?.createdAt {
+                    Text(String(
+                        format: NSLocalizedString("groups.intro.createdOn", comment: ""),
+                        MomentsFormat.smartDate(from: createdAt, context: .mediumDate)
+                    ))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+                    .foregroundStyle(adaptiveColors.secondary)
+                }
+
+                Text("groups.intro.encrypted")
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+                    .foregroundStyle(adaptiveColors.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 2)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.top, 46)
+        .padding(.bottom, 22)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

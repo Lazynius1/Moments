@@ -25,6 +25,17 @@ extension DocumentReference {
     }
 }
 
+extension Query {
+    func applyingHistoryCutoff(_ cutoff: MessageHistoryCutoff?) -> Query {
+        guard let cutoff else { return self }
+        let timestamp = Timestamp(date: cutoff.date)
+        if cutoff.inclusive {
+            return whereField("timestamp", isGreaterThanOrEqualTo: timestamp)
+        }
+        return whereField("timestamp", isGreaterThan: timestamp)
+    }
+}
+
 extension Conversation {
     var isGroup: Bool { GroupChatScope.isGroup(id) }
 }
@@ -41,5 +52,15 @@ extension GroupChatScope {
         data["viewedBy"] = viewed
         data["isViewed"] = viewed.contains(uid)
         return data
+    }
+}
+
+extension GroupChatScope {
+    static func noticeText(_ content: String) -> String? {
+        guard let bytes = content.data(using: .utf8),
+              let data = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
+              let kind = data["groupNotice"] as? String, ["joined", "left", "removed"].contains(kind),
+              let name = data["name"] as? String else { return nil }
+        return String(format: NSLocalizedString("groups.notice." + kind, comment: "Group membership event"), name)
     }
 }

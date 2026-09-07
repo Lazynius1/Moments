@@ -1134,13 +1134,20 @@ class EnhancedChatViewModel: ObservableObject {
             < MessageSyncCursor(timestamp: rhs.timestamp, messageId: rhs.id)
     }
 
-    /// Punto de corte tras borrar conversación: modelo local o mapa en memoria de ChatService.
-    private func effectiveDeletedAtCutoff() -> Date? {
-        if let cutoff = conversation.deletedAtCutoff(for: currentUserId) {
+    /// Punto de corte tras borrar conversación o unirse a un grupo.
+    private func effectiveHistoryCutoff() -> MessageHistoryCutoff? {
+        if let cutoff = conversation.messageHistoryCutoff(for: currentUserId) {
             return cutoff
         }
         guard let conversationId = conversation.id else { return nil }
-        return chatService.deletedAtCutoff(for: conversationId)
+        return MessageHistoryCutoff.combining(
+            deletedAt: chatService.deletedAtCutoff(for: conversationId),
+            joinedAt: chatService.joinedAtCutoff(for: conversationId)
+        )
+    }
+
+    private func effectiveDeletedAtCutoff() -> Date? {
+        effectiveHistoryCutoff()?.exclusiveDate
     }
 
     private func messagesRespectingDeletionCutoff(_ messages: [EnhancedMessage]) -> [EnhancedMessage] {
@@ -1877,6 +1884,13 @@ class EnhancedChatViewModel: ObservableObject {
         typingUsersCancellable = nil
 
         let cutoff = effectiveDeletedAtCutoff()
+        if let conversationId = conversation.id {
+            chatService.rememberHistoryCutoffs(
+                conversationId: conversationId,
+                deletedAt: conversation.deletedAtCutoff(for: currentUserId),
+                joinedAt: conversation.memberJoinedAt?[currentUserId]
+            )
+        }
         chatService.listenToMessages(
             conversationId: conversationId,
             cutoffDate: cutoff,
@@ -1988,7 +2002,15 @@ class EnhancedChatViewModel: ObservableObject {
     /// fresco de la lista para que el saneado de leídos no trabaje con datos viejos.
     func mergeConversationReadMetadata(from fresh: Conversation) {
         guard let freshId = fresh.id, freshId == conversation.id else { return }
-        if fresh.isGroup { conversation = fresh; return }
+        if fresh.isGroup {
+            conversation = fresh
+            chatService.rememberHistoryCutoffs(
+                conversationId: freshId,
+                deletedAt: conversation.deletedAtCutoff(for: currentUserId),
+                joinedAt: conversation.memberJoinedAt?[currentUserId]
+            )
+            return
+        }
         if let lastReadAt = fresh.lastReadAt, lastReadAt != conversation.lastReadAt {
             conversation.lastReadAt = lastReadAt
         }

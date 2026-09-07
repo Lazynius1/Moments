@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import CryptoKit
+import UIKit
 import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
@@ -18,6 +19,8 @@ struct GroupConversation: Identifiable {
     let members: [GroupMember]
     let admins: [String]
     let owner: String
+    let createdBy: String
+    let createdAt: Date?
     let revision: Int
     let keyVersion: Int
     let wrappedKeys: [String: [String: Any]]
@@ -27,6 +30,8 @@ struct GroupConversation: Identifiable {
     let muted: [String]
     let pendingNames: [String: String]
     let allMemberNames: [String: String]
+    let image: String
+    let memberJoinedAt: [String: Date]
 
     init(_ doc: DocumentSnapshot) {
         let data = doc.data() ?? [:]
@@ -38,6 +43,8 @@ struct GroupConversation: Identifiable {
         }
         admins = data["adminIds"] as? [String] ?? []
         owner = data["ownerId"] as? String ?? ""
+        createdBy = data["createdBy"] as? String ?? owner
+        createdAt = (data["createdAt"] as? Timestamp)?.dateValue()
         revision = data["groupRevision"] as? Int ?? 0
         keyVersion = data["conversationKeyVersion"] as? Int ?? 1
         wrappedKeys = data["wrappedKeys"] as? [String: [String: Any]] ?? [:]
@@ -47,6 +54,14 @@ struct GroupConversation: Identifiable {
         muted = data["mutedByUserIds"] as? [String] ?? []
         pendingNames = data["pendingInviteNames"] as? [String: String] ?? [:]
         allMemberNames = details.mapValues { $0["username"] as? String ?? "" }
+        image = data["groupImagePath"] as? String ?? ""
+        memberJoinedAt = (data["memberJoinedAt"] as? [String: Timestamp] ?? [:]).mapValues { $0.dateValue() }
+    }
+
+    func joinedDate(for memberId: String) -> Date? {
+        if let joined = memberJoinedAt[memberId] { return joined }
+        if memberId == createdBy || memberId == owner { return createdAt }
+        return nil
     }
 }
 
@@ -55,6 +70,17 @@ struct GroupInvitation: Identifiable {
     let groupId: String
     let name: String
     let inviter: String
+    let image: String
+}
+
+struct GroupSkippedInvite {
+    let id: String
+    let username: String
+}
+
+struct GroupSaveResult {
+    let id: String
+    let skipped: [GroupSkippedInvite]
 }
 
 @MainActor
@@ -105,7 +131,8 @@ final class GroupChatStore: ObservableObject {
                     if failure != nil { self.error = "groups.error"; return }
                     self.invitations = (snapshot?.documents ?? []).map {
                         GroupInvitation(id: $0.documentID, groupId: $0.get("groupId") as? String ?? "",
-                            name: $0.get("groupName") as? String ?? "", inviter: $0.get("inviterName") as? String ?? "")
+                            name: $0.get("groupName") as? String ?? "", inviter: $0.get("inviterName") as? String ?? "",
+                            image: $0.get("groupImagePath") as? String ?? "")
                     }
                 }
             }
@@ -179,7 +206,7 @@ final class GroupChatStore: ObservableObject {
         } catch { self.error = "groups.error" }
     }
 
-    func saveMembers(name: String, ids: [String], to group: GroupConversation?) async -> String? {
+    func saveMembers(name: String, ids: [String], to group: GroupConversation?) async -> GroupSaveResult? {
         guard !busy else { return nil }
         busy = true; defer { busy = false }
         do {
@@ -193,14 +220,52 @@ final class GroupChatStore: ObservableObject {
             var envelopes = try await EncryptionService.shared.buildWrappedConversationKeys(for: recipients, conversationKey: key, wrappedBy: userId)
             guard envelopes.count == recipients.count else { self.error = "groups.keyError"; return nil }
             for recipient in recipients { envelopes[recipient]?.removeValue(forKey: "wrappedAt") }
-            _ = try await request("manageGroup", ["action": group == nil ? "create" : "add", "conversationId": id,
+            let payload = try await request("manageGroup", ["action": group == nil ? "create" : "add", "conversationId": id,
                 "name": name, "memberIds": ids, "wrappedKeys": envelopes, "revision": group?.revision ?? 0])
-            return id
+            return GroupSaveResult(id: id, skipped: skippedInvites(from: payload))
         } catch {
-            self.error = (error as NSError).domain == "GroupChat" && (error as NSError).code == 403
-                ? "groups.inviteForbidden" : "groups.manageError"
+            let payload = (error as NSError).userInfo
+            let skipped: [GroupSkippedInvite]
+            if let rows = payload["skipped"] as? [[String: Any]] {
+                skipped = skippedInvites(from: ["skipped": rows])
+            } else if let rows = payload["skipped"] as? [[String: String]] {
+                skipped = rows.map { GroupSkippedInvite(id: $0["id"] ?? "", username: $0["username"] ?? "") }.filter { !$0.id.isEmpty }
+            } else {
+                skipped = []
+            }
+            self.error = inviteForbiddenMessage(skipped)
+                ?? (((error as NSError).domain == "GroupChat" && (error as NSError).code == 403)
+                    ? "groups.inviteForbidden" : "groups.manageError")
             return nil
         }
+    }
+
+    func inviteForbiddenMessage(_ skipped: [GroupSkippedInvite]) -> String? {
+        let names = skipped.map { item in
+            candidates.first(where: { $0.id == item.id })?.name ?? item.username
+        }.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        guard !names.isEmpty else { return nil }
+        let joined = ListFormatter.localizedString(byJoining: names)
+        let key = names.count == 1 ? "groups.inviteForbiddenOne" : "groups.inviteForbiddenMany"
+        return String(format: NSLocalizedString(key, comment: ""), joined)
+    }
+
+    private func skippedInvites(from payload: [String: Any]) -> [GroupSkippedInvite] {
+        (payload["skipped"] as? [[String: Any]] ?? []).compactMap { row in
+            guard let id = row["id"] as? String, !id.isEmpty else { return nil }
+            return GroupSkippedInvite(id: id, username: row["username"] as? String ?? "")
+        }
+    }
+
+    func setPhoto(_ image: UIImage, group: GroupConversation) async {
+        guard !busy else { return }
+        busy = true; defer { busy = false }
+        do {
+            let path: String = try await withCheckedThrowingContinuation { continuation in
+                StorageService().uploadGroupImage(groupId: group.id, image: image) { continuation.resume(with: $0) }
+            }
+            _ = try await request("manageGroup", ["action": "setPhoto", "conversationId": group.id, "revision": group.revision, "imagePath": path])
+        } catch { self.error = "groups.photoError" }
     }
 
     @discardableResult
@@ -234,12 +299,95 @@ final class GroupChatStore: ObservableObject {
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? -1
         if status != 200 || uid != user.uid {
-            let code = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
+            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+            let code = json["error"] as? String
             if code == "inviteForbidden" {
-                throw NSError(domain: "GroupChat", code: 403, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("groups.inviteForbidden", comment: "")])
+                throw NSError(domain: "GroupChat", code: 403, userInfo: [
+                    NSLocalizedDescriptionKey: NSLocalizedString("groups.inviteForbidden", comment: ""),
+                    "skipped": skippedInvites(from: json).map { ["id": $0.id, "username": $0.username] }
+                ])
             }
             throw URLError(.badServerResponse)
         }
         return (try JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+    }
+}
+
+struct GroupInviteLink: Identifiable {
+    let groupId: String
+    let token: String
+    let secret: Data
+    var id: String { groupId + token }
+    init?(_ url: URL) {
+        guard ["moments", "glowsy"].contains(url.scheme?.lowercased() ?? ""), url.host == "group" else { return nil }
+        let parts = url.path.split(separator: "/").map(String.init)
+        guard parts.count == 2, GroupChatScope.isGroup(parts[0]), parts[1].range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil,
+              let fragment = url.fragment, fragment.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil else { return nil }
+        groupId = parts[0]; token = parts[1]
+        secret = Data(stride(from: 0, to: 64, by: 2).map { index in
+            let start = fragment.index(fragment.startIndex, offsetBy: index)
+            return UInt8(fragment[start..<fragment.index(start, offsetBy: 2)], radix: 16)!
+        })
+    }
+    static func url(groupId: String, token: String, secret: Data) throws -> URL {
+        guard let project = FirebaseApp.app()?.options.projectID,
+              let url = URL(string: "https://europe-southwest1-\(project).cloudfunctions.net/manageGroup/join/\(groupId)/\(token)#\(secret.map { String(format: "%02x", $0) }.joined())") else { throw URLError(.badURL) }
+        return url
+    }
+}
+
+extension GroupChatStore {
+    func invitationLink(_ group: GroupConversation, renew: Bool = false) async -> URL? {
+        guard !busy else { return nil }
+        busy = true; defer { busy = false }
+        do {
+            let groupKey = try key(for: group)
+            let aad = Data(group.id.utf8)
+            if !renew {
+                let existing = try await request("manageGroup", ["action": "getLink", "conversationId": group.id])
+                if let token = existing["token"] as? String, let box = existing["secretBox"] as? String,
+                   let data = Data(base64Encoded: box) {
+                    let secret = try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: groupKey, authenticating: aad)
+                    return try GroupInviteLink.url(groupId: group.id, token: token, secret: secret)
+                }
+            }
+            let secretKey = SymmetricKey(size: .bits256)
+            let secret = secretKey.withUnsafeBytes { Data($0) }
+            let token = SymmetricKey(size: .bits256).withUnsafeBytes { Data($0) }.map { String(format: "%02x", $0) }.joined()
+            let encryptedKey = try AES.GCM.seal(groupKey.withUnsafeBytes { Data($0) }, using: secretKey, authenticating: aad).combined!
+            let secretBox = try AES.GCM.seal(secret, using: groupKey, authenticating: aad).combined!
+            _ = try await request("manageGroup", ["action": "setLink", "conversationId": group.id, "revision": group.revision,
+                "token": token, "encryptedKey": encryptedKey.base64EncodedString(), "secretBox": secretBox.base64EncodedString()])
+            return try GroupInviteLink.url(groupId: group.id, token: token, secret: secret)
+        } catch { self.error = "groups.linkError"; return nil }
+    }
+
+    func previewLink(_ link: GroupInviteLink) async -> (name: String, image: String)? {
+        do {
+            let result = try await request("manageGroup", ["action": "previewLink", "conversationId": link.groupId, "token": link.token])
+            _ = try linkKey(link, result)
+            guard let name = result["name"] as? String else { return nil }
+            return (name, result["image"] as? String ?? "")
+        } catch { self.error = "groups.linkError"; return nil }
+    }
+    private func linkKey(_ link: GroupInviteLink, _ result: [String: Any]) throws -> SymmetricKey {
+        guard let box = result["encryptedKey"] as? String, let data = Data(base64Encoded: box) else { throw URLError(.badServerResponse) }
+        let raw = try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: SymmetricKey(data: link.secret), authenticating: Data(link.groupId.utf8))
+        guard raw.count == 32 else { throw URLError(.cannotDecodeContentData) }
+        return SymmetricKey(data: raw)
+    }
+    func joinLink(_ link: GroupInviteLink) async -> Bool {
+        guard !busy else { return false }
+        busy = true; defer { busy = false }
+        do {
+            let result = try await request("manageGroup", ["action": "previewLink", "conversationId": link.groupId, "token": link.token])
+            let userId = uid
+            let key = try linkKey(link, result)
+            var envelopes = try await EncryptionService.shared.buildWrappedConversationKeys(for: [userId], conversationKey: key, wrappedBy: userId)
+            guard var envelope = envelopes.removeValue(forKey: userId) else { throw URLError(.userAuthenticationRequired) }
+            envelope.removeValue(forKey: "wrappedAt")
+            _ = try await request("manageGroup", ["action": "joinLink", "conversationId": link.groupId, "token": link.token, "wrappedKey": envelope])
+            return true
+        } catch { self.error = "groups.linkError"; return false }
     }
 }

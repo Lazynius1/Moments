@@ -112,6 +112,7 @@ class MessagingViewModel: ObservableObject {
         updated.forwardingPreferences = conversation.forwardingPreferences
         updated.buzzPreferences = conversation.buzzPreferences
         updated.lastDeletedAt = conversation.lastDeletedAt
+        updated.memberJoinedAt = conversation.memberJoinedAt
         updated.lastReadAt = conversation.lastReadAt
         updated.lastMessageSenderId = conversation.lastMessageSenderId
         updated.lastMessageSeenAt = conversation.lastMessageSeenAt

@@ -7,6 +7,7 @@ struct ConversationSettingsHeroHeader: View {
     @Binding var isLargeHeader: Bool
     @Binding var topInset: CGFloat
 
+    var isGroup: Bool = false
     let avatarURL: String?
     let displayName: String
     let presence: PresenceDisplay?
@@ -64,7 +65,9 @@ struct ConversationSettingsHeroHeader: View {
 
     @ViewBuilder
     private var compactAvatarView: some View {
-        if let avatarURL, let url = URL(string: avatarURL) {
+        if isGroup {
+            GroupChatAvatar(name: displayName, image: avatarURL ?? "", size: compactAvatar)
+        } else if let avatarURL, let url = URL(string: avatarURL) {
             KFImage(url)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
@@ -82,11 +85,21 @@ struct ConversationSettingsHeroHeader: View {
         }
     }
 
+    private var profileActionIcon: String {
+        isGroup ? "person.3" : "person"
+    }
+
+    private var profileActionTitle: String {
+        isGroup
+            ? NSLocalizedString("groups.members", comment: "")
+            : NSLocalizedString("conversationSettings.quickAction.profile", comment: "")
+    }
+
     private var compactQuickActions: some View {
         HStack(spacing: 40) {
             compactActionButton(
-                icon: "person",
-                title: NSLocalizedString("conversationSettings.quickAction.profile", comment: ""),
+                icon: profileActionIcon,
+                title: profileActionTitle,
                 action: onProfile
             )
             compactActionButton(
@@ -161,6 +174,14 @@ struct ConversationSettingsHeroHeader: View {
                 KFImage(url)
                     .resizable()
                     .scaledToFill()
+            } else if isGroup {
+                adaptiveColors.surfaceBackground
+                Image(systemName: "person.3.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(Color.white.opacity(0.9))
+                    .frame(height: 120)
+                    .offset(y: -40)
             } else {
                 adaptiveColors.surfaceBackground
                 Image(systemName: "person.fill")
@@ -262,8 +283,8 @@ struct ConversationSettingsHeroHeader: View {
     private var largeQuickActions: some View {
         HStack(spacing: 8) {
             largeActionButton(
-                icon: "person",
-                title: NSLocalizedString("conversationSettings.quickAction.profile", comment: ""),
+                icon: profileActionIcon,
+                title: profileActionTitle,
                 action: onProfile
             )
             largeActionButton(

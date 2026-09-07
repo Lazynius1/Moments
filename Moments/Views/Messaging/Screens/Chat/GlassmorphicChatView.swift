@@ -55,7 +55,6 @@ struct ChatMediaViewerPresentation: Identifiable {
 // MARK: - Glassmorphic Chat View
 // Actualizar GlassmorphicChatView para incluir navegación
 struct GlassmorphicChatView: View {
-    @ObservedObject private var groupDirectory = GroupDirectory.shared
     @ObservedObject var session: ConversationChatSession
     @StateObject var onlineStatusService = OnlineStatusService()
     @StateObject var keyboardScrollCoordinator = ChatKeyboardScrollCoordinator()
@@ -91,6 +90,7 @@ struct GlassmorphicChatView: View {
     @State var recordingTime: TimeInterval = 0
     @State var recordingTimer: Timer?
     @State var showingConversationSettings = false
+    @State var isChatListSuspended = false
     @State var showingReportSheet = false
     @State var flashingMessageIds: Set<String> = []
     @State var pendingReactionHighlightIds: Set<String> = []
@@ -178,13 +178,14 @@ struct GlassmorphicChatView: View {
     @State var reactionMessageOverlay: EnhancedMessage? = nil
     @State var chatMediaViewerPresentation: ChatMediaViewerPresentation?
     @State var locationDetailMessage: EnhancedMessage?
+    @State private var lastGroupDirectoryIDs: Set<String> = []
 
     var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
     var otherParticipantDisplayName: String {
-        if viewModel.conversation.isGroup, let group = groupDirectory.groups[viewModel.conversation.id ?? ""] { return group.name }
+        if viewModel.conversation.isGroup, let group = GroupDirectory.shared.groups[viewModel.conversation.id ?? ""] { return group.name }
         let fallback = viewModel.conversation.otherParticipantUsername ?? "Usuario"
         let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         return live.isEmpty ? fallback : live
@@ -288,8 +289,17 @@ struct GlassmorphicChatView: View {
         chatRootContent
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
-            .onChange(of: Set(groupDirectory.groups.keys)) { previous, current in
-                if let id = viewModel.conversation.id, viewModel.conversation.isGroup, previous.contains(id), !current.contains(id) { dismiss() }
+            .onReceive(GroupDirectory.shared.$groups) { groups in
+                guard let id = viewModel.conversation.id, viewModel.conversation.isGroup else { return }
+                let has = groups[id] != nil
+                let had = lastGroupDirectoryIDs.contains(id)
+                if lastGroupDirectoryIDs.isEmpty {
+                    lastGroupDirectoryIDs = has ? [id] : []
+                    return
+                }
+                guard has != had else { return }
+                lastGroupDirectoryIDs = has ? [id] : []
+                if had, !has { dismiss() }
             }
             .toolbar(isSearchVisible ? .hidden : .visible, for: .navigationBar)
             .toolbar { chatToolbarContent }
@@ -374,6 +384,7 @@ struct GlassmorphicChatView: View {
     /// Replica el bloque social del intro de requests en conversaciones normales,
     /// pero con caché TTL para no rehacer lecturas cada vez que se abre el chat.
     func loadConversationIntroContextIfNeeded() async {
+        if viewModel.conversation.isGroup { return }
         guard pendingChatContext == nil,
               conversationIntroContext == nil,
               let currentUserId = Auth.auth().currentUser?.uid else { return }
@@ -456,23 +467,43 @@ struct GlassmorphicChatView: View {
         )
     }
 
+    var conversationSettingsDestination: some View {
+        ConversationSettingsView(
+            conversation: viewModel.conversation,
+            onJumpToMessage: { messageId in
+                deferredJumpToMessageId = messageId
+            },
+            onSearchRequested: {
+                showingConversationSettings = false
+                toggleChatSearch()
+            }
+        )
+        .toolbar(.hidden, for: .tabBar)
+    }
+
     var chatViewWithNavigationDestinations: some View {
         chatViewWithSettingsAndStories
-            .navigationDestination(isPresented: $showingConversationSettings) {
-                ConversationSettingsView(
-                    conversation: viewModel.conversation,
-                    onJumpToMessage: { messageId in
-                        deferredJumpToMessageId = messageId
-                    },
-                    onSearchRequested: {
-                        showingConversationSettings = false
-                        toggleChatSearch()
-                    }
+            .navigationDestination(
+                isPresented: Binding(
+                    get: { showingConversationSettings && !viewModel.conversation.isGroup },
+                    set: { showingConversationSettings = $0 }
                 )
-                .toolbar(.hidden, for: .tabBar)
+            ) {
+                conversationSettingsDestination
+            }
+            .fullScreenCover(
+                isPresented: Binding(
+                    get: { showingConversationSettings && viewModel.conversation.isGroup },
+                    set: { showingConversationSettings = $0 }
+                )
+            ) {
+                NavigationStack {
+                    conversationSettingsDestination
+                }
             }
             .onChange(of: showingConversationSettings) { _, isShowing in
                 if !isShowing {
+                    isChatListSuspended = false
                     viewModel.refreshTypingIndicatorPreference()
                     viewModel.refreshForwardingPreference()
                     consumeDeferredJumpToMessageIfNeeded()

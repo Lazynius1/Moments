@@ -1760,6 +1760,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /groupInviteLinks/{groupId} {
+      allow read, write: if false;
+    }
+
     match /groupConversations/{groupId} {
       function isGroupMember() {
         return request.auth != null && canParticipateInConversations(request.auth.uid)
@@ -1800,7 +1804,7 @@ service cloud.firestore {
         allow read: if isGroupMember();
         allow create, delete: if false;
         allow update: if isGroupMember() && (
-          (resource.data.senderId == request.auth.uid
+          (resource.data.senderId == request.auth.uid && resource.data.type != 'chatNotice'
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
               'content', 'editedAt', 'isDeleted', 'deletedAt', 'mediaUrl', 'thumbnailUrl', 'mediaObjectPath',
               'thumbnailObjectPath', 'mediaEncryption', 'thumbnailEncryption', 'textOverlayLive', 'textOverlays',

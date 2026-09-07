@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const { onRequest, onCall, HttpsError, onDocumentCreated, admin } = require('../bootstrap');
 const { setProxyCors, parseJsonBody, verifyFirebaseAuth, isDoNotDisturbActive, shouldSilenceNotificationForUser, withAndroidShade, ANDROID_FCM_CHANNELS } = require('../helpers');
 const validId = id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id);
@@ -6,7 +7,7 @@ const validBase64 = (value, byteCount) => {
   const decoded = Buffer.from(value, 'base64');
   return decoded.length === byteCount && decoded.toString('base64') === value;
 };
-const fail = (code, status = 400) => { throw Object.assign(new Error(code), { status, code }); };
+const fail = (code, status = 400, extra) => { throw Object.assign(new Error(code), { status, code, extra }); };
 const uniqueIds = ids => {
   if (!Array.isArray(ids) || ids.length > 50 || !ids.every(validId)) fail('invalidMembers');
   return [...new Set(ids)];
@@ -21,10 +22,34 @@ const allowsGroupInvite = (recipient, actorId, memberId, recipientFollowsActor, 
   return true;
 };
 
+// Server-authored timeline events; clients cannot forge these through sendGroupMessage.
+function groupNotice(tx, ref, group, kind, memberId, name) {
+  const messageRef = ref.collection('groupMessages').doc();
+  const timestamp = admin.firestore.FieldValue.serverTimestamp();
+  const content = JSON.stringify({ groupNotice: kind, name: name || '' });
+  tx.create(messageRef, { id: messageRef.id, conversationId: ref.id, senderId: memberId,
+    senderName: name || '', type: 'chatNotice', content, timestamp, status: 'sent',
+    isRead: true, isDeleted: false, recipientIds: [], isViewOnce: false });
+  tx.update(ref, { timestamp, lastMessageId: messageRef.id, lastMessage: content,
+    lastMessageType: 'chatNotice', lastMessageSenderId: memberId,
+    lastMessageReaction: admin.firestore.FieldValue.delete() });
+}
+const linkHash = token => crypto.createHash('sha256').update(token).digest('hex');
+const validToken = token => typeof token === 'string' && /^[a-f0-9]{64}$/.test(token);
+const validGroupImagePath = (id, path) => {
+  if (typeof path !== 'string' || path.length < 40 || path.length > 2048) return false;
+  try {
+    const url = new URL(path);
+    if (url.protocol !== 'https:') return false;
+    const objectPath = `/groupConversations/${id}/avatar/`;
+    return decodeURIComponent(url.pathname).includes(objectPath);
+  } catch { return false; }
+};
+
 async function applyGroupCommand(db, uid, body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) fail('invalidAction');
   const action = body.action;
-  if (!['create', 'add', 'rename', 'promote', 'demote', 'remove', 'leave', 'mute', 'read', 'acceptInvite', 'declineInvite', 'cancelInvite'].includes(action)) fail('invalidAction');
+  if (!['create', 'add', 'rename', 'setPhoto', 'promote', 'demote', 'remove', 'leave', 'mute', 'read', 'acceptInvite', 'declineInvite', 'cancelInvite', 'getLink', 'setLink', 'revokeLink', 'previewLink', 'joinLink'].includes(action)) fail('invalidAction');
   const id = body.conversationId;
   if (!validId(id) || !/^group-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) fail('invalidGroup');
   const ref = db.doc(`groupConversations/${id}`);
@@ -33,6 +58,30 @@ async function applyGroupCommand(db, uid, body) {
     const group = snapshot.exists ? snapshot.data() : null;
     const actor = await tx.get(db.doc(`users/${uid}`));
     if (!actor.exists || actor.data().isActive === false) fail('unavailable', 403);
+    if (action === 'previewLink' || action === 'joinLink') {
+      if (!validToken(body.token) || !group || !group.participants.length) fail('unavailable', 403);
+      const link = (await tx.get(db.doc(`groupInviteLinks/${id}`))).data();
+      if (!link || link.tokenHash !== linkHash(body.token) || link.keyVersion !== group.conversationKeyVersion) fail('unavailable', 403);
+      if (action === 'previewLink') return { conversationId: id, name: group.groupName, image: group.groupImagePath || '',
+        memberCount: group.participants.length, encryptedKey: link.encryptedKey, keyVersion: link.keyVersion };
+      if (group.participants.includes(uid)) return { conversationId: id };
+      if (group.participants.length + (group.pendingInviteIds || []).filter(x => x !== uid).length >= 50) fail('invalidMembers');
+      const envelope = body.wrappedKey;
+      if (!envelope || envelope.wrappedBy !== uid || !validBase64(envelope.senderPublicKey, 32) ||
+          envelope.recipientKeyId !== actor.data().chatKey?.keyId || !validBase64(envelope.wrappedKey, 60)) fail('keyUnavailable', 409);
+      const pendingNames = { ...(group.pendingInviteNames || {}) }; delete pendingNames[uid];
+      const timestamp = admin.firestore.FieldValue.serverTimestamp();
+      tx.update(ref, { participants: [...group.participants, uid],
+        participantData: { ...group.participantData, [uid]: { userId: uid, username: actor.get('username') || '', profileImagePath: actor.get('profileImagePath') || '' } },
+        wrappedKeys: { ...group.wrappedKeys, [uid]: { wrappedKey: envelope.wrappedKey, senderPublicKey: envelope.senderPublicKey,
+          recipientKeyId: envelope.recipientKeyId, wrappedBy: uid, wrappedAt: timestamp } },
+        pendingInviteIds: (group.pendingInviteIds || []).filter(x => x !== uid), pendingInviteNames: pendingNames,
+        [`memberJoinedAt.${uid}`]: timestamp,
+        readStatus: { ...group.readStatus, [uid]: true }, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+      tx.delete(db.doc(`groupInvitations/${id}_${uid}`));
+      groupNotice(tx, ref, group, 'joined', uid, actor.get('username'));
+      return { conversationId: id };
+    }
     if (action === 'acceptInvite' || action === 'declineInvite') {
       const invitationRef = db.doc(`groupInvitations/${id}_${uid}`);
       const invitationDoc = await tx.get(invitationRef);
@@ -52,9 +101,11 @@ async function applyGroupCommand(db, uid, body) {
         tx.update(ref, { participants: [...group.participants, uid], pendingInviteIds: pendingIds, pendingInviteNames: pendingNames,
           participantData: { ...group.participantData, [uid]: { userId: uid, username: actor.get('username') || '', profileImagePath: actor.get('profileImagePath') || '' } },
           wrappedKeys: { ...group.wrappedKeys, [uid]: invitation.wrappedKey },
+          [`memberJoinedAt.${uid}`]: admin.firestore.FieldValue.serverTimestamp(),
           readStatus: { ...group.readStatus, [uid]: true }, groupRevision: group.groupRevision + 1,
           updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       }
+      if (!group.participants.includes(uid)) groupNotice(tx, ref, group, 'joined', uid, actor.get('username'));
       tx.delete(invitationRef);
       return { conversationId: id };
     }
@@ -66,23 +117,31 @@ async function applyGroupCommand(db, uid, body) {
     } else {
       if (!group || group.isGroup !== true || !group.participants.includes(uid)) fail('unavailable', 403);
       if (!['leave', 'mute', 'read'].includes(action) && !group.adminIds.includes(uid)) fail('adminRequired', 403);
-      if (!['mute', 'read'].includes(action) && body.revision !== group.groupRevision) fail('conflict', 409);
+      if (!['mute', 'read', 'getLink'].includes(action) && body.revision !== group.groupRevision) fail('conflict', 409);
     }
     const timestamp = admin.firestore.FieldValue.serverTimestamp();
     if (action === 'create' || action === 'add') {
-      const additions = uniqueIds(body.memberIds).filter(id => id !== uid && !(group?.participants || []).includes(id));
-      const pendingIds = [...new Set([...(group?.pendingInviteIds || []), ...additions])];
-      const participants = action === 'create' ? [uid, ...additions] : [...group.participants, ...additions];
-      if ((action === 'create' && participants.length < 3) || (group?.participants.length || 1) + pendingIds.length > 50 || !additions.length) fail('invalidMembers');
-      const userDocs = await Promise.all(participants.map(memberId => tx.get(db.doc(`users/${memberId}`))));
-      const followSnaps = await Promise.all(additions.map(id => tx.get(db.doc(`users/${id}/following/${uid}`))));
+      const requested = uniqueIds(body.memberIds).filter(id => id !== uid && !(group?.participants || []).includes(id));
+      if (!requested.length) fail('invalidMembers');
+      const lookupIds = action === 'create' ? [uid, ...requested] : requested;
+      const userDocs = await Promise.all(lookupIds.map(memberId => tx.get(db.doc(`users/${memberId}`))));
+      const followSnaps = await Promise.all(requested.map(id => tx.get(db.doc(`users/${id}/following/${uid}`))));
       const users = new Map(userDocs.map(doc => [doc.id, doc.exists ? doc.data() : null]));
       const actorBlocked = actor.data().blockedUsers || [];
-      for (let i = 0; i < additions.length; i++) {
-        const memberId = additions[i];
-        if (!allowsGroupInvite(users.get(memberId), uid, memberId, followSnaps[i].exists, actorBlocked)) fail('inviteForbidden', 403);
+      const skipped = [];
+      const additions = [];
+      for (let i = 0; i < requested.length; i++) {
+        const memberId = requested[i];
+        if (!allowsGroupInvite(users.get(memberId), uid, memberId, followSnaps[i].exists, actorBlocked)) {
+          skipped.push({ id: memberId, username: users.get(memberId)?.username || '' });
+        } else additions.push(memberId);
       }
-      const recipients = action === 'create' ? participants : additions;
+      const pendingIds = [...new Set([...(group?.pendingInviteIds || []), ...additions])];
+      if ((action === 'create' && additions.length < 2) || !additions.length || (group?.participants.length || 1) + pendingIds.length > 50) {
+        if (skipped.length) fail('inviteForbidden', 403, { skipped });
+        fail('invalidMembers');
+      }
+      const recipients = action === 'create' ? [uid, ...additions] : additions;
       const wrapped = { ...(group?.wrappedKeys || {}) };
       for (const memberId of recipients) {
         const user = users.get(memberId), envelope = body.wrappedKeys?.[memberId];
@@ -95,7 +154,7 @@ async function applyGroupCommand(db, uid, body) {
           recipientKeyId: envelope.recipientKeyId, wrappedBy: uid, wrappedAt: timestamp };
       }
       const participantData = { ...(group?.participantData || {}) };
-      for (const memberId of participants) {
+      for (const memberId of recipients) {
         const user = users.get(memberId);
         if (!user) fail('memberUnavailable', 409);
         participantData[memberId] = { userId: memberId, username: user.username || '', profileImagePath: user.profileImagePath || '' };
@@ -106,16 +165,31 @@ async function applyGroupCommand(db, uid, body) {
         if (!name || Array.from(name).length > 60) fail('invalidName');
         tx.create(ref, { isGroup: true, groupName: name, createdBy: uid, ownerId: uid, adminIds: [uid],
           groupRevision: 1, participants: [uid], participantData: { [uid]: participantData[uid] }, pendingInviteIds: pendingIds, pendingInviteNames: pendingNames, wrappedKeys: { [uid]: wrapped[uid] }, encryptionVersion: '3.0', conversationKeyVersion: 1,
-          timestamp, createdAt: timestamp, updatedAt: timestamp, readStatus: Object.fromEntries(participants.map(id => [id, true])),
+          timestamp, createdAt: timestamp, updatedAt: timestamp, readStatus: Object.fromEntries(recipients.map(id => [id, true])),
           lastMessage: '', lastMessageType: 'text', mutedByUserIds: [], archivedByUserIds: [] });
       } else {
         tx.update(ref, { pendingInviteIds: pendingIds, pendingInviteNames: pendingNames, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
       }
       for (const memberId of additions) {
         tx.set(db.doc(`groupInvitations/${id}_${memberId}`), { groupId: id, groupName: group?.groupName || body.name.trim(),
-          recipientId: memberId, inviterId: uid, inviterName: actor.get('username') || '',
+          groupImagePath: group?.groupImagePath || '', recipientId: memberId, inviterId: uid, inviterName: actor.get('username') || '',
           keyVersion: group?.conversationKeyVersion || 1, wrappedKey: wrapped[memberId], createdAt: timestamp });
       }
+      return { conversationId: id, skipped };
+    }
+    if (action === 'getLink') {
+      const link = (await tx.get(db.doc(`groupInviteLinks/${id}`))).data();
+      return link && link.keyVersion === group.conversationKeyVersion
+        ? { token: link.token, secretBox: link.secretBox } : {};
+    }
+    if (action === 'setLink' || action === 'revokeLink') {
+      const linkRef = db.doc(`groupInviteLinks/${id}`);
+      if (action === 'setLink') {
+        if (!validToken(body.token) || !validBase64(body.encryptedKey, 60) || !validBase64(body.secretBox, 60)) fail('invalidLink');
+        tx.set(linkRef, { token: body.token, tokenHash: linkHash(body.token), encryptedKey: body.encryptedKey,
+          secretBox: body.secretBox, keyVersion: group.conversationKeyVersion, createdBy: uid, createdAt: timestamp });
+      } else tx.delete(linkRef);
+      tx.update(ref, { groupRevision: group.groupRevision + 1, updatedAt: timestamp });
       return { conversationId: id };
     }
     if (action === 'cancelInvite') {
@@ -138,6 +212,14 @@ async function applyGroupCommand(db, uid, body) {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
       if (!name || Array.from(name).length > 60) fail('invalidName');
       tx.update(ref, { groupName: name, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+    } else if (action === 'setPhoto') {
+      if (!validGroupImagePath(id, body.imagePath)) fail('invalidName');
+      const imagePath = body.imagePath.trim();
+      const inviteSnaps = await Promise.all((group.pendingInviteIds || []).map(memberId => tx.get(db.doc(`groupInvitations/${id}_${memberId}`))));
+      tx.update(ref, { groupImagePath: imagePath, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+      for (const snap of inviteSnaps) {
+        if (snap.exists) tx.update(snap.ref, { groupImagePath: imagePath });
+      }
     } else if (action === 'promote' || action === 'demote') {
       const target = body.memberId;
       if (!validId(target) || !group.participants.includes(target) || target === group.ownerId) fail('invalidMember');
@@ -153,8 +235,11 @@ async function applyGroupCommand(db, uid, body) {
       if (!admins.length && participants.length) admins = [participants[0]];
       const wrapped = { ...group.wrappedKeys }, participantData = { ...group.participantData };
       delete wrapped[target];
+      // Removal revokes the shared capability as well.
+      tx.delete(db.doc(`groupInviteLinks/${id}`));
       tx.update(ref, { participants, adminIds: admins, ownerId: group.ownerId === target ? (admins[0] || null) : group.ownerId,
         wrappedKeys: wrapped, participantData, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+      groupNotice(tx, ref, group, action === 'leave' ? 'left' : 'removed', target, participantData[target]?.username);
     } else { fail('invalidAction'); }
     return { conversationId: id };
   });
@@ -163,11 +248,21 @@ async function applyGroupCommand(db, uid, body) {
 const manageGroup = onRequest({ timeoutSeconds: 60, memory: '256MiB', concurrency: 20 }, async (req, res) => {
   setProxyCors(res);
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+  if (req.method === 'GET' && /^\/join\/group-[0-9a-f-]{36}\/[a-f0-9]{64}\/?$/i.test(req.path)) {
+    res.set('Cache-Control', 'no-store');
+    res.set('Referrer-Policy', 'no-referrer');
+    res.set('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'");
+    res.status(200).send(`<!doctype html><html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Moments</title><style>body{font:18px system-ui;text-align:center;padding:15vh 24px;background:#fafafa;color:#171717}a{display:inline-block;background:#171717;color:white;padding:16px 28px;border-radius:24px;text-decoration:none}</style><h1>Moments</h1><a id="open">Open Moments</a><script>const p=location.pathname.split('/').filter(Boolean);const a=document.getElementById('open');a.textContent=navigator.language.startsWith('es')?'Abrir Moments':'Open Moments';a.href='moments://group/'+p[p.length-2]+'/'+p[p.length-1]+location.hash;</script></html>`);
+    return;
+  }
   if (req.method !== 'POST') { res.status(405).json({ error: 'methodNotAllowed' }); return; }
   const uid = await verifyFirebaseAuth(req, res);
   if (!uid) return;
   try { res.status(200).json(await applyGroupCommand(admin.firestore(), uid, parseJsonBody(req))); }
-  catch (error) { console.error('manageGroup failed', error.code || error.message); res.status(error.status || 500).json({ error: error.code || 'failed' }); }
+  catch (error) {
+    console.error('manageGroup failed', error.code || error.message);
+    res.status(error.status || 500).json({ error: error.code || 'failed', ...(error.extra && typeof error.extra === 'object' ? error.extra : {}) });
+  }
 });
 
 
@@ -235,7 +330,7 @@ const sendGroupMessage = onRequest({ timeoutSeconds: 60, memory: '256MiB', concu
 
 const onGroupMessageAdded = onDocumentCreated({ document: 'groupConversations/{groupId}/groupMessages/{messageId}', retry: false }, async event => {
   const message = event.data?.data();
-  if (!message) return;
+  if (!message || message.type === 'chatNotice') return;
   const { groupId, messageId } = event.params;
   const db = admin.firestore();
   const group = (await db.doc(`groupConversations/${groupId}`).get()).data();
