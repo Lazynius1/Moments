@@ -4082,6 +4082,12 @@
 "settings.privacy.messageRequests.everyone" = "Herkes";
 "settings.privacy.messageRequests.following" = "Takip ettiklerin";
 "settings.privacy.messageRequests.nobody" = "Hiç kimse";
+"settings.privacy.groupInvites.title" = "Grup davetleri";
+"settings.privacy.groupInvites.description" = "Seni gruplara kim davet edebilir";
+"settings.privacy.groupInvites.everyone" = "Herkes";
+"settings.privacy.groupInvites.following" = "Takip ettiklerin";
+"settings.privacy.groupInvites.nobody" = "Hiç kimse";
+"groups.inviteForbidden" = "Bazı kişiler grup davetlerine izin vermiyor.";
 "chat.intro.request.blocked" = "Bu hesap mesaj isteklerini kabul etmiyor.";
 "chat.request.closed.input" = "%@ mesaj isteklerini kabul etmiyor";
 "chat.request.error.notAllowed" = "Bu kullanıcı mesaj isteklerini kabul etmiyor.";

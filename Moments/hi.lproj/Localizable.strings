@@ -4082,6 +4082,12 @@
 "settings.privacy.messageRequests.everyone" = "हर कोई";
 "settings.privacy.messageRequests.following" = "जिन्हें आप फ़ॉलो करते हैं";
 "settings.privacy.messageRequests.nobody" = "कोई नहीं";
+"settings.privacy.groupInvites.title" = "समूह आमंत्रण";
+"settings.privacy.groupInvites.description" = "आपको समूहों में कौन आमंत्रित कर सकता है";
+"settings.privacy.groupInvites.everyone" = "हर कोई";
+"settings.privacy.groupInvites.following" = "जिन्हें आप फ़ॉलो करते हैं";
+"settings.privacy.groupInvites.nobody" = "कोई नहीं";
+"groups.inviteForbidden" = "कुछ लोग समूह आमंत्रण की अनुमति नहीं देते।";
 "chat.intro.request.blocked" = "यह अकाउंट मैसेज रिक्वेस्ट स्वीकार नहीं करता।";
 "chat.request.closed.input" = "%@ मैसेज रिक्वेस्ट स्वीकार नहीं करता";
 "chat.request.error.notAllowed" = "यह यूज़र मैसेज रिक्वेस्ट स्वीकार नहीं करता।";

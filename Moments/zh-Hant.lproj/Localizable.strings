@@ -4082,6 +4082,12 @@
 "settings.privacy.messageRequests.everyone" = "所有人";
 "settings.privacy.messageRequests.following" = "你追蹤的人";
 "settings.privacy.messageRequests.nobody" = "沒有人";
+"settings.privacy.groupInvites.title" = "群組邀請";
+"settings.privacy.groupInvites.description" = "誰可以邀請你加入群組";
+"settings.privacy.groupInvites.everyone" = "所有人";
+"settings.privacy.groupInvites.following" = "你追蹤的人";
+"settings.privacy.groupInvites.nobody" = "沒有人";
+"groups.inviteForbidden" = "有些人未開放群組邀請。";
 "chat.intro.request.blocked" = "此帳號不接受訊息請求。";
 "chat.request.closed.input" = "%@ 不接受訊息請求";
 "chat.request.error.notAllowed" = "此使用者不接受訊息請求。";

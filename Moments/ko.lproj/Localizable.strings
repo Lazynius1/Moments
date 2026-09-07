@@ -4082,6 +4082,12 @@
 "settings.privacy.messageRequests.everyone" = "모든 사람";
 "settings.privacy.messageRequests.following" = "팔로우 중인 사람";
 "settings.privacy.messageRequests.nobody" = "없음";
+"settings.privacy.groupInvites.title" = "그룹 초대";
+"settings.privacy.groupInvites.description" = "그룹에 초대할 수 있는 사람";
+"settings.privacy.groupInvites.everyone" = "모든 사람";
+"settings.privacy.groupInvites.following" = "내가 팔로우하는 사람";
+"settings.privacy.groupInvites.nobody" = "아무도 없음";
+"groups.inviteForbidden" = "그룹 초대를 허용하지 않는 사람이 있어요.";
 "chat.intro.request.blocked" = "이 계정은 메시지 요청을 받지 않아요.";
 "chat.request.closed.input" = "%c님은 메시지 요청을 받지 않아요";
 "chat.request.error.notAllowed" = "이 사용자는 메시지 요청을 받지 않아요.";

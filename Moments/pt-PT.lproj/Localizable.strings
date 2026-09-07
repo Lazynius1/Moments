@@ -5109,6 +5109,12 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "settings.privacy.messageRequests.everyone" = "Todos";
 "settings.privacy.messageRequests.following" = "Pessoas que segues";
 "settings.privacy.messageRequests.nobody" = "Ninguém";
+"settings.privacy.groupInvites.title" = "Convites para grupos";
+"settings.privacy.groupInvites.description" = "Quem te pode convidar para grupos";
+"settings.privacy.groupInvites.everyone" = "Todos";
+"settings.privacy.groupInvites.following" = "Pessoas que segues";
+"settings.privacy.groupInvites.nobody" = "Ninguém";
+"groups.inviteForbidden" = "Algumas pessoas não permitem convites para grupos.";
 "chat.intro.request.blocked" = "Esta conta não aceita pedidos de mensagem.";
 "chat.request.closed.input" = "%@ não aceita pedidos de mensagem";
 "chat.request.error.notAllowed" = "Este utilizador não aceita pedidos de mensagem.";

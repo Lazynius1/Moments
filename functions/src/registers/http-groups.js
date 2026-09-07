@@ -11,6 +11,15 @@ const uniqueIds = ids => {
   if (!Array.isArray(ids) || ids.length > 50 || !ids.every(validId)) fail('invalidMembers');
   return [...new Set(ids)];
 };
+const allowsGroupInvite = (recipient, actorId, memberId, recipientFollowsActor, actorBlocked) => {
+  if (!recipient || recipient.isActive === false) return false;
+  if ((actorBlocked || []).includes(memberId)) return false;
+  if ((recipient.blockedUsers || []).includes(actorId)) return false;
+  const policy = recipient.groupInvitePolicy || 'everyone';
+  if (policy === 'nobody') return false;
+  if (policy === 'following') return recipientFollowsActor === true;
+  return true;
+};
 
 async function applyGroupCommand(db, uid, body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) fail('invalidAction');
@@ -66,7 +75,13 @@ async function applyGroupCommand(db, uid, body) {
       const participants = action === 'create' ? [uid, ...additions] : [...group.participants, ...additions];
       if ((action === 'create' && participants.length < 3) || (group?.participants.length || 1) + pendingIds.length > 50 || !additions.length) fail('invalidMembers');
       const userDocs = await Promise.all(participants.map(memberId => tx.get(db.doc(`users/${memberId}`))));
+      const followSnaps = await Promise.all(additions.map(id => tx.get(db.doc(`users/${id}/following/${uid}`))));
       const users = new Map(userDocs.map(doc => [doc.id, doc.exists ? doc.data() : null]));
+      const actorBlocked = actor.data().blockedUsers || [];
+      for (let i = 0; i < additions.length; i++) {
+        const memberId = additions[i];
+        if (!allowsGroupInvite(users.get(memberId), uid, memberId, followSnaps[i].exists, actorBlocked)) fail('inviteForbidden', 403);
+      }
       const recipients = action === 'create' ? participants : additions;
       const wrapped = { ...(group?.wrappedKeys || {}) };
       for (const memberId of recipients) {

@@ -4082,6 +4082,12 @@
 "settings.privacy.messageRequests.everyone" = "Semua orang";
 "settings.privacy.messageRequests.following" = "Orang yang kamu ikuti";
 "settings.privacy.messageRequests.nobody" = "Tidak ada";
+"settings.privacy.groupInvites.title" = "Undangan grup";
+"settings.privacy.groupInvites.description" = "Siapa yang boleh mengundang Anda ke grup";
+"settings.privacy.groupInvites.everyone" = "Semua orang";
+"settings.privacy.groupInvites.following" = "Orang yang Anda ikuti";
+"settings.privacy.groupInvites.nobody" = "Tidak seorang pun";
+"groups.inviteForbidden" = "Beberapa orang tidak mengizinkan undangan grup.";
 "chat.intro.request.blocked" = "Akun ini tidak menerima permintaan pesan.";
 "chat.request.closed.input" = "%@ tidak menerima permintaan pesan";
 "chat.request.error.notAllowed" = "Pengguna ini tidak menerima permintaan pesan.";

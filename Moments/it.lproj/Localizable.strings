@@ -4299,6 +4299,12 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "settings.privacy.messageRequests.everyone" = "Tutti";
 "settings.privacy.messageRequests.following" = "Persone che segui";
 "settings.privacy.messageRequests.nobody" = "Nessuno";
+"settings.privacy.groupInvites.title" = "Inviti ai gruppi";
+"settings.privacy.groupInvites.description" = "Chi può invitarti nei gruppi";
+"settings.privacy.groupInvites.everyone" = "Tutti";
+"settings.privacy.groupInvites.following" = "Persone che segui";
+"settings.privacy.groupInvites.nobody" = "Nessuno";
+"groups.inviteForbidden" = "Alcune persone non consentono inviti ai gruppi.";
 "chat.intro.request.blocked" = "Questo account non accetta richieste di messaggio.";
 "chat.request.closed.input" = "%@ non accetta richieste di messaggio";
 "chat.request.error.notAllowed" = "Questo utente non accetta richieste di messaggio.";

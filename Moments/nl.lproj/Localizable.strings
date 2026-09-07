@@ -4082,6 +4082,12 @@
 "settings.privacy.messageRequests.everyone" = "Iedereen";
 "settings.privacy.messageRequests.following" = "Mensen die je volgt";
 "settings.privacy.messageRequests.nobody" = "Niemand";
+"settings.privacy.groupInvites.title" = "Groepsuitnodigingen";
+"settings.privacy.groupInvites.description" = "Wie je in groepen mag uitnodigen";
+"settings.privacy.groupInvites.everyone" = "Iedereen";
+"settings.privacy.groupInvites.following" = "Mensen die je volgt";
+"settings.privacy.groupInvites.nobody" = "Niemand";
+"groups.inviteForbidden" = "Sommige mensen staan geen groepsuitnodigingen toe.";
 "chat.intro.request.blocked" = "Dit account accepteert geen berichtverzoeken.";
 "chat.request.closed.input" = "%@ accepteert geen berichtverzoeken";
 "chat.request.error.notAllowed" = "Deze gebruiker accepteert geen berichtverzoeken.";

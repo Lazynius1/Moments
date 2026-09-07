@@ -4319,6 +4319,12 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "settings.privacy.messageRequests.everyone" = "Tothom";
 "settings.privacy.messageRequests.following" = "Persones que segueixes";
 "settings.privacy.messageRequests.nobody" = "Ningú";
+"settings.privacy.groupInvites.title" = "Invitacions a grups";
+"settings.privacy.groupInvites.description" = "Qui et pot convidar a grups";
+"settings.privacy.groupInvites.everyone" = "Tothom";
+"settings.privacy.groupInvites.following" = "Persones que segueixes";
+"settings.privacy.groupInvites.nobody" = "Ningú";
+"groups.inviteForbidden" = "Algunes persones no permeten invitacions a grups.";
 "chat.intro.request.blocked" = "Aquest compte no accepta sol·licituds de missatge.";
 "chat.request.closed.input" = "%@ no accepta sol·licituds de missatge";
 "chat.request.error.notAllowed" = "Aquest usuari no accepta sol·licituds de missatge.";

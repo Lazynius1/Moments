@@ -196,7 +196,11 @@ final class GroupChatStore: ObservableObject {
             _ = try await request("manageGroup", ["action": group == nil ? "create" : "add", "conversationId": id,
                 "name": name, "memberIds": ids, "wrappedKeys": envelopes, "revision": group?.revision ?? 0])
             return id
-        } catch { self.error = "groups.manageError"; return nil }
+        } catch {
+            self.error = (error as NSError).domain == "GroupChat" && (error as NSError).code == 403
+                ? "groups.inviteForbidden" : "groups.manageError"
+            return nil
+        }
     }
 
     @discardableResult
@@ -228,7 +232,14 @@ final class GroupChatStore: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200, uid == user.uid else { throw URLError(.badServerResponse) }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+        if status != 200 || uid != user.uid {
+            let code = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
+            if code == "inviteForbidden" {
+                throw NSError(domain: "GroupChat", code: 403, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("groups.inviteForbidden", comment: "")])
+            }
+            throw URLError(.badServerResponse)
+        }
         return (try JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
     }
 }

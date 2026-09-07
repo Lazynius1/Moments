@@ -69,6 +69,13 @@ class SettingsViewModel: ObservableObject {
         ]) { _ in }
     }
 
+    func updateGroupInvitePolicy(_ policy: GroupInvitePolicy) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        firestoreService.db.collection("users").document(userId).updateData([
+            "groupInvitePolicy": policy.rawValue
+        ]) { _ in }
+    }
+
     func updateActiveHours(startTime: Date, endTime: Date, completion: ((Error?) -> Void)? = nil) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         let startHour = dateFormatter.string(from: startTime)

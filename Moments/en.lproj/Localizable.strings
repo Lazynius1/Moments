@@ -4373,6 +4373,12 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "settings.privacy.messageRequests.everyone" = "Everyone";
 "settings.privacy.messageRequests.following" = "People you follow";
 "settings.privacy.messageRequests.nobody" = "No one";
+"settings.privacy.groupInvites.title" = "Group invitations";
+"settings.privacy.groupInvites.description" = "Who can invite you to groups";
+"settings.privacy.groupInvites.everyone" = "Everyone";
+"settings.privacy.groupInvites.following" = "People you follow";
+"settings.privacy.groupInvites.nobody" = "No one";
+"groups.inviteForbidden" = "Some people don't allow group invitations.";
 "chat.intro.request.blocked" = "This account does not accept message requests.";
 "chat.request.closed.input" = "%@ does not accept message requests";
 "chat.request.error.notAllowed" = "This user does not accept message requests.";

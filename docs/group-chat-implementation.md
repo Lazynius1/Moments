@@ -2,6 +2,10 @@
 
 Updated: 7 September 2026.
 
+## Group invitation policy (separate from 1:1)
+
+Instagram-style split: `messageRequestPolicy` still gates direct message requests. `groupInvitePolicy` (`everyone` | `following` | `nobody`, default `everyone`) gates who can invite you to a group. It does not hide messages inside a group you already belong to. Backend check lives in `manageGroup` (`create`/`add`) and returns `inviteForbidden`. Settings row sits under message requests on iOS and Android.
+
 ## User requirements
 
 - One inbox and the existing full Moments chat screen on iOS and Android. No separate Groups inbox or reduced GroupChatView.

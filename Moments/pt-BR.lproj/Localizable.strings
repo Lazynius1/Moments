@@ -4299,6 +4299,12 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "settings.privacy.messageRequests.everyone" = "Todos";
 "settings.privacy.messageRequests.following" = "Pessoas que você segue";
 "settings.privacy.messageRequests.nobody" = "Ninguém";
+"settings.privacy.groupInvites.title" = "Convites para grupos";
+"settings.privacy.groupInvites.description" = "Quem pode te convidar para grupos";
+"settings.privacy.groupInvites.everyone" = "Todos";
+"settings.privacy.groupInvites.following" = "Pessoas que você segue";
+"settings.privacy.groupInvites.nobody" = "Ninguém";
+"groups.inviteForbidden" = "Algumas pessoas não permitem convites para grupos.";
 "chat.intro.request.blocked" = "Esta conta não aceita solicitações de mensagem.";
 "chat.request.closed.input" = "%@ não aceita solicitações de mensagem";
 "chat.request.error.notAllowed" = "Este usuário não aceita solicitações de mensagem.";

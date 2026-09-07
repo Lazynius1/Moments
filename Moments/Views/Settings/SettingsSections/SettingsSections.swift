@@ -849,6 +849,7 @@ struct PrivacySection: View {
                 action: { route = .mute })
 
             MessageRequestPolicyRow(viewModel: viewModel)
+            GroupInvitePolicyRow(viewModel: viewModel)
 
             // Read Receipts toggle — plain row, no divider at bottom (last item)
             HStack(spacing: 14) {
@@ -967,6 +968,76 @@ struct MessageRequestPolicyRow: View {
         Firestore.firestore().collection("users").document(userId).getDocument { snapshot, _ in
             let raw = snapshot?.data()?["messageRequestPolicy"] as? String
             if let loaded = raw.flatMap(MessageRequestPolicy.init(rawValue:)) {
+                policy = loaded
+            }
+        }
+    }
+}
+
+struct GroupInvitePolicyRow: View {
+    @Environment(\.colorScheme) var colorScheme
+    @ObservedObject var viewModel: SettingsViewModel
+    @State private var policy: GroupInvitePolicy = .everyone
+    @State private var hasLoaded = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                Image(systemName: "person.3")
+                    .font(.system(size: 19, weight: .regular))
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    .frame(width: 28, alignment: .center)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(NSLocalizedString("settings.privacy.groupInvites.title", comment: "Group invitations"))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    Text(NSLocalizedString("settings.privacy.groupInvites.description", comment: "Who can invite you to groups"))
+                        .font(.system(size: legacyPoppinsSize(12)))
+                        .foregroundStyle(.gray)
+                }
+
+                Spacer()
+
+                Menu {
+                    ForEach(GroupInvitePolicy.allCases, id: \.rawValue) { option in
+                        Button {
+                            guard option != policy else { return }
+                            policy = option
+                            viewModel.updateGroupInvitePolicy(option)
+                        } label: {
+                            if option == policy {
+                                Label(option.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(option.displayName)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Text(policy.displayName)
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
+                            .lineLimit(1)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(.gray)
+                }
+            }
+            .padding(.vertical, 11)
+            .padding(.horizontal, 4)
+
+            Divider().opacity(0.2).padding(.leading, 42)
+        }
+        .onAppear(perform: loadPolicyIfNeeded)
+    }
+
+    private func loadPolicyIfNeeded() {
+        guard !hasLoaded, let userId = Auth.auth().currentUser?.uid else { return }
+        hasLoaded = true
+        Firestore.firestore().collection("users").document(userId).getDocument { snapshot, _ in
+            let raw = snapshot?.data()?["groupInvitePolicy"] as? String
+            if let loaded = raw.flatMap(GroupInvitePolicy.init(rawValue:)) {
                 policy = loaded
             }
         }

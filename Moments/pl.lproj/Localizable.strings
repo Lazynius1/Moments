@@ -4082,6 +4082,12 @@
 "settings.privacy.messageRequests.everyone" = "Wszyscy";
 "settings.privacy.messageRequests.following" = "Osoby, które obserwujesz";
 "settings.privacy.messageRequests.nobody" = "Nikt";
+"settings.privacy.groupInvites.title" = "Zaproszenia do grup";
+"settings.privacy.groupInvites.description" = "Kto może zapraszać Cię do grup";
+"settings.privacy.groupInvites.everyone" = "Wszyscy";
+"settings.privacy.groupInvites.following" = "Osoby, które obserwujesz";
+"settings.privacy.groupInvites.nobody" = "Nikt";
+"groups.inviteForbidden" = "Niektórzy nie zezwalają na zaproszenia do grup.";
 "chat.intro.request.blocked" = "To konto nie przyjmuje próśb o wiadomości.";
 "chat.request.closed.input" = "%@ nie przyjmuje próśb o wiadomości";
 "chat.request.error.notAllowed" = "Ten użytkownik nie przyjmuje próśb o wiadomości.";

@@ -4299,6 +4299,12 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "settings.privacy.messageRequests.everyone" = "Alle";
 "settings.privacy.messageRequests.following" = "Personen, denen du folgst";
 "settings.privacy.messageRequests.nobody" = "Niemand";
+"settings.privacy.groupInvites.title" = "Gruppeneinladungen";
+"settings.privacy.groupInvites.description" = "Wer dich in Gruppen einladen darf";
+"settings.privacy.groupInvites.everyone" = "Alle";
+"settings.privacy.groupInvites.following" = "Personen, denen du folgst";
+"settings.privacy.groupInvites.nobody" = "Niemand";
+"groups.inviteForbidden" = "Manche Personen erlauben keine Gruppeneinladungen.";
 "chat.intro.request.blocked" = "Dieses Konto akzeptiert keine Nachrichtenanfragen.";
 "chat.request.closed.input" = "%@ akzeptiert keine Nachrichtenanfragen";
 "chat.request.error.notAllowed" = "Diese Person akzeptiert keine Nachrichtenanfragen.";

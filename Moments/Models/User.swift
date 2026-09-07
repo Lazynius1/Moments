@@ -56,6 +56,20 @@ enum MessageRequestPolicy: String, CaseIterable, Codable {
     }
 }
 
+enum GroupInvitePolicy: String, CaseIterable, Codable {
+    case everyone = "everyone"
+    case following = "following"
+    case nobody = "nobody"
+
+    var displayName: String {
+        switch self {
+        case .everyone: return NSLocalizedString("settings.privacy.groupInvites.everyone", comment: "Everyone can invite you to groups")
+        case .following: return NSLocalizedString("settings.privacy.groupInvites.following", comment: "Only people you follow can invite you to groups")
+        case .nobody: return NSLocalizedString("settings.privacy.groupInvites.nobody", comment: "Nobody can invite you to groups")
+        }
+    }
+}
+
 struct AppUser: Identifiable, Codable {
     let id: String
     let username: String
