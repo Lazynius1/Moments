@@ -724,6 +724,7 @@
 "conversationSettings.notifications.desc" = "Attiva o disattiva le notifiche per questa conversazione.";
 "conversationSettings.typingIndicator" = "Indicatore di digitazione";
 "conversationSettings.typingIndicator.desc" = "Se lo disattivi, non vedrai nemmeno quando l'altra persona sta scrivendo.";
+"conversationSettings.typingIndicator.desc.group" = "Se lo disattivi, non vedrai nemmeno quando gli altri stanno scrivendo.";
 "settings.privacy.readReceipts.title" = "Conferme di lettura";
 "settings.privacy.readReceipts.description" = "Se disattivi le conferme di lettura, non potrai vedere quelle degli altri.";
 "common.viewAll" = "Vedi tutto";
@@ -837,8 +838,10 @@
 "conversationSettings.privacy.buzz.description" = "Se lo disattivi, l'altra persona non potrà inviarti trilli in questa chat.";
 "conversationSettings.privacy.readReceipts.title" = "Conferme di lettura";
 "conversationSettings.privacy.readReceipts.description" = "Se disattivi le conferme di lettura in questa chat, non potrai vedere quando l'altra persona legge i tuoi messaggi.";
+"conversationSettings.privacy.readReceipts.description.group" = "Se disattivi le conferme di lettura in questo gruppo, non potrai vedere quando gli altri leggono i tuoi messaggi.";
 "conversationSettings.privacy.forwarding.title" = "Consenti inoltro";
 "conversationSettings.privacy.forwarding.description" = "Se disattivi questa opzione, l'altra persona non potrà inoltrare né copiare i tuoi messaggi di testo in questa chat.";
+"conversationSettings.privacy.forwarding.description.group" = "Se disattivi questa opzione, gli altri non potranno inoltrare né copiare i tuoi messaggi di testo in questo gruppo.";
 
 /* Register */
 "register.back" = "Indietro";
@@ -999,6 +1002,7 @@
 "chat.replying" = "Stai rispondendo";
 "chat.replyingToMessage" = "Risposta a un messaggio";
 "chat.edited" = "modificato";
+"chat.read.andMore" = "e altre %d";
 "chat.sending" = "Invio";
 "chat.error" = "Errore";
 "chat.message.deleted" = "Questo messaggio è stato eliminato";
@@ -1548,6 +1552,9 @@
 "conversationSettings.conversationInfo" = "Informazioni sulla conversazione";
 "conversationSettings.sharedContent" = "Contenuti condivisi";
 "conversationSettings.preferences" = "Preferenze chat";
+"conversationSettings.privacyAndSecurity" = "Privacy e sicurezza";
+
+"conversationSettings.hide" = "Nascondi";
 "conversationSettings.count.none" = "Nessuno";
 "conversationSettings.sharedMedia" = "Media condivisi";
 "conversationSettings.starredMessages" = "Messaggi contrassegnati";
@@ -1556,6 +1563,7 @@
 "conversationSettings.noSharedMedia" = "Nessun media condiviso";
 "conversationSettings.privacy" = "Privacy";
 "conversationSettings.clearConversation" = "Cancella conversazione";
+"conversationSettings.clearConversation.group" = "Cancella chat";
 "conversationSettings.blockUser" = "Blocca utente";
 "conversationSettings.viewAllMedia" = "Vedi tutto (%d)";
 "conversationSettings.videoLoadError" = "Errore nel caricamento del video";
@@ -4714,11 +4722,18 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "groups.invited" = "Invito inviato";
 "groups.pendingInvitations" = "Inviti in attesa";
 "groups.inviteLink" = "Link di invito";
+"groups.invitation" = "Invito";
+"groups.joinBody" = "Sei stato invitato a unirti a questo gruppo.";
 "groups.linkBody" = "Chiunque abbia questo link può unirsi. I nuovi membri vedono i messaggi solo da quando entrano. Rinnovarlo o disattivarlo invalida il link precedente.";
 "groups.getLink" = "Ottieni link";
 "groups.shareLink" = "Condividi link";
 "groups.renewLink" = "Rinnova link";
 "groups.disableLink" = "Disattiva link";
+"groups.edit" = "Modifica gruppo";
+"groups.copyLink" = "Copia link";
+"groups.linkCopied" = "Copiato";
+"groups.renewBody" = "Il rinnovo crea un nuovo link. Quello precedente non funzionerà più.";
+"groups.disableBody" = "Nessuno potrà unirsi con questo link. Potrai ottenerne uno nuovo in seguito.";
 "groups.joinLink" = "Unisciti al gruppo";
 "groups.linkError" = "Il link non è disponibile, il gruppo è pieno o non è stato possibile caricare le chiavi della chat. Riprova o chiedi un nuovo link a un admin.";
 "groups.notice.joined" = "%@ si è unito al gruppo";
@@ -4731,3 +4746,8 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "groups.historyStart" = "Inizio del gruppo";
 "groups.historyStartJoined" = "Puoi vedere i messaggi da quando sei entrato.";
 "groups.joinedOn" = "Entrato il %@";
+
+"groups.you" = "Tu";
+"groups.followingSection" = "Seguiti";
+"groups.othersSection" = "Altri";
+"groups.linkAdminOnly" = "Solo gli admin possono attivare il link di invito.";

@@ -724,6 +724,7 @@
 "conversationSettings.notifications.desc" = "Activez ou désactivez les notifications pour cette conversation.";
 "conversationSettings.typingIndicator" = "Indicateur de saisie";
 "conversationSettings.typingIndicator.desc" = "Si vous désactivez cette option, vous ne verrez pas non plus quand l’autre personne est en train d’écrire.";
+"conversationSettings.typingIndicator.desc.group" = "Si vous désactivez cette option, vous ne verrez pas non plus quand les autres sont en train d’écrire.";
 "settings.privacy.readReceipts.title" = "Accusés de lecture";
 "settings.privacy.readReceipts.description" = "Si vous désactivez les accusés de lecture, vous ne pourrez pas non plus voir ceux des autres.";
 "common.viewAll" = "Voir tout";
@@ -837,8 +838,10 @@
 "conversationSettings.privacy.buzz.description" = "Si tu le désactives, l'autre personne ne pourra pas t'envoyer de wizz dans cette conversation.";
 "conversationSettings.privacy.readReceipts.title" = "Accusés de lecture";
 "conversationSettings.privacy.readReceipts.description" = "Si vous désactivez les accusés de lecture dans ce chat, vous ne pourrez pas voir quand l’autre personne lit vos messages.";
+"conversationSettings.privacy.readReceipts.description.group" = "Si vous désactivez les accusés de lecture dans ce groupe, vous ne pourrez pas voir quand les autres lisent vos messages.";
 "conversationSettings.privacy.forwarding.title" = "Autoriser le transfert";
 "conversationSettings.privacy.forwarding.description" = "Si vous désactivez cette option, l'autre personne ne pourra pas transférer ni copier vos messages texte dans ce chat.";
+"conversationSettings.privacy.forwarding.description.group" = "Si vous désactivez cette option, les autres ne pourront pas transférer ni copier vos messages texte dans ce groupe.";
 
 /* Register */
 "register.back" = "Retour";
@@ -999,6 +1002,7 @@
 "chat.replying" = "Réponse en cours";
 "chat.replyingToMessage" = "Réponse à un message";
 "chat.edited" = "modifié";
+"chat.read.andMore" = "et %d de plus";
 "chat.sending" = "Envoi";
 "chat.error" = "Erreur";
 "chat.message.deleted" = "Ce message a été supprimé";
@@ -1548,6 +1552,9 @@
 "conversationSettings.conversationInfo" = "Informations sur la conversation";
 "conversationSettings.sharedContent" = "Contenu partagé";
 "conversationSettings.preferences" = "Préférences du chat";
+"conversationSettings.privacyAndSecurity" = "Confidentialité et sécurité";
+
+"conversationSettings.hide" = "Masquer";
 "conversationSettings.count.none" = "Aucun";
 "conversationSettings.sharedMedia" = "Médias partagés";
 "conversationSettings.starredMessages" = "Messages favoris";
@@ -1556,6 +1563,7 @@
 "conversationSettings.noSharedMedia" = "Aucun média partagé";
 "conversationSettings.privacy" = "Confidentialité";
 "conversationSettings.clearConversation" = "Vider la conversation";
+"conversationSettings.clearConversation.group" = "Vider le chat";
 "conversationSettings.blockUser" = "Bloquer l’utilisateur";
 "conversationSettings.viewAllMedia" = "Voir tout (%d)";
 "conversationSettings.videoLoadError" = "Erreur lors du chargement de la vidéo";
@@ -4714,11 +4722,18 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "groups.invited" = "Invitation envoyée";
 "groups.pendingInvitations" = "Invitations en attente";
 "groups.inviteLink" = "Lien d’invitation";
+"groups.invitation" = "Invitation";
+"groups.joinBody" = "Tu as été invité(e) à rejoindre ce groupe.";
 "groups.linkBody" = "Toute personne disposant de ce lien peut rejoindre le groupe. Les nouveaux membres ne voient les messages qu’à partir de leur arrivée. Le renouveler ou le désactiver invalide le lien précédent.";
 "groups.getLink" = "Obtenir le lien";
 "groups.shareLink" = "Partager le lien";
 "groups.renewLink" = "Renouveler le lien";
 "groups.disableLink" = "Désactiver le lien";
+"groups.edit" = "Modifier le groupe";
+"groups.copyLink" = "Copier le lien";
+"groups.linkCopied" = "Copié";
+"groups.renewBody" = "Le renouvellement crée un nouveau lien. L’ancien ne fonctionnera plus.";
+"groups.disableBody" = "Personne ne pourra rejoindre le groupe avec ce lien. Vous pourrez en obtenir un nouveau plus tard.";
 "groups.joinLink" = "Rejoindre le groupe";
 "groups.linkError" = "Ce lien est indisponible, le groupe est complet ou vos clés de discussion n’ont pas pu être chargées. Réessayez ou demandez un nouveau lien à un admin.";
 "groups.notice.joined" = "%@ a rejoint le groupe";
@@ -4731,3 +4746,8 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "groups.historyStart" = "Début du groupe";
 "groups.historyStartJoined" = "Tu peux voir les messages à partir de ton arrivée.";
 "groups.joinedOn" = "A rejoint le %@";
+
+"groups.you" = "Toi";
+"groups.followingSection" = "Abonnements";
+"groups.othersSection" = "Autres";
+"groups.linkAdminOnly" = "Seuls les administrateurs peuvent activer le lien d’invitation.";

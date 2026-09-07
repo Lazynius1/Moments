@@ -724,6 +724,7 @@
 "conversationSettings.notifications.desc" = "Benachrichtigungen für diese Unterhaltung ein- oder ausschalten.";
 "conversationSettings.typingIndicator" = "Tippanzeige";
 "conversationSettings.typingIndicator.desc" = "Wenn du dies ausschaltest, siehst du auch nicht mehr, wenn die andere Person schreibt.";
+"conversationSettings.typingIndicator.desc.group" = "Wenn du dies ausschaltest, siehst du auch nicht mehr, wenn andere schreiben.";
 "settings.privacy.readReceipts.title" = "Lesebestätigungen";
 "settings.privacy.readReceipts.description" = "Wenn du Lesebestätigungen deaktivierst, kannst du die Lesebestätigungen anderer Personen ebenfalls nicht sehen.";
 "common.viewAll" = "Alle ansehen";
@@ -837,8 +838,10 @@
 "conversationSettings.privacy.buzz.description" = "Wenn du das deaktivierst, kann dir in diesem Chat niemand mehr einen Anstupser senden.";
 "conversationSettings.privacy.readReceipts.title" = "Lesebestätigungen";
 "conversationSettings.privacy.readReceipts.description" = "Wenn du Lesebestätigungen in diesem Chat deaktivierst, kannst du nicht mehr sehen, wann die andere Person deine Nachrichten liest.";
+"conversationSettings.privacy.readReceipts.description.group" = "Wenn du Lesebestätigungen in dieser Gruppe deaktivierst, kannst du nicht mehr sehen, wann andere deine Nachrichten lesen.";
 "conversationSettings.privacy.forwarding.title" = "Weiterleitung erlauben";
 "conversationSettings.privacy.forwarding.description" = "Wenn du dies deaktivierst, kann die andere Person deine Textnachrichten in diesem Chat nicht weiterleiten oder kopieren.";
+"conversationSettings.privacy.forwarding.description.group" = "Wenn du dies deaktivierst, können andere deine Textnachrichten in dieser Gruppe nicht weiterleiten oder kopieren.";
 
 /* Register */
 "register.back" = "Zurück";
@@ -999,6 +1002,7 @@
 "chat.replying" = "Antworten";
 "chat.replyingToMessage" = "Antwort auf eine Nachricht";
 "chat.edited" = "bearbeitet";
+"chat.read.andMore" = "und %d weitere";
 "chat.sending" = "Wird gesendet";
 "chat.error" = "Fehler";
 "chat.message.deleted" = "Diese Nachricht wurde gelöscht";
@@ -1548,6 +1552,9 @@
 "conversationSettings.conversationInfo" = "Informationen zur Unterhaltung";
 "conversationSettings.sharedContent" = "Geteilte Inhalte";
 "conversationSettings.preferences" = "Chat-Einstellungen";
+"conversationSettings.privacyAndSecurity" = "Privatsphäre und Sicherheit";
+
+"conversationSettings.hide" = "Ausblenden";
 "conversationSettings.count.none" = "Keine";
 "conversationSettings.sharedMedia" = "Geteilte Medien";
 "conversationSettings.starredMessages" = "Markierte Nachrichten";
@@ -1556,6 +1563,7 @@
 "conversationSettings.noSharedMedia" = "Keine geteilten Medien";
 "conversationSettings.privacy" = "Privatsphäre";
 "conversationSettings.clearConversation" = "Unterhaltung leeren";
+"conversationSettings.clearConversation.group" = "Chat leeren";
 "conversationSettings.blockUser" = "Nutzer blockieren";
 "conversationSettings.viewAllMedia" = "Alle ansehen (%d)";
 "conversationSettings.videoLoadError" = "Fehler beim Laden des Videos";
@@ -4714,11 +4722,18 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "groups.invited" = "Einladung gesendet";
 "groups.pendingInvitations" = "Ausstehende Einladungen";
 "groups.inviteLink" = "Einladungslink";
+"groups.invitation" = "Einladung";
+"groups.joinBody" = "Du wurdest zu dieser Gruppe eingeladen.";
 "groups.linkBody" = "Alle mit diesem Link können beitreten. Neue Mitglieder sehen nur Nachrichten ab dem Moment, in dem sie beitreten. Erneuern oder Deaktivieren macht den bisherigen Link ungültig.";
 "groups.getLink" = "Link abrufen";
 "groups.shareLink" = "Link teilen";
 "groups.renewLink" = "Link erneuern";
 "groups.disableLink" = "Link deaktivieren";
+"groups.edit" = "Gruppe bearbeiten";
+"groups.copyLink" = "Link kopieren";
+"groups.linkCopied" = "Kopiert";
+"groups.renewBody" = "Durch Erneuern wird ein neuer Link erstellt. Der bisherige funktioniert dann nicht mehr.";
+"groups.disableBody" = "Niemand kann mit diesem Link beitreten. Du kannst später einen neuen erstellen.";
 "groups.joinLink" = "Gruppe beitreten";
 "groups.linkError" = "Dieser Link ist nicht verfügbar, die Gruppe ist voll oder deine Chatschlüssel konnten nicht geladen werden. Versuche es erneut oder bitte einen Admin um einen neuen Link.";
 "groups.notice.joined" = "%@ ist der Gruppe beigetreten";
@@ -4731,3 +4746,8 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "groups.historyStart" = "Beginn der Gruppe";
 "groups.historyStartJoined" = "Du siehst Nachrichten ab dem Zeitpunkt, an dem du beigetreten bist.";
 "groups.joinedOn" = "Beigetreten %@";
+
+"groups.you" = "Du";
+"groups.followingSection" = "Gefolgt";
+"groups.othersSection" = "Andere";
+"groups.linkAdminOnly" = "Nur Admins können den Einladungslink aktivieren.";

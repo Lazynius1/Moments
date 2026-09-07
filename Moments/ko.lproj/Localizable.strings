@@ -693,6 +693,7 @@
 "conversationSettings.notifications.desc" = "이 대화의 알림을 켜거나 끌 수 있어요.";
 "conversationSettings.typingIndicator" = "입력 중 표시";
 "conversationSettings.typingIndicator.desc" = "이 기능을 끄면 상대방이 입력 중일 때도 표시되지 않아요.";
+"conversationSettings.typingIndicator.desc.group" = "이 기능을 끄면 다른 멤버가 입력 중인지도 볼 수 없어요.";
 "settings.privacy.readReceipts.title" = "읽음 확인";
 "settings.privacy.readReceipts.description" = "읽음 확인을 끄면 다른 사람의 읽음 확인도 볼 수 없어요.";
 "common.viewAll" = "모두 보기";
@@ -803,8 +804,10 @@
 "conversationSettings.privacy.buzz.description" = "이 기능을 끄면 다른 사람이 이 채팅에서 나를 버즈할 수 없어요.";
 "conversationSettings.privacy.readReceipts.title" = "읽음 확인";
 "conversationSettings.privacy.readReceipts.description" = "이 채팅에서 읽음 확인을 끄면 상대방이 내 메시지를 읽은 시점을 볼 수 없어요.";
+"conversationSettings.privacy.readReceipts.description.group" = "이 그룹에서 읽음 확인을 끄면 다른 멤버가 내 메시지를 읽은 시점을 볼 수 없어요.";
 "conversationSettings.privacy.forwarding.title" = "전달 허용";
 "conversationSettings.privacy.forwarding.description" = "이 기능을 끄면 상대방이 이 채팅의 메시지를 전달하거나 복사할 수 없어요.";
+"conversationSettings.privacy.forwarding.description.group" = "이 기능을 끄면 다른 멤버가 이 그룹의 문자 메시지를 전달하거나 복사할 수 없어요.";
 /* Register */
 "register.back" = "뒤로";
 "register.attention.title" = "주의";
@@ -961,6 +964,7 @@
 "chat.replying" = "답장 중";
 "chat.replyingToMessage" = "메시지에 답장하는 중";
 "chat.edited" = "수정됨";
+"chat.read.andMore" = "외 %d명";
 "chat.sending" = "보내는 중";
 "chat.error" = "오류";
 "chat.message.deleted" = "삭제된 메시지입니다";
@@ -1484,6 +1488,9 @@
 "conversationSettings.conversationInfo" = "대화 정보";
 "conversationSettings.sharedContent" = "공유된 콘텐츠";
 "conversationSettings.preferences" = "채팅 환경설정";
+"conversationSettings.privacyAndSecurity" = "개인정보 보호 및 보안";
+
+"conversationSettings.hide" = "숨기기";
 "conversationSettings.count.none" = "없음";
 "conversationSettings.sharedMedia" = "공유 미디어";
 "conversationSettings.starredMessages" = "별표 표시한 메시지";
@@ -1492,6 +1499,7 @@
 "conversationSettings.noSharedMedia" = "공유된 미디어가 없어요";
 "conversationSettings.privacy" = "개인정보 보호";
 "conversationSettings.clearConversation" = "대화 삭제";
+"conversationSettings.clearConversation.group" = "채팅 삭제";
 "conversationSettings.blockUser" = "사용자 차단";
 "conversationSettings.viewAllMedia" = "모두 보기(%d)";
 "conversationSettings.videoLoadError" = "동영상을 불러오는 중 오류 발생";
@@ -4469,11 +4477,18 @@
 "groups.invited" = "초대를 보냈습니다";
 "groups.pendingInvitations" = "대기 중인 초대";
 "groups.inviteLink" = "초대 링크";
+"groups.invitation" = "초대";
+"groups.joinBody" = "이 그룹에 초대되었어요.";
 "groups.linkBody" = "이 링크가 있는 누구나 참여할 수 있습니다. 새 멤버는 참여한 이후의 메시지만 볼 수 있습니다. 갱신하거나 비활성화하면 이전 링크는 사용할 수 없습니다.";
 "groups.getLink" = "링크 가져오기";
 "groups.shareLink" = "링크 공유";
 "groups.renewLink" = "링크 갱신";
 "groups.disableLink" = "링크 비활성화";
+"groups.edit" = "그룹 편집";
+"groups.copyLink" = "링크 복사";
+"groups.linkCopied" = "복사됨";
+"groups.renewBody" = "갱신하면 새 링크가 만들어지고 이전 링크는 더 이상 사용할 수 없습니다.";
+"groups.disableBody" = "이 링크로는 참여할 수 없습니다. 나중에 새 링크를 받을 수 있습니다.";
 "groups.joinLink" = "그룹 참여";
 "groups.linkError" = "링크를 사용할 수 없거나 그룹이 가득 찼거나 채팅 키를 불러오지 못했습니다. 다시 시도하거나 관리자에게 새 링크를 요청하세요.";
 "groups.notice.joined" = "%@님이 그룹에 참여했습니다";
@@ -4486,3 +4501,8 @@
 "groups.historyStart" = "그룹 시작";
 "groups.historyStartJoined" = "참여한 이후의 메시지를 볼 수 있어요.";
 "groups.joinedOn" = "%@에 참여함";
+
+"groups.you" = "나";
+"groups.followingSection" = "팔로잉";
+"groups.othersSection" = "기타";
+"groups.linkAdminOnly" = "관리자만 초대 링크를 켤 수 있어요.";

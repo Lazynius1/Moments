@@ -724,6 +724,7 @@
 "conversationSettings.notifications.desc" = "Ative ou desative as notificações desta conversa.";
 "conversationSettings.typingIndicator" = "Indicador de digitação";
 "conversationSettings.typingIndicator.desc" = "Se você desativar isso, também deixará de ver quando a outra pessoa estiver digitando.";
+"conversationSettings.typingIndicator.desc.group" = "Se você desativar isso, também deixará de ver quando outras pessoas estiverem digitando.";
 "settings.privacy.readReceipts.title" = "Confirmações de leitura";
 "settings.privacy.readReceipts.description" = "Se você desativar as confirmações de leitura, também não poderá ver as confirmações das outras pessoas.";
 "common.viewAll" = "Ver tudo";
@@ -837,8 +838,10 @@
 "conversationSettings.privacy.buzz.description" = "Se desativar, a outra pessoa não poderá te enviar chacoalhões neste chat.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmações de leitura";
 "conversationSettings.privacy.readReceipts.description" = "Se você desativar as confirmações de leitura neste chat, também não poderá ver quando a outra pessoa ler suas mensagens.";
+"conversationSettings.privacy.readReceipts.description.group" = "Se você desativar as confirmações de leitura neste grupo, não poderá ver quando os outros lerem suas mensagens.";
 "conversationSettings.privacy.forwarding.title" = "Permitir encaminhamento";
 "conversationSettings.privacy.forwarding.description" = "Se você desativar isso, a outra pessoa não poderá encaminhar nem copiar suas mensagens de texto neste chat.";
+"conversationSettings.privacy.forwarding.description.group" = "Se você desativar isso, os outros não poderão encaminhar nem copiar suas mensagens de texto neste grupo.";
 
 /* Register */
 "register.back" = "Voltar";
@@ -999,6 +1002,7 @@
 "chat.replying" = "Respondendo";
 "chat.replyingToMessage" = "Respondendo a uma mensagem";
 "chat.edited" = "editado";
+"chat.read.andMore" = "e mais %d";
 "chat.sending" = "Enviando";
 "chat.error" = "Erro";
 "chat.message.deleted" = "Esta mensagem foi excluída";
@@ -1548,6 +1552,9 @@
 "conversationSettings.conversationInfo" = "Informações da conversa";
 "conversationSettings.sharedContent" = "Conteúdo compartilhado";
 "conversationSettings.preferences" = "Preferências do chat";
+"conversationSettings.privacyAndSecurity" = "Privacidade e segurança";
+
+"conversationSettings.hide" = "Ocultar";
 "conversationSettings.count.none" = "Nenhum";
 "conversationSettings.sharedMedia" = "Mídia compartilhada";
 "conversationSettings.starredMessages" = "Mensagens favoritas";
@@ -1556,6 +1563,7 @@
 "conversationSettings.noSharedMedia" = "Nenhuma mídia compartilhada";
 "conversationSettings.privacy" = "Privacidade";
 "conversationSettings.clearConversation" = "Limpar conversa";
+"conversationSettings.clearConversation.group" = "Limpar chat";
 "conversationSettings.blockUser" = "Bloquear usuário";
 "conversationSettings.viewAllMedia" = "Ver tudo (%d)";
 "conversationSettings.videoLoadError" = "Erro ao carregar vídeo";
@@ -4714,11 +4722,18 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "groups.invited" = "Convite enviado";
 "groups.pendingInvitations" = "Convites pendentes";
 "groups.inviteLink" = "Link de convite";
+"groups.invitation" = "Convite";
+"groups.joinBody" = "Você foi convidado a entrar neste grupo.";
 "groups.linkBody" = "Qualquer pessoa com este link pode entrar. Novos membros só veem as mensagens a partir do momento em que entram. Renovar ou desativar o link invalida o anterior.";
 "groups.getLink" = "Obter link";
 "groups.shareLink" = "Compartilhar link";
 "groups.renewLink" = "Renovar link";
 "groups.disableLink" = "Desativar link";
+"groups.edit" = "Editar grupo";
+"groups.copyLink" = "Copiar link";
+"groups.linkCopied" = "Copiado";
+"groups.renewBody" = "Renovar cria um novo link. O anterior deixa de funcionar.";
+"groups.disableBody" = "Ninguém poderá entrar com este link. Você pode obter um novo depois.";
 "groups.joinLink" = "Entrar no grupo";
 "groups.linkError" = "Este link está indisponível, o grupo está cheio ou não foi possível carregar suas chaves do chat. Tente novamente ou peça um novo link a um admin.";
 "groups.notice.joined" = "%@ entrou no grupo";
@@ -4731,3 +4746,8 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "groups.historyStart" = "Início do grupo";
 "groups.historyStartJoined" = "Você pode ver as mensagens desde que entrou.";
 "groups.joinedOn" = "Entrou em %@";
+
+"groups.you" = "Você";
+"groups.followingSection" = "Seguindo";
+"groups.othersSection" = "Outros";
+"groups.linkAdminOnly" = "Só os administradores podem ativar o link de convite.";

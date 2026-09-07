@@ -2130,6 +2130,9 @@ class AuthService: ObservableObject {
 
         private func finalizeLogout() {
             InAppNotificationService.shared.stopListening()
+            if let userId = Auth.auth().currentUser?.uid {
+                ChatService.shared.removeConversationsListener(for: userId)
+            }
 
             do {
                 try Auth.auth().signOut()

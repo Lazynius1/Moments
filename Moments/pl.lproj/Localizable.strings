@@ -693,6 +693,7 @@
 "conversationSettings.notifications.desc" = "Włącz lub wyłącz powiadomienia dla tej rozmowy.";
 "conversationSettings.typingIndicator" = "Wskaźnik pisania";
 "conversationSettings.typingIndicator.desc" = "Jeśli to wyłączysz, nie zobaczysz też, kiedy druga osoba pisze.";
+"conversationSettings.typingIndicator.desc.group" = "Jeśli to wyłączysz, nie zobaczysz też, kiedy inni piszą.";
 "settings.privacy.readReceipts.title" = "Potwierdzenia odczytu";
 "settings.privacy.readReceipts.description" = "Jeśli wyłączysz potwierdzenia odczytu, nie zobaczysz potwierdzeń odczytu od innych osób.";
 "common.viewAll" = "Wyświetl wszystko";
@@ -803,8 +804,10 @@
 "conversationSettings.privacy.buzz.description" = "Jeśli to wyłączysz, inni nie będą mogli Cię szturchać na tym czacie.";
 "conversationSettings.privacy.readReceipts.title" = "Potwierdzenia odczytu";
 "conversationSettings.privacy.readReceipts.description" = "Jeśli wyłączysz potwierdzenia odczytu na tym czacie, nie zobaczysz, kiedy druga osoba odczyta Twoje wiadomości.";
+"conversationSettings.privacy.readReceipts.description.group" = "Jeśli wyłączysz potwierdzenia odczytu w tej grupie, nie zobaczysz, kiedy inni przeczytają Twoje wiadomości.";
 "conversationSettings.privacy.forwarding.title" = "Zezwalaj na przekazywanie dalej";
 "conversationSettings.privacy.forwarding.description" = "Jeśli to wyłączysz, druga osoba nie będzie mogła przekazywać dalej ani kopiować Twoich wiadomości tekstowych na tym czacie.";
+"conversationSettings.privacy.forwarding.description.group" = "Jeśli to wyłączysz, inni nie będą mogli przekazywać dalej ani kopiować Twoich wiadomości tekstowych w tej grupie.";
 /* Register */
 "register.back" = "Wstecz";
 "register.attention.title" = "Uwaga";
@@ -961,6 +964,7 @@
 "chat.replying" = "Odpowiadanie";
 "chat.replyingToMessage" = "Odpowiadasz na wiadomość";
 "chat.edited" = "edytowano";
+"chat.read.andMore" = "i jeszcze %d";
 "chat.sending" = "Wysyłanie";
 "chat.error" = "Błąd";
 "chat.message.deleted" = "Ta wiadomość została usunięta";
@@ -1484,6 +1488,9 @@
 "conversationSettings.conversationInfo" = "Informacje o rozmowie";
 "conversationSettings.sharedContent" = "Udostępnione treści";
 "conversationSettings.preferences" = "Preferencje czatu";
+"conversationSettings.privacyAndSecurity" = "Prywatność i bezpieczeństwo";
+
+"conversationSettings.hide" = "Ukryj";
 "conversationSettings.count.none" = "Brak";
 "conversationSettings.sharedMedia" = "Udostępnione multimedia";
 "conversationSettings.starredMessages" = "Wiadomości z gwiazdką";
@@ -1492,6 +1499,7 @@
 "conversationSettings.noSharedMedia" = "Brak udostępnionych multimediów";
 "conversationSettings.privacy" = "Prywatność";
 "conversationSettings.clearConversation" = "Wyczyść rozmowę";
+"conversationSettings.clearConversation.group" = "Wyczyść czat";
 "conversationSettings.blockUser" = "Zablokuj użytkownika";
 "conversationSettings.viewAllMedia" = "Wyświetl wszystkie (%d)";
 "conversationSettings.videoLoadError" = "Nie udało się załadować filmu";
@@ -4469,11 +4477,18 @@
 "groups.invited" = "Zaproszenie wysłane";
 "groups.pendingInvitations" = "Oczekujące zaproszenia";
 "groups.inviteLink" = "Link z zaproszeniem";
+"groups.invitation" = "Zaproszenie";
+"groups.joinBody" = "Zaproszono cię do tej grupy.";
 "groups.linkBody" = "Każdy, kto ma ten link, może dołączyć. Nowi członkowie widzą wiadomości dopiero od chwili dołączenia. Odnowienie lub wyłączenie unieważnia poprzedni link.";
 "groups.getLink" = "Pobierz link";
 "groups.shareLink" = "Udostępnij link";
 "groups.renewLink" = "Odnów link";
 "groups.disableLink" = "Wyłącz link";
+"groups.edit" = "Edytuj grupę";
+"groups.copyLink" = "Kopiuj link";
+"groups.linkCopied" = "Skopiowano";
+"groups.renewBody" = "Odnowienie tworzy nowy link. Poprzedni przestanie działać.";
+"groups.disableBody" = "Nikt nie będzie mógł dołączyć za pomocą tego linku. Później możesz utworzyć nowy.";
 "groups.joinLink" = "Dołącz do grupy";
 "groups.linkError" = "Link jest niedostępny, grupa jest pełna lub nie udało się wczytać kluczy czatu. Spróbuj ponownie lub poproś administratora o nowy link.";
 "groups.notice.joined" = "%@ dołączył(a) do grupy";
@@ -4486,3 +4501,8 @@
 "groups.historyStart" = "Początek grupy";
 "groups.historyStartJoined" = "Widzisz wiadomości od momentu dołączenia.";
 "groups.joinedOn" = "Dołączył(a) %@";
+
+"groups.you" = "Ty";
+"groups.followingSection" = "Obserwowane";
+"groups.othersSection" = "Inni";
+"groups.linkAdminOnly" = "Tylko administratorzy mogą włączyć link z zaproszeniem.";

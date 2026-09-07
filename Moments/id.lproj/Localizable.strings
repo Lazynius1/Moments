@@ -693,6 +693,7 @@
 "conversationSettings.notifications.desc" = "Aktifkan atau nonaktifkan notifikasi untuk percakapan ini.";
 "conversationSettings.typingIndicator" = "Indikator sedang mengetik";
 "conversationSettings.typingIndicator.desc" = "Jika dinonaktifkan, Anda juga tidak bisa melihat saat orang lain sedang mengetik.";
+"conversationSettings.typingIndicator.desc.group" = "Jika dinonaktifkan, kamu juga tidak akan melihat saat orang lain sedang mengetik.";
 "settings.privacy.readReceipts.title" = "Tanda Dibaca";
 "settings.privacy.readReceipts.description" = "Jika tanda dibaca dinonaktifkan, Anda tidak bisa melihat tanda dibaca dari orang lain.";
 "common.viewAll" = "Lihat semua";
@@ -803,8 +804,10 @@
 "conversationSettings.privacy.buzz.description" = "Jika dinonaktifkan, orang lain tidak bisa mengirim buzz kepada kamu di chat ini.";
 "conversationSettings.privacy.readReceipts.title" = "Tanda dibaca";
 "conversationSettings.privacy.readReceipts.description" = "Jika tanda dibaca dinonaktifkan di chat ini, kamu tidak bisa melihat kapan orang lain membaca pesanmu.";
+"conversationSettings.privacy.readReceipts.description.group" = "Jika tanda dibaca dinonaktifkan di grup ini, kamu tidak bisa melihat kapan orang lain membaca pesanmu.";
 "conversationSettings.privacy.forwarding.title" = "Izinkan meneruskan";
 "conversationSettings.privacy.forwarding.description" = "Jika dinonaktifkan, orang lain tidak bisa meneruskan atau menyalin pesan teksmu di chat ini.";
+"conversationSettings.privacy.forwarding.description.group" = "Jika dinonaktifkan, orang lain tidak bisa meneruskan atau menyalin pesan teksmu di grup ini.";
 /* Register */
 "register.back" = "Kembali";
 "register.attention.title" = "Perhatian";
@@ -961,6 +964,7 @@
 "chat.replying" = "Membalas";
 "chat.replyingToMessage" = "Membalas pesan";
 "chat.edited" = "diedit";
+"chat.read.andMore" = "dan %d lainnya";
 "chat.sending" = "Mengirim";
 "chat.error" = "Terjadi kesalahan";
 "chat.message.deleted" = "Pesan ini telah dihapus";
@@ -1484,6 +1488,9 @@
 "conversationSettings.conversationInfo" = "Info percakapan";
 "conversationSettings.sharedContent" = "Konten yang dibagikan";
 "conversationSettings.preferences" = "Preferensi chat";
+"conversationSettings.privacyAndSecurity" = "Privasi dan keamanan";
+
+"conversationSettings.hide" = "Sembunyikan";
 "conversationSettings.count.none" = "Tidak ada";
 "conversationSettings.sharedMedia" = "Media yang dibagikan";
 "conversationSettings.starredMessages" = "Pesan berbintang";
@@ -1492,6 +1499,7 @@
 "conversationSettings.noSharedMedia" = "Tidak ada media yang dibagikan";
 "conversationSettings.privacy" = "Privasi";
 "conversationSettings.clearConversation" = "Hapus percakapan";
+"conversationSettings.clearConversation.group" = "Hapus chat";
 "conversationSettings.blockUser" = "Blokir pengguna";
 "conversationSettings.viewAllMedia" = "Lihat semua (%d)";
 "conversationSettings.videoLoadError" = "Gagal memuat video";
@@ -4469,11 +4477,18 @@
 "groups.invited" = "Undangan terkirim";
 "groups.pendingInvitations" = "Undangan tertunda";
 "groups.inviteLink" = "Tautan undangan";
+"groups.invitation" = "Undangan";
+"groups.joinBody" = "Kamu diundang untuk bergabung ke grup ini.";
 "groups.linkBody" = "Siapa pun yang memiliki tautan ini dapat bergabung. Anggota baru hanya melihat pesan sejak mereka bergabung. Memperbarui atau menonaktifkannya membatalkan tautan sebelumnya.";
 "groups.getLink" = "Dapatkan tautan";
 "groups.shareLink" = "Bagikan tautan";
 "groups.renewLink" = "Perbarui tautan";
 "groups.disableLink" = "Nonaktifkan tautan";
+"groups.edit" = "Edit grup";
+"groups.copyLink" = "Salin tautan";
+"groups.linkCopied" = "Disalin";
+"groups.renewBody" = "Memperbarui membuat tautan baru. Tautan sebelumnya tidak akan berfungsi.";
+"groups.disableBody" = "Tidak ada yang dapat bergabung dengan tautan ini. Kamu bisa mendapatkan tautan baru nanti.";
 "groups.joinLink" = "Gabung grup";
 "groups.linkError" = "Tautan ini tidak tersedia, grup penuh, atau kunci chat tidak dapat dimuat. Coba lagi atau minta tautan baru dari admin.";
 "groups.notice.joined" = "%@ bergabung dengan grup";
@@ -4486,3 +4501,8 @@
 "groups.historyStart" = "Awal grup";
 "groups.historyStartJoined" = "Kamu bisa melihat pesan sejak bergabung.";
 "groups.joinedOn" = "Bergabung %@";
+
+"groups.you" = "Anda";
+"groups.followingSection" = "Mengikuti";
+"groups.othersSection" = "Lainnya";
+"groups.linkAdminOnly" = "Hanya admin yang dapat mengaktifkan tautan undangan.";

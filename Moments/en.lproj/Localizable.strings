@@ -752,6 +752,7 @@
 "conversationSettings.notifications.desc" = "Turn notifications for this conversation on or off.";
 "conversationSettings.typingIndicator" = "Typing indicator";
 "conversationSettings.typingIndicator.desc" = "If you turn this off, you also won't see when the other person is typing.";
+"conversationSettings.typingIndicator.desc.group" = "If you turn this off, you also won't see when others are typing.";
 "settings.privacy.readReceipts.title" = "Read Receipts";
 "settings.privacy.readReceipts.description" = "If you turn off read receipts, you won't be able to see read receipts from other people.";
 "common.viewAll" = "View all";
@@ -865,8 +866,10 @@
 "conversationSettings.privacy.buzz.description" = "If you turn this off, others won't be able to buzz you in this chat.";
 "conversationSettings.privacy.readReceipts.title" = "Read Receipts";
 "conversationSettings.privacy.readReceipts.description" = "If you turn off read receipts in this chat, you won't be able to see when the other person reads your messages.";
+"conversationSettings.privacy.readReceipts.description.group" = "If you turn off read receipts in this group, you won't be able to see when others read your messages.";
 "conversationSettings.privacy.forwarding.title" = "Allow forwarding";
 "conversationSettings.privacy.forwarding.description" = "If you turn this off, the other person won't be able to forward or copy your text messages in this chat.";
+"conversationSettings.privacy.forwarding.description.group" = "If you turn this off, others won't be able to forward or copy your text messages in this group.";
 
 /* Register */
 "register.back" = "Back";
@@ -1027,6 +1030,7 @@
 "chat.replying" = "Replying";
 "chat.replyingToMessage" = "Replying to a message";
 "chat.edited" = "edited";
+"chat.read.andMore" = "and %d more";
 "chat.sending" = "Sending";
 "chat.error" = "Error";
 "chat.message.deleted" = "This message was deleted";
@@ -1577,6 +1581,9 @@
 "conversationSettings.conversationInfo" = "Conversation Information";
 "conversationSettings.sharedContent" = "Shared content";
 "conversationSettings.preferences" = "Chat preferences";
+"conversationSettings.privacyAndSecurity" = "Privacy and security";
+
+"conversationSettings.hide" = "Hide";
 "conversationSettings.count.none" = "None";
 "conversationSettings.sharedMedia" = "Shared Media";
 "conversationSettings.starredMessages" = "Starred messages";
@@ -1585,6 +1592,7 @@
 "conversationSettings.noSharedMedia" = "No shared media";
 "conversationSettings.privacy" = "Privacy";
 "conversationSettings.clearConversation" = "Clear conversation";
+"conversationSettings.clearConversation.group" = "Clear chat";
 "conversationSettings.blockUser" = "Block user";
 "conversationSettings.viewAllMedia" = "View all (%d)";
 "conversationSettings.videoLoadError" = "Error loading video";
@@ -4701,11 +4709,18 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "groups.invited" = "Invitation sent";
 "groups.pendingInvitations" = "Pending invitations";
 "groups.inviteLink" = "Invitation link";
+"groups.invitation" = "Invitation";
+"groups.joinBody" = "You've been invited to join this group.";
 "groups.linkBody" = "Anyone with this link can join. New members only see messages from the moment they join. Renewing or disabling it invalidates the previous link.";
 "groups.getLink" = "Get link";
 "groups.shareLink" = "Share link";
 "groups.renewLink" = "Renew link";
 "groups.disableLink" = "Disable link";
+"groups.edit" = "Edit group";
+"groups.copyLink" = "Copy link";
+"groups.linkCopied" = "Copied";
+"groups.renewBody" = "Renewing creates a new link. The previous one will no longer work.";
+"groups.disableBody" = "Nobody will be able to join with this link. You can get a new one later.";
 "groups.joinLink" = "Join group";
 "groups.linkError" = "This link is unavailable, the group is full, or your chat keys could not be loaded. Try again or ask an admin for a new link.";
 "groups.notice.joined" = "%@ joined the group";
@@ -4718,3 +4733,8 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "groups.historyStart" = "Beginning of the group";
 "groups.historyStartJoined" = "You can see messages from when you joined.";
 "groups.joinedOn" = "Joined %@";
+
+"groups.you" = "You";
+"groups.followingSection" = "Following";
+"groups.othersSection" = "Others";
+"groups.linkAdminOnly" = "Only admins can turn on the invite link.";

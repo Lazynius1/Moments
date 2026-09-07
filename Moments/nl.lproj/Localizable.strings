@@ -693,6 +693,7 @@
 "conversationSettings.notifications.desc" = "Zet meldingen voor dit gesprek aan of uit.";
 "conversationSettings.typingIndicator" = "Typindicator";
 "conversationSettings.typingIndicator.desc" = "Als je dit uitschakelt, zie je ook niet wanneer de ander aan het typen is.";
+"conversationSettings.typingIndicator.desc.group" = "Als je dit uitschakelt, zie je ook niet meer wanneer anderen aan het typen zijn.";
 "settings.privacy.readReceipts.title" = "Leesbewijzen";
 "settings.privacy.readReceipts.description" = "Als je leesbewijzen uitschakelt, kun je de leesbewijzen van anderen niet zien.";
 "common.viewAll" = "Alles bekijken";
@@ -803,8 +804,10 @@
 "conversationSettings.privacy.buzz.description" = "Als je dit uitschakelt, kunnen anderen je in deze chat geen buzz meer sturen.";
 "conversationSettings.privacy.readReceipts.title" = "Leesbewijzen";
 "conversationSettings.privacy.readReceipts.description" = "Als je leesbewijzen in deze chat uitschakelt, kun je niet meer zien wanneer de ander je berichten leest.";
+"conversationSettings.privacy.readReceipts.description.group" = "Als je leesbevestigingen in deze groep uitschakelt, kun je niet meer zien wanneer anderen je berichten lezen.";
 "conversationSettings.privacy.forwarding.title" = "Doorsturen toestaan";
 "conversationSettings.privacy.forwarding.description" = "Als je dit uitschakelt, kan de ander je tekstberichten in deze chat niet doorsturen of kopiëren.";
+"conversationSettings.privacy.forwarding.description.group" = "Als je dit uitschakelt, kunnen anderen je tekstberichten in deze groep niet meer doorsturen of kopiëren.";
 /* Register */
 "register.back" = "Terug";
 "register.attention.title" = "Let op";
@@ -961,6 +964,7 @@
 "chat.replying" = "Antwoorden";
 "chat.replyingToMessage" = "Antwoord op een bericht";
 "chat.edited" = "bewerkt";
+"chat.read.andMore" = "en nog %d";
 "chat.sending" = "Verzenden";
 "chat.error" = "Fout";
 "chat.message.deleted" = "Dit bericht is verwijderd";
@@ -1484,6 +1488,9 @@
 "conversationSettings.conversationInfo" = "Gespreksinformatie";
 "conversationSettings.sharedContent" = "Gedeelde content";
 "conversationSettings.preferences" = "Chatvoorkeuren";
+"conversationSettings.privacyAndSecurity" = "Privacy en beveiliging";
+
+"conversationSettings.hide" = "Verbergen";
 "conversationSettings.count.none" = "Geen";
 "conversationSettings.sharedMedia" = "Gedeelde media";
 "conversationSettings.starredMessages" = "Berichten met ster";
@@ -1492,6 +1499,7 @@
 "conversationSettings.noSharedMedia" = "Geen gedeelde media";
 "conversationSettings.privacy" = "Privacy";
 "conversationSettings.clearConversation" = "Gesprek wissen";
+"conversationSettings.clearConversation.group" = "Chat wissen";
 "conversationSettings.blockUser" = "Gebruiker blokkeren";
 "conversationSettings.viewAllMedia" = "Alles bekijken (%d)";
 "conversationSettings.videoLoadError" = "Video laden mislukt";
@@ -4469,11 +4477,18 @@
 "groups.invited" = "Uitnodiging verstuurd";
 "groups.pendingInvitations" = "Openstaande uitnodigingen";
 "groups.inviteLink" = "Uitnodigingslink";
+"groups.invitation" = "Uitnodiging";
+"groups.joinBody" = "Je bent uitgenodigd om lid te worden van deze groep.";
 "groups.linkBody" = "Iedereen met deze link kan deelnemen. Nieuwe leden zien alleen berichten vanaf het moment dat ze lid worden. Vernieuwen of uitschakelen maakt de vorige link ongeldig.";
 "groups.getLink" = "Link ophalen";
 "groups.shareLink" = "Link delen";
 "groups.renewLink" = "Link vernieuwen";
 "groups.disableLink" = "Link uitschakelen";
+"groups.edit" = "Groep bewerken";
+"groups.copyLink" = "Link kopiëren";
+"groups.linkCopied" = "Gekopieerd";
+"groups.renewBody" = "Vernieuwen maakt een nieuwe link. De vorige werkt dan niet meer.";
+"groups.disableBody" = "Niemand kan met deze link deelnemen. Je kunt later een nieuwe ophalen.";
 "groups.joinLink" = "Deelnemen aan groep";
 "groups.linkError" = "Deze link is niet beschikbaar, de groep is vol of je chatsleutels konden niet worden geladen. Probeer opnieuw of vraag een beheerder om een nieuwe link.";
 "groups.notice.joined" = "%@ is lid geworden van de groep";
@@ -4486,3 +4501,8 @@
 "groups.historyStart" = "Begin van de groep";
 "groups.historyStartJoined" = "Je ziet berichten vanaf het moment dat je lid werd.";
 "groups.joinedOn" = "Lid sinds %@";
+
+"groups.you" = "Jij";
+"groups.followingSection" = "Volgend";
+"groups.othersSection" = "Anderen";
+"groups.linkAdminOnly" = "Alleen beheerders kunnen de uitnodigingslink inschakelen.";

@@ -198,6 +198,7 @@ extension GlassmorphicChatView {
                     colorScheme: colorScheme,
                     currentUserId: viewModel.currentUserId,
                     forwardingPreferences: viewModel.forwardingPreferences,
+                    isGroup: viewModel.conversation.isGroup,
                     onDeleteForEveryone: { message in
                         viewModel.deleteMessageForEveryone(message)
                     },

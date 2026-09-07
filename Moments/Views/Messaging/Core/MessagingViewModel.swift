@@ -158,6 +158,28 @@ class MessagingViewModel: ObservableObject {
         filteredConversations = sortConversationsForInbox(filteredConversations)
     }
 
+    /// Misma identidad por `id`. Conserva la fila si no cambió; sustituye si sí; inserta nuevas; quita las que ya no están.
+    private func mergingInboxById(_ existing: [Conversation], with incoming: [Conversation]) -> [Conversation] {
+        guard !existing.isEmpty else { return incoming }
+        var existingById: [String: Conversation] = [:]
+        existingById.reserveCapacity(existing.count)
+        for conversation in existing {
+            guard let id = conversation.id, !id.isEmpty else { continue }
+            existingById[id] = conversation
+        }
+        return incoming.map { next in
+            guard let id = next.id, let previous = existingById[id], previous == next else { return next }
+            return previous
+        }
+    }
+
+    private func applyingInboxSnapshot(_ incoming: [Conversation], to existing: inout [Conversation]) {
+        let merged = mergingInboxById(existing, with: incoming)
+        if existing != merged {
+            existing = merged
+        }
+    }
+
     func applyLocalConversationState(
         conversationId: String,
         isPinned: Bool? = nil,
@@ -213,20 +235,20 @@ class MessagingViewModel: ObservableObject {
     }
 
     func fetchConversations(for userId: String) {
-        let cachedConversations = sortConversationsForInbox(LocalPersistenceService.shared.loadConversations())
-        if !cachedConversations.isEmpty {
-            DispatchQueue.main.async {
-                let active = self.reconcilingOptimisticReadState(
+        if conversations.isEmpty {
+            let cachedConversations = sortConversationsForInbox(LocalPersistenceService.shared.loadConversations())
+            if !cachedConversations.isEmpty {
+                let active = reconcilingOptimisticReadState(
                     cachedConversations.filter { !$0.isArchived(for: userId) },
                     currentUserId: userId
                 )
-                let archived = self.reconcilingOptimisticReadState(
+                let archived = reconcilingOptimisticReadState(
                     cachedConversations.filter { $0.isArchived(for: userId) },
                     currentUserId: userId
                 )
-                self.conversations = active
-                self.archivedConversations = archived
-                self.hasUnreadMessages = (active + archived).contains { !($0.readStatus[userId] ?? true) }
+                conversations = active
+                archivedConversations = archived
+                hasUnreadMessages = (active + archived).contains { !($0.readStatus[userId] ?? true) }
             }
         }
 
@@ -244,8 +266,8 @@ class MessagingViewModel: ObservableObject {
                         self.sortConversationsForInbox(filtered.filter { $0.isArchived(for: userId) }),
                         currentUserId: userId
                     )
-                    self.conversations = active
-                    self.archivedConversations = archived
+                    self.applyingInboxSnapshot(active, to: &self.conversations)
+                    self.applyingInboxSnapshot(archived, to: &self.archivedConversations)
                     self.hasUnreadMessages = (active + archived).contains { !($0.readStatus[userId] ?? true) }
                     self.errorMessage = nil
 

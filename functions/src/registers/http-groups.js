@@ -248,11 +248,13 @@ async function applyGroupCommand(db, uid, body) {
 const manageGroup = onRequest({ timeoutSeconds: 60, memory: '256MiB', concurrency: 20 }, async (req, res) => {
   setProxyCors(res);
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
-  if (req.method === 'GET' && /^\/join\/group-[0-9a-f-]{36}\/[a-f0-9]{64}\/?$/i.test(req.path)) {
+  if (req.method === 'GET' && /^\/(join|g)\/group-[0-9a-f-]{36}\/[a-f0-9]{64}\/?$/i.test(req.path)) {
+    const parts = req.path.split('/').filter(Boolean);
+    const groupId = parts[parts.length - 2];
+    const token = parts[parts.length - 1];
     res.set('Cache-Control', 'no-store');
     res.set('Referrer-Policy', 'no-referrer');
-    res.set('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'");
-    res.status(200).send(`<!doctype html><html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Moments</title><style>body{font:18px system-ui;text-align:center;padding:15vh 24px;background:#fafafa;color:#171717}a{display:inline-block;background:#171717;color:white;padding:16px 28px;border-radius:24px;text-decoration:none}</style><h1>Moments</h1><a id="open">Open Moments</a><script>const p=location.pathname.split('/').filter(Boolean);const a=document.getElementById('open');a.textContent=navigator.language.startsWith('es')?'Abrir Moments':'Open Moments';a.href='moments://group/'+p[p.length-2]+'/'+p[p.length-1]+location.hash;</script></html>`);
+    res.redirect(302, `https://momentsapp.app/g/${groupId}/${token}`);
     return;
   }
   if (req.method !== 'POST') { res.status(405).json({ error: 'methodNotAllowed' }); return; }

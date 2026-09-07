@@ -693,6 +693,7 @@
 "conversationSettings.notifications.desc" = "Bu sohbet için bildirimleri açıp kapat.";
 "conversationSettings.typingIndicator" = "Yazıyor göstergesi";
 "conversationSettings.typingIndicator.desc" = "Bunu kapatırsan diğer kişinin ne zaman yazdığını da göremezsin.";
+"conversationSettings.typingIndicator.desc.group" = "Bunu kapatırsan diğerlerinin ne zaman yazdığını da göremezsin.";
 "settings.privacy.readReceipts.title" = "Okundu bilgisi";
 "settings.privacy.readReceipts.description" = "Okundu bilgisini kapatırsan diğer kişilerin okundu bilgilerini göremezsin.";
 "common.viewAll" = "Tümünü gör";
@@ -803,8 +804,10 @@
 "conversationSettings.privacy.buzz.description" = "Bunu kapatırsan, diğer kişiler bu sohbette seni dürtemez.";
 "conversationSettings.privacy.readReceipts.title" = "Okundu bilgisi";
 "conversationSettings.privacy.readReceipts.description" = "Bu sohbette okundu bilgisini kapatırsan, karşı tarafın mesajlarını ne zaman okuduğunu göremezsin.";
+"conversationSettings.privacy.readReceipts.description.group" = "Bu grupta okundu bilgisini kapatırsan diğerlerinin mesajlarını ne zaman okuduğunu göremezsin.";
 "conversationSettings.privacy.forwarding.title" = "İletmeye izin ver";
 "conversationSettings.privacy.forwarding.description" = "Bunu kapatırsan, karşı taraf bu sohbetteki metin mesajlarını iletemez veya kopyalayamaz.";
+"conversationSettings.privacy.forwarding.description.group" = "Bunu kapatırsan diğerleri bu gruptaki yazılı mesajlarını iletemez veya kopyalayamaz.";
 /* Register */
 "register.back" = "Geri";
 "register.attention.title" = "Dikkat";
@@ -961,6 +964,7 @@
 "chat.replying" = "Yanıtlanıyor";
 "chat.replyingToMessage" = "Bir mesaja yanıt veriliyor";
 "chat.edited" = "düzenlendi";
+"chat.read.andMore" = "ve %d kişi daha";
 "chat.sending" = "Gönderiliyor";
 "chat.error" = "Hata";
 "chat.message.deleted" = "Bu mesaj silindi";
@@ -1484,6 +1488,9 @@
 "conversationSettings.conversationInfo" = "Sohbet bilgileri";
 "conversationSettings.sharedContent" = "Paylaşılan içerik";
 "conversationSettings.preferences" = "Sohbet tercihleri";
+"conversationSettings.privacyAndSecurity" = "Gizlilik ve güvenlik";
+
+"conversationSettings.hide" = "Gizle";
 "conversationSettings.count.none" = "Yok";
 "conversationSettings.sharedMedia" = "Paylaşılan medya";
 "conversationSettings.starredMessages" = "Yıldızlı mesajlar";
@@ -1492,6 +1499,7 @@
 "conversationSettings.noSharedMedia" = "Paylaşılan medya yok";
 "conversationSettings.privacy" = "Gizlilik";
 "conversationSettings.clearConversation" = "Sohbeti temizle";
+"conversationSettings.clearConversation.group" = "Sohbeti temizle";
 "conversationSettings.blockUser" = "Kullanıcıyı engelle";
 "conversationSettings.viewAllMedia" = "Tümünü gör (%d)";
 "conversationSettings.videoLoadError" = "Video yüklenirken hata oluştu";
@@ -4469,11 +4477,18 @@
 "groups.invited" = "Davet gönderildi";
 "groups.pendingInvitations" = "Bekleyen davetler";
 "groups.inviteLink" = "Davet bağlantısı";
+"groups.invitation" = "Davet";
+"groups.joinBody" = "Bu gruba katılmaya davet edildin.";
 "groups.linkBody" = "Bu bağlantıya sahip herkes katılabilir. Yeni üyeler yalnızca katıldıkları andan itibaren mesajları görür. Yenilemek veya devre dışı bırakmak önceki bağlantıyı geçersiz kılar.";
 "groups.getLink" = "Bağlantıyı al";
 "groups.shareLink" = "Bağlantıyı paylaş";
 "groups.renewLink" = "Bağlantıyı yenile";
 "groups.disableLink" = "Bağlantıyı devre dışı bırak";
+"groups.edit" = "Grubu düzenle";
+"groups.copyLink" = "Bağlantıyı kopyala";
+"groups.linkCopied" = "Kopyalandı";
+"groups.renewBody" = "Yenilemek yeni bir bağlantı oluşturur. Önceki artık çalışmaz.";
+"groups.disableBody" = "Bu bağlantıyla kimse katılamaz. Daha sonra yeni bir tane alabilirsin.";
 "groups.joinLink" = "Gruba katıl";
 "groups.linkError" = "Bu bağlantı kullanılamıyor, grup dolu veya sohbet anahtarlarınız yüklenemedi. Tekrar deneyin ya da yöneticiden yeni bir bağlantı isteyin.";
 "groups.notice.joined" = "%@ gruba katıldı";
@@ -4486,3 +4501,8 @@
 "groups.historyStart" = "Grubun başlangıcı";
 "groups.historyStartJoined" = "Katıldığın andan itibaren mesajları görebilirsin.";
 "groups.joinedOn" = "%@ tarihinde katıldı";
+
+"groups.you" = "Sen";
+"groups.followingSection" = "Takip";
+"groups.othersSection" = "Diğerleri";
+"groups.linkAdminOnly" = "Davet bağlantısını yalnızca yöneticiler açabilir.";

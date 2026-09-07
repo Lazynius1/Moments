@@ -14,6 +14,8 @@ class ChatService: ObservableObject {
     @Published var activeListeners: [String: ListenerRegistration] = [:]
     @Published var typingUsers: [String: Set<String>] = [:] // conversationId: Set<userId>
     private var listenerGenerations: [String: Int] = [:]
+    /// Merge vivo del inbox; si ya hay listeners, no se recrean al volver a Mensajes.
+    var inboxMerge: GroupInboxMerge?
     
     private var typingTimer: Timer?
     private let typingTimeout: TimeInterval = 3.0
@@ -122,6 +124,9 @@ class ChatService: ObservableObject {
         let listenerKey = "conversations_\(userId)"
         activeListeners[listenerKey]?.remove()
         activeListeners.removeValue(forKey: listenerKey)
+        if inboxMerge?.userId == userId {
+            inboxMerge = nil
+        }
     }
     
     // MARK: - Real-time Messages with Decryption

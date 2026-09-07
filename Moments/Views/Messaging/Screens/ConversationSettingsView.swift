@@ -13,6 +13,7 @@ struct ConversationSettingsView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = ConversationSettingsViewModel()
     @StateObject private var onlineStatusService = OnlineStatusService()
+    @ObservedObject private var groupDirectory = GroupDirectory.shared
     @State private var otherUserStatus: OnlineStatus = .offline
     @State private var otherUserLastSeen: Date?
     @State private var statusListener: ListenerRegistration?
@@ -25,8 +26,13 @@ struct ConversationSettingsView: View {
     @State private var showVanishPreferences = false
     @State private var showingUserProfile = false
     @State private var groupManagementId: String?
+    @State private var groupEditId: String?
+    @State private var groupInviteManageId: String?
     @State private var showBlockConfirmationFromHeader = false
     @State private var showReportSheetFromHeader = false
+    @State private var showLeaveGroup = false
+    @State private var showHideChat = false
+    @State private var showLinkAdminOnly = false
     @State private var isLargeHeader = false
     @State private var headerTopInset: CGFloat = 0
     @State private var scrollPhase: ScrollPhase = .idle
@@ -44,9 +50,21 @@ struct ConversationSettingsView: View {
     }
 
     private var otherParticipantDisplayName: String {
+        if conversation.isGroup, let id = conversation.id {
+            let live = groupDirectory.groups[id]?.name.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !live.isEmpty { return live }
+        }
         let fallback = conversation.otherParticipantUsername ?? "Usuario"
         let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         return live.isEmpty ? fallback : live
+    }
+
+    private var groupHeroAvatarURL: String? {
+        if conversation.isGroup, let id = conversation.id {
+            let image = groupDirectory.groups[id]?.image.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !image.isEmpty { return image }
+        }
+        return conversation.otherParticipantProfileImagePath
     }
 
     private var headerPresence: PresenceDisplay? {
@@ -61,54 +79,59 @@ struct ConversationSettingsView: View {
         isLargeHeader ? .white : adaptiveColors.primary
     }
 
+    private var isGroupAdmin: Bool {
+        guard conversation.isGroup, let id = conversation.id, let uid = Auth.auth().currentUser?.uid else { return false }
+        return groupDirectory.groups[id]?.admins.contains(uid) == true
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                if conversation.isGroup {
-                    Button { groupManagementId = conversation.id } label: {
-                        Label(NSLocalizedString("groups.members", comment: ""), systemImage: "person.3")
-                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 14)
-                    }.buttonStyle(.plain)
-                }
+                ConversationSettingsHeroHeader(
+                    isLargeHeader: $isLargeHeader,
+                    topInset: $headerTopInset,
+                    isGroup: conversation.isGroup,
+                    avatarURL: groupHeroAvatarURL,
+                    displayName: otherParticipantDisplayName,
+                    presence: headerPresence,
+                    notificationsEnabled: viewModel.notificationsEnabled,
+                    onProfile: {
+                        HapticManager.shared.lightImpact()
+                        if conversation.isGroup {
+                            groupManagementId = conversation.id
+                        } else {
+                            showingUserProfile = true
+                        }
+                    },
+                    onSearch: {
+                        HapticManager.shared.lightImpact()
+                        onSearchRequested?()
+                    },
+                    onMuteToggle: {
+                        HapticManager.shared.lightImpact()
+                        viewModel.notificationsEnabled.toggle()
+                        viewModel.toggleNotifications()
+                    },
+                    showsIdentityEdit: isGroupAdmin,
+                    onIdentityTap: isGroupAdmin ? {
+                        HapticManager.shared.lightImpact()
+                        groupEditId = conversation.id
+                    } : nil
+                )
+
                 settingsListSection
                     .padding(.horizontal, 16)
 
-                settingsFooter
-                    .padding(.horizontal, 16)
+                if !conversation.isGroup {
+                    settingsFooter
+                        .padding(.horizontal, 16)
+                }
 
                 sharedContentTabsSection
                     .padding(.top, 8)
             }
             .padding(.bottom, 32)
         }
-        .modifier(ConversationSettingsDirectHeroInset(enabled: true) {
-            ConversationSettingsHeroHeader(
-                isLargeHeader: $isLargeHeader,
-                topInset: $headerTopInset,
-                isGroup: conversation.isGroup,
-                avatarURL: conversation.otherParticipantProfileImagePath,
-                displayName: otherParticipantDisplayName,
-                presence: headerPresence,
-                notificationsEnabled: viewModel.notificationsEnabled,
-                onProfile: {
-                    HapticManager.shared.lightImpact()
-                    if conversation.isGroup {
-                        groupManagementId = conversation.id
-                    } else {
-                        showingUserProfile = true
-                    }
-                },
-                onSearch: {
-                    HapticManager.shared.lightImpact()
-                    onSearchRequested?()
-                },
-                onMuteToggle: {
-                    HapticManager.shared.lightImpact()
-                    viewModel.notificationsEnabled.toggle()
-                    viewModel.toggleNotifications()
-                }
-            )
-        })
         .background {
             Color(hex: colorScheme == .dark ? "0B1215" : "FAF9F6")
                 .ignoresSafeArea()
@@ -142,19 +165,31 @@ struct ConversationSettingsView: View {
                     action: { dismiss() }
                 )
             }
-            if !conversation.isGroup {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
-                    Button(role: .destructive) {
-                        showBlockConfirmationFromHeader = true
-                    } label: {
-                        Label(NSLocalizedString("conversationSettings.blockUser", comment: ""), systemImage: "slash.circle")
-                    }
+                    if conversation.isGroup {
+                        Button(role: .destructive) {
+                            showLeaveGroup = true
+                        } label: {
+                            Label(NSLocalizedString("groups.leave", comment: ""), systemImage: "rectangle.portrait.and.arrow.right")
+                        }
+                        Button {
+                            showHideChat = true
+                        } label: {
+                            Label(NSLocalizedString("conversationSettings.hide", comment: "Hide chat"), systemImage: "eye.slash")
+                        }
+                    } else {
+                        Button(role: .destructive) {
+                            showBlockConfirmationFromHeader = true
+                        } label: {
+                            Label(NSLocalizedString("conversationSettings.blockUser", comment: ""), systemImage: "slash.circle")
+                        }
 
-                    Button(role: .destructive) {
-                        showReportSheetFromHeader = true
-                    } label: {
-                        Label(NSLocalizedString("report.action.user", comment: "Report user"), systemImage: "flag")
+                        Button(role: .destructive) {
+                            showReportSheetFromHeader = true
+                        } label: {
+                            Label(NSLocalizedString("report.action.user", comment: "Report user"), systemImage: "flag")
+                        }
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -163,7 +198,6 @@ struct ConversationSettingsView: View {
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
                 }
-            }
             }
         }
         .toolbar(.hidden, for: .tabBar)
@@ -177,6 +211,12 @@ struct ConversationSettingsView: View {
         }
         .navigationDestination(item: $groupManagementId) { id in
             GroupManagementView(groupId: id)
+        }
+        .navigationDestination(item: $groupEditId) { id in
+            GroupEditView(groupId: id)
+        }
+        .navigationDestination(item: $groupInviteManageId) { id in
+            GroupInviteLinkManageView(groupId: id)
         }
         .navigationDestination(isPresented: $showChatPreferences) {
             ConversationChatPreferencesView(viewModel: viewModel)
@@ -270,6 +310,31 @@ struct ConversationSettingsView: View {
             }
         } message: {
             Text(viewModel.notificationAlertMessage)
+        }
+        .alert(NSLocalizedString("groups.leave", comment: ""), isPresented: $showLeaveGroup) {
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("groups.leave", comment: ""), role: .destructive) {
+                Task {
+                    guard let id = conversation.id, let group = GroupDirectory.shared.groups[id] else { return }
+                    if await GroupChatStore().command("leave", group: group) {
+                        dismiss()
+                    }
+                }
+            }
+        } message: {
+            Text(NSLocalizedString("groups.leaveBody", comment: ""))
+        }
+        .alert(NSLocalizedString("conversationSettings.hide", comment: "Hide chat"), isPresented: $showHideChat) {
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("conversationSettings.hide", comment: "Hide chat")) {
+                viewModel.archiveCurrentConversation()
+                dismiss()
+            }
+        }
+        .alert(NSLocalizedString("groups.inviteLink", comment: ""), isPresented: $showLinkAdminOnly) {
+            Button(NSLocalizedString("groups.ok", comment: ""), role: .cancel) {}
+        } message: {
+            Text(NSLocalizedString("groups.linkAdminOnly", comment: "Only admins can turn on the invite link."))
         }
     }
 
@@ -387,6 +452,39 @@ struct ConversationSettingsView: View {
 
             dividerLine.padding(.leading, 38)
 
+            if conversation.isGroup {
+                Button {
+                    HapticManager.shared.lightImpact()
+                    if isGroupAdmin {
+                        groupInviteManageId = conversation.id
+                    } else {
+                        showLinkAdminOnly = true
+                    }
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "link")
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundStyle(adaptiveColors.secondary)
+                            .frame(width: 24)
+
+                        Text(NSLocalizedString("groups.inviteLink", comment: "Invitation link"))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                            .foregroundStyle(adaptiveColors.primary)
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(adaptiveColors.tertiary)
+                    }
+                    .padding(.vertical, 14)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.momentsPressSubtle)
+
+                dividerLine.padding(.leading, 38)
+            }
+
             if !conversation.isGroup {
             // Mensajes temporales row
             Button {
@@ -421,19 +519,19 @@ struct ConversationSettingsView: View {
             dividerLine.padding(.leading, 38)
 
             }
-            // Chat preferences row
+            // Privacidad y seguridad (1:1 y grupo)
             Button {
                 HapticManager.shared.lightImpact()
                 showChatPreferences = true
             } label: {
                 HStack(spacing: 14) {
-                    Image(systemName: "slider.horizontal.3")
+                    Image(systemName: "lock")
                         .font(.system(size: 16, weight: .regular))
                         .foregroundStyle(adaptiveColors.secondary)
                         .frame(width: 24)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(NSLocalizedString("conversationSettings.preferences", comment: "Chat preferences"))
+                        Text(NSLocalizedString("conversationSettings.privacyAndSecurity", comment: "Privacy and security"))
                             .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                             .foregroundStyle(adaptiveColors.primary)
                         Text(NSLocalizedString("conversationSettings.preferences.desc", comment: "Notifications, previews, privacy"))
@@ -1633,6 +1731,12 @@ class ConversationSettingsViewModel: ObservableObject {
         }
     }
 
+    func archiveCurrentConversation() {
+        guard let conversationId = currentConversation?.id,
+              let userId = Auth.auth().currentUser?.uid else { return }
+        chatService.archiveConversation(conversationId, for: userId) { _ in }
+    }
+
     func blockUser() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               currentConversation?.id != nil else { return }
@@ -2608,7 +2712,9 @@ struct ConversationChatPreferencesView: View {
 
                     toggleRow(
                         title: "conversationSettings.privacy.readReceipts.title",
-                        desc: "conversationSettings.privacy.readReceipts.description",
+                        desc: viewModel.isGroup
+                            ? "conversationSettings.privacy.readReceipts.description.group"
+                            : "conversationSettings.privacy.readReceipts.description",
                         isOn: $viewModel.readReceiptsEnabled
                     ) { viewModel.toggleReadReceipts() }
 
@@ -2616,7 +2722,9 @@ struct ConversationChatPreferencesView: View {
 
                     toggleRow(
                         title: "conversationSettings.typingIndicator",
-                        desc: "conversationSettings.typingIndicator.desc",
+                        desc: viewModel.isGroup
+                            ? "conversationSettings.typingIndicator.desc.group"
+                            : "conversationSettings.typingIndicator.desc",
                         isOn: $viewModel.typingIndicatorEnabled
                     ) { viewModel.toggleTypingIndicator() }
 
@@ -2624,14 +2732,18 @@ struct ConversationChatPreferencesView: View {
 
                     toggleRow(
                         title: "conversationSettings.privacy.forwarding.title",
-                        desc: "conversationSettings.privacy.forwarding.description",
+                        desc: viewModel.isGroup
+                            ? "conversationSettings.privacy.forwarding.description.group"
+                            : "conversationSettings.privacy.forwarding.description",
                         isOn: $viewModel.forwardingEnabled
                     ) { viewModel.toggleForwarding() }
                 }
 
                 destructiveRow(
                     icon: "trash",
-                    title: "conversationSettings.clearConversation"
+                    title: viewModel.isGroup
+                        ? "conversationSettings.clearConversation.group"
+                        : "conversationSettings.clearConversation"
                 ) { showClearConfirm = true }
             }
             .padding(.horizontal, 16)
@@ -2651,17 +2763,30 @@ struct ConversationChatPreferencesView: View {
                 SettingsToolbarBackButton(action: { dismiss() })
             }
             ToolbarItem(placement: .principal) {
-                Text(NSLocalizedString("conversationSettings.preferences", comment: "Chat preferences"))
+                Text(NSLocalizedString("conversationSettings.privacyAndSecurity", comment: "Privacy and security"))
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(adaptiveColors.primary)
             }
         }
         .confirmationDialog(
-            NSLocalizedString("conversationSettings.clearConversation", comment: ""),
+            NSLocalizedString(
+                viewModel.isGroup
+                    ? "conversationSettings.clearConversation.group"
+                    : "conversationSettings.clearConversation",
+                comment: ""
+            ),
             isPresented: $showClearConfirm,
             titleVisibility: .visible
         ) {
-            Button(NSLocalizedString("conversationSettings.clearConversation", comment: ""), role: .destructive) {
+            Button(
+                NSLocalizedString(
+                    viewModel.isGroup
+                        ? "conversationSettings.clearConversation.group"
+                        : "conversationSettings.clearConversation",
+                    comment: ""
+                ),
+                role: .destructive
+            ) {
                 HapticManager.shared.mediumImpact()
                 viewModel.clearConversation()
                 dismiss()
@@ -2836,20 +2961,6 @@ struct ConversationVanishModeView: View {
             .fill(adaptiveColors.tertiary.opacity(colorScheme == .dark ? 0.16 : 0.12))
             .frame(height: 0.5)
             .padding(.leading, 16)
-    }
-}
-
-private struct ConversationSettingsDirectHeroInset<Header: View>: ViewModifier {
-    let enabled: Bool
-    @ViewBuilder var header: () -> Header
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if enabled {
-            content.safeAreaInset(edge: .top, spacing: 0, content: header)
-        } else {
-            content
-        }
     }
 }
 

@@ -395,6 +395,7 @@ struct ChatMessageContextMenuOverlay: View {
     let colorScheme: ColorScheme
     let currentUserId: String
     let forwardingPreferences: [String: Bool]
+    var isGroup: Bool = false
 
     let onDeleteForEveryone: (EnhancedMessage) -> Void
     let onDeleteForMe: (EnhancedMessage) -> Void
@@ -818,7 +819,14 @@ struct ChatMessageContextMenuOverlay: View {
             if !message.isDeleted {
                 if showsMessageInfo(for: message, isCurrentUser: isCurrentUser) {
                     messageInfo(for: message)
+                }
 
+                if showsGroupReaders(for: message, isCurrentUser: isCurrentUser) {
+                    groupReadReceipts(for: message)
+                }
+
+                if showsMessageInfo(for: message, isCurrentUser: isCurrentUser)
+                    || showsGroupReaders(for: message, isCurrentUser: isCurrentUser) {
                     Divider()
                         .opacity(0.55)
                         .padding(.horizontal, 8)
@@ -888,6 +896,9 @@ struct ChatMessageContextMenuOverlay: View {
                 Text("\(MessageStatus.read.displayName) \(receiptTime.formatted(date: .abbreviated, time: .shortened))")
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(primaryTextColor)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(0)
             }
 
             Spacer(minLength: 10)
@@ -896,10 +907,14 @@ struct ChatMessageContextMenuOverlay: View {
                 Text("chat.edited")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(primaryTextColor.opacity(0.52))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
             }
         }
         .padding(.horizontal, 12)
         .frame(height: 36)
+        .clipped()
         .accessibilityElement(children: .combine)
     }
 
@@ -913,6 +928,71 @@ struct ChatMessageContextMenuOverlay: View {
     private func showsMessageInfo(for message: EnhancedMessage, isCurrentUser: Bool) -> Bool {
         guard isCurrentUser else { return false }
         return readReceiptTime(for: message) != nil
+    }
+
+    private static let maxVisibleGroupReaders = 7
+    private static let readerAvatarSize: CGFloat = 22
+    private static let readerAvatarOverlap: CGFloat = 8
+
+    private func groupReaderIds(for message: EnhancedMessage) -> [String] {
+        let ids = (message.readBy ?? []).filter { $0 != message.senderId }
+        return ids.sorted { lhs, rhs in
+            let left = message.readAtBy?[lhs] ?? .distantPast
+            let right = message.readAtBy?[rhs] ?? .distantPast
+            if left != right { return left > right }
+            return lhs < rhs
+        }
+    }
+
+    private func showsGroupReaders(for message: EnhancedMessage, isCurrentUser: Bool) -> Bool {
+        isGroup && isCurrentUser && !groupReaderIds(for: message).isEmpty
+    }
+
+    @ViewBuilder
+    private func groupReadReceipts(for message: EnhancedMessage) -> some View {
+        let ids = groupReaderIds(for: message)
+        let visible = Array(ids.prefix(Self.maxVisibleGroupReaders))
+        let remaining = ids.count - visible.count
+        HStack(spacing: 8) {
+            stackedReaderAvatars(visible)
+            if remaining > 0 {
+                Text(String(format: NSLocalizedString("chat.read.andMore", comment: ""), remaining))
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(primaryTextColor)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 36)
+        .clipped()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            remaining > 0
+                ? String(format: NSLocalizedString("chat.read.andMore", comment: ""), remaining)
+                : MessageStatus.read.displayName
+        )
+    }
+
+    @ViewBuilder
+    private func stackedReaderAvatars(_ ids: [String]) -> some View {
+        let size = Self.readerAvatarSize
+        let overlap = Self.readerAvatarOverlap
+        let width = size + CGFloat(max(0, ids.count - 1)) * (size - overlap)
+        HStack(spacing: -overlap) {
+            ForEach(Array(ids.enumerated()), id: \.offset) { index, userId in
+                AsyncProfileImageView(userId: userId)
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
+                    .zIndex(Double(index))
+                    .modifier(GroupReaderCutoutModifier(
+                        isLast: index == ids.count - 1,
+                        size: size,
+                        overlap: overlap
+                    ))
+            }
+        }
+        .frame(width: width, height: size, alignment: .leading)
     }
 
     private func overlayOffset(for point: CGPoint) -> CGSize {
@@ -954,11 +1034,20 @@ struct ChatMessageContextMenuOverlay: View {
 
     private func menuLayout(for selection: ChatMessageMenuSelection, rowCount: Int) -> ChatMessageMenuLayout {
         let scaled = scaledAnchorFrame(for: selection.anchorFrame)
+        let isCurrentUser = selection.message.senderId == currentUserId
         let includesMessageInfo = showsMessageInfo(
             for: selection.message,
-            isCurrentUser: selection.message.senderId == currentUserId
+            isCurrentUser: isCurrentUser
         )
-        let menuHeight = menuPanelHeight(rowCount: rowCount, includesMessageInfo: includesMessageInfo)
+        let includesGroupReaders = showsGroupReaders(
+            for: selection.message,
+            isCurrentUser: isCurrentUser
+        )
+        let menuHeight = menuPanelHeight(
+            rowCount: rowCount,
+            includesMessageInfo: includesMessageInfo,
+            includesGroupReaders: includesGroupReaders
+        )
         let reactionPanelHeight = areReactionsExpanded ? expandedReactionsHeight : reactionsBarHeight
         let reactionPanelWidth = areReactionsExpanded
             ? min(containerSize.width - 24, 350)
@@ -1003,9 +1092,16 @@ struct ChatMessageContextMenuOverlay: View {
         return min(max(centerX, minCenterX), maxCenterX)
     }
 
-    private func menuPanelHeight(rowCount: Int, includesMessageInfo: Bool) -> CGFloat {
-        let infoHeight: CGFloat = includesMessageInfo ? 37 : 0
-        return CGFloat(rowCount) * menuRowHeight + 16 + infoHeight
+    private func menuPanelHeight(
+        rowCount: Int,
+        includesMessageInfo: Bool,
+        includesGroupReaders: Bool
+    ) -> CGFloat {
+        var extra: CGFloat = 0
+        if includesMessageInfo { extra += 36 }
+        if includesGroupReaders { extra += 36 }
+        if includesMessageInfo || includesGroupReaders { extra += 1 }
+        return CGFloat(rowCount) * menuRowHeight + 16 + extra
     }
 
     private func visibleMenuRowsCount(for message: EnhancedMessage, isCurrentUser: Bool) -> Int {
@@ -1068,6 +1164,25 @@ private struct ChatReactionRailConnector: View {
 
 // MARK: - Menu row
 
+private struct GroupReaderCutoutModifier: ViewModifier {
+    let isLast: Bool
+    let size: CGFloat
+    let overlap: CGFloat
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isLast {
+            content
+        } else {
+            content.reversedMask(alignment: .center) {
+                Circle()
+                    .frame(width: size + 3, height: size + 3)
+                    .offset(x: size - overlap)
+            }
+        }
+    }
+}
+
 private struct ChatContextMenuRow: View {
     let title: LocalizedStringKey
     let icon: String
@@ -1083,11 +1198,13 @@ private struct ChatContextMenuRow: View {
                     .frame(width: 18)
                 Text(title)
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                    .lineLimit(1)
                 Spacer(minLength: 0)
             }
             .foregroundStyle(isDestructive ? .red : primaryTextColor)
             .padding(.horizontal, 12)
             .frame(height: 36)
+            .clipped()
             .contentShape(Rectangle())
         }
     }

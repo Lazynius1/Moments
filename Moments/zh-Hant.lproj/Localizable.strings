@@ -693,6 +693,7 @@
 "conversationSettings.notifications.desc" = "開啟或關閉此對話的通知。";
 "conversationSettings.typingIndicator" = "輸入指示器";
 "conversationSettings.typingIndicator.desc" = "關閉後，你也將無法看到對方正在輸入。";
+"conversationSettings.typingIndicator.desc.group" = "如果關閉此功能，你也不會看到其他人何時正在輸入。";
 "settings.privacy.readReceipts.title" = "已讀回條";
 "settings.privacy.readReceipts.description" = "關閉已讀回條後，你將無法查看其他人的已讀回條。";
 "common.viewAll" = "查看全部";
@@ -803,8 +804,10 @@
 "conversationSettings.privacy.buzz.description" = "關閉後，其他人將無法在這個聊天室向你發送 Buzz。";
 "conversationSettings.privacy.readReceipts.title" = "已讀回條";
 "conversationSettings.privacy.readReceipts.description" = "如果關閉這個聊天室的已讀回條，你將無法查看對方何時讀取你的訊息。";
+"conversationSettings.privacy.readReceipts.description.group" = "如果關閉這個群組的已讀回條，你將無法查看其他人何時讀取你的訊息。";
 "conversationSettings.privacy.forwarding.title" = "允許轉傳";
 "conversationSettings.privacy.forwarding.description" = "關閉後，對方將無法在這個聊天室轉傳或複製你的文字訊息。";
+"conversationSettings.privacy.forwarding.description.group" = "如果關閉此功能，其他人將無法轉傳或複製你在這個群組中的文字訊息。";
 /* Register */
 "register.back" = "返回";
 "register.attention.title" = "注意";
@@ -961,6 +964,7 @@
 "chat.replying" = "回覆中";
 "chat.replyingToMessage" = "回覆訊息";
 "chat.edited" = "已編輯";
+"chat.read.andMore" = "還有 %d 位";
 "chat.sending" = "傳送中";
 "chat.error" = "錯誤";
 "chat.message.deleted" = "此訊息已刪除";
@@ -1484,6 +1488,9 @@
 "conversationSettings.conversationInfo" = "對話資訊";
 "conversationSettings.sharedContent" = "分享的內容";
 "conversationSettings.preferences" = "聊天偏好設定";
+"conversationSettings.privacyAndSecurity" = "隱私權與安全性";
+
+"conversationSettings.hide" = "隱藏";
 "conversationSettings.count.none" = "無";
 "conversationSettings.sharedMedia" = "分享的媒體";
 "conversationSettings.starredMessages" = "已加星號的訊息";
@@ -1492,6 +1499,7 @@
 "conversationSettings.noSharedMedia" = "沒有分享的媒體";
 "conversationSettings.privacy" = "隱私權";
 "conversationSettings.clearConversation" = "清除對話";
+"conversationSettings.clearConversation.group" = "清除聊天";
 "conversationSettings.blockUser" = "封鎖使用者";
 "conversationSettings.viewAllMedia" = "查看全部（%d）";
 "conversationSettings.videoLoadError" = "影片載入失敗";
@@ -4469,11 +4477,18 @@
 "groups.invited" = "已傳送邀請";
 "groups.pendingInvitations" = "待處理的邀請";
 "groups.inviteLink" = "邀請連結";
+"groups.invitation" = "邀請";
+"groups.joinBody" = "你受邀加入這個群組。";
 "groups.linkBody" = "任何擁有此連結的人都可以加入。新成員只能看到加入當下之後的訊息。更新或停用會使先前的連結失效。";
 "groups.getLink" = "取得連結";
 "groups.shareLink" = "分享連結";
 "groups.renewLink" = "更新連結";
 "groups.disableLink" = "停用連結";
+"groups.edit" = "編輯群組";
+"groups.copyLink" = "複製連結";
+"groups.linkCopied" = "已複製";
+"groups.renewBody" = "更新會建立新連結，先前的連結將失效。";
+"groups.disableBody" = "無法再透過此連結加入。之後可以再取得新連結。";
 "groups.joinLink" = "加入群組";
 "groups.linkError" = "此連結無法使用、群組已滿，或無法載入聊天金鑰。請重試或向管理員索取新連結。";
 "groups.notice.joined" = "%@已加入群組";
@@ -4486,3 +4501,8 @@
 "groups.historyStart" = "群組的開始";
 "groups.historyStartJoined" = "你只能看到加入之後的訊息。";
 "groups.joinedOn" = "於%@加入";
+
+"groups.you" = "你";
+"groups.followingSection" = "追蹤中";
+"groups.othersSection" = "其他";
+"groups.linkAdminOnly" = "只有管理員可以開啟邀請連結。";

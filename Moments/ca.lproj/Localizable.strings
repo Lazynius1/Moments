@@ -831,14 +831,17 @@
 "conversationSettings.notifications.desc" = "Activa o silencia les notificacions d'aquesta conversa.";
 "conversationSettings.typingIndicator" = "Indicador d'escriptura";
 "conversationSettings.typingIndicator.desc" = "Si ho desactives, tampoc veuràs quan l'altra persona està escrivint.";
+"conversationSettings.typingIndicator.desc.group" = "Si ho desactives, tampoc veuràs quan els altres estan escrivint.";
 "conversationSettings.privacy.messagePreview.title" = "Mostra la vista prèvia";
 "conversationSettings.privacy.messagePreview.description" = "Mostra el text del missatge a les notificacions i a la llista de converses.";
 "conversationSettings.privacy.buzz.title" = "Brunzits";
 "conversationSettings.privacy.buzz.description" = "Si ho desactives, l'altra persona no et podrà enviar brunzits en aquest xat.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmació de lectura";
 "conversationSettings.privacy.readReceipts.description" = "Si desactives el 'vist' en aquest xat, no podràs veure quan l'altra persona llegeix els teus missatges.";
+"conversationSettings.privacy.readReceipts.description.group" = "Si desactives el 'vist' en aquest grup, no podràs veure quan els altres llegeixen els teus missatges.";
 "conversationSettings.privacy.forwarding.title" = "Permetre reenviament";
 "conversationSettings.privacy.forwarding.description" = "Si ho desactives, l'altra persona no podrà reenviar ni copiar els teus missatges de text en aquest xat.";
+"conversationSettings.privacy.forwarding.description.group" = "Si ho desactives, els altres no podran reenviar ni copiar els teus missatges de text en aquest grup.";
 "common.viewAll" = "Veure-ho tot";
 "online" = "En línia";
 "offline" = "Desconnectat";
@@ -1000,6 +1003,7 @@
 "chat.replying" = "Responent";
 "chat.replyingToMessage" = "Responent a un missatge";
 "chat.edited" = "editat";
+"chat.read.andMore" = "i %d més";
 "chat.sending" = "Enviant";
 "chat.error" = "Error";
 "chat.message.deleted" = "Aquest missatge va ser eliminat";
@@ -1532,6 +1536,9 @@
 "conversationSettings.conversationInfo" = "Informació de la conversa";
 "conversationSettings.sharedContent" = "Contingut compartit";
 "conversationSettings.preferences" = "Preferències del xat";
+"conversationSettings.privacyAndSecurity" = "Privacitat i seguretat";
+
+"conversationSettings.hide" = "Amaga";
 "conversationSettings.count.none" = "Cap";
 "conversationSettings.sharedMedia" = "Contingut multimèdia compartit";
 "conversationSettings.starredMessages" = "Missatges destacats";
@@ -1540,6 +1547,7 @@
 "conversationSettings.noSharedMedia" = "No hi ha contingut multimèdia compartit";
 "conversationSettings.privacy" = "Privadesa";
 "conversationSettings.clearConversation" = "Netejar conversa";
+"conversationSettings.clearConversation.group" = "Netejar el xat";
 "conversationSettings.blockUser" = "Bloquejar usuari";
 "conversationSettings.viewAllMedia" = "Veure tots (%d)";
 "conversationSettings.videoLoadError" = "Error al carregar el vídeo";
@@ -4734,11 +4742,18 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "groups.invited" = "Invitació enviada";
 "groups.pendingInvitations" = "Invitacions pendents";
 "groups.inviteLink" = "Enllaç d’invitació";
+"groups.invitation" = "Invitació";
+"groups.joinBody" = "T’han convidat a unir-te a aquest grup.";
 "groups.linkBody" = "Qualsevol persona amb aquest enllaç pot unir-se. Els membres nous només veuen els missatges des que entren. Renovar-lo o desactivar-lo invalida l’enllaç anterior.";
 "groups.getLink" = "Obtenir enllaç";
 "groups.shareLink" = "Compartir enllaç";
 "groups.renewLink" = "Renovar enllaç";
 "groups.disableLink" = "Desactivar enllaç";
+"groups.edit" = "Editar grup";
+"groups.copyLink" = "Copiar enllaç";
+"groups.linkCopied" = "Copiat";
+"groups.renewBody" = "Renovar crea un enllaç nou. L’anterior deixarà de funcionar.";
+"groups.disableBody" = "Ningú no podrà unir-se amb aquest enllaç. Més endavant en pots obtenir un de nou.";
 "groups.joinLink" = "Unir-me al grup";
 "groups.linkError" = "L’enllaç no està disponible, el grup és ple o no s’han pogut carregar les claus del xat. Torna-ho a provar o demana un enllaç nou a un admin.";
 "groups.notice.joined" = "%@ s’ha unit al grup";
@@ -4751,3 +4766,8 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "groups.historyStart" = "Inici del grup";
 "groups.historyStartJoined" = "Pots veure els missatges des que t’hi has unit.";
 "groups.joinedOn" = "S’hi va unir el %@";
+
+"groups.you" = "Tu";
+"groups.followingSection" = "Seguint";
+"groups.othersSection" = "Altres";
+"groups.linkAdminOnly" = "Només els administradors poden activar l’enllaç d’invitació.";

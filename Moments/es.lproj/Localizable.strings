@@ -866,14 +866,17 @@
 "conversationSettings.notifications.desc" = "Activa o silencia las notificaciones de esta conversación.";
 "conversationSettings.typingIndicator" = "Indicador de escritura";
 "conversationSettings.typingIndicator.desc" = "Si lo desactivas, tampoco verás cuándo la otra persona está escribiendo.";
+"conversationSettings.typingIndicator.desc.group" = "Si lo desactivas, tampoco verás cuándo los demás están escribiendo.";
 "conversationSettings.privacy.messagePreview.title" = "Mostrar vista previa";
 "conversationSettings.privacy.messagePreview.description" = "Muestra el texto del mensaje en las notificaciones y en la lista de conversaciones.";
 "conversationSettings.privacy.buzz.title" = "Zumbidos";
 "conversationSettings.privacy.buzz.description" = "Si lo desactivas, la otra persona no podrá enviarte zumbidos en este chat.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmación de lectura";
 "conversationSettings.privacy.readReceipts.description" = "Si desactivas el 'visto' en este chat, no podrás ver cuándo la otra persona lee tus mensajes.";
+"conversationSettings.privacy.readReceipts.description.group" = "Si desactivas el 'visto' en este grupo, no podrás ver cuándo los demás leen tus mensajes.";
 "conversationSettings.privacy.forwarding.title" = "Permitir reenvío";
 "conversationSettings.privacy.forwarding.description" = "Si lo desactivas, la otra persona no podrá reenviar ni copiar tus mensajes de texto en este chat.";
+"conversationSettings.privacy.forwarding.description.group" = "Si lo desactivas, los demás no podrán reenviar ni copiar tus mensajes de texto en este grupo.";
 "common.viewAll" = "Ver todo";
 "online" = "En línea";
 "offline" = "Desconectado";
@@ -1037,6 +1040,7 @@
 "chat.replying" = "Respondiendo";
 "chat.replyingToMessage" = "Respondiendo a un mensaje";
 "chat.edited" = "editado";
+"chat.read.andMore" = "y %d más";
 "chat.sending" = "Enviando";
 "chat.error" = "Error";
 "chat.message.deleted" = "Este mensaje fue eliminado";
@@ -1587,6 +1591,9 @@
 "conversationSettings.conversationInfo" = "Información de la conversación";
 "conversationSettings.sharedContent" = "Contenido compartido";
 "conversationSettings.preferences" = "Preferencias del chat";
+"conversationSettings.privacyAndSecurity" = "Privacidad y seguridad";
+
+"conversationSettings.hide" = "Ocultar";
 "conversationSettings.count.none" = "Ninguno";
 "conversationSettings.sharedMedia" = "Contenido multimedia compartido";
 "conversationSettings.starredMessages" = "Mensajes destacados";
@@ -1595,6 +1602,7 @@
 "conversationSettings.noSharedMedia" = "No hay contenido multimedia compartido";
 "conversationSettings.privacy" = "Privacidad";
 "conversationSettings.clearConversation" = "Limpiar conversación";
+"conversationSettings.clearConversation.group" = "Limpiar chat";
 "conversationSettings.blockUser" = "Bloquear usuario";
 "conversationSettings.viewAllMedia" = "Ver todos (%d)";
 "conversationSettings.videoLoadError" = "Error al cargar el video";
@@ -4722,11 +4730,18 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "groups.invited" = "Invitación enviada";
 "groups.pendingInvitations" = "Invitaciones pendientes";
 "groups.inviteLink" = "Enlace de invitación";
+"groups.invitation" = "Invitación";
+"groups.joinBody" = "Te han invitado a unirte a este grupo.";
 "groups.linkBody" = "Cualquiera que tenga este enlace puede unirse. Los nuevos miembros solo ven los mensajes desde que entran. Renovarlo o desactivarlo invalida el enlace anterior.";
 "groups.getLink" = "Obtener enlace";
 "groups.shareLink" = "Compartir enlace";
 "groups.renewLink" = "Renovar enlace";
 "groups.disableLink" = "Desactivar enlace";
+"groups.edit" = "Editar grupo";
+"groups.copyLink" = "Copiar enlace";
+"groups.linkCopied" = "Copiado";
+"groups.renewBody" = "Renovar crea un enlace nuevo. El anterior dejará de funcionar.";
+"groups.disableBody" = "Nadie podrá unirse con este enlace. Más adelante puedes obtener uno nuevo.";
 "groups.joinLink" = "Unirme al grupo";
 "groups.linkError" = "Este enlace no está disponible, el grupo está lleno o no se han podido cargar tus claves del chat. Inténtalo de nuevo o pide otro enlace a un admin.";
 "groups.notice.joined" = "%@ se ha unido al grupo";
@@ -4739,3 +4754,8 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "groups.historyStart" = "Inicio del grupo";
 "groups.historyStartJoined" = "Puedes ver los mensajes desde que te uniste.";
 "groups.joinedOn" = "Se unió el %@";
+
+"groups.you" = "Tú";
+"groups.followingSection" = "Siguiendo";
+"groups.othersSection" = "Otros";
+"groups.linkAdminOnly" = "Solo los administradores pueden activar el enlace de invitación.";

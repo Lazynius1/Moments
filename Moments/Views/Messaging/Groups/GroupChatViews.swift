@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import FirebaseAuth
 import FirebaseFirestore
 import Kingfisher
 
@@ -47,6 +48,8 @@ private struct GroupPersonRow: View {
     var joinedAt: Date? = nil
     var showsPresence: Bool = false
     var onlineStatusService: OnlineStatusService? = nil
+    var profileZoomNamespace: Namespace.ID? = nil
+    var onProfileTap: (() -> Void)? = nil
     @Environment(\.colorScheme) private var colorScheme
     @State private var presence: PresenceDisplay?
     @State private var statusListener: ListenerRegistration?
@@ -55,10 +58,9 @@ private struct GroupPersonRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            KFImage(URL(string: member.image)).placeholder { Image(systemName: "person.fill").foregroundStyle(.secondary) }
-                .resizable().scaledToFill().frame(width: 48, height: 48).background(.primary.opacity(0.06), in: Circle()).clipShape(Circle())
+            profilePhoto
             VStack(alignment: .leading, spacing: 4) {
-                Text(member.name).font(.body.weight(.medium)).lineLimit(1)
+                profileName
                 if showsPresence, let presence {
                     HStack(spacing: 6) {
                         Circle().fill(presence.status.color).frame(width: 8, height: 8)
@@ -77,12 +79,40 @@ private struct GroupPersonRow: View {
             }
             Spacer(minLength: 8)
         }
-        .contentShape(Rectangle())
         .onAppear { attachPresence() }
         .onDisappear { detachPresence() }
         .onChange(of: member.id) { _, _ in
             detachPresence()
             attachPresence()
+        }
+    }
+
+    private var avatarView: some View {
+        AsyncProfileImageView(userId: member.id)
+            .frame(width: 48, height: 48)
+            .clipShape(Circle())
+            .userProfileZoomSource(userId: member.id, namespace: profileZoomNamespace, cornerRadius: 24)
+    }
+
+    @ViewBuilder
+    private var profilePhoto: some View {
+        if let onProfileTap {
+            Button(action: onProfileTap) { avatarView }
+                .buttonStyle(.plain)
+        } else {
+            avatarView
+        }
+    }
+
+    @ViewBuilder
+    private var profileName: some View {
+        let name = Text(member.name).font(.body.weight(.medium)).lineLimit(1)
+        if let onProfileTap {
+            Button(action: onProfileTap) { name }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        } else {
+            name
         }
     }
 
@@ -98,6 +128,94 @@ private struct GroupPersonRow: View {
     private func detachPresence() {
         statusListener?.remove()
         statusListener = nil
+    }
+}
+
+private struct GroupMemberFollowButton: View {
+    let userId: String
+    @Environment(\.colorScheme) private var colorScheme
+    @StateObject private var firestoreService = FirestoreService.shared
+    @State private var followButtonState: FollowButtonState = .canFollow
+    @State private var isFollowLoading = false
+
+    var body: some View {
+        ModernFollowButton(
+            state: followButtonState,
+            isLoading: isFollowLoading,
+            colorScheme: colorScheme,
+            targetUserId: userId,
+            style: .compact,
+            action: performFollowToggle
+        )
+        .onAppear {
+            if let cached = FollowStateStore.shared.state(for: userId) {
+                followButtonState = cached
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: FollowStateStore.didChangeNotification)) { notification in
+            guard let changedUserId = notification.userInfo?["userId"] as? String,
+                  changedUserId == userId,
+                  let changedState = notification.userInfo?["state"] as? FollowButtonState else { return }
+            if let changedViewerId = notification.userInfo?["viewerId"] as? String,
+               changedViewerId != Auth.auth().currentUser?.uid {
+                return
+            }
+            followButtonState = changedState
+        }
+    }
+
+    private func performFollowToggle() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        guard followButtonState.isActionable else { return }
+
+        let previousState = followButtonState
+        let optimisticState: FollowButtonState = {
+            switch previousState {
+            case .following, .mutuals: return .canFollow
+            case .canRequestFollow: return .requestPendingCancellable
+            case .requestPendingCancellable: return .canRequestFollow
+            case .canFollow: return .following
+            default: return previousState
+            }
+        }()
+
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+            followButtonState = optimisticState
+        }
+        FollowStateStore.shared.setState(optimisticState, for: userId)
+        isFollowLoading = true
+
+        if previousState.isFollowingOrMutual {
+            firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: userId) { error in
+                DispatchQueue.main.async {
+                    isFollowLoading = false
+                    if error != nil {
+                        followButtonState = previousState
+                        FollowStateStore.shared.setState(previousState, for: userId)
+                    }
+                }
+            }
+        } else if previousState == .requestPendingCancellable {
+            firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: userId) { error in
+                DispatchQueue.main.async {
+                    isFollowLoading = false
+                    if error != nil {
+                        followButtonState = previousState
+                        FollowStateStore.shared.setState(previousState, for: userId)
+                    }
+                }
+            }
+        } else {
+            firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { error in
+                DispatchQueue.main.async {
+                    isFollowLoading = false
+                    if error != nil {
+                        followButtonState = previousState
+                        FollowStateStore.shared.setState(previousState, for: userId)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -218,15 +336,13 @@ struct GroupMemberPicker: View {
 
 struct GroupDetailsView: View {
     @ObservedObject var store: GroupChatStore
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var name = ""
     @State private var adding = false
-    @State private var leaving = false
-    @State private var shareURL: URL?
     @State private var removing: GroupMember?
-    @State private var photoItem: PhotosPickerItem?
     @StateObject private var onlineStatusService = OnlineStatusService()
+    @State private var followEpoch = 0
+    @State private var selectedProfileRoute: FeedProfileSheetRoute?
+    @Namespace private var profileZoomNamespace
+    @Environment(\.colorScheme) private var colorScheme
     var body: some View {
         ScrollView {
             if let group = store.active {
@@ -234,78 +350,36 @@ struct GroupDetailsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
                         Spacer()
-                        if admin {
-                            PhotosPicker(selection: $photoItem, matching: .images) {
-                                GroupChatAvatar(name: group.name, image: group.image, size: 96, camera: true)
-                            }
-                        } else {
-                            GroupChatAvatar(name: group.name, image: group.image, size: 96)
-                        }
+                        GroupChatAvatar(name: group.name, image: group.image, size: 72)
                         Spacer()
-                    }.padding(.top, 24)
+                    }.padding(.top, 16)
                     Text(group.name)
-                        .font(.title2.bold())
+                        .font(.title3.bold())
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
-                        .padding(.horizontal, 20)
                         .frame(maxWidth: .infinity)
-                    Text(String(format: groupText("memberCount"), group.members.count)).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text(String(format: groupText("memberCount"), group.members.count))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
                     if admin {
-                        HStack {
-                            TextField(groupText("name"), text: Binding(get: { name }, set: { name = limitedGroupName($0) }))
-                            Button(groupText("save")) { Task { await store.command("rename", group: group, name: name) } }
-                                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name == group.name || store.busy)
-                        }.padding(14).background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
-                        Button { adding = true } label: { Label(groupText("add"), systemImage: "person.badge.plus") }.disabled(group.members.count >= 50)
+                        Button { adding = true } label: { Label(groupText("add"), systemImage: "person.badge.plus") }
+                            .disabled(group.members.count >= 50)
                     }
-                    if admin {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(groupText("inviteLink")).font(.headline)
-                            Text(groupText("linkBody")).font(.caption).foregroundStyle(.secondary)
-                            Button(groupText("getLink")) { Task { shareURL = await store.invitationLink(group) } }
-                            if let shareURL { ShareLink(item: shareURL) { Label(groupText("shareLink"), systemImage: "square.and.arrow.up") } }
-                            Button(groupText("renewLink")) { Task { shareURL = await store.invitationLink(group, renew: true) } }
-                            Button(groupText("disableLink"), role: .destructive) { Task {
-                                if await store.command("revokeLink", group: group) { shareURL = nil }
-                            } }
-                        }
-                    }
-                    Toggle(groupText("mute"), isOn: Binding(get: { group.muted.contains(store.uid) }, set: { value in Task { await store.command("mute", group: group, muted: value) } })).disabled(store.busy)
                     if admin && !group.pendingNames.isEmpty {
-                        Text(groupText("pendingInvitations")).font(.headline)
+                        Text(groupText("pendingInvitations")).font(.headline).padding(.top, 8)
                         ForEach(group.pendingNames.keys.sorted(), id: \.self) { id in
                             HStack {
-                                Text(group.pendingNames[id] ?? "")
-                                Spacer()
+                                GroupPersonRow(
+                                    member: GroupMember(id: id, name: group.pendingNames[id] ?? "", image: ""),
+                                    profileZoomNamespace: profileZoomNamespace,
+                                    onProfileTap: { selectedProfileRoute = FeedProfileSheetRoute(userId: id) }
+                                )
                                 Button(groupText("cancel")) { Task { await store.command("cancelInvite", group: group, memberId: id) } }
                             }
                         }
                     }
-                    Text(groupText("members")).font(.headline).padding(.top, 12)
-                    ForEach(group.members) { member in
-                        HStack {
-                            GroupPersonRow(
-                                member: member,
-                                detail: member.id == group.owner ? groupText("owner") : (group.admins.contains(member.id) ? groupText("admin") : ""),
-                                joinedAt: group.joinedDate(for: member.id),
-                                showsPresence: true,
-                                onlineStatusService: onlineStatusService
-                            )
-                            if admin && member.id != group.owner && member.id != store.uid {
-                                Menu {
-                                    if !group.admins.contains(member.id) {
-                                        Button(groupText("promote")) { Task { await store.command("promote", group: group, memberId: member.id) } }
-                                    } else if group.owner == store.uid {
-                                        Button(groupText("demote")) { Task { await store.command("demote", group: group, memberId: member.id) } }
-                                    }
-                                    if !group.admins.contains(member.id) || group.owner == store.uid {
-                                        Button(groupText("remove"), role: .destructive) { removing = member }
-                                    }
-                                } label: { Image(systemName: "ellipsis").frame(width: 36, height: 44) }.accessibilityLabel(groupText("manage"))
-                            }
-                        }.padding(.vertical, 8)
-                    }
-                    Button(groupText("leave"), role: .destructive) { leaving = true }.padding(.vertical, 20)
+                    Text(groupText("members")).font(.headline).padding(.top, 8)
+                    memberSections(group: group, admin: admin)
                 }.padding(.horizontal, 20).disabled(store.busy)
             } else { ContentUnavailableView(groupText("unavailable"), systemImage: "person.3") }
         }
@@ -313,19 +387,19 @@ struct GroupDetailsView: View {
         .navigationDestination(isPresented: $adding) {
             if let group = store.active { GroupMemberPicker(store: store, group: group) { _ in adding = false } }
         }
-        .navigationTitle(groupText("details"))
-        .onAppear { name = store.active?.name ?? "" }
-        .onChange(of: photoItem) { _, item in
-            Task {
-                guard let item, let data = try? await item.loadTransferable(type: Data.self),
-                      let image = UIImage(data: data), let group = store.active else { return }
-                await store.setPhoto(image, group: group)
+        .navigationTitle(groupText("members"))
+        .userProfileNavigationDestination(item: $selectedProfileRoute, namespace: profileZoomNamespace)
+        .task(id: store.active?.members.map(\.id).joined(separator: ",")) {
+            guard let members = store.active?.members, let viewer = Auth.auth().currentUser?.uid else { return }
+            for member in members where member.id != viewer {
+                FollowStateStore.shared.resolve(viewerId: viewer, targetUserId: member.id) { _ in
+                    DispatchQueue.main.async { followEpoch += 1 }
+                }
             }
         }
-        .alert(groupText("leave"), isPresented: $leaving) {
-            Button(groupText("cancel"), role: .cancel) { }
-            Button(groupText("leave"), role: .destructive) { Task { if let group = store.active, await store.command("leave", group: group) { dismiss() } } }
-        } message: { Text(groupText("leaveBody")) }
+        .onReceive(NotificationCenter.default.publisher(for: FollowStateStore.didChangeNotification)) { _ in
+            followEpoch += 1
+        }
         .alert(groupText("remove"), isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
             Button(groupText("cancel"), role: .cancel) { removing = nil }
             Button(groupText("remove"), role: .destructive) {
@@ -334,6 +408,65 @@ struct GroupDetailsView: View {
             }
         } message: { Text(groupText("removeBody")) }
         .groupError(store)
+    }
+
+    @ViewBuilder
+    private func memberSections(group: GroupConversation, admin: Bool) -> some View {
+        let buckets = memberBuckets(group.members)
+        if !buckets.you.isEmpty {
+            Text(groupText("you")).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 4)
+            ForEach(buckets.you) { member in memberRow(member, group: group, admin: admin) }
+        }
+        if !buckets.following.isEmpty {
+            Text(groupText("followingSection")).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 8)
+            ForEach(buckets.following) { member in memberRow(member, group: group, admin: admin) }
+        }
+        if !buckets.others.isEmpty {
+            Text(groupText("othersSection")).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 8)
+            ForEach(buckets.others) { member in memberRow(member, group: group, admin: admin) }
+        }
+    }
+
+    private func memberBuckets(_ members: [GroupMember]) -> (you: [GroupMember], following: [GroupMember], others: [GroupMember]) {
+        _ = followEpoch
+        let uid = store.uid
+        let you = members.filter { $0.id == uid }
+        let rest = members.filter { $0.id != uid }
+        let following = rest.filter { FollowStateStore.shared.state(for: $0.id)?.isFollowingOrMutual == true }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let others = rest.filter { FollowStateStore.shared.state(for: $0.id)?.isFollowingOrMutual != true }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        return (you, following, others)
+    }
+
+    @ViewBuilder
+    private func memberRow(_ member: GroupMember, group: GroupConversation, admin: Bool) -> some View {
+        HStack {
+            GroupPersonRow(
+                member: member,
+                detail: member.id == group.owner ? groupText("owner") : (group.admins.contains(member.id) ? groupText("admin") : ""),
+                joinedAt: group.joinedDate(for: member.id),
+                showsPresence: true,
+                onlineStatusService: onlineStatusService,
+                profileZoomNamespace: profileZoomNamespace,
+                onProfileTap: { selectedProfileRoute = FeedProfileSheetRoute(userId: member.id) }
+            )
+            if member.id != store.uid {
+                GroupMemberFollowButton(userId: member.id)
+            }
+            if admin && member.id != group.owner && member.id != store.uid {
+                Menu {
+                    if !group.admins.contains(member.id) {
+                        Button(groupText("promote")) { Task { await store.command("promote", group: group, memberId: member.id) } }
+                    } else if group.owner == store.uid {
+                        Button(groupText("demote")) { Task { await store.command("demote", group: group, memberId: member.id) } }
+                    }
+                    if !group.admins.contains(member.id) || group.owner == store.uid {
+                        Button(groupText("remove"), role: .destructive) { removing = member }
+                    }
+                } label: { Image(systemName: "ellipsis").frame(width: 36, height: 44) }.accessibilityLabel(groupText("manage"))
+            }
+        }.padding(.vertical, 8)
     }
 }
 
@@ -364,6 +497,140 @@ struct NewGroupView: View {
                 } catch { store.error = "groups.error" }
             }
         }
+    }
+}
+
+struct GroupEditView: View {
+    let groupId: String
+    @StateObject private var store = GroupChatStore()
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var name = ""
+    @State private var photoItem: PhotosPickerItem?
+    var body: some View {
+        ScrollView {
+            if let group = store.active {
+                VStack(spacing: 20) {
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        GroupChatAvatar(name: name.isEmpty ? group.name : name, image: group.image, size: 96, camera: true)
+                    }
+                    TextField(groupText("name"), text: Binding(get: { name }, set: { name = limitedGroupName($0) }))
+                        .padding(14)
+                        .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+                    Button(groupText("save")) {
+                        Task {
+                            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmed.isEmpty, trimmed != group.name {
+                                _ = await store.command("rename", group: group, name: trimmed)
+                            }
+                            dismiss()
+                        }
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.busy)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity)
+            } else {
+                ContentUnavailableView(groupText("unavailable"), systemImage: "person.3")
+            }
+        }
+        .background(AdaptiveColors(colorScheme: colorScheme).surfaceBackground.ignoresSafeArea())
+        .navigationTitle(groupText("edit"))
+        .navigationBarTitleDisplayMode(.inline)
+        .task { store.open(groupId) }
+        .onChange(of: store.active?.name) { _, value in
+            if name.isEmpty, let value { name = value }
+        }
+        .onChange(of: photoItem) { _, item in
+            Task {
+                guard let item, let data = try? await item.loadTransferable(type: Data.self),
+                      let image = UIImage(data: data), let group = store.active else { return }
+                await store.setPhoto(image, group: group)
+            }
+        }
+        .groupError(store)
+    }
+}
+
+struct GroupInviteLinkManageView: View {
+    let groupId: String
+    @StateObject private var store = GroupChatStore()
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var shareURL: URL?
+    @State private var copied = false
+    @State private var confirmRenew = false
+    @State private var confirmDisable = false
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text(groupText("linkBody"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                if let shareURL {
+                    Text(shareURL.absoluteString)
+                        .font(.footnote)
+                        .textSelection(.enabled)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
+                    HStack(spacing: 12) {
+                        Button {
+                            UIPasteboard.general.url = shareURL
+                            copied = true
+                        } label: {
+                            Label(copied ? groupText("linkCopied") : groupText("copyLink"), systemImage: copied ? "checkmark" : "doc.on.doc")
+                        }
+                        ShareLink(item: shareURL) {
+                            Label(groupText("shareLink"), systemImage: "square.and.arrow.up")
+                        }
+                    }
+                    Divider().padding(.top, 8)
+                    Button(groupText("renewLink")) { confirmRenew = true }
+                        .disabled(store.busy)
+                    Button(groupText("disableLink"), role: .destructive) { confirmDisable = true }
+                        .disabled(store.busy)
+                } else if store.active != nil {
+                    if store.busy {
+                        ProgressView().frame(maxWidth: .infinity)
+                    } else {
+                        Button(groupText("getLink")) {
+                            Task { shareURL = await loadLink(renew: false) }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(AdaptiveColors(colorScheme: colorScheme).surfaceBackground.ignoresSafeArea())
+        .navigationTitle(groupText("inviteLink"))
+        .navigationBarTitleDisplayMode(.inline)
+        .task { store.open(groupId) }
+        .task(id: store.active?.id) {
+            guard store.active != nil, shareURL == nil else { return }
+            shareURL = await loadLink(renew: false)
+        }
+        .alert(groupText("renewLink"), isPresented: $confirmRenew) {
+            Button(groupText("cancel"), role: .cancel) {}
+            Button(groupText("renewLink")) {
+                Task { shareURL = await loadLink(renew: true) }
+            }
+        } message: { Text(groupText("renewBody")) }
+        .alert(groupText("disableLink"), isPresented: $confirmDisable) {
+            Button(groupText("cancel"), role: .cancel) {}
+            Button(groupText("disableLink"), role: .destructive) {
+                Task {
+                    guard let group = store.active else { return }
+                    if await store.command("revokeLink", group: group) { shareURL = nil }
+                }
+            }
+        } message: { Text(groupText("disableBody")) }
+        .groupError(store)
+    }
+
+    private func loadLink(renew: Bool) async -> URL? {
+        guard let group = store.active else { return nil }
+        return await store.invitationLink(group, renew: renew)
     }
 }
 
@@ -415,31 +682,103 @@ struct GroupJoinLinkView: View {
     let link: GroupInviteLink
     let onJoined: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var store = GroupChatStore()
     @State private var name: String?
     @State private var image = ""
+
+    private var adaptiveColors: AdaptiveColors { AdaptiveColors(colorScheme: colorScheme) }
+
     var body: some View {
-        NavigationStack {
-            ChatRecoveryGateView(onCancel: { dismiss() }) {
-                VStack(spacing: 24) {
-                    GroupChatAvatar(name: name ?? "", image: image, size: 88)
+        ChatRecoveryGateView(onCancel: { dismiss() }) {
+            VStack(spacing: 0) {
+                Spacer(minLength: 20)
+
+                VStack(spacing: 14) {
+                    GroupChatAvatar(name: name ?? "", image: image, size: 104)
                     if let name {
-                        Text(name).font(.title2.bold())
-                        Text(groupText("linkBody")).foregroundStyle(.secondary)
-                        Button(groupText("joinLink")) { Task {
-                            if await store.joinLink(link) { dismiss(); onJoined() }
-                        } }.buttonStyle(.borderedProminent).disabled(store.busy)
-                    } else if store.error == nil { ProgressView() }
-                    else { Text(groupText("linkError")).foregroundStyle(.secondary) }
-                }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .task(id: link.id) {
-                        if let preview = await store.previewLink(link) {
-                            name = preview.name; image = preview.image
-                        }
+                        Text(name)
+                            .font(.system(size: 28, weight: .bold))
+                            .tracking(-0.4)
+                            .multilineTextAlignment(.center)
+                        Text(groupText("joinBody"))
+                            .font(.system(size: 15))
+                            .foregroundStyle(adaptiveColors.secondary)
+                            .multilineTextAlignment(.center)
+                    } else if store.error == nil {
+                        ProgressView()
+                    } else {
+                        Text(groupText("linkError"))
+                            .font(.system(size: 15))
+                            .foregroundStyle(adaptiveColors.secondary)
+                            .multilineTextAlignment(.center)
                     }
+                }
+                .padding(.horizontal, 24)
+                .frame(maxWidth: .infinity)
+
+                Spacer(minLength: 24)
+
+                Button {
+                    Task {
+                        if await store.joinLink(link) { dismiss(); onJoined() }
+                    }
+                } label: {
+                    Text(groupText("joinLink"))
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(adaptiveColors.surfaceBackground)
+                .background(adaptiveColors.primary, in: Capsule())
+                .disabled(store.busy || name == nil)
+                .opacity(name == nil ? 0.4 : 1)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 28)
             }
-            .navigationTitle(groupText("inviteLink"))
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(groupText("cancel")) { dismiss() } } }
-        }.groupError(store)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background {
+                if #available(iOS 26.0, *) {
+                    Color.clear
+                } else {
+                    adaptiveColors.surfaceBackground
+                }
+            }
+            .task(id: link.id) {
+                if let preview = await store.previewLink(link) {
+                    name = preview.name
+                    image = preview.image
+                }
+            }
+        }
+        .groupJoinLinkPresentation()
+        .groupError(store)
+    }
+}
+
+private struct GroupJoinLinkPresentation: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(28)
+        } else {
+            content
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(28)
+                .presentationBackground(AdaptiveColors(colorScheme: colorScheme).surfaceBackground)
+        }
+    }
+}
+
+private extension View {
+    func groupJoinLinkPresentation() -> some View {
+        modifier(GroupJoinLinkPresentation())
     }
 }

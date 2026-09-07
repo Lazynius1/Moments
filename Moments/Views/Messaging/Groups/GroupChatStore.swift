@@ -319,19 +319,33 @@ struct GroupInviteLink: Identifiable {
     let secret: Data
     var id: String { groupId + token }
     init?(_ url: URL) {
-        guard ["moments", "glowsy"].contains(url.scheme?.lowercased() ?? ""), url.host == "group" else { return nil }
+        guard let fragment = url.fragment, fragment.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil else { return nil }
         let parts = url.path.split(separator: "/").map(String.init)
-        guard parts.count == 2, GroupChatScope.isGroup(parts[0]), parts[1].range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil,
-              let fragment = url.fragment, fragment.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil else { return nil }
-        groupId = parts[0]; token = parts[1]
+        let scheme = url.scheme?.lowercased() ?? ""
+        let host = url.host?.lowercased() ?? ""
+        let pair: (String, String)?
+        if ["moments", "glowsy"].contains(scheme), host == "group", parts.count == 2 {
+            pair = (parts[0], parts[1])
+        } else if scheme == "https", ["momentsapp.app", "www.momentsapp.app"].contains(host),
+                  parts.count == 3, parts[0] == "g" {
+            pair = (parts[1], parts[2])
+        } else if scheme == "https", host.contains("cloudfunctions.net"),
+                  parts.count >= 4, parts[parts.count - 3] == "join" {
+            pair = (parts[parts.count - 2], parts[parts.count - 1])
+        } else {
+            pair = nil
+        }
+        guard let (id, inviteToken) = pair, GroupChatScope.isGroup(id),
+              inviteToken.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil else { return nil }
+        groupId = id
+        token = inviteToken
         secret = Data(stride(from: 0, to: 64, by: 2).map { index in
             let start = fragment.index(fragment.startIndex, offsetBy: index)
             return UInt8(fragment[start..<fragment.index(start, offsetBy: 2)], radix: 16)!
         })
     }
     static func url(groupId: String, token: String, secret: Data) throws -> URL {
-        guard let project = FirebaseApp.app()?.options.projectID,
-              let url = URL(string: "https://europe-southwest1-\(project).cloudfunctions.net/manageGroup/join/\(groupId)/\(token)#\(secret.map { String(format: "%02x", $0) }.joined())") else { throw URLError(.badURL) }
+        guard let url = URL(string: "https://momentsapp.app/g/\(groupId)/\(token)#\(secret.map { String(format: "%02x", $0) }.joined())") else { throw URLError(.badURL) }
         return url
     }
 }

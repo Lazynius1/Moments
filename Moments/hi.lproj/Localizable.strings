@@ -693,6 +693,7 @@
 "conversationSettings.notifications.desc" = "इस बातचीत की सूचनाएँ चालू या बंद करें।";
 "conversationSettings.typingIndicator" = "टाइपिंग इंडिकेटर";
 "conversationSettings.typingIndicator.desc" = "इसे बंद करने पर आप यह भी नहीं देख पाएँगे कि दूसरा व्यक्ति टाइप कर रहा है।";
+"conversationSettings.typingIndicator.desc.group" = "इसे बंद करने पर आपको यह भी नहीं दिखेगा कि दूसरे टाइप कर रहे हैं।";
 "settings.privacy.readReceipts.title" = "रीड रिसीट";
 "settings.privacy.readReceipts.description" = "रीड रिसीट बंद करने पर आप दूसरे लोगों के रीड रिसीट भी नहीं देख पाएँगे।";
 "common.viewAll" = "सभी देखें";
@@ -803,8 +804,10 @@
 "conversationSettings.privacy.buzz.description" = "इसे बंद करने पर दूसरे लोग इस चैट में आपको बज़ नहीं कर पाएँगे।";
 "conversationSettings.privacy.readReceipts.title" = "रीड रिसीट";
 "conversationSettings.privacy.readReceipts.description" = "इस चैट में रीड रिसीट बंद करने पर आप यह नहीं देख पाएँगे कि दूसरे व्यक्ति ने आपके मैसेज कब पढ़े।";
+"conversationSettings.privacy.readReceipts.description.group" = "अगर आप इस समूह में रीड रिसीट बंद करते हैं, तो आप यह नहीं देख पाएँगे कि दूसरों ने आपके मैसेज पढ़े हैं या नहीं।";
 "conversationSettings.privacy.forwarding.title" = "फ़ॉरवर्ड करने की अनुमति दें";
 "conversationSettings.privacy.forwarding.description" = "इसे बंद करने पर दूसरा व्यक्ति इस चैट में आपके टेक्स्ट मैसेज फ़ॉरवर्ड या कॉपी नहीं कर पाएगा।";
+"conversationSettings.privacy.forwarding.description.group" = "इसे बंद करने पर दूसरे इस समूह में आपके टेक्स्ट मैसेज फ़ॉरवर्ड या कॉपी नहीं कर पाएँगे।";
 /* Register */
 "register.back" = "वापस";
 "register.attention.title" = "ध्यान दें";
@@ -961,6 +964,7 @@
 "chat.replying" = "जवाब दिया जा रहा है";
 "chat.replyingToMessage" = "मैसेज का जवाब दिया जा रहा है";
 "chat.edited" = "संपादित";
+"chat.read.andMore" = "और %d";
 "chat.sending" = "भेजा जा रहा है";
 "chat.error" = "गड़बड़ी";
 "chat.message.deleted" = "यह मैसेज हटा दिया गया है";
@@ -1484,6 +1488,9 @@
 "conversationSettings.conversationInfo" = "बातचीत की जानकारी";
 "conversationSettings.sharedContent" = "शेयर की गई सामग्री";
 "conversationSettings.preferences" = "चैट की प्राथमिकताएँ";
+"conversationSettings.privacyAndSecurity" = "गोपनीयता और सुरक्षा";
+
+"conversationSettings.hide" = "छिपाएँ";
 "conversationSettings.count.none" = "कोई नहीं";
 "conversationSettings.sharedMedia" = "शेयर किया गया मीडिया";
 "conversationSettings.starredMessages" = "स्टार किए गए मैसेज";
@@ -1492,6 +1499,7 @@
 "conversationSettings.noSharedMedia" = "कोई शेयर किया गया मीडिया नहीं";
 "conversationSettings.privacy" = "प्राइवेसी";
 "conversationSettings.clearConversation" = "बातचीत मिटाएँ";
+"conversationSettings.clearConversation.group" = "चैट साफ़ करें";
 "conversationSettings.blockUser" = "यूज़र को ब्लॉक करें";
 "conversationSettings.viewAllMedia" = "सभी देखें (%d)";
 "conversationSettings.videoLoadError" = "वीडियो लोड करने में समस्या हुई";
@@ -4469,11 +4477,18 @@
 "groups.invited" = "आमंत्रण भेजा गया";
 "groups.pendingInvitations" = "लंबित आमंत्रण";
 "groups.inviteLink" = "आमंत्रण लिंक";
+"groups.invitation" = "निमंत्रण";
+"groups.joinBody" = "आपको इस समूह में शामिल होने के लिए आमंत्रित किया गया है।";
 "groups.linkBody" = "इस लिंक वाला कोई भी व्यक्ति जुड़ सकता है। नए सदस्य केवल शामिल होने के बाद के संदेश देख सकते हैं। इसे बदलने या बंद करने से पुराना लिंक अमान्य हो जाता है।";
 "groups.getLink" = "लिंक प्राप्त करें";
 "groups.shareLink" = "लिंक साझा करें";
 "groups.renewLink" = "नया लिंक बनाएँ";
 "groups.disableLink" = "लिंक बंद करें";
+"groups.edit" = "समूह संपादित करें";
+"groups.copyLink" = "लिंक कॉपी करें";
+"groups.linkCopied" = "कॉपी हो गया";
+"groups.renewBody" = "नया लिंक बनाने से पिछला लिंक काम करना बंद कर देगा।";
+"groups.disableBody" = "इस लिंक से कोई शामिल नहीं हो सकेगा। बाद में नया लिंक लिया जा सकता है।";
 "groups.joinLink" = "समूह में शामिल हों";
 "groups.linkError" = "यह लिंक उपलब्ध नहीं है, समूह भर गया है या आपकी चैट कुंजियाँ लोड नहीं हो सकीं। फिर से कोशिश करें या एडमिन से नया लिंक माँगें।";
 "groups.notice.joined" = "%@ समूह में शामिल हुए";
@@ -4486,3 +4501,8 @@
 "groups.historyStart" = "समूह की शुरुआत";
 "groups.historyStartJoined" = "आप जुड़ने के बाद के संदेश देख सकते हैं।";
 "groups.joinedOn" = "%@ को शामिल हुए";
+
+"groups.you" = "आप";
+"groups.followingSection" = "फ़ॉलो कर रहे हैं";
+"groups.othersSection" = "अन्य";
+"groups.linkAdminOnly" = "केवल एडमिन आमंत्रण लिंक चालू कर सकते हैं।";

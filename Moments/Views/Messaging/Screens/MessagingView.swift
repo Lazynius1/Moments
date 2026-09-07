@@ -432,8 +432,6 @@ struct MessagingView: View {
         actionToastDismissTask?.cancel()
         actionToastDismissTask = nil
         actionToastMessage = nil
-        viewModel.stopListening()
-        messageRequestService.removeAllListeners()
     }
 
     private func triggerCatchUpIfNeeded() {

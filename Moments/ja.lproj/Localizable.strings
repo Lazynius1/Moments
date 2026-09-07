@@ -693,6 +693,7 @@
 "conversationSettings.notifications.desc" = "このチャットの通知をオンまたはオフにします。";
 "conversationSettings.typingIndicator" = "入力中表示";
 "conversationSettings.typingIndicator.desc" = "これをオフにすると、相手が入力中かどうかも表示されなくなります。";
+"conversationSettings.typingIndicator.desc.group" = "オフにすると、他のメンバーの入力中表示も見えなくなります。";
 "settings.privacy.readReceipts.title" = "既読通知";
 "settings.privacy.readReceipts.description" = "既読通知をオフにすると、他の人の既読通知も確認できなくなります。";
 "common.viewAll" = "すべて表示";
@@ -803,8 +804,10 @@
 "conversationSettings.privacy.buzz.description" = "これをオフにすると、このチャットで他のユーザーからバズを受け取れなくなります。";
 "conversationSettings.privacy.readReceipts.title" = "既読通知";
 "conversationSettings.privacy.readReceipts.description" = "このチャットで既読通知をオフにすると、相手がメッセージを読んだかどうか確認できなくなります。";
+"conversationSettings.privacy.readReceipts.description.group" = "このグループで既読通知をオフにすると、他のメンバーがメッセージを読んだかどうか確認できなくなります。";
 "conversationSettings.privacy.forwarding.title" = "転送を許可";
 "conversationSettings.privacy.forwarding.description" = "これをオフにすると、このチャットで相手がテキストメッセージを転送またはコピーできなくなります。";
+"conversationSettings.privacy.forwarding.description.group" = "オフにすると、このグループで他のメンバーがテキストメッセージを転送またはコピーできなくなります。";
 /* Register */
 "register.back" = "戻る";
 "register.attention.title" = "注意";
@@ -961,6 +964,7 @@
 "chat.replying" = "返信中";
 "chat.replyingToMessage" = "メッセージに返信中";
 "chat.edited" = "編集済み";
+"chat.read.andMore" = "他%d人";
 "chat.sending" = "送信中";
 "chat.error" = "エラー";
 "chat.message.deleted" = "このメッセージは削除されました";
@@ -1484,6 +1488,9 @@
 "conversationSettings.conversationInfo" = "会話情報";
 "conversationSettings.sharedContent" = "共有コンテンツ";
 "conversationSettings.preferences" = "チャット設定";
+"conversationSettings.privacyAndSecurity" = "プライバシーとセキュリティ";
+
+"conversationSettings.hide" = "非表示";
 "conversationSettings.count.none" = "なし";
 "conversationSettings.sharedMedia" = "共有メディア";
 "conversationSettings.starredMessages" = "スター付きメッセージ";
@@ -1492,6 +1499,7 @@
 "conversationSettings.noSharedMedia" = "共有メディアはありません";
 "conversationSettings.privacy" = "プライバシー";
 "conversationSettings.clearConversation" = "会話を消去";
+"conversationSettings.clearConversation.group" = "チャットを消去";
 "conversationSettings.blockUser" = "ユーザーをブロック";
 "conversationSettings.viewAllMedia" = "すべて見る（%d）";
 "conversationSettings.videoLoadError" = "動画の読み込みエラー";
@@ -4469,11 +4477,18 @@
 "groups.invited" = "招待を送信しました";
 "groups.pendingInvitations" = "承認待ちの招待";
 "groups.inviteLink" = "招待リンク";
+"groups.invitation" = "招待";
+"groups.joinBody" = "このグループに招待されています。";
 "groups.linkBody" = "このリンクを持つ人は誰でも参加できます。新しいメンバーには参加時点以降のメッセージだけが表示されます。更新または無効化すると以前のリンクは使えなくなります。";
 "groups.getLink" = "リンクを取得";
 "groups.shareLink" = "リンクを共有";
 "groups.renewLink" = "リンクを更新";
 "groups.disableLink" = "リンクを無効化";
+"groups.edit" = "グループを編集";
+"groups.copyLink" = "リンクをコピー";
+"groups.linkCopied" = "コピーしました";
+"groups.renewBody" = "更新すると新しいリンクが作成され、以前のリンクは使えなくなります。";
+"groups.disableBody" = "このリンクでは参加できなくなります。後で新しいリンクを取得できます。";
 "groups.joinLink" = "グループに参加";
 "groups.linkError" = "リンクが利用できないか、グループが満員か、チャットの鍵を読み込めませんでした。再試行するか、管理者に新しいリンクを依頼してください。";
 "groups.notice.joined" = "%@がグループに参加しました";
@@ -4486,3 +4501,8 @@
 "groups.historyStart" = "グループの始まり";
 "groups.historyStartJoined" = "参加してからのメッセージを表示できます。";
 "groups.joinedOn" = "%@に参加";
+
+"groups.you" = "あなた";
+"groups.followingSection" = "フォロー中";
+"groups.othersSection" = "その他";
+"groups.linkAdminOnly" = "招待リンクをオンにできるのは管理者だけです。";

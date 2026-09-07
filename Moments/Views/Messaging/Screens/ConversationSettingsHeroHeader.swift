@@ -15,6 +15,8 @@ struct ConversationSettingsHeroHeader: View {
     let onProfile: () -> Void
     let onSearch: () -> Void
     let onMuteToggle: () -> Void
+    var showsIdentityEdit: Bool = false
+    var onIdentityTap: (() -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -41,10 +43,7 @@ struct ConversationSettingsHeroHeader: View {
         VStack(spacing: 14) {
             compactAvatarView
 
-            Text(displayName)
-                .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                .foregroundStyle(adaptiveColors.primary)
-                .lineLimit(1)
+            identityName(displayName, style: adaptiveColors.primary, size: 24)
 
             if let presence {
                 presenceRow(
@@ -65,23 +64,31 @@ struct ConversationSettingsHeroHeader: View {
 
     @ViewBuilder
     private var compactAvatarView: some View {
-        if isGroup {
-            GroupChatAvatar(name: displayName, image: avatarURL ?? "", size: compactAvatar)
-        } else if let avatarURL, let url = URL(string: avatarURL) {
-            KFImage(url)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: compactAvatar, height: compactAvatar)
-                .clipShape(Circle())
+        let avatar = Group {
+            if isGroup {
+                GroupChatAvatar(name: displayName, image: avatarURL ?? "", size: compactAvatar, camera: showsIdentityEdit)
+            } else if let avatarURL, let url = URL(string: avatarURL) {
+                KFImage(url)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: compactAvatar, height: compactAvatar)
+                    .clipShape(Circle())
+            } else {
+                Color.clear
+                    .frame(width: compactAvatar, height: compactAvatar)
+                    .background(Color.clear.momentsChromeGlass(in: Circle()))
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 34))
+                            .foregroundStyle(adaptiveColors.primary)
+                    )
+            }
+        }
+        if let onIdentityTap {
+            Button(action: onIdentityTap) { avatar }
+                .buttonStyle(.plain)
         } else {
-            Color.clear
-                .frame(width: compactAvatar, height: compactAvatar)
-                .background(Color.clear.momentsChromeGlass(in: Circle()))
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 34))
-                        .foregroundStyle(adaptiveColors.primary)
-                )
+            avatar
         }
     }
 
@@ -202,10 +209,7 @@ struct ConversationSettingsHeroHeader: View {
 
     private var stickyIdentity: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(displayName)
-                .font(.system(size: legacyPoppinsSize(28), weight: .bold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
+            identityName(displayName, style: .white, size: 28)
 
             if let presence {
                 presenceRow(
@@ -346,6 +350,20 @@ struct ConversationSettingsHeroHeader: View {
     }
 
     // MARK: - Shared
+
+    @ViewBuilder
+    private func identityName(_ title: String, style: Color, size: CGFloat) -> some View {
+        let label = Text(title)
+            .font(.system(size: legacyPoppinsSize(size), weight: .bold))
+            .foregroundStyle(style)
+            .lineLimit(1)
+        if let onIdentityTap {
+            Button(action: onIdentityTap) { label }
+                .buttonStyle(.plain)
+        } else {
+            label
+        }
+    }
 
     private func presenceRow(
         statusColor: Color,

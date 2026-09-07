@@ -15,21 +15,39 @@ final class GroupDirectory: ObservableObject {
 }
 
 @MainActor
-private final class GroupInboxMerge {
+final class GroupInboxMerge {
     var direct: [Conversation] = []
     var groups: [Conversation] = []
+    var receivedDirect = false
+    var receivedGroups = false
     let userId: String
-    let completion: (Result<[Conversation], Error>) -> Void
-    init(userId: String, completion: @escaping (Result<[Conversation], Error>) -> Void) { self.userId = userId; self.completion = completion }
+    var completion: (Result<[Conversation], Error>) -> Void
+    init(userId: String, completion: @escaping (Result<[Conversation], Error>) -> Void) {
+        self.userId = userId
+        self.completion = completion
+    }
     func publish() {
         guard Auth.auth().currentUser?.uid == userId else { return }
+        guard receivedDirect, receivedGroups else { return }
         completion(.success((direct + groups).sorted { $0.timestamp > $1.timestamp }))
     }
 }
 
 extension ChatService {
+    func isListeningToInbox(for userId: String) -> Bool {
+        activeListeners["group_conversations_\(userId)"] != nil
+            && activeListeners["conversations_\(userId)"] != nil
+    }
+
     func fetchConversations(for userId: String, completion: @escaping (Result<[Conversation], Error>) -> Void) {
+        if isListeningToInbox(for: userId), let merge = inboxMerge, merge.userId == userId {
+            merge.completion = completion
+            merge.publish()
+            return
+        }
+
         let merge = GroupInboxMerge(userId: userId, completion: completion)
+        inboxMerge = merge
         for key in activeListeners.keys.filter({ $0.hasPrefix("group_conversations_") }) { activeListeners.removeValue(forKey: key)?.remove() }
         let key = "group_conversations_\(userId)"
         var revision = 0
@@ -37,20 +55,32 @@ extension ChatService {
             .addSnapshotListener { [weak self] snapshot, error in
                 Task { @MainActor in
                     guard let self, Auth.auth().currentUser?.uid == userId else { return }
-                    guard let snapshot, error == nil else { if let error { completion(.failure(error)) }; return }
+                    guard let snapshot, error == nil else {
+                        merge.groups = []
+                        merge.receivedGroups = true
+                        merge.publish()
+                        return
+                    }
                     revision += 1; let currentRevision = revision
                     GroupDirectory.shared.replace(snapshot.documents, userId: userId)
                     let groups = snapshot.documents.compactMap { self.groupConversation($0, userId: userId) }
                     let hydrated = await self.hydrateConversationPreviews(groups)
                     guard currentRevision == revision, Auth.auth().currentUser?.uid == userId else { return }
                     merge.groups = hydrated
+                    merge.receivedGroups = true
                     merge.publish()
                 }
             }
         fetchDirectConversations(for: userId) { result in
             switch result {
-            case .success(let conversations): merge.direct = conversations; merge.publish()
-            case .failure(let error): completion(.failure(error))
+            case .success(let conversations):
+                merge.direct = conversations
+                merge.receivedDirect = true
+                merge.publish()
+            case .failure:
+                merge.direct = []
+                merge.receivedDirect = true
+                merge.publish()
             }
         }
     }
