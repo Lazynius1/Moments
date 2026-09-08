@@ -18,10 +18,28 @@ extension GlassmorphicChatView {
         .chatHideSharedBackgroundIfAvailable()
 
         ToolbarItem(placement: .topBarLeading) {
-            Button(action: openProfileOrStoryFromHeader) {
-                chatToolbarAvatar
+            if viewModel.conversation.isGroup {
+                GroupStoryRingAvatarView(
+                    memberUserIds: groupStoryMemberIds,
+                    groupName: otherParticipantDisplayName,
+                    groupImage: GroupDirectory.shared.groups[viewModel.conversation.id ?? ""]?.image
+                        ?? viewModel.conversation.otherParticipantProfileImagePath ?? "",
+                    size: 40,
+                    lineWidth: 2.7,
+                    hapticsEnabled: true
+                ) { hasStory, startUserId, ringUserIds in
+                    if hasStory, let startUserId, !startUserId.isEmpty {
+                        storyRoute = ChatStoryRoute(userId: startUserId, ringUserIds: ringUserIds)
+                    } else {
+                        openConversationSettings(from: "toolbarAvatar")
+                    }
+                }
+            } else {
+                Button(action: openProfileOrStoryFromHeader) {
+                    chatToolbarAvatar
+                }
+                .buttonStyle(.momentsPressIcon)
             }
-            .buttonStyle(.momentsPressIcon)
         }
         .chatHideSharedBackgroundIfAvailable()
 
@@ -136,16 +154,19 @@ extension GlassmorphicChatView {
         )
     }
 
+    /// Miembros del grupo excepto el visor. Bloqueos/audiencia los filtra el resolver (como 1:1 / inbox).
+    var groupStoryMemberIds: [String] {
+        let uid = Auth.auth().currentUser?.uid
+        var ids = viewModel.conversation.participants
+        if ids.isEmpty, let groupId = viewModel.conversation.id {
+            ids = GroupDirectory.shared.groups[groupId]?.members.map(\.id) ?? []
+        }
+        return ids.filter { !$0.isEmpty && $0 != uid }
+    }
+
     @ViewBuilder
     var chatToolbarAvatar: some View {
-        if viewModel.conversation.isGroup {
-            GroupChatAvatar(
-                name: otherParticipantDisplayName,
-                image: GroupDirectory.shared.groups[viewModel.conversation.id ?? ""]?.image
-                    ?? viewModel.conversation.otherParticipantProfileImagePath ?? "",
-                size: 40
-            )
-        } else if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+        if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
             ProfileUnavailableAvatar(size: 40)
                 .userProfileZoomSource(
                     userId: viewModel.conversation.otherParticipantId,
@@ -250,10 +271,6 @@ extension GlassmorphicChatView {
 
 
     func openProfileOrStoryFromHeader() {
-        if viewModel.conversation.isGroup {
-            openConversationSettings(from: "toolbarAvatar")
-            return
-        }
         if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
             openOtherParticipantProfile()
         } else if hasStory && !isOtherParticipantBlockedByCurrentUser {

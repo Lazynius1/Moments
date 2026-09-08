@@ -240,7 +240,7 @@ struct SettingsRow: View {
                         AudienceIconView(
                             audience: audienceIcon,
                             size: AudienceIconMetrics.row,
-                            tintColor: audienceIcon == .bestFriends ? Color(hex: "34C759") : nil,
+                            tintColor: audienceIcon == .bestFriends ? AudienceIdentityTint.bestFriends(colorScheme) : nil,
                             colorScheme: colorScheme
                         )
                     } else if let attachmentIcon = AttachmentIcon(rawValue: icon) {
@@ -292,7 +292,7 @@ struct SettingsRow: View {
             return .red
         }
         if icon == "star.fill" {
-            return Color(hex: "34C759")
+            return AudienceIdentityTint.bestFriends(colorScheme)
         }
         return colorScheme == .dark ? .white : .black
     }

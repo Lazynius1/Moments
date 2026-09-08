@@ -17,58 +17,49 @@ struct GlassmorphicProgressBar: View {
     let isActive: Bool
     let audience: String?
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private var normalizedAudience: String {
         audience?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
     }
 
-    private var progressGradient: LinearGradient {
+    /// En el hueco del canvas, no sobre el media: cream en oscuro, ink en claro.
+    private var everyoneFill: Color {
+        colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215")
+    }
+
+    private var progressFill: Color {
         switch normalizedAudience {
         case "bestfriends", "best_friends", "best-friends":
-            // Best Friends green
-            return LinearGradient(
-                colors: [Color(hex: "24C26A"), Color(hex: "5BE584")],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
+            return colorScheme == .dark ? Color(hex: "3A9A72") : Color(hex: "185C45")
         case "mutuals", "mutual":
-            // Mutuals accent (different from default)
-            return LinearGradient(
-                colors: [Color(hex: "00B4D8"), Color(hex: "4CC9F0")],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
+            return colorScheme == .dark ? Color(hex: "3D5F9A") : Color(hex: "1E3866")
         default:
-            return LinearGradient(
-                colors: [Color.blue, Color.purple, Color.pink],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
+            return everyoneFill
         }
     }
 
     private var shadowColor: Color {
         switch normalizedAudience {
         case "bestfriends", "best_friends", "best-friends":
-            return Color(hex: "24C26A").opacity(0.65)
+            return (colorScheme == .dark ? Color(hex: "3A9A72") : Color(hex: "185C45")).opacity(0.65)
         case "mutuals", "mutual":
-            return Color(hex: "00B4D8").opacity(0.55)
+            return (colorScheme == .dark ? Color(hex: "3D5F9A") : Color(hex: "1E3866")).opacity(0.55)
         default:
-            return Color.purple.opacity(0.6)
+            return everyoneFill.opacity(0.45)
         }
     }
 
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // Background
                 Rectangle()
-                    .fill(Color.white.opacity(0.15))
+                    .fill(everyoneFill.opacity(0.15))
                     .frame(height: 2.5)
                     .clipShape(RoundedRectangle(cornerRadius: 1.25, style: .continuous))
 
-                // Progress with clamped value
                 Rectangle()
-                    .fill(progressGradient)
+                    .fill(progressFill)
                     .frame(
                         width: geometry.size.width * min(max(progress, 0.0), 1.0),
                         height: 2.5

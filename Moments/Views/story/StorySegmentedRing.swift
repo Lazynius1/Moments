@@ -7,6 +7,9 @@ struct StorySegmentedRing: View {
     let hasUnseenStory: Bool
     let storyViewedStatus: [Bool] // ✅ Estado de visto por cada historia
     let storyAudiences: [String?] // ✅ Audiencia por historia (alineada por índice)
+    /// Grupo: audiencias de cada historia dentro de un corte (un integrante).
+    let nestedStoryAudiences: [[String?]]
+    let nestedStoryViewedStatus: [[Bool]]
     let isOwnStory: Bool // ✅ Para identificar historias propias
     let colorScheme: ColorScheme
     let hapticsEnabled: Bool // ✅ Respuesta háptica interactiva
@@ -21,6 +24,8 @@ struct StorySegmentedRing: View {
         hasUnseenStory: Bool,
         storyViewedStatus: [Bool],
         storyAudiences: [String?] = [],
+        nestedStoryAudiences: [[String?]] = [],
+        nestedStoryViewedStatus: [[Bool]] = [],
         isOwnStory: Bool,
         colorScheme: ColorScheme,
         ringSize: CGFloat = 50,
@@ -32,6 +37,8 @@ struct StorySegmentedRing: View {
         self.hasUnseenStory = hasUnseenStory
         self.storyViewedStatus = storyViewedStatus
         self.storyAudiences = storyAudiences
+        self.nestedStoryAudiences = nestedStoryAudiences
+        self.nestedStoryViewedStatus = nestedStoryViewedStatus
         self.isOwnStory = isOwnStory
         self.colorScheme = colorScheme
         self.ringSize = ringSize
@@ -109,17 +116,9 @@ struct StorySegmentedRing: View {
     private func audienceGradient(_ style: AudienceStyle) -> LinearGradient {
         switch style {
         case .bestFriends:
-            return LinearGradient(
-                colors: [Color(hex: "24C26A"), Color(hex: "5BE584")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            return linearGradient([bestFriendsColor, bestFriendsColor])
         case .mutuals:
-            return LinearGradient(
-                colors: [Color(hex: "00B4D8"), Color(hex: "4CC9F0")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            return linearGradient([mutualsColor, mutualsColor])
         }
     }
     
@@ -133,8 +132,85 @@ struct StorySegmentedRing: View {
         )
     }
     
+    private enum SliceStop: Equatable {
+        case viewed
+        case everyone
+        case bestFriends
+        case mutuals
+    }
+
+    private var everyoneColors: [Color] { [Color.blue, Color.purple, Color.pink] }
+    /// Oscuro: tono flojo (mejor lectura en canvas oscuro). Claro: tono más intenso.
+    private var bestFriendsColor: Color {
+        colorScheme == .dark ? Color(hex: "3A9A72") : Color(hex: "185C45")
+    }
+    private var mutualsColor: Color {
+        colorScheme == .dark ? Color(hex: "3D5F9A") : Color(hex: "1E3866")
+    }
+    private var bestFriendsColors: [Color] { [bestFriendsColor, bestFriendsColor] }
+    private var mutualsColors: [Color] { [mutualsColor, mutualsColor] }
+    private var viewedGrayColors: [Color] {
+        colorScheme == .dark
+            ? [Color.gray.opacity(0.58), Color.gray.opacity(0.82)]
+            : [Color.gray.opacity(0.76), Color.gray.opacity(0.94)]
+    }
+
+    private func sliceStop(for audience: String?, viewed: Bool) -> SliceStop {
+        if !isOwnStory && viewed { return .viewed }
+        switch audienceStyleValue(audience) {
+        case .bestFriends: return .bestFriends
+        case .mutuals: return .mutuals
+        case nil: return .everyone
+        }
+    }
+
+    private func audienceStyleValue(_ raw: String?) -> AudienceStyle? {
+        let key = normalizedAudience(raw)
+        if key == "bestfriends" || key == "bestfriend" { return .bestFriends }
+        if key == "mutuals" || key == "mutual" { return .mutuals }
+        return nil
+    }
+
+    private func colors(for stop: SliceStop) -> [Color] {
+        switch stop {
+        case .viewed: return viewedGrayColors
+        case .everyone: return everyoneColors
+        case .bestFriends: return bestFriendsColors
+        case .mutuals: return mutualsColors
+        }
+    }
+
+    private func linearGradient(_ colors: [Color]) -> LinearGradient {
+        LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    private func nestedSliceGradient(audiences: [String?], viewed: [Bool]) -> LinearGradient {
+        let stops: [SliceStop] = audiences.indices.map { index in
+            let wasViewed = index < viewed.count ? viewed[index] : false
+            return sliceStop(for: audiences[index], viewed: wasViewed)
+        }
+        guard let first = stops.first else {
+            return linearGradient(everyoneColors)
+        }
+        if stops.allSatisfy({ $0 == first }) {
+            return linearGradient(colors(for: first))
+        }
+        return linearGradient(stops.flatMap { colors(for: $0) })
+    }
+
     // ✅ Gradiente para un segmento específico
     private func segmentGradient(for index: Int) -> LinearGradient {
+        if nestedStoryAudiences.indices.contains(index),
+           !nestedStoryAudiences[index].isEmpty {
+            let viewed = nestedStoryViewedStatus.indices.contains(index)
+                ? nestedStoryViewedStatus[index]
+                : []
+            return nestedSliceGradient(
+                audiences: nestedStoryAudiences[index],
+                viewed: viewed
+            )
+        }
+
         let wasViewed = index < storyViewedStatus.count ? storyViewedStatus[index] : false
         
         // ✅ Para usuarios externos: una historia vista siempre vuelve a gris (incluye bestfriends/mutuals)
@@ -149,11 +225,7 @@ struct StorySegmentedRing: View {
         
         if isOwnStory {
             // ✅ HISTORIAS PROPIAS: Siempre iluminadas (azul → morado → rosa)
-            return LinearGradient(
-                colors: [Color.blue, Color.purple, Color.pink],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            return linearGradient(everyoneColors)
         } else {
             // ✅ Para otros usuarios: verificar si esta historia específica ha sido vista
             if wasViewed {
@@ -161,17 +233,24 @@ struct StorySegmentedRing: View {
                 return viewedGrayGradient
             } else {
                 // ✅ HISTORIA NO VISTA: Iluminada (azul → morado → rosa)
-                return LinearGradient(
-                    colors: [Color.blue, Color.purple, Color.pink],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                return linearGradient(everyoneColors)
             }
         }
     }
     
-    // ✅ Gradiente para círculo completo (cuando solo hay 1 historia)
+    // ✅ Gradiente para círculo completo (cuando solo hay 1 corte)
     private var storyRingGradient: LinearGradient {
+        if nestedStoryAudiences.indices.contains(0),
+           !nestedStoryAudiences[0].isEmpty {
+            let viewed = nestedStoryViewedStatus.indices.contains(0)
+                ? nestedStoryViewedStatus[0]
+                : []
+            return nestedSliceGradient(
+                audiences: nestedStoryAudiences[0],
+                viewed: viewed
+            )
+        }
+
         let wasViewed = !hasUnseenStory
         
         // ✅ Para usuarios externos: vista => gris siempre

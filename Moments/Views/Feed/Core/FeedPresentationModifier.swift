@@ -14,9 +14,8 @@ struct FeedPresentationModifier: ViewModifier {
     @Binding var showingLocationMap: Bool
     @Binding var selectedLocationName: String
     @Binding var selectedLocationCoordinate: CLLocationCoordinate2D?
-    @Binding var showMomentDetail: Bool
-    @Binding var targetMomentId: String?
-    @Binding var targetMomentUserId: String?
+    @Binding var zoomDestination: MomentZoomDestination?
+    @Binding var zoomResolvedMoment: Moment?
     @Binding var showEditSheet: Bool
     @Binding var showDeleteAlert: Bool
     @Binding var selectedMomentForMenu: Moment?
@@ -25,6 +24,7 @@ struct FeedPresentationModifier: ViewModifier {
     @Binding var showEchoHistory: Bool
 
     let profileZoomNamespace: Namespace.ID
+    let momentZoomNamespace: Namespace.ID
     let storyZoomNamespace: Namespace.ID
     let messagingViewModel: MessagingViewModel
     let firestoreService: FirestoreService
@@ -94,19 +94,16 @@ struct FeedPresentationModifier: ViewModifier {
                     isPresented: $showingLocationMap
                 )
             }
-            .sheet(isPresented: $showMomentDetail) {
-                if let momentId = targetMomentId, let userId = targetMomentUserId {
-                    MomentDetailFromNotificationView(
-                        momentId: momentId,
-                        userId: userId,
-                        isPresented: $showMomentDetail
-                    )
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-                    .onDisappear {
-                        targetMomentId = nil
-                        targetMomentUserId = nil
-                    }
+            .navigationDestination(item: $zoomDestination) { destination in
+                MomentZoomDetailDestination(
+                    destination: destination,
+                    moments: momentsForZoomDestination(destination),
+                    namespace: momentZoomNamespace
+                )
+            }
+            .onChange(of: zoomDestination) { _, newValue in
+                if newValue == nil {
+                    zoomResolvedMoment = nil
                 }
             }
             .sheet(isPresented: $showEditSheet) {
@@ -143,6 +140,14 @@ struct FeedPresentationModifier: ViewModifier {
                     .presentationDetents([.medium, .large])
             }
     }
+
+    private func momentsForZoomDestination(_ destination: MomentZoomDestination) -> [Moment] {
+        guard let moment = zoomResolvedMoment else { return [] }
+        if let initialMomentId = destination.initialMomentId, moment.id != initialMomentId {
+            return []
+        }
+        return [moment]
+    }
 }
 
 extension View {
@@ -159,9 +164,8 @@ extension View {
         showingLocationMap: Binding<Bool>,
         selectedLocationName: Binding<String>,
         selectedLocationCoordinate: Binding<CLLocationCoordinate2D?>,
-        showMomentDetail: Binding<Bool>,
-        targetMomentId: Binding<String?>,
-        targetMomentUserId: Binding<String?>,
+        zoomDestination: Binding<MomentZoomDestination?>,
+        zoomResolvedMoment: Binding<Moment?>,
         showEditSheet: Binding<Bool>,
         showDeleteAlert: Binding<Bool>,
         selectedMomentForMenu: Binding<Moment?>,
@@ -169,6 +173,7 @@ extension View {
         selectedUserId: Binding<String>,
         showEchoHistory: Binding<Bool>,
         profileZoomNamespace: Namespace.ID,
+        momentZoomNamespace: Namespace.ID,
         storyZoomNamespace: Namespace.ID,
         messagingViewModel: MessagingViewModel,
         firestoreService: FirestoreService,
@@ -189,9 +194,8 @@ extension View {
                 showingLocationMap: showingLocationMap,
                 selectedLocationName: selectedLocationName,
                 selectedLocationCoordinate: selectedLocationCoordinate,
-                showMomentDetail: showMomentDetail,
-                targetMomentId: targetMomentId,
-                targetMomentUserId: targetMomentUserId,
+                zoomDestination: zoomDestination,
+                zoomResolvedMoment: zoomResolvedMoment,
                 showEditSheet: showEditSheet,
                 showDeleteAlert: showDeleteAlert,
                 selectedMomentForMenu: selectedMomentForMenu,
@@ -199,6 +203,7 @@ extension View {
                 selectedUserId: selectedUserId,
                 showEchoHistory: showEchoHistory,
                 profileZoomNamespace: profileZoomNamespace,
+                momentZoomNamespace: momentZoomNamespace,
                 storyZoomNamespace: storyZoomNamespace,
                 messagingViewModel: messagingViewModel,
                 firestoreService: firestoreService,

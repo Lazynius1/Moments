@@ -7,6 +7,44 @@ struct StoryRingSnapshot: Sendable {
     let storyCount: Int
     let storyViewedStatus: [Bool]
     let storyAudiences: [String?]
+
+    static let empty = StoryRingSnapshot(
+        hasStory: false,
+        hasUnseenStory: false,
+        storyCount: 0,
+        storyViewedStatus: [],
+        storyAudiences: []
+    )
+
+    /// Audiencia de un único corte de grupo. Prioridad: no vistas, bestFriends → mutuals → resto.
+    var groupRingAudience: String? {
+        let count = max(storyAudiences.count, storyViewedStatus.count)
+        var unseen: [String?] = []
+        var all: [String?] = []
+        for index in 0..<count {
+            let audience = storyAudiences.indices.contains(index) ? storyAudiences[index] : nil
+            let viewed = storyViewedStatus.indices.contains(index) ? storyViewedStatus[index] : false
+            all.append(audience)
+            if !viewed {
+                unseen.append(audience)
+            }
+        }
+        let pool = unseen.isEmpty ? all : unseen
+        func normalized(_ raw: String?) -> String {
+            raw?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+                .replacingOccurrences(of: "_", with: "")
+                .replacingOccurrences(of: "-", with: "") ?? ""
+        }
+        if pool.contains(where: { let key = normalized($0); return key == "bestfriends" || key == "bestfriend" }) {
+            return "bestFriends"
+        }
+        if pool.contains(where: { let key = normalized($0); return key == "mutuals" || key == "mutual" }) {
+            return "mutuals"
+        }
+        return pool.first { $0 != nil } ?? nil
+    }
 }
 
 actor StoryRingCacheService {

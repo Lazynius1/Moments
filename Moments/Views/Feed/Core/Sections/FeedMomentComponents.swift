@@ -1764,32 +1764,6 @@ struct CroppedVideoPlayer: View {
                     // ✅ INDICADORES mejorados nativos (por encima del overlay)
                     VStack {
                         HStack {
-                            // ✅ Badge "Reels" nativo (esquina superior izquierda)
-                            HStack(spacing: 4) {
-                                Image(systemName: "play.rectangle.fill")
-                                    .font(.system(size: 10, weight: .semibold))
-                                Text(NSLocalizedString("feed.reels.badge", comment: "Reels badge"))
-                                    .font(.system(size: 11, weight: .bold))
-                            }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            gradient: Gradient(colors: [
-                                                Color.purple.opacity(0.8),
-                                                Color.pink.opacity(0.8)
-                                            ]),
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                            )
-                            .padding(.leading, 12)
-                            .padding(.top, 12)
-
                             Spacer()
 
                             // Tiempo en vivo — se oculta al abrir el ReelsViewer

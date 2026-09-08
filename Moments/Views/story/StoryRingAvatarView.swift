@@ -198,3 +198,138 @@ struct StoryRingAvatarView: View {
         }
     }
 }
+
+/// Anillo de historias del inbox de grupo: miembros excepto el visor.
+/// La privacidad es la de 1:1 (`StoryRingResolverService` / `canUserViewStoryEnhanced`).
+struct GroupStoryRingAvatarView: View {
+    let memberUserIds: [String]
+    let groupName: String
+    let groupImage: String
+    let size: CGFloat
+    var lineWidth: CGFloat? = nil
+    var hapticsEnabled: Bool = false
+    var onTap: ((_ hasStory: Bool, _ startUserId: String?, _ ringUserIds: [String]) -> Void)? = nil
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var snapshot = StoryRingSnapshot.empty
+    @State private var storyAuthorIds: [String] = []
+    @State private var startAuthorId: String?
+    @State private var nestedStoryAudiences: [[String?]] = []
+    @State private var nestedStoryViewedStatus: [[Bool]] = []
+    @State private var resolveGeneration = 0
+
+    private let privacyService = PrivacyService()
+
+    private var resolvedLineWidth: CGFloat {
+        lineWidth ?? StoryRingLayout.defaultLineWidth(for: size)
+    }
+
+    private var ringStrokeDiameter: CGFloat {
+        StoryRingLayout.ringStrokeDiameter(avatarSize: size, lineWidth: resolvedLineWidth)
+    }
+
+    private var authorIds: [String] {
+        let viewerId = Auth.auth().currentUser?.uid
+        return memberUserIds.filter { !$0.isEmpty && $0 != viewerId }
+    }
+
+    private var avatarContent: some View {
+        ZStack {
+            StorySegmentedRing(
+                storyCount: snapshot.storyCount,
+                hasStory: snapshot.hasStory,
+                hasUnseenStory: snapshot.hasUnseenStory,
+                storyViewedStatus: snapshot.storyViewedStatus,
+                storyAudiences: snapshot.storyAudiences,
+                nestedStoryAudiences: nestedStoryAudiences,
+                nestedStoryViewedStatus: nestedStoryViewedStatus,
+                isOwnStory: false,
+                colorScheme: colorScheme,
+                ringSize: ringStrokeDiameter,
+                lineWidth: resolvedLineWidth,
+                hapticsEnabled: hapticsEnabled
+            )
+            .mask(StoryRingLayout.ringGapMask(avatarSize: size))
+
+            GroupChatAvatar(name: groupName, image: groupImage, size: size)
+        }
+    }
+
+    var body: some View {
+        Group {
+            if let onTap {
+                Button(action: {
+                    onTap(snapshot.hasStory, startAuthorId, storyAuthorIds)
+                }) {
+                    avatarContent
+                }
+                .buttonStyle(PlainButtonStyle())
+            } else {
+                avatarContent
+            }
+        }
+        .frame(
+            width: StoryRingLayout.outerFrameSize(avatarSize: size, lineWidth: resolvedLineWidth),
+            height: StoryRingLayout.outerFrameSize(avatarSize: size, lineWidth: resolvedLineWidth)
+        )
+        .onAppear { resolveSnapshots() }
+        .onChange(of: memberUserIds) { _, _ in
+            resolveSnapshots()
+        }
+    }
+
+    private func resolveSnapshots() {
+        let viewerId = Auth.auth().currentUser?.uid
+        let authors = authorIds
+        resolveGeneration += 1
+        let generation = resolveGeneration
+
+        guard let viewerId, !viewerId.isEmpty, !authors.isEmpty else {
+            applyAggregation(authors: [], snapshots: [:])
+            return
+        }
+
+        var collected: [String: StoryRingSnapshot] = [:]
+        let group = DispatchGroup()
+        let lock = NSLock()
+
+        for authorId in authors {
+            group.enter()
+            StoryRingResolverService.shared.resolve(
+                viewerId: viewerId,
+                authorId: authorId,
+                privacyService: privacyService,
+                useCache: true
+            ) { resolved in
+                lock.lock()
+                collected[authorId] = resolved
+                lock.unlock()
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            guard generation == resolveGeneration else { return }
+            applyAggregation(authors: authors, snapshots: collected)
+        }
+    }
+
+    private func applyAggregation(authors: [String], snapshots: [String: StoryRingSnapshot]) {
+        let withStories = authors.compactMap { id -> (String, StoryRingSnapshot)? in
+            guard let snap = snapshots[id], snap.hasStory else { return nil }
+            return (id, snap)
+        }
+        storyAuthorIds = withStories.map(\.0)
+        startAuthorId = withStories.first(where: { $0.1.hasUnseenStory })?.0 ?? withStories.first?.0
+
+        snapshot = StoryRingSnapshot(
+            hasStory: !withStories.isEmpty,
+            hasUnseenStory: withStories.contains { $0.1.hasUnseenStory },
+            storyCount: withStories.count,
+            storyViewedStatus: withStories.map { !$0.1.hasUnseenStory },
+            storyAudiences: withStories.map(\.1.groupRingAudience)
+        )
+        nestedStoryAudiences = withStories.map(\.1.storyAudiences)
+        nestedStoryViewedStatus = withStories.map(\.1.storyViewedStatus)
+    }
+}

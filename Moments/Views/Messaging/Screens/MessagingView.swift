@@ -7,6 +7,7 @@ import WidgetKit
 
 private struct MessagingStoryRoute: Identifiable {
     let id: String
+    var ringUserIds: [String] = []
 }
 
 private struct MessagingProfileRoute: Identifiable, Hashable {
@@ -1364,12 +1365,23 @@ struct GlassmorphicConversationRow: View {
     @State private var isOtherParticipantUnavailable: Bool = false
     @State private var isOtherParticipantBlockedByCurrentUser: Bool = false
     @State private var draftText: String = ""
+    @ObservedObject private var groupDirectory = GroupDirectory.shared
     private let firestoreService = FirestoreService()
 
     private var displayUsername: String {
         let fallback = conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
         let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         return live.isEmpty ? fallback : live
+    }
+
+    /// Miembros del grupo excepto el visor. Bloqueos/audiencia los filtra el resolver (como 1:1).
+    private var groupStoryMemberIds: [String] {
+        let uid = Auth.auth().currentUser?.uid
+        var ids = conversation.participants
+        if ids.isEmpty, let groupId = conversation.id {
+            ids = groupDirectory.groups[groupId]?.members.map(\.id) ?? []
+        }
+        return ids.filter { !$0.isEmpty && $0 != uid }
     }
 
     var body: some View {
@@ -1395,23 +1407,35 @@ struct GlassmorphicConversationRow: View {
         }
         .fullScreenCover(item: $storyRoute) { route in
             // ≡ FeedPresentationModifier: StoriesView exige FirestoreService (+ Auth) en el environment.
-            StoriesView(startWithUserId: .constant(route.id))
-                .environmentObject(FirestoreService.shared)
-                .ignoresSafeArea(.keyboard)
+            Group {
+                if route.ringUserIds.count > 1 {
+                    StoriesView(startAtUserId: route.id, ringNavigationUserIds: route.ringUserIds)
+                } else {
+                    StoriesView(startWithUserId: .constant(route.id))
+                }
+            }
+            .environmentObject(FirestoreService.shared)
+            .ignoresSafeArea(.keyboard)
         }
     }
 
     @ViewBuilder
     private var conversationAvatar: some View {
         if conversation.isGroup {
-            Button(action: onTap) {
-                GroupChatAvatar(
-                    name: conversation.otherParticipantUsername ?? "",
-                    image: conversation.otherParticipantProfileImagePath ?? "",
-                    size: 56
-                )
+            GroupStoryRingAvatarView(
+                memberUserIds: groupStoryMemberIds,
+                groupName: conversation.otherParticipantUsername ?? "",
+                groupImage: conversation.otherParticipantProfileImagePath ?? "",
+                size: 56,
+                lineWidth: 2.5,
+                hapticsEnabled: true
+            ) { hasStory, startUserId, ringUserIds in
+                if hasStory, let startUserId, !startUserId.isEmpty {
+                    storyRoute = MessagingStoryRoute(id: startUserId, ringUserIds: ringUserIds)
+                } else {
+                    onTap()
+                }
             }
-            .buttonStyle(PlainButtonStyle())
         } else if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
             // Sin historia → abrir conversación (no perfil)
             Button(action: onTap) {

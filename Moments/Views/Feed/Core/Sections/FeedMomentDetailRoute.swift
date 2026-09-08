@@ -30,7 +30,13 @@ struct MomentDetailFromNotificationView: View {
     }
 
     private func loadMoment() {
-        // ✅ USAR TU MÉTODO EXISTENTE
+        let momentId = momentId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let userId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !momentId.isEmpty, !userId.isEmpty else {
+            isLoading = false
+            errorMessage = NSLocalizedString("errors.momentNotFound", comment: "Moment not found")
+            return
+        }
         FirestoreService.shared.fetchMoment(momentId: momentId, userId: userId) { result in
             DispatchQueue.main.async {
                 isLoading = false

@@ -87,7 +87,7 @@ struct AudienceGridCard: View {
 
     private var iconColor: Color {
         if audience == .bestFriends {
-            return Color(hex: "34C759")
+            return AudienceIdentityTint.bestFriends(colorScheme)
         }
         return primaryText
     }

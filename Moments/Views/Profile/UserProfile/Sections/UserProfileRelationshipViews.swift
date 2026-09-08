@@ -110,7 +110,7 @@ struct UserRelationshipManagementSheet: View {
                         ? NSLocalizedString("userProfile.relationship.bestFriends.remove.subtitle", comment: "")
                         : NSLocalizedString("userProfile.relationship.bestFriends.add.subtitle", comment: ""),
                     audienceIcon: .bestFriends,
-                    iconColor: isBestFriend ? Color(hex: "34C759") : nil,
+                    iconColor: isBestFriend ? AudienceIdentityTint.bestFriends(colorScheme) : nil,
                     isLoading: isUpdatingBestFriend,
                 action: onToggleBestFriend
             )

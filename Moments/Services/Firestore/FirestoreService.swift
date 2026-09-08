@@ -1494,6 +1494,10 @@ class FirestoreService: ObservableObject {
     }
 
     func fetchMoment(momentId: String, userId: String, completion: @escaping (Result<Moment, Error>) -> Void) {
+        guard !userId.isEmpty, !momentId.isEmpty else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.momentNotFound", comment: "Moment not found")])))
+            return
+        }
         self.db.collection("users").document(userId).collection("moments").document(momentId).getDocument { snapshot, error in
             if let error = error {
                 completion(.failure(error))

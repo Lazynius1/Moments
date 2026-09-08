@@ -47,6 +47,7 @@ struct FeedView: View {
     @State private var selectedUserId: String = ""
     @State private var selectedProfileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
+    @Namespace private var momentZoomNamespace
     @Namespace private var storyZoomNamespace
     // 🔗 STORY CHAINS: Variables para navegación
     @State private var showStoryChain = false
@@ -79,9 +80,8 @@ struct FeedView: View {
     @State private var postProfilePreviewSelection: FeedPostProfilePreviewSelection?
     @State private var hiddenPostPreviewMomentId: String?
     
-    @State private var targetMomentId: String? = nil
-    @State private var showMomentDetail = false
-    @State private var targetMomentUserId: String? = nil
+    @State private var zoomDestination: MomentZoomDestination?
+    @State private var zoomResolvedMoment: Moment?
     @State private var showExplore = false // ✅ NUEVO
     
     // 🌊 ECHOES: Estados para indicadores
@@ -247,9 +247,8 @@ struct FeedView: View {
             showNotifications: $showNotifications,
             showCreatorView: $showCreatorView,
             showExplore: $showExplore,
-            showMomentDetail: $showMomentDetail,
-            targetMomentId: $targetMomentId,
-            targetMomentUserId: $targetMomentUserId,
+            zoomDestination: $zoomDestination,
+            zoomResolvedMoment: $zoomResolvedMoment,
             notificationSummaryService: notificationSummaryService,
             badgeService: badgeService,
             navigationService: navigationService,
@@ -313,9 +312,8 @@ struct FeedView: View {
             showingLocationMap: $showingLocationMap,
             selectedLocationName: $selectedLocationName,
             selectedLocationCoordinate: $selectedLocationCoordinate,
-            showMomentDetail: $showMomentDetail,
-            targetMomentId: $targetMomentId,
-            targetMomentUserId: $targetMomentUserId,
+            zoomDestination: $zoomDestination,
+            zoomResolvedMoment: $zoomResolvedMoment,
             showEditSheet: $showEditSheet,
             showDeleteAlert: $showDeleteAlert,
             selectedMomentForMenu: $selectedMomentForMenu,
@@ -323,6 +321,7 @@ struct FeedView: View {
             selectedUserId: $selectedUserId,
             showEchoHistory: $showEchoHistory,
             profileZoomNamespace: profileZoomNamespace,
+            momentZoomNamespace: momentZoomNamespace,
             storyZoomNamespace: storyZoomNamespace,
             messagingViewModel: messagingViewModel,
             firestoreService: firestoreService,

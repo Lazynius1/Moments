@@ -493,7 +493,8 @@ struct StoryViewerScreen: View {
         }
         .permissionPrimerGate(photosSaveGate)
         .sheet(isPresented: $showMomentDetail) {
-            if let momentId = targetMomentId, let userId = targetMomentUserId {
+            if let momentId = targetMomentId, let userId = targetMomentUserId,
+               !momentId.isEmpty, !userId.isEmpty {
                 MomentDetailFromNotificationView(
                     momentId: momentId,
                     userId: userId,

@@ -1,5 +1,11 @@
 import SwiftUI
 
+enum AudienceIdentityTint {
+    static func bestFriends(_ colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color(hex: "3A9A72") : Color(hex: "185C45")
+    }
+}
+
 enum AudienceIconMetrics {
     /// Filas (Settings, visibilidad). SF Symbol ~19pt en slot 28pt.
     static let row: CGFloat = 22
@@ -36,7 +42,7 @@ struct AudienceIconView: View {
         if let tintColor {
             self.tintColor = tintColor
         } else if audience == .bestFriends {
-            self.tintColor = Color(hex: "34C759")
+            self.tintColor = AudienceIdentityTint.bestFriends(colorScheme ?? .light)
         } else if let colorScheme {
             self.tintColor = colorScheme == .dark ? .white : .black
         } else {
@@ -61,12 +67,13 @@ struct AudienceIconView: View {
 struct ActivityGridAudienceIcon: View {
     let audience: ContentAudience
     var size: CGFloat = AudienceIconMetrics.activityGridThumbnail
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         AudienceIconView(
             audience: audience,
             size: size,
-            tintColor: audience == .bestFriends ? Color(hex: "34C759") : .white
+            tintColor: audience == .bestFriends ? AudienceIdentityTint.bestFriends(colorScheme) : .white
         )
         .shadow(color: .black.opacity(0.55), radius: 2, y: 1)
         .allowsHitTesting(false)

@@ -408,9 +408,9 @@ struct ModernTabView: View {
         let path = url.path
         
         if host == "moment", url.pathComponents.count > 1 {
-            // glowsy://moment/ID
+            // glowsy://moment/ID  ·  glowsy://moment/ID?a=authorId (mismo query que el share web)
             let momentId = url.pathComponents[1]
-            AppRouter.shared.navigate(to: .moment(id: momentId, authorId: ""))
+            AppRouter.shared.navigate(to: .moment(id: momentId, authorId: shareAuthorId(from: url)))
         } else if host == "story", path == "/create" {
             // Abrir creator en modo historia
             openCreatorInStoryMode = true
@@ -460,12 +460,20 @@ struct ModernTabView: View {
         // Formato esperado: https://moments.app/moment/ID o https://momentsapp.app/moment/ID
         if pathComponents.count >= 3 && pathComponents[1] == "moment" {
             let momentId = pathComponents[2]
-            
-            // Navegar al momento
+            let authorId = shareAuthorId(from: url)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                AppRouter.shared.navigate(to: .moment(id: momentId, authorId: ""))
+                AppRouter.shared.navigate(to: .moment(id: momentId, authorId: authorId))
             }
         }
+    }
+
+    /// Query `a` del share (`https://momentsapp.app/moment/{id}?a={authorId}`).
+    private func shareAuthorId(from url: URL) -> String {
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?
+            .first(where: { $0.name == "a" })?
+            .value?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 }
 

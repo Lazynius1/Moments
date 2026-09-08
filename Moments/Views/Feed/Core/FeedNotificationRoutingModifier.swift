@@ -5,9 +5,8 @@ struct FeedNotificationRoutingModifier: ViewModifier {
     @Binding var showNotifications: Bool
     @Binding var showCreatorView: Bool
     @Binding var showExplore: Bool
-    @Binding var showMomentDetail: Bool
-    @Binding var targetMomentId: String?
-    @Binding var targetMomentUserId: String?
+    @Binding var zoomDestination: MomentZoomDestination?
+    @Binding var zoomResolvedMoment: Moment?
 
     let notificationSummaryService: NotificationSummaryService
     let badgeService: NotificationBadgeService
@@ -57,9 +56,7 @@ struct FeedNotificationRoutingModifier: ViewModifier {
                         object: conversationId
                     )
                 case .moment(let momentId, let userId):
-                    targetMomentId = momentId
-                    targetMomentUserId = userId
-                    showMomentDetail = true
+                    openSharedMoment(momentId: momentId, userId: userId)
                 case .profile:
                     break
                 case .story(let storyId, let authorId):
@@ -98,25 +95,49 @@ struct FeedNotificationRoutingModifier: ViewModifier {
                 onOpenStory(storyId, authorId?.isEmpty == false ? authorId : nil)
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToMoment"))) { notification in
-                guard let momentId = notification.object as? String,
-                      !momentId.isEmpty else { return }
-
-                if let userId = notification.userInfo?["userId"] as? String, !userId.isEmpty {
-                    targetMomentId = momentId
-                    targetMomentUserId = userId
-                    showMomentDetail = true
-                    return
-                }
-
-                firestoreService.fetchMomentAuthorId(momentId: momentId) { authorId in
-                    DispatchQueue.main.async {
-                        guard let authorId, !authorId.isEmpty else { return }
-                        targetMomentId = momentId
-                        targetMomentUserId = authorId
-                        showMomentDetail = true
-                    }
-                }
+                guard let momentId = notification.object as? String else { return }
+                let userId = notification.userInfo?["userId"] as? String ?? ""
+                openSharedMoment(momentId: momentId, userId: userId)
             }
+    }
+
+    private func openSharedMoment(momentId: String, userId: String) {
+        let momentId = momentId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let userId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !momentId.isEmpty else { return }
+
+        if !userId.isEmpty {
+            presentSharedMoment(momentId: momentId, authorId: userId)
+            return
+        }
+
+        firestoreService.fetchMomentAuthorId(momentId: momentId) { authorId in
+            DispatchQueue.main.async {
+                guard let authorId, !authorId.isEmpty else { return }
+                presentSharedMoment(momentId: momentId, authorId: authorId)
+            }
+        }
+    }
+
+    /// Misma presentación que el tap en notificaciones: NavigationStack → SingleMomentDetailView.
+    private func presentSharedMoment(momentId: String, authorId: String) {
+        firestoreService.fetchMoment(momentId: momentId, userId: authorId) { result in
+            DispatchQueue.main.async {
+                guard case .success(let moment) = result else { return }
+                zoomResolvedMoment = moment
+                zoomDestination = MomentZoomDestination(
+                    zoomSourceID: ProfileMomentZoomNavigation.sourceID(
+                        moment: moment,
+                        index: 0,
+                        prefix: "shared-moment"
+                    ),
+                    initialIndex: 0,
+                    initialMomentId: moment.id,
+                    presentation: .single
+                )
+                HapticManager.shared.lightImpact()
+            }
+        }
     }
 }
 
@@ -125,9 +146,8 @@ extension View {
         showNotifications: Binding<Bool>,
         showCreatorView: Binding<Bool>,
         showExplore: Binding<Bool>,
-        showMomentDetail: Binding<Bool>,
-        targetMomentId: Binding<String?>,
-        targetMomentUserId: Binding<String?>,
+        zoomDestination: Binding<MomentZoomDestination?>,
+        zoomResolvedMoment: Binding<Moment?>,
         notificationSummaryService: NotificationSummaryService,
         badgeService: NotificationBadgeService,
         navigationService: NotificationNavigationService,
@@ -142,9 +162,8 @@ extension View {
                 showNotifications: showNotifications,
                 showCreatorView: showCreatorView,
                 showExplore: showExplore,
-                showMomentDetail: showMomentDetail,
-                targetMomentId: targetMomentId,
-                targetMomentUserId: targetMomentUserId,
+                zoomDestination: zoomDestination,
+                zoomResolvedMoment: zoomResolvedMoment,
                 notificationSummaryService: notificationSummaryService,
                 badgeService: badgeService,
                 navigationService: navigationService,

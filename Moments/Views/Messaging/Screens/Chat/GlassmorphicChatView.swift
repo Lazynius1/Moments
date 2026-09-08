@@ -9,16 +9,16 @@ import MapKit
 
 struct ChatStoryRoute: Identifiable {
     enum Presentation {
-        case userStories(userId: String)
+        case userStories(userId: String, ringUserIds: [String])
         case sharedStory(story: Story)
     }
 
     let id: String
     let presentation: Presentation
 
-    init(userId: String) {
+    init(userId: String, ringUserIds: [String] = []) {
         self.id = userId
-        self.presentation = .userStories(userId: userId)
+        self.presentation = .userStories(userId: userId, ringUserIds: ringUserIds)
     }
 
     init(story: Story) {
@@ -411,8 +411,12 @@ struct GlassmorphicChatView: View {
                 // ≡ FeedPresentationModifier / MessagingView: inyectar FirestoreService o el fullScreenCover crashea.
                 Group {
                     switch route.presentation {
-                    case .userStories(let userId):
-                        StoriesView(startWithUserId: .constant(userId))
+                    case .userStories(let userId, let ringUserIds):
+                        if ringUserIds.count > 1 {
+                            StoriesView(startAtUserId: userId, ringNavigationUserIds: ringUserIds)
+                        } else {
+                            StoriesView(startWithUserId: .constant(userId))
+                        }
                     case .sharedStory(let story):
                         StoriesView(chainStories: [story], startAtIndex: 0)
                     }
