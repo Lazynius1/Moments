@@ -66,9 +66,11 @@ struct StoryOverlaysView: View {
     @State private var showTrashZone = false
     @State private var isOverTrash = false
     @State private var pinchStartTextFontSizes: [String: CGFloat] = [:]
+    @State private var pinchStartTextRotations: [String: Double] = [:]
     @State private var textDragOffsets: [String: CGSize] = [:]
     @State private var drawingDragStartOffset: CGSize? = nil
     @State private var drawingPinchStartScale: CGFloat? = nil
+    @StateObject private var alignmentGuideBroker = StoryAlignmentGuideBroker()
 
     // 📸 NUEVO: Estado para editar el pie de foto de la Polaroid
     @State private var editingPolaroidId: String? = nil
@@ -87,6 +89,7 @@ struct StoryOverlaysView: View {
             Color.clear
                 .frame(width: canvasSize.width, height: canvasSize.height)
                 .contentShape(Rectangle())
+                .allowsHitTesting(selectedStickerId != nil || activeEditingStickerId != nil)
                 .onTapGesture {
                     selectedStickerId = nil
                 }
@@ -132,9 +135,26 @@ struct StoryOverlaysView: View {
                                     if drawingDragStartOffset == nil {
                                         drawingDragStartOffset = drawingOffset
                                     }
-                                    drawingOffset = CGSize(
+                                    let proposed = CGSize(
                                         width: start.width + value.translation.width,
                                         height: start.height + value.translation.height
+                                    )
+                                    let drawingSize = CGSize(
+                                        width: canvasSize.width * drawingScale,
+                                        height: canvasSize.height * drawingScale
+                                    )
+                                    let proposedCenter = CGPoint(
+                                        x: canvasSize.width / 2 + proposed.width,
+                                        y: canvasSize.height / 2 + proposed.height
+                                    )
+                                    let aligned = alignedOverlayCenter(
+                                        proposedCenter,
+                                        itemSize: drawingSize,
+                                        overTrash: isPointOverTrash(value.location)
+                                    )
+                                    drawingOffset = CGSize(
+                                        width: aligned.x - canvasSize.width / 2,
+                                        height: aligned.y - canvasSize.height / 2
                                     )
 
                                     isOverTrash = isPointOverTrash(value.location)
@@ -143,6 +163,7 @@ struct StoryOverlaysView: View {
                                     if !textOverlays.isEmpty { return }
 
                                     drawingDragStartOffset = nil
+                                    clearAlignmentGuides()
 
                                     withAnimation(.easeOut(duration: 0.2)) {
                                         isDraggingItem = false
@@ -164,7 +185,14 @@ struct StoryOverlaysView: View {
                                     if drawingPinchStartScale == nil {
                                         drawingPinchStartScale = drawingScale
                                     }
-                                    drawingScale = min(max(baseScale * value.magnification, 0.3), 4.0)
+                                    drawingScale = min(
+                                        max(baseScale * value.magnification, StoryMediaTransformLimits.minScale),
+                                        StoryMediaTransformLimits.maxScale
+                                    )
+                                    drawingOffset = storyClampedOverlayCenterOffset(
+                                        drawingOffset,
+                                        canvasSize: canvasSize
+                                    )
                                 }
                                 .onEnded { _ in
                                     drawingPinchStartScale = nil
@@ -191,7 +219,7 @@ struct StoryOverlaysView: View {
                         textStroke: overlay.textStroke,
                         forcesAllCaps: overlay.forcesAllCaps
                     )
-                    let maxTextWidth = max(canvasSize.width - 48, 120)
+                    let maxTextWidth = StoryTextCanvasPlacement.maxLayoutWidth(in: canvasSize.width)
                     let overlaySize = StoryTextAttributesBuilder.overlayContentSize(
                         for: textConfig,
                         maxWidth: maxTextWidth
@@ -205,6 +233,7 @@ struct StoryOverlaysView: View {
                     )
                     .frame(width: overlaySize.width, height: overlaySize.height)
                     .contentShape(Rectangle())
+                    .rotationEffect(.radians(overlay.rotationRadians))
                     .gesture(
                         SimultaneousGesture(
                             DragGesture(coordinateSpace: .named("storyCanvas"))
@@ -220,8 +249,14 @@ struct StoryOverlaysView: View {
                                         y: value.location.y - dragOffset.height
                                     )
 
+                                    let overTrash = isPointOverTrash(newPos)
+                                    let aligned = alignedOverlayCenter(
+                                        newPos,
+                                        itemSize: estimatedTextBounds(for: overlay),
+                                        overTrash: overTrash
+                                    )
                                     updateTextOverlay(overlay.id) { draft in
-                                        draft.position = clampedTextPosition(newPos, for: draft)
+                                        draft.position = clampedTextPosition(aligned, for: draft)
                                     }
 
                                     if !isDraggingItem {
@@ -231,10 +266,11 @@ struct StoryOverlaysView: View {
                                         }
                                     }
 
-                                    isOverTrash = isPointOverTrash(newPos)
+                                    isOverTrash = overTrash
                                 }
                                 .onEnded { _ in
                                     textDragOffsets[overlay.id] = nil
+                                    clearAlignmentGuides()
                                     withAnimation(.easeOut(duration: 0.2)) {
                                         isDraggingItem = false
                                         showTrashZone = false
@@ -252,7 +288,10 @@ struct StoryOverlaysView: View {
                                         pinchStartTextFontSizes[overlay.id] = overlay.fontSize
                                     }
                                     updateTextOverlay(overlay.id) { draft in
-                                        draft.fontSize = min(max(baseFontSize * value.magnification, 16), 72)
+                                        draft.fontSize = min(
+                                            max(baseFontSize * value.magnification, StoryMediaTransformLimits.minFontSize),
+                                            StoryMediaTransformLimits.maxFontSize
+                                        )
                                         draft.position = clampedTextPosition(draft.position, for: draft)
                                     }
                                 }
@@ -260,6 +299,22 @@ struct StoryOverlaysView: View {
                                     pinchStartTextFontSizes[overlay.id] = nil
                                 }
                         )
+                    )
+                    .simultaneousGesture(
+                        RotateGesture()
+                            .onChanged { value in
+                                let baseRotation = pinchStartTextRotations[overlay.id] ?? overlay.rotationRadians
+                                if pinchStartTextRotations[overlay.id] == nil {
+                                    pinchStartTextRotations[overlay.id] = overlay.rotationRadians
+                                }
+                                updateTextOverlay(overlay.id) { draft in
+                                    draft.rotationRadians = baseRotation + value.rotation.radians
+                                    draft.position = clampedTextPosition(draft.position, for: draft)
+                                }
+                            }
+                            .onEnded { _ in
+                                pinchStartTextRotations[overlay.id] = nil
+                            }
                     )
                     .onTapGesture {
                         selectedStickerId = nil
@@ -304,8 +359,12 @@ struct StoryOverlaysView: View {
                             }
 
                             isOverTrash = isPointOverTrash(position)
+                            if isOverTrash {
+                                alignmentGuideBroker.clear()
+                            }
                         },
                         onDragEnded: { position in
+                            clearAlignmentGuides()
                             withAnimation(.easeOut(duration: 0.2)) {
                                 isDraggingItem = false
                                 showTrashZone = false
@@ -335,7 +394,8 @@ struct StoryOverlaysView: View {
                             }
 
                             handleStickerTap(tappedSticker)
-                        }
+                        },
+                        alignmentGuides: alignmentGuideBroker
                     )
                     .zIndex(
                         activeEditingStickerId == sticker.id
@@ -394,6 +454,12 @@ struct StoryOverlaysView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
 
+
+            StoryAlignmentGuidesOverlay(
+                broker: alignmentGuideBroker,
+                canvasSize: canvasSize
+            )
+            .zIndex(400)
 
             // Zona de papelera
             if showTrashZone {
@@ -609,12 +675,9 @@ struct StoryOverlaysView: View {
 
     private func clampedTextPosition(_ proposedPosition: CGPoint, for overlay: StoryTextOverlayDraft) -> CGPoint {
         let textBounds = estimatedTextBounds(for: overlay)
-        let halfWidth = min(textBounds.width / 2, canvasSize.width / 2)
-        let halfHeight = min(textBounds.height / 2, canvasSize.height / 2)
-
-        return CGPoint(
-            x: min(max(proposedPosition.x, halfWidth), canvasSize.width - halfWidth),
-            y: min(max(proposedPosition.y, halfHeight), canvasSize.height - halfHeight)
+        return storyKeepOverlayVisibleCenter(
+            proposedPosition,
+            canvasSize: canvasSize
         )
     }
 
@@ -632,13 +695,31 @@ struct StoryOverlaysView: View {
             textStroke: overlay.textStroke,
             forcesAllCaps: overlay.forcesAllCaps
         )
-        let maxTextWidth = max(canvasSize.width - 76, 120)
+        let maxTextWidth = StoryTextCanvasPlacement.maxLayoutWidth(in: canvasSize.width)
         let measured = StoryTextAttributesBuilder.measuredSize(for: config, maxWidth: maxTextWidth)
 
         return CGSize(
-            width: min(canvasSize.width, measured.width + 28 + 48),
-            height: min(canvasSize.height, measured.height + 20)
+            width: measured.width + 28 + 48,
+            height: measured.height + 20
         )
+    }
+
+    private func alignedOverlayCenter(
+        _ proposed: CGPoint,
+        itemSize: CGSize,
+        overTrash: Bool
+    ) -> CGPoint {
+        storyAlignAndKeepVisible(
+            proposed: proposed,
+            itemSize: itemSize,
+            canvasSize: canvasSize,
+            overTrash: overTrash,
+            broker: alignmentGuideBroker
+        )
+    }
+
+    private func clearAlignmentGuides() {
+        alignmentGuideBroker.clear()
     }
 
     private func handleStickerTap(_ sticker: StickerItem) {
@@ -930,7 +1011,7 @@ struct StoryOverlaysView: View {
 
     private func tapCyclesStickerStyle(_ type: StickerItem.StickerType) -> Bool {
         switch type {
-        case .location, .mention, .link, .hashtag, .time, .questionResponse, .shareMoment:
+        case .location, .mention, .link, .hashtag, .time, .weather, .questionResponse, .shareMoment:
             return true
         default:
             return false

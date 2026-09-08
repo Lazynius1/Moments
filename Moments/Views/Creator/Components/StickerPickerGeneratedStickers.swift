@@ -89,7 +89,7 @@ extension StickerPickerView {
 
             // ✅ CREAR STICKER ANIMADO
             let sticker = StickerItem(
-                image: createWeatherBackgroundImage(for: weather.symbol),
+                image: weatherStickerPlaceholderImage(temperature: weatherText),
                 position: constrainPositionToBounds(CGPoint(
                     x: canvasSize.width / 2 + CGFloat.random(in: -40...40),
                     y: canvasSize.height / 2 + CGFloat.random(in: -40...40)
@@ -116,97 +116,16 @@ extension StickerPickerView {
             dismiss()
         }
 
-        // ✅ CREAR IMAGEN DE FONDO PARA ANIMACIÓN
-        private func createWeatherBackgroundImage(for symbol: String) -> UIImage {
-            let renderer = UIGraphicsImageRenderer(size: CGSize(width: 140, height: 50))
-            let image = renderer.image { context in
-                let rect = CGRect(x: 0, y: 0, width: 140, height: 50)
-
-                // ✅ FONDO CON GRADIENTE SEGÚN CLIMA
-                // ✅ FONDO CON GRADIENTE SEGÚN CLIMA
-                let colors = getWeatherGradientColors(for: symbol)
-
-                let path = UIBezierPath(roundedRect: rect, cornerRadius: 25)
-                context.cgContext.saveGState()
-                path.addClip()
-
-                if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
-                    context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
-                } else {
-                    UIColor.systemBlue.setFill()
-                    context.fill(rect)
-                }
-                context.cgContext.restoreGState()
-
-                // ✅ BORDE ELEGANTE
-                UIColor.white.withAlphaComponent(0.3).setStroke()
-                path.lineWidth = 1
-                path.stroke()
-
-                // ✅ TEXTO CENTRADO (solo símbolo del clima)
-                let paragraphStyle = NSMutableParagraphStyle()
-                paragraphStyle.alignment = .center
-
-                let attributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
-                    .foregroundColor: UIColor.white,
-                    .paragraphStyle: paragraphStyle
-                ]
-
-                symbol.draw(in: CGRect(x: 10, y: 15, width: 120, height: 20), withAttributes: attributes)
-            }
-
-            return image
+        /// `StickerItem` exige imagen; el visor pinta `AnimatedWeatherSticker`.
+        private func weatherStickerPlaceholderImage(temperature: String) -> UIImage {
+            let size = weatherStickerRenderingSize(temperature: temperature)
+            return UIGraphicsImageRenderer(size: size).image { _ in }
         }
 
-        // ✅ CREAR STICKER CON PLACEHOLDER
         private func createWeatherStickerWithPlaceholder() {
             let weatherText = "🌤️"
-
-
-
-            let renderer = UIGraphicsImageRenderer(size: CGSize(width: 140, height: 50))
-            let image = renderer.image { context in
-                let rect = CGRect(x: 0, y: 0, width: 140, height: 50)
-
-                // ✅ FONDO AZUL POR DEFECTO
-                let colors = [
-                    UIColor.systemBlue.withAlphaComponent(0.9).cgColor,
-                    UIColor.systemCyan.withAlphaComponent(0.9).cgColor
-                ] as CFArray
-
-                let path = UIBezierPath(roundedRect: rect, cornerRadius: 25)
-                context.cgContext.saveGState()
-                path.addClip()
-
-                if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
-                    context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
-                } else {
-                    UIColor.systemBlue.setFill()
-                    context.fill(rect)
-                }
-                context.cgContext.restoreGState()
-
-                // ✅ BORDE ELEGANTE
-                UIColor.white.withAlphaComponent(0.3).setStroke()
-                path.lineWidth = 1
-                path.stroke()
-
-                // ✅ TEXTO CENTRADO
-                let paragraphStyle = NSMutableParagraphStyle()
-                paragraphStyle.alignment = .center
-
-                let attributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
-                    .foregroundColor: UIColor.white,
-                    .paragraphStyle: paragraphStyle
-                ]
-
-                weatherText.draw(in: CGRect(x: 10, y: 15, width: 120, height: 20), withAttributes: attributes)
-            }
-
             let sticker = StickerItem(
-                image: image,
+                image: weatherStickerPlaceholderImage(temperature: weatherText),
                 position: constrainPositionToBounds(CGPoint(
                     x: canvasSize.width / 2 + CGFloat.random(in: -40...40),
                     y: canvasSize.height / 2 + CGFloat.random(in: -40...40)
@@ -228,47 +147,6 @@ extension StickerPickerView {
 
             selectedStickers.append(sticker)
             dismiss()
-        }
-
-        // ✅ OBTENER COLORES DE GRADIENTE SEGÚN CLIMA
-        private func getWeatherGradientColors(for symbol: String) -> CFArray {
-            switch symbol {
-            case "☀️": // Soleado
-                return [
-                    UIColor.systemOrange.withAlphaComponent(0.9).cgColor,
-                    UIColor.systemYellow.withAlphaComponent(0.9).cgColor
-                ] as CFArray
-            case "🌧️", "⛈️": // Lluvia/Tormenta
-                return [
-                    UIColor.systemBlue.withAlphaComponent(0.9).cgColor,
-                    UIColor.systemIndigo.withAlphaComponent(0.9).cgColor
-                ] as CFArray
-            case "❄️", "🌨️": // Nieve
-                return [
-                    UIColor.systemCyan.withAlphaComponent(0.9).cgColor,
-                    UIColor.systemBlue.withAlphaComponent(0.9).cgColor
-                ] as CFArray
-            case "☁️", "⛅": // Nublado
-                return [
-                    UIColor.systemGray.withAlphaComponent(0.9).cgColor,
-                    UIColor.systemBlue.withAlphaComponent(0.9).cgColor
-                ] as CFArray
-            case "🔥": // Calor
-                return [
-                    UIColor.systemRed.withAlphaComponent(0.9).cgColor,
-                    UIColor.systemOrange.withAlphaComponent(0.9).cgColor
-                ] as CFArray
-            case "🥶": // Frío
-                return [
-                    UIColor.systemCyan.withAlphaComponent(0.9).cgColor,
-                    UIColor.systemBlue.withAlphaComponent(0.9).cgColor
-                ] as CFArray
-            default: // Por defecto
-                return [
-                    UIColor.systemBlue.withAlphaComponent(0.9).cgColor,
-                    UIColor.systemCyan.withAlphaComponent(0.9).cgColor
-                ] as CFArray
-            }
         }
 
         // ✅ ENUM PARA ERRORES DE CLIMA

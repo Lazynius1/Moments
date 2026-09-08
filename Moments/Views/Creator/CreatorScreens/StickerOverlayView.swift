@@ -15,6 +15,7 @@ struct StickerOverlayView: View {
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGPoint) -> Void
     let onStickerTapped: (StickerItem) -> Void
+    let alignmentGuides: StoryAlignmentGuideBroker
 
     @State private var currentPosition: CGPoint
     @State private var scale: CGFloat
@@ -39,7 +40,8 @@ struct StickerOverlayView: View {
          onDelete: @escaping () -> Void,
          onDragChanged: @escaping (CGPoint) -> Void,
          onDragEnded: @escaping (CGPoint) -> Void,
-         onStickerTapped: @escaping (StickerItem) -> Void) {
+         onStickerTapped: @escaping (StickerItem) -> Void,
+         alignmentGuides: StoryAlignmentGuideBroker) {
         self._sticker = sticker
         self.canvasSize = canvasSize
         self.isSelected = isSelected
@@ -51,108 +53,25 @@ struct StickerOverlayView: View {
         self.onDragChanged = onDragChanged
         self.onDragEnded = onDragEnded
         self.onStickerTapped = onStickerTapped
+        self.alignmentGuides = alignmentGuides
         _currentPosition = State(initialValue: sticker.wrappedValue.position)
         _scale = State(initialValue: sticker.wrappedValue.scale)
         _rotation = State(initialValue: sticker.wrappedValue.rotation)
     }
 
     private var stickerSize: CGSize {
-        switch sticker.type {
-        case .frame: return CGSize(width: 200, height: 240)
-        case .poll: return CGSize(width: 300, height: 172)
-        case .question: return CGSize(width: 300, height: 132)
-        case .questionResponse: return questionResponseStickerRenderSize
-        case .quiz: return CGSize(width: 280, height: 220)
-        case .weather: return CGSize(width: 140, height: 50)
-        case .time: return CGSize(width: 180, height: 80)
-        case .emojiSlider:
-            return emojiSliderBaseSize
-        default: return sticker.image.size
-        }
-    }
-
-    private var emojiSliderBaseSize: CGSize {
-        let prompt = sticker.interactionData?.sliderPrompt ?? ""
-        return emojiSliderRenderingSize(prompt: prompt)
+        storySanitizedLayoutSize(storyStickerBaseLayoutSize(sticker))
     }
 
     private var minimumStickerScale: CGFloat {
-        switch sticker.type {
-        case .poll, .question, .quiz:
-            return 0.42
-        case .time, .weather, .location, .mention, .hashtag, .link, .countdown, .emojiSlider:
-            return 0.35
-        case .frame, .selfie:
-            return 0.3
-        default:
-            return 0.28
-        }
+        StoryMediaTransformLimits.minScale
     }
 
     private var maximumStickerScale: CGFloat {
-        let screenBounds = CGRect(origin: .zero, size: canvasSize)
         let hardMaxDimension: CGFloat = 2048
         let hardMaxScaleWidth = hardMaxDimension / max(stickerSize.width, 1)
         let hardMaxScaleHeight = hardMaxDimension / max(stickerSize.height, 1)
-        let hardSafeMaxScale = min(hardMaxScaleWidth, hardMaxScaleHeight)
-
-        if sticker.type == .shareMoment,
-           sticker.videoURL != nil,
-           (sticker.interactionData?.mediaCount ?? 1) == 1,
-           (sticker.interactionData?.cardLayoutVariant ?? 0) % 2 == 1 {
-            let fillScale = max(
-                screenBounds.width / max(stickerSize.width, 1),
-                screenBounds.height / max(stickerSize.height, 1)
-            )
-            return min(hardSafeMaxScale, max(fillScale, minimumStickerScale))
-        }
-
-        let widthPadding: CGFloat
-        let heightRatio: CGFloat
-        let typeCap: CGFloat
-
-        switch sticker.type {
-        case .poll, .question, .quiz, .emojiSlider:
-            widthPadding = 34
-            heightRatio = 0.42
-            typeCap = 1.45
-        case .countdown:
-            widthPadding = 40
-            heightRatio = 0.34
-            typeCap = 1.35
-        case .time, .weather, .location, .mention, .hashtag, .link:
-            widthPadding = 44
-            heightRatio = 0.28
-            typeCap = 1.85
-        case .frame:
-            widthPadding = 28
-            heightRatio = 0.68
-            typeCap = 2.4
-        case .selfie:
-            widthPadding = 28
-            heightRatio = 0.42
-            typeCap = 2.0
-        default:
-            widthPadding = 24
-            heightRatio = 0.78
-            typeCap = 4.0
-        }
-
-        let maxVisualWidth = max(screenBounds.width - widthPadding, 120)
-        let maxVisualHeight = max(screenBounds.height * heightRatio, 120)
-        let visualMaxScaleWidth = maxVisualWidth / max(stickerSize.width, 1)
-        let visualMaxScaleHeight = maxVisualHeight / max(stickerSize.height, 1)
-        let visualSafeMaxScale = min(visualMaxScaleWidth, visualMaxScaleHeight)
-
-        return min(typeCap, hardSafeMaxScale, visualSafeMaxScale)
-    }
-
-    private func dampedMagnification(_ value: CGFloat) -> CGFloat {
-        let damping: CGFloat = 0.55
-        if value >= 1 {
-            return 1 + ((value - 1) * damping)
-        }
-        return 1 - ((1 - value) * damping)
+        return min(StoryMediaTransformLimits.maxScale, hardMaxScaleWidth, hardMaxScaleHeight)
     }
 
     private var interactiveBoundsSize: CGSize {
@@ -166,10 +85,6 @@ struct StickerOverlayView: View {
             width: stickerSize.width * max(scale, 1),
             height: stickerSize.height * max(scale, 1)
         )
-    }
-
-    private var clampedCurrentPosition: CGPoint {
-        clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
     }
 
     var body: some View {
@@ -447,13 +362,11 @@ struct StickerOverlayView: View {
                 .allowsHitTesting(false)
 
             } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {
-
-                // WEATHER ANIMADO
                 AnimatedWeatherSticker(
                     weatherSymbol: weatherSymbol,
-                    temperature: sticker.interactionData?.questionText ?? "🌤️"
+                    temperature: sticker.interactionData?.questionText ?? "🌤️",
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0
                 )
-                .frame(width: 140, height: 50)
                 .allowsHitTesting(false)
             } else if sticker.type == .time {
                 StickerTimeCardView(
@@ -550,30 +463,21 @@ struct StickerOverlayView: View {
                 handleStickerTap()
             }
         }
-        // ✅ SINCRONIZAR CON EL PADRE PARA EL "VUELO HERO"
+        // Sincronizar vuelo hero / foco inline sin reescribir el binding (evita bucle).
         .onChange(of: sticker.position) { _, newPos in
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                currentPosition = clampedStickerPosition(newPos, scale: scale, rotation: rotation)
-            }
+            currentPosition = newPos
         }
         .onChange(of: sticker.scale) { _, newScale in
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
-                let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
-                currentPosition = clampedPosition
-                sticker.position = clampedPosition
-            }
+            scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
         }
         .onChange(of: sticker.rotation) { _, newRot in
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                rotation = newRot
-                let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: newRot)
-                currentPosition = clampedPosition
-                sticker.position = clampedPosition
-            }
+            rotation = newRot
         }
         .onChange(of: canvasSize) { _, _ in
             let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
+            guard hypot(clampedPosition.x - currentPosition.x, clampedPosition.y - currentPosition.y) > 0.5 else {
+                return
+            }
             currentPosition = clampedPosition
             sticker.position = clampedPosition
         }
@@ -620,7 +524,8 @@ struct StickerOverlayView: View {
                         y: value.location.y - dragOffset.height
                     )
 
-                    let clampedPosition = clampedStickerPosition(newPos, scale: scale, rotation: rotation)
+                    let aligned = alignedStickerPosition(newPos)
+                    let clampedPosition = clampedStickerPosition(aligned, scale: scale, rotation: rotation)
                     currentPosition = clampedPosition
                     onDragChanged(clampedPosition)
                     sticker.position = clampedPosition
@@ -636,6 +541,7 @@ struct StickerOverlayView: View {
                     let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
                     currentPosition = clampedPosition
                     sticker.position = clampedPosition
+                    alignmentGuides.clear()
                     onDragEnded(clampedPosition)
                 }
         )
@@ -658,7 +564,7 @@ struct StickerOverlayView: View {
                         stickerPinchStartScale = sticker.scale
                     }
 
-                    let newScale = baseScale * dampedMagnification(value.magnification)
+                    let newScale = baseScale * value.magnification
                     scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
                     let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
                     currentPosition = clampedPosition
@@ -697,11 +603,9 @@ struct StickerOverlayView: View {
                     sticker.position = clampedPosition
                 }
         )
-        .position(clampedCurrentPosition) // ✅ Posicionar en el lienzo global al final
+        .position(currentPosition)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: showInteractionFeedback), value: showInteractionFeedback)
         .animation(.easeInOut(duration: 0.1), value: isDragging)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: scale)
-        .animation(.spring(response: 0.4, dampingFraction: 0.9), value: rotation)
     }
 
     private func handleStickerTap() {
@@ -812,23 +716,26 @@ struct StickerOverlayView: View {
         )
     }
 
+    private func alignedStickerPosition(_ proposed: CGPoint) -> CGPoint {
+        let overTrash = proposed.y > canvasSize.height - 96
+        let bounds = rotatedStickerBoundingSize(scale: scale, rotation: rotation)
+        return storyAlignAndKeepVisible(
+            proposed: proposed,
+            itemSize: bounds,
+            canvasSize: canvasSize,
+            overTrash: overTrash,
+            broker: alignmentGuides
+        )
+    }
+
     private func clampedStickerPosition(
         _ proposedPosition: CGPoint,
-        scale proposedScale: CGFloat,
-        rotation proposedRotation: Angle
+        scale _: CGFloat,
+        rotation _: Angle
     ) -> CGPoint {
-        let bounds = rotatedStickerBoundingSize(
-            scale: max(proposedScale, minimumStickerScale),
-            rotation: proposedRotation
-        )
-        let visualWidth = min(bounds.width, canvasSize.width)
-        let visualHeight = min(bounds.height, canvasSize.height)
-        let halfWidth = visualWidth / 2
-        let halfHeight = visualHeight / 2
-
-        return CGPoint(
-            x: min(max(proposedPosition.x, halfWidth), canvasSize.width - halfWidth),
-            y: min(max(proposedPosition.y, halfHeight), canvasSize.height - halfHeight)
+        storyKeepOverlayVisibleCenter(
+            proposedPosition,
+            canvasSize: canvasSize
         )
     }
 
@@ -905,6 +812,38 @@ struct StickerOverlayView: View {
         }
     }
 }
+
+func storyStickerBaseLayoutSize(_ sticker: StickerItem) -> CGSize {
+    switch sticker.type {
+    case .frame: return CGSize(width: 200, height: 240)
+    case .poll: return CGSize(width: 300, height: 172)
+    case .question: return CGSize(width: 300, height: 132)
+    case .questionResponse: return questionResponseStickerRenderSize
+    case .quiz: return CGSize(width: 280, height: 220)
+    case .weather:
+        return weatherStickerRenderingSize(temperature: sticker.interactionData?.questionText ?? "")
+    case .time: return CGSize(width: 180, height: 80)
+    case .emojiSlider:
+        return emojiSliderRenderingSize(prompt: sticker.interactionData?.sliderPrompt ?? "")
+    default:
+        return storySanitizedLayoutSize(sticker.image.size)
+    }
+}
+
+func storyStickerAlignmentSize(_ sticker: StickerItem) -> CGSize {
+    let base = storyStickerBaseLayoutSize(sticker)
+    let scale = max(sticker.scale, 0.0001)
+    let scaledWidth = base.width * scale
+    let scaledHeight = base.height * scale
+    let radians = sticker.rotation.radians
+    let cosine = abs(cos(radians))
+    let sine = abs(sin(radians))
+    return CGSize(
+        width: (scaledWidth * cosine) + (scaledHeight * sine),
+        height: (scaledWidth * sine) + (scaledHeight * cosine)
+    )
+}
+
 struct SelfieStickerLiveCameraView: UIViewRepresentable {
     @Binding var captureTrigger: Bool
     @Binding var switchCameraTrigger: Bool

@@ -2,329 +2,43 @@ import SwiftUI
 import AVFoundation
 import CoreMedia
 
-// MARK: - ✅ STICKER DE CLIMA ANIMADO
+// MARK: - Sticker de clima (familia tap-cycle)
 struct AnimatedWeatherSticker: View {
     let weatherSymbol: String
     let temperature: String
-
-    @State private var animationPhase: CGFloat = 0
+    var styleVariant: Int = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let foregroundStyle = momentsTapCycleStickerForegroundStyle(for: colorScheme, styleVariant: styleVariant)
+
         HStack(spacing: 8) {
-            // ✅ TEMPERATURA
+            Image(systemName: weatherStickerSystemImageName(for: weatherSymbol))
+                .font(.system(size: 20, weight: .heavy))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(foregroundStyle)
+                .frame(width: 20, height: 20)
+
             Text(temperature)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.5), radius: 2, x: 1, y: 1)
-
-            // ✅ SÍMBOLO ANIMADO
-            ZStack {
-                // Símbolo base
-                Text(weatherSymbol)
-                    .font(.system(size: 20))
-
-                // Overlay de animación según el tipo
-                weatherAnimationOverlay
-            }
+                .font(.system(size: 18, weight: .black, design: .rounded))
+                .tracking(0.4)
+                .foregroundStyle(foregroundStyle)
+                .lineLimit(1)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(weatherBackground)
-        .onAppear {
-            withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) {
-                animationPhase = 1
-            }
-        }
-    }
-
-    // MARK: - Animación específica según clima
-    @ViewBuilder
-    private var weatherAnimationOverlay: some View {
-        switch weatherSymbol {
-        case "☀️":
-            SunAnimation(animationPhase: animationPhase)
-        case "🌧️":
-            RainAnimation(animationPhase: animationPhase)
-        case "❄️":
-            SnowAnimation(animationPhase: animationPhase)
-        case "💨":
-            WindAnimation(animationPhase: animationPhase)
-        case "⛈️":
-            ThunderAnimation(animationPhase: animationPhase)
-        case "🌙":
-            NightAnimation(animationPhase: animationPhase)
-        default:
-            EmptyView()
-        }
-    }
-
-    // MARK: - Background del sticker
-    private var weatherBackground: some View {
-        RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius)
-            .fill(getWeatherGradientColors(for: weatherSymbol)[0].opacity(0.3))
-            .overlay(
-                RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-            )
-    }
-
-    // MARK: - Colores según clima
-    private func getWeatherGradientColors(for symbol: String) -> [Color] {
-        switch symbol {
-        case "☀️": return [.orange, .yellow]
-        case "🌤️", "⛅": return [.orange, .yellow]
-        case "🌥️", "☁️": return [.gray, .blue]
-        case "🌧️", "⛈️": return [.blue, .indigo]
-        case "❄️", "🌨️": return [.cyan, .blue]
-        case "🔥": return [.red, .orange]
-        case "🥶": return [.cyan, .blue]
-        case "💨": return [.white, .gray]
-        case "🌙", "🌃": return [.indigo, .purple]
-        case "🌅": return [.orange, .pink]
-        case "🌄": return [.orange, .red]
-        default: return [.orange, .yellow]
-        }
-    }
-}
-
-// MARK: - Animaciones individuales
-
-struct SunAnimation: View {
-    let animationPhase: CGFloat
-
-    var body: some View {
-        ForEach(0..<8, id: \.self) { index in
-            SunRay(index: index, phase: animationPhase)
-        }
-    }
-}
-
-struct SunRay: View {
-    let index: Int
-    let phase: CGFloat
-
-    var body: some View {
-        Circle()
-            .fill(Color.yellow.opacity(0.6))
-            .frame(width: 4, height: 4)
-            .offset(x: offsetX, y: offsetY)
-            .scaleEffect(scaleValue)
-            .opacity(opacityValue)
-    }
-
-    private var angle: Double {
-        Double(index) * .pi / 4
-    }
-
-    private var radius: CGFloat {
-        25
-    }
-
-    private var offsetX: CGFloat {
-        cos(angle) * radius
-    }
-
-    private var offsetY: CGFloat {
-        sin(angle) * radius
-    }
-
-    private var scaleValue: CGFloat {
-        CGFloat(0.5 + 0.5 * sin(Double(phase) + Double(index) * 0.5))
-    }
-
-    private var opacityValue: Double {
-        0.3 + 0.7 * sin(Double(phase) + Double(index) * 0.3)
-    }
-}
-
-struct RainAnimation: View {
-    let animationPhase: CGFloat
-
-    var body: some View {
-        ForEach(0..<6, id: \.self) { index in
-            RainDrop(index: index, phase: animationPhase)
-        }
-    }
-}
-
-struct RainDrop: View {
-    let index: Int
-    let phase: CGFloat
-
-    var body: some View {
-        Circle()
-            .fill(Color.blue.opacity(0.7))
-            .frame(width: 3, height: 6)
-            .offset(x: offsetX, y: offsetY)
-            .opacity(opacityValue)
-    }
-
-    private var offsetX: CGFloat {
-        CGFloat(index - 3) * 8
-    }
-
-    private var offsetY: CGFloat {
-        -20 + (phase * 40).truncatingRemainder(dividingBy: 40)
-    }
-
-    private var opacityValue: Double {
-        0.5 + 0.5 * sin(phase + Double(index) * 0.5)
-    }
-}
-
-struct SnowAnimation: View {
-    let animationPhase: CGFloat
-
-    var body: some View {
-        ForEach(0..<5, id: \.self) { index in
-            SnowFlake(index: index, phase: animationPhase)
-        }
-    }
-}
-
-struct SnowFlake: View {
-    let index: Int
-    let phase: CGFloat
-
-    var body: some View {
-        Text("❄️")
-            .font(.system(size: 8))
-            .offset(x: offsetX, y: offsetY)
-            .rotationEffect(.degrees(rotationAngle))
-            .opacity(opacityValue)
-    }
-
-    private var offsetX: CGFloat {
-        CGFloat(index - 2) * 12
-    }
-
-    private var offsetY: CGFloat {
-        -15 + (phase * 30).truncatingRemainder(dividingBy: 30)
-    }
-
-    private var rotationAngle: Double {
-        Double(phase * 360)
-    }
-
-    private var opacityValue: Double {
-        0.6 + 0.4 * sin(phase + Double(index) * 0.7)
-    }
-}
-
-struct WindAnimation: View {
-    let animationPhase: CGFloat
-
-    var body: some View {
-        ForEach(0..<3, id: \.self) { index in
-            WindParticle(index: index, phase: animationPhase)
-        }
-    }
-}
-
-struct WindParticle: View {
-    let index: Int
-    let phase: CGFloat
-
-    var body: some View {
-        Circle()
-            .fill(Color.white.opacity(0.6))
-            .frame(width: 6, height: 6)
-            .offset(x: offsetX, y: offsetY)
-            .opacity(opacityValue)
-    }
-
-    private var offsetX: CGFloat {
-        (phase * 15).truncatingRemainder(dividingBy: 15) + CGFloat(index * 10)
-    }
-
-    private var offsetY: CGFloat {
-        CGFloat(index - 1) * 5
-    }
-
-    private var opacityValue: Double {
-        0.4 + 0.6 * sin(phase + Double(index) * 0.8)
-    }
-}
-
-struct ThunderAnimation: View {
-    let animationPhase: CGFloat
-
-    var body: some View {
-        ForEach(0..<2, id: \.self) { index in
-            Lightning(index: index, phase: animationPhase)
-        }
-    }
-}
-
-struct Lightning: View {
-    let index: Int
-    let phase: CGFloat
-
-    var body: some View {
-        Image(systemName: "bolt.fill")
-            .foregroundStyle(.yellow)
-            .font(.system(size: 12))
-            .offset(x: offsetX, y: offsetY)
-            .opacity(opacityValue)
-    }
-
-    private var offsetX: CGFloat {
-        (CGFloat(index) - 0.5) * 20
-    }
-
-    private var offsetY: CGFloat {
-        -8 + (phase * 15).truncatingRemainder(dividingBy: 15)
-    }
-
-    private var opacityValue: Double {
-        0.3 + 0.7 * sin(Double(phase) * 2 + Double(index) * 1.0)
-    }
-}
-
-struct NightAnimation: View {
-    let animationPhase: CGFloat
-
-    var body: some View {
-        ForEach(0..<6, id: \.self) { index in
-            Star(index: index, phase: animationPhase)
-        }
-    }
-}
-
-struct Star: View {
-    let index: Int
-    let phase: CGFloat
-
-    var body: some View {
-        Text("⭐")
-            .font(.system(size: 6))
-            .offset(x: offsetX, y: offsetY)
-            .scaleEffect(scaleValue)
-            .opacity(opacityValue)
-    }
-
-    private var angle: Double {
-        Double(index) * .pi / 3
-    }
-
-    private var radius: CGFloat {
-        20
-    }
-
-    private var offsetX: CGFloat {
-        cos(angle) * radius
-    }
-
-    private var offsetY: CGFloat {
-        sin(angle) * radius
-    }
-
-    private var scaleValue: CGFloat {
-        0.3 + 0.7 * sin(phase + Double(index) * 0.8)
-    }
-
-    private var opacityValue: Double {
-        0.4 + 0.6 * sin(phase + Double(index) * 0.6)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(
+            Capsule(style: .continuous)
+                .fill(momentsTapCycleStickerBackground(for: colorScheme, styleVariant: styleVariant))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(
+                    momentsTapCycleStickerStroke(for: colorScheme, styleVariant: styleVariant),
+                    lineWidth: momentsTapCycleStickerStrokeWidth(styleVariant: styleVariant)
+                )
+        )
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 

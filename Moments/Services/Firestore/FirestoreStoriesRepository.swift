@@ -357,7 +357,8 @@ extension FirestoreService {
                     "visualEffectRaw": overlay.visualEffectRaw,
                     "motionRaw": overlay.motionRaw,
                     "forcesAllCaps": overlay.forcesAllCaps,
-                    "isLiveOverlay": overlay.isLiveOverlay
+                    "isLiveOverlay": overlay.isLiveOverlay,
+                    "rotationRadians": overlay.rotationRadians
                 ]
             }
         }

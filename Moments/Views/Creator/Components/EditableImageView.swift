@@ -2,9 +2,14 @@ import SwiftUI
 import UIKit
 import CoreImage
 
-private enum StoryMediaTransformLimits {
-    static let minScale: CGFloat = 0.45
-    static let maxScale: CGFloat = 1.8
+enum StoryMediaTransformLimits {
+    static let minScale: CGFloat = 0.05
+    static let maxScale: CGFloat = 8.0
+    static let minVisibleSliver: CGFloat = 28
+    /// Si el ítem es más grande que el canvas, conservar esta fracción visible (GIFs al pellizcar).
+    static let minVisibleCanvasFraction: CGFloat = 0.42
+    static let minFontSize: CGFloat = 8
+    static let maxFontSize: CGFloat = 480
     static let snapScaleThreshold: CGFloat = 0.08
     static let snapRotationThreshold: CGFloat = .pi / 36.0
 }
@@ -68,30 +73,104 @@ func storyClampedMediaScale(_ proposedScale: CGFloat) -> CGFloat {
     return min(max(proposedScale, StoryMediaTransformLimits.minScale), StoryMediaTransformLimits.maxScale)
 }
 
+func storyKeepVisibleLength(item: CGFloat, canvas: CGFloat) -> CGFloat {
+    let sliver = StoryMediaTransformLimits.minVisibleSliver
+    if item > canvas {
+        return min(item, max(sliver, canvas * StoryMediaTransformLimits.minVisibleCanvasFraction))
+    }
+    return min(sliver, item)
+}
+
+func storyKeepOverlayVisibleCenter(
+    _ proposed: CGPoint,
+    canvasSize: CGSize
+) -> CGPoint {
+    guard canvasSize.width > 1, canvasSize.height > 1 else {
+        return CGPoint(x: max(canvasSize.width, 0) / 2, y: max(canvasSize.height, 0) / 2)
+    }
+    let insetX = min(StoryMediaTransformLimits.minVisibleSliver, canvasSize.width / 2)
+    let insetY = min(StoryMediaTransformLimits.minVisibleSliver, canvasSize.height / 2)
+    let safeX = proposed.x.isFinite ? proposed.x : canvasSize.width / 2
+    let safeY = proposed.y.isFinite ? proposed.y : canvasSize.height / 2
+    return CGPoint(
+        x: min(max(safeX, insetX), canvasSize.width - insetX),
+        y: min(max(safeY, insetY), canvasSize.height - insetY)
+    )
+}
+
+func storyClampedOverlayCenterOffset(
+    _ proposedOffset: CGSize,
+    canvasSize: CGSize
+) -> CGSize {
+    let center = storyKeepOverlayVisibleCenter(
+        CGPoint(
+            x: canvasSize.width / 2 + (proposedOffset.width.isFinite ? proposedOffset.width : 0),
+            y: canvasSize.height / 2 + (proposedOffset.height.isFinite ? proposedOffset.height : 0)
+        ),
+        canvasSize: canvasSize
+    )
+    return CGSize(
+        width: center.x - canvasSize.width / 2,
+        height: center.y - canvasSize.height / 2
+    )
+}
+
+func storyKeepVisibleCenter(
+    _ proposed: CGPoint,
+    itemWidth: CGFloat,
+    itemHeight: CGFloat,
+    canvasSize: CGSize
+) -> CGPoint {
+    let width = max(itemWidth, 1)
+    let height = max(itemHeight, 1)
+    let keepX = storyKeepVisibleLength(item: width, canvas: canvasSize.width)
+    let keepY = storyKeepVisibleLength(item: height, canvas: canvasSize.height)
+    let minX = keepX - width / 2
+    let maxX = canvasSize.width - keepX + width / 2
+    let minY = keepY - height / 2
+    let maxY = canvasSize.height - keepY + height / 2
+    let safeX = proposed.x.isFinite ? proposed.x : canvasSize.width / 2
+    let safeY = proposed.y.isFinite ? proposed.y : canvasSize.height / 2
+    return CGPoint(
+        x: min(max(safeX, min(minX, maxX)), max(minX, maxX)),
+        y: min(max(safeY, min(minY, maxY)), max(minY, maxY))
+    )
+}
+
+func storyClampedCenterOffset(
+    _ proposedOffset: CGSize,
+    canvasSize: CGSize,
+    scaledWidth: CGFloat,
+    scaledHeight: CGFloat
+) -> CGSize {
+    let center = storyKeepVisibleCenter(
+        CGPoint(
+            x: canvasSize.width / 2 + (proposedOffset.width.isFinite ? proposedOffset.width : 0),
+            y: canvasSize.height / 2 + (proposedOffset.height.isFinite ? proposedOffset.height : 0)
+        ),
+        itemWidth: scaledWidth,
+        itemHeight: scaledHeight,
+        canvasSize: canvasSize
+    )
+    return CGSize(
+        width: center.x - canvasSize.width / 2,
+        height: center.y - canvasSize.height / 2
+    )
+}
+
 func storyClampedMediaOffset(
     _ proposedOffset: CGSize,
     canvasSize: CGSize,
     mediaSize: CGSize,
     scale: CGFloat
 ) -> CGSize {
-    let safeOffset = CGSize(
-        width: proposedOffset.width.isFinite ? proposedOffset.width : 0,
-        height: proposedOffset.height.isFinite ? proposedOffset.height : 0
-    )
     let safeScale = storyClampedMediaScale(scale)
     let baseRect = storyMediaBaseRect(mediaSize: mediaSize, canvasSize: canvasSize)
-    let scaledWidth = baseRect.width * safeScale
-    let scaledHeight = baseRect.height * safeScale
-
-    let minVisibleX = min(max(44, scaledWidth * 0.24), scaledWidth)
-    let minVisibleY = min(max(44, scaledHeight * 0.24), scaledHeight)
-
-    let horizontalLimit = max(0, (canvasSize.width / 2) + (scaledWidth / 2) - minVisibleX)
-    let verticalLimit = max(0, (canvasSize.height / 2) + (scaledHeight / 2) - minVisibleY)
-
-    return CGSize(
-        width: min(max(safeOffset.width, -horizontalLimit), horizontalLimit),
-        height: min(max(safeOffset.height, -verticalLimit), verticalLimit)
+    return storyClampedCenterOffset(
+        proposedOffset,
+        canvasSize: canvasSize,
+        scaledWidth: baseRect.width * safeScale,
+        scaledHeight: baseRect.height * safeScale
     )
 }
 
@@ -371,7 +450,7 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
         }
         .onChange(of: scale) { _, newValue in
             let clamped = storyClampedMediaScale(newValue)
-            if clamped != newValue {
+            if abs(clamped - newValue) > 0.0001 {
                 scale = clamped
             }
         }
@@ -382,7 +461,7 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
                 mediaSize: mediaSize,
                 scale: scale
             )
-            if clamped != newValue {
+            if abs(clamped.width - newValue.width) > 0.05 || abs(clamped.height - newValue.height) > 0.05 {
                 offset = clamped
             }
         }

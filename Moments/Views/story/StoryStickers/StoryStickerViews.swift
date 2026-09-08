@@ -1121,17 +1121,13 @@ struct StoryStickerView: View {
             .scaleEffect(sticker.scale)
             .rotationEffect(sticker.rotation)
         } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {
-            // ✅ WEATHER ANIMADO: Diseño animado según clima
             AnimatedWeatherSticker(
                 weatherSymbol: weatherSymbol,
-                temperature: sticker.interactionData?.questionText ?? "🌤️"
+                temperature: sticker.interactionData?.questionText ?? "🌤️",
+                styleVariant: sticker.interactionData?.styleVariant ?? 0
             )
-            .frame(width: 140, height: 50)
-            .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
+            .scaleEffect(sticker.scale)
             .rotationEffect(sticker.rotation)
-            .onAppear {
-
-            }
         } else if sticker.type == .time {
             StickerTimeCardView(
                 timeText: sticker.interactionData?.questionText ?? MomentsFormat.smartDate(from: .now, context: .timeOnly),

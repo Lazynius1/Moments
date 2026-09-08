@@ -128,7 +128,10 @@ struct StoryTextEditor: View {
                 HStack(spacing: 0) {
                     VStack(spacing: 0) {
                         Spacer(minLength: 0)
-                        FontSizeSlider(value: $textFontSize, range: 16...72)
+                        FontSizeSlider(
+                            value: $textFontSize,
+                            range: StoryMediaTransformLimits.minFontSize...StoryMediaTransformLimits.maxFontSize
+                        )
                             .opacity(isTextFieldFocused ? 1.0 : 0.0)
                             .offset(y: keyboardMonitor.keyboardHeight > 0 ? -40 : 0) // Lift it up when keyboard is shown to clear the bottom toolbar
                             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isTextFieldFocused)

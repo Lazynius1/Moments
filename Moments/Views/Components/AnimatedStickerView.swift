@@ -73,9 +73,10 @@ struct AnimatedStickerView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: UIImageView, context: Context) {
-        uiView.frame = CGRect(origin: .zero, size: size)
-        uiView.bounds = CGRect(origin: .zero, size: size)
+        // No reescribir frame/bounds en cada pellizco: el scaleEffect del padre
+        // deja el UIImageView en blanco si se pisan bounds a mitad del gesto.
         uiView.contentMode = .scaleAspectFit
+        uiView.clipsToBounds = true
         if uiView.image?.images?.isEmpty == false, !uiView.isAnimating {
             uiView.startAnimating()
         }

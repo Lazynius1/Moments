@@ -2605,6 +2605,7 @@ struct StoryEditingView: View {
             seededPosition = textPosition
         }
 
+        let preservedRotation = textOverlays.first(where: { $0.id == activeTextOverlayId })?.rotationRadians ?? 0
         let updated = StoryTextOverlayDraft(
             id: activeTextOverlayId,
             text: trimmed,
@@ -2620,7 +2621,8 @@ struct StoryEditingView: View {
             forcesAllCaps: storyForcesAllCaps,
             layerOrder: layerOrder(for: activeTextOverlayId),
             gradientStopHexes: StoryTextGradientSettings.encodeStops(storyGradientStops),
-            gradientAngle: storyGradientAngle
+            gradientAngle: storyGradientAngle,
+            rotationRadians: preservedRotation
         )
 
         if let index = textOverlays.firstIndex(where: { $0.id == activeTextOverlayId }) {

@@ -19,6 +19,7 @@ struct StoryLiveTextOverlayView: View {
                 replayToken: replayToken
             )
             .frame(maxWidth: overlayMaxWidth)
+            .rotationEffect(.radians(metadata.rotationRadians))
             .position(x: anchor.x, y: anchor.y)
             .allowsHitTesting(false)
         }

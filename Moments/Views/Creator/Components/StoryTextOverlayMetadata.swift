@@ -9,6 +9,10 @@ enum StoryTextCanvasPlacement {
         )
     }
 
+    static func maxLayoutWidth(in canvasWidth: CGFloat) -> CGFloat {
+        max(canvasWidth * StoryMediaTransformLimits.maxScale, 120)
+    }
+
     static func needsSeed(position: CGPoint, canvasSize: CGSize) -> Bool {
         guard canvasSize.width > 1, canvasSize.height > 1 else { return false }
         return position == .zero
@@ -35,6 +39,7 @@ struct StoryTextOverlayDraft: Identifiable, Equatable {
     var layerOrder: Int = 0
     var gradientStopHexes: [String] = []
     var gradientAngle: Int = 0
+    var rotationRadians: Double = 0
 
     var gradientColors: [Color] {
         StoryTextGradientSettings.decodeStops(gradientStopHexes, fallback: textColor)
@@ -57,7 +62,8 @@ struct StoryTextOverlayDraft: Identifiable, Equatable {
             motion: textMotion,
             forcesAllCaps: forcesAllCaps,
             gradientStopHexes: gradientStopHexes,
-            gradientAngle: gradientAngle
+            gradientAngle: gradientAngle,
+            rotationRadians: rotationRadians
         )
     }
 
@@ -79,7 +85,8 @@ struct StoryTextOverlayDraft: Identifiable, Equatable {
             layerOrder: metadata.layerOrder,
             gradientStopHexes: metadata.gradientStopHexes
                 ?? StoryTextGradientSettings.encodeStops(StoryTextGradientSettings.defaultStops(anchoredTo: color)),
-            gradientAngle: metadata.gradientAngle ?? 0
+            gradientAngle: metadata.gradientAngle ?? 0,
+            rotationRadians: metadata.rotationRadians
         )
     }
 }
@@ -102,6 +109,7 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
     var isLiveOverlay: Bool = true
     var gradientStopHexes: [String]?
     var gradientAngle: Int?
+    var rotationRadians: Double
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -120,6 +128,7 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         case isLiveOverlay
         case gradientStopHexes
         case gradientAngle
+        case rotationRadians
     }
 
     private enum PointCodingKeys: String, CodingKey {
@@ -143,7 +152,8 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         forcesAllCaps: Bool,
         isLiveOverlay: Bool = true,
         gradientStopHexes: [String]? = nil,
-        gradientAngle: Int? = nil
+        gradientAngle: Int? = nil,
+        rotationRadians: Double = 0
     ) {
         self.id = id
         self.text = text
@@ -161,6 +171,7 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         self.isLiveOverlay = isLiveOverlay
         self.gradientStopHexes = gradientStopHexes
         self.gradientAngle = gradientAngle
+        self.rotationRadians = rotationRadians
     }
 
     static func build(
@@ -179,7 +190,8 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         motion: StoryEditingView.TextMotion,
         forcesAllCaps: Bool,
         gradientStopHexes: [String] = [],
-        gradientAngle: Int = 0
+        gradientAngle: Int = 0,
+        rotationRadians: Double = 0
     ) -> StoryTextOverlayMetadata? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -207,7 +219,8 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
             forcesAllCaps: forcesAllCaps,
             isLiveOverlay: true,
             gradientStopHexes: visualEffect == .gradient && !gradientStopHexes.isEmpty ? gradientStopHexes : nil,
-            gradientAngle: visualEffect == .gradient ? gradientAngle : nil
+            gradientAngle: visualEffect == .gradient ? gradientAngle : nil,
+            rotationRadians: rotationRadians
         )
     }
 
@@ -307,6 +320,7 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         isLiveOverlay = try container.decodeIfPresent(Bool.self, forKey: .isLiveOverlay) ?? true
         gradientStopHexes = try container.decodeIfPresent([String].self, forKey: .gradientStopHexes)
         gradientAngle = try container.decodeIfPresent(Int.self, forKey: .gradientAngle)
+        rotationRadians = try container.decodeIfPresent(Double.self, forKey: .rotationRadians) ?? 0
 
         if let point = try? container.decode(CGPoint.self, forKey: .normalizedPosition) {
             normalizedPosition = point
@@ -335,6 +349,7 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         try container.encode(isLiveOverlay, forKey: .isLiveOverlay)
         try container.encodeIfPresent(gradientStopHexes, forKey: .gradientStopHexes)
         try container.encodeIfPresent(gradientAngle, forKey: .gradientAngle)
+        try container.encode(rotationRadians, forKey: .rotationRadians)
 
         var pointContainer = container.nestedContainer(keyedBy: PointCodingKeys.self, forKey: .normalizedPosition)
         try pointContainer.encode(normalizedPosition.x, forKey: .x)

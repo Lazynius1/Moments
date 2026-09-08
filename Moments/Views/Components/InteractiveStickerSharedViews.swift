@@ -143,6 +143,34 @@ func emojiSliderRenderingSize(prompt: String = "") -> CGSize {
         : CGSize(width: 260, height: 78)
 }
 
+/// Caja de layout del clima (cápsula wrap, misma familia que hashtag/link).
+func weatherStickerRenderingSize(temperature: String) -> CGSize {
+    let measured = temperature.trimmingCharacters(in: .whitespacesAndNewlines)
+    let font = UIFont.systemFont(ofSize: 18, weight: .black)
+    let textWidth = ceil((measured as NSString).size(withAttributes: [.font: font]).width)
+    let horizontalChrome: CGFloat = 20 + 20 + 20 + 8
+    let width = min(max(textWidth + horizontalChrome, 96), 220)
+    return CGSize(width: width, height: 46)
+}
+
+func weatherStickerSystemImageName(for symbol: String) -> String {
+    switch symbol {
+    case "☀️": return "sun.max.fill"
+    case "🌤️", "⛅": return "cloud.sun.fill"
+    case "🌥️", "☁️": return "cloud.fill"
+    case "🌧️": return "cloud.rain.fill"
+    case "⛈️": return "cloud.bolt.rain.fill"
+    case "❄️", "🌨️": return "cloud.snow.fill"
+    case "💨": return "wind"
+    case "🌙", "🌃": return "moon.fill"
+    case "🌅", "🌄": return "sunrise.fill"
+    case "🔥": return "flame.fill"
+    case "🥶": return "thermometer.snowflake"
+    case "🌫️": return "cloud.fog.fill"
+    default: return "cloud.sun.fill"
+    }
+}
+
 func emojiSliderMomentsGradientColors() -> [Color] {
     [Color.blue, Color.purple, Color.pink]
 }
