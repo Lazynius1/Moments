@@ -4816,5 +4816,8 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "groups.sheet.unavailableBody" = "Ce lien n’est plus actif. Demandez-en un nouveau à un admin du groupe.";
 "groups.sheet.fullTitle" = "Le groupe est complet";
 "groups.sheet.fullBody" = "Ce groupe a atteint sa limite de membres. Réessayez plus tard.";
+"groups.sheet.alreadyTitle" = "Vous êtes déjà dans ce groupe";
+"groups.sheet.alreadyBody" = "Vous pouvez ouvrir la discussion depuis vos conversations.";
+"groups.sheet.openChat" = "Ouvrir le chat";
 "groups.sheet.close" = "Fermer";
 "groups.sheet.cancelling" = "Annulation…";

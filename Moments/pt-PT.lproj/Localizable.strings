@@ -5626,5 +5626,8 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "groups.sheet.unavailableBody" = "Esta ligação já não está ativa. Pede uma nova a um admin do grupo.";
 "groups.sheet.fullTitle" = "O grupo está cheio";
 "groups.sheet.fullBody" = "Este grupo atingiu o limite de membros. Tenta novamente mais tarde.";
+"groups.sheet.alreadyTitle" = "Já estás neste grupo";
+"groups.sheet.alreadyBody" = "Podes abrir o chat nas tuas conversas.";
+"groups.sheet.openChat" = "Ir para o chat";
 "groups.sheet.close" = "Fechar";
 "groups.sheet.cancelling" = "A cancelar…";

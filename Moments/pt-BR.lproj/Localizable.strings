@@ -4816,5 +4816,8 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "groups.sheet.unavailableBody" = "Este link não está mais ativo. Peça um novo a um admin do grupo.";
 "groups.sheet.fullTitle" = "O grupo está cheio";
 "groups.sheet.fullBody" = "Este grupo atingiu o limite de membros. Tente novamente mais tarde.";
+"groups.sheet.alreadyTitle" = "Você já está neste grupo";
+"groups.sheet.alreadyBody" = "Você pode abrir o chat nas suas conversas.";
+"groups.sheet.openChat" = "Ir para o chat";
 "groups.sheet.close" = "Fechar";
 "groups.sheet.cancelling" = "Cancelando…";

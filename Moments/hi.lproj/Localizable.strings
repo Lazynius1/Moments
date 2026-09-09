@@ -4571,5 +4571,8 @@
 "groups.sheet.unavailableBody" = "यह लिंक अब सक्रिय नहीं है। समूह के एडमिन से नया लिंक माँगें।";
 "groups.sheet.fullTitle" = "समूह भर गया है";
 "groups.sheet.fullBody" = "इस समूह में सदस्यों की सीमा पूरी हो गई है। बाद में फिर कोशिश करें।";
+"groups.sheet.alreadyTitle" = "आप पहले से इस समूह में हैं";
+"groups.sheet.alreadyBody" = "आप अपनी बातचीत से चैट खोल सकते हैं।";
+"groups.sheet.openChat" = "चैट खोलें";
 "groups.sheet.close" = "बंद करें";
 "groups.sheet.cancelling" = "रद्द कर रहे हैं…";

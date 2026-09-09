@@ -4571,5 +4571,8 @@
 "groups.sheet.unavailableBody" = "Ten link nie jest już aktywny. Poproś administratora grupy o nowy.";
 "groups.sheet.fullTitle" = "Grupa jest pełna";
 "groups.sheet.fullBody" = "Ta grupa osiągnęła limit członków. Spróbuj ponownie później.";
+"groups.sheet.alreadyTitle" = "Jesteś już w tej grupie";
+"groups.sheet.alreadyBody" = "Możesz otworzyć czat w swoich rozmowach.";
+"groups.sheet.openChat" = "Przejdź do czatu";
 "groups.sheet.close" = "Zamknij";
 "groups.sheet.cancelling" = "Anulowanie…";

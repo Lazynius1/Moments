@@ -4816,5 +4816,8 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "groups.sheet.unavailableBody" = "Dieser Link ist nicht mehr aktiv. Bitte einen Gruppenadmin um einen neuen.";
 "groups.sheet.fullTitle" = "Gruppe ist voll";
 "groups.sheet.fullBody" = "Diese Gruppe hat ihre Mitgliedergrenze erreicht. Versuche es später erneut.";
+"groups.sheet.alreadyTitle" = "Du bist schon in dieser Gruppe";
+"groups.sheet.alreadyBody" = "Du kannst den Chat in deinen Unterhaltungen öffnen.";
+"groups.sheet.openChat" = "Zum Chat";
 "groups.sheet.close" = "Schließen";
 "groups.sheet.cancelling" = "Wird zurückgezogen…";

@@ -4571,5 +4571,8 @@
 "groups.sheet.unavailableBody" = "Deze link is niet meer actief. Vraag een groepsbeheerder om een nieuwe.";
 "groups.sheet.fullTitle" = "Groep is vol";
 "groups.sheet.fullBody" = "Deze groep heeft het maximale aantal leden bereikt. Probeer het later opnieuw.";
+"groups.sheet.alreadyTitle" = "Je zit al in deze groep";
+"groups.sheet.alreadyBody" = "Je kunt de chat openen vanuit je gesprekken.";
+"groups.sheet.openChat" = "Naar de chat";
 "groups.sheet.close" = "Sluiten";
 "groups.sheet.cancelling" = "Annuleren…";

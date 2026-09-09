@@ -4571,5 +4571,8 @@
 "groups.sheet.unavailableBody" = "此連結已失效。請向群組管理員索取新連結。";
 "groups.sheet.fullTitle" = "群組已滿";
 "groups.sheet.fullBody" = "此群組已達成員人數上限。請稍後再試。";
+"groups.sheet.alreadyTitle" = "你已在此群組中";
+"groups.sheet.alreadyBody" = "你可以從對話列表開啟聊天。";
+"groups.sheet.openChat" = "開啟聊天";
 "groups.sheet.close" = "關閉";
 "groups.sheet.cancelling" = "取消中…";

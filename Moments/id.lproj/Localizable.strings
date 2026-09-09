@@ -4571,5 +4571,8 @@
 "groups.sheet.unavailableBody" = "Tautan ini tidak lagi aktif. Minta tautan baru dari admin grup.";
 "groups.sheet.fullTitle" = "Grup penuh";
 "groups.sheet.fullBody" = "Grup ini telah mencapai batas anggota. Coba lagi nanti.";
+"groups.sheet.alreadyTitle" = "Kamu sudah di grup ini";
+"groups.sheet.alreadyBody" = "Kamu bisa membuka chat dari percakapanmu.";
+"groups.sheet.openChat" = "Buka chat";
 "groups.sheet.close" = "Tutup";
 "groups.sheet.cancelling" = "Membatalkan…";

@@ -4816,5 +4816,8 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "groups.sheet.unavailableBody" = "Questo link non è più attivo. Chiedine uno nuovo a un admin del gruppo.";
 "groups.sheet.fullTitle" = "Il gruppo è al completo";
 "groups.sheet.fullBody" = "Questo gruppo ha raggiunto il limite di membri. Riprova più tardi.";
+"groups.sheet.alreadyTitle" = "Sei già in questo gruppo";
+"groups.sheet.alreadyBody" = "Puoi aprire la chat dalle tue conversazioni.";
+"groups.sheet.openChat" = "Apri chat";
 "groups.sheet.close" = "Chiudi";
 "groups.sheet.cancelling" = "Annullamento…";

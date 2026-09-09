@@ -572,9 +572,7 @@ struct MessagingView: View {
 
     private var messagingToolbarGroupRequestsButton: some View {
         Button(action: { groupRequestsStartSent = false; showingGroupRequests = true }) {
-            Image(systemName: "person.2")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(adaptiveColors.primary)
+            AttachmentIconView(icon: .groups, preset: .settingsRow, tintColor: adaptiveColors.primary)
                 .overlay(alignment: .topTrailing) {
                     if groupRequests.count > 0 {
                         Text("\(groupRequests.count)")
@@ -592,18 +590,14 @@ struct MessagingView: View {
 
     private var messagingToolbarComposeButton: some View {
         Button(action: { isShowingNewConversation = true }) {
-            Image(systemName: "square.and.pencil")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(adaptiveColors.primary)
+            AttachmentIconView(icon: .compose, preset: .settingsRow, tintColor: adaptiveColors.primary)
         }
         .accessibilityLabel(NSLocalizedString("messaging.newConversation", comment: "New conversation"))
     }
 
     private var messagingToolbarRequestsClusterButton: some View {
         Button(action: { showingMessageRequests = true }) {
-            Image(systemName: "message")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(adaptiveColors.primary)
+            AttachmentIconView(icon: .messageRequests, preset: .settingsRow, tintColor: adaptiveColors.primary)
                 .overlay(alignment: .topTrailing) {
                     if pendingRequestCount > 0 {
                         Text("\(pendingRequestCount)")

@@ -4571,5 +4571,8 @@
 "groups.sheet.unavailableBody" = "このリンクは無効です。グループの管理者に新しいリンクを依頼してください。";
 "groups.sheet.fullTitle" = "グループは満員です";
 "groups.sheet.fullBody" = "このグループはメンバー数の上限に達しています。後でもう一度お試しください。";
+"groups.sheet.alreadyTitle" = "すでにこのグループに参加しています";
+"groups.sheet.alreadyBody" = "会話一覧からチャットを開けます。";
+"groups.sheet.openChat" = "チャットを開く";
 "groups.sheet.close" = "閉じる";
 "groups.sheet.cancelling" = "取り消し中…";

@@ -4571,5 +4571,8 @@
 "groups.sheet.unavailableBody" = "Bu bağlantı artık etkin değil. Bir grup yöneticisinden yeni bağlantı iste.";
 "groups.sheet.fullTitle" = "Grup dolu";
 "groups.sheet.fullBody" = "Bu grup üye sınırına ulaştı. Daha sonra tekrar dene.";
+"groups.sheet.alreadyTitle" = "Zaten bu gruptasın";
+"groups.sheet.alreadyBody" = "Sohbeti konuşmalarından açabilirsin.";
+"groups.sheet.openChat" = "Sohbete git";
 "groups.sheet.close" = "Kapat";
 "groups.sheet.cancelling" = "İptal ediliyor…";

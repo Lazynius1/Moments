@@ -16,6 +16,10 @@ enum AttachmentIcon: String {
     case hiddenLayer = "AttachmentHiddenLayerIcon"
     case buzz = "AttachmentBuzzIcon"
     case mutuals = "AudienceMutualsIcon"
+    case compose = "AttachmentComposeIcon"
+    case groups = "AttachmentGroupsIcon"
+    case waiting = "AttachmentWaitingIcon"
+    case messageRequests = "AttachmentMessageRequestsIcon"
 }
 
 /// Tamaños calibrados para iconos PNG custom vs SF Symbols equivalentes.

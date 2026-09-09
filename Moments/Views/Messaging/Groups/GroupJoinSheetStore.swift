@@ -4,9 +4,9 @@ import CryptoKit
 import FirebaseAuth
 import FirebaseFirestore
 
-/// The nine sheet presentations; membership itself opens the chat immediately.
+/// Sheet presentations for a group invite. Already-member stays on the sheet until the user opens the chat.
 enum GroupJoinSheetPhase: Equatable {
-    case loading, direct, approval, sending, sent, pending, error, unavailable, full
+    case loading, direct, approval, sending, sent, pending, alreadyMember, error, unavailable, full
 }
 
 @MainActor
@@ -103,7 +103,7 @@ final class GroupJoinSheetStore: ObservableObject {
         do {
             let result = try await GroupChatAPI.request("manageGroup", body: ["action": "cancelJoin", "conversationId": link.groupId])
             guard valid(version) else { return }
-            if result["isMember"] as? Bool == true { joined = true; return }
+            if result["isMember"] as? Bool == true { phase = .alreadyMember; return }
             busy = false
             await load(link)
         } catch { if valid(version) { present(error) } }
@@ -131,7 +131,7 @@ final class GroupJoinSheetStore: ObservableObject {
         requiresApproval = data["requiresApproval"] as? Bool == true
     }
     private func applyResolvedStatus(_ data: [String: Any]) -> Bool {
-        if data["isMember"] as? Bool == true { joined = true; return true }
+        if data["isMember"] as? Bool == true { phase = .alreadyMember; return true }
         if data["pending"] as? Bool == true {
             phase = .pending
             if let link { watchPending(link, version: generation) }

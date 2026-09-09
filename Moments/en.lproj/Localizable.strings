@@ -4803,5 +4803,8 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "groups.sheet.unavailableBody" = "This link is no longer active. Ask a group admin for a new one.";
 "groups.sheet.fullTitle" = "Group is full";
 "groups.sheet.fullBody" = "This group has reached its member limit. Try again later.";
+"groups.sheet.alreadyTitle" = "You're already in this group";
+"groups.sheet.alreadyBody" = "You can open the chat from your conversations.";
+"groups.sheet.openChat" = "Open chat";
 "groups.sheet.close" = "Close";
 "groups.sheet.cancelling" = "Cancelling…";

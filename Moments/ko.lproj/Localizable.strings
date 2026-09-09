@@ -4571,5 +4571,8 @@
 "groups.sheet.unavailableBody" = "이 링크는 더 이상 유효하지 않습니다. 그룹 관리자에게 새 링크를 요청하세요.";
 "groups.sheet.fullTitle" = "그룹 정원이 찼습니다";
 "groups.sheet.fullBody" = "그룹이 최대 인원에 도달했습니다. 나중에 다시 시도하세요.";
+"groups.sheet.alreadyTitle" = "이미 이 그룹에 있습니다";
+"groups.sheet.alreadyBody" = "대화 목록에서 채팅을 열 수 있습니다.";
+"groups.sheet.openChat" = "채팅 열기";
 "groups.sheet.close" = "닫기";
 "groups.sheet.cancelling" = "취소 중…";

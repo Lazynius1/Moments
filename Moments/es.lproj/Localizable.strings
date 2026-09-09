@@ -4824,5 +4824,8 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "groups.sheet.unavailableBody" = "Este enlace ya no está activo. Pide uno nuevo a un admin del grupo.";
 "groups.sheet.fullTitle" = "El grupo está completo";
 "groups.sheet.fullBody" = "Este grupo ha alcanzado el límite de miembros. Inténtalo más adelante.";
+"groups.sheet.alreadyTitle" = "Ya estás en este grupo";
+"groups.sheet.alreadyBody" = "Puedes abrir el chat desde tus conversaciones.";
+"groups.sheet.openChat" = "Ir al chat";
 "groups.sheet.close" = "Cerrar";
 "groups.sheet.cancelling" = "Cancelando…";

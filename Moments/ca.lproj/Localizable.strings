@@ -4836,5 +4836,8 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "groups.sheet.unavailableBody" = "Aquest enllaç ja no està actiu. Demana’n un de nou a un admin del grup.";
 "groups.sheet.fullTitle" = "El grup és ple";
 "groups.sheet.fullBody" = "Aquest grup ha arribat al límit de membres. Torna-ho a provar més endavant.";
+"groups.sheet.alreadyTitle" = "Ja ets en aquest grup";
+"groups.sheet.alreadyBody" = "Pots obrir el xat des de les teves converses.";
+"groups.sheet.openChat" = "Vés al xat";
 "groups.sheet.close" = "Tancar";
 "groups.sheet.cancelling" = "Cancel·lant…";
