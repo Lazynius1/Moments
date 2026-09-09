@@ -287,6 +287,7 @@ const onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerId}
         senderProfileImage: followerData.profileImagePath || '',
         reactionCount: String(followerCount),
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags),
@@ -303,7 +304,7 @@ const onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerId}
               'loc-key': bodyLocKey,
               'loc-args': bodyLocArgs
             },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
             sound: 'default',
             'mutable-content': 1,
             'thread-id': `new_followers_${userId}`
@@ -423,6 +424,7 @@ async function sendRequestAcceptedNotification({ requesterId, accepterId, reques
         senderUsername: accepterData.username,
         senderProfileImage: accepterData.profileImagePath || '',
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags)
@@ -439,7 +441,7 @@ async function sendRequestAcceptedNotification({ requesterId, accepterId, reques
               'loc-key': 'notification.requestAccepted.body',
               'loc-args': []
             },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
             sound: 'default',
             'mutable-content': 1,
             'thread-id': `request_accepted_${requesterId}`

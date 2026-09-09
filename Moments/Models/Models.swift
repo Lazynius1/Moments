@@ -2410,6 +2410,8 @@ struct Notification: Identifiable, Codable {
     let buzzEventId: String?
     let reminderVariant: String?
     let isReactionPlural: Bool?
+    let groupName: String?
+    let groupImage: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -2448,6 +2450,8 @@ struct Notification: Identifiable, Codable {
         case buzzEventId
         case reminderVariant
         case isReactionPlural
+        case groupName
+        case groupImage
     }
 
     init(id: String? = nil,
@@ -2482,7 +2486,9 @@ struct Notification: Identifiable, Codable {
          messageType: String? = nil,
          buzzEventId: String? = nil,
          reminderVariant: String? = nil,
-         isReactionPlural: Bool? = nil) {
+         isReactionPlural: Bool? = nil,
+         groupName: String? = nil,
+         groupImage: String? = nil) {
 
         self.id = id
         self.type = type
@@ -2517,10 +2523,14 @@ struct Notification: Identifiable, Codable {
         self.buzzEventId = buzzEventId
         self.reminderVariant = reminderVariant
         self.isReactionPlural = isReactionPlural
+        self.groupName = groupName
+        self.groupImage = groupImage
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.groupName = try container.decodeIfPresent(String.self, forKey: .groupName)
+        self.groupImage = try container.decodeIfPresent(String.self, forKey: .groupImage)
         self.id = try container.decodeIfPresent(String.self, forKey: .id)
         let typeString = try container.decode(String.self, forKey: .type)
         self.type = NotificationType(rawValue: typeString) ?? .newFollower
@@ -2591,6 +2601,8 @@ struct Notification: Identifiable, Codable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(groupName, forKey: .groupName)
+        try container.encodeIfPresent(groupImage, forKey: .groupImage)
         try container.encodeIfPresent(id, forKey: .id)
         try container.encode(type.rawValue, forKey: .type)
         try container.encode(senderId, forKey: .senderId)

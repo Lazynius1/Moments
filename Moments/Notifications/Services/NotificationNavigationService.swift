@@ -66,7 +66,7 @@ class NotificationNavigationService: ObservableObject {
             AppRouter.shared.navigate(to: .showMessages)
             return
         }
-        if type == "group_message", let groupId = userInfo["groupId"] as? String, !groupId.isEmpty {
+        if type == "group_message", let groupId = ChatNotificationThread.conversationId(from: userInfo) {
             Task { @MainActor in
                 AppRouter.shared.navigate(to: .conversation(id: groupId))
             }

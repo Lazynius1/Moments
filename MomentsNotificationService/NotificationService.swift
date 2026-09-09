@@ -9,6 +9,9 @@ class NotificationService: UNNotificationServiceExtension {
 
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
+    private var intentSenderImage: INImage?
+    private var intentGroupImage: INImage?
+    private let completionLock = NSLock()
     
     // ✅ 1. Inicializar Firebase lo antes posible (Constructor)
     override init() {
@@ -31,13 +34,40 @@ class NotificationService: UNNotificationServiceExtension {
 
         // ✅ Categoría de respuesta rápida lo antes posible: garantiza el campo de
         // texto inline (long-press) aunque la conversión a communication notification falle.
-        if let messageType = userInfo["type"] as? String,
-           messageType == "new_message" || messageType == "message" {
+        if ChatNotificationThread.isChatMessagePush(userInfo["type"] as? String) {
             bestAttemptContent.categoryIdentifier = ChatNotificationReply.categoryIdentifier
+            if let conversationId = ChatNotificationThread.conversationId(from: userInfo) {
+                bestAttemptContent.threadIdentifier = ChatNotificationThread.threadIdentifier(conversationId: conversationId)
+            }
+        }
+
+        if ChatNotificationThread.isChatMessagePush(userInfo["type"] as? String) {
+            bestAttemptContent.body = ChatNotificationThread.previewLabel(messageType: userInfo["messageType"] as? String)
+            if userInfo["isMention"] as? String == "1" || userInfo["isMention"] as? Bool == true {
+                bestAttemptContent.body = String(format: localizedString("groups.notification.mention"), userInfo["senderUsername"] as? String ?? "")
+            }
+        }
+        if ChatNotificationThread.isChatMessagePush(userInfo["type"] as? String),
+           let conversationId = ChatNotificationThread.conversationId(from: userInfo),
+           ChatNotificationThread.shouldRecycle(conversationId: conversationId, userInfo: userInfo) {
+            bestAttemptContent.body = localizedString("notification.chatSummary.single")
+            bestAttemptContent.attachments = []
+        }
+        if let groupName = ChatNotificationThread.resolvedGroupName(from: userInfo, contentTitle: bestAttemptContent.title) {
+            bestAttemptContent.title = groupName
+            bestAttemptContent.subtitle = userInfo["senderUsername"] as? String ?? ""
         }
 
         enqueueMessageIngestIfNeeded(userInfo: userInfo)
         let group = DispatchGroup()
+        if ChatNotificationThread.isChatMessagePush(userInfo["type"] as? String) {
+            group.enter()
+            loadIntentImages(userInfo: userInfo) { sender, image in
+                self.intentSenderImage = sender
+                self.intentGroupImage = image
+                group.leave()
+            }
+        }
         
         // 🔐 Vista previa E2E: resolver el texto real en el dispositivo (fast-path embebido
         // o fetch del mensaje + descifrado local). Entra en el group para que la
@@ -79,6 +109,13 @@ class NotificationService: UNNotificationServiceExtension {
                         group.leave()
                     }
                 }
+            } else if type == "group_message" {
+                if handledByServer, let conversationId = ChatNotificationThread.conversationId(from: userInfo),
+                   let messageId = userInfo["messageId"] as? String {
+                    markMessageAsDelivered(conversationId: conversationId, messageId: messageId) { group.leave() }
+                } else {
+                    handleNewMessage(userInfo: userInfo) { group.leave() }
+                }
             } else {
                 // Si ya gestionamos los conteos, no hace falta entrar en Firestore
                 if handledByServer {
@@ -93,28 +130,176 @@ class NotificationService: UNNotificationServiceExtension {
         
         // ✅ 3. Entregar notificación SOLO cuando TODO esté listo
         group.notify(queue: .main) {
-            let delivered = self.applyCommunicationNotificationContent(
-                userInfo: userInfo,
-                content: bestAttemptContent
-            )
-            contentHandler(delivered)
+            self.deliverChatNotification(userInfo: userInfo, content: bestAttemptContent)
         }
+    }
+
+    private func deliverChatNotification(
+        userInfo: [AnyHashable: Any],
+        content: UNMutableNotificationContent
+    ) {
+        guard contentHandler != nil else { return }
+        guard ChatNotificationThread.isChatMessagePush(userInfo["type"] as? String),
+              let conversationId = ChatNotificationThread.conversationId(from: userInfo) else {
+            complete(content)
+            return
+        }
+
+        let threadId = ChatNotificationThread.threadIdentifier(conversationId: conversationId)
+        content.threadIdentifier = threadId
+
+        let finish: () -> Void = { [weak self] in
+            guard let self, self.contentHandler != nil else { return }
+            self.donateCommunicationNotificationContent(
+                userInfo: userInfo,
+                content: content,
+                senderImage: self.intentSenderImage,
+                groupImage: self.intentGroupImage,
+                completion: { self.complete($0) }
+            )
+        }
+
+        if ChatNotificationThread.shouldRecycle(conversationId: conversationId, userInfo: userInfo) {
+            recycleDelivered(matching: threadId, conversationId: conversationId, content: content, finish: finish)
+        } else {
+            finish()
+        }
+    }
+
+    private func recycleDelivered(matching threadId: String, conversationId: String, content: UNMutableNotificationContent, finish: @escaping () -> Void) {
+        let legacyGroupThread = "group-\(conversationId)"
+        UNUserNotificationCenter.current().getDeliveredNotifications { delivered in
+            var messageCount = 1
+            let incomingId = content.userInfo["messageId"] as? String
+            let ids = delivered.compactMap { note -> String? in
+                let existing = note.request.content.threadIdentifier
+                if (existing == threadId || existing == legacyGroupThread),
+                   ChatNotificationThread.isChatMessagePush(note.request.content.userInfo["type"] as? String) {
+                    let previous = note.request.content.userInfo
+                    messageCount += max(1, previous["chatSummaryCount"] as? Int ?? 1)
+                    if let incomingId, previous["messageId"] as? String == incomingId { messageCount -= 1 }
+                    return note.request.identifier
+                }
+                return nil
+            }
+            if !ids.isEmpty {
+                UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+            }
+            DispatchQueue.main.async {
+                content.userInfo["chatSummaryCount"] = messageCount
+                content.body = messageCount > 1
+                    ? String(format: self.localizedString("notification.chatSummary.multiple"), String(messageCount))
+                    : self.localizedString("notification.chatSummary.single")
+                if content.userInfo["isMention"] as? String == "1" || content.userInfo["isMention"] as? Bool == true {
+                    content.body += "\n" + String(format: self.localizedString("groups.notification.mention"), content.userInfo["senderUsername"] as? String ?? "")
+                }
+                content.attachments = []
+                finish()
+            }
+        }
+    }
+
+    private func loadIntentImages(
+        userInfo: [AnyHashable: Any],
+        completion: @escaping (INImage?, INImage?) -> Void
+    ) {
+        let senderPath = (userInfo["senderProfileImage"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let groupPath = ChatNotificationThread.isGroupPush(userInfo)
+            ? (userInfo["groupImage"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            : nil
+        let group = DispatchGroup()
+        var senderImage: INImage?
+        var groupImage: INImage?
+        if let senderPath, !senderPath.isEmpty {
+            group.enter()
+            loadNotificationImageData(pathOrURL: senderPath) { data in
+                if let data { senderImage = INImage(imageData: data) }
+                group.leave()
+            }
+        }
+        if let groupPath, !groupPath.isEmpty {
+            group.enter()
+            loadNotificationImageData(pathOrURL: groupPath) { data in
+                if let data { groupImage = INImage(imageData: data) }
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) {
+            completion(senderImage, groupImage)
+        }
+    }
+
+    /// HTTP(S) o ruta de Storage — profileImagePath/groupImagePath a menudo no son URL.
+    private func loadNotificationImageData(pathOrURL: String, completion: @escaping (Data?) -> Void) {
+        let cleaned = pathOrURL.replacingOccurrences(of: ":443", with: "")
+        if cleaned.hasPrefix("http://") || cleaned.hasPrefix("https://"),
+           let url = URL(string: cleaned) {
+            downloadImageData(from: url, completion: completion)
+            return
+        }
+        downloadStorageObject(path: cleaned, maxSize: 2 * 1024 * 1024, completion: completion)
+    }
+
+    private func donateCommunicationNotificationContent(
+        userInfo: [AnyHashable: Any],
+        content: UNMutableNotificationContent,
+        senderImage: INImage?,
+        groupImage: INImage?,
+        completion: @escaping (UNNotificationContent) -> Void
+    ) {
+        guard ChatNotificationThread.isChatMessagePush(userInfo["type"] as? String) else { completion(content); return }
+        guard let conversationId = ChatNotificationThread.conversationId(from: userInfo),
+              let messageId = userInfo["messageId"] as? String,
+              let senderId = userInfo["senderId"] as? String else { completion(content); return }
+
+        let senderUsername = (userInfo["senderUsername"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            ?? content.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let preview = content.body.trimmingCharacters(in: .whitespacesAndNewlines)
+        let groupName = ChatNotificationThread.resolvedGroupName(
+            from: userInfo,
+            contentTitle: content.title,
+            senderUsername: senderUsername
+        )
+
+        ChatCommunicationIntentDonor.donateAndApplyCommunicationIntent(
+            to: content,
+            conversationId: conversationId,
+            messageId: messageId,
+            senderId: senderId,
+            senderUsername: senderUsername.isEmpty ? "Moments" : senderUsername,
+            senderImage: senderImage,
+            messagePreview: preview.isEmpty ? nil : preview,
+            groupName: groupName,
+            groupImage: groupImage,
+            recipientCount: Int(userInfo["recipientCount"] as? String ?? "") ?? 1,
+            otherRecipientId: (userInfo["otherRecipientId"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+            mentionsCurrentUser: userInfo["isMention"] as? String == "1" || userInfo["isMention"] as? Bool == true,
+            completion: completion
+        )
     }
 
     private func applyCommunicationNotificationContent(
         userInfo: [AnyHashable: Any],
-        content: UNMutableNotificationContent
+        content: UNMutableNotificationContent,
+        senderImage: INImage?,
+        groupImage: INImage?
     ) -> UNNotificationContent {
-        let type = userInfo["type"] as? String
-        guard type == "new_message" || type == "message" else { return content }
-        guard let conversationId = userInfo["conversationId"] as? String,
+        guard ChatNotificationThread.isChatMessagePush(userInfo["type"] as? String) else { return content }
+        guard let conversationId = ChatNotificationThread.conversationId(from: userInfo),
               let messageId = userInfo["messageId"] as? String,
               let senderId = userInfo["senderId"] as? String else { return content }
 
-        let senderUsername = (userInfo["senderUsername"] as? String)
+        let senderUsername = (userInfo["senderUsername"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
             ?? content.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let preview = content.body.trimmingCharacters(in: .whitespacesAndNewlines)
-        let avatarURL = (userInfo["senderProfileImage"] as? String).flatMap { URL(string: $0) }
+        let groupName = ChatNotificationThread.resolvedGroupName(
+            from: userInfo,
+            contentTitle: content.title,
+            senderUsername: senderUsername
+        )
 
         return ChatCommunicationIntentDonor.applyCommunicationIntent(
             to: content,
@@ -122,8 +307,13 @@ class NotificationService: UNNotificationServiceExtension {
             messageId: messageId,
             senderId: senderId,
             senderUsername: senderUsername.isEmpty ? "Moments" : senderUsername,
-            senderProfileImageURL: avatarURL,
-            messagePreview: preview.isEmpty ? nil : preview
+            senderImage: senderImage,
+            messagePreview: preview.isEmpty ? nil : preview,
+            groupName: groupName,
+            groupImage: groupImage,
+            recipientCount: Int(userInfo["recipientCount"] as? String ?? "") ?? 1,
+            otherRecipientId: (userInfo["otherRecipientId"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+            mentionsCurrentUser: userInfo["isMention"] as? String == "1" || userInfo["isMention"] as? Bool == true
         )
     }
     
@@ -131,8 +321,8 @@ class NotificationService: UNNotificationServiceExtension {
 
     private func enqueueMessageIngestIfNeeded(userInfo: [AnyHashable: Any]) {
         let type = (userInfo["type"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard type == "message" || type == "new_message" else { return }
-        guard let conversationId = userInfo["conversationId"] as? String,
+        guard ChatNotificationThread.isChatMessagePush(type) else { return }
+        guard let conversationId = ChatNotificationThread.conversationId(from: userInfo),
               let messageId = userInfo["messageId"] as? String else { return }
         MessageIngestQueue.enqueue(conversationId: conversationId, messageId: messageId)
     }
@@ -158,7 +348,7 @@ class NotificationService: UNNotificationServiceExtension {
 
         // Solo mensajes de texto: la media mantiene su descripción genérica localizada.
         guard let messageType = userInfo["messageType"] as? String, messageType == "text",
-              let conversationId = userInfo["conversationId"] as? String else {
+              let conversationId = ChatNotificationThread.conversationId(from: userInfo) else {
             completion()
             return
         }
@@ -188,9 +378,16 @@ class NotificationService: UNNotificationServiceExtension {
             return
         }
 
-        let messageRef = Firestore.firestore()
-            .collection("conversations").document(conversationId)
-            .collection("messages").document(messageId)
+        let messageRef: DocumentReference
+        if ChatNotificationThread.isGroupPush(userInfo) {
+            messageRef = Firestore.firestore()
+                .collection("groupConversations").document(conversationId)
+                .collection("groupMessages").document(messageId)
+        } else {
+            messageRef = Firestore.firestore()
+                .collection("conversations").document(conversationId)
+                .collection("messages").document(messageId)
+        }
 
         messageRef.getDocument { [weak self] snapshot, _ in
             defer { completion() }
@@ -205,7 +402,7 @@ class NotificationService: UNNotificationServiceExtension {
         }
     }
 
-    /// Fija el título (remitente) y el cuerpo (texto descifrado, truncado).
+    /// Fija el título (remitente o grupo) y el cuerpo (texto descifrado, truncado).
     private func applyPreviewText(
         _ text: String,
         userInfo: [AnyHashable: Any],
@@ -214,7 +411,18 @@ class NotificationService: UNNotificationServiceExtension {
         let trimmed = notificationPlainText(text).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        if let senderUsername = userInfo["senderUsername"] as? String, !senderUsername.isEmpty {
+        if ChatNotificationThread.isGroupPush(userInfo) {
+            if let groupName = ChatNotificationThread.resolvedGroupName(
+                from: userInfo,
+                contentTitle: content.title,
+                senderUsername: userInfo["senderUsername"] as? String
+            ) {
+                content.title = groupName
+            }
+            if let senderUsername = userInfo["senderUsername"] as? String, !senderUsername.isEmpty {
+                content.subtitle = senderUsername
+            }
+        } else if let senderUsername = userInfo["senderUsername"] as? String, !senderUsername.isEmpty {
             content.title = senderUsername
         }
 
@@ -362,12 +570,12 @@ class NotificationService: UNNotificationServiceExtension {
         completion: @escaping () -> Void
     ) {
         let notificationType = userInfo["type"] as? String
-        let isChatMessage = notificationType == "new_message" || notificationType == "message"
+        let isChatMessage = ChatNotificationThread.isChatMessagePush(notificationType)
         let messageType = userInfo["messageType"] as? String
 
         if isChatMessage, let messageType,
            !Self.viewOnceMessageTypes.contains(messageType),
-           let conversationId = userInfo["conversationId"] as? String {
+           let conversationId = ChatNotificationThread.conversationId(from: userInfo) {
 
             let previewEnabled = ChatPreviewPrivacy.shouldRevealPreview(
                 for: conversationId,
@@ -380,16 +588,13 @@ class NotificationService: UNNotificationServiceExtension {
                 if (messageType == "image" || messageType == "video"),
                    let messageId = userInfo["messageId"] as? String {
                     resolveEncryptedMediaAttachment(
+                        userInfo: userInfo,
                         conversationId: conversationId,
                         messageId: messageId,
                         allowFullMediaFallback: messageType == "image",
                         content: content
-                    ) { attached in
-                        if attached {
-                            completion()
-                        } else {
-                            completion()
-                        }
+                    ) { _ in
+                        completion()
                     }
                     return
                 }
@@ -408,6 +613,11 @@ class NotificationService: UNNotificationServiceExtension {
                 }
             }
 
+            completion()
+            return
+        }
+
+        if isChatMessage {
             completion()
             return
         }
@@ -455,16 +665,24 @@ class NotificationService: UNNotificationServiceExtension {
     /// Resuelve el media CIFRADO de un mensaje image/video. Intenta primero la miniatura
     /// (poster de vídeo) y, si no existe y se permite, el media completo (imágenes).
     private func resolveEncryptedMediaAttachment(
+        userInfo: [AnyHashable: Any],
         conversationId: String,
         messageId: String,
         allowFullMediaFallback: Bool,
         content: UNMutableNotificationContent,
         completion: @escaping (Bool) -> Void
     ) {
-        Firestore.firestore()
-            .collection("conversations").document(conversationId)
-            .collection("messages").document(messageId)
-            .getDocument { [weak self] snapshot, _ in
+        let messageRef: DocumentReference
+        if ChatNotificationThread.isGroupPush(userInfo) {
+            messageRef = Firestore.firestore()
+                .collection("groupConversations").document(conversationId)
+                .collection("groupMessages").document(messageId)
+        } else {
+            messageRef = Firestore.firestore()
+                .collection("conversations").document(conversationId)
+                .collection("messages").document(messageId)
+        }
+        messageRef.getDocument { [weak self] snapshot, _ in
                 guard let self, let data = snapshot?.data() else {
                     completion(false)
                     return
@@ -582,6 +800,7 @@ class NotificationService: UNNotificationServiceExtension {
         completion: @escaping (Data?) -> Void
     ) {
             var request = URLRequest(url: url)
+            request.timeoutInterval = 8
             if let token {
                 request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             }
@@ -622,12 +841,6 @@ class NotificationService: UNNotificationServiceExtension {
         
         guard let messages = parseCount("unreadMessages"),
               let notifications = parseCount("unreadNotifications") else {
-            // Marcador de error solo en builds de depuración; nunca visible en producción.
-            #if DEBUG
-            if let content = bestAttemptContent {
-                content.title = "⚠️ " + content.title
-            }
-            #endif
             return false
         }
         
@@ -636,7 +849,7 @@ class NotificationService: UNNotificationServiceExtension {
         
         if let defaults = UserDefaults(suiteName: "group.com.glowsyapp") {
             // Guardar con persistencia forzada para App Groups
-            defaults.set(messages, forKey: "widget_unread_messages")
+            defaults.set(messages + (parseCount("unreadGroupMessages") ?? 0), forKey: "widget_unread_messages")
             defaults.set(notifications, forKey: "widget_unread_notifications")
             defaults.set(echoes, forKey: "widget_unread_echoes")
             defaults.set(tags, forKey: "widget_unread_tags")
@@ -651,7 +864,7 @@ class NotificationService: UNNotificationServiceExtension {
             // Marcador de éxito en el título y CUERPO para ver los datos recibidos
             if let content = bestAttemptContent {
                 // Forzar el badge de la notificación al total correcto
-                content.badge = (messages + notifications) as NSNumber
+                content.badge = (messages + (parseCount("unreadGroupMessages") ?? 0) + notifications) as NSNumber
             }
             
             return true
@@ -670,7 +883,7 @@ class NotificationService: UNNotificationServiceExtension {
             internalGroup.leave() 
         }
         
-        if let conversationId = userInfo["conversationId"] as? String,
+        if let conversationId = ChatNotificationThread.conversationId(from: userInfo),
            let messageId = userInfo["messageId"] as? String {
             internalGroup.enter()
             markMessageAsDelivered(conversationId: conversationId, messageId: messageId) {
@@ -698,26 +911,32 @@ class NotificationService: UNNotificationServiceExtension {
             return 
         }
         
-        Firestore.firestore().collection("conversations")
-            .whereField("participants", arrayContains: userId)
-            .getDocuments { snapshot, error in
-                defer { completion() } // ✅ Siempre llamar completion
-                guard let documents = snapshot?.documents else { return }
-                
-                var unreadCount = 0
-                for doc in documents {
-                    let data = doc.data()
-                    let readStatus = data["readStatus"] as? [String: Bool] ?? [:]
-                    if let isRead = readStatus[userId], !isRead {
-                        unreadCount += 1
+        let group = DispatchGroup()
+        var count = 0
+        var failed = false
+        for collection in ["conversations", "groupConversations"] {
+            group.enter()
+            Firestore.firestore().collection(collection)
+                .whereField("participants", arrayContains: userId)
+                .getDocuments { snapshot, _ in
+                    DispatchQueue.main.async {
+                        if let documents = snapshot?.documents {
+                            count += documents.filter {
+                                ($0.data()["readStatus"] as? [String: Bool])?[userId] == false
+                            }.count
+                        } else { failed = true }
+                        group.leave()
                     }
                 }
-                
-                if let defaults = UserDefaults(suiteName: "group.com.glowsyapp") {
-                    defaults.set(unreadCount, forKey: "widget_unread_messages")
-                    WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
-                }
+        }
+        group.notify(queue: .main) {
+            if !failed, let defaults = UserDefaults(suiteName: "group.com.glowsyapp") {
+                defaults.set(count, forKey: "widget_unread_messages")
+                self.bestAttemptContent?.badge = NSNumber(value: count + defaults.integer(forKey: "widget_unread_notifications"))
+                WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
             }
+            completion()
+        }
     }
     
     private func markMessageAsDelivered(conversationId: String, messageId: String, completion: @escaping () -> Void) {
@@ -727,21 +946,24 @@ class NotificationService: UNNotificationServiceExtension {
         }
         
         let db = Firestore.firestore()
-        let messageRef = db.collection("conversations").document(conversationId).collection("messages").document(messageId)
+        let isGroup = ChatNotificationThread.isGroupConversationId(conversationId)
+        let messageRef = db.collection(isGroup ? "groupConversations" : "conversations").document(conversationId)
+            .collection(isGroup ? "groupMessages" : "messages").document(messageId)
         
         messageRef.getDocument { snapshot, _ in
-            if let data = snapshot?.data(),
-               let senderId = data["senderId"] as? String,
-               senderId != userId,
-               let status = data["status"] as? String,
-               status == "sent" {
-                
-                messageRef.updateData(["status": "delivered"]) { _ in
-                    completion()
-                }
-            } else {
+            guard let data = snapshot?.data(), let senderId = data["senderId"] as? String, senderId != userId else {
                 completion()
+                return
             }
+            if isGroup {
+                guard !(data["deliveredTo"] as? [String] ?? []).contains(userId) else { completion(); return }
+                messageRef.updateData([
+                    "deliveredTo": FieldValue.arrayUnion([userId]),
+                    "deliveredAtBy.\(userId)": FieldValue.serverTimestamp()
+                ]) { _ in completion() }
+            } else if data["status"] as? String == "sent" {
+                messageRef.updateData(["status": "delivered"]) { _ in completion() }
+            } else { completion() }
         }
     }
     
@@ -770,12 +992,33 @@ class NotificationService: UNNotificationServiceExtension {
             }
     }
     
+    private func complete(_ content: UNNotificationContent) {
+        completionLock.lock()
+        let handler = contentHandler
+        contentHandler = nil
+        completionLock.unlock()
+        handler?(content)
+    }
+
     override func serviceExtensionTimeWillExpire() {
         // Called just before the extension will be terminated by the system.
         // Use this as an opportunity to deliver your "best attempt" at modified content, otherwise the original push payload will be used.
-        if let contentHandler = contentHandler, let bestAttemptContent =  bestAttemptContent {
-            contentHandler(bestAttemptContent)
+        if contentHandler != nil, let bestAttemptContent = bestAttemptContent {
+            complete(applyCommunicationNotificationContent(
+                userInfo: bestAttemptContent.userInfo, content: bestAttemptContent, senderImage: intentSenderImage, groupImage: intentGroupImage
+            ))
         }
+    }
+
+    private func downloadImageData(from url: URL, completion: @escaping (Data?) -> Void) {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        URLSession.shared.dataTask(with: request) { data, response, _ in
+            guard let response = response as? HTTPURLResponse,
+                  (200..<300).contains(response.statusCode),
+                  let data, data.count <= 2 * 1024 * 1024 else { completion(nil); return }
+            completion(data)
+        }.resume()
     }
     
     // Helper para descargar imagen (avatar / preview estático → JPG).

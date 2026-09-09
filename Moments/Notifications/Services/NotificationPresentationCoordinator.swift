@@ -18,6 +18,11 @@ final class NotificationPresentationCoordinator {
 
     private init() {}
 
+    func applyPushSideEffects(from userInfo: [AnyHashable: Any]) {
+        guard let notification = mapPushPayload(userInfo) else { return }
+        applySideEffects(for: notification, userInfo: userInfo)
+    }
+
     func present(from userInfo: [AnyHashable: Any], source: NotificationPresentationSource) {
         guard let notification = mapPushPayload(userInfo) else { return }
         present(notification, source: source, userInfo: userInfo)
@@ -80,7 +85,7 @@ final class NotificationPresentationCoordinator {
         let bucket = Int(notification.timestamp.timeIntervalSince1970 / dedupWindow)
         switch notification.type {
         case .message:
-            return "message|\(notification.conversationId ?? "")|\(notification.senderId)|\(bucket)"
+            return "message|\(notification.conversationId ?? "")|\(notification.messageId ?? "\(notification.senderId)|\(bucket)")"
         case .messageReaction:
             return "messageReaction|\(notification.conversationId ?? "")|\(notification.messageId ?? "")|\(notification.senderId)|\(bucket)"
         case .chatBuzz:
@@ -169,7 +174,7 @@ final class NotificationPresentationCoordinator {
         let senderId = firstString(in: userInfo, keys: ["senderId", "userId", "followerId"])
             ?? (notificationType == .gentleReminder ? "gentle_reminder" : "")
         let senderUsername = firstString(in: userInfo, keys: ["senderUsername", "username"]) ?? "Moments"
-        let conversationId = firstString(in: userInfo, keys: ["conversationId", "targetId"])
+        let conversationId = firstString(in: userInfo, keys: ["conversationId", "groupId", "targetId"])
         let messageId = firstString(in: userInfo, keys: ["messageId", "targetMessageId"])
         let messageType = firstString(in: userInfo, keys: ["messageType"])
         let buzzEventId = firstString(in: userInfo, keys: ["buzzEventId"])
@@ -222,13 +227,15 @@ final class NotificationPresentationCoordinator {
             messageType: messageType,
             buzzEventId: buzzEventId,
             reminderVariant: reminderVariant,
-            isReactionPlural: isReactionPlural
+            isReactionPlural: isReactionPlural,
+            groupName: ChatNotificationThread.resolvedGroupName(from: userInfo),
+            groupImage: firstString(in: userInfo, keys: ["groupImage", "groupImagePath"])
         )
     }
 
     private func mapPushType(_ rawType: String) -> NotificationType? {
         switch rawType {
-        case "new_message": return .message
+        case "new_message", "group_message": return .message
         case "message_reaction": return .messageReaction
         case "chat_buzz": return .chatBuzz
         case "gentle_reminder": return .gentleReminder

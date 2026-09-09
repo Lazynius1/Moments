@@ -35,12 +35,16 @@ struct InAppMessageQuickReplyPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
-                AsyncProfileImageView(userId: notification.senderId)
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
+                if ChatNotificationThread.isGroupConversationId(notification.conversationId ?? "") {
+                    GroupChatAvatar(name: notification.groupName ?? "", image: notification.groupImage ?? "", size: 40)
+                } else {
+                    AsyncProfileImageView(userId: notification.senderId)
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(notification.senderUsername)
+                    Text(NotificationCopyResolver.resolve(notification).title)
                         .font(.system(size: legacyPoppinsSize(15), weight: .bold))
                         .foregroundStyle(.primary)
                     Text(NSLocalizedString("notification.action.reply", comment: "Reply"))

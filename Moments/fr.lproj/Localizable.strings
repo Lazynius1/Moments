@@ -4770,3 +4770,8 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "groups.sheet.openChat" = "Ouvrir le chat";
 "groups.sheet.close" = "Fermer";
 "groups.sheet.cancelling" = "Annulation…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "Nouveau message";
+"notification.chatSummary.multiple" = "%@ nouveaux messages";
+"notification.group.untitled" = "Groupe";

@@ -162,16 +162,33 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let userInfo = notification.request.content.userInfo
 
-        if let type = userInfo["type"] as? String, type == "group_message" || type == "group_invitation" {
+        if let type = userInfo["type"] as? String, type == "group_invitation" {
             Task { @MainActor in
-                let isOpen = type == "group_message" && (userInfo["groupId"] as? String) == ChatSessionEngine.shared.activeConversationId
-                completionHandler(isOpen ? [] : [.banner, .sound])
+                completionHandler([.banner, .list, .sound])
             }
             return
         }
 
         if userInfo["type"] as? String == "message_request_v2" {
-            completionHandler([.banner, .sound])
+            completionHandler([.banner, .list, .sound])
+            return
+        }
+
+        let chatTypes: Set<String> = ["message", "new_message", "group_message", "message_reaction", "chat_buzz"]
+        if let type = userInfo["type"] as? String, chatTypes.contains(type) {
+            Task { @MainActor in
+                NotificationPresentationCoordinator.shared.applyPushSideEffects(from: userInfo)
+                let conversationId = ChatNotificationThread.conversationId(from: userInfo)
+                let isOpen = conversationId == ChatSessionEngine.shared.activeConversationId
+                if isOpen || NotificationPresentationCoordinator.isSilentPush(userInfo) {
+                    completionHandler(isOpen ? [] : [.badge])
+                } else {
+                    completionHandler([.banner, .list, .sound, .badge])
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NotificationBadgeService.shared.setupListeners()
+            }
             return
         }
 
@@ -182,7 +199,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         if NotificationPresentationCoordinator.isSilentPush(userInfo) {
             completionHandler([.badge])
         } else {
-            completionHandler([.sound, .badge])
+            completionHandler([.banner, .list, .sound, .badge])
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -229,7 +246,8 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard
             !trimmed.isEmpty,
-            let conversationId = userInfo["conversationId"] as? String,
+            let conversationId = (userInfo["conversationId"] as? String)
+                ?? (userInfo["groupId"] as? String),
             let senderId = Auth.auth().currentUser?.uid
         else {
             completion()
@@ -256,7 +274,8 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
             conversationId: conversationId,
             senderId: senderId,
             content: trimmed
-        ) { _ in
+        ) { result in
+            if case .success = result { ChatNotificationThread.clearDelivered(conversationId: conversationId) }
             NotificationBadgeService.shared.setupListeners()
             finish()
         }

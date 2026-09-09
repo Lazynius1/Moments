@@ -73,9 +73,9 @@ final class MessageIngestService {
         guard LocalFirstMessagingSettings.isEnabled else { return false }
 
         let type = (userInfo["type"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard type == "message" || type == "new_message" else { return false }
+        guard ChatNotificationThread.isChatMessagePush(type) else { return false }
 
-        guard let conversationId = userInfo["conversationId"] as? String,
+        guard let conversationId = ChatNotificationThread.conversationId(from: userInfo),
               let messageId = userInfo["messageId"] as? String else {
             return false
         }
@@ -132,7 +132,7 @@ final class MessageIngestService {
             )
         }
 
-        // Precarga proactiva de media según la política de auto-descarga.
+        // Precarga el contenido para que esté listo al abrir la conversación.
         ChatMediaPrefetcher.shared.prefetchIfNeeded(sorted)
 
         NotificationCenter.default.post(
@@ -218,16 +218,6 @@ final class MessageIngestService {
         }
 
         rememberIngestedKey(key)
-
-        ChatCommunicationNotificationService.donateFromPush(
-            userInfo: [
-                "type": "new_message",
-                "conversationId": conversationId,
-                "messageId": messageId,
-                "senderId": message.senderId
-            ],
-            previewBody: message.content
-        )
 
         NotificationCenter.default.post(
             name: .messagesIngested,

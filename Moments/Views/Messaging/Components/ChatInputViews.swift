@@ -431,6 +431,10 @@ struct GlassmorphicInputBar: View {
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: usesUnifiedComposerSurface), value: usesUnifiedComposerSurface)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: voiceGestureState.playDeleteAnimation), value: voiceGestureState.playDeleteAnimation)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: voiceGestureState.isTrashMorphingToPlus), value: voiceGestureState.isTrashMorphingToPlus)
+        // El teclado ya desplaza el panel: el morph de cápsula no debe ir con spring aparte.
+        .transaction(value: isKeyboardVisible) { transaction in
+            transaction.animation = nil
+        }
     }
 
     private func composerSurface(
@@ -460,7 +464,8 @@ struct GlassmorphicInputBar: View {
         .frame(maxWidth: .infinity)
         .momentsChromeGlass(
             in: inputFieldShape,
-            interactive: !isVanishModeActive && replyingTo == nil && editingMessage == nil,
+            // Sin interactive: el glass se come el primer toque y el UITextView no enfoca.
+            interactive: false,
             isEnabled: usesStandaloneGlass,
             style: .native
         )

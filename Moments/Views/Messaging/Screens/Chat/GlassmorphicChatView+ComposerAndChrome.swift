@@ -1115,6 +1115,15 @@ extension GlassmorphicChatView {
             return
         }
 
+        // Bajar teclado antes de desmontar: evita pelear insets a mitad de pop.
+        isTextFieldFocused = false
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
+
         // Al salir del hilo marcamos leído; no al llegar al fondo.
         markConversationReadOnExit(sealsVanish: false)
         initialScrollTask?.cancel()

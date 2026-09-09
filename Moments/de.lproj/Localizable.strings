@@ -4770,3 +4770,8 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "groups.sheet.openChat" = "Zum Chat";
 "groups.sheet.close" = "Schließen";
 "groups.sheet.cancelling" = "Wird zurückgezogen…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "Neue Nachricht";
+"notification.chatSummary.multiple" = "%@ neue Nachrichten";
+"notification.group.untitled" = "Gruppe";

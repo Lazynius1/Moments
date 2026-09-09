@@ -756,12 +756,9 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     func hydrateMediaIfNeeded(for message: EnhancedMessage) {
-        if message.isMediaAwaitingManualDownload {
-            hydrateThumbnailPreviewIfNeeded(for: message)
-            return
-        }
 
-        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
+
+        guard NetworkMonitor.shared.isConnected else { return }
 
         // Para vídeos resolvemos solo la miniatura (barato). El vídeo completo se
         // descarga al abrirlo, evitando bajar megas solo para mostrar la portada.
@@ -780,7 +777,7 @@ class EnhancedChatViewModel: ObservableObject {
         guard !hydratingMediaIds.contains(message.id) else { return }
         hydratingMediaIds.insert(message.id)
         setDownloadProgress(0.03, for: message.id)
-        prepareMediaForViewing(message, forceDownload: false) { [weak self] _ in
+        prepareMediaForViewing(message) { [weak self] _ in
             self?.hydratingMediaIds.remove(message.id)
             self?.clearDownloadProgress(for: message.id)
         }
@@ -789,7 +786,7 @@ class EnhancedChatViewModel: ObservableObject {
     func hydrateVideoThumbnailIfNeeded(for message: EnhancedMessage) {
         guard message.type == .video else { return }
         guard message.needsVideoThumbnailForDisplay else { return }
-        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
+        guard NetworkMonitor.shared.isConnected else { return }
 
         // Caso 1: hay miniatura cifrada en Storage. Resolverla sola es barato.
         if message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil {
@@ -798,7 +795,7 @@ class EnhancedChatViewModel: ObservableObject {
             hydratingMediaIds.insert(thumbnailKey)
             Task { [weak self] in
                 guard let self else { return }
-                let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message, forceDownload: false)
+                let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message)
                 await MainActor.run {
                     self.hydratingMediaIds.remove(thumbnailKey)
                     guard let resolvedThumb,
@@ -825,7 +822,7 @@ class EnhancedChatViewModel: ObservableObject {
             guard !hydratingMediaIds.contains(message.id) else { return }
             hydratingMediaIds.insert(message.id)
             setDownloadProgress(0.03, for: message.id)
-            prepareMediaForViewing(message, forceDownload: false) { [weak self] updated in
+            prepareMediaForViewing(message) { [weak self] updated in
                 self?.hydratingMediaIds.remove(message.id)
                 self?.clearDownloadProgress(for: message.id)
                 self?.generateVideoPosterIfPossible(for: updated)
@@ -851,7 +848,7 @@ class EnhancedChatViewModel: ObservableObject {
 
         Task { [weak self] in
             guard let self else { return }
-            let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message, forceDownload: false)
+            let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message)
             await MainActor.run {
                 self.hydratingMediaIds.remove(previewKey)
                 guard let resolvedThumb,
@@ -921,10 +918,10 @@ class EnhancedChatViewModel: ObservableObject {
                 didUpdate = true
             }
             if messages[index].type == .video {
-                if ChatMediaDownloadPolicy.shouldDownloadAutomatically() {
+                if NetworkMonitor.shared.isConnected {
                     hydrateVideoThumbnailIfNeeded(for: messages[index])
                 }
-            } else if ChatMediaDownloadPolicy.shouldDownloadAutomatically() {
+            } else if NetworkMonitor.shared.isConnected {
                 hydrateMediaIfNeeded(for: messages[index])
             }
         }
@@ -1016,7 +1013,7 @@ class EnhancedChatViewModel: ObservableObject {
 
     /// Hidrata media cifrada o pendiente de resolver (imagen, video, GIF/sticker legacy).
     func prefetchUnresolvedMediaIfNeeded() {
-        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
+        guard NetworkMonitor.shared.isConnected else { return }
         for message in messages where messageNeedsMediaHydration(message) {
             hydrateMediaIfNeeded(for: message)
         }
@@ -1028,7 +1025,7 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
-    /// Descarga manual (tap) o auto (policy) y abre el visor cuando la media ya está lista.
+    /// Recupera el contenido necesario y abre el visor cuando está listo.
     func openMediaForViewing(_ message: EnhancedMessage, completion: @escaping (EnhancedMessage) -> Void) {
         guard message.needsDownloadForPlayback else {
             completion(message)
@@ -1038,7 +1035,7 @@ class EnhancedChatViewModel: ObservableObject {
         guard !downloadingMediaIds.contains(message.id) else { return }
         downloadingMediaIds.insert(message.id)
         setDownloadProgress(0.03, for: message.id)
-        prepareMediaForViewing(message, forceDownload: true) { [weak self] updated in
+        prepareMediaForViewing(message) { [weak self] updated in
             self?.downloadingMediaIds.remove(message.id)
             self?.clearDownloadProgress(for: message.id)
             completion(updated)
@@ -1048,7 +1045,7 @@ class EnhancedChatViewModel: ObservableObject {
     /// Tras reinstalar o sin caché local: descarga el `.enc`, descifra y actualiza el mensaje en la lista.
     func prepareMediaForViewing(
         _ message: EnhancedMessage,
-        forceDownload: Bool = true,
+
         completion: @escaping (EnhancedMessage) -> Void
     ) {
         if message.hasLocalMediaReadyForViewer, !message.hasMissingLocalMedia {
@@ -1078,7 +1075,7 @@ class EnhancedChatViewModel: ObservableObject {
                 }
             }
 
-            guard let (mediaUrl, thumbnailUrl) = await chatService.resolveEncryptedMediaForMessage(message, forceDownload: forceDownload) else {
+            guard let (mediaUrl, thumbnailUrl) = await chatService.resolveEncryptedMediaForMessage(message) else {
                 await MainActor.run { completion(message) }
                 return
             }

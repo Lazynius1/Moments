@@ -1050,7 +1050,6 @@
 "chat.camera.mode.keepInChat" = "保留在聊天室";
 "chat.camera.saved" = "已儲存";
 "chat.preview.photo" = "照片";
-"chat.media.download" = "下載";
 "chat.preview.video" = "影片";
 "chat.preview.audio" = "音訊";
 "chat.preview.gif" = "GIF";
@@ -4541,3 +4540,8 @@
 "groups.sheet.openChat" = "開啟聊天";
 "groups.sheet.close" = "關閉";
 "groups.sheet.cancelling" = "取消中…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "新訊息";
+"notification.chatSummary.multiple" = "%@ 則新訊息";
+"notification.group.untitled" = "群組";

@@ -1050,7 +1050,6 @@
 "chat.camera.mode.keepInChat" = "Zachowaj na czacie";
 "chat.camera.saved" = "Zapisano";
 "chat.preview.photo" = "Zdjęcie";
-"chat.media.download" = "Pobierz";
 "chat.preview.video" = "Film";
 "chat.preview.audio" = "Dźwięk";
 "chat.preview.gif" = "GIF";
@@ -4541,3 +4540,8 @@
 "groups.sheet.openChat" = "Przejdź do czatu";
 "groups.sheet.close" = "Zamknij";
 "groups.sheet.cancelling" = "Anulowanie…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "Nowa wiadomość";
+"notification.chatSummary.multiple" = "Nowe wiadomości: %@";
+"notification.group.untitled" = "Grupa";

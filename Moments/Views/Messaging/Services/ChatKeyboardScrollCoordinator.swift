@@ -45,7 +45,7 @@ final class ChatKeyboardScrollCoordinator: NSObject, ObservableObject {
 
         let duration = userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval ?? 0.25
 
-        DispatchQueue.main.async { [weak self] in
+        let apply: () -> Void = { [weak self] in
             guard let self else { return }
             self.animationDuration = duration
             self.isTransitioning = true
@@ -61,6 +61,13 @@ final class ChatKeyboardScrollCoordinator: NSObject, ObservableObject {
 
             self.keyboardHeight = height
             self.isVisible = visible && height > 0
+        }
+
+        // En el mismo runloop que el teclado del sistema (sin async → un frame de desfase).
+        if Thread.isMainThread {
+            apply()
+        } else {
+            DispatchQueue.main.async(execute: apply)
         }
     }
 

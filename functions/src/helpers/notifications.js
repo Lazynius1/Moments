@@ -1111,15 +1111,19 @@ async function getPendingFollowRequestCount(userId) {
 // ✅ NUEVO: Función para obtener todos los conteos pendientes de un usuario
 async function getUnreadCounts(userId, triggerContext = {}) {
   try {
-    const [messagesSnap, notificationsSnap] = await Promise.all([
+    const [messagesSnap, notificationsSnap, groupsSnap] = await Promise.all([
       admin.firestore().collection('conversations')
         .where('participants', 'array-contains', userId)
         .get(),
       admin.firestore().collection(`users/${userId}/notifications`)
         .where('isPending', '==', true)
+        .get(),
+      admin.firestore().collection('groupConversations')
+        .where('participants', 'array-contains', userId)
         .get()
     ]);
 
+    const unreadGroupMessages = groupsSnap.docs.filter(doc => (doc.data().readStatus || {})[userId] === false).length;
     let unreadMessages = 0;
     let unreadInConversation = 0;
     let foundCurrentConversation = false;
@@ -1168,6 +1172,7 @@ async function getUnreadCounts(userId, triggerContext = {}) {
 
     return {
       unreadMessages,
+      unreadGroupMessages,
       unreadNotifications,
       unreadInConversation,
       unreadEchoes,
@@ -1177,6 +1182,7 @@ async function getUnreadCounts(userId, triggerContext = {}) {
     console.error('❌ Error obteniendo conteos:', error);
     return {
       unreadMessages: 0,
+      unreadGroupMessages: 0,
       unreadNotifications: 0,
       unreadInConversation: 0,
       unreadEchoes: 0,

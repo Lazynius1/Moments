@@ -1,6 +1,6 @@
 const crypto = require('node:crypto');
 const { onRequest, onCall, HttpsError, onDocumentCreated, admin } = require('../bootstrap');
-const { setProxyCors, parseJsonBody, verifyFirebaseAuth, isDoNotDisturbActive, shouldSilenceNotificationForUser, withAndroidShade, ANDROID_FCM_CHANNELS } = require('../helpers');
+const { setProxyCors, parseJsonBody, verifyFirebaseAuth, isDoNotDisturbActive, shouldSilenceNotificationForUser, getUnreadCounts, withAndroidShade, ANDROID_FCM_CHANNELS } = require('../helpers');
 const validId = id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id);
 const validBase64 = (value, byteCount) => {
   if (typeof value !== 'string' || value.length > 1024) return false;
@@ -463,28 +463,87 @@ const isGroupMuted = (group, uid) => {
 
 const onGroupMessageAdded = onDocumentCreated({ document: 'groupConversations/{groupId}/groupMessages/{messageId}', retry: false }, async event => {
   const message = event.data?.data();
-  if (!message || message.type === 'chatNotice') return;
+  if (!message || message.type === 'chatNotice' || message.isDeleted === true) return;
   const { groupId, messageId } = event.params;
   const db = admin.firestore();
   const group = (await db.doc(`groupConversations/${groupId}`).get()).data();
   if (!group || !group.participants.includes(message.senderId)) return;
   const mentioned = Array.isArray(message.mentionedUserIds) ? message.mentionedUserIds : [];
-  const recipients = group.participants.filter(id => id !== message.senderId && !isGroupMuted(group, id));
+  const originalRecipients = Array.isArray(message.recipientIds) ? message.recipientIds : group.participants;
+  const recipients = group.participants.filter(id => id !== message.senderId && originalRecipients.includes(id) && !isGroupMuted(group, id));
+  const senderUser = (await db.doc(`users/${message.senderId}`).get()).data() || {};
+  const senderImage = typeof senderUser.profileImagePath === 'string' ? senderUser.profileImagePath : '';
+  const senderName = message.senderName || senderUser.username || '';
+  const messageType = message.type || 'text';
+  const isVanish = message.isVanishModeMessage === true;
+  const groupImage = typeof group.groupImagePath === 'string' ? group.groupImagePath : '';
   await Promise.all(recipients.map(async uid => {
     const user = (await db.doc(`users/${uid}`).get()).data();
     if (!user || user.isActive === false || !user.fcmToken ||
         isDoNotDisturbActive(user)) return;
+    if (shouldSilenceNotificationForUser(user, { senderId: message.senderId, candidateTexts: [message.type] })) return;
+    const counts = await getUnreadCounts(uid);
     const isMention = mentioned.includes(uid);
-    const push = { token: user.fcmToken,
-      data: { type: 'group_message', groupId, messageId, senderId: message.senderId,
-        senderUsername: message.senderName, groupName: group.groupName, title: group.groupName },
-      apns: { headers: { 'apns-collapse-id': `group-${groupId}`.slice(0, 64) }, payload: { aps: {
-        alert: { title: group.groupName, 'loc-key': isMention ? 'groups.notification.mention' : 'groups.notification', 'loc-args': [message.senderName] },
-        sound: 'default', 'thread-id': `group-${groupId}`
-      } } }
+    const baseData = {
+      type: 'group_message',
+      groupId,
+      conversationId: groupId,
+      messageId,
+      senderId: message.senderId,
+      senderUsername: senderName,
+      senderProfileImage: senderImage,
+      groupName: group.groupName || '',
+      groupImage,
+      otherRecipientId: originalRecipients.find(id => id !== uid && id !== message.senderId) || '',
+      // iOS automatically includes the current recipient in an incoming intent.
+      recipientCount: String(originalRecipients.filter(id => id !== uid && id !== message.senderId).length),
+      unreadMessages: String(counts.unreadMessages),
+      unreadGroupMessages: String(counts.unreadGroupMessages),
+      unreadNotifications: String(counts.unreadNotifications),
+      unreadEchoes: String(counts.unreadEchoes),
+      unreadTags: String(counts.unreadTags),
+      title: group.groupName || '',
+      messageType,
+      mediaUrl: !isVanish && ['gif', 'sticker'].includes(messageType) && typeof message.mediaUrl === 'string' ? message.mediaUrl : '',
+      isVanishModeMessage: isVanish ? '1' : '0',
+      isMention: isMention ? '1' : '0',
     };
-    try { await admin.messaging().send(withAndroidShade(push, { collapseKey: `group-${groupId}`, threadId: `group-${groupId}`, channel: ANDROID_FCM_CHANNELS.messages })); }
-    catch (error) { console.error('Group notification failed', error.code || 'unknown'); }
+    const apnsPayload = {
+      aps: {
+        alert: {
+          title: group.groupName || senderName,
+          'loc-key': isMention ? 'groups.notification.mention' : 'groups.notification',
+          'loc-args': [senderName]
+        },
+        sound: 'default',
+        badge: counts.unreadMessages + counts.unreadGroupMessages + counts.unreadNotifications,
+        'mutable-content': 1,
+        category: 'MOMENTS_MESSAGE_REPLY',
+        'thread-id': `conversation_${groupId}`
+      }
+    };
+    const APNS_PAYLOAD_SAFE_LIMIT = 3500;
+    let encryptedContent = '';
+    if (!isVanish && messageType === 'text' && typeof message.content === 'string' && message.content.length > 0) {
+      const candidateData = { ...baseData, encryptedContent: message.content };
+      const estimatedBytes =
+        Buffer.byteLength(JSON.stringify(candidateData), 'utf8') +
+        Buffer.byteLength(JSON.stringify(apnsPayload), 'utf8');
+      if (estimatedBytes <= APNS_PAYLOAD_SAFE_LIMIT) encryptedContent = message.content;
+    }
+    const push = {
+      token: user.fcmToken,
+      data: { ...baseData, encryptedContent },
+      apns: { payload: apnsPayload }
+    };
+    try {
+      await admin.messaging().send(withAndroidShade(push, {
+        threadId: `conversation_${groupId}`,
+        channel: ANDROID_FCM_CHANNELS.messages
+      }));
+    } catch (error) {
+      console.error('Group notification failed', error.code || 'unknown');
+    }
   }));
 });
 const consumeGroupViewOnceMessage = onCall(async request => {

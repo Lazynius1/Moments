@@ -50,11 +50,11 @@ extension ChatService {
 
         /// Resuelve únicamente la miniatura cifrada (barato, no descarga el vídeo
         /// completo). Devuelve un file:// local descifrado para usar como portada.
-        func resolveThumbnailURL(for message: EnhancedMessage, forceDownload: Bool = false) async -> String? {
-            if let existing = message.thumbnailUrl, !existing.isEmpty {
+        func resolveThumbnailURL(for message: EnhancedMessage) async -> String? {
+            if let existing = message.thumbnailUrl, Self.cachedMediaFileExists(existing) {
                 return existing
             }
-            if let cached = resolvedThumbnailCache[message.id] {
+            if let cached = resolvedThumbnailCache[message.id], Self.cachedMediaFileExists(cached) {
                 return cached
             }
             guard let thumbObjectPath = message.thumbnailObjectPath,
@@ -67,8 +67,7 @@ extension ChatService {
                 objectPath: thumbObjectPath,
                 metadata: thumbEncryption,
                 conversationId: message.conversationId,
-                messageId: message.id,
-                forceDownload: forceDownload
+                messageId: message.id
             )
             if let resolved {
                 resolvedThumbnailCache[message.id] = resolved
@@ -76,7 +75,7 @@ extension ChatService {
             return resolved
         }
 
-        func resolveForMessage(_ message: EnhancedMessage, forceDownload: Bool = false) async -> (mediaUrl: String?, thumbnailUrl: String?)? {
+        func resolveForMessage(_ message: EnhancedMessage) async -> (mediaUrl: String?, thumbnailUrl: String?)? {
             guard let mediaObjectPath = message.mediaObjectPath,
                   !mediaObjectPath.isEmpty,
                   let mediaEncryption = message.mediaEncryption else {
@@ -89,8 +88,7 @@ extension ChatService {
                 mediaObjectPath: mediaObjectPath,
                 mediaEncryption: mediaEncryption,
                 thumbnailObjectPath: message.thumbnailObjectPath,
-                thumbnailEncryption: message.thumbnailEncryption,
-                forceDownload: forceDownload
+                thumbnailEncryption: message.thumbnailEncryption
             )
             return (resolved.mediaUrl, resolved.thumbnailUrl)
         }
@@ -101,30 +99,17 @@ extension ChatService {
             mediaObjectPath: String,
             mediaEncryption: EncryptedChatMediaMetadata,
             thumbnailObjectPath: String?,
-            thumbnailEncryption: EncryptedChatMediaMetadata?,
-            forceDownload: Bool = false
+            thumbnailEncryption: EncryptedChatMediaMetadata?
         ) async -> CachedResolvedMedia {
-            if let cached = outgoingPreviews[messageId] {
+            if let cached = outgoingPreviews[messageId], Self.cachedMediaFileExists(cached.mediaUrl) {
                 return cached
             }
             if let cached = resolvedMediaCache[messageId] {
-                if Self.cachedMediaFileExists(cached.mediaUrl) {
+                if Self.cachedMediaFileExists(cached.mediaUrl),
+                   thumbnailObjectPath == nil || Self.cachedMediaFileExists(cached.thumbnailUrl) {
                     return cached
                 }
                 resolvedMediaCache.removeValue(forKey: messageId)
-            }
-
-            let diskMain = ChatCacheStore.decryptedMediaURL(
-                conversationId: conversationId,
-                messageId: messageId,
-                purpose: mediaEncryption.purpose,
-                fileExtension: mediaEncryption.fileExtension
-            )
-            if FileManager.default.fileExists(atPath: diskMain.path) {
-                ChatCacheStore.touchAccessDate(at: diskMain)
-                let resolved = CachedResolvedMedia(mediaUrl: diskMain.absoluteString, thumbnailUrl: nil)
-                resolvedMediaCache[messageId] = resolved
-                return resolved
             }
 
             if activeUploadMessageIds.contains(messageId) {
@@ -137,8 +122,7 @@ extension ChatService {
                 mediaObjectPath: mediaObjectPath,
                 mediaEncryption: mediaEncryption,
                 thumbnailObjectPath: thumbnailObjectPath,
-                thumbnailEncryption: thumbnailEncryption,
-                forceDownload: forceDownload
+                thumbnailEncryption: thumbnailEncryption
             )
             if resolved.mediaUrl != nil || resolved.thumbnailUrl != nil {
                 resolvedMediaCache[messageId] = resolved
@@ -152,23 +136,20 @@ extension ChatService {
             mediaObjectPath: String,
             mediaEncryption: EncryptedChatMediaMetadata,
             thumbnailObjectPath: String?,
-            thumbnailEncryption: EncryptedChatMediaMetadata?,
-            forceDownload: Bool
+            thumbnailEncryption: EncryptedChatMediaMetadata?
         ) async -> CachedResolvedMedia {
             async let mainURL = resolveEncryptedMediaURL(
                 objectPath: mediaObjectPath,
                 metadata: mediaEncryption,
                 conversationId: conversationId,
-                messageId: messageId,
-                forceDownload: forceDownload
+                messageId: messageId
             )
 
             async let thumbURL = resolveEncryptedThumbnailURL(
                 objectPath: thumbnailObjectPath,
                 metadata: thumbnailEncryption,
                 conversationId: conversationId,
-                messageId: messageId,
-                forceDownload: forceDownload
+                messageId: messageId
             )
 
             return await CachedResolvedMedia(
@@ -181,16 +162,14 @@ extension ChatService {
             objectPath: String?,
             metadata: EncryptedChatMediaMetadata?,
             conversationId: String,
-            messageId: String,
-            forceDownload: Bool
+            messageId: String
         ) async -> String? {
             guard let objectPath, let metadata else { return nil }
             return await resolveEncryptedMediaURL(
                 objectPath: objectPath,
                 metadata: metadata,
                 conversationId: conversationId,
-                messageId: messageId,
-                forceDownload: forceDownload
+                messageId: messageId
             )
         }
 
@@ -198,8 +177,7 @@ extension ChatService {
             objectPath: String,
             metadata: EncryptedChatMediaMetadata,
             conversationId: String,
-            messageId: String,
-            forceDownload: Bool = false
+            messageId: String
         ) async -> String? {
             let cacheURL = ChatCacheStore.decryptedMediaURL(
                 conversationId: conversationId,
@@ -211,13 +189,6 @@ extension ChatService {
             if FileManager.default.fileExists(atPath: cacheURL.path) {
                 ChatCacheStore.touchAccessDate(at: cacheURL)
                 return cacheURL.absoluteString
-            }
-
-            guard metadata.purpose == .thumbnail
-                ? ChatMediaDownloadPolicy.shouldDownloadThumbnailPreview(force: forceDownload)
-                : ChatMediaDownloadPolicy.shouldDownloadAutomatically(force: forceDownload)
-            else {
-                return nil
             }
 
             do {

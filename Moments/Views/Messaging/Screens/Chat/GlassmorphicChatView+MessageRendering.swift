@@ -243,10 +243,6 @@ extension GlassmorphicChatView {
     }
 
     func mainChatStack() -> some View {
-        let composerBottomInset = ChatComposerChromeMetrics.panelBottomGap(
-            keyboardVisible: keyboardScrollCoordinator.isVisible
-        )
-
         return messagesListSection
             .environment(\.chatFailedMessageRetryAction, ChatFailedMessageRetryAction(
                 canRetry: { viewModel.canRetryMessage($0) },
@@ -263,7 +259,7 @@ extension GlassmorphicChatView {
             .chatBottomBarInset {
                 inputBarSection
                     .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
-                .padding(.bottom, composerBottomInset)
+                .padding(.bottom, ChatComposerChromeMetrics.panelInset)
                 .opacity(isSearchVisible ? 0 : 1)
                 .allowsHitTesting(!isSearchVisible)
                 .accessibilityHidden(isSearchVisible)

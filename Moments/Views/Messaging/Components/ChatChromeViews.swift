@@ -132,10 +132,8 @@ extension View {
 }
 
 enum ChatComposerChromeMetrics {
-    /// Separación del compositor respecto al home indicator (teclado cerrado).
-    static let panelHomeGap: CGFloat = 16
-    /// Separación con teclado abierto — el sistema ya eleva la vista; casi flush.
-    static let panelKeyboardGap: CGFloat = 2
+    /// Separación fija del compositor respecto al borde inferior (home o teclado).
+    static let panelInset: CGFloat = 8
     static let messageListGap: CGFloat = 11
     static let fadeExtendAbovePanel: CGFloat = 20
     static let fadeEdgeSize: CGFloat = 60
@@ -163,7 +161,8 @@ enum ChatComposerChromeMetrics {
     }
 
     static func panelBottomGap(keyboardVisible: Bool) -> CGFloat {
-        keyboardVisible ? panelKeyboardGap : panelHomeGap
+        _ = keyboardVisible
+        return panelInset
     }
 }
 

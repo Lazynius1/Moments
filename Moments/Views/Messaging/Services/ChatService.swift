@@ -213,6 +213,34 @@ class ChatService: ObservableObject {
         }
     }
 
+    /// Media compartido del hilo (fotos/vídeos) para Conversation Settings — no depende del prefetch.
+    func fetchSharedGalleryMedia(
+        conversationId: String,
+        limit: Int = 400,
+        completion: @escaping (Result<[EnhancedMessage], Error>) -> Void
+    ) {
+        Task { [weak self] in
+            guard let self else { return }
+            await preloadConversationKey(for: conversationId)
+            do {
+                let snapshot = try await db.messagingThread(conversationId)
+                    .messagingMessages
+                    .whereField("type", in: [MessageType.image.rawValue, MessageType.video.rawValue])
+                    .limit(to: limit)
+                    .getDocuments()
+                await handleMessagesSnapshot(
+                    snapshot: snapshot,
+                    error: nil,
+                    conversationId: conversationId,
+                    hydrateReactions: false,
+                    completion: completion
+                )
+            } catch {
+                await MainActor.run { completion(.failure(error)) }
+            }
+        }
+    }
+
     func fetchMessage(conversationId: String, messageId: String, completion: @escaping (Result<EnhancedMessage?, Error>) -> Void) {
         Task { [weak self] in
             guard let self else { return }

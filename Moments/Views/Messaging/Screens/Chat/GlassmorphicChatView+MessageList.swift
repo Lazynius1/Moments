@@ -220,12 +220,13 @@ extension GlassmorphicChatView {
             .onChange(of: pendingPinnedBottomSnap) { _, shouldSnap in
                 guard shouldSnap else { return }
                 pendingPinnedBottomSnap = false
-                scheduleListBottomSnap(reason: .composerResized)
+                scheduleListBottomSnap(reason: .composerResized, animated: false)
             }
             .onChange(of: keyboardScrollCoordinator.keyboardHeight) { oldHeight, newHeight in
                 guard hasCompletedInitialScroll, isPinnedToBottom, !isSearchVisible else { return }
-                guard newHeight > oldHeight, newHeight > 1 else { return }
-                scheduleListBottomSnap(reason: .keyboard)
+                // Subida y bajada: un solo settle al final de la transición.
+                guard abs(newHeight - oldHeight) > 1 else { return }
+                scheduleListBottomSnap(reason: .keyboard, animated: false)
             }
             .onChange(of: viewModel.buzzEvents.map(\.id)) { _, _ in
                 guard hasCompletedInitialScroll else { return }

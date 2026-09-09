@@ -327,6 +327,7 @@ const onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momentI
         mediaUrl: momentPreviewUrl || '',
         reactionCount: String(newReactionCount),
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags),
@@ -343,7 +344,7 @@ const onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momentI
               'loc-key': bodyLocKey,
               'loc-args': bodyLocArgs
             },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
             sound: 'default',
             'mutable-content': 1,
             'thread-id': `moment_reactions_${momentId}`,
@@ -579,6 +580,7 @@ async function handleModerationPush(userId, notificationId, notification, userDa
       moderationScope: moderationScope,
       moderatedMediaCount: String(moderatedMediaCount),
       unreadMessages: String(counts.unreadMessages),
+      unreadGroupMessages: String(counts.unreadGroupMessages),
       unreadNotifications: String(counts.unreadNotifications),
     },
     apns: {
@@ -592,7 +594,7 @@ async function handleModerationPush(userId, notificationId, notification, userDa
             'loc-key': bodyLocKey,
             'loc-args': bodyLocArgs
           },
-          badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+          badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
           sound: 'default',
           'mutable-content': 1,
           'thread-id': `moderation_${storyId || momentId || notificationId}`
@@ -745,6 +747,7 @@ async function handleMentionPush(userId, notificationId, notification, userData)
         senderUsername: senderData.username,
         senderProfileImage: senderData.profileImagePath || '',
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags),
@@ -759,7 +762,7 @@ async function handleMentionPush(userId, notificationId, notification, userData)
               'loc-key': 'notification.mention.body',
               'loc-args': []
             },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
             sound: 'default',
             'mutable-content': 1,
             'thread-id': `mentions_${userId}`
@@ -841,6 +844,7 @@ async function handleReplyPush(userId, notificationId, notification, userData) {
         senderProfileImage: senderData.profileImagePath || '',
         commentPreview: String(replyPreview || '').substring(0, 80),
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags),
@@ -857,7 +861,7 @@ async function handleReplyPush(userId, notificationId, notification, userData) {
               'title-loc-key': 'notification.reply.title',
               'title-loc-args': [senderData.username]
             },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
             sound: 'default',
             'mutable-content': 1,
             'thread-id': `moment_replies_${notification.momentId || userId}`
@@ -939,6 +943,7 @@ async function handlePhotoTagPush(userId, notificationId, notification, userData
         senderProfileImage: senderData.profileImagePath || '',
         momentTitle,
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags),
@@ -953,7 +958,7 @@ async function handlePhotoTagPush(userId, notificationId, notification, userData
               'loc-key': 'notification.photoTag.body',
               'loc-args': []
             },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
             sound: 'default',
             'mutable-content': 1,
             'thread-id': `photo_tags_${userId}`
@@ -1197,6 +1202,7 @@ const onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{momentId
         commentPreview: commentPreview,
         reactionCount: String(commentCount),
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags),
@@ -1217,7 +1223,7 @@ const onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{momentId
               'title-loc-args': titleLocArgs,
               body: `"${commentPreview}"`
             },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
             sound: 'default',
             'mutable-content': 1,
             'thread-id': `moment_comments_${momentId}`

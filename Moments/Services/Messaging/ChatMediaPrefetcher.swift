@@ -1,12 +1,12 @@
 import Foundation
+import Combine
 import FirebaseAuth
 
 /// Precarga proactiva de media de chat: cuando llegan
-/// mensajes con media, descarga y descifra el contenido en segundo plano —según la
-/// política de auto-descarga (si hay red) y la cuota— para que el caché refleje lo recibido y la
+/// mensajes con media, descarga y descifra el contenido en segundo plano para que la
 /// media esté lista antes de abrir la conversación.
 ///
-/// Reutiliza el resolver cifrado existente, que ya aplica `ChatMediaDownloadPolicy`
+/// Reutiliza el resolver cifrado existente, que ya aplica la caché automática
 /// y `ChatCacheStore.enforceQuota()`; aquí solo se decide *qué* precargar y se acota
 /// la concurrencia para no saturar red/CPU.
 @MainActor
@@ -18,15 +18,23 @@ final class ChatMediaPrefetcher {
     private var activeCount = 0
     private let maxConcurrent = 3
 
-    private init() {}
+    private var connectivitySubscription: AnyCancellable?
+
+    private init() {
+        connectivitySubscription = NetworkMonitor.shared.$isConnected
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] connected in
+                if connected { self?.pump() }
+            }
+    }
 
     /// Encola la media descargable de estos mensajes para precarga en background.
-    /// No-op si no hay red.
+    /// Conserva la cola sin conexión y la reanuda al recuperar la red.
     func prefetchIfNeeded(_ messages: [EnhancedMessage]) {
-        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        guard Auth.auth().currentUser != nil else { return }
 
-        for message in messages where shouldPrefetch(message, currentUserId: currentUserId) {
+        for message in messages where shouldPrefetch(message) {
             guard !inFlight.contains(message.id) else { continue }
             inFlight.insert(message.id)
             pending.append(message)
@@ -34,24 +42,28 @@ final class ChatMediaPrefetcher {
         pump()
     }
 
-    private func shouldPrefetch(_ message: EnhancedMessage, currentUserId: String) -> Bool {
+    private func shouldPrefetch(_ message: EnhancedMessage) -> Bool {
         guard !message.isDeleted else { return false }
-        // Los mensajes propios ya se cachean localmente al enviarse.
-        guard message.senderId != currentUserId else { return false }
         // View-once y efímeros se abren deliberadamente: no se precachean en silencio.
-        guard message.type == .image || message.type == .video else { return false }
+        guard message.isVanishModeMessage != true,
+              [.image, .video, .audio, .file].contains(message.type) else { return false }
         // Debe tener media cifrada descargable.
         guard let path = message.mediaObjectPath, !path.isEmpty, message.mediaEncryption != nil else { return false }
         return true
     }
 
     private func pump() {
+        guard NetworkMonitor.shared.isConnected else { return }
+        guard Auth.auth().currentUser != nil else {
+            pending.removeAll()
+            inFlight.removeAll()
+            return
+        }
         while activeCount < maxConcurrent, !pending.isEmpty {
             let message = pending.removeFirst()
             activeCount += 1
             Task { [weak self] in
                 // El resolver descarga, descifra, escribe a disco y aplica cuota.
-                // Devuelve nil sin efecto si la política bloquea ese fichero concreto.
                 _ = await ChatService.shared.encryptedMediaResolver.resolveForMessage(message)
                 self?.finish(message.id)
             }

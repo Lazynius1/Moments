@@ -119,9 +119,9 @@ enum InAppNotificationPreviewResolver {
     private static func fetchAndDecryptMessage(messageId: String, conversationId: String) async -> String? {
         do {
             let snapshot = try await Firestore.firestore()
-                .collection("conversations")
+                .collection(ChatNotificationThread.isGroupConversationId(conversationId) ? "groupConversations" : "conversations")
                 .document(conversationId)
-                .collection("messages")
+                .collection(ChatNotificationThread.isGroupConversationId(conversationId) ? "groupMessages" : "messages")
                 .document(messageId)
                 .getDocument()
 
@@ -202,6 +202,7 @@ enum InAppNotificationPreviewResolver {
     }
 }
 
+@MainActor
 private extension Notification {
     func withBannerPreview(reaction: String?, title: String?) -> Notification {
         Notification(
@@ -237,7 +238,9 @@ private extension Notification {
             messageType: messageType,
             buzzEventId: buzzEventId,
             reminderVariant: reminderVariant,
-            isReactionPlural: isReactionPlural
+            isReactionPlural: isReactionPlural,
+            groupName: groupName ?? GroupDirectory.shared.groups[conversationId ?? ""]?.name,
+            groupImage: groupImage ?? GroupDirectory.shared.groups[conversationId ?? ""]?.image
         )
     }
 }

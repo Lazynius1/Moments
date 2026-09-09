@@ -83,22 +83,26 @@ enum NotificationCopyResolver {
     private static func messageCopy(for notification: Notification) -> NotificationBannerCopy {
         let unreadCount = notification.reactionCount ?? 0
         let isPlural = unreadCount > 1
+        let isGroup = ChatNotificationThread.isGroupConversationId(notification.conversationId ?? "")
 
+        if isGroup {
+            let title = notification.groupName?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let groupTitle = title?.isEmpty == false ? title! : NSLocalizedString("notification.group.untitled", comment: "")
+            if let preview = sanitizedPreviewLine(for: notification.reaction, messageType: notification.messageType) {
+                return NotificationBannerCopy(title: groupTitle, body: "\(notification.senderUsername): \(preview)", preview: nil)
+            }
+            let body = isPlural
+                ? String(format: NSLocalizedString("notification.chatSummary.multiple", comment: ""), String(unreadCount))
+                : String(format: NSLocalizedString("groups.notification", comment: ""), notification.senderUsername)
+            return NotificationBannerCopy(title: groupTitle, body: body, preview: nil)
+        }
+        if let decrypted = sanitizedPreviewLine(for: notification.reaction, messageType: notification.messageType) {
+            return NotificationBannerCopy(title: notification.senderUsername, body: decrypted, preview: nil)
+        }
         if isPlural {
             return NotificationBannerCopy(
                 title: notification.senderUsername,
-                body: String(
-                    format: NSLocalizedString("notification.message.multiple", comment: ""),
-                    String(unreadCount)
-                ),
-                preview: nil
-            )
-        }
-
-        if let decrypted = sanitizedPreviewLine(for: notification.reaction, messageType: notification.messageType) {
-            return NotificationBannerCopy(
-                title: notification.senderUsername,
-                body: decrypted,
+                body: String(format: NSLocalizedString("notification.message.multiple", comment: ""), String(unreadCount)),
                 preview: nil
             )
         }

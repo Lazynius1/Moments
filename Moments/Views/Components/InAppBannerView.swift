@@ -157,6 +157,9 @@ struct InAppBannerView: View {
     }
 
     private func bannerTextLines(copy: NotificationBannerCopy, notification: Notification) -> BannerTextLines {
+        if ChatNotificationThread.isGroupConversationId(notification.conversationId ?? "") {
+            return BannerTextLines(headline: copy.title, detail: copy.body)
+        }
         let name = notification.senderUsername
 
         if isSystemTimeLimitBanner(notification) {
@@ -185,6 +188,8 @@ struct InAppBannerView: View {
     private func bannerAvatar(for notification: Notification, isSystem: Bool) -> some View {
         if isSystem {
             systemBannerAvatar(for: notification)
+        } else if ChatNotificationThread.isGroupConversationId(notification.conversationId ?? "") {
+            GroupChatAvatar(name: notification.groupName ?? "", image: notification.groupImage ?? "", size: 34)
         } else {
             AsyncProfileImageView(userId: notification.senderId)
                 .frame(width: 34, height: 34)

@@ -563,6 +563,7 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
         // cuando no hay preview descifrable (≡ loc-key plural en APNs).
         reactionCount: String(unreadInConvo),
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags)
@@ -575,7 +576,7 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
             'loc-key': bodyLocKey,
             'loc-args': bodyLocArgs
           },
-          badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+          badge: counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages,
           sound: 'default',
           'mutable-content': 1,
           // Categoría con campo de respuesta rápida (long-press). Debe coincidir con
@@ -603,7 +604,6 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
         data: { ...baseData, encryptedContent },
         apns: {
           headers: {
-            'apns-collapse-id': `msg_${conversationId}`,
             'sender-id': message.senderId,
             'chat-id': conversationId
           },
@@ -613,7 +613,6 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
 
       try {
         await admin.messaging().send(withAndroidShade(notificationMessage, {
-          collapseKey: `msg_${conversationId}`,
           threadId: `conversation_${conversationId}`,
           channel: ANDROID_FCM_CHANNELS.messages,
         }));
@@ -746,6 +745,7 @@ const onMessageReactionAdded = onDocumentCreated(
         reactionEmojis: emojiList,
         reactionCount: String(unreadReactedCount),
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags)
@@ -761,7 +761,7 @@ const onMessageReactionAdded = onDocumentCreated(
             'loc-key': bodyLocKey,
             'loc-args': bodyLocArgs
           },
-          badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+          badge: counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages,
           sound: 'default',
           'mutable-content': isTextReaction ? 1 : 0,
           'thread-id': `conversation_${conversationId}`
@@ -941,6 +941,7 @@ const onBuzzEventCreated = onDocumentCreated(
           senderUsername: senderData.username || '',
           senderProfileImage: senderData.profileImagePath || '',
           unreadMessages: String(counts.unreadMessages),
+          unreadGroupMessages: String(counts.unreadGroupMessages),
           unreadNotifications: String(counts.unreadNotifications),
           unreadEchoes: String(counts.unreadEchoes),
           unreadTags: String(counts.unreadTags)
@@ -953,7 +954,7 @@ const onBuzzEventCreated = onDocumentCreated(
               'loc-key': 'notification.chatBuzz.single',
               'loc-args': []
             },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            badge: counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages,
             sound: 'default',
             'mutable-content': 0,
             'thread-id': `conversation_${conversationId}`
@@ -1089,6 +1090,7 @@ const onStoryReactionAdded = onDocumentWritten('users/{userId}/stories/{storyId}
         mediaUrl: storyPreviewUrl || '',
         reactionCount: String(reactionCount),
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags),
@@ -1105,7 +1107,7 @@ const onStoryReactionAdded = onDocumentWritten('users/{userId}/stories/{storyId}
               'loc-key': bodyLocKey,
               'loc-args': bodyLocArgs
             },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
             sound: 'default',
             'mutable-content': 1,
             'thread-id': `story_reactions_${storyId}`
@@ -1225,6 +1227,7 @@ const onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFollow
         senderProfileImage: requesterData.profileImagePath || '',
         reactionCount: String(requestCount),
         unreadMessages: String(counts.unreadMessages),
+        unreadGroupMessages: String(counts.unreadGroupMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
         unreadTags: String(counts.unreadTags),
@@ -1241,7 +1244,7 @@ const onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFollow
               'loc-key': bodyLocKey,
               'loc-args': bodyLocArgs
             },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
             sound: 'default',
             'mutable-content': 1,
             'thread-id': `follow_requests_${userId}`

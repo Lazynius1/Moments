@@ -15,12 +15,14 @@ enum ChatPreviewPrivacy {
     }
 
     static func isVanishModeMessage(in userInfo: [AnyHashable: Any]) -> Bool {
-        if userInfo["isVanishModeMessage"] as? String == "1" { return true }
-        if userInfo["isVanishModeMessage"] as? Bool == true { return true }
+        if let flag = userInfo["isVanishModeMessage"] as? Bool { return flag }
+        if let flag = userInfo["isVanishModeMessage"] as? String {
+            return ["1", "true"].contains(flag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+        }
         return false
     }
 
     static func isVanishModeMessage(in data: [String: Any]) -> Bool {
-        data["isVanishModeMessage"] as? Bool == true
+        isVanishModeMessage(in: Dictionary(uniqueKeysWithValues: data.map { (AnyHashable($0.key), $0.value) }))
     }
 }

@@ -496,6 +496,7 @@ const onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{storyId
           mediaUrl: storyPreviewUrl || '',
           chainRole: isCreator ? 'creator' : 'participant',
           unreadMessages: String(counts.unreadMessages),
+          unreadGroupMessages: String(counts.unreadGroupMessages),
           unreadNotifications: String(counts.unreadNotifications),
           unreadEchoes: String(counts.unreadEchoes),
           unreadTags: String(counts.unreadTags),
@@ -512,7 +513,7 @@ const onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{storyId
                 'loc-key': bodyLocKey,
                 'loc-args': bodyLocArgs
               },
-              badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+              badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
               sound: 'default',
               'mutable-content': 1,
               'thread-id': `story_chain_${story.chainId}`,
@@ -653,6 +654,7 @@ const onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
           senderProfileImage: hostData.profileImagePath || '',
           isHost: isHost ? '1' : '0',
           unreadMessages: String(counts.unreadMessages),
+          unreadGroupMessages: String(counts.unreadGroupMessages),
           unreadNotifications: String(counts.unreadNotifications),
           unreadEchoes: String(counts.unreadEchoes),
           unreadTags: String(counts.unreadTags),
@@ -676,7 +678,7 @@ const onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
                   'loc-key': 'notification.echo.body',
                   'loc-args': [hostData.username]
                 },
-              badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+              badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages + counts.unreadGroupMessages),
               sound: 'default',
               'mutable-content': 1,
               'thread-id': `echo_suggestions_${recipientId}`

@@ -185,7 +185,8 @@ extension GlassmorphicChatView {
 
             let delayNs: UInt64 = switch reason {
             case .keyboard:
-                UInt64(keyboardScrollCoordinator.animationDuration * 1_000_000_000) + 16_000_000
+                // Esperar a que termine la curva del teclado.
+                UInt64(max(keyboardScrollCoordinator.animationDuration, 0.05) * 1_000_000_000) + 32_000_000
             case .composerResized:
                 50_000_000
             case .userRequested, .incomingWhilePinned:
@@ -197,8 +198,14 @@ extension GlassmorphicChatView {
             }
 
             guard !viewModel.chatRenderRows.isEmpty, isPinnedToBottom else { return }
-            let shouldAnimate = (animated ?? (reason == .keyboard || reason == .composerResized)) && !reduceMotion
-            chatListController.perform(.bottom(animated: shouldAnimate))
+            let shouldAnimate = (animated ?? false) && !reduceMotion
+            switch reason {
+            case .keyboard, .composerResized:
+                // Solo corregir offset; el delta de inset ya mantuvo el pin durante el cambio.
+                chatListController.pinContentOffsetToBottom(animated: shouldAnimate)
+            case .incomingWhilePinned, .userRequested:
+                chatListController.perform(.bottom(animated: shouldAnimate))
+            }
         }
     }
 
@@ -208,11 +215,14 @@ extension GlassmorphicChatView {
             guard abs(chromeHeight - lastComposerHeight) > 0.5 else { return }
             lastComposerHeight = chromeHeight
             guard hasCompletedInitialScroll, isPinnedToBottom else { return }
+            // Durante el teclado el inset ya se compensa por delta; un snap extra pelea con CA.
+            if keyboardScrollCoordinator.isTransitioning { return }
             composerSnapTask?.cancel()
             composerSnapTask = Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 50_000_000)
                 guard !Task.isCancelled else { return }
-                scheduleListBottomSnap(reason: .composerResized)
+                if keyboardScrollCoordinator.isTransitioning { return }
+                scheduleListBottomSnap(reason: .composerResized, animated: false)
             }
         }
     }

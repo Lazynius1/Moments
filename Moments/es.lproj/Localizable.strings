@@ -1127,7 +1127,6 @@
 "chat.camera.mode.keepInChat" = "Guardar en el chat";
 "chat.camera.saved" = "Guardado";
 "chat.preview.photo" = "Foto";
-"chat.media.download" = "Descargar";
 "chat.preview.video" = "Video";
 "chat.preview.audio" = "Audio";
 "chat.preview.gif" = "GIF";
@@ -4778,3 +4777,8 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "groups.sheet.openChat" = "Ir al chat";
 "groups.sheet.close" = "Cerrar";
 "groups.sheet.cancelling" = "Cancelando…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "Nuevo mensaje";
+"notification.chatSummary.multiple" = "%@ mensajes nuevos";
+"notification.group.untitled" = "Grupo";

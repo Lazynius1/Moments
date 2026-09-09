@@ -491,12 +491,10 @@ struct GlassmorphicMessageBubble: View {
                                 previewThumbnailUrl: message.previewThumbnailURLForDisplay,
                                 isSending: message.status == .sending,
                                 isResolvingMedia: message.isMediaPendingResolution
-                                    && !message.isMediaAwaitingManualDownload
+
                                     && !isDownloadingMedia,
-                                isAwaitingManualDownload: message.isMediaAwaitingManualDownload && !isDownloadingMedia,
                                 isDownloadingMedia: isDownloadingMedia,
                                 downloadProgress: downloadProgress,
-                                downloadSizeLabel: message.formattedDownloadSize,
                                 downsamplingSize: CGSize(width: 208, height: 272),
                                 progress: progress
                             )
@@ -532,12 +530,10 @@ struct GlassmorphicMessageBubble: View {
                                 thumbnailUrl: message.thumbnailUrl,
                                 isSending: message.status == .sending,
                                 isResolvingMedia: (message.isMediaPendingResolution || message.needsVideoThumbnailForDisplay)
-                                    && !message.isMediaAwaitingManualDownload
+
                                     && !isDownloadingMedia,
-                                isAwaitingManualDownload: message.isMediaAwaitingManualDownload && !isDownloadingMedia,
                                 isDownloadingMedia: isDownloadingMedia,
                                 downloadProgress: downloadProgress,
-                                downloadSizeLabel: message.formattedDownloadSize,
                                 downsamplingSize: CGSize(width: 208, height: 272),
                                 progress: progress
                             )

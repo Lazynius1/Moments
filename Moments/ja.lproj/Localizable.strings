@@ -1050,7 +1050,6 @@
 "chat.camera.mode.keepInChat" = "チャットに保存";
 "chat.camera.saved" = "保存済み";
 "chat.preview.photo" = "写真";
-"chat.media.download" = "ダウンロード";
 "chat.preview.video" = "動画";
 "chat.preview.audio" = "音声";
 "chat.preview.gif" = "GIF";
@@ -4541,3 +4540,8 @@
 "groups.sheet.openChat" = "チャットを開く";
 "groups.sheet.close" = "閉じる";
 "groups.sheet.cancelling" = "取り消し中…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "新しいメッセージ";
+"notification.chatSummary.multiple" = "新しいメッセージ%@件";
+"notification.group.untitled" = "グループ";

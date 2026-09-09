@@ -502,14 +502,6 @@ struct MediaGridTileView: View {
                     } else {
                         ChatMediaResolvingPlaceholder()
                     }
-                } else if message.isMediaAwaitingManualDownload {
-                    if let preview = message.previewThumbnailURLForDisplay, let url = URL(string: preview) {
-                        ChatKFImage(url: url, downsamplingSize: downsamplingSize)
-                            .blur(radius: 18)
-                            .overlay { ChatMediaDownloadOverlay(sizeLabel: message.formattedDownloadSize) }
-                    } else {
-                        ChatMediaManualDownloadPlaceholder(sizeLabel: message.formattedDownloadSize)
-                    }
                 } else if message.isMediaPendingResolution {
                     ChatMediaResolvingPlaceholder()
                 } else if let mediaUrl = message.mediaUrl,
@@ -526,14 +518,6 @@ struct MediaGridTileView: View {
                             .blur(radius: 18)
                     } else {
                         ChatMediaResolvingPlaceholder()
-                    }
-                } else if message.isMediaAwaitingManualDownload {
-                    if let preview = message.previewThumbnailURLForDisplay, let url = URL(string: preview) {
-                        ChatKFImage(url: url, downsamplingSize: downsamplingSize)
-                            .blur(radius: 18)
-                            .overlay { ChatMediaDownloadOverlay(sizeLabel: message.formattedDownloadSize) }
-                    } else {
-                        ChatMediaManualDownloadPlaceholder(sizeLabel: message.formattedDownloadSize, showsVideoBadge: true)
                     }
                 } else if message.isMediaPendingResolution || message.needsVideoThumbnailForDisplay {
                     ChatMediaResolvingPlaceholder()

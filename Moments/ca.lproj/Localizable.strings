@@ -4789,3 +4789,8 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "groups.sheet.openChat" = "Vés al xat";
 "groups.sheet.close" = "Tancar";
 "groups.sheet.cancelling" = "Cancel·lant…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "Missatge nou";
+"notification.chatSummary.multiple" = "%@ missatges nous";
+"notification.group.untitled" = "Grup";

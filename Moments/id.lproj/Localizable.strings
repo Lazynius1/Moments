@@ -1050,7 +1050,6 @@
 "chat.camera.mode.keepInChat" = "Simpan di chat";
 "chat.camera.saved" = "Tersimpan";
 "chat.preview.photo" = "Foto";
-"chat.media.download" = "Unduh";
 "chat.preview.video" = "Video";
 "chat.preview.audio" = "Audio";
 "chat.preview.gif" = "GIF";
@@ -4541,3 +4540,8 @@
 "groups.sheet.openChat" = "Buka chat";
 "groups.sheet.close" = "Tutup";
 "groups.sheet.cancelling" = "Membatalkan…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "Pesan baru";
+"notification.chatSummary.multiple" = "%@ pesan baru";
+"notification.group.untitled" = "Grup";

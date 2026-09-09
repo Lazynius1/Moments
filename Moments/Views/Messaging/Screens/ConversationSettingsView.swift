@@ -853,10 +853,11 @@ struct SharedMediaThumbnail: View {
     }
 
     private var displayThumbnailUrl: String? {
-        if let resolvedThumbnailUrl { return resolvedThumbnailUrl }
+        if let resolvedThumbnailUrl, !resolvedThumbnailUrl.isEmpty { return resolvedThumbnailUrl }
         // Para vídeos no usamos la URL del vídeo como imagen (no renderiza portada).
         if media.type == .video { return nil }
-        return media.thumbnailUrl
+        let thumb = media.thumbnailUrl
+        return thumb.isEmpty ? nil : thumb
     }
 
     var body: some View {
@@ -1067,20 +1068,54 @@ class ConversationSettingsViewModel: ObservableObject {
             processMessages(cachedMessages)
         }
 
-        // Refresco en segundo plano: delta por cursor en vez de re-pedir 300 mensajes
-        // (con su hidratación y descifrado) cada vez que se abre la pantalla. El
-        // catch-up trae solo lo que falte al cache y aquí se recuenta desde disco.
+        // Refresco en segundo plano: catch-up + query dedicada de image/video
+        // (como IG: el grid no depende de que el media ya esté descifrado en disco).
         Task { [weak self] in
             await MessageCatchUpService.shared.sync(conversationId: conversationId)
             guard let self else { return }
             let refreshed = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
-            if !refreshed.isEmpty {
-                self.processMessages(refreshed)
+            let remoteMedia = await self.fetchSharedMediaMessages(conversationId: conversationId)
+            let merged = self.mergeMessages(refreshed, remoteMedia)
+            await MainActor.run {
+                if !merged.isEmpty {
+                    self.processMessages(merged)
+                }
+                self.hydrateGalleryThumbnails()
             }
         }
 
         // Formatear fecha de creación
         conversationCreatedDate = MomentsFormat.smartDate(from: conversation.timestamp, context: .mediumDate)
+    }
+
+    /// Une local + remoto por id; gana la copia con más campos de media resueltos.
+    private func mergeMessages(_ local: [EnhancedMessage], _ remote: [EnhancedMessage]) -> [EnhancedMessage] {
+        var byId: [String: EnhancedMessage] = [:]
+        for message in local {
+            byId[message.id] = message
+        }
+        for message in remote {
+            if let existing = byId[message.id] {
+                byId[message.id] = preferRicherMedia(existing, message)
+            } else {
+                byId[message.id] = message
+            }
+        }
+        return Array(byId.values)
+    }
+
+    private func preferRicherMedia(_ a: EnhancedMessage, _ b: EnhancedMessage) -> EnhancedMessage {
+        let aScore = (a.mediaUrl != nil ? 2 : 0) + (a.thumbnailUrl != nil ? 1 : 0) + (a.mediaObjectPath != nil ? 1 : 0)
+        let bScore = (b.mediaUrl != nil ? 2 : 0) + (b.thumbnailUrl != nil ? 1 : 0) + (b.mediaObjectPath != nil ? 1 : 0)
+        return bScore > aScore ? b : a
+    }
+
+    private func fetchSharedMediaMessages(conversationId: String) async -> [EnhancedMessage] {
+        await withCheckedContinuation { continuation in
+            chatService.fetchSharedGalleryMedia(conversationId: conversationId) { result in
+                continuation.resume(returning: (try? result.get()) ?? [])
+            }
+        }
     }
 
     private func processMessages(_ messages: [EnhancedMessage]) {
@@ -1100,11 +1135,59 @@ class ConversationSettingsViewModel: ObservableObject {
         }.count
 
         let mediaMessages = galleryMessages.filter(isSharedMediaItem)
+        // Incluir siempre, aunque aún no haya URL local (E2E sin descifrar).
         sharedMedia = mediaMessages.compactMap(makeSharedMedia)
 
         starredMessages = messages
             .filter { !$0.isDeleted && $0.isStarred(by: currentUserId) }
             .sorted { $0.timestamp > $1.timestamp }
+    }
+
+    /// Miniaturas del grid de Media (listar + resolver thumbs E2E).
+    func hydrateGalleryThumbnails() {
+        for message in sharedGalleryMessages where isSharedMediaItem(message) {
+            let cached = ChatCacheStore.localURLsIfPresent(for: message)
+            let hasThumb = cached.thumbnailUrl != nil || message.thumbnailUrl != nil
+            let hasMedia = cached.mediaUrl != nil || message.mediaUrl != nil
+            if hasThumb || (message.type == .image && hasMedia) { continue }
+            forceHydrateGalleryThumbnail(for: message)
+        }
+    }
+
+    private func forceHydrateGalleryThumbnail(for message: EnhancedMessage) {
+        if message.type == .video {
+            if message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil {
+                let thumbnailKey = "thumb_\(message.id)"
+                guard !hydratingMediaIds.contains(thumbnailKey) else { return }
+                hydratingMediaIds.insert(thumbnailKey)
+                Task { [weak self] in
+                    guard let self else { return }
+                    let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message)
+                    await MainActor.run {
+                        self.hydratingMediaIds.remove(thumbnailKey)
+                        guard let resolvedThumb,
+                              var updated = self.sharedGalleryMessages.first(where: { $0.id == message.id }) else {
+                            return
+                        }
+                        updated.thumbnailUrl = resolvedThumb
+                        self.updateGalleryMessage(updated)
+                    }
+                }
+                return
+            }
+        }
+        guard message.mediaObjectPath != nil, message.mediaEncryption != nil else {
+            refreshMediaMetadataIfNeeded(for: message)
+            return
+        }
+        guard !hydratingMediaIds.contains(message.id) else { return }
+        hydratingMediaIds.insert(message.id)
+        prepareMediaForViewing(message) { [weak self] updated in
+            self?.hydratingMediaIds.remove(message.id)
+            if updated.type == .video {
+                self?.generateVideoPosterIfPossible(for: updated)
+            }
+        }
     }
 
     private func isSharedGalleryEligible(_ message: EnhancedMessage) -> Bool {
@@ -1119,21 +1202,24 @@ class ConversationSettingsViewModel: ObservableObject {
         guard message.isVanishModeMessage != true else { return false }
         if message.mediaUrl != nil { return true }
         if message.mediaObjectPath != nil, message.mediaEncryption != nil { return true }
-        return message.thumbnailUrl != nil && message.thumbnailObjectPath != nil
+        if message.thumbnailUrl != nil { return true }
+        if message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil { return true }
+        return false
     }
 
     func makeSharedMedia(from message: EnhancedMessage) -> SharedMedia? {
+        guard isSharedMediaItem(message) else { return nil }
         // Si el archivo descifrado ya vive en disco (prefetch o visto antes en el chat),
-        // usar esa ruta local en vez de esperar a que el mensaje traiga una URL remota.
+        // usar esa ruta local. Si no, igual listamos la celda (placeholder) como IG.
         let cached = ChatCacheStore.localURLsIfPresent(for: message)
-        let mediaUrl = cached.mediaUrl ?? message.mediaUrl ?? cached.thumbnailUrl ?? message.thumbnailUrl
-        guard let mediaUrl else { return nil }
+        let mediaUrl = cached.mediaUrl ?? message.mediaUrl ?? ""
+        let thumb = cached.thumbnailUrl ?? message.thumbnailUrl ?? mediaUrl
 
         return SharedMedia(
             id: message.id,
             type: message.type == .image ? .image : .video,
-            thumbnailUrl: cached.thumbnailUrl ?? message.thumbnailUrl ?? mediaUrl,
-            originalUrl: mediaUrl,
+            thumbnailUrl: thumb,
+            originalUrl: mediaUrl.isEmpty ? thumb : mediaUrl,
             senderId: message.senderId,
             timestamp: message.timestamp,
             sourceMessage: message
@@ -1159,12 +1245,9 @@ class ConversationSettingsViewModel: ObservableObject {
     }
 
     func hydrateMediaIfNeeded(for message: EnhancedMessage) {
-        if message.isMediaAwaitingManualDownload {
-            hydrateThumbnailPreviewIfNeeded(for: message)
-            return
-        }
 
-        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
+
+        guard NetworkMonitor.shared.isConnected else { return }
 
         if message.type == .video {
             hydrateVideoThumbnailIfNeeded(for: message)
@@ -1183,7 +1266,7 @@ class ConversationSettingsViewModel: ObservableObject {
         guard !hydratingMediaIds.contains(message.id) else { return }
         hydratingMediaIds.insert(message.id)
         setDownloadProgress(0.03, for: message.id)
-        prepareMediaForViewing(message, forceDownload: false) { [weak self] _ in
+        prepareMediaForViewing(message) { [weak self] _ in
             self?.hydratingMediaIds.remove(message.id)
             self?.clearDownloadProgress(for: message.id)
         }
@@ -1198,7 +1281,7 @@ class ConversationSettingsViewModel: ObservableObject {
         guard !downloadingMediaIds.contains(message.id) else { return }
         downloadingMediaIds.insert(message.id)
         setDownloadProgress(0.03, for: message.id)
-        prepareMediaForViewing(message, forceDownload: true) { [weak self] updated in
+        prepareMediaForViewing(message) { [weak self] updated in
             self?.downloadingMediaIds.remove(message.id)
             self?.clearDownloadProgress(for: message.id)
             completion(updated)
@@ -1295,7 +1378,7 @@ class ConversationSettingsViewModel: ObservableObject {
     private func hydrateVideoThumbnailIfNeeded(for message: EnhancedMessage) {
         guard message.type == .video else { return }
         guard message.needsVideoThumbnailForDisplay else { return }
-        guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
+        guard NetworkMonitor.shared.isConnected else { return }
 
         if message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil {
             let thumbnailKey = "thumb_\(message.id)"
@@ -1303,7 +1386,7 @@ class ConversationSettingsViewModel: ObservableObject {
             hydratingMediaIds.insert(thumbnailKey)
             Task { [weak self] in
                 guard let self else { return }
-                let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message, forceDownload: false)
+                let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message)
                 await MainActor.run {
                     self.hydratingMediaIds.remove(thumbnailKey)
                     guard let resolvedThumb,
@@ -1326,7 +1409,7 @@ class ConversationSettingsViewModel: ObservableObject {
             guard !hydratingMediaIds.contains(message.id) else { return }
             hydratingMediaIds.insert(message.id)
             setDownloadProgress(0.03, for: message.id)
-            prepareMediaForViewing(message, forceDownload: false) { [weak self] updated in
+            prepareMediaForViewing(message) { [weak self] updated in
                 self?.hydratingMediaIds.remove(message.id)
                 self?.clearDownloadProgress(for: message.id)
                 self?.generateVideoPosterIfPossible(for: updated)
@@ -1351,7 +1434,7 @@ class ConversationSettingsViewModel: ObservableObject {
 
         Task { [weak self] in
             guard let self else { return }
-            let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message, forceDownload: false)
+            let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message)
             await MainActor.run {
                 self.hydratingMediaIds.remove(previewKey)
                 guard let resolvedThumb,
@@ -1388,7 +1471,7 @@ class ConversationSettingsViewModel: ObservableObject {
 
     private func prepareMediaForViewing(
         _ message: EnhancedMessage,
-        forceDownload: Bool,
+
         completion: @escaping (EnhancedMessage) -> Void
     ) {
         if message.hasLocalMediaReadyForViewer, !message.hasMissingLocalMedia {
@@ -1408,7 +1491,7 @@ class ConversationSettingsViewModel: ObservableObject {
                 }
             }
 
-            guard let (mediaUrl, thumbnailUrl) = await chatService.resolveEncryptedMediaForMessage(message, forceDownload: forceDownload) else {
+            guard let (mediaUrl, thumbnailUrl) = await chatService.resolveEncryptedMediaForMessage(message) else {
                 await MainActor.run { completion(message) }
                 return
             }
@@ -1644,6 +1727,7 @@ class ConversationSettingsViewModel: ObservableObject {
     func toggleMessagePreview() {
         guard let conversationId = currentConversation?.id else { return }
         sharedDefaults?.set(messagePreviewEnabled, forKey: messagePreviewKey(for: conversationId))
+        if !messagePreviewEnabled { ChatNotificationThread.clearDelivered(conversationId: conversationId) }
     }
 
     func toggleBuzzNotifications() {

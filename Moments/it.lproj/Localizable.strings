@@ -4770,3 +4770,8 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "groups.sheet.openChat" = "Apri chat";
 "groups.sheet.close" = "Chiudi";
 "groups.sheet.cancelling" = "Annullamento…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "Nuovo messaggio";
+"notification.chatSummary.multiple" = "%@ nuovi messaggi";
+"notification.group.untitled" = "Gruppo";

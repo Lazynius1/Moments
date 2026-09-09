@@ -1050,7 +1050,6 @@
 "chat.camera.mode.keepInChat" = "In chat bewaren";
 "chat.camera.saved" = "Opgeslagen";
 "chat.preview.photo" = "Foto";
-"chat.media.download" = "Downloaden";
 "chat.preview.video" = "Video";
 "chat.preview.audio" = "Audio";
 "chat.preview.gif" = "GIF";
@@ -4541,3 +4540,8 @@
 "groups.sheet.openChat" = "Naar de chat";
 "groups.sheet.close" = "Sluiten";
 "groups.sheet.cancelling" = "Annuleren…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "Nieuw bericht";
+"notification.chatSummary.multiple" = "%@ nieuwe berichten";
+"notification.group.untitled" = "Groep";

@@ -38,7 +38,7 @@ extension GlassmorphicChatView {
             try? await Task.sleep(nanoseconds: 80_000_000)
             guard !Task.isCancelled, !isSearchVisible else { return }
             if hasCompletedInitialScroll, isPinnedToBottom {
-                scheduleListBottomSnap(reason: .composerResized)
+                scheduleListBottomSnap(reason: .composerResized, animated: false)
             }
         }
     }

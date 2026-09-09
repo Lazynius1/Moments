@@ -1,14 +1,8 @@
 import Foundation
 
-struct ChatStorageBreakdown {
-    let messageCount: Int
-    let decryptedMediaBytes: Int64
-    let posterBytes: Int64
-
-    var totalMediaBytes: Int64 { decryptedMediaBytes + posterBytes }
-}
-
 enum ChatCacheStore {
+    private static let maxMediaBytes: Int64 = 1_610_612_736
+    private static let retentionDays = 30
     private static let appGroupID = MessageIngestQueue.appGroupID
     private static let didMigrateKey = "didMigrateChatMediaToAppGroup"
     private static let legacyDecryptedFolder = "chat_media_decrypted"
@@ -152,46 +146,6 @@ enum ChatCacheStore {
         directoryBytes(decryptedDirectory()) + directoryBytes(postersDirectory())
     }
 
-    static func bytes(for conversationId: String) -> Int64 {
-        let prefix = safeComponent(conversationId) + "_"
-        return files(in: decryptedDirectory())
-            .filter { $0.lastPathComponent.hasPrefix(prefix) }
-            .reduce(Int64(0)) { partial, url in
-                partial + fileSize(at: url)
-            }
-    }
-
-    /// Bytes de media descifrada agrupados por conversación, en un solo escaneo de disco.
-    /// Solo devuelve conversaciones con media cacheada (> 0 bytes).
-    static func bytesByConversation(for conversationIds: [String]) -> [String: Int64] {
-        guard !conversationIds.isEmpty else { return [:] }
-        let scanned = files(in: decryptedDirectory()).map { ($0.lastPathComponent, fileSize(at: $0)) }
-        guard !scanned.isEmpty else { return [:] }
-
-        var result: [String: Int64] = [:]
-        for conversationId in conversationIds {
-            let prefix = safeComponent(conversationId) + "_"
-            let total = scanned.reduce(Int64(0)) { partial, entry in
-                entry.0.hasPrefix(prefix) ? partial + entry.1 : partial
-            }
-            if total > 0 {
-                result[conversationId] = total
-            }
-        }
-        return result
-    }
-
-    @MainActor
-    static func storageBreakdown() -> ChatStorageBreakdown {
-        let messageCount = LocalPersistenceService.shared.cachedMessageCount()
-        let breakdown = ChatStorageBreakdown(
-            messageCount: messageCount,
-            decryptedMediaBytes: directoryBytes(decryptedDirectory()),
-            posterBytes: directoryBytes(postersDirectory())
-        )
-        return breakdown
-    }
-
     static func deleteMessageFiles(conversationId: String, messageId: String) {
         let convPrefix = safeComponent(conversationId) + "_"
         let msgPrefix = convPrefix + safeComponent(messageId) + "_"
@@ -238,7 +192,7 @@ enum ChatCacheStore {
     }
 
     private static func enforceQuota(protectedKeys: Set<String>) {
-        let maxBytes = ChatMediaDownloadPolicy.maxMediaBytes
+        let maxBytes = maxMediaBytes
         var total = totalMediaBytes()
         guard total > maxBytes else { return }
 
@@ -283,7 +237,7 @@ enum ChatCacheStore {
                 to: Date()
             ) ?? Date()
 
-            let retentionDays = ChatMediaDownloadPolicy.retentionDays
+            let retentionDays = Self.retentionDays
             let retentionCutoff = retentionDays > 0 ? (Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()) : nil
 
             let protectedQuotaKeys = await MainActor.run {

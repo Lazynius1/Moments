@@ -1118,7 +1118,6 @@
 "chat.camera.mode.keepInChat" = "Keep in chat";
 "chat.camera.saved" = "Saved";
 "chat.preview.photo" = "Photo";
-"chat.media.download" = "Download";
 "chat.preview.video" = "Video";
 "chat.preview.audio" = "Audio";
 "chat.preview.gif" = "GIF";
@@ -4757,3 +4756,8 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "groups.sheet.openChat" = "Open chat";
 "groups.sheet.close" = "Close";
 "groups.sheet.cancelling" = "Cancelling…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "New message";
+"notification.chatSummary.multiple" = "%@ new messages";
+"notification.group.untitled" = "Group";

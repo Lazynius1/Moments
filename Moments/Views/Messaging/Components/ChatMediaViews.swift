@@ -19,66 +19,6 @@ struct ChatMediaResolvingPlaceholder: View {
     }
 }
 
-/// Overlay centrado: flecha + tamaño del fichero completo.
-struct ChatMediaDownloadOverlay: View {
-    let sizeLabel: String?
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.28)
-
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.2))
-                        .frame(width: 46, height: 46)
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 21, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-
-                Text(sizeLabel ?? NSLocalizedString("chat.media.download", comment: "Download media"))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.92))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-        }
-    }
-}
-
-/// Placeholder genérico cuando aún no hay miniatura en disco (p. ej. offline).
-struct ChatMediaManualDownloadPlaceholder: View {
-    let sizeLabel: String?
-    var showsVideoBadge: Bool = false
-
-    var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(hex: "4A4A4C"), Color(hex: "2C2C2E"), Color(hex: "1C1C1E")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            BlurView(style: .systemUltraThinMaterialDark)
-                .opacity(0.28)
-
-            ChatMediaDownloadOverlay(sizeLabel: sizeLabel)
-                .background(Color.clear)
-
-            if showsVideoBadge {
-                VStack {
-                    Spacer()
-                    HStack {
-                        ChatVideoPlayBadge(size: 14, padding: 6)
-                        Spacer()
-                    }
-                }
-            }
-        }
-    }
-}
-
 /// Overlay de progreso de descarga (mismo anillo que la subida).
 struct ChatMediaDownloadProgressOverlay: View {
     let progress: Double
@@ -103,16 +43,13 @@ struct GlassmorphicImageMessage: View {
     var previewThumbnailUrl: String? = nil
     let isSending: Bool
     var isResolvingMedia: Bool = false
-    var isAwaitingManualDownload: Bool = false
     var isDownloadingMedia: Bool = false
     var downloadProgress: Double? = nil
-    var downloadSizeLabel: String? = nil
     var downsamplingSize: CGSize? = nil
     let progress: Double?
 
     private var blurredPreviewURL: URL? {
-        if isAwaitingManualDownload,
-           let previewThumbnailUrl,
+        if let previewThumbnailUrl,
            let url = URL(string: previewThumbnailUrl) {
             return url
         }
@@ -137,14 +74,6 @@ struct GlassmorphicImageMessage: View {
                         ringSize: 60,
                         lineWidth: 4
                     )
-                }
-            } else if isAwaitingManualDownload {
-                if let previewURL = blurredPreviewURL {
-                    ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
-                        .blur(radius: 22)
-                        .overlay { ChatMediaDownloadOverlay(sizeLabel: downloadSizeLabel) }
-                } else {
-                    ChatMediaManualDownloadPlaceholder(sizeLabel: downloadSizeLabel)
                 }
             } else if isResolvingMedia {
                 ChatMediaResolvingPlaceholder()
@@ -205,16 +134,13 @@ struct GlassmorphicVideoMessage: View {
     let thumbnailUrl: String?
     let isSending: Bool
     var isResolvingMedia: Bool = false
-    var isAwaitingManualDownload: Bool = false
     var isDownloadingMedia: Bool = false
     var downloadProgress: Double? = nil
-    var downloadSizeLabel: String? = nil
     var downsamplingSize: CGSize? = nil
     let progress: Double?
 
     private var blurredPreviewURL: URL? {
-        if isAwaitingManualDownload,
-           let thumbnailUrl,
+        if let thumbnailUrl,
            let url = URL(string: thumbnailUrl) {
             return url
         }
@@ -244,16 +170,6 @@ struct GlassmorphicVideoMessage: View {
                     )
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 }
-            } else if isAwaitingManualDownload {
-                if let previewURL = blurredPreviewURL {
-                    ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
-                        .blur(radius: 22)
-                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                        .overlay { ChatMediaDownloadOverlay(sizeLabel: downloadSizeLabel) }
-                } else {
-                    ChatMediaManualDownloadPlaceholder(sizeLabel: downloadSizeLabel, showsVideoBadge: true)
-                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                }
             } else if isResolvingMedia {
                 ChatMediaResolvingPlaceholder()
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
@@ -278,12 +194,7 @@ struct GlassmorphicVideoMessage: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(alignment: .bottomLeading) {
-            if !isAwaitingManualDownload && !isDownloadingMedia {
-                ChatVideoPlayBadge(size: 22, padding: 12)
-            }
-        }
-        .overlay(alignment: .bottomLeading) {
-            if isAwaitingManualDownload, blurredPreviewURL != nil {
+            if !isDownloadingMedia {
                 ChatVideoPlayBadge(size: 22, padding: 12)
             }
         }

@@ -93,6 +93,11 @@ final class ChatMessageListController: ObservableObject {
         viewController?.forceScrollToBottom(animated: animated, allowDuringNavigation: true)
     }
 
+    /// Ancla al fondo sin invalidate+converge: solo corrige el offset.
+    func pinContentOffsetToBottom(animated: Bool) {
+        viewController?.pinContentOffsetToBottom(animated: animated)
+    }
+
     func scrollToRow(id: String, at position: UICollectionView.ScrollPosition, animated: Bool) {
         enqueue(.scrollToRow(id: id, position: position, animated: animated))
     }
@@ -1394,7 +1399,8 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         guard isViewLoaded, collectionView != nil else { return }
         let desiredAdjustedBottom = max(0, composerBottomInset)
         let bottom = max(0, desiredAdjustedBottom - collectionView.safeAreaInsets.bottom)
-        let bottomChanged = abs(collectionView.contentInset.bottom - bottom) > 0.5
+        let previousBottom = collectionView.contentInset.bottom
+        let bottomChanged = abs(previousBottom - bottom) > 0.5
         guard bottomChanged else {
             updateBottomAnchorInset()
             return
@@ -1403,11 +1409,46 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             && (isStrictlyAtBottom || currentIsAtBottom)
             && scrollNavigationTargetRowId == nil
             && !isRestoringPrependAnchor
-        collectionView.contentInset.bottom = bottom
-        collectionView.verticalScrollIndicatorInsets.bottom = bottom
+
+        // Al cambiar insets, compensar el offset por el delta
+        // (no forceScroll/invalidate a mitad de la animación del teclado).
+        UIView.performWithoutAnimation {
+            collectionView.contentInset.bottom = bottom
+            collectionView.verticalScrollIndicatorInsets.bottom = bottom
+            if wasPinned {
+                let delta = bottom - previousBottom
+                if abs(delta) > 0.5 {
+                    collectionView.setContentOffset(
+                        CGPoint(
+                            x: collectionView.contentOffset.x,
+                            y: collectionView.contentOffset.y + delta
+                        ),
+                        animated: false
+                    )
+                }
+            }
+        }
         updateBottomAnchorInset()
-        if wasPinned {
-            forceScrollToBottom(animated: false)
+        recomputeBottomPinnedState()
+    }
+
+    /// Corrige el offset al máximo inferior sin invalidar el layout (teclado/composer).
+    func pinContentOffsetToBottom(animated: Bool) {
+        guard !orderedItemIds.isEmpty, collectionView != nil else { return }
+        if scrollNavigationTargetRowId != nil { return }
+        collectionView.layoutIfNeeded()
+        let maxY = maxContentOffsetY(in: collectionView)
+        let currentY = collectionView.contentOffset.y
+        guard abs(currentY - maxY) > 1 else {
+            recomputeBottomPinnedState()
+            return
+        }
+        collectionView.setContentOffset(
+            CGPoint(x: collectionView.contentOffset.x, y: maxY),
+            animated: animated
+        )
+        if !animated {
+            recomputeBottomPinnedState()
         }
     }
 

@@ -2452,36 +2452,6 @@ extension EnhancedMessage {
         }
     }
 
-    /// Media descargable manualmente (auto-descarga desactivada por policy o sin red).
-    var isMediaAwaitingManualDownload: Bool {
-        guard !ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return false }
-        if type == .video {
-            return needsDownloadForPlayback
-        }
-        return isMediaPendingResolution
-    }
-
-    /// Tamaño estimado del fichero completo (metadata Firestore / cifrado).
-    var estimatedDownloadByteCount: Int64? {
-        if let fileSize, fileSize > 0 { return fileSize }
-        if let mainSize = mediaEncryption?.plaintextSize, mainSize > 0 {
-            if type == .video, let thumbSize = thumbnailEncryption?.plaintextSize, thumbSize > 0 {
-                return mainSize + thumbSize
-            }
-            return mainSize
-        }
-        return nil
-    }
-
-    /// Etiqueta de tamaño ("245 KB", "1,2 MB") — tamaño del fichero completo.
-    var formattedDownloadSize: String? {
-        guard let bytes = estimatedDownloadByteCount else { return nil }
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: bytes)
-    }
-
     /// Miniatura local usable como preview borroso (thumb cifrada ya descargada).
     var previewThumbnailURLForDisplay: String? {
         guard let urlString = thumbnailUrl,

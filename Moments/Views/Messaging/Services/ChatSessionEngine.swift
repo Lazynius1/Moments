@@ -66,6 +66,7 @@ final class ChatSessionEngine: ObservableObject {
     func activate(conversationId: String) {
         reconcileCurrentUser()
         activeConversationId = conversationId
+        ChatNotificationThread.clearDelivered(conversationId: conversationId)
         guard let session = sessions[conversationId] else {
             syncInAppFallbackListeners()
             return

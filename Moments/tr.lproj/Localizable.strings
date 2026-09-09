@@ -1050,7 +1050,6 @@
 "chat.camera.mode.keepInChat" = "Sohbette tut";
 "chat.camera.saved" = "Kaydedildi";
 "chat.preview.photo" = "Fotoğraf";
-"chat.media.download" = "İndir";
 "chat.preview.video" = "Video";
 "chat.preview.audio" = "Ses";
 "chat.preview.gif" = "GIF";
@@ -4541,3 +4540,8 @@
 "groups.sheet.openChat" = "Sohbete git";
 "groups.sheet.close" = "Kapat";
 "groups.sheet.cancelling" = "İptal ediliyor…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "Yeni mesaj";
+"notification.chatSummary.multiple" = "%@ yeni mesaj";
+"notification.group.untitled" = "Grup";

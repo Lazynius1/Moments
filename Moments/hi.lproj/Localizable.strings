@@ -1050,7 +1050,6 @@
 "chat.camera.mode.keepInChat" = "चैट में रखें";
 "chat.camera.saved" = "सेव किया गया";
 "chat.preview.photo" = "फ़ोटो";
-"chat.media.download" = "डाउनलोड करें";
 "chat.preview.video" = "वीडियो";
 "chat.preview.audio" = "ऑडियो";
 "chat.preview.gif" = "GIF";
@@ -4541,3 +4540,8 @@
 "groups.sheet.openChat" = "चैट खोलें";
 "groups.sheet.close" = "बंद करें";
 "groups.sheet.cancelling" = "रद्द कर रहे हैं…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "नया संदेश";
+"notification.chatSummary.multiple" = "%@ नए संदेश";
+"notification.group.untitled" = "समूह";

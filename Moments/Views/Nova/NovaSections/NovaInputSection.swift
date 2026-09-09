@@ -2,9 +2,9 @@ import SwiftUI
 import FirebaseAuth
 
 enum NovaInputBarLayout {
-    /// Misma separación inferior que el compositor de chat (`ChatComposerChromeMetrics.panelHomeGap`).
+    /// Misma separación inferior que el compositor de chat (`ChatComposerChromeMetrics.panelInset`).
     /// El input ignora el safe area inferior, igual que chat.
-    static let bottomPaddingWithoutKeyboard: CGFloat = ChatComposerChromeMetrics.panelHomeGap
+    static let bottomPaddingWithoutKeyboard: CGFloat = ChatComposerChromeMetrics.panelInset
     /// Aire visible entre sheet e input (como `ChatInputBarLayout.sheetAboveInputGap`).
     static let sheetAboveInputGap: CGFloat = 12
     static let disclaimerRowHeight: CGFloat = 18

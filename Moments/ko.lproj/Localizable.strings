@@ -1050,7 +1050,6 @@
 "chat.camera.mode.keepInChat" = "채팅에 보관";
 "chat.camera.saved" = "저장됨";
 "chat.preview.photo" = "사진";
-"chat.media.download" = "다운로드";
 "chat.preview.video" = "동영상";
 "chat.preview.audio" = "오디오";
 "chat.preview.gif" = "GIF";
@@ -4541,3 +4540,8 @@
 "groups.sheet.openChat" = "채팅 열기";
 "groups.sheet.close" = "닫기";
 "groups.sheet.cancelling" = "취소 중…";
+
+/* Neutral chat summary: messages may come from different group members. */
+"notification.chatSummary.single" = "새 메시지";
+"notification.chatSummary.multiple" = "새 메시지 %@개";
+"notification.group.untitled" = "그룹";
