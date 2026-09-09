@@ -593,6 +593,7 @@ struct StickerCountdownCardView: View {
     var styleVariant: Int = 0
     var isEditingInline: Bool = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.storyExportDate) private var exportDate
     @State private var showingDatePicker = false
 
     init(
@@ -680,7 +681,7 @@ struct StickerCountdownCardView: View {
                 }
             }) {
                 TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                    let comps = getCountdownComponents(targetAtMs: targetAtMs, now: timeline.date)
+                    let comps = getCountdownComponents(targetAtMs: targetAtMs, now: exportDate ?? timeline.date)
                     let boxBg = isLight
                         ? Color.black.opacity(0.06)
                         : Color.white.opacity(0.15)
@@ -1728,6 +1729,7 @@ struct StickerDitherPattern: View {
 struct InteractiveAudioStickerView: View {
     let audioURL: String
     let duration: Double
+    @Environment(\.storyExportAudioBackgroundOnly) private var exportBackgroundOnly
 
     @State private var isPlaying = false
     @State private var progress: Double = 0
@@ -1747,28 +1749,30 @@ struct InteractiveAudioStickerView: View {
                 .fill(Color.clear)
                 .momentsChromeGlass(in: Circle())
 
-            // Progress Ring
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(
-                    LinearGradient(colors: [.white, .white.opacity(0.8)], startPoint: .top, endPoint: .bottom),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
+            if !exportBackgroundOnly {
+                // Progress Ring
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(
+                        LinearGradient(colors: [.white, .white.opacity(0.8)], startPoint: .top, endPoint: .bottom),
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
 
-            VStack(spacing: 6) {
-                // Mic/Pause Icon
-                Image(systemName: isPlaying ? "pause.fill" : "mic.fill")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white)
-                    .contentTransition(.symbolEffect(.replace))
+                VStack(spacing: 6) {
+                    // Mic/Pause Icon
+                    Image(systemName: isPlaying ? "pause.fill" : "mic.fill")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.white)
+                        .contentTransition(.symbolEffect(.replace))
 
-                // 3 Wave Bars
-                HStack(alignment: .center, spacing: 3) {
-                    ForEach(0..<3) { i in
-                        RoundedRectangle(cornerRadius: 1.5)
-                            .fill(.white)
-                            .frame(width: 3, height: isPlaying ? animatedHeights[i] : 10)
+                    // 3 Wave Bars
+                    HStack(alignment: .center, spacing: 3) {
+                        ForEach(0..<3) { i in
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(.white)
+                                .frame(width: 3, height: isPlaying ? animatedHeights[i] : 10)
+                        }
                     }
                 }
             }
@@ -1782,6 +1786,7 @@ struct InteractiveAudioStickerView: View {
                 }
         )
         .onAppear {
+            guard !exportBackgroundOnly else { return }
             startPlayback()
         }
         .onDisappear {

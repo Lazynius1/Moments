@@ -25,6 +25,7 @@ struct StoryMediaOverlayRendererView: View {
     var allowsStickerHitTesting: Bool = true
     var renderingMode: StoryOverlayRenderingMode = .live
     var clipCornerRadius: CGFloat = storyViewerCanvasCornerRadius
+    var textMaxLayoutWidth: CGFloat? = nil
     var onPauseStory: () -> Void = {}
     var onResumeStory: () -> Void = {}
 
@@ -45,7 +46,8 @@ struct StoryMediaOverlayRendererView: View {
                     metadata: overlay,
                     containerSize: containerSize,
                     replayToken: replayToken,
-                    animates: renderingMode == .live
+                    animates: renderingMode == .live,
+                    maxLayoutWidth: textMaxLayoutWidth
                 )
                 .frame(width: containerSize.width, height: containerSize.height)
                 .allowsHitTesting(false)
@@ -328,6 +330,16 @@ private struct StoryStaticGIFFrameView: View {
 }
 
 @MainActor
-private enum StoryStaticGIFFrameCache {
+enum StoryStaticGIFFrameCache {
     static let frames = NSCache<NSURL, UIImage>()
+
+    static func preload(_ url: URL) async {
+        if frames.object(forKey: url as NSURL) != nil { return }
+        guard let (data, _) = try? await URLSession.shared.data(from: url),
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let firstFrame = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            return
+        }
+        frames.setObject(UIImage(cgImage: firstFrame), forKey: url as NSURL)
+    }
 }

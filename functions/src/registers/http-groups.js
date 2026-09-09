@@ -49,7 +49,7 @@ const validGroupImagePath = (id, path) => {
 async function applyGroupCommand(db, uid, body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) fail('invalidAction');
   const action = body.action;
-  if (!['create', 'add', 'rename', 'setPhoto', 'promote', 'demote', 'remove', 'leave', 'mute', 'read', 'acceptInvite', 'declineInvite', 'cancelInvite', 'getLink', 'setLink', 'revokeLink', 'previewLink', 'joinLink'].includes(action)) fail('invalidAction');
+  if (!['create', 'add', 'rename', 'setPhoto', 'setDescription', 'setSendPermission', 'setLinkApproval', 'promote', 'demote', 'remove', 'leave', 'dissolve', 'mute', 'read', 'acceptInvite', 'declineInvite', 'cancelInvite', 'approveJoin', 'declineJoin', 'getLink', 'setLink', 'revokeLink', 'previewLink', 'joinLink'].includes(action)) fail('invalidAction');
   const id = body.conversationId;
   if (!validId(id) || !/^group-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) fail('invalidGroup');
   const ref = db.doc(`groupConversations/${id}`);
@@ -63,8 +63,23 @@ async function applyGroupCommand(db, uid, body) {
       const link = (await tx.get(db.doc(`groupInviteLinks/${id}`))).data();
       if (!link || link.tokenHash !== linkHash(body.token) || link.keyVersion !== group.conversationKeyVersion) fail('unavailable', 403);
       if (action === 'previewLink') return { conversationId: id, name: group.groupName, image: group.groupImagePath || '',
-        memberCount: group.participants.length, encryptedKey: link.encryptedKey, keyVersion: link.keyVersion };
+        memberCount: group.participants.length, encryptedKey: link.encryptedKey, keyVersion: link.keyVersion,
+        requiresApproval: group.linkRequiresApproval === true };
       if (group.participants.includes(uid)) return { conversationId: id };
+      if (group.linkRequiresApproval === true) {
+        const envelope = body.wrappedKey;
+        if (!envelope || envelope.wrappedBy !== uid || !validBase64(envelope.senderPublicKey, 32) ||
+            envelope.recipientKeyId !== actor.data().chatKey?.keyId || !validBase64(envelope.wrappedKey, 60)) fail('keyUnavailable', 409);
+        const pendingJoinIds = [...new Set([...(group.pendingJoinIds || []), uid])];
+        if (group.participants.length + (group.pendingInviteIds || []).filter(x => x !== uid).length + pendingJoinIds.filter(x => x !== uid).length >= 50) fail('invalidMembers');
+        const pendingJoinNames = { ...(group.pendingJoinNames || {}), [uid]: actor.get('username') || '' };
+        const timestamp = admin.firestore.FieldValue.serverTimestamp();
+        tx.set(db.doc(`groupJoinRequests/${id}_${uid}`), { groupId: id, recipientId: uid, keyVersion: group.conversationKeyVersion,
+          wrappedKey: { wrappedKey: envelope.wrappedKey, senderPublicKey: envelope.senderPublicKey,
+            recipientKeyId: envelope.recipientKeyId, wrappedBy: uid, wrappedAt: timestamp }, createdAt: timestamp });
+        tx.update(ref, { pendingJoinIds, pendingJoinNames, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+        return { conversationId: id, pending: true };
+      }
       if (group.participants.length + (group.pendingInviteIds || []).filter(x => x !== uid).length >= 50) fail('invalidMembers');
       const envelope = body.wrappedKey;
       if (!envelope || envelope.wrappedBy !== uid || !validBase64(envelope.senderPublicKey, 32) ||
@@ -116,7 +131,8 @@ async function applyGroupCommand(db, uid, body) {
       }
     } else {
       if (!group || group.isGroup !== true || !group.participants.includes(uid)) fail('unavailable', 403);
-      if (!['leave', 'mute', 'read'].includes(action) && !group.adminIds.includes(uid)) fail('adminRequired', 403);
+      if (action === 'dissolve' && uid !== group.ownerId) fail('ownerRequired', 403);
+      if (!['leave', 'mute', 'read', 'dissolve'].includes(action) && !group.adminIds.includes(uid)) fail('adminRequired', 403);
       if (!['mute', 'read', 'getLink'].includes(action) && body.revision !== group.groupRevision) fail('conflict', 409);
     }
     const timestamp = admin.firestore.FieldValue.serverTimestamp();
@@ -165,6 +181,7 @@ async function applyGroupCommand(db, uid, body) {
         if (!name || Array.from(name).length > 60) fail('invalidName');
         tx.create(ref, { isGroup: true, groupName: name, createdBy: uid, ownerId: uid, adminIds: [uid],
           groupRevision: 1, participants: [uid], participantData: { [uid]: participantData[uid] }, pendingInviteIds: pendingIds, pendingInviteNames: pendingNames, wrappedKeys: { [uid]: wrapped[uid] }, encryptionVersion: '3.0', conversationKeyVersion: 1,
+          groupDescription: '', sendPermission: 'everyone', linkRequiresApproval: false,
           timestamp, createdAt: timestamp, updatedAt: timestamp, readStatus: Object.fromEntries(recipients.map(id => [id, true])),
           lastMessage: '', lastMessageType: 'text', mutedByUserIds: [], archivedByUserIds: [] });
       } else {
@@ -211,7 +228,23 @@ async function applyGroupCommand(db, uid, body) {
     } else if (action === 'rename') {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
       if (!name || Array.from(name).length > 60) fail('invalidName');
-      tx.update(ref, { groupName: name, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+      // Optional description keeps older rename clients compatible and lets editors
+      // save both fields atomically under the same revision check.
+      const changes = { groupName: name, groupRevision: group.groupRevision + 1, updatedAt: timestamp };
+      if (Object.prototype.hasOwnProperty.call(body, 'description')) {
+        if (typeof body.description !== 'string' || Array.from(body.description.trim()).length > 280) fail('invalidName');
+        changes.groupDescription = body.description.trim();
+      }
+      tx.update(ref, changes);
+    } else if (action === 'setDescription') {
+      const description = typeof body.description === 'string' ? body.description.trim() : '';
+      if (Array.from(description).length > 280) fail('invalidName');
+      tx.update(ref, { groupDescription: description, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+    } else if (action === 'setSendPermission') {
+      if (body.sendPermission !== 'everyone' && body.sendPermission !== 'admins') fail('invalidAction');
+      tx.update(ref, { sendPermission: body.sendPermission, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+    } else if (action === 'setLinkApproval') {
+      tx.update(ref, { linkRequiresApproval: body.requiresApproval === true, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
     } else if (action === 'setPhoto') {
       if (!validGroupImagePath(id, body.imagePath)) fail('invalidName');
       const imagePath = body.imagePath.trim();
@@ -240,6 +273,43 @@ async function applyGroupCommand(db, uid, body) {
       tx.update(ref, { participants, adminIds: admins, ownerId: group.ownerId === target ? (admins[0] || null) : group.ownerId,
         wrappedKeys: wrapped, participantData, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
       groupNotice(tx, ref, group, action === 'leave' ? 'left' : 'removed', target, participantData[target]?.username);
+    } else if (action === 'approveJoin' || action === 'declineJoin') {
+      if (!validId(body.memberId)) fail('invalidMember');
+      const requestRef = db.doc(`groupJoinRequests/${id}_${body.memberId}`);
+      const requestDoc = await tx.get(requestRef);
+      const request = requestDoc.data();
+      if (!request || request.recipientId !== body.memberId) fail('unavailable', 403);
+      const pendingJoinIds = (group.pendingJoinIds || []).filter(memberId => memberId !== body.memberId);
+      const pendingJoinNames = { ...(group.pendingJoinNames || {}) }; delete pendingJoinNames[body.memberId];
+      if (action === 'declineJoin') {
+        tx.delete(requestRef);
+        tx.update(ref, { pendingJoinIds, pendingJoinNames, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+        return { conversationId: id };
+      }
+      if (group.participants.includes(body.memberId)) {
+        tx.delete(requestRef);
+        tx.update(ref, { pendingJoinIds, pendingJoinNames, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+        return { conversationId: id };
+      }
+      if (group.participants.length >= 50) fail('invalidMembers');
+      const joiner = await tx.get(db.doc(`users/${body.memberId}`));
+      if (!joiner.exists || joiner.data().isActive === false) fail('memberUnavailable', 409);
+      tx.delete(requestRef);
+      tx.update(ref, { participants: [...group.participants, body.memberId], pendingJoinIds, pendingJoinNames,
+        participantData: { ...group.participantData, [body.memberId]: { userId: body.memberId, username: joiner.get('username') || '', profileImagePath: joiner.get('profileImagePath') || '' } },
+        wrappedKeys: { ...group.wrappedKeys, [body.memberId]: request.wrappedKey },
+        [`memberJoinedAt.${body.memberId}`]: timestamp,
+        readStatus: { ...group.readStatus, [body.memberId]: true }, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+      groupNotice(tx, ref, group, 'joined', body.memberId, joiner.get('username'));
+    } else if (action === 'dissolve') {
+      const inviteIds = group.pendingInviteIds || [];
+      const joinIds = group.pendingJoinIds || [];
+      for (const memberId of inviteIds) tx.delete(db.doc(`groupInvitations/${id}_${memberId}`));
+      for (const memberId of joinIds) tx.delete(db.doc(`groupJoinRequests/${id}_${memberId}`));
+      tx.delete(db.doc(`groupInviteLinks/${id}`));
+      groupNotice(tx, ref, group, 'dissolved', uid, actor.get('username'));
+      tx.update(ref, { participants: [], adminIds: [], ownerId: null, wrappedKeys: {}, pendingInviteIds: [], pendingInviteNames: {},
+        pendingJoinIds: [], pendingJoinNames: {}, dissolvedAt: timestamp, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
     } else { fail('invalidAction'); }
     return { conversationId: id };
   });
@@ -286,7 +356,7 @@ const sendGroupMessage = onRequest({ timeoutSeconds: 60, memory: '256MiB', concu
       'duration', 'audioWaveform', 'fileName', 'fileSize', 'mediaWidth', 'mediaHeight', 'latitude', 'longitude', 'locationName', 'locationAddress', 'isLiveLocation',
       'liveLocationExpiresAt', 'liveLocationDuration', 'liveLocationStoppedAt', 'liveLocationSessionId', 'locationUpdatedAt', 'replyTo', 'expirationDate',
       'storyReplyData', 'sharedMomentData', 'sharedStoryData', 'sharedProfileData', 'mediaBatchId', 'textOverlayLive', 'textOverlays',
-      'stickers', 'drawingData', 'allowReplay', 'isForwarded', 'forwardedFrom', 'giphyId'];
+      'stickers', 'drawingData', 'allowReplay', 'isForwarded', 'forwardedFrom', 'giphyId', 'mentionedUserIds'];
     const message = Object.fromEntries(allowed.filter(field => input[field] != null).map(field => [field, input[field]]));
     if (message.content != null && (typeof message.content !== 'string' || message.content.length > 100000)) fail('invalidMessage');
     if (message.replyTo != null && !validId(message.replyTo)) fail('invalidMessage');
@@ -309,6 +379,13 @@ const sendGroupMessage = onRequest({ timeoutSeconds: 60, memory: '256MiB', concu
       const [groupDoc, actor, existing] = await Promise.all([tx.get(ref), tx.get(db.doc(`users/${uid}`)), tx.get(messageRef)]);
       const group = groupDoc.data();
       if (!group || !group.participants.includes(uid) || !actor.exists || actor.get('isActive') === false) fail('unavailable', 403);
+      if (group.sendPermission === 'admins' && !(group.adminIds || []).includes(uid)) fail('adminRequired', 403);
+      if (Array.isArray(message.mentionedUserIds)) {
+        message.mentionedUserIds = [...new Set(message.mentionedUserIds.filter(id => validId(id) && id !== uid && group.participants.includes(id)))].slice(0, 50);
+        if (!message.mentionedUserIds.length) delete message.mentionedUserIds;
+      } else {
+        delete message.mentionedUserIds;
+      }
       if (existing.exists) {
         // Retry/late acknowledgement: never overwrite edits, receipts or consumption.
         if (existing.get('senderId') !== uid) fail('conflict', 409);
@@ -330,6 +407,15 @@ const sendGroupMessage = onRequest({ timeoutSeconds: 60, memory: '256MiB', concu
   }
 });
 
+const isGroupMuted = (group, uid) => {
+  if ((group.archivedByUserIds || []).includes(uid)) return true;
+  if (!(group.mutedByUserIds || []).includes(uid)) return false;
+  const until = (group.mutedUntil || {})[uid];
+  if (!until) return true;
+  const ms = typeof until.toMillis === 'function' ? until.toMillis() : Number(until);
+  return Number.isFinite(ms) && ms > Date.now();
+};
+
 const onGroupMessageAdded = onDocumentCreated({ document: 'groupConversations/{groupId}/groupMessages/{messageId}', retry: false }, async event => {
   const message = event.data?.data();
   if (!message || message.type === 'chatNotice') return;
@@ -337,17 +423,18 @@ const onGroupMessageAdded = onDocumentCreated({ document: 'groupConversations/{g
   const db = admin.firestore();
   const group = (await db.doc(`groupConversations/${groupId}`).get()).data();
   if (!group || !group.participants.includes(message.senderId)) return;
-  const recipients = group.participants.filter(id => id !== message.senderId && !(group.mutedByUserIds || []).includes(id) && !(group.archivedByUserIds || []).includes(id));
+  const mentioned = Array.isArray(message.mentionedUserIds) ? message.mentionedUserIds : [];
+  const recipients = group.participants.filter(id => id !== message.senderId && !isGroupMuted(group, id));
   await Promise.all(recipients.map(async uid => {
     const user = (await db.doc(`users/${uid}`).get()).data();
     if (!user || user.isActive === false || !user.fcmToken ||
         isDoNotDisturbActive(user)) return;
-    // Generic group notification: no ciphertext or direct-chat identifiers.
+    const isMention = mentioned.includes(uid);
     const push = { token: user.fcmToken,
       data: { type: 'group_message', groupId, messageId, senderId: message.senderId,
         senderUsername: message.senderName, groupName: group.groupName, title: group.groupName },
       apns: { headers: { 'apns-collapse-id': `group-${groupId}`.slice(0, 64) }, payload: { aps: {
-        alert: { title: group.groupName, 'loc-key': 'groups.notification', 'loc-args': [message.senderName] },
+        alert: { title: group.groupName, 'loc-key': isMention ? 'groups.notification.mention' : 'groups.notification', 'loc-args': [message.senderName] },
         sound: 'default', 'thread-id': `group-${groupId}`
       } } }
     };

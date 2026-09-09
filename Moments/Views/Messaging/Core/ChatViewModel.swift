@@ -2162,6 +2162,13 @@ class EnhancedChatViewModel: ObservableObject {
         // Agregar mensaje temporal a la lista local
         appendOutgoingMessage(tempMessage)
 
+        let mentionedUserIds: [String]? = {
+            guard conversation.isGroup else { return nil }
+            let members = (GroupDirectory.shared.groups[conversationId]?.members ?? []).map { ($0.id, $0.name) }
+            let ids = GroupChatScope.mentionedMemberIds(in: text, members: members, senderId: currentUserId)
+            return ids.isEmpty ? nil : ids
+        }()
+
         chatService.sendTextMessage(
             conversationId: conversationId,
             senderId: currentUserId,
@@ -2169,7 +2176,8 @@ class EnhancedChatViewModel: ObservableObject {
             replyTo: replyTo,
             messageId: messageId,
             isVanishModeMessage: vanishModeActive,
-            vanishExpiresAt: nil
+            vanishExpiresAt: nil,
+            mentionedUserIds: mentionedUserIds
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {

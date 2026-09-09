@@ -228,8 +228,16 @@ extension GlassmorphicChatView {
     @ViewBuilder
     var chatToolbarSubtitle: some View {
         if viewModel.conversation.isGroup {
-            Text(String(format: NSLocalizedString("groups.memberCount", comment: ""), viewModel.conversation.participants.count))
+            let typingText: String? = {
+                guard viewModel.typingIndicatorEnabled, !viewModel.typingUsers.isEmpty else { return nil }
+                let names = Dictionary(
+                    uniqueKeysWithValues: (GroupDirectory.shared.groups[viewModel.conversation.id ?? ""]?.members ?? []).map { ($0.id, $0.name) }
+                )
+                return GroupChatScope.typingSubtitle(userIds: viewModel.typingUsers, names: names)
+            }()
+            Text(typingText ?? String(format: NSLocalizedString("groups.memberCount", comment: ""), viewModel.conversation.participants.count))
                 .font(.system(size: 11)).foregroundStyle(adaptiveColors.secondary)
+                .lineLimit(1)
         } else if isOtherParticipantBlockedByCurrentUser {
             Text("chat.blockedByMe.subtitle")
                 .font(.system(size: 11, weight: .regular))

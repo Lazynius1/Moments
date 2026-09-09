@@ -4,6 +4,8 @@ import FirebaseAuth
 struct UserReportContent: View {
     let reportedUserId: String
     let reportedUsername: String?
+    var reportedContentType: String = "user"
+    var reportedContentId: String? = nil
     let onBack: () -> Void
     let onDismiss: () -> Void
 
@@ -22,6 +24,12 @@ struct UserReportContent: View {
     }
 
     private var reportTitle: String {
+        if reportedContentType == "group" {
+            if let username = reportedUsername, !username.isEmpty {
+                return String(format: NSLocalizedString("groups.report", comment: "Report group"), username)
+            }
+            return NSLocalizedString("groups.report", comment: "Report group")
+        }
         if let username = reportedUsername, !username.isEmpty {
             return String(format: NSLocalizedString("report.user.title.username", comment: "Report username title"), username)
         }
@@ -37,7 +45,9 @@ struct UserReportContent: View {
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 24) {
-                        Text(NSLocalizedString("report.user.subtitle", comment: "Report account subtitle"))
+                        Text(reportedContentType == "group"
+                             ? NSLocalizedString("groups.report.subtitle", comment: "Report group subtitle")
+                             : NSLocalizedString("report.user.subtitle", comment: "Report account subtitle"))
                             .font(.system(size: legacyPoppinsSize(15)))
                             .foregroundStyle(secondaryText)
                             .multilineTextAlignment(.leading)
@@ -139,8 +149,8 @@ struct UserReportContent: View {
             await LocalPersistenceService.shared.reportContent(
                 reporterId: currentUserId,
                 reportedUserId: reportedUserId,
-                reportedContentType: "user",
-                reportedContentId: reportedUserId,
+                reportedContentType: reportedContentType,
+                reportedContentId: reportedContentId ?? reportedUserId,
                 category: reason.rawValue,
                 description: description,
                 priority: reason.priority.rawValue

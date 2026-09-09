@@ -59,8 +59,43 @@ extension GroupChatScope {
     static func noticeText(_ content: String) -> String? {
         guard let bytes = content.data(using: .utf8),
               let data = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
-              let kind = data["groupNotice"] as? String, ["joined", "left", "removed"].contains(kind),
+              let kind = data["groupNotice"] as? String, ["joined", "left", "removed", "dissolved"].contains(kind),
               let name = data["name"] as? String else { return nil }
         return String(format: NSLocalizedString("groups.notice." + kind, comment: "Group membership event"), name)
+    }
+
+    static func typingSubtitle(userIds: Set<String>, names: [String: String]) -> String {
+        let resolved = userIds.compactMap { id -> String? in
+            let name = names[id]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return name.isEmpty ? nil : name
+        }
+        switch resolved.count {
+        case 0:
+            return NSLocalizedString("chat.typing", comment: "")
+        case 1:
+            return String(format: NSLocalizedString("groups.typing.one", comment: ""), resolved[0])
+        case 2:
+            return String(format: NSLocalizedString("groups.typing.two", comment: ""), resolved[0], resolved[1])
+        default:
+            return NSLocalizedString("groups.typing.several", comment: "")
+        }
+    }
+
+    static func detectMentionToken(in text: String) -> MentionDraftToken? {
+        if let token = MentionParsing.detectActiveToken(in: text) { return token }
+        guard !text.isEmpty else { return nil }
+        let tokenStart = text.lastIndex(where: { $0.isWhitespace }).map { text.index(after: $0) } ?? text.startIndex
+        let tokenRange = tokenStart..<text.endIndex
+        guard String(text[tokenRange]) == "@" else { return nil }
+        return MentionDraftToken(query: "", fullRange: tokenRange)
+    }
+
+    static func mentionedMemberIds(in text: String, members: [(id: String, name: String)], senderId: String) -> [String] {
+        let usernames = MentionParsing.extractUsernames(from: text)
+        guard !usernames.isEmpty else { return [] }
+        return members.compactMap { member in
+            guard member.id != senderId else { return nil }
+            return usernames.contains(where: { $0.caseInsensitiveCompare(member.name) == .orderedSame }) ? member.id : nil
+        }
     }
 }

@@ -523,7 +523,7 @@ class ChatService: ObservableObject {
         }
     }
     
-    func sendTextMessage(conversationId: String, senderId: String, content: String, replyTo: String? = nil, messageId: String? = nil, isVanishModeMessage: Bool = false, vanishExpiresAt: Date? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendTextMessage(conversationId: String, senderId: String, content: String, replyTo: String? = nil, messageId: String? = nil, isVanishModeMessage: Bool = false, vanishExpiresAt: Date? = nil, mentionedUserIds: [String]? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let finalMessageId = messageId ?? UUID().uuidString
         
         // 🔐 Encrypt content before sending (Async)
@@ -562,6 +562,7 @@ class ChatService: ObservableObject {
                 isVanishModeMessage: isVanishModeMessage ? true : nil,
                 vanishExpiresAt: vanishExpiresAt
             )
+            message.mentionedUserIds = mentionedUserIds?.isEmpty == false ? mentionedUserIds : nil
             
             sendMessage(message, useServerTimestamp: true, completion: completion)
         }
@@ -1233,6 +1234,9 @@ class ChatService: ObservableObject {
         if let starredBy = message.starredBy, !starredBy.isEmpty {
             messageData["starredBy"] = starredBy
         }
+        if let mentioned = message.mentionedUserIds, !mentioned.isEmpty {
+            messageData["mentionedUserIds"] = mentioned
+        }
         
         // Set timestamp
         if useServerTimestamp {
@@ -1719,13 +1723,18 @@ class ChatService: ObservableObject {
             }
     }
     
-    func muteConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
-        
+    func muteConversation(_ conversationId: String, for userId: String, until: Date? = nil, completion: @escaping (Error?) -> Void) {
+        var data: [String: Any] = [
+            "mutedByUserIds": FieldValue.arrayUnion([userId]),
+            "mutedByTimestamps.\(userId)": FieldValue.serverTimestamp()
+        ]
+        if let until {
+            data["mutedUntil.\(userId)"] = Timestamp(date: until)
+        } else {
+            data["mutedUntil.\(userId)"] = FieldValue.delete()
+        }
         db.messagingThread(conversationId)
-            .updateData([
-                "mutedByUserIds": FieldValue.arrayUnion([userId]),
-                "mutedByTimestamps.\(userId)": FieldValue.serverTimestamp()
-            ]) { error in
+            .updateData(data) { error in
                 if let error = error {
                     completion(error)
                 } else {
@@ -1739,7 +1748,8 @@ class ChatService: ObservableObject {
         db.messagingThread(conversationId)
             .updateData([
                 "mutedByUserIds": FieldValue.arrayRemove([userId]),
-                "mutedByTimestamps.\(userId)": FieldValue.delete()
+                "mutedByTimestamps.\(userId)": FieldValue.delete(),
+                "mutedUntil.\(userId)": FieldValue.delete()
             ]) { error in
                 if let error = error {
                     completion(error)
@@ -1899,6 +1909,7 @@ class ChatService: ObservableObject {
                         pinnedBy: legacyPinnedBy,
                         isMuted: isMuted,
                         mutedByUserIds: mutedByUserIds,
+                        mutedUntil: (data["mutedUntil"] as? [String: Timestamp])?.mapValues { $0.dateValue() },
                         mutedBy: legacyMutedBy,
                         archivedByUserIds: archivedByUserIds,
                         encryptionVersion: encryptionVersion,
@@ -2400,6 +2411,7 @@ class ChatService: ObservableObject {
                 pinnedBy: conversation.pinnedBy,
                 isMuted: conversation.isMuted,
                 mutedByUserIds: conversation.mutedByUserIds,
+                mutedUntil: conversation.mutedUntil,
                 mutedBy: conversation.mutedBy,
                 archivedByUserIds: conversation.archivedByUserIds,
                 encryptionVersion: conversation.encryptionVersion,

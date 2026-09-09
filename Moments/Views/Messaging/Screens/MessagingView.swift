@@ -985,7 +985,7 @@ struct MessagingView: View {
               let currentUserId = Auth.auth().currentUser?.uid else { return }
 
         let chatService = ChatService.shared
-        if conversation.isMuted == true {
+        if conversation.isMuted(for: Auth.auth().currentUser?.uid) {
             viewModel.applyLocalConversationState(conversationId: conversationId, isMuted: false)
             // Si ya está silenciada, desilenciarla
             chatService.unmuteConversation(conversationId, for: currentUserId) { _ in
@@ -1510,10 +1510,14 @@ struct GlassmorphicConversationRow: View {
                     .foregroundStyle(.blue)
             }
 
-            if conversation.isMuted == true {
-                Image(systemName: "bell.slash.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.orange)
+            let muteUserId = Auth.auth().currentUser?.uid
+            let muteDeadline = muteUserId.flatMap { conversation.mutedUntil?[$0] }
+            TimelineView(.explicit(([Date()] + (muteDeadline.map { [$0] } ?? [])).sorted())) { timeline in
+                if conversation.isMuted(for: muteUserId, at: timeline.date) {
+                    Image(systemName: "bell.slash.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.orange)
+                }
             }
         }
 

@@ -42,8 +42,6 @@ struct CommentMentionSearchOverlay: View {
         VStack(spacing: 12) {
             if showsSearchField {
                 searchField
-            } else {
-                inlineHeader
             }
 
             if shouldShowResultsPanel {
@@ -102,32 +100,6 @@ struct CommentMentionSearchOverlay: View {
         .momentsChromeGlass(in: Capsule(), interactive: true)
     }
 
-    private var inlineHeader: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "at")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Text(query?.isEmpty == false ? "@\(query ?? "")" : placeholder)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-
-            Spacer()
-
-            Button(action: onCancel) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 30, height: 30)
-                    .momentsChromeGlass(in: Circle(), interactive: true)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .momentsChromeGlass(in: Capsule(), interactive: true)
-    }
-
     private var resultsPanel: some View {
         Group {
             if isSearching {
@@ -158,10 +130,10 @@ struct CommentMentionSearchOverlay: View {
             }
         }
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        .momentsChromeGlass(
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous),
+            interactive: false,
+            style: .native
         )
     }
 

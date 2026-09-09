@@ -8,7 +8,9 @@ struct ReportBottomSheet: View {
     let story: Story?
     let reportedUserId: String?
     let reportedUsername: String?
-    
+    let reportedContentType: String
+    let reportedContentId: String?
+
     @Environment(\.dismiss) private var dismiss
     
     init(moment: Moment) {
@@ -16,6 +18,8 @@ struct ReportBottomSheet: View {
         self.story = nil
         self.reportedUserId = nil
         self.reportedUsername = nil
+        self.reportedContentType = "moment"
+        self.reportedContentId = moment.id
     }
     
     init(story: Story) {
@@ -23,6 +27,8 @@ struct ReportBottomSheet: View {
         self.story = story
         self.reportedUserId = nil
         self.reportedUsername = nil
+        self.reportedContentType = "story"
+        self.reportedContentId = story.id
     }
 
     init(userId: String, username: String? = nil) {
@@ -30,6 +36,17 @@ struct ReportBottomSheet: View {
         self.story = nil
         self.reportedUserId = userId
         self.reportedUsername = username
+        self.reportedContentType = "user"
+        self.reportedContentId = userId
+    }
+
+    init(groupId: String, groupName: String, ownerId: String) {
+        self.moment = nil
+        self.story = nil
+        self.reportedUserId = ownerId
+        self.reportedUsername = groupName
+        self.reportedContentType = "group"
+        self.reportedContentId = groupId
     }
     
     var body: some View {
@@ -38,6 +55,8 @@ struct ReportBottomSheet: View {
                 UserReportContent(
                     reportedUserId: reportedUserId,
                     reportedUsername: reportedUsername,
+                    reportedContentType: reportedContentType,
+                    reportedContentId: reportedContentId ?? reportedUserId,
                     onBack: { dismiss() },
                     onDismiss: { dismiss() }
                 )

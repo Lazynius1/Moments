@@ -676,6 +676,7 @@ struct Conversation: Identifiable, Codable, Hashable {
     let pinnedBy: String?
     let isMuted: Bool?
     let mutedByUserIds: [String]?
+    let mutedUntil: [String: Date]?
     let mutedBy: String?
     let archivedByUserIds: [String]?
     let encryptionVersion: String?
@@ -735,6 +736,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         case pinnedBy
         case isMuted
         case mutedByUserIds
+        case mutedUntil
         case mutedBy
         case archivedByUserIds
         case encryptionVersion
@@ -767,6 +769,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         pinnedBy: String? = nil,
         isMuted: Bool? = false,
         mutedByUserIds: [String]? = nil,
+        mutedUntil: [String: Date]? = nil,
         mutedBy: String? = nil,
         archivedByUserIds: [String]? = nil,
         encryptionVersion: String? = nil,
@@ -786,6 +789,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.pinnedBy = pinnedBy
         self.isMuted = isMuted
         self.mutedByUserIds = mutedByUserIds
+        self.mutedUntil = mutedUntil
         self.mutedBy = mutedBy
         self.archivedByUserIds = archivedByUserIds
         self.encryptionVersion = encryptionVersion
@@ -824,6 +828,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.pinnedBy = try container.decodeIfPresent(String.self, forKey: .pinnedBy)
         self.isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
         self.mutedByUserIds = try container.decodeIfPresent([String].self, forKey: .mutedByUserIds)
+        self.mutedUntil = try container.decodeIfPresent([String: Timestamp].self, forKey: .mutedUntil)?.mapValues { $0.dateValue() }
         self.mutedBy = try container.decodeIfPresent(String.self, forKey: .mutedBy)
         self.archivedByUserIds = try container.decodeIfPresent([String].self, forKey: .archivedByUserIds)
         self.encryptionVersion = try container.decodeIfPresent(String.self, forKey: .encryptionVersion)
@@ -869,6 +874,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(pinnedBy, forKey: .pinnedBy)
         try container.encodeIfPresent(isMuted, forKey: .isMuted)
         try container.encodeIfPresent(mutedByUserIds, forKey: .mutedByUserIds)
+        try container.encodeIfPresent(mutedUntil?.mapValues { Timestamp(date: $0) }, forKey: .mutedUntil)
         try container.encodeIfPresent(mutedBy, forKey: .mutedBy)
         try container.encodeIfPresent(archivedByUserIds, forKey: .archivedByUserIds)
         try container.encodeIfPresent(encryptionVersion, forKey: .encryptionVersion)
@@ -892,13 +898,14 @@ struct Conversation: Identifiable, Codable, Hashable {
         forwardingPreferences?[senderId] ?? true
     }
 
-    func isMuted(for userId: String?) -> Bool {
+    func isMuted(for userId: String?, at date: Date = Date()) -> Bool {
         guard let userId, !userId.isEmpty else {
             return isMuted ?? false
         }
 
         if mutedByUserIds?.contains(userId) == true {
-            return true
+            guard let until = mutedUntil?[userId] else { return true }
+            return until > date
         }
 
         if isMuted == true, let mutedBy {
@@ -1370,6 +1377,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     var readAtBy: [String: Date]?
     var starredBy: [String]?
     var isForwarded: Bool?
+    var mentionedUserIds: [String]? = nil
     /// Dimensiones originales de GIF/sticker (p. ej. Giphy `fixed_height`).
     let mediaWidth: Int?
     let mediaHeight: Int?

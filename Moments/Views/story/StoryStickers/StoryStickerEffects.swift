@@ -246,6 +246,7 @@ class KeyboardIgnoringHostingController<Content: View>: UIHostingController<Cont
 // MARK: - 🎥 NUEVO REPRODUCTOR DEDICADO PARA STICKERS
 // Diseñado específicamente para el visor de historias, manejando el ciclo de vida y loop correctamente.
 struct StickerVideoPlayer: UIViewRepresentable {
+    @Environment(\.storyExportVideoFrames) private var exportFrames
     let url: URL
     var isMuted: Bool = true
     var onDuration: ((TimeInterval) -> Void)? = nil
@@ -257,11 +258,16 @@ struct StickerVideoPlayer: UIViewRepresentable {
 
     func updateUIView(_ uiView: StickerPlayerUIView, context: Context) {
         uiView.onDuration = onDuration
-        uiView.play(url: url, isMuted: isMuted)
+        if let exportFrames {
+            uiView.showExportFrame(exportFrames[url])
+        } else {
+            uiView.play(url: url, isMuted: isMuted)
+        }
     }
 
     class StickerPlayerUIView: UIView {
         private let playerLayer = AVPlayerLayer()
+        private let exportImageView = UIImageView()
         private var player: AVPlayer?
         private var playerItem: AVPlayerItem?
         private var loopObserver: NSObjectProtocol?
@@ -286,9 +292,22 @@ struct StickerVideoPlayer: UIViewRepresentable {
         override func layoutSubviews() {
             super.layoutSubviews()
             playerLayer.frame = bounds
+            exportImageView.frame = bounds
+        }
+
+        func showExportFrame(_ image: UIImage?) {
+            player?.pause()
+            playerLayer.isHidden = true
+            exportImageView.contentMode = .scaleAspectFill
+            exportImageView.clipsToBounds = true
+            exportImageView.frame = bounds
+            exportImageView.image = image
+            if exportImageView.superview == nil { addSubview(exportImageView) }
         }
 
         func play(url: URL, isMuted: Bool) {
+            exportImageView.removeFromSuperview()
+            playerLayer.isHidden = false
             if !isMuted {
                 // Misma sesión que el visor: .playback ignora el switch de silencio.
                 // Hay que encolarla antes de play(); si no, el primer arranque queda mudo.

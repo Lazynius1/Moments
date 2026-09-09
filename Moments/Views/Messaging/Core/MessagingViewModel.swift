@@ -78,6 +78,15 @@ class MessagingViewModel: ObservableObject {
         let currentUserId = Auth.auth().currentUser?.uid
         let resolvedPinned = isPinned ?? conversation.isPinned(for: currentUserId)
         let resolvedMuted = isMuted ?? conversation.isMuted(for: currentUserId)
+        var mutedIds = conversation.mutedByUserIds ?? []
+        var muteDeadlines = conversation.mutedUntil ?? [:]
+        if let isMuted, let currentUserId {
+            mutedIds.removeAll { $0 == currentUserId }
+            if isMuted { mutedIds.append(currentUserId) }
+            if !isMuted || (muteDeadlines[currentUserId].map { $0 <= Date() } ?? false) {
+                muteDeadlines.removeValue(forKey: currentUserId)
+            }
+        }
         var archivedIds = conversation.archivedByUserIds ?? []
         if let isArchived, let currentUserId, !currentUserId.isEmpty {
             if isArchived {
@@ -101,7 +110,8 @@ class MessagingViewModel: ObservableObject {
             pinnedByUserIds: conversation.pinnedByUserIds,
             pinnedBy: conversation.pinnedBy,
             isMuted: resolvedMuted,
-            mutedByUserIds: conversation.mutedByUserIds,
+            mutedByUserIds: mutedIds,
+            mutedUntil: muteDeadlines,
             mutedBy: conversation.mutedBy,
             archivedByUserIds: archivedIds.isEmpty ? nil : archivedIds,
             encryptionVersion: conversation.encryptionVersion,

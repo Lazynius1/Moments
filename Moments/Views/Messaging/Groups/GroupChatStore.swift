@@ -32,6 +32,10 @@ struct GroupConversation: Identifiable {
     let allMemberNames: [String: String]
     let image: String
     let memberJoinedAt: [String: Date]
+    let groupDescription: String
+    let sendPermission: String
+    let linkRequiresApproval: Bool
+    let pendingJoinNames: [String: String]
 
     init(_ doc: DocumentSnapshot) {
         let data = doc.data() ?? [:]
@@ -56,6 +60,10 @@ struct GroupConversation: Identifiable {
         allMemberNames = details.mapValues { $0["username"] as? String ?? "" }
         image = data["groupImagePath"] as? String ?? ""
         memberJoinedAt = (data["memberJoinedAt"] as? [String: Timestamp] ?? [:]).mapValues { $0.dateValue() }
+        groupDescription = data["groupDescription"] as? String ?? ""
+        sendPermission = data["sendPermission"] as? String == "admins" ? "admins" : "everyone"
+        linkRequiresApproval = data["linkRequiresApproval"] as? Bool ?? false
+        pendingJoinNames = data["pendingJoinNames"] as? [String: String] ?? [:]
     }
 
     func joinedDate(for memberId: String) -> Date? {
@@ -269,11 +277,13 @@ final class GroupChatStore: ObservableObject {
     }
 
     @discardableResult
-    func command(_ action: String, group: GroupConversation, memberId: String = "", name: String = "", muted: Bool = false) async -> Bool {
+    func command(_ action: String, group: GroupConversation, memberId: String = "", name: String = "", muted: Bool = false, extra: [String: Any] = [:]) async -> Bool {
         guard !busy else { return false }
         busy = true; defer { busy = false }
         do {
-            _ = try await request("manageGroup", ["action": action, "conversationId": group.id, "revision": group.revision, "memberId": memberId, "name": name, "muted": muted])
+            var body: [String: Any] = ["action": action, "conversationId": group.id, "revision": group.revision, "memberId": memberId, "name": name, "muted": muted]
+            extra.forEach { body[$0.key] = $0.value }
+            _ = try await request("manageGroup", body)
             return true
         } catch { self.error = "groups.manageError"; return false }
     }
@@ -390,8 +400,8 @@ extension GroupChatStore {
         guard raw.count == 32 else { throw URLError(.cannotDecodeContentData) }
         return SymmetricKey(data: raw)
     }
-    func joinLink(_ link: GroupInviteLink) async -> Bool {
-        guard !busy else { return false }
+    func joinLink(_ link: GroupInviteLink) async -> Bool? {
+        guard !busy else { return nil }
         busy = true; defer { busy = false }
         do {
             let result = try await request("manageGroup", ["action": "previewLink", "conversationId": link.groupId, "token": link.token])
@@ -400,8 +410,9 @@ extension GroupChatStore {
             var envelopes = try await EncryptionService.shared.buildWrappedConversationKeys(for: [userId], conversationKey: key, wrappedBy: userId)
             guard var envelope = envelopes.removeValue(forKey: userId) else { throw URLError(.userAuthenticationRequired) }
             envelope.removeValue(forKey: "wrappedAt")
-            _ = try await request("manageGroup", ["action": "joinLink", "conversationId": link.groupId, "token": link.token, "wrappedKey": envelope])
+            let joined = try await request("manageGroup", ["action": "joinLink", "conversationId": link.groupId, "token": link.token, "wrappedKey": envelope])
+            if joined["pending"] as? Bool == true { return false }
             return true
-        } catch { self.error = "groups.linkError"; return false }
+        } catch { self.error = "groups.linkError"; return nil }
     }
 }

@@ -358,8 +358,19 @@ extension GlassmorphicChatView {
                 Color.clear.frame(height: 0)
             } else if pendingChatContext?.status == .outgoingRequestBlocked {
                 RequestsClosedInputBar(displayName: pendingChatContext?.otherUsername ?? otherParticipantDisplayName)
+            } else if groupSendLocked {
+                GroupSendLockedInputBar()
             } else {
                 VStack(spacing: 0) {
+                    if viewModel.conversation.isGroup, let token = GroupChatScope.detectMentionToken(in: messageText) {
+                        GroupMentionCandidateList(
+                            query: token.query,
+                            members: groupMentionMembers.filter { $0.id != viewModel.currentUserId },
+                            onSelect: { member in
+                                messageText.replaceSubrange(token.fullRange, with: "@\(member.name) ")
+                            }
+                        )
+                    }
                     GlassmorphicInputBar(
                         text: $messageText,
                         isTyping: $session.isTyping,
@@ -584,6 +595,25 @@ extension GlassmorphicChatView {
                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     .lineLimit(1)
 
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .momentsChromeGlass(in: Capsule(), interactive: false)
+        }
+    }
+
+    struct GroupSendLockedInputBar: View {
+        @Environment(\.colorScheme) var colorScheme
+
+        var body: some View {
+            HStack(spacing: 10) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                Text(NSLocalizedString("groups.send.locked", comment: ""))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+                    .lineLimit(2)
                 Spacer(minLength: 0)
             }
             .foregroundStyle(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))

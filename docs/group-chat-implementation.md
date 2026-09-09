@@ -1,6 +1,8 @@
 # Group chat — implementation and deployment status
 
-Updated: 7 September 2026.
+Updated: 8 September 2026.
+
+Shipped core lives in this file. Remaining user-facing gaps (mentions, group typing subtitle, description, admins-only send, dissolve, join approval, timed mute, member search, report group) are planned in `docs/group-chat-gaps.md`. Read-by avatars are already in the message context menu; they are not a gap.
 
 ## Group invitation policy (separate from 1:1)
 

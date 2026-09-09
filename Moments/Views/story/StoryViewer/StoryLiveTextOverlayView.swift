@@ -6,6 +6,7 @@ struct StoryLiveTextOverlayView: View {
     let containerSize: CGSize
     let replayToken: Int
     var animates: Bool = true
+    var maxLayoutWidth: CGFloat? = nil
 
     var body: some View {
         if let config = metadata.scaledRenderConfiguration(
@@ -26,6 +27,7 @@ struct StoryLiveTextOverlayView: View {
     }
 
     private var overlayMaxWidth: CGFloat {
+        if let maxLayoutWidth { return maxLayoutWidth }
         if animates {
             return max(containerSize.width - 48, 120)
         }

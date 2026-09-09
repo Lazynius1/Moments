@@ -1,5 +1,4 @@
 import SwiftUI
-import PhotosUI
 import UIKit
 import FirebaseAuth
 import FirebaseFirestore
@@ -7,7 +6,92 @@ import Kingfisher
 
 private func groupText(_ key: String) -> String { NSLocalizedString("groups." + key, comment: "Group chat") }
 private let groupNameMaxLength = 60
+private let groupDescriptionMaxLength = 280
 private func limitedGroupName(_ value: String) -> String { String(value.prefix(groupNameMaxLength)) }
+private func limitedGroupDescription(_ value: String) -> String { String(value.prefix(groupDescriptionMaxLength)) }
+
+struct GroupMentionCandidateList: View {
+    let query: String
+    let members: [GroupMember]
+    let onSelect: (GroupMember) -> Void
+
+    private var matches: [GroupMember] {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let filtered = members.filter {
+            needle.isEmpty || $0.name.localizedCaseInsensitiveContains(needle)
+        }
+        return Array(filtered.prefix(10))
+    }
+
+    private var resultsPanelHeight: CGFloat {
+        let rowHeight: CGFloat = 67
+        let visibleRows = min(max(matches.count, 1), 3)
+        return CGFloat(visibleRows) * rowHeight
+    }
+
+    var body: some View {
+        Group {
+            if matches.isEmpty {
+                Text(NSLocalizedString("common.noResults", value: "No users found", comment: ""))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 88)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(matches) { member in
+                            Button { onSelect(member) } label: {
+                                GroupMentionSearchRow(member: member)
+                            }
+                            .buttonStyle(.plain)
+
+                            if member.id != matches.last?.id {
+                                Divider().opacity(0.25)
+                            }
+                        }
+                    }
+                }
+                .frame(height: resultsPanelHeight)
+            }
+        }
+        .padding(.vertical, 8)
+        .momentsChromeGlass(
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous),
+            interactive: false,
+            style: .native
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 6)
+    }
+}
+
+private struct GroupMentionSearchRow: View {
+    let member: GroupMember
+
+    var body: some View {
+        HStack(spacing: 12) {
+            AsyncProfileImageView(userId: member.id)
+                .frame(width: 42, height: 42)
+                .clipShape(Circle())
+
+            Text(member.name)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+
+            Spacer()
+
+            Image(systemName: "plus")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.primary)
+                .frame(width: 28, height: 28)
+                .momentsChromeGlass(in: Circle(), interactive: true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+}
 
 struct GroupChatAvatar: View {
     var name: String = ""
@@ -15,21 +99,35 @@ struct GroupChatAvatar: View {
     var local: UIImage? = nil
     var size: CGFloat = 52
     var camera: Bool = false
+    var uploading: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             Group {
                 if let local {
                     Image(uiImage: local).resizable().scaledToFill()
+                        .opacity(uploading ? 0.42 : 1)
                 } else if let url = URL(string: image), !image.isEmpty {
                     KFImage(url).placeholder { fallback }.resizable().scaledToFill()
                 } else { fallback }
             }
             .frame(width: size, height: size).clipShape(Circle())
+
+            if uploading {
+                ProgressView()
+                    .controlSize(.regular)
+                    .tint(.white)
+                    .padding(12)
+                    .background(.black.opacity(0.28), in: Circle())
+                    .frame(width: size, height: size)
+            }
+
             if camera {
-                Image(systemName: "camera.fill").font(.system(size: max(10, size * 0.2), weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: size * 0.38, height: size * 0.38)
-                    .background(Color.accentColor, in: Circle())
+                Image(systemName: "camera.fill")
+                    .font(.system(size: max(10, size * 0.2), weight: .bold))
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    .padding(max(6, size * 0.08))
+                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                     .offset(x: 2, y: 2)
             }
         }
@@ -230,7 +328,7 @@ struct GroupMemberPicker: View {
     @State private var loading = true
     @State private var skipContinue: GroupSaveResult?
     @State private var photo: UIImage?
-    @State private var photoItem: PhotosPickerItem?
+    @State private var showingPhotoCrop = false
     private var candidates: [GroupMember] {
         store.candidates.filter { member in
             !(group?.members.contains(where: { $0.id == member.id }) ?? false) && group?.pendingNames[member.id] == nil &&
@@ -251,9 +349,10 @@ struct GroupMemberPicker: View {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if group == nil {
                     HStack(alignment: .center, spacing: 14) {
-                        PhotosPicker(selection: $photoItem, matching: .images) {
+                        Button { showingPhotoCrop = true } label: {
                             GroupChatAvatar(name: name, local: photo, size: 64, camera: true)
                         }
+                        .buttonStyle(.plain)
                         TextField(groupText("name"), text: Binding(get: { name }, set: { name = limitedGroupName($0) }))
                             .padding(16).background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
                     }.padding(.horizontal, 20)
@@ -301,10 +400,9 @@ struct GroupMemberPicker: View {
                 }.disabled(!valid || store.busy)
             }
         }
-        .onChange(of: photoItem) { _, item in
-            Task {
-                guard let item, let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else { return }
-                photo = image
+        .fullScreenCover(isPresented: $showingPhotoCrop) {
+            ProfileLibraryCropEntryView { cropped in
+                photo = cropped
             }
         }
         .task(id: search) {
@@ -338,6 +436,7 @@ struct GroupDetailsView: View {
     @ObservedObject var store: GroupChatStore
     @State private var adding = false
     @State private var removing: GroupMember?
+    @State private var memberSearch = ""
     @StateObject private var onlineStatusService = OnlineStatusService()
     @State private var followEpoch = 0
     @State private var selectedProfileRoute: FeedProfileSheetRoute?
@@ -358,12 +457,33 @@ struct GroupDetailsView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
                         .frame(maxWidth: .infinity)
+                    if !group.groupDescription.isEmpty {
+                        Text(group.groupDescription)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+                    }
                     Text(String(format: groupText("memberCount"), group.members.count))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                     if admin {
                         Button { adding = true } label: { Label(groupText("add"), systemImage: "person.badge.plus") }
                             .disabled(group.members.count >= 50)
+                    }
+                    if admin && !group.pendingJoinNames.isEmpty {
+                        Text(groupText("joinRequests")).font(.headline).padding(.top, 8)
+                        ForEach(group.pendingJoinNames.keys.sorted(), id: \.self) { id in
+                            HStack {
+                                GroupPersonRow(
+                                    member: GroupMember(id: id, name: group.pendingJoinNames[id] ?? "", image: ""),
+                                    profileZoomNamespace: profileZoomNamespace,
+                                    onProfileTap: { selectedProfileRoute = FeedProfileSheetRoute(userId: id) }
+                                )
+                                Button(groupText("decline")) { Task { await store.command("declineJoin", group: group, memberId: id) } }
+                                Button(groupText("approveJoin")) { Task { await store.command("approveJoin", group: group, memberId: id) } }
+                            }
+                        }
                     }
                     if admin && !group.pendingNames.isEmpty {
                         Text(groupText("pendingInvitations")).font(.headline).padding(.top, 8)
@@ -388,6 +508,7 @@ struct GroupDetailsView: View {
             if let group = store.active { GroupMemberPicker(store: store, group: group) { _ in adding = false } }
         }
         .navigationTitle(groupText("members"))
+        .searchable(text: $memberSearch, prompt: groupText("searchMembers"))
         .userProfileNavigationDestination(item: $selectedProfileRoute, namespace: profileZoomNamespace)
         .task(id: store.active?.members.map(\.id).joined(separator: ",")) {
             guard let members = store.active?.members, let viewer = Auth.auth().currentUser?.uid else { return }
@@ -425,13 +546,18 @@ struct GroupDetailsView: View {
             Text(groupText("othersSection")).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 8)
             ForEach(buckets.others) { member in memberRow(member, group: group, admin: admin) }
         }
+        if buckets.you.isEmpty && buckets.following.isEmpty && buckets.others.isEmpty && !memberSearch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Text(groupText("noMembersFound")).foregroundStyle(.secondary).padding(.top, 8)
+        }
     }
 
     private func memberBuckets(_ members: [GroupMember]) -> (you: [GroupMember], following: [GroupMember], others: [GroupMember]) {
         _ = followEpoch
         let uid = store.uid
-        let you = members.filter { $0.id == uid }
-        let rest = members.filter { $0.id != uid }
+        let query = memberSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        let visible = query.isEmpty ? members : members.filter { $0.name.localizedCaseInsensitiveContains(query) }
+        let you = visible.filter { $0.id == uid }
+        let rest = visible.filter { $0.id != uid }
         let following = rest.filter { FollowStateStore.shared.state(for: $0.id)?.isFollowingOrMutual == true }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         let others = rest.filter { FollowStateStore.shared.state(for: $0.id)?.isFollowingOrMutual != true }
@@ -506,27 +632,86 @@ struct GroupEditView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var name = ""
-    @State private var photoItem: PhotosPickerItem?
+    @State private var description = ""
+    @State private var showingPhotoCrop = false
+    @State private var pendingPhoto: UIImage?
+    @State private var isPhotoUploading = false
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !store.busy && !isPhotoUploading
+    }
+    private var saveTint: Color {
+        colorScheme == .dark ? MomentsGlassButtonTint.light : MomentsGlassButtonTint.dark
+    }
+    private var saveLabel: Color {
+        colorScheme == .dark ? MomentsGlassButtonTint.dark : MomentsGlassButtonTint.light
+    }
+
+    private func saveEdits(of group: GroupConversation) {
+        Task {
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            if trimmed != group.name || trimmedDescription != group.groupDescription {
+                guard await store.command("rename", group: group, name: trimmed,
+                                          extra: ["description": trimmedDescription]) else { return }
+            }
+            dismiss()
+        }
+    }
     var body: some View {
         ScrollView {
             if let group = store.active {
                 VStack(spacing: 20) {
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        GroupChatAvatar(name: name.isEmpty ? group.name : name, image: group.image, size: 96, camera: true)
+                    Button { showingPhotoCrop = true } label: {
+                        GroupChatAvatar(
+                            name: name.isEmpty ? group.name : name,
+                            image: group.image,
+                            local: pendingPhoto,
+                            size: 96,
+                            camera: true,
+                            uploading: isPhotoUploading
+                        )
                     }
+                    .buttonStyle(.plain)
+                    .disabled(isPhotoUploading)
                     TextField(groupText("name"), text: Binding(get: { name }, set: { name = limitedGroupName($0) }))
                         .padding(14)
                         .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
-                    Button(groupText("save")) {
-                        Task {
-                            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                            if !trimmed.isEmpty, trimmed != group.name {
-                                _ = await store.command("rename", group: group, name: trimmed)
+                    TextField(groupText("descriptionPlaceholder"), text: Binding(get: { description }, set: { description = limitedGroupDescription($0) }), axis: .vertical)
+                        .lineLimit(3...6)
+                        .padding(14)
+                        .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+                    Group {
+                        if #available(iOS 26.0, *) {
+                            Button(action: { saveEdits(of: group) }) {
+                                Text(groupText("save"))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                                    .foregroundStyle(saveLabel)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
                             }
-                            dismiss()
+                            .buttonStyle(.glassProminent)
+                            .buttonBorderShape(.capsule)
+                            .tint(saveTint)
+                            .foregroundStyle(saveLabel)
+                        } else {
+                            Button(action: { saveEdits(of: group) }) {
+                                Text(groupText("save"))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                                    .foregroundStyle(saveLabel)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                                    .momentsChromeGlass(
+                                        in: Capsule(),
+                                        interactive: canSave,
+                                        tint: saveTint.opacity(canSave ? 0.92 : 0.35)
+                                    )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.busy)
+                    .disabled(!canSave)
+                    .opacity(canSave ? 1 : 0.5)
                 }
                 .padding(24)
                 .frame(maxWidth: .infinity)
@@ -538,14 +723,28 @@ struct GroupEditView: View {
         .navigationTitle(groupText("edit"))
         .navigationBarTitleDisplayMode(.inline)
         .task { store.open(groupId) }
-        .onChange(of: store.active?.name) { _, value in
-            if name.isEmpty, let value { name = value }
+        .onChange(of: store.active?.id, initial: true) { _, _ in
+            guard let group = store.active, name.isEmpty else { return }
+            name = group.name
+            description = group.groupDescription
         }
-        .onChange(of: photoItem) { _, item in
-            Task {
-                guard let item, let data = try? await item.loadTransferable(type: Data.self),
-                      let image = UIImage(data: data), let group = store.active else { return }
-                await store.setPhoto(image, group: group)
+        .onChange(of: store.active?.image) { _, _ in
+            pendingPhoto = nil
+        }
+        .fullScreenCover(isPresented: $showingPhotoCrop) {
+            ProfileLibraryCropEntryView { cropped in
+                pendingPhoto = cropped
+                isPhotoUploading = true
+                Task {
+                    guard let group = store.active else {
+                        isPhotoUploading = false
+                        pendingPhoto = nil
+                        return
+                    }
+                    await store.setPhoto(cropped, group: group)
+                    isPhotoUploading = false
+                    if store.error != nil { pendingPhoto = nil }
+                }
             }
         }
         .groupError(store)
@@ -585,6 +784,14 @@ struct GroupInviteLinkManageView: View {
                         }
                     }
                     Divider().padding(.top, 8)
+                    Toggle(groupText("link.approval"), isOn: Binding(
+                        get: { store.active?.linkRequiresApproval == true },
+                        set: { value in
+                            guard let group = store.active else { return }
+                            Task { _ = await store.command("setLinkApproval", group: group, extra: ["requiresApproval": value]) }
+                        }
+                    ))
+                    .disabled(store.busy)
                     Button(groupText("renewLink")) { confirmRenew = true }
                         .disabled(store.busy)
                     Button(groupText("disableLink"), role: .destructive) { confirmDisable = true }
@@ -686,6 +893,7 @@ struct GroupJoinLinkView: View {
     @StateObject private var store = GroupChatStore()
     @State private var name: String?
     @State private var image = ""
+    @State private var requested = false
 
     private var adaptiveColors: AdaptiveColors { AdaptiveColors(colorScheme: colorScheme) }
 
@@ -701,7 +909,7 @@ struct GroupJoinLinkView: View {
                             .font(.system(size: 28, weight: .bold))
                             .tracking(-0.4)
                             .multilineTextAlignment(.center)
-                        Text(groupText("joinBody"))
+                        Text(requested ? groupText("join.requested") : groupText("joinBody"))
                             .font(.system(size: 15))
                             .foregroundStyle(adaptiveColors.secondary)
                             .multilineTextAlignment(.center)
@@ -721,10 +929,11 @@ struct GroupJoinLinkView: View {
 
                 Button {
                     Task {
-                        if await store.joinLink(link) { dismiss(); onJoined() }
+                        guard let joined = await store.joinLink(link) else { return }
+                        if joined { dismiss(); onJoined() } else { requested = true }
                     }
                 } label: {
-                    Text(groupText("joinLink"))
+                    Text(requested ? groupText("join.requested") : groupText("joinLink"))
                         .font(.system(size: 17, weight: .semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -732,8 +941,8 @@ struct GroupJoinLinkView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(adaptiveColors.surfaceBackground)
                 .background(adaptiveColors.primary, in: Capsule())
-                .disabled(store.busy || name == nil)
-                .opacity(name == nil ? 0.4 : 1)
+                .disabled(store.busy || name == nil || requested)
+                .opacity((name == nil || requested) ? 0.4 : 1)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 28)
             }

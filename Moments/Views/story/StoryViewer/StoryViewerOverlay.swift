@@ -115,12 +115,22 @@ struct GlassmorphicActionButton: View {
 struct GlassmorphicSuccessMessage: View {
     let text: String
     var isError = false
+    var isProgress = false
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(isError ? Color(hex: "FF453A") : Color(hex: "007AFF"))
-                .font(.system(size: 20))
+            if isProgress {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .controlSize(.small)
+                    .labelsHidden()
+                    .tint(Color(hex: "007AFF"))
+                    .frame(width: 20, height: 20)
+            } else {
+                Image(systemName: isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
+                    .foregroundStyle(isError ? Color(hex: "FF453A") : Color(hex: "007AFF"))
+                    .font(.system(size: 20))
+            }
 
             Text(text)
                 .foregroundStyle(.white)

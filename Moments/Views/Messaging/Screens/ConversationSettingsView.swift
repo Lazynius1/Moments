@@ -33,6 +33,9 @@ struct ConversationSettingsView: View {
     @State private var showLeaveGroup = false
     @State private var showHideChat = false
     @State private var showLinkAdminOnly = false
+    @State private var showDissolveGroup = false
+    @State private var showMuteDuration = false
+    @State private var showGroupReportSheet = false
     @State private var isLargeHeader = false
     @State private var headerTopInset: CGFloat = 0
     @State private var scrollPhase: ScrollPhase = .idle
@@ -84,6 +87,17 @@ struct ConversationSettingsView: View {
         return groupDirectory.groups[id]?.admins.contains(uid) == true
     }
 
+    private var isGroupOwner: Bool {
+        guard conversation.isGroup, let id = conversation.id, let uid = Auth.auth().currentUser?.uid else { return false }
+        return groupDirectory.groups[id]?.owner == uid
+    }
+
+    private var groupIdentitySubtitle: String? {
+        guard conversation.isGroup, let id = conversation.id else { return nil }
+        let text = groupDirectory.groups[id]?.groupDescription.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return text.isEmpty ? nil : text
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -109,14 +123,19 @@ struct ConversationSettingsView: View {
                     },
                     onMuteToggle: {
                         HapticManager.shared.lightImpact()
-                        viewModel.notificationsEnabled.toggle()
-                        viewModel.toggleNotifications()
+                        if conversation.isGroup && viewModel.notificationsEnabled {
+                            showMuteDuration = true
+                        } else {
+                            viewModel.notificationsEnabled.toggle()
+                            viewModel.toggleNotifications()
+                        }
                     },
                     showsIdentityEdit: isGroupAdmin,
                     onIdentityTap: isGroupAdmin ? {
                         HapticManager.shared.lightImpact()
                         groupEditId = conversation.id
-                    } : nil
+                    } : nil,
+                    identitySubtitle: groupIdentitySubtitle
                 )
 
                 settingsListSection
@@ -168,6 +187,13 @@ struct ConversationSettingsView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     if conversation.isGroup {
+                        if isGroupOwner {
+                            Button(role: .destructive) {
+                                showDissolveGroup = true
+                            } label: {
+                                Label(NSLocalizedString("groups.dissolve", comment: ""), systemImage: "xmark.circle")
+                            }
+                        }
                         Button(role: .destructive) {
                             showLeaveGroup = true
                         } label: {
@@ -177,6 +203,13 @@ struct ConversationSettingsView: View {
                             showHideChat = true
                         } label: {
                             Label(NSLocalizedString("conversationSettings.hide", comment: "Hide chat"), systemImage: "eye.slash")
+                        }
+                        if !isGroupOwner {
+                            Button(role: .destructive) {
+                                showGroupReportSheet = true
+                            } label: {
+                                Label(NSLocalizedString("groups.report", comment: ""), systemImage: "flag")
+                            }
                         }
                     } else {
                         Button(role: .destructive) {
@@ -238,6 +271,13 @@ struct ConversationSettingsView: View {
             ReportBottomSheet(
                 userId: conversation.otherParticipantId,
                 username: otherParticipantDisplayName
+            )
+        }
+        .sheet(isPresented: $showGroupReportSheet) {
+            ReportBottomSheet(
+                groupId: conversation.id ?? "",
+                groupName: otherParticipantDisplayName,
+                ownerId: groupDirectory.groups[conversation.id ?? ""]?.owner ?? conversation.otherParticipantId
             )
         }
         .confirmationDialog(
@@ -323,6 +363,35 @@ struct ConversationSettingsView: View {
             }
         } message: {
             Text(NSLocalizedString("groups.leaveBody", comment: ""))
+        }
+        .alert(NSLocalizedString("groups.dissolve", comment: ""), isPresented: $showDissolveGroup) {
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("groups.dissolve", comment: ""), role: .destructive) {
+                Task {
+                    guard let id = conversation.id, let group = GroupDirectory.shared.groups[id] else { return }
+                    if await GroupChatStore().command("dissolve", group: group) {
+                        dismiss()
+                    }
+                }
+            }
+        } message: {
+            Text(NSLocalizedString("groups.dissolveBody", comment: ""))
+        }
+        .confirmationDialog(
+            NSLocalizedString("conversationSettings.quickAction.mute", comment: ""),
+            isPresented: $showMuteDuration,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("groups.mute.8h", comment: "")) {
+                viewModel.muteNotifications(until: Date().addingTimeInterval(8 * 3600))
+            }
+            Button(NSLocalizedString("groups.mute.week", comment: "")) {
+                viewModel.muteNotifications(until: Date().addingTimeInterval(7 * 24 * 3600))
+            }
+            Button(NSLocalizedString("groups.mute.always", comment: "")) {
+                viewModel.muteNotifications(until: nil)
+            }
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
         }
         .alert(NSLocalizedString("conversationSettings.hide", comment: "Hide chat"), isPresented: $showHideChat) {
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
@@ -999,7 +1068,7 @@ class ConversationSettingsViewModel: ObservableObject {
     private let chatService = ChatService.shared
     private let firestoreService = FirestoreService()
     var isGroup: Bool { currentConversation?.isGroup == true }
-    private var currentConversation: Conversation?
+    fileprivate var currentConversation: Conversation?
     private let typingIndicatorLegacyKey = "chat_typing_indicator_enabled"
 
     // Clave POR CONVERSACIÓN (App Group) leída por el Notification Service Extension
@@ -1490,6 +1559,33 @@ class ConversationSettingsViewModel: ObservableObject {
         }
     }
 
+    func muteNotifications(until: Date?) {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let conversationId = currentConversation?.id else { return }
+
+        notificationsEnabled = false
+        let completion: (Error?) -> Void = { error in
+            DispatchQueue.main.async {
+                if error != nil {
+                    self.notificationsEnabled = true
+                    self.notificationAlertMessage = NSLocalizedString("conversationSettings.notificationConfig.error", comment: "")
+                } else {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("ConversationMuteStateChanged"),
+                        object: nil,
+                        userInfo: [
+                            "conversationId": conversationId,
+                            "isMuted": true
+                        ]
+                    )
+                    self.notificationAlertMessage = NSLocalizedString("conversationSettings.notificationConfig.disabled", comment: "")
+                }
+                self.showNotificationAlert = true
+            }
+        }
+        chatService.muteConversation(conversationId, for: currentUserId, until: until, completion: completion)
+    }
+
     func updateVanishSettings(active: Bool, timer: VanishMessageTimer) {
         guard let conversationId = currentConversation?.id else { return }
         
@@ -1680,7 +1776,9 @@ class ConversationSettingsViewModel: ObservableObject {
                         let mutedByUserIds = convData["mutedByUserIds"] as? [String] ?? []
                         let legacyIsMuted = convData["isMuted"] as? Bool ?? false
                         let legacyMutedBy = convData["mutedBy"] as? String
-                        let isMutedForCurrentUser = mutedByUserIds.contains(currentUserId) || (legacyIsMuted && legacyMutedBy == currentUserId)
+                        let until = (convData["mutedUntil"] as? [String: Timestamp])?[currentUserId]?.dateValue()
+                        let muteStillActive = until == nil || until! > Date()
+                        let isMutedForCurrentUser = (mutedByUserIds.contains(currentUserId) && muteStillActive) || (legacyIsMuted && legacyMutedBy == currentUserId)
                         self.notificationsEnabled = !isMutedForCurrentUser
 
                         if let prefs = convData["readReceiptPreferences"] as? [String: Bool],
@@ -2676,12 +2774,19 @@ private struct NativeVideoPresenter: UIViewControllerRepresentable {
 // MARK: - Chat Preferences (pantalla dedicada con los toggles)
 struct ConversationChatPreferencesView: View {
     @ObservedObject var viewModel: ConversationSettingsViewModel
+    @ObservedObject private var groupDirectory = GroupDirectory.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var showClearConfirm = false
+    @State private var adminsOnly = false
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var isGroupAdmin: Bool {
+        guard viewModel.isGroup, let id = viewModel.currentConversation?.id, let uid = Auth.auth().currentUser?.uid else { return false }
+        return groupDirectory.groups[id]?.admins.contains(uid) == true
     }
 
     var body: some View {
@@ -2737,6 +2842,27 @@ struct ConversationChatPreferencesView: View {
                             : "conversationSettings.privacy.forwarding.description",
                         isOn: $viewModel.forwardingEnabled
                     ) { viewModel.toggleForwarding() }
+
+                    if viewModel.isGroup {
+                        dividerLine
+                        toggleRow(
+                            title: "groups.send.admins",
+                            desc: "groups.send.locked",
+                            isOn: $adminsOnly,
+                            enabled: isGroupAdmin
+                        ) {
+                            guard isGroupAdmin,
+                                  let id = viewModel.currentConversation?.id,
+                                  let group = groupDirectory.groups[id] else { return }
+                            let permission = adminsOnly ? "admins" : "everyone"
+                            guard permission != group.sendPermission else { return }
+                            Task {
+                                if await GroupChatStore().command("setSendPermission", group: group, extra: ["sendPermission": permission]) == false {
+                                    adminsOnly = group.sendPermission == "admins"
+                                }
+                            }
+                        }
+                    }
                 }
 
                 destructiveRow(
@@ -2794,6 +2920,11 @@ struct ConversationChatPreferencesView: View {
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
         }
         .chatInteractivePopEnabled()
+        .onAppear {
+            if let id = viewModel.currentConversation?.id {
+                adminsOnly = groupDirectory.groups[id]?.sendPermission == "admins"
+            }
+        }
     }
 
     private func destructiveRow(icon: String, title: String, action: @escaping () -> Void) -> some View {
@@ -2832,6 +2963,7 @@ struct ConversationChatPreferencesView: View {
         title: String,
         desc: String,
         isOn: Binding<Bool>,
+        enabled: Bool = true,
         onToggle: @escaping () -> Void
     ) -> some View {
         Toggle(isOn: isOn) {
@@ -2845,7 +2977,9 @@ struct ConversationChatPreferencesView: View {
             }
         }
         .tint(SettingsProfileColors.toggleTint)
+        .disabled(!enabled)
         .onChange(of: isOn.wrappedValue) { _, _ in
+            guard enabled else { return }
             HapticManager.shared.lightImpact()
             onToggle()
         }

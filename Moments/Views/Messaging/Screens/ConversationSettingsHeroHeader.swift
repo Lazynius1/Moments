@@ -17,6 +17,7 @@ struct ConversationSettingsHeroHeader: View {
     let onMuteToggle: () -> Void
     var showsIdentityEdit: Bool = false
     var onIdentityTap: (() -> Void)? = nil
+    var identitySubtitle: String? = nil
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -44,6 +45,14 @@ struct ConversationSettingsHeroHeader: View {
             compactAvatarView
 
             identityName(displayName, style: adaptiveColors.primary, size: 24)
+
+            if let identitySubtitle, !identitySubtitle.isEmpty {
+                Text(identitySubtitle)
+                    .font(.system(size: 14))
+                    .foregroundStyle(adaptiveColors.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 8)
+            }
 
             if let presence {
                 presenceRow(
@@ -210,6 +219,13 @@ struct ConversationSettingsHeroHeader: View {
     private var stickyIdentity: some View {
         VStack(alignment: .leading, spacing: 6) {
             identityName(displayName, style: .white, size: 28)
+
+            if let identitySubtitle, !identitySubtitle.isEmpty {
+                Text(identitySubtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.white.opacity(0.8))
+                    .lineLimit(2)
+            }
 
             if let presence {
                 presenceRow(

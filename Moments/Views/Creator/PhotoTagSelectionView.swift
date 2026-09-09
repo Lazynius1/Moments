@@ -381,10 +381,10 @@ struct TagUserSearchOverlay: View {
                     }
                 }
                 .padding(.vertical, 8)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                .momentsChromeGlass(
+                    in: RoundedRectangle(cornerRadius: 24, style: .continuous),
+                    interactive: false,
+                    style: .native
                 )
             }
         }

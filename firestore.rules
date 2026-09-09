@@ -1764,6 +1764,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /groupJoinRequests/{requestId} {
+      allow read, write: if false;
+    }
+
     match /groupConversations/{groupId} {
       function isGroupMember() {
         return request.auth != null && canParticipateInConversations(request.auth.uid)
@@ -1782,12 +1786,12 @@ service cloud.firestore {
       allow update: if isGroupMember()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'readStatus', 'lastReadAt', 'lastMessageSeenAt', 'readReceiptPreferences', 'forwardingPreferences',
-          'mutedByUserIds', 'mutedByTimestamps', 'pinnedByUserIds', 'pinnedByTimestamps',
+          'mutedByUserIds', 'mutedByTimestamps', 'mutedUntil', 'pinnedByUserIds', 'pinnedByTimestamps',
           'archivedByUserIds', 'archivedByTimestamps', 'deletedFor', 'lastDeletedAt', 'lastMessageReaction'
         ])
         && ownMap('readStatus') && ownMap('lastReadAt') && ownMap('lastMessageSeenAt')
         && ownMap('readReceiptPreferences') && ownMap('forwardingPreferences')
-        && ownList('mutedByUserIds') && ownMap('mutedByTimestamps')
+        && ownList('mutedByUserIds') && ownMap('mutedByTimestamps') && ownMap('mutedUntil')
         && ownList('pinnedByUserIds') && ownMap('pinnedByTimestamps')
         && ownList('archivedByUserIds') && ownMap('archivedByTimestamps')
         && ownList('deletedFor') && ownMap('lastDeletedAt')
@@ -1873,7 +1877,7 @@ service cloud.firestore {
           'wrappedKeys', 'readReceiptPreferences', 'forwardingPreferences', 'buzzPreferences',
           'vanishModeActive', 'vanishModeEnabledBy', 'vanishModeEnabledAt', 'vanishMessageTimer',
           'vanishSettingsNoticeMessageId', 'vanishDisabledNoticeMessageId',
-          'mutedByUserIds', 'mutedByTimestamps'
+          'mutedByUserIds', 'mutedByTimestamps', 'mutedUntil'
         ]) &&
         (
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deletedFor']) || onlyConversationDeletedForMeUpdated())
@@ -1981,6 +1985,18 @@ service cloud.firestore {
                )
                && (!(request.auth.uid in request.resource.data.mutedByTimestamps)
                    || request.resource.data.mutedByTimestamps[request.auth.uid] is timestamp)))
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['mutedUntil'])
+           || (request.resource.data.mutedUntil is map
+               && (
+                 (!('mutedUntil' in resource.data)
+                  && request.resource.data.mutedUntil.keys().hasOnly([request.auth.uid]))
+                 ||
+                 (('mutedUntil' in resource.data)
+                  && request.resource.data.mutedUntil.diff(resource.data.mutedUntil).affectedKeys().hasOnly([request.auth.uid]))
+               )
+               && (!(request.auth.uid in request.resource.data.mutedUntil)
+                   || request.resource.data.mutedUntil[request.auth.uid] is timestamp)))
         );
 
       // Conversations are shared records; clients may hide them per user via

@@ -184,8 +184,22 @@ struct GlassmorphicChatView: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
+    var groupSendLocked: Bool {
+        guard viewModel.conversation.isGroup,
+              let id = viewModel.conversation.id,
+              let group = GroupDirectory.shared.groups[id] else { return false }
+        return group.sendPermission == "admins" && !group.admins.contains(viewModel.currentUserId)
+    }
+
+    var groupMentionMembers: [GroupMember] {
+        GroupDirectory.shared.groups[viewModel.conversation.id ?? ""]?.members ?? []
+    }
+
     var otherParticipantDisplayName: String {
-        if viewModel.conversation.isGroup, let group = GroupDirectory.shared.groups[viewModel.conversation.id ?? ""] { return group.name }
+        if viewModel.conversation.isGroup,
+           let group = GroupDirectory.shared.groups[viewModel.conversation.id ?? ""] {
+            return group.name
+        }
         let fallback = viewModel.conversation.otherParticipantUsername ?? "Usuario"
         let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         return live.isEmpty ? fallback : live

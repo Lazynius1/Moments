@@ -97,6 +97,7 @@ extension ChatService {
             readStatus: data["readStatus"] as? [String: Bool] ?? [:], otherParticipantId: doc.documentID,
             otherParticipantUsername: data["groupName"] as? String, otherParticipantProfileImagePath: data["groupImagePath"] as? String,
             pinnedByUserIds: data["pinnedByUserIds"] as? [String], mutedByUserIds: data["mutedByUserIds"] as? [String],
+            mutedUntil: (data["mutedUntil"] as? [String: Timestamp])?.mapValues { $0.dateValue() },
             archivedByUserIds: data["archivedByUserIds"] as? [String], encryptionVersion: "3.0",
             conversationKeyVersion: data["conversationKeyVersion"] as? Int, wrappedKeys: keys)
         conversation.lastDeletedAt = cutoffs

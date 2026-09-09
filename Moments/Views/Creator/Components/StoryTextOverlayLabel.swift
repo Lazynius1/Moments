@@ -726,8 +726,11 @@ final class StoryTextOverlayContainerView: UIView {
             gradientLayer.add(shift, forKey: holographicAnimationKey)
         } else {
             let cycle = CAKeyframeAnimation(keyPath: "colors")
-            let expanded = colors + colors
-            cycle.values = expanded.map { $0.cgColor }
+            // Each keyframe of "colors" is an entire gradient, not one CGColor.
+            let palettes = colors.indices.map { offset in
+                colors.indices.map { colors[($0 + offset) % colors.count].cgColor }
+            }
+            cycle.values = palettes + Array(palettes.prefix(1))
             cycle.duration = 3.2
             cycle.repeatCount = .infinity
             cycle.isRemovedOnCompletion = false

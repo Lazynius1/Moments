@@ -79,6 +79,7 @@ struct StoryViewerScreen: View {
     @State private var showEphemeralPicker: Bool = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showQuickActions: Bool = false
+    @State private var isSavingStoryToDevice = false
     @State private var showViewers: Bool = false
     @State private var showStoryShareSheet = false
     @State private var activitySheetInitialTab: Int = 0
@@ -95,6 +96,8 @@ struct StoryViewerScreen: View {
     @State private var showChainActions: Bool = false
     @State private var successMessageText: String = ""
     @State private var successMessageIsError = false
+    @State private var successMessageIsProgress = false
+    @State private var successMessageHideWorkItem: DispatchWorkItem? = nil
     @FocusState private var isTextFieldFocused: Bool
     /// Vanish activo en el chat con el autor: el modo se extiende a las respuestas de historia.
     @State private var isVanishActiveWithAuthor = false
@@ -458,11 +461,19 @@ struct StoryViewerScreen: View {
                 }
             }
 
-            // MARK: - 7. Success message overlay
+            // MARK: - 7. Status toast — parte baja del canvas
             if showSuccessMessage {
-                GlassmorphicSuccessMessage(text: successMessageText, isError: successMessageIsError)
-                    .transition(MotionPolicy.Transition.enterPop)
-                    .zIndex(10)
+                GlassmorphicSuccessMessage(
+                    text: successMessageText,
+                    isError: successMessageIsError,
+                    isProgress: successMessageIsProgress
+                )
+                .frame(width: captureRect.width, height: captureRect.height, alignment: .bottom)
+                .padding(.bottom, 18)
+                .position(x: captureRect.midX, y: captureRect.midY)
+                .allowsHitTesting(false)
+                .transition(MotionPolicy.Transition.enterPop)
+                .zIndex(10)
             }
 
             if let confirmationKind = activeStoryConfirmation {
@@ -1789,6 +1800,7 @@ struct StoryViewerScreen: View {
         let messageToSend = messageText
         messageText = "" // Clear immediately for better UX
         isTextFieldFocused = false // Dismiss keyboard
+        showProgressAnimation(NSLocalizedString("stories.sendingMessage", comment: "Story message sending"))
 
         storyViewModel.sendMessage(
             to: story.authorId,
@@ -1936,52 +1948,65 @@ struct StoryViewerScreen: View {
     }
 
     private func saveStoryToDevice() {
-        if let url = URL(string: story.mediaItem.url) {
-            Task {
-                do {
-                    let (data, _) = try await URLSession.shared.data(from: url)
-                    if story.mediaItem.type == .image {
-                        try await PHPhotoLibrary.shared().performChanges {
-                            PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil)
-                        }
-                        showSuccessAnimation(NSLocalizedString("stories.savedImage", comment: "Image saved"))
-                    } else if story.mediaItem.type == .video {
-                        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("story_video.mp4")
-                        try data.write(to: tempURL)
-                        try await PHPhotoLibrary.shared().performChanges {
-                            PHAssetCreationRequest.forAsset().addResource(with: .video, fileURL: tempURL, options: nil)
-                        }
-                        showSuccessAnimation(NSLocalizedString("stories.savedVideo", comment: "Video saved"))
-                        try? FileManager.default.removeItem(at: tempURL)
-                    }
-                } catch {
+        guard !isSavingStoryToDevice else { return }
+        isSavingStoryToDevice = true
+        showQuickActions = false
+        showProgressAnimation(NSLocalizedString("stories.savingVideo", comment: "Saving story video"))
+        let stickers = storyStickers
+        let layoutSize = normalizedInteractionCanvasRect.size
+        Task {
+            defer {
+                isSavingStoryToDevice = false
+                resumeStory()
+            }
+            do {
+                let fileURL = try await StoryDownloadComposer.exportToTemporaryVideo(
+                    story: story,
+                    stickers: stickers,
+                    layoutSize: layoutSize,
+                    colorScheme: colorScheme
+                )
+                defer { try? FileManager.default.removeItem(at: fileURL) }
+                try await PHPhotoLibrary.shared().performChanges {
+                    PHAssetCreationRequest.forAsset().addResource(with: .video, fileURL: fileURL, options: nil)
                 }
+                showSuccessAnimation(NSLocalizedString("stories.savedVideo", comment: "Video saved"))
+            } catch {
+                showErrorAnimation(error.localizedDescription)
             }
         }
-        showQuickActions = false
     }
 
     private func showSuccessAnimation(_ message: String) {
-        showFeedbackAnimation(message, isError: false)
+        showFeedbackAnimation(message, isError: false, isProgress: false, autoHide: true)
+    }
+
+    private func showProgressAnimation(_ message: String) {
+        showFeedbackAnimation(message, isError: false, isProgress: true, autoHide: false)
     }
 
     private func showErrorAnimation(_ message: String) {
         AppLog.error("Story interaction failed: \(message)")
-        showFeedbackAnimation(message, isError: true)
+        showFeedbackAnimation(message, isError: true, isProgress: false, autoHide: true)
     }
 
-    private func showFeedbackAnimation(_ message: String, isError: Bool) {
+    private func showFeedbackAnimation(_ message: String, isError: Bool, isProgress: Bool, autoHide: Bool) {
+        successMessageHideWorkItem?.cancel()
         successMessageText = message
         successMessageIsError = isError
+        successMessageIsProgress = isProgress
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             showSuccessMessage = true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        guard autoHide else { return }
+        let work = DispatchWorkItem {
             MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                 showSuccessMessage = false
             }
         }
+        successMessageHideWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
     }
 
     private func pauseForMenuInteraction() {

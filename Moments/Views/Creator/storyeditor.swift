@@ -43,6 +43,12 @@ struct StoryEditingView: View {
     @State private var activeEditorMode: ActiveEditorMode = .idle
     @State private var showingStickerPicker = false
     @State private var isPublishing = false
+    @State private var isSavingToGallery = false
+    @State private var showGalleryFeedback = false
+    @State private var galleryFeedbackText = ""
+    @State private var galleryFeedbackIsError = false
+    @State private var galleryFeedbackIsProgress = false
+    @State private var galleryFeedbackHideWorkItem: DispatchWorkItem?
     @State private var storyAudience: CaptionAndDetailsView.AudienceSetting = .everyone
     @State private var storyExpirationHours = 24
     @State private var isLoadingUserSettings = true // NUEVO
@@ -235,6 +241,20 @@ struct StoryEditingView: View {
                         proxy: proxy,
                         mediaCanvasRect: mediaCanvasRect
                     )
+
+                    if showGalleryFeedback {
+                        GlassmorphicSuccessMessage(
+                            text: galleryFeedbackText,
+                            isError: galleryFeedbackIsError,
+                            isProgress: galleryFeedbackIsProgress
+                        )
+                        .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height, alignment: .bottom)
+                        .padding(.bottom, 18)
+                        .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
+                        .allowsHitTesting(false)
+                        .transition(MotionPolicy.Transition.enterPop)
+                        .zIndex(50)
+                    }
 
                     if isDrawingMode {
                         StoryDrawingEditorOverlay(
@@ -783,12 +803,13 @@ struct StoryEditingView: View {
                         }
 
                         Button(action: { photosSaveGate.requestAccess { saveToGallery() } }) {
-                            Image(systemName: "arrow.down.circle")
+                            Image(systemName: isSavingToGallery ? "hourglass" : "arrow.down.circle")
                                 .font(.title2)
                                 .foregroundStyle(chromeIconColor)
                                 .padding(12)
                                 .momentsChromeGlass(in: Circle(), style: .tinted)
                         }
+                        .disabled(isSavingToGallery)
                     }
                 }
 
@@ -1668,25 +1689,126 @@ struct StoryEditingView: View {
     }
 
     private func saveToGallery() {
-        if let firstMedia = selectedMediaItems.first {
-            if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
-                saveVideoToGallery(videoURL)
-            } else {
-                let finalImage = renderStoryWithOverlays()
-                UIImageWriteToSavedPhotosAlbum(finalImage, nil, nil, nil)
+        guard !isSavingToGallery else { return }
+        let contentRect = currentMediaCanvasRect()
+        commitActiveTextOverlayIfNeeded(canvasSize: contentRect.size)
+        isSavingToGallery = true
+        showGalleryProgress(NSLocalizedString("storyEditor.savingToGallery", comment: "Saving story to gallery"))
+
+        let targetSize = StoryDownloadComposer.canvasSize()
+        let editorCanvasSize = contentRect.size
+        let stickers = StoryDownloadComposer.normalizedEditorStickers(
+            selectedStickers,
+            canvasSize: editorCanvasSize
+        )
+        let texts = textOverlays
+            .sorted { $0.layerOrder < $1.layerOrder }
+            .compactMap { draft -> StoryTextOverlayMetadata? in
+                guard var metadata = draft.metadata(in: contentRect) else { return nil }
+                // The viewer scales metadata from a 375pt reference. The editor
+                // uses literal point sizes, so undo that scaling for this export.
+                metadata.fontSize *= 375 / Double(max(editorCanvasSize.width, 1))
+                metadata.normalizedPosition = CGPoint(
+                    x: draft.position.x / max(editorCanvasSize.width, 1),
+                    y: draft.position.y / max(editorCanvasSize.height, 1)
+                )
+                return metadata
+            }
+        let firstMedia = selectedMediaItems.first
+        let videoURL = firstMedia?.type == .video ? firstMedia?.videoURL : nil
+        let drawingOverlay = videoURL == nil ? nil : renderStoryOverlayImage(targetSize: targetSize, screenSize: editorCanvasSize)
+        let composedStill = videoURL == nil ? renderStoryWithOverlays() : nil
+        let background = videoURL == nil ? nil : firstMedia.map {
+            storyBackgroundImage(baseImage: renderPaletteSourceImage(for: $0), targetSize: targetSize)
+        }
+        let capturedScale = imageScale
+        let capturedOffset = imageOffset
+        let capturedRotation = imageRotation
+        let userId = Auth.auth().currentUser?.uid ?? ""
+
+        Task {
+            do {
+                let fileURL: URL
+                if let videoURL {
+                    guard let background else { throw StoryDownloadError.missingMedia }
+                    fileURL = try await StoryDownloadComposer.exportVideo(
+                        sourceURL: videoURL,
+                        overlay: drawingOverlay,
+                        background: background,
+                        targetSize: targetSize,
+                        editorCanvasSize: editorCanvasSize,
+                        imageScale: capturedScale,
+                        imageOffset: capturedOffset,
+                        imageRotation: capturedRotation
+                    )
+                } else {
+                    guard let composedStill else { throw StoryDownloadError.missingMedia }
+                    fileURL = try await StoryDownloadComposer.writeStillVideo(
+                        from: composedStill,
+                        size: targetSize
+                    )
+                }
+                defer {
+                    if fileURL != videoURL { try? FileManager.default.removeItem(at: fileURL) }
+                }
+                let downloadURL: URL
+                if stickers.isEmpty && texts.isEmpty {
+                    downloadURL = fileURL
+                } else {
+                    downloadURL = try await StoryDownloadComposer.addLiveOverlays(
+                        to: fileURL, stickers: stickers, textOverlays: texts,
+                        storyId: "editor-download", userId: userId, size: targetSize,
+                        layoutSize: editorCanvasSize, colorScheme: colorScheme,
+                        textMaxLayoutWidth: StoryTextCanvasPlacement.maxLayoutWidth(in: editorCanvasSize.width)
+                    )
+                }
+                defer {
+                    if downloadURL != videoURL { try? FileManager.default.removeItem(at: downloadURL) }
+                }
+                try await PHPhotoLibrary.shared().performChanges {
+                    PHAssetCreationRequest.forAsset().addResource(with: .video, fileURL: downloadURL, options: nil)
+                }
+                await MainActor.run {
+                    isSavingToGallery = false
+                    showGallerySuccess(NSLocalizedString("storyEditor.savedToGallery", comment: "Story saved to gallery"))
+                }
+            } catch {
+                await MainActor.run {
+                    isSavingToGallery = false
+                    showGalleryError(error.localizedDescription)
+                }
             }
         }
-
-        alertMessage = NSLocalizedString("storyEditor.savedToGallery", comment: "Story saved to gallery")
-        showAlert = true
     }
 
-    private func saveVideoToGallery(_ videoURL: URL) {
-        PHPhotoLibrary.shared().performChanges({
-            PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: videoURL)
-        }) { success, error in
-            // Video saved
+    private func showGalleryProgress(_ message: String) {
+        presentGalleryFeedback(message, isError: false, isProgress: true, autoHide: false)
+    }
+
+    private func showGallerySuccess(_ message: String) {
+        presentGalleryFeedback(message, isError: false, isProgress: false, autoHide: true)
+    }
+
+    private func showGalleryError(_ message: String) {
+        presentGalleryFeedback(message, isError: true, isProgress: false, autoHide: true)
+    }
+
+    private func presentGalleryFeedback(_ message: String, isError: Bool, isProgress: Bool, autoHide: Bool) {
+        galleryFeedbackHideWorkItem?.cancel()
+        galleryFeedbackText = message
+        galleryFeedbackIsError = isError
+        galleryFeedbackIsProgress = isProgress
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+            showGalleryFeedback = true
         }
+        guard autoHide else { return }
+        let work = DispatchWorkItem {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+                showGalleryFeedback = false
+            }
+        }
+        galleryFeedbackHideWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
     }
 
     private func storyRenderTargetSize() -> CGSize {
@@ -1702,7 +1824,9 @@ struct StoryEditingView: View {
 
     private func storyBackgroundImage(baseImage: UIImage, targetSize: CGSize) -> UIImage {
         let palette = resolvedStoryBackgroundPalette(for: baseImage)
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1 // targetSize is already the desired pixel resolution.
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         return renderer.image { context in
             drawStoryMediaBackground(
                 in: CGRect(origin: .zero, size: targetSize),
@@ -1720,7 +1844,9 @@ struct StoryEditingView: View {
             UIColor(Color(hex: "FAF9F6"))
         ]
         let resolvedPalette = palette.isEmpty ? fallbackPalette : palette
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1 // targetSize is already the desired pixel resolution.
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         return renderer.image { context in
             drawStoryMediaBackground(
                 in: CGRect(origin: .zero, size: targetSize),
@@ -2025,7 +2151,9 @@ struct StoryEditingView: View {
         let editorOuterHorizontalPadding: CGFloat = 24
         let editorInnerHorizontalPadding: CGFloat = 14
         let editorInnerVerticalPadding: CGFloat = 10
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1 // targetSize is already the desired pixel resolution.
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
 
         return renderer.image { _ in
             let scaledSize = CGSize(
@@ -2048,7 +2176,9 @@ struct StoryEditingView: View {
 
     private func renderStoryWithOverlays() -> UIImage {
         let targetSize = storyRenderTargetSize()
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1 // targetSize is already the desired pixel resolution.
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         let editorCanvasSize = currentMediaCanvasRect().size
 
         return renderer.image { context in

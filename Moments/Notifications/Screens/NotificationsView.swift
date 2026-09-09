@@ -8,7 +8,6 @@ import Combine
 struct NotificationsView: View {
     @StateObject private var viewModel = NotificationsViewModel()
     @StateObject private var storyViewModel = StoryViewModel() // ✅ AGREGADO
-    @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme // ✅ AGREGADO
     @Namespace private var momentZoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
@@ -21,7 +20,6 @@ struct NotificationsView: View {
     @State private var groupedFollowersOverlayGroup: NotificationGroup?
     @State private var profileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
-    @Namespace private var tabAnimation
     let onNotificationsCleared: (() -> Void)?
 
     private struct StoryViewerPresentation: Identifiable {
@@ -45,11 +43,8 @@ struct NotificationsView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            VStack(spacing: 0) {
-                tabBarView
-                contentView
-            }
-            .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+            contentView
+            .momentZoomNavigationSurface(colorScheme: colorScheme)
             .navigationDestination(isPresented: $showChat) {
                 chatDestination
             }
@@ -69,31 +64,11 @@ struct NotificationsView: View {
                     zoomResolvedMoment = nil
                 }
             }
+            .navigationTitle("notifications.title")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .momentsScrollEdgeChrome()
             .chatInteractivePopEnabled()
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    }
-                }
-
-                ToolbarItem(placement: .principal) {
-                    Text("notifications.title")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                }
-            }
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(
-                colorScheme == .dark ?
-                Color(hex: "0B1215").opacity(0.72) :
-                Color(hex: "FAF9F6").opacity(0.9),
-                for: .navigationBar
-            )
             .toolbar(.hidden, for: .tabBar)
             .momentsFloatingTabBarHidden()
 
@@ -201,54 +176,40 @@ struct NotificationsView: View {
     
     @ViewBuilder private var tabBarView: some View {
         MomentsFillScrollTabRow(items: Array(NotificationTab.allCases)) { tab in
+            let isSelected = viewModel.selectedTab == tab
             Button {
                 MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                     viewModel.selectedTab = tab
                 }
             } label: {
-                VStack(spacing: 7) {
-                    HStack(spacing: 6) {
-                        Text(NSLocalizedString(tab.rawValue, comment: "Notification tab"))
-                            .font(.system(size: 14, weight: viewModel.selectedTab == tab ? .semibold : .medium))
-                            .foregroundStyle(
-                                viewModel.selectedTab == tab ?
-                                    (colorScheme == .dark ? .white : .black) :
-                                    .gray.opacity(0.82)
-                            )
-                            .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(NSLocalizedString(tab.rawValue, comment: "Notification tab"))
+                        .font(.system(size: 14, weight: isSelected ? .semibold : .medium))
+                        .foregroundStyle(
+                            isSelected
+                                ? (colorScheme == .dark ? Color.white : Color.black)
+                                : Color.gray.opacity(0.82)
+                        )
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
 
-                        if tab == .requests && viewModel.pendingRequestsCount > 0 {
-                            Text("\(viewModel.pendingRequestsCount)")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 18, height: 18)
-                                .background(Color.red)
-                                .clipShape(Circle())
-                        }
-                    }
-
-                    if viewModel.selectedTab == tab {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(colorScheme == .dark ? Color.white : Color.black)
-                            .frame(height: 2)
-                            .matchedGeometryEffect(id: "tab", in: tabAnimation)
-                    } else {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.clear)
-                            .frame(height: 2)
+                    if tab == .requests && viewModel.pendingRequestsCount > 0 {
+                        Text("\(viewModel.pendingRequestsCount)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 18, height: 18)
+                            .background(Color.red)
+                            .clipShape(Circle())
                     }
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .momentsChromeGlass(in: Capsule(), interactive: true, style: .nativeTinted)
             }
             .buttonStyle(.plain)
         }
         .padding(.top, 8)
         .padding(.bottom, 10)
-        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
-                .frame(height: 0.5)
-        }
     }
 
     private var contentPhase: Int {
@@ -283,44 +244,52 @@ struct NotificationsView: View {
     private var loadingView: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
+                tabBarView
+
                 ForEach(0..<5, id: \.self) { _ in
                     NotificationSkeletonRow(colorScheme: colorScheme) // ✅ PASADO colorScheme
                 }
+                .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 20)
+            .padding(.bottom, 20)
         }
+        .scrollContentBackground(.hidden)
+        .momentsScrollEdgeChrome()
     }
 
-    // ✅ EMPTY STATE ADAPTATIVO
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: getEmptyStateIcon())
-                .font(.system(size: 31, weight: .medium))
-                .foregroundStyle(colorScheme == .dark ? .white : .black)
-                .frame(width: 76, height: 76)
-                .background {
-                    Color.clear
-                        .momentsChromeGlass(in: Circle())
-                }
-            
-            VStack(spacing: 8) {
-                Text(emptyStateTitle)
-                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
+        ScrollView {
+            VStack(spacing: 16) {
+                tabBarView
+
+                Image(systemName: getEmptyStateIcon())
+                    .font(.system(size: 31, weight: .medium))
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
-                
-                Text(emptyStateMessage)
-                    .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
-                    .multilineTextAlignment(.center)
+                    .frame(width: 76, height: 76)
+                    .background {
+                        Color.clear
+                            .momentsChromeGlass(in: Circle())
+                    }
+                    .padding(.top, 36)
+
+                VStack(spacing: 8) {
+                    Text(emptyStateTitle)
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+
+                    Text(emptyStateMessage)
+                        .font(.system(size: legacyPoppinsSize(14)))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 28)
+                .id(viewModel.selectedTab)
+                .transition(.opacity)
             }
-            .id(viewModel.selectedTab)
-            .transition(.opacity)
-            
-            Spacer()
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 28)
+        .scrollContentBackground(.hidden)
+        .momentsScrollEdgeChrome()
         .momentsEmptyStateAppear()
     }
 
@@ -359,6 +328,11 @@ struct NotificationsView: View {
 
     private var notificationsListView: some View {
         List {
+            tabBarView
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+
             ForEach(viewModel.dateKeys, id: \.self) { dateKey in
                 NotificationDateHeaderView(dateString: dateKey, colorScheme: colorScheme)
                     .listRowInsets(EdgeInsets())
@@ -423,7 +397,6 @@ struct NotificationsView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .momentsScrollEdgeChrome()
-        .padding(.top, 4)
         .momentRefresh {
             await viewModel.refreshNotifications()
         }

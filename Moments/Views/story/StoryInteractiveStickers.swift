@@ -186,6 +186,7 @@ struct InteractiveFrameSticker: View {
     let onPauseStory: (() -> Void)?
     let onResumeStory: (() -> Void)?
 
+    @Environment(\.storyExportFrameIsExposed) private var exportFrameIsExposed
     @State private var revealProgress: Double
     @State private var motionManager = CMMotionManager()
     @State private var lastAcceleration: CMAcceleration?
@@ -226,6 +227,10 @@ struct InteractiveFrameSticker: View {
             contentOffset: contentOffset
         )
             .onAppear {
+                if let exportFrameIsExposed {
+                    revealProgress = exportFrameIsExposed ? 1 : 0
+                    return
+                }
                 if !storyId.isEmpty, UserDefaults.standard.bool(forKey: persistenceKey) {
                     revealProgress = 1.0
                     return

@@ -117,9 +117,9 @@ struct ConversationContextMenuOverlay: View {
             )
 
             ConversationContextMenuRow(
-                icon: conversation.isMuted == true ? "bell" : "bell.slash",
+                icon: conversation.isMuted(for: Auth.auth().currentUser?.uid) ? "bell" : "bell.slash",
                 title: NSLocalizedString(
-                    conversation.isMuted == true ? "messaging.swipe.unmute" : "messaging.swipe.mute",
+                    conversation.isMuted(for: Auth.auth().currentUser?.uid) ? "messaging.swipe.unmute" : "messaging.swipe.mute",
                     comment: "Mute conversation"
                 ),
                 action: {
