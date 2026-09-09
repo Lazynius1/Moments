@@ -305,7 +305,6 @@
 "creator.scheduling.enable" = "Veröffentlichung planen";
 "creator.scheduling.date" = "Datum und Uhrzeit";
 
-
 /* FeedView */
 "feed.delete.confirm" = "Möchtest du diesen Moment wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.";
 "feed.uploading.more" = "+ %d weitere werden hochgeladen...";
@@ -1121,7 +1120,6 @@
 "messaging.new.suggestions" = "Vorschläge";
 "messaging.new.searchPlaceholder" = "Suchen...";
 
-
 /* Message Requests */
 "messageRequests.request.title" = "Nachrichtenanfrage";
 "messageRequests.request.message" = "Was möchtest du mit dieser Anfrage tun?";
@@ -1393,8 +1391,6 @@
 
 /* Screenshot Protection */
 "moment.private.screenshotMessage" = "Dieser Moment ist privat";
-
-
 
 /* Stickerview */
 "stickerview.stickers" = "Stickers";
@@ -1734,31 +1730,6 @@
 "settings.sections.yourActivity.subtitle" = "Time in app, interactions";
 "settings.sections.downloadData" = "Deine Daten herunterladen";
 "settings.sections.downloadData.subtitle" = "Eine Kopie deiner Daten anfordern";
-"settings.sections.chatStorage" = "Chat-Speicher";
-"settings.sections.chatStorage.subtitle" = "Medien-Cache und Download-Einstellungen";
-"settings.chatStorage.title" = "Chat-Speicher";
-"settings.chatStorage.usage.title" = "Nutzung";
-"settings.chatStorage.usage.messages" = "Gecachte Nachrichten";
-"settings.chatStorage.usage.messagesCount" = "%d Nachrichten";
-"settings.chatStorage.usage.media" = "Fotos und Videos";
-"settings.chatStorage.preferences.title" = "Einstellungen";
-"settings.chatStorage.autoDownload.title" = "Medien automatisch herunterladen";
-"settings.chatStorage.autoDownload.wifi" = "Nur WLAN";
-"settings.chatStorage.autoDownload.always" = "Immer";
-"settings.chatStorage.autoDownload.never" = "Nie";
-"settings.chatStorage.retention.title" = "Medien behalten für";
-"settings.chatStorage.retention.7days" = "7 Tage";
-"settings.chatStorage.retention.30days" = "30 Tage";
-"settings.chatStorage.retention.90days" = "90 Tage";
-"settings.chatStorage.retention.forever" = "Immer";
-"settings.chatStorage.clearMedia.action" = "Chat-Medien freigeben";
-"settings.chatStorage.clearMedia.subtitle" = "Entfernt Fotos und Videos, behält aber den Nachrichtentext.";
-"settings.chatStorage.clearMedia.confirm" = "Chat-Medien freigeben? Der Nachrichtentext bleibt auf diesem Gerät.";
-"settings.chatStorage.clearMedia.done" = "Chat-Medien entfernt. Sie werden beim Öffnen von Chats erneut heruntergeladen.";
-"settings.chatStorage.clearAll.action" = "Chat-Cache leeren";
-"settings.chatStorage.clearAll.subtitle" = "Entfernt alle gecachten Nachrichten und Medien von diesem Gerät.";
-"settings.chatStorage.clearAll.confirm" = "Gesamten Chat-Cache auf diesem Gerät leeren?";
-"settings.chatStorage.clearAll.done" = "Chat-Cache geleert.";
 "settings.sections.pushNotifications" = "Push-Benachrichtigungen";
 "settings.sections.pushNotifications.subtitle" = "Beiträge, Stories, Kommentare";
 "settings.sections.emailNotifications" = "E-Mail-Benachrichtigungen";
@@ -2335,7 +2306,6 @@
 "stories.blockUser.cancel" = "Abbrechen";
 "stories.blockUser.confirm" = "Blockieren";
 
-
 /* Blocked Users - Additional */
 "blockedUsers.unknownError" = "Ein unbekannter Fehler ist aufgetreten";
 "blockedUsers.notAuthenticated" = "Nutzer nicht authentifiziert";
@@ -2830,16 +2800,6 @@
 "whatsNew.title" = "Neu in Moments!";
 "whatsNew.subtitle" = "Im Chat antworten, reichere Teilen-Karten, erneuerte Anfragen und überarbeiteter Composer.";
 "whatsNew.button" = "Moments 2.22 entdecken";
-
-
-
-
-
-
-
-
-
-
 
 /* Best Friends */
 "bestFriends.title" = "Enge Freunde";
@@ -3346,7 +3306,6 @@
 "userActivity.error.offline.subtitle" = "Prüfe deine Internetverbindung und versuche es erneut.";
 "userActivity.error.generic.title" = "Etwas ist schiefgelaufen";
 "userActivity.error.generic.subtitle" = "Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.";
-
 
 /* Username Change */
 "username.change.title" = "Benutzernamen ändern";
@@ -4335,16 +4294,6 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "onboarding.email.title.password" = "Erstelle ein Passwort";
 "onboarding.email.subtitle.password" = "Mindestens 8 Zeichen.";
 "settings.group.data" = "DATEN";
-"conversationSettings.storage" = "Speicher";
-"conversationSettings.storage.mediaUsage" = "Medien in diesem Chat";
-"conversationSettings.storage.mediaUsage.desc" = "Zwischengespeicherte Fotos und Videos auf diesem Gerät";
-"conversationSettings.storage.clearMedia" = "Medien-Cache leeren";
-"conversationSettings.storage.clearMedia.title" = "Medien-Cache leeren?";
-"conversationSettings.storage.clearMedia.message" = "Fotos und Videos werden bei Bedarf erneut geladen.";
-"settings.chatStorage.manage.title" = "Speicher verwalten";
-"settings.chatStorage.manage.subtitle" = "Unterhaltungen mit dem meisten Speicherbedarf auf diesem Gerät.";
-"settings.chatStorage.summary.limit" = "von %@ · Medien werden automatisch geleert, wenn voll";
-"settings.chatStorage.manage.showMore" = "Mehr anzeigen";
 "conversationSettings.sharedContent.empty.media" = "Noch keine geteilten Fotos oder Videos";
 "conversationSettings.sharedContent.empty.links" = "Noch keine geteilten Links";
 "conversationSettings.preferences.desc" = "Mitteilungen, Vorschauen und Privatsphäre";

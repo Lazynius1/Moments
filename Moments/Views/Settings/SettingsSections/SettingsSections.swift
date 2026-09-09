@@ -1560,11 +1560,6 @@ struct DataSection: View {
                 title: NSLocalizedString("settings.sections.downloadData", comment: "Download Your Data"),
                 subtitle: NSLocalizedString("settings.sections.downloadData.subtitle", comment: "Request a copy of your data"),
                 action: { route = .dataExport })
-
-            SettingsRow(icon: "bubble.left.and.bubble.right",
-                title: NSLocalizedString("settings.sections.chatStorage", comment: "Chat Storage"),
-                subtitle: NSLocalizedString("settings.sections.chatStorage.subtitle", comment: "Media cache and download preferences"),
-                action: { route = .chatStorage })
         }
     }
 }

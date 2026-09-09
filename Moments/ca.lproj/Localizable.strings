@@ -303,7 +303,6 @@
 "creator.scheduling.enable" = "Programar publicació";
 "creator.scheduling.date" = "Data i hora";
 
-
 /* FeedView */
 "feed.delete.confirm" = "¿Estàs segur que vols eliminar aquest moment? Aquesta acció no es pot desfer.";
 "feed.uploading.more" = "+ %d més pujant...";
@@ -1122,7 +1121,6 @@
 "messaging.new.suggestions" = "Suggeriments";
 "messaging.new.searchPlaceholder" = "Cercar...";
 
-
 /* Message Requests */
 "messageRequests.request.title" = "Sol·licitud de missatge";
 "messageRequests.request.message" = "Què vols fer amb aquesta sol·licitud?";
@@ -1377,8 +1375,6 @@
 
 /* Screenshot Protection */
 "moment.private.screenshotMessage" = "Aquest moment és privat";
-
-
 
 /* Stickerview */
 "stickerview.stickers" = "Stickers";
@@ -1710,31 +1706,6 @@
 "settings.sections.yourActivity.subtitle" = "Temps a l'app, interaccions";
 "settings.sections.downloadData" = "Descarregar les teves dades";
 "settings.sections.downloadData.subtitle" = "Sol·licita una còpia de les teves dades";
-"settings.sections.chatStorage" = "Emmagatzematge del xat";
-"settings.sections.chatStorage.subtitle" = "Memòria cau de mitjans i preferències de descàrrega";
-"settings.chatStorage.title" = "Emmagatzematge del xat";
-"settings.chatStorage.usage.title" = "Ús";
-"settings.chatStorage.usage.messages" = "Missatges en memòria cau";
-"settings.chatStorage.usage.messagesCount" = "%d missatges";
-"settings.chatStorage.usage.media" = "Fotos i vídeos";
-"settings.chatStorage.preferences.title" = "Preferències";
-"settings.chatStorage.autoDownload.title" = "Descarregar mitjans automàticament";
-"settings.chatStorage.autoDownload.wifi" = "Només Wi‑Fi";
-"settings.chatStorage.autoDownload.always" = "Sempre";
-"settings.chatStorage.autoDownload.never" = "Mai";
-"settings.chatStorage.retention.title" = "Conservar mitjans durant";
-"settings.chatStorage.retention.7days" = "7 dies";
-"settings.chatStorage.retention.30days" = "30 dies";
-"settings.chatStorage.retention.90days" = "90 dies";
-"settings.chatStorage.retention.forever" = "Sempre";
-"settings.chatStorage.clearMedia.action" = "Alliberar mitjans del xat";
-"settings.chatStorage.clearMedia.subtitle" = "Elimina fotos i vídeos però conserva el text dels missatges.";
-"settings.chatStorage.clearMedia.confirm" = "Alliberar els mitjans del xat? El text dels missatges es mantindrà en aquest dispositiu.";
-"settings.chatStorage.clearMedia.done" = "Mitjans del xat eliminats. Es tornaran a descarregar en obrir converses.";
-"settings.chatStorage.clearAll.action" = "Buidar memòria cau del xat";
-"settings.chatStorage.clearAll.subtitle" = "Elimina tots els missatges i mitjans en memòria cau d'aquest dispositiu.";
-"settings.chatStorage.clearAll.confirm" = "Buidar tota la memòria cau del xat en aquest dispositiu?";
-"settings.chatStorage.clearAll.done" = "Memòria cau del xat buidada.";
 "settings.sections.pushNotifications" = "Notificacions push";
 "settings.sections.pushNotifications.subtitle" = "Publicacions, històries, comentaris";
 "settings.sections.emailNotifications" = "Notificacions per email";
@@ -2327,7 +2298,6 @@
 "stories.blockUser.cancel" = "Cancel·lar";
 "stories.blockUser.confirm" = "Bloquejar";
 
-
 /* Blocked Users - Additional */
 "blockedUsers.unknownError" = "S'ha produït un error desconegut";
 "blockedUsers.notAuthenticated" = "Usuari no autenticat";
@@ -2852,16 +2822,6 @@
 "whatsNew.subtitle" = "Respondre al xat, compartir amb fitxes enriquides, sol·licituds renovades i compositor nou.";
 "whatsNew.button" = "Explorar Moments 2.22";
 
-
-
-
-
-
-
-
-
-
-
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";
 "bestFriends.empty.title" = "Sense millors amics";
@@ -2877,7 +2837,6 @@
 "bestFriends.error.following" = "Error en carregar seguits: %@";
 "bestFriends.error.followers" = "Error en carregar seguidors: %@";
 "bestFriends.error.auth" = "Usuari no autenticat";
-
 
 /* Modernized Settings Connection Privacy */
 "settings.privacy.connections.allPublic" = "Totes les connexions públiques";
@@ -3366,7 +3325,6 @@
 "userActivity.error.offline.subtitle" = "Comprova la teva connexió a internet i torna-ho a provar.";
 "userActivity.error.generic.title" = "Alguna cosa ha anat malament";
 "userActivity.error.generic.subtitle" = "S'ha produït un error inesperat. Torna-ho a provar.";
-
 
 /* Username Change */
 "username.change.title" = "Canviar nom d'usuari";
@@ -4355,16 +4313,6 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "onboarding.email.title.password" = "Crea una contrasenya";
 "onboarding.email.subtitle.password" = "Mínim 8 caràcters.";
 "settings.group.data" = "DADES";
-"conversationSettings.storage" = "Emmagatzematge";
-"conversationSettings.storage.mediaUsage" = "Media en aquest xat";
-"conversationSettings.storage.mediaUsage.desc" = "Fotos i vídeos en memòria cau en aquest dispositiu";
-"conversationSettings.storage.clearMedia" = "Buida la memòria cau";
-"conversationSettings.storage.clearMedia.title" = "Vols buidar la memòria cau?";
-"conversationSettings.storage.clearMedia.message" = "Les fotos i els vídeos es tornaran a baixar quan els necessitis.";
-"settings.chatStorage.manage.title" = "Gestiona l'emmagatzematge";
-"settings.chatStorage.manage.subtitle" = "Converses que ocupen més espai en aquest dispositiu.";
-"settings.chatStorage.summary.limit" = "de %@ · la media es neteja sola quan s'omple";
-"settings.chatStorage.manage.showMore" = "Mostra'n més";
 "conversationSettings.sharedContent.empty.media" = "Encara no hi ha fotos ni vídeos compartits";
 "conversationSettings.sharedContent.empty.links" = "Encara no hi ha enllaços compartits";
 "conversationSettings.preferences.desc" = "Notificacions, vistes prèvies i privacitat";

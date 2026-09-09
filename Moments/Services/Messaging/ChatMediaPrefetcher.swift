@@ -3,7 +3,7 @@ import FirebaseAuth
 
 /// Precarga proactiva de media de chat: cuando llegan
 /// mensajes con media, descarga y descifra el contenido en segundo plano —según la
-/// política de auto-descarga y la cuota— para que el caché refleje lo recibido y la
+/// política de auto-descarga (si hay red) y la cuota— para que el caché refleje lo recibido y la
 /// media esté lista antes de abrir la conversación.
 ///
 /// Reutiliza el resolver cifrado existente, que ya aplica `ChatMediaDownloadPolicy`
@@ -21,7 +21,7 @@ final class ChatMediaPrefetcher {
     private init() {}
 
     /// Encola la media descargable de estos mensajes para precarga en background.
-    /// No-op si la política de descarga no lo permite ahora (p. ej. wifi-only en celular).
+    /// No-op si no hay red.
     func prefetchIfNeeded(_ messages: [EnhancedMessage]) {
         guard ChatMediaDownloadPolicy.shouldDownloadAutomatically() else { return }
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }

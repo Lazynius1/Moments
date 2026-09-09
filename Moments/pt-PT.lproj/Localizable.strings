@@ -25,7 +25,6 @@
 
 /* Profile */
 
-
 /* FeedView */
 
 /* Nova Memory */
@@ -82,7 +81,6 @@
 
 /* Login */
 
-
 /* Register */
 
 /* Register Social */
@@ -94,7 +92,6 @@
 /* Messaging */
 
 /* New Conversation (Liquid Glass) */
-
 
 /* Message Requests */
 
@@ -129,8 +126,6 @@
 /* Feed */
 
 /* Screenshot Protection */
-
-
 
 /* Stickerview */
 
@@ -190,7 +185,6 @@
 
 /* Story ContextMenu */
 
-
 /* User Activity View */
 
 /* QR Code */
@@ -208,7 +202,6 @@
 /* Highlighted Stories - Additional */
 
 /* Stories View - Additional */
-
 
 /* Blocked Users - Additional */
 
@@ -284,13 +277,11 @@
 
 /* Nova */
 
-
 /* Liquid glass */
 
 /* Creator */
 
 /* Feed */
-
 
 /* Fixes */
 
@@ -299,8 +290,6 @@
 /* Modernized Settings Connection Privacy */
 
 /* Support Moments */
-
-
 
 /* Settings Groups */
 
@@ -320,7 +309,6 @@
 /* Suspended Account */
 
 /* Apple ID Linking */
-
 
 /* Push Notifications - Messages */
 
@@ -366,14 +354,9 @@
 
 /* Your Activity - Error States */
 
-
 /* Username Change */
 
 /* Echo Info Sheet */
-
-
-
-
 
 /* Time Spent Activity */
 
@@ -400,7 +383,6 @@
 /* Camera preview */
 
 /* Liquid Glass Stickers */
-
 
 /* Hidden Layers */
 
@@ -430,7 +412,6 @@
 
 /* Profile */
 
-
 /* FeedView */
 
 /* Nova Memory */
@@ -487,7 +468,6 @@
 
 /* Login */
 
-
 /* Register */
 
 /* Register Social */
@@ -499,7 +479,6 @@
 /* Messaging */
 
 /* New Conversation (Liquid Glass) */
-
 
 /* Message Requests */
 
@@ -534,8 +513,6 @@
 /* Feed */
 
 /* Screenshot Protection */
-
-
 
 /* Stickerview */
 
@@ -595,7 +572,6 @@
 
 /* Story ContextMenu */
 
-
 /* User Activity View */
 
 /* QR Code */
@@ -613,7 +589,6 @@
 /* Highlighted Stories - Additional */
 
 /* Stories View - Additional */
-
 
 /* Blocked Users - Additional */
 
@@ -689,13 +664,11 @@
 
 /* Nova */
 
-
 /* Liquid glass */
 
 /* Creator */
 
 /* Feed */
-
 
 /* Fixes */
 
@@ -704,8 +677,6 @@
 /* Modernized Settings Connection Privacy */
 
 /* Support Moments */
-
-
 
 /* Settings Groups */
 
@@ -725,7 +696,6 @@
 /* Suspended Account */
 
 /* Apple ID Linking */
-
 
 /* Push Notifications - Messages */
 
@@ -771,14 +741,9 @@
 
 /* Your Activity - Error States */
 
-
 /* Username Change */
 
 /* Echo Info Sheet */
-
-
-
-
 
 /* Time Spent Activity */
 
@@ -805,7 +770,6 @@
 /* Camera preview */
 
 /* Liquid Glass Stickers */
-
 
 /* Hidden Layers */
 "storyEditor.customAudience.single" = "%d pessoa";
@@ -1114,7 +1078,6 @@
 "creator.scheduling.title" = "Agendamento";
 "creator.scheduling.enable" = "Agendar publicação";
 "creator.scheduling.date" = "Data e hora";
-
 
 /* FeedView */
 "feed.delete.confirm" = "Tens a certeza de que queres eliminar este moment? Esta ação não pode ser anulada.";
@@ -1931,7 +1894,6 @@
 "messaging.new.suggestions" = "Sugestões";
 "messaging.new.searchPlaceholder" = "Pesquisar...";
 
-
 /* Message Requests */
 "messageRequests.request.title" = "Pedido de mensagem";
 "messageRequests.request.message" = "O que queres fazer com este pedido?";
@@ -2203,8 +2165,6 @@
 
 /* Screenshot Protection */
 "moment.private.screenshotMessage" = "Este moment é privado";
-
-
 
 /* Stickerview */
 "stickerview.stickers" = "Adesivos";
@@ -2544,31 +2504,6 @@
 "settings.sections.yourActivity.subtitle" = "Tempo na app, interações";
 "settings.sections.downloadData" = "Transferir os teus dados";
 "settings.sections.downloadData.subtitle" = "Pedir uma cópia dos teus dados";
-"settings.sections.chatStorage" = "Armazenamento do chat";
-"settings.sections.chatStorage.subtitle" = "Cache de media e preferências de transferência";
-"settings.chatStorage.title" = "Armazenamento do chat";
-"settings.chatStorage.usage.title" = "Utilização";
-"settings.chatStorage.usage.messages" = "Mensagens em cache";
-"settings.chatStorage.usage.messagesCount" = "%d mensagens";
-"settings.chatStorage.usage.media" = "Fotos e vídeos";
-"settings.chatStorage.preferences.title" = "Preferências";
-"settings.chatStorage.autoDownload.title" = "Transferir media automaticamente";
-"settings.chatStorage.autoDownload.wifi" = "Apenas Wi‑Fi";
-"settings.chatStorage.autoDownload.always" = "Sempre";
-"settings.chatStorage.autoDownload.never" = "Nunca";
-"settings.chatStorage.retention.title" = "Manter media durante";
-"settings.chatStorage.retention.7days" = "7 dias";
-"settings.chatStorage.retention.30days" = "30 dias";
-"settings.chatStorage.retention.90days" = "90 dias";
-"settings.chatStorage.retention.forever" = "Sempre";
-"settings.chatStorage.clearMedia.action" = "Libertar media do chat";
-"settings.chatStorage.clearMedia.subtitle" = "Remove fotos e vídeos, mas mantém o texto das mensagens.";
-"settings.chatStorage.clearMedia.confirm" = "Libertar a media do chat? O texto das mensagens permanecerá neste dispositivo.";
-"settings.chatStorage.clearMedia.done" = "Media do chat removida. Será transferida novamente ao abrir conversas.";
-"settings.chatStorage.clearAll.action" = "Limpar cache do chat";
-"settings.chatStorage.clearAll.subtitle" = "Remove todas as mensagens e media em cache deste dispositivo.";
-"settings.chatStorage.clearAll.confirm" = "Limpar toda a cache do chat neste dispositivo?";
-"settings.chatStorage.clearAll.done" = "Cache do chat limpa.";
 "settings.sections.pushNotifications" = "Notificações push";
 "settings.sections.pushNotifications.subtitle" = "Posts, stories, comentários";
 "settings.sections.emailNotifications" = "Notificações por email";
@@ -3145,7 +3080,6 @@
 "stories.blockUser.cancel" = "Cancelar";
 "stories.blockUser.confirm" = "Bloquear";
 
-
 /* Blocked Users - Additional */
 "blockedUsers.unknownError" = "Ocorreu um erro desconhecido";
 "blockedUsers.notAuthenticated" = "Utilizador não autenticado";
@@ -3640,16 +3574,6 @@
 "whatsNew.title" = "Novidades no Moments!";
 "whatsNew.subtitle" = "Responder no chat, cartões enriquecidos, pedidos renovados e compositor repensado.";
 "whatsNew.button" = "Explorar o Moments 2.22";
-
-
-
-
-
-
-
-
-
-
 
 /* Nova */
 /* Best Friends */
@@ -4157,7 +4081,6 @@
 "userActivity.error.offline.subtitle" = "Verifica a tua ligação à internet e tenta novamente.";
 "userActivity.error.generic.title" = "Algo correu mal";
 "userActivity.error.generic.subtitle" = "Ocorreu um erro inesperado. Tenta novamente.";
-
 
 /* Username Change */
 "username.change.title" = "Alterar nome de utilizador";
@@ -5145,16 +5068,6 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "onboarding.email.title.password" = "Cria uma palavra-passe";
 "onboarding.email.subtitle.password" = "Pelo menos 8 caracteres.";
 "settings.group.data" = "DADOS";
-"conversationSettings.storage" = "Armazenamento";
-"conversationSettings.storage.mediaUsage" = "Multimédia neste chat";
-"conversationSettings.storage.mediaUsage.desc" = "Fotos e vídeos em cache neste dispositivo";
-"conversationSettings.storage.clearMedia" = "Limpar multimédia em cache";
-"conversationSettings.storage.clearMedia.title" = "Limpar multimédia em cache?";
-"conversationSettings.storage.clearMedia.message" = "As fotos e vídeos serão transferidos novamente quando precisares.";
-"settings.chatStorage.manage.title" = "Gerir armazenamento";
-"settings.chatStorage.manage.subtitle" = "Conversas que ocupam mais espaço neste dispositivo.";
-"settings.chatStorage.summary.limit" = "de %@ · a multimédia é limpa automaticamente quando cheia";
-"settings.chatStorage.manage.showMore" = "Ver mais";
 "conversationSettings.sharedContent.empty.media" = "Ainda não há fotos ou vídeos partilhados";
 "conversationSettings.sharedContent.empty.links" = "Ainda não há ligações partilhadas";
 "conversationSettings.preferences.desc" = "Notificações, pré-visualizações e privacidade";

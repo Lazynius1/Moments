@@ -84,7 +84,6 @@ enum SettingsRoute: Hashable, Identifiable {
     case savedMoments
     case userActivity
     case dataExport
-    case chatStorage
     case moderationReviews
     case archivedStories
     case notificationSettings
@@ -263,8 +262,6 @@ struct SettingsView: View {
             UserActivityView()
         case .dataExport:
             DataExportView()
-        case .chatStorage:
-            ChatStorageSettingsView()
         case .moderationReviews:
             ModerationReviewStatusView()
         case .archivedStories:

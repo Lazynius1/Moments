@@ -19,8 +19,6 @@ struct ConversationSettingsView: View {
     @State private var statusListener: ListenerRegistration?
     @State private var liveOtherParticipantUsername: String = ""
     @State private var pendingJumpMessageId: String? = nil
-    @State private var conversationMediaBytes: Int64 = 0
-    @State private var showClearMediaConfirmation = false
     @State private var sharedTab: SharedContentTab = .media
     @State private var showChatPreferences = false
     @State private var showVanishPreferences = false
@@ -294,7 +292,6 @@ struct ConversationSettingsView: View {
         }
         .onAppear {
             viewModel.loadConversationData(conversation: conversation)
-            refreshMediaUsage()
             if !conversation.isGroup {
                 setupOnlineStatusObserver()
                 refreshOtherParticipantUsername()
@@ -621,32 +618,22 @@ struct ConversationSettingsView: View {
 
             dividerLine.padding(.leading, 38)
 
-            // Media storage usage row
+            // Shared photos and videos (gallery — not a storage manager)
             Button {
                 HapticManager.shared.lightImpact()
                 viewModel.openSharedGallery(tab: .media)
             } label: {
                 HStack(spacing: 14) {
-                    Image(systemName: "folder")
+                    Image(systemName: "photo.on.rectangle")
                         .font(.system(size: 16, weight: .regular))
                         .foregroundStyle(adaptiveColors.secondary)
                         .frame(width: 24)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(NSLocalizedString("conversationSettings.storage.mediaUsage", comment: "Media in this chat"))
-                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                            .foregroundStyle(adaptiveColors.primary)
-                        Text(NSLocalizedString("conversationSettings.storage.mediaUsage.desc", comment: "Cached photos and videos on this device"))
-                            .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundStyle(adaptiveColors.tertiary)
-                    }
+                    Text(NSLocalizedString("conversationSettings.sharedMedia", comment: "Shared media"))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+                        .foregroundStyle(adaptiveColors.primary)
 
                     Spacer()
-
-                    Text(formatBytes(conversationMediaBytes))
-                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundStyle(adaptiveColors.secondary)
-                        .monospacedDigit()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
@@ -656,43 +643,6 @@ struct ConversationSettingsView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.momentsPressSubtle)
-
-            if conversationMediaBytes > 0 {
-                dividerLine.padding(.leading, 38)
-
-                // Clear storage cache row
-                Button {
-                    showClearMediaConfirmation = true
-                } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 16, weight: .regular))
-                            .foregroundStyle(.red)
-                            .frame(width: 24)
-
-                        Text(NSLocalizedString("conversationSettings.storage.clearMedia", comment: "Clear cached media"))
-                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                            .foregroundStyle(.red)
-
-                        Spacer()
-                    }
-                    .padding(.vertical, 14)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.momentsPressSubtle)
-            }
-        }
-        .confirmationDialog(
-            NSLocalizedString("conversationSettings.storage.clearMedia.title", comment: "Clear media confirmation"),
-            isPresented: $showClearMediaConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("conversationSettings.storage.clearMedia", comment: "Clear cached media"), role: .destructive) {
-                clearConversationMedia()
-            }
-            Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {}
-        } message: {
-            Text(NSLocalizedString("conversationSettings.storage.clearMedia.message", comment: "Media will re-download when needed"))
         }
     }
 
@@ -796,25 +746,6 @@ struct ConversationSettingsView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 36)
         .momentsEmptyStateAppear()
-    }
-
-    private func refreshMediaUsage() {
-        guard let conversationId = conversation.id else { return }
-        conversationMediaBytes = ChatCacheStore.bytes(for: conversationId)
-    }
-
-    private func clearConversationMedia() {
-        guard let conversationId = conversation.id else { return }
-        HapticManager.shared.mediumImpact()
-        ChatCacheStore.deleteConversation(conversationId, messageIds: [])
-        refreshMediaUsage()
-    }
-
-    private func formatBytes(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: bytes)
     }
 
     private func sectionHeader(_ key: LocalizedStringKey) -> some View {
