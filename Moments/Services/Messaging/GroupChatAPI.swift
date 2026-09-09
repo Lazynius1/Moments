@@ -14,9 +14,12 @@ enum GroupChatAPI {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: jsonValue(body) ?? [:])
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200, Auth.auth().currentUser?.uid == user.uid else {
+        guard Auth.auth().currentUser?.uid == user.uid else { throw URLError(.userAuthenticationRequired) }
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
             throw NSError(domain: "GroupChat", code: (response as? HTTPURLResponse)?.statusCode ?? -1,
-                          userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("groups.manageError", comment: "")])
+                          userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("groups.manageError", comment: ""),
+                                     "serverCode": payload?["error"] as? String ?? "failed"])
         }
         return (try JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
     }

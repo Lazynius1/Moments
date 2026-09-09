@@ -849,145 +849,121 @@ struct GroupManagementView: View {
     }
 }
 
-struct GroupInvitationRows: View {
-    @StateObject private var store = GroupChatStore()
+struct GroupRequestsEntry: View {
+    @ObservedObject var store: GroupRequestsStore
+    let onOpen: () -> Void
+    var body: some View {
+        Button(action: onOpen) {
+            HStack(spacing: 12) {
+                Image(systemName: "person.2.fill").font(.body)
+                Text(groupText("requestsTitle")).font(.subheadline)
+                Spacer()
+                if store.count > 0 {
+                    Text(store.count, format: .number).font(.caption.weight(.semibold))
+                        .padding(.horizontal, 7).padding(.vertical, 4)
+                        .foregroundStyle(Color(uiColor: .systemBackground))
+                        .background(.primary, in: Capsule())
+                }
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            }.foregroundStyle(.primary).padding(16)
+                .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
+        }.buttonStyle(.plain).padding(.horizontal, 20).padding(.vertical, 8)
+    }
+}
+
+struct GroupRequestsView: View {
+    @ObservedObject var store: GroupRequestsStore
     let onAccepted: (Conversation) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var sentTab: Bool
+    init(store: GroupRequestsStore, initialSentTab: Bool = false, onAccepted: @escaping (Conversation) -> Void) {
+        self.store = store
+        self.onAccepted = onAccepted
+        _sentTab = State(initialValue: initialSentTab)
+    }
+    private var rows: [GroupPendingRequest] { sentTab ? store.sent : store.received }
+    private var loading: Bool { sentTab ? store.sentLoading : store.receivedLoading }
+    private var failed: Bool { sentTab ? store.sentFailed : store.receivedFailed }
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if !store.invitations.isEmpty {
-                Text("groups.invitations").font(.headline)
-                ForEach(store.invitations) { invitation in
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            GroupChatAvatar(name: invitation.name, image: invitation.image, size: 56)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(invitation.name).font(.body.weight(.semibold)).lineLimit(1)
-                                Text(String(format: groupText("invitedYou"), invitation.inviter))
-                                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        HStack {
-                            Button("groups.decline") { Task { _ = await store.respond(to: invitation, accept: false) } }
-                            Spacer()
-                            Button("groups.accept") { Task {
-                                if let conversation = await store.respond(to: invitation, accept: true) { onAccepted(conversation) }
-                            } }
-                        }.disabled(store.busy)
+        VStack(spacing: 0) {
+            Picker(groupText("requestsTitle"), selection: $sentTab) {
+                Text("\(groupText("requestsReceived"))  \(store.received.count)").tag(false)
+                Text("\(groupText("requestsSent"))  \(store.sent.count)").tag(true)
+            }.pickerStyle(.segmented).padding(.horizontal, 20).padding(.vertical, 12)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    if failed {
+                        VStack(spacing: 12) {
+                            Text(groupText("requestsError")).foregroundStyle(.secondary)
+                            Button(groupText("requestsRetry")) { store.retry() }
+                        }.frame(maxWidth: .infinity).padding(.vertical, 28)
+                    } else if loading && rows.isEmpty {
+                        ProgressView().frame(maxWidth: .infinity).padding(.vertical, 32)
+                    } else if rows.isEmpty {
+                        Text(groupText(sentTab ? "requestsSentEmpty" : "requestsReceivedEmpty"))
+                            .foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.vertical, 32)
                     }
-                }
+                    ForEach(rows) { row in
+                        GroupRequestRow(row: row, sent: sentTab, busy: store.busy,
+                            onAccept: { Task { if let conversation = await store.respond(row, accept: true) { onAccepted(conversation) } } },
+                            onReject: { Task { _ = await store.respond(row, accept: false) } },
+                            onCancel: { Task { await store.cancel(row) } })
+                        Divider().padding(.leading, 68)
+                    }
+                    Text(groupText(sentTab ? "requestsSentFooter" : "requestsReceivedFooter"))
+                        .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity).padding(.top, 40).padding(.bottom, 24)
+                }.padding(.horizontal, 20)
             }
         }
-        .padding(store.invitations.isEmpty ? 0 : 16)
-        .task { store.start() }
-        .onDisappear { store.stop() }
-        .groupError(store)
+        .background(AdaptiveColors(colorScheme: colorScheme).surfaceBackground.ignoresSafeArea())
+        .navigationTitle(groupText("requestsTitle"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
+        .alert(groupText("errorTitle"), isPresented: $store.actionFailed) {
+            Button(groupText("ok"), role: .cancel) { }
+        } message: { Text(groupText("manageError")) }
     }
 }
 
-struct GroupJoinLinkView: View {
-    let link: GroupInviteLink
-    let onJoined: () -> Void
-    @Environment(\.dismiss) private var dismiss
+private struct GroupRequestRow: View {
+    let row: GroupPendingRequest
+    let sent: Bool
+    let busy: Bool
+    let onAccept: () -> Void
+    let onReject: () -> Void
+    let onCancel: () -> Void
     @Environment(\.colorScheme) private var colorScheme
-    @StateObject private var store = GroupChatStore()
-    @State private var name: String?
-    @State private var image = ""
-    @State private var requested = false
-
-    private var adaptiveColors: AdaptiveColors { AdaptiveColors(colorScheme: colorScheme) }
-
+    private var relativeDate: String? {
+        row.createdAt.map { RelativeDateTimeFormatter().localizedString(for: $0, relativeTo: Date()) }
+    }
     var body: some View {
-        ChatRecoveryGateView(onCancel: { dismiss() }) {
-            VStack(spacing: 0) {
-                Spacer(minLength: 20)
-
-                VStack(spacing: 14) {
-                    GroupChatAvatar(name: name ?? "", image: image, size: 104)
-                    if let name {
-                        Text(name)
-                            .font(.system(size: 28, weight: .bold))
-                            .tracking(-0.4)
-                            .multilineTextAlignment(.center)
-                        Text(requested ? groupText("join.requested") : groupText("joinBody"))
-                            .font(.system(size: 15))
-                            .foregroundStyle(adaptiveColors.secondary)
-                            .multilineTextAlignment(.center)
-                    } else if store.error == nil {
-                        ProgressView()
+        HStack(alignment: .top, spacing: 12) {
+            GroupChatAvatar(name: row.name, image: row.image, size: 56)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(row.name).font(.body.weight(.semibold)).lineLimit(2)
+                Text(sent ? groupText("requestsPending") : String(format: groupText("invitedYou"), row.inviter))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                if let relativeDate { Text(relativeDate).font(.caption).foregroundStyle(.tertiary) }
+                HStack(spacing: 10) {
+                    if sent {
+                        requestButton(groupText("requestsCancel"), action: onCancel)
                     } else {
-                        Text(groupText("linkError"))
-                            .font(.system(size: 15))
-                            .foregroundStyle(adaptiveColors.secondary)
-                            .multilineTextAlignment(.center)
+                        requestButton(groupText("decline"), action: onReject)
+                        requestButton(groupText("accept"), primary: true, action: onAccept)
                     }
-                }
-                .padding(.horizontal, 24)
-                .frame(maxWidth: .infinity)
-
-                Spacer(minLength: 24)
-
-                Button {
-                    Task {
-                        guard let joined = await store.joinLink(link) else { return }
-                        if joined { dismiss(); onJoined() } else { requested = true }
-                    }
-                } label: {
-                    Text(requested ? groupText("join.requested") : groupText("joinLink"))
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(adaptiveColors.surfaceBackground)
-                .background(adaptiveColors.primary, in: Capsule())
-                .disabled(store.busy || name == nil || requested)
-                .opacity((name == nil || requested) ? 0.4 : 1)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 28)
+                }.padding(.top, 10).disabled(busy)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background {
-                if #available(iOS 26.0, *) {
-                    Color.clear
-                } else {
-                    adaptiveColors.surfaceBackground
-                }
-            }
-            .task(id: link.id) {
-                if let preview = await store.previewLink(link) {
-                    name = preview.name
-                    image = preview.image
-                }
-            }
-        }
-        .groupJoinLinkPresentation()
-        .groupError(store)
+            Spacer(minLength: 0)
+        }.padding(.vertical, 24)
     }
-}
-
-private struct GroupJoinLinkPresentation: ViewModifier {
-    @Environment(\.colorScheme) private var colorScheme
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
-        } else {
-            content
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
-                .presentationBackground(AdaptiveColors(colorScheme: colorScheme).surfaceBackground)
-        }
-    }
-}
-
-private extension View {
-    func groupJoinLinkPresentation() -> some View {
-        modifier(GroupJoinLinkPresentation())
+    private func requestButton(_ title: String, primary: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.subheadline.weight(.medium)).padding(.horizontal, 16).frame(minHeight: 44)
+                .foregroundStyle(primary ? (colorScheme == .dark ? Color.black : Color.white) : Color.primary)
+                .background(primary ? Color.primary : Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(primary ? Color.clear : Color.secondary.opacity(0.6)))
+        }.buttonStyle(.plain)
     }
 }

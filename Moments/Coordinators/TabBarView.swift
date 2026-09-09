@@ -155,7 +155,12 @@ struct TabBarView: View {
             }
         }
         .sheet(item: Binding(get: { shouldShowMainApp ? groupInviteLink : nil }, set: { groupInviteLink = $0 })) { link in
-            GroupJoinLinkView(link: link) { AppRouter.shared.navigate(to: .conversation(id: link.groupId)) }
+            GroupJoinLinkView(link: link,
+                onJoined: { AppRouter.shared.navigate(to: .conversation(id: link.groupId)) },
+                onViewRequests: {
+                    GroupRequestsNavigation.shared.pendingSent = true
+                    AppRouter.shared.navigate(to: .showMessages)
+                })
         }
         .onOpenURL { url in
             IncognitoModeService.shared.handlePendingAppGroupActionIfNeeded()

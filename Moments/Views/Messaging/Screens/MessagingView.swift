@@ -67,6 +67,9 @@ struct MessagingView: View {
     @EnvironmentObject var messageRequestService: MessageRequestService
     @Environment(\.colorScheme) var colorScheme
     @State private var isShowingNewConversation = false
+    @StateObject private var groupRequests = GroupRequestsStore()
+    @State private var showingGroupRequests = false
+    @State private var groupRequestsStartSent = false
     @State private var selectedConversation: Conversation?
     @State private var pendingChatContext: PendingChatContext?
     @Binding var targetConversationId: String?
@@ -154,6 +157,15 @@ struct MessagingView: View {
             .onReceive(navigationService.$pendingNavigation) { navigation in
                 handlePendingNavigation(navigation)
             }
+            .onReceive(GroupRequestsNavigation.shared.$pendingSent) { pending in
+                guard pending else { return }
+                Task { @MainActor in
+                    guard GroupRequestsNavigation.shared.pendingSent else { return }
+                    GroupRequestsNavigation.shared.pendingSent = false
+                    groupRequestsStartSent = true
+                    showingGroupRequests = true
+                }
+            }
             .onDisappear(perform: handleMessagingDisappear)
     }
 
@@ -188,6 +200,12 @@ struct MessagingView: View {
             }
             .navigationDestination(isPresented: $showingArchivedConversations) {
                 archivedConversationsDestination
+            }
+            .navigationDestination(isPresented: $showingGroupRequests) {
+                GroupRequestsView(store: groupRequests, initialSentTab: groupRequestsStartSent) { conversation in
+                    showingGroupRequests = false
+                    selectedConversation = conversation
+                }.id(groupRequestsStartSent)
             }
             .navigationDestination(isPresented: $showingMessageRequests) {
                 messageRequestsDestination
@@ -224,10 +242,8 @@ struct MessagingView: View {
         ZStack {
             GlassmorphicBackground(adaptiveColors: adaptiveColors)
 
-            VStack(spacing: 0) {
-                GroupInvitationRows { conversation in selectedConversation = conversation }
-                conversationList
-            }
+            conversationList
+                .task { groupRequests.start() }
 
             GeometryReader { proxy in
                 ConversationContextMenuOverlay(
@@ -530,23 +546,18 @@ struct MessagingView: View {
             ToolbarItem(placement: .topBarLeading) {
                 messagingToolbarComposeButton
             }
-            .chatHideSharedBackgroundIfAvailable()
         }
 
         ToolbarItem(placement: .principal) {
             messagingToolbarTitleStack
         }
 
-        if onDismiss != nil {
-            ToolbarItem(placement: .topBarTrailing) {
-                messagingToolbarTrailingCluster
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            if onDismiss != nil {
+                messagingToolbarComposeButton
             }
-            .chatHideSharedBackgroundIfAvailable()
-        } else {
-            ToolbarItem(placement: .topBarTrailing) {
-                messagingToolbarRequestsButton
-            }
-            .chatHideSharedBackgroundIfAvailable()
+            messagingToolbarGroupRequestsButton
+            messagingToolbarRequestsClusterButton
         }
     }
 
@@ -559,18 +570,24 @@ struct MessagingView: View {
         )
     }
 
-    private var messagingToolbarTrailingCluster: some View {
-        ProfileChromeControlsCluster {
-            ProfileChromeIconButton(
-                systemName: "square.and.pencil",
-                foregroundColor: adaptiveColors.primary,
-                preset: .toolbarAction,
-                standaloneGlass: false,
-                action: { isShowingNewConversation = true }
-            )
-
-            messagingToolbarRequestsClusterButton
+    private var messagingToolbarGroupRequestsButton: some View {
+        Button(action: { groupRequestsStartSent = false; showingGroupRequests = true }) {
+            Image(systemName: "person.2")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(adaptiveColors.primary)
+                .overlay(alignment: .topTrailing) {
+                    if groupRequests.count > 0 {
+                        Text("\(groupRequests.count)")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .frame(width: 18, height: 18)
+                            .background(Circle().fill(Color(hex: "FF3B30")))
+                            .offset(x: 8, y: -8)
+                    }
+                }
         }
+        .accessibilityLabel(NSLocalizedString("groups.requestsTitle", comment: "Group requests"))
     }
 
     private var messagingToolbarComposeButton: some View {
@@ -578,61 +595,27 @@ struct MessagingView: View {
             Image(systemName: "square.and.pencil")
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(adaptiveColors.primary)
-                .frame(width: 40, height: 40)
-                .modifier(ChatToolbarIconGlassModifier())
         }
-        .buttonStyle(.momentsPressIcon)
         .accessibilityLabel(NSLocalizedString("messaging.newConversation", comment: "New conversation"))
-    }
-
-    private var messagingToolbarRequestsButton: some View {
-        Button(action: { showingMessageRequests = true }) {
-            ZStack {
-                Image(systemName: "message.circle")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(adaptiveColors.primary)
-                    .frame(width: 40, height: 40)
-                    .modifier(ChatToolbarIconGlassModifier())
-
-                if pendingRequestCount > 0 {
-                    Text("\(pendingRequestCount)")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
-                        .frame(width: 18, height: 18)
-                        .background(Circle().fill(Color(hex: "FF3B30")))
-                        .offset(x: 12, y: -12)
-                }
-            }
-        }
-        .buttonStyle(.momentsPressSubtle)
-        .accessibilityLabel(NSLocalizedString("messageRequests.title", comment: "Message requests"))
     }
 
     private var messagingToolbarRequestsClusterButton: some View {
         Button(action: { showingMessageRequests = true }) {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: "message.circle")
-                    .font(.system(size: MomentsGlassControlMetrics.toolbarIconSize, weight: .medium))
-                    .foregroundStyle(adaptiveColors.primary)
-                    .frame(
-                        width: MomentsGlassControlMetrics.toolbarControlSize,
-                        height: MomentsGlassControlMetrics.toolbarControlSize
-                    )
-
-                if pendingRequestCount > 0 {
-                    Text("\(pendingRequestCount)")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
-                        .frame(width: 18, height: 18)
-                        .background(Circle().fill(Color(hex: "FF3B30")))
-                        .offset(x: 4, y: -4)
+            Image(systemName: "message")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(adaptiveColors.primary)
+                .overlay(alignment: .topTrailing) {
+                    if pendingRequestCount > 0 {
+                        Text("\(pendingRequestCount)")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .frame(width: 18, height: 18)
+                            .background(Circle().fill(Color(hex: "FF3B30")))
+                            .offset(x: 8, y: -8)
+                    }
                 }
-            }
-            .contentShape(Circle())
         }
-        .buttonStyle(.momentsPressSubtle)
         .accessibilityLabel(NSLocalizedString("messageRequests.title", comment: "Message requests"))
     }
 

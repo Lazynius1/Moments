@@ -386,12 +386,12 @@ extension GroupChatStore {
         } catch { self.error = "groups.linkError"; return nil }
     }
 
-    func previewLink(_ link: GroupInviteLink) async -> (name: String, image: String)? {
+    func previewLink(_ link: GroupInviteLink) async -> (name: String, image: String, requiresApproval: Bool)? {
         do {
             let result = try await request("manageGroup", ["action": "previewLink", "conversationId": link.groupId, "token": link.token])
             _ = try linkKey(link, result)
             guard let name = result["name"] as? String else { return nil }
-            return (name, result["image"] as? String ?? "")
+            return (name, result["image"] as? String ?? "", result["requiresApproval"] as? Bool == true)
         } catch { self.error = "groups.linkError"; return nil }
     }
     private func linkKey(_ link: GroupInviteLink, _ result: [String: Any]) throws -> SymmetricKey {
@@ -414,5 +414,122 @@ extension GroupChatStore {
             if joined["pending"] as? Bool == true { return false }
             return true
         } catch { self.error = "groups.linkError"; return nil }
+    }
+}
+
+struct GroupPendingRequest: Identifiable {
+    let id: String
+    let groupId: String
+    let name: String
+    let image: String
+    let inviter: String
+    let createdAt: Date?
+}
+
+/// Own incoming invitations and outgoing join requests; never reads a group's
+/// private conversation until the current user has actually become a member.
+@MainActor
+final class GroupRequestsStore: ObservableObject {
+    @Published private(set) var received: [GroupPendingRequest] = []
+    @Published private(set) var sent: [GroupPendingRequest] = []
+    @Published private(set) var receivedLoading = true
+    @Published private(set) var sentLoading = true
+    @Published private(set) var receivedFailed = false
+    @Published private(set) var sentFailed = false
+    @Published private(set) var busy = false
+    @Published var actionFailed = false
+    private var receivedListener: ListenerRegistration?
+    private var sentListener: ListenerRegistration?
+    private var authListener: AuthStateDidChangeListenerHandle?
+    private var sessionId: String?
+    private var generation = 0
+    private var sentGeneration = 0
+    var count: Int { received.count + sent.count }
+
+    deinit {
+        receivedListener?.remove(); sentListener?.remove()
+        if let authListener { Auth.auth().removeStateDidChangeListener(authListener) }
+    }
+    func start() {
+        guard authListener == nil else { return }
+        listen(Auth.auth().currentUser?.uid)
+        authListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+            Task { @MainActor in
+                guard let self, self.sessionId != user?.uid else { return }
+                self.listen(user?.uid)
+            }
+        }
+    }
+    func retry() { listen(Auth.auth().currentUser?.uid) }
+    private func listen(_ uid: String?) {
+        receivedListener?.remove(); sentListener?.remove()
+        generation += 1; sentGeneration += 1
+        let version = generation
+        if sessionId != uid { received = []; sent = []; busy = false; actionFailed = false }
+        sessionId = uid
+        receivedLoading = true; sentLoading = true; receivedFailed = false; sentFailed = false
+        guard let uid else { receivedLoading = false; sentLoading = false; return }
+        let db = Firestore.firestore()
+        receivedListener = db.collection("groupInvitations").whereField("recipientId", isEqualTo: uid)
+            .addSnapshotListener { [weak self] snapshot, error in
+                Task { @MainActor in
+                    guard let self, self.generation == version, self.sessionId == uid else { return }
+                    self.receivedLoading = false; self.receivedFailed = error != nil
+                    guard let snapshot, error == nil else { return }
+                    self.received = snapshot.documents.map { doc in
+                        GroupPendingRequest(id: doc.documentID, groupId: doc.get("groupId") as? String ?? "",
+                            name: doc.get("groupName") as? String ?? "", image: doc.get("groupImagePath") as? String ?? "",
+                            inviter: doc.get("inviterName") as? String ?? "", createdAt: (doc.get("createdAt") as? Timestamp)?.dateValue())
+                    }.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+                }
+            }
+        sentListener = db.collection("groupJoinRequests").whereField("recipientId", isEqualTo: uid)
+            .addSnapshotListener { [weak self] snapshot, error in
+                Task { @MainActor in
+                    guard let self, self.generation == version, self.sessionId == uid else { return }
+                    self.sentGeneration += 1
+                    let requestVersion = self.sentGeneration
+                    if error != nil { self.sentLoading = false; self.sentFailed = true; return }
+                    if snapshot?.documents.isEmpty == true { self.sent = []; self.sentLoading = false; self.sentFailed = false; return }
+                    do {
+                        let result = try await GroupChatAPI.request("manageGroup", body: ["action": "listJoinRequests"])
+                        guard self.generation == version, self.sentGeneration == requestVersion, self.sessionId == uid else { return }
+                        self.sent = (result["requests"] as? [[String: Any]] ?? []).compactMap { row in
+                            guard let id = row["id"] as? String, let groupId = row["groupId"] as? String else { return nil }
+                            let millis = (row["createdAt"] as? NSNumber)?.doubleValue ?? 0
+                            return GroupPendingRequest(id: id, groupId: groupId, name: row["name"] as? String ?? "",
+                                image: row["image"] as? String ?? "", inviter: "", createdAt: millis > 0 ? Date(timeIntervalSince1970: millis / 1000) : nil)
+                        }
+                        self.sentLoading = false; self.sentFailed = false
+                    } catch {
+                        guard self.generation == version, self.sentGeneration == requestVersion else { return }
+                        self.sentLoading = false; self.sentFailed = true
+                    }
+                }
+            }
+    }
+    func respond(_ row: GroupPendingRequest, accept: Bool) async -> Conversation? {
+        guard !busy, let uid = sessionId, Auth.auth().currentUser?.uid == uid else { return nil }
+        busy = true
+        defer { if sessionId == uid { busy = false } }
+        do {
+            _ = try await GroupChatAPI.request("manageGroup", body: ["action": accept ? "acceptInvite" : "declineInvite", "conversationId": row.groupId])
+            guard sessionId == uid else { return nil }
+            received.removeAll { $0.id == row.id }
+            guard accept else { return nil }
+            let doc = try await Firestore.firestore().collection("groupConversations").document(row.groupId).getDocument()
+            guard sessionId == uid else { return nil }
+            return ChatService.shared.groupConversation(doc, userId: uid)
+        } catch { if sessionId == uid { actionFailed = true }; return nil }
+    }
+    func cancel(_ row: GroupPendingRequest) async {
+        guard !busy, let uid = sessionId, Auth.auth().currentUser?.uid == uid else { return }
+        busy = true
+        defer { if sessionId == uid { busy = false } }
+        do {
+            _ = try await GroupChatAPI.request("manageGroup", body: ["action": "cancelJoin", "conversationId": row.groupId])
+            guard sessionId == uid else { return }
+            sent.removeAll { $0.id == row.id }
+        } catch { if sessionId == uid { actionFailed = true } }
     }
 }

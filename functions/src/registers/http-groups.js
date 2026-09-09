@@ -49,7 +49,23 @@ const validGroupImagePath = (id, path) => {
 async function applyGroupCommand(db, uid, body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) fail('invalidAction');
   const action = body.action;
-  if (!['create', 'add', 'rename', 'setPhoto', 'setDescription', 'setSendPermission', 'setLinkApproval', 'promote', 'demote', 'remove', 'leave', 'dissolve', 'mute', 'read', 'acceptInvite', 'declineInvite', 'cancelInvite', 'approveJoin', 'declineJoin', 'getLink', 'setLink', 'revokeLink', 'previewLink', 'joinLink'].includes(action)) fail('invalidAction');
+  if (action === 'listJoinRequests') {
+    const actor = await db.doc(`users/${uid}`).get();
+    if (!actor.exists || actor.get('isActive') === false) fail('unavailable', 403);
+    const requests = await db.collection('groupJoinRequests').where('recipientId', '==', uid).get();
+    // Resolve group display data on the server: applicants cannot read the private
+    // group document until admitted. Also supports requests created before this UI.
+    const rows = await Promise.all(requests.docs.map(async request => {
+      const groupId = request.get('groupId');
+      if (!validId(groupId)) return null;
+      const group = (await db.doc(`groupConversations/${groupId}`).get()).data();
+      if (!group || !(group.pendingJoinIds || []).includes(uid) || group.participants.includes(uid)) return null;
+      return { id: request.id, groupId, name: group.groupName || '', image: group.groupImagePath || '',
+        createdAt: request.get('createdAt')?.toMillis?.() || 0 };
+    }));
+    return { requests: rows.filter(Boolean).sort((a, b) => b.createdAt - a.createdAt) };
+  }
+  if (!['create', 'add', 'rename', 'setPhoto', 'setDescription', 'setSendPermission', 'setLinkApproval', 'promote', 'demote', 'remove', 'leave', 'dissolve', 'mute', 'read', 'acceptInvite', 'declineInvite', 'cancelInvite', 'approveJoin', 'declineJoin', 'cancelJoin', 'getLink', 'setLink', 'revokeLink', 'previewLink', 'joinLink'].includes(action)) fail('invalidAction');
   const id = body.conversationId;
   if (!validId(id) || !/^group-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) fail('invalidGroup');
   const ref = db.doc(`groupConversations/${id}`);
@@ -58,34 +74,63 @@ async function applyGroupCommand(db, uid, body) {
     const group = snapshot.exists ? snapshot.data() : null;
     const actor = await tx.get(db.doc(`users/${uid}`));
     if (!actor.exists || actor.data().isActive === false) fail('unavailable', 403);
-    if (action === 'previewLink' || action === 'joinLink') {
-      if (!validToken(body.token) || !group || !group.participants.length) fail('unavailable', 403);
-      const link = (await tx.get(db.doc(`groupInviteLinks/${id}`))).data();
-      if (!link || link.tokenHash !== linkHash(body.token) || link.keyVersion !== group.conversationKeyVersion) fail('unavailable', 403);
-      if (action === 'previewLink') return { conversationId: id, name: group.groupName, image: group.groupImagePath || '',
-        memberCount: group.participants.length, encryptedKey: link.encryptedKey, keyVersion: link.keyVersion,
-        requiresApproval: group.linkRequiresApproval === true };
-      if (group.participants.includes(uid)) return { conversationId: id };
-      if (group.linkRequiresApproval === true) {
-        const envelope = body.wrappedKey;
-        if (!envelope || envelope.wrappedBy !== uid || !validBase64(envelope.senderPublicKey, 32) ||
-            envelope.recipientKeyId !== actor.data().chatKey?.keyId || !validBase64(envelope.wrappedKey, 60)) fail('keyUnavailable', 409);
-        const pendingJoinIds = [...new Set([...(group.pendingJoinIds || []), uid])];
-        if (group.participants.length + (group.pendingInviteIds || []).filter(x => x !== uid).length + pendingJoinIds.filter(x => x !== uid).length >= 50) fail('invalidMembers');
-        const pendingJoinNames = { ...(group.pendingJoinNames || {}), [uid]: actor.get('username') || '' };
-        const timestamp = admin.firestore.FieldValue.serverTimestamp();
-        tx.set(db.doc(`groupJoinRequests/${id}_${uid}`), { groupId: id, recipientId: uid, keyVersion: group.conversationKeyVersion,
-          wrappedKey: { wrappedKey: envelope.wrappedKey, senderPublicKey: envelope.senderPublicKey,
-            recipientKeyId: envelope.recipientKeyId, wrappedBy: uid, wrappedAt: timestamp }, createdAt: timestamp });
-        tx.update(ref, { pendingJoinIds, pendingJoinNames, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
-        return { conversationId: id, pending: true };
+    if (action === 'cancelJoin') {
+      // The authenticated applicant can only cancel their own request. A missing
+      // request is a successful retry; never remove already accepted membership.
+      const requestRef = db.doc(`groupJoinRequests/${id}_${uid}`);
+      const request = await tx.get(requestRef);
+      if (!request.exists) return { conversationId: id, isMember: (group?.participants || []).includes(uid) };
+      if (request.get('recipientId') !== uid || request.get('groupId') !== id) fail('unavailable', 403);
+      tx.delete(requestRef);
+      if (group) {
+        const pendingJoinNames = { ...(group.pendingJoinNames || {}) }; delete pendingJoinNames[uid];
+        tx.update(ref, { pendingJoinIds: (group.pendingJoinIds || []).filter(memberId => memberId !== uid),
+          pendingJoinNames, groupRevision: group.groupRevision + 1, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       }
-      if (group.participants.length + (group.pendingInviteIds || []).filter(x => x !== uid).length >= 50) fail('invalidMembers');
+      return { conversationId: id };
+    }
+    if (action === 'previewLink' || action === 'joinLink') {
+      if (!validToken(body.token) || !group || !group.participants.length) fail('linkUnavailable', 404);
+      const link = (await tx.get(db.doc(`groupInviteLinks/${id}`))).data();
+      const requestRef = db.doc(`groupJoinRequests/${id}_${uid}`);
+      const requestDoc = await tx.get(requestRef);
+      const isMember = group.participants.includes(uid);
+      const isPending = requestDoc.exists && requestDoc.get('recipientId') === uid
+        && (group.pendingJoinIds || []).includes(uid) && !isMember;
+      const linkAvailable = !!link && link.tokenHash === linkHash(body.token)
+        && link.keyVersion === group.conversationKeyVersion;
+      // Members and existing applicants can still resolve their own status if
+      // an admin rotated the link after they joined/requested access.
+      if (!linkAvailable && !isMember && !isPending) fail('linkUnavailable', 404);
+      const occupiedByOthers = new Set([
+        ...group.participants, ...(group.pendingInviteIds || []), ...(group.pendingJoinIds || [])
+      ].filter(memberId => memberId !== uid)).size;
+      const isFull = !isMember && !isPending && occupiedByOthers >= 50;
+      if (action === 'previewLink') return { conversationId: id, name: group.groupName, image: group.groupImagePath || '',
+        memberCount: group.participants.length, ...(linkAvailable ? { encryptedKey: link.encryptedKey, keyVersion: link.keyVersion } : {}),
+        requiresApproval: group.linkRequiresApproval === true, isMember, pending: isPending, isFull };
+      if (isMember) return { conversationId: id, isMember: true };
+      // Retrying an acknowledged request must not reset its date or replay the
+      // "sent" celebration. No rewrapping or duplicate writes are necessary.
+      if (isPending) return { conversationId: id, pending: true, alreadyPending: true };
+      if (isFull) fail('groupFull', 409);
+      if (typeof body.requiresApproval === 'boolean' && body.requiresApproval !== (group.linkRequiresApproval === true)) {
+        fail('approvalChanged', 409);
+      }
       const envelope = body.wrappedKey;
       if (!envelope || envelope.wrappedBy !== uid || !validBase64(envelope.senderPublicKey, 32) ||
           envelope.recipientKeyId !== actor.data().chatKey?.keyId || !validBase64(envelope.wrappedKey, 60)) fail('keyUnavailable', 409);
-      const pendingNames = { ...(group.pendingInviteNames || {}) }; delete pendingNames[uid];
       const timestamp = admin.firestore.FieldValue.serverTimestamp();
+      if (group.linkRequiresApproval === true) {
+        const pendingJoinIds = [...new Set([...(group.pendingJoinIds || []), uid])];
+        const pendingJoinNames = { ...(group.pendingJoinNames || {}), [uid]: actor.get('username') || '' };
+        tx.set(requestRef, { groupId: id, recipientId: uid, keyVersion: group.conversationKeyVersion,
+          wrappedKey: { wrappedKey: envelope.wrappedKey, senderPublicKey: envelope.senderPublicKey,
+            recipientKeyId: envelope.recipientKeyId, wrappedBy: uid, wrappedAt: timestamp }, createdAt: timestamp });
+        tx.update(ref, { pendingJoinIds, pendingJoinNames, groupRevision: group.groupRevision + 1, updatedAt: timestamp });
+        return { conversationId: id, pending: true, alreadyPending: false };
+      }
+      const pendingNames = { ...(group.pendingInviteNames || {}) }; delete pendingNames[uid];
       tx.update(ref, { participants: [...group.participants, uid],
         participantData: { ...group.participantData, [uid]: { userId: uid, username: actor.get('username') || '', profileImagePath: actor.get('profileImagePath') || '' } },
         wrappedKeys: { ...group.wrappedKeys, [uid]: { wrappedKey: envelope.wrappedKey, senderPublicKey: envelope.senderPublicKey,

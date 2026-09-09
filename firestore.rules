@@ -1765,7 +1765,9 @@ service cloud.firestore {
     }
 
     match /groupJoinRequests/{requestId} {
-      allow read, write: if false;
+      allow read: if request.auth != null && resource.data.recipientId == request.auth.uid
+        && canParticipateInConversations(request.auth.uid);
+      allow write: if false;
     }
 
     match /groupConversations/{groupId} {
