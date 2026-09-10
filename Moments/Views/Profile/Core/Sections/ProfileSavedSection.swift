@@ -218,6 +218,7 @@ struct ProfileSavedContent: View {
             }
             .navigationDestination(isPresented: $showingSavedManager) {
                 SavedMomentsView()
+                    .momentsFloatingTabBarHidden()
                     .navigationTransition(
                         .zoom(
                             sourceID: ProfileMomentZoomNavigation.profileSavedManagerZoomSourceID,

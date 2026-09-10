@@ -168,6 +168,7 @@ struct UserModernProfileHeader: View {
     let usernameCollapseProgress: CGFloat
     @Binding var showingQRCode: Bool
     let chatZoomNamespace: Namespace.ID
+    var onPreviewStory: ((CGRect) -> Void)? = nil
     @Environment(\.colorScheme) var colorScheme
     @State private var messageFlowError: String?
     @State private var showMessageFlowError = false
@@ -188,7 +189,8 @@ struct UserModernProfileHeader: View {
                                 get: { self.showProfileImageFullscreen },
                                 set: { self.showProfileImageFullscreen = $0 }
                             ),
-                            size: 96
+                            size: 96,
+                            onPreviewStory: onPreviewStory
                         )
                     } destination: { close in
                         QRCodeView(targetUser: viewModel.userProfile, onClose: close)

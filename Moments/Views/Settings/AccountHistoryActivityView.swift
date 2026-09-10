@@ -13,6 +13,7 @@ struct AccountHistoryActivityView: View {
     
     // Date Filtering
     @State private var dateFilter: AccountHistoryDateFilter = .all
+    @State private var lastSegmentDateFilter: AccountHistoryDateFilter = .all
     @State private var customDateFrom: Date = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var customDateTo: Date = Date()
     
@@ -121,84 +122,121 @@ struct AccountHistoryActivityView: View {
     }
     
     private var accountHistoryHeader: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        VStack(spacing: 10) {
             HStack(spacing: 8) {
-                // Sorting Menu
-                Menu {
-                    Button {
-                        sortDescending = true
-                    } label: {
-                        HStack {
-                            Text(NSLocalizedString("accountHistory.filter.newest", value: "Más recientes", comment: ""))
-                            if sortDescending { Image(systemName: "checkmark") }
-                        }
+                Picker("", selection: Binding(
+                    get: { lastSegmentDateFilter },
+                    set: { value in
+                        lastSegmentDateFilter = value
+                        dateFilter = value
                     }
-                    Button {
-                        sortDescending = false
-                    } label: {
-                        HStack {
-                            Text(NSLocalizedString("accountHistory.filter.oldest", value: "Más antiguos", comment: ""))
-                            if !sortDescending { Image(systemName: "checkmark") }
-                        }
+                )) {
+                    ForEach(AccountHistoryDateFilter.allCases.filter { $0 != .custom }) { option in
+                        Text(NSLocalizedString(option.titleKey, comment: "")).tag(option)
                     }
-                } label: {
-                    filterChip(
-                        title: NSLocalizedString("userActivity.simple.filters.sort", value: "Ordenar por", comment: "Sort filter title"),
-                        value: sortDescending ? NSLocalizedString("accountHistory.filter.newest", value: "Más recientes", comment: "") : NSLocalizedString("accountHistory.filter.oldest", value: "Más antiguos", comment: "")
-                    )
                 }
-                
-                // Date Menu
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: .infinity)
+
                 Menu {
-                    ForEach(AccountHistoryDateFilter.allCases) { option in
+                    Section(NSLocalizedString("userActivity.simple.filters.sort", value: "Ordenar por", comment: "Sort filter title")) {
                         Button {
-                            dateFilter = option
+                            sortDescending = true
                         } label: {
-                            HStack {
-                                Text(NSLocalizedString(option.titleKey, comment: ""))
-                                if dateFilter == option { Image(systemName: "checkmark") }
+                            if sortDescending {
+                                Label(NSLocalizedString("accountHistory.filter.newest", value: "Más recientes", comment: ""), systemImage: "checkmark")
+                            } else {
+                                Text(NSLocalizedString("accountHistory.filter.newest", value: "Más recientes", comment: ""))
+                            }
+                        }
+                        Button {
+                            sortDescending = false
+                        } label: {
+                            if !sortDescending {
+                                Label(NSLocalizedString("accountHistory.filter.oldest", value: "Más antiguos", comment: ""), systemImage: "checkmark")
+                            } else {
+                                Text(NSLocalizedString("accountHistory.filter.oldest", value: "Más antiguos", comment: ""))
                             }
                         }
                     }
-                } label: {
-                    filterChip(
-                        title: NSLocalizedString("userActivity.simple.filters.date", value: "Fecha", comment: ""),
-                        value: NSLocalizedString(dateFilter.titleKey, comment: "")
-                    )
-                }
-                
-                // Type Menu
-                Menu {
-                    Button {
-                        selectedFilter = nil
-                    } label: {
-                        HStack {
-                            Text(NSLocalizedString("accountHistory.filter.all", value: "Todos", comment: ""))
-                            if selectedFilter == nil { Image(systemName: "checkmark") }
-                        }
-                    }
-                    
-                    ForEach(AccountHistoryEventType.allCases, id: \.self) { type in
+
+                    Section(NSLocalizedString("userActivity.simple.filters.type", value: "Tipo", comment: "Type filter title")) {
                         Button {
-                            selectedFilter = type
+                            selectedFilter = nil
                         } label: {
-                            HStack {
-                                Text(type.localizedName)
-                                if selectedFilter == type { Image(systemName: "checkmark") }
+                            if selectedFilter == nil {
+                                Label(NSLocalizedString("accountHistory.filter.all", value: "Todos", comment: ""), systemImage: "checkmark")
+                            } else {
+                                Text(NSLocalizedString("accountHistory.filter.all", value: "Todos", comment: ""))
+                            }
+                        }
+                        ForEach(AccountHistoryEventType.allCases, id: \.self) { type in
+                            Button {
+                                selectedFilter = type
+                            } label: {
+                                if selectedFilter == type {
+                                    Label(type.localizedName, systemImage: "checkmark")
+                                } else {
+                                    Text(type.localizedName)
+                                }
                             }
                         }
                     }
+
+                    Section(NSLocalizedString("userActivity.simple.filters.date", value: "Fecha", comment: "")) {
+                        Button {
+                            dateFilter = .custom
+                        } label: {
+                            if dateFilter == .custom {
+                                Label(NSLocalizedString(AccountHistoryDateFilter.custom.titleKey, comment: ""), systemImage: "checkmark")
+                            } else {
+                                Text(NSLocalizedString(AccountHistoryDateFilter.custom.titleKey, comment: ""))
+                            }
+                        }
+                    }
+
+                    if !sortDescending || dateFilter == .custom || selectedFilter != nil {
+                        Button(NSLocalizedString("savedMoments.filters.reset", comment: "Reset filters"), role: .destructive) {
+                            sortDescending = true
+                            if dateFilter == .custom {
+                                dateFilter = lastSegmentDateFilter
+                            }
+                            selectedFilter = nil
+                        }
+                    }
                 } label: {
-                    filterChip(
-                        title: NSLocalizedString("userActivity.simple.filters.type", value: "Tipo", comment: "Type filter title"),
-                        value: selectedFilter?.localizedName ?? NSLocalizedString("accountHistory.filter.all", value: "Todos", comment: "")
-                    )
+                    Image(systemName: "line.3.horizontal.decrease")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 10)
+                        .background(
+                            Group {
+                                let active = !sortDescending || dateFilter == .custom || selectedFilter != nil
+                                if active {
+                                    Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
+                                } else {
+                                    Capsule()
+                                        .fill(.ultraThinMaterial)
+                                        .overlay(
+                                            Capsule()
+                                                .stroke(
+                                                    Color.white.opacity(colorScheme == .dark ? 0.06 : 0.16),
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                }
+                            }
+                        )
                 }
+                .buttonStyle(.momentsPressSubtle)
+                .accessibilityLabel(NSLocalizedString("savedMoments.filters.button", comment: "Filters"))
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 6)
+            .padding(.horizontal, 14)
         }
+        .padding(.top, 8)
+        .padding(.bottom, 6)
     }
     
     private var customDateRangeControls: some View {

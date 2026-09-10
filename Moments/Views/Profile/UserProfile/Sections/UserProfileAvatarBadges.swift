@@ -13,23 +13,23 @@ struct UserModernAvatarWithBadges: View {
     let storyRingRefreshTrigger: Int
     @Binding var showProfileImageFullscreen: Bool
     let size: CGFloat
+    /// Long-press con historia → preview (gesto solo aquí; no toca StoryRingAvatarView).
+    var onPreviewStory: ((CGRect) -> Void)? = nil
     @Environment(\.colorScheme) var colorScheme
+
+    @State private var hasActiveStory = false
+    @State private var isPressing = false
+    @State private var anchorCapture = FeedStoryCircleAnchorCapture()
 
     var body: some View {
         ZStack {
+            // Sin `onTap` → sin `Button` interno; el press classifier (como el feed) maneja tap + long-press.
             StoryRingAvatarView(
                 userId: userProfile?.id ?? "",
                 size: size,
                 lineWidth: 3,
                 refreshTrigger: storyRingRefreshTrigger,
-                isOwnStory: false,
-                onTap: { hasStory in
-                    if hasStory {
-                        onOpenStories()
-                    } else {
-                        showProfileImageFullscreen = true
-                    }
-                }
+                isOwnStory: false
             )
 
             // ✅ NUEVO: Badge principal en esquina superior derecha
@@ -50,6 +50,7 @@ struct UserModernAvatarWithBadges: View {
                 }
                 .offset(x: size * 0.375, y: -size * 0.375)
                 .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+                .allowsHitTesting(false)
             }
 
             // ✅ NUEVO: Corona Plus en esquina superior izquierda (se oculta si hay tema activo o si está desactivado)
@@ -67,19 +68,56 @@ struct UserModernAvatarWithBadges: View {
                 }
                 .offset(x: -size * 0.375, y: -size * 0.375)
                 .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+                .allowsHitTesting(false)
             }
-
-            // ✅ NUEVO: Indicador de nivel supporter en la parte inferior - OCULTO
-            // if let supporterLevel = userProfile?.supporterLevel,
-            //    userProfile?.isSupporter == true && supporterLevel != .none {
-            //     UserSupporterLevelIndicator(level: supporterLevel)
-            //         .offset(x: 0, y: size * 0.54)
-            //         .shadow(color: UserProfileColors.shadowColor, radius: 4, x: 0, y: 2)
-            // }
         }
-        // ✅ LONG PRESS: Siempre abre la foto de perfil en grande
-        .onLongPressGesture(minimumDuration: 0.5) {
-            showProfileImageFullscreen = true
+        .contentShape(Circle())
+        .scaleEffect(isPressing ? 0.94 : 1)
+        .opacity(isPressing ? 0.88 : 1)
+        .animation(.easeOut(duration: 0.12), value: isPressing)
+        .background {
+            FeedStoryCircleAnchorProbe(capture: anchorCapture)
+            FeedStoryRingScrollTouchFix()
+        }
+        .modifier(FeedStoryCirclePressModifier(
+            isPressing: $isPressing,
+            onTap: {
+                if hasActiveStory {
+                    onOpenStories()
+                } else {
+                    showProfileImageFullscreen = true
+                }
+            },
+            onLongPress: {
+                if hasActiveStory, let onPreviewStory {
+                    let frame = anchorCapture.resolvedFrame
+                    onPreviewStory(frame.width > 1 ? frame : .zero)
+                } else {
+                    showProfileImageFullscreen = true
+                }
+            }
+        ))
+        .onAppear { resolveHasStory() }
+        .onChange(of: userProfile?.id) { _, _ in resolveHasStory() }
+        .onChange(of: storyRingRefreshTrigger) { _, _ in resolveHasStory(forceRefresh: true) }
+    }
+
+    private func resolveHasStory(forceRefresh: Bool = false) {
+        guard let userId = userProfile?.id, !userId.isEmpty,
+              let viewerId = Auth.auth().currentUser?.uid, !viewerId.isEmpty else {
+            hasActiveStory = false
+            return
+        }
+
+        StoryRingResolverService.shared.resolve(
+            viewerId: viewerId,
+            authorId: userId,
+            privacyService: PrivacyService(),
+            useCache: !forceRefresh
+        ) { snapshot in
+            DispatchQueue.main.async {
+                hasActiveStory = snapshot.hasStory
+            }
         }
     }
 }

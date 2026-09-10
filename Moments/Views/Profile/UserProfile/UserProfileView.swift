@@ -10,6 +10,8 @@ import AVKit
 
 private struct UserProfileStoryRoute: Identifiable {
     let userId: String
+    var startStoryId: String? = nil
+    var startElapsed: TimeInterval = 0
     var id: String { userId }
 }
 
@@ -292,6 +294,7 @@ struct UserProfileFloatingTabBar: View {
 struct UserProfileView: View {
     @StateObject private var viewModel: UserProfileViewModel
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var socialConnectionsRoute: SocialConnectionsRoute?
     private let userId: String
     @StateObject private var messagingViewModel = MessagingViewModel()
@@ -303,6 +306,7 @@ struct UserProfileView: View {
     @State private var showingRelationshipSheet = false
 
     @State private var storyRoute: UserProfileStoryRoute?
+    @State private var storyRingPreviewSelection: FeedStoryRingPreviewSelection?
     @State private var scrollOffset: CGFloat = 0
     @StateObject private var heroCoordinator = ProfileGridHeroTransitionCoordinator()
     @State private var hasRegisteredVisit = false
@@ -380,6 +384,26 @@ struct UserProfileView: View {
                     zoomFeedKind: selectedTab == .tagged ? .userProfileTagged : .userProfileMoments
                 )
                 .zIndex(100)
+
+                FeedStoryRingPreviewOverlay(
+                    selection: $storyRingPreviewSelection,
+                    colorScheme: colorScheme,
+                    onOpenStory: { previewUserId, storyId, elapsed in
+                        storyRoute = UserProfileStoryRoute(
+                            userId: previewUserId,
+                            startStoryId: storyId,
+                            startElapsed: elapsed
+                        )
+                    },
+                    onOpenProfile: { _ in
+                        storyRingPreviewSelection = nil
+                    },
+                    onMuted: { _ in
+                        viewModel.isMutedByCurrentUser = true
+                    }
+                )
+                .ignoresSafeArea()
+                .zIndex(200)
             }
             .offlineBannerOverlay()
             .coordinateSpace(name: "profileHeroStage")
@@ -493,8 +517,13 @@ struct UserProfileView: View {
             }
         }
         .fullScreenCover(item: $storyRoute) { route in
-            StoriesView(startWithUserId: .constant(route.userId))
-                .environmentObject(FirestoreService.shared)
+            StoriesView(
+                startAtUserId: route.userId,
+                ringNavigationUserIds: [route.userId],
+                startStoryId: route.startStoryId,
+                startElapsed: route.startElapsed
+            )
+            .environmentObject(FirestoreService.shared)
         }
         .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: socialConnectionsRoute), value: socialConnectionsRoute)
         .confirmationDialog(
@@ -664,7 +693,13 @@ struct UserProfileView: View {
                     chatZoomNamespace: profileZoomNamespace,
                     gridZoomNamespace: profileZoomNamespace,
                     momentZoomDestination: $momentZoomDestination,
-                    selectedTab: $selectedTab
+                    onPreviewStory: { frame in
+                        storyRingPreviewSelection = FeedStoryRingPreviewSelection(
+                            userId: userId,
+                            anchorFrame: frame,
+                            placement: .trailingBelowAvatar
+                        )
+                    }, selectedTab: $selectedTab
                 )
             }
         }

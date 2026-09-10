@@ -1818,6 +1818,12 @@
 "savedMoments.sort.oldest" = "Antiguos";
 "savedMoments.sort.author" = "Autor";
 "savedMoments.search.placeholder" = "Buscar por usuario, texto o lugar";
+"savedMoments.filters.button" = "Filtros";
+"savedMoments.filters.title" = "Filtros";
+"savedMoments.filters.sort" = "Ordenar";
+"savedMoments.filters.contains" = "Contiene";
+"savedMoments.filters.apply" = "Aplicar";
+"savedMoments.filters.reset" = "Restablecer";
 "savedMoments.filter.media.all" = "Todo";
 "savedMoments.filter.media.photos" = "Fotos";
 "savedMoments.filter.media.videos" = "Videos";

@@ -1826,6 +1826,12 @@
 "savedMoments.sort.oldest" = "Oldest";
 "savedMoments.sort.author" = "Author";
 "savedMoments.search.placeholder" = "Search by user, text, or location";
+"savedMoments.filters.button" = "Filters";
+"savedMoments.filters.title" = "Filters";
+"savedMoments.filters.sort" = "Sort";
+"savedMoments.filters.contains" = "Contains";
+"savedMoments.filters.apply" = "Apply";
+"savedMoments.filters.reset" = "Reset";
 "savedMoments.filter.media.all" = "All";
 "savedMoments.filter.media.photos" = "Photos";
 "savedMoments.filter.media.videos" = "Videos";

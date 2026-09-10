@@ -4,9 +4,17 @@ import FirebaseAuth
 import FirebaseFirestore
 import Kingfisher
 
+enum FeedStoryRingPreviewPlacement: Equatable {
+    /// Anillo del feed: debajo del avatar, centrado.
+    case belowAnchor
+    /// Perfil ajeno: a la derecha de la foto, un poco más abajo.
+    case trailingBelowAvatar
+}
+
 struct FeedStoryRingPreviewSelection: Equatable {
     let userId: String
     let anchorFrame: CGRect
+    var placement: FeedStoryRingPreviewPlacement = .belowAnchor
 }
 
 struct FeedStoryRingPreviewOverlay: View {
@@ -281,18 +289,20 @@ struct FeedStoryRingPreviewOverlay: View {
     @ViewBuilder
     private func actionsMenu(for selection: FeedStoryRingPreviewSelection) -> some View {
         VStack(spacing: 0) {
-            menuRow(
-                title: NSLocalizedString("userActivity.event.action.viewProfile", comment: "View profile"),
-                icon: "person.crop.circle",
-                isDestructive: false
-            ) {
-                let userId = selection.userId
-                dismissOverlay { onOpenProfile(userId) }
-            }
+            if selection.placement != .trailingBelowAvatar {
+                menuRow(
+                    title: NSLocalizedString("userActivity.event.action.viewProfile", comment: "View profile"),
+                    icon: "person.crop.circle",
+                    isDestructive: false
+                ) {
+                    let userId = selection.userId
+                    dismissOverlay { onOpenProfile(userId) }
+                }
 
-            Divider()
-                .opacity(0.35)
-                .padding(.horizontal, 14)
+                Divider()
+                    .opacity(0.35)
+                    .padding(.horizontal, 14)
+            }
 
             menuRow(
                 title: NSLocalizedString("storyContextMenu.mute", comment: "Mute user button"),
@@ -346,8 +356,23 @@ struct FeedStoryRingPreviewOverlay: View {
             width: selection.anchorFrame.width,
             height: selection.anchorFrame.height
         )
-        let menuHeight = menuRowHeight * 2 + 12
-        let previewTop = max(anchor.maxY + ringGap, proxy.safeAreaInsets.top + 8)
+        let menuRows = selection.placement == .trailingBelowAvatar ? 1 : 2
+        let menuHeight = menuRowHeight * CGFloat(menuRows) + 12
+        let availableWidth = max(160, proxy.size.width - horizontalInset * 2)
+        let minX = horizontalInset
+
+        let previewTop: CGFloat
+        let preferredOriginX: CGFloat
+        switch selection.placement {
+        case .belowAnchor:
+            previewTop = max(anchor.maxY + ringGap, proxy.safeAreaInsets.top + 8)
+            preferredOriginX = anchor.midX - previewWidth / 2
+        case .trailingBelowAvatar:
+            // A la derecha de la foto, un poco más abajo (no al mismo nivel).
+            previewTop = max(anchor.minY + 36, proxy.safeAreaInsets.top + 8)
+            preferredOriginX = anchor.maxX + 12
+        }
+
         let maxHeight = max(
             220,
             proxy.size.height
@@ -357,7 +382,6 @@ struct FeedStoryRingPreviewOverlay: View {
                 - proxy.safeAreaInsets.bottom
                 - 16
         )
-        let availableWidth = max(160, proxy.size.width - horizontalInset * 2)
         var width = min(previewWidth, availableWidth)
         var height = width * 16 / 9
         if height > maxHeight {
@@ -365,15 +389,18 @@ struct FeedStoryRingPreviewOverlay: View {
             width = height * 9 / 16
         }
 
-        let minX = horizontalInset
         let maxX = max(minX, proxy.size.width - horizontalInset - width)
-        let originX = min(max(anchor.midX - width / 2, minX), maxX)
+        let originX = min(max(preferredOriginX, minX), maxX)
         let stackHeight = height + stackGap + menuHeight
+        let clampedTop = min(
+            previewTop,
+            max(proxy.safeAreaInsets.top + 8, proxy.size.height - proxy.safeAreaInsets.bottom - stackHeight - 16)
+        )
         return (
             width,
             height,
             stackHeight,
-            CGPoint(x: originX + width / 2, y: previewTop + stackHeight / 2)
+            CGPoint(x: originX + width / 2, y: clampedTop + stackHeight / 2)
         )
     }
 

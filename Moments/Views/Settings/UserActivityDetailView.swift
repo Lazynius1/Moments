@@ -12,6 +12,7 @@ struct ActivityInteractionDetailView: View {
     @StateObject private var viewModel: ActivityInteractionDetailViewModel
     @State private var reactionsSort: ReactionsSortOption = .newest
     @State private var reactionsDateFilter: ReactionsDateFilter = .all
+    @State private var lastSegmentDateFilter: ReactionsDateFilter = .all
     @State private var customDateFrom: Date = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var customDateTo: Date = Date()
     @State private var selectedAuthorId: String?
@@ -947,63 +948,168 @@ struct ActivityInteractionDetailView: View {
     }
 
     private var reactionsFiltersHeader: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        VStack(spacing: 10) {
             HStack(spacing: 8) {
-                Menu {
-                    ForEach(ReactionsSortOption.allCases) { option in
-                        Button {
-                            reactionsSort = option
-                        } label: {
-                            HStack {
-                                Text(NSLocalizedString(option.titleKey, comment: "Reactions sort option"))
-                                if reactionsSort == option {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    filterChip(
-                        title: NSLocalizedString("userActivity.simple.filters.sort", comment: "Sort filter title"),
-                        value: NSLocalizedString(reactionsSort.titleKey, comment: "Selected sort option")
-                    )
-                }
+                activityDateSegments
+                activityFiltersMenu
+            }
+            .padding(.horizontal, 14)
 
-                Menu {
-                    ForEach(ReactionsDateFilter.allCases) { option in
-                        Button {
-                            reactionsDateFilter = option
-                        } label: {
-                            HStack {
-                                Text(NSLocalizedString(option.titleKey, comment: "Reactions date filter option"))
-                                if reactionsDateFilter == option {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    filterChip(
-                        title: NSLocalizedString("userActivity.simple.filters.date", comment: "Date filter title"),
-                        value: NSLocalizedString(reactionsDateFilter.titleKey, comment: "Selected date filter")
-                    )
-                }
+            if hasActivitySecondaryFiltersActive {
+                activityActiveFilterChips
+            }
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+    }
 
-                if supportsAuthorFilter {
+    private var hasActivitySecondaryFiltersActive: Bool {
+        reactionsSort != .newest
+            || reactionsDateFilter == .custom
+            || selectedAuthorId != nil
+    }
+
+    private var activityDateSegments: some View {
+        Picker("", selection: Binding(
+            get: { lastSegmentDateFilter },
+            set: { value in
+                lastSegmentDateFilter = value
+                reactionsDateFilter = value
+            }
+        )) {
+            ForEach(ReactionsDateFilter.allCases.filter { $0 != .custom }, id: \.self) { option in
+                Text(NSLocalizedString(option.titleKey, comment: "Date filter option")).tag(option)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(maxWidth: .infinity)
+    }
+
+    private var activityFiltersMenu: some View {
+        Menu {
+            Section(NSLocalizedString("userActivity.simple.filters.sort", comment: "Sort filter title")) {
+                ForEach(ReactionsSortOption.allCases) { option in
                     Button {
-                        showingAuthorFilterSheet = true
+                        reactionsSort = option
                     } label: {
-                        filterChip(
-                            title: NSLocalizedString("userActivity.simple.filters.author", comment: "Author filter title"),
-                            value: selectedAuthorLabel
-                        )
+                        if reactionsSort == option {
+                            Label(
+                                NSLocalizedString(option.titleKey, comment: "Sort option"),
+                                systemImage: "checkmark"
+                            )
+                        } else {
+                            Text(NSLocalizedString(option.titleKey, comment: "Sort option"))
+                        }
                     }
                 }
             }
-            .padding(.horizontal, sectionHorizontalPadding)
-            .padding(.top, 8)
-            .padding(.bottom, 6)
+
+            Section(NSLocalizedString("userActivity.simple.filters.date", comment: "Date filter title")) {
+                Button {
+                    reactionsDateFilter = .custom
+                } label: {
+                    if reactionsDateFilter == .custom {
+                        Label(
+                            NSLocalizedString(ReactionsDateFilter.custom.titleKey, comment: "Custom date"),
+                            systemImage: "checkmark"
+                        )
+                    } else {
+                        Text(NSLocalizedString(ReactionsDateFilter.custom.titleKey, comment: "Custom date"))
+                    }
+                }
+            }
+
+            if supportsAuthorFilter {
+                Button {
+                    showingAuthorFilterSheet = true
+                } label: {
+                    if selectedAuthorId != nil {
+                        Label(selectedAuthorLabel, systemImage: "checkmark")
+                    } else {
+                        Text(NSLocalizedString("userActivity.simple.filters.author", comment: "Author filter title"))
+                    }
+                }
+            }
+
+            if hasActivitySecondaryFiltersActive {
+                Button(NSLocalizedString("savedMoments.filters.reset", comment: "Reset filters"), role: .destructive) {
+                    reactionsSort = .newest
+                    if reactionsDateFilter == .custom {
+                        reactionsDateFilter = lastSegmentDateFilter
+                    }
+                    selectedAuthorId = nil
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 10)
+                .background(
+                    Group {
+                        if hasActivitySecondaryFiltersActive {
+                            Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
+                        } else {
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    Capsule()
+                                        .stroke(
+                                            Color.white.opacity(colorScheme == .dark ? 0.06 : 0.16),
+                                            lineWidth: 1
+                                        )
+                                )
+                        }
+                    }
+                )
         }
+        .buttonStyle(.momentsPressSubtle)
+        .accessibilityLabel(NSLocalizedString("savedMoments.filters.button", comment: "Filters"))
+    }
+
+    private var activityActiveFilterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                if reactionsSort != .newest {
+                    activityActiveChip(
+                        title: NSLocalizedString(reactionsSort.titleKey, comment: "Sort chip")
+                    ) {
+                        reactionsSort = .newest
+                    }
+                }
+                if reactionsDateFilter == .custom {
+                    activityActiveChip(
+                        title: NSLocalizedString(ReactionsDateFilter.custom.titleKey, comment: "Custom date chip")
+                    ) {
+                        reactionsDateFilter = lastSegmentDateFilter
+                    }
+                }
+                if selectedAuthorId != nil {
+                    activityActiveChip(title: selectedAuthorLabel) {
+                        selectedAuthorId = nil
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+        }
+    }
+
+    private func activityActiveChip(title: String, onClear: @escaping () -> Void) -> some View {
+        Button(action: onClear) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 7)
+            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
+        }
+        .buttonStyle(.momentsPressSubtle)
     }
 
     private var supportsAuthorFilter: Bool {

@@ -148,26 +148,15 @@ struct ProfileMomentZoomDetailDestination: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        Group {
-            if destination.feedKind == .savedMoments {
-                ModernSavedMomentsDetailView(
-                    moments: moments,
-                    initialIndex: destination.initialIndex,
-                    onDismiss: { dismiss() },
-                    onRemoveMoment: onRemoveSavedMoment
-                )
-            } else {
-                ModernMomentDetailView(
-                    moments: moments,
-                    initialIndex: destination.initialIndex,
-                    initialMomentId: destination.initialMomentId,
-                    topContentInset: 0,
-                    restrictPlaybackToInitialIndex: destination.restrictPlaybackToInitialIndex,
-                    openCommentsOnAppear: destination.openCommentsOnAppear,
-                    onDismiss: { dismiss() }
-                )
-            }
-        }
+        ModernMomentDetailView(
+            moments: moments,
+            initialIndex: destination.initialIndex,
+            initialMomentId: destination.initialMomentId,
+            topContentInset: 0,
+            restrictPlaybackToInitialIndex: destination.restrictPlaybackToInitialIndex,
+            openCommentsOnAppear: destination.openCommentsOnAppear,
+            onDismiss: { dismiss() }
+        )
         .navigationBarBackButtonHidden(true)
         .navigationInteractivePopEnabled()
         .toolbar(.hidden, for: .tabBar)
@@ -203,7 +192,7 @@ struct MomentZoomDetailDestination: View {
     var body: some View {
         Group {
             switch destination.presentation {
-            case .carousel:
+            case .carousel, .saved:
                 ModernMomentDetailView(
                     moments: moments,
                     initialIndex: destination.initialIndex,
@@ -211,13 +200,6 @@ struct MomentZoomDetailDestination: View {
                     topContentInset: 0,
                     restrictPlaybackToInitialIndex: destination.restrictPlaybackToInitialIndex,
                     onDismiss: { dismissMapIfNeeded(); dismiss() }
-                )
-            case .saved:
-                ModernSavedMomentsDetailView(
-                    moments: moments,
-                    initialIndex: destination.initialIndex,
-                    onDismiss: { dismiss() },
-                    onRemoveMoment: onRemoveSavedMoment
                 )
             case .single:
                 if let moment = resolvedSingleMoment(from: moments, destination: destination) {
@@ -258,6 +240,7 @@ struct MomentZoomDetailDestination: View {
             hidesNavigationBar: !showsNativeFeedDetailChrome(for: destination.presentation)
         ))
         .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .navigationTransition(.zoom(sourceID: destination.zoomSourceID, in: namespace))
     }
 
@@ -269,9 +252,9 @@ struct MomentZoomDetailDestination: View {
 
     private func showsNativeFeedDetailChrome(for presentation: MomentZoomPresentationKind) -> Bool {
         switch presentation {
-        case .explorer, .carousel:
+        case .explorer, .carousel, .saved:
             return true
-        case .saved, .single, .map:
+        case .single, .map:
             return false
         }
     }

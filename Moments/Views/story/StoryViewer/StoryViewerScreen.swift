@@ -718,6 +718,14 @@ struct StoryViewerScreen: View {
         }
     }
 
+    /// ≡ Android: tap en foto/username → `profileRoute`; al volver (`profileRoute == nil`) reanuda.
+    private func openAuthorProfileFromHeader() {
+        guard !story.authorId.isEmpty else { return }
+        profileRoute = FeedProfileSheetRoute(userId: story.authorId)
+        pauseStory()
+        onProfileTap()
+    }
+
     private var profileAndChainBoundView: AnyView {
         AnyView(
             NavigationStack {
@@ -781,7 +789,7 @@ struct StoryViewerScreen: View {
 
     private var glassmorphicHeader: some View {
         HStack(spacing: 12) {
-            Button(action: onProfileTap) {
+            Button(action: openAuthorProfileFromHeader) {
                 HStack(spacing: 10) {
                     ZStack {
                         if let profileImagePath = story.profileImagePath {

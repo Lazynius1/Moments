@@ -25,6 +25,7 @@ struct UserModernPublicProfileView: View {
     let chatZoomNamespace: Namespace.ID
     let gridZoomNamespace: Namespace.ID
     @Binding var momentZoomDestination: ProfileMomentZoomDestination?
+    var onPreviewStory: ((CGRect) -> Void)? = nil
 
     @State private var showingFullInfo = false // ✅ NUEVO: Colapsable
     @Binding var selectedTab: UserProfileTabType // ✅ NUEVO: Tab seleccionado (Binding)
@@ -69,7 +70,8 @@ struct UserModernPublicProfileView: View {
                         storyRingRefreshTrigger: storyRingRefreshToken,
                         usernameCollapseProgress: usernameCollapseProgress,
                         showingQRCode: $showingQRCode,
-                        chatZoomNamespace: chatZoomNamespace
+                        chatZoomNamespace: chatZoomNamespace,
+                        onPreviewStory: onPreviewStory
                     )
                     .padding(.top, ProfileHeaderCollapseMetrics.headerTopPadding)
                     .padding(.bottom, 4)

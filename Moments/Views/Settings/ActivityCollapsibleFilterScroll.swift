@@ -47,9 +47,8 @@ fileprivate enum ActivityFilterScrollMetrics {
     }
 }
 
-/// Scroll de Tu actividad: chips dentro del scroll (blur nativo en la toolbar).
-/// Al bajar desaparecen con el scroll; un pequeño scroll hacia arriba las revela ancladas.
-/// Si vuelves a bajar, se ocultan otra vez. Arriba del todo vuelven a su sitio inline.
+/// Scroll de Tu actividad / Guardados: header inline en el scroll (no toolbar).
+/// Al bajar desaparece con el contenido; al subir un poco se revela como overlay flotante.
 struct ActivityCollapsibleFilterScroll<Header: View, Content: View>: View {
     var onRefresh: (() async -> Void)?
     @ViewBuilder var header: () -> Header

@@ -317,7 +317,7 @@ class SavedMomentsViewModel: ObservableObject {
 }
 
 // MARK: - SavedMomentsView Redesign 2026
-enum SavedMediaFilter: CaseIterable {
+enum SavedMediaFilter: String, CaseIterable, Hashable {
     case all
     case photos
     case videos
@@ -334,7 +334,7 @@ enum SavedMediaFilter: CaseIterable {
     }
 }
 
-enum SavedCollectionFilter: CaseIterable {
+enum SavedCollectionFilter: String, CaseIterable, Hashable {
     case all
     case location
     case text
@@ -354,7 +354,7 @@ enum SavedCollectionFilter: CaseIterable {
     }
 }
 
-enum SavedSortMode: CaseIterable {
+enum SavedSortMode: String, CaseIterable, Hashable {
     case newest
     case oldest
     case author

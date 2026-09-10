@@ -27,6 +27,8 @@ struct SavedMomentsView: View {
     @StateObject private var viewModel = SavedMomentsViewModel()
 
     @State private var searchText = ""
+    @State private var isSearchExpanded = false
+    @FocusState private var isSearchFieldFocused: Bool
     @State private var mediaFilter: SavedMediaFilter = .all
     @State private var collectionFilter: SavedCollectionFilter = .all
     @State private var sortMode: SavedSortMode = .newest
@@ -92,7 +94,7 @@ struct SavedMomentsView: View {
         ZStack(alignment: .bottom) {
                 background
 
-                VStack(spacing: 14) {
+                Group {
                     if viewModel.isLoading {
                         loadingView
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -106,7 +108,6 @@ struct SavedMomentsView: View {
                         content
                     }
                 }
-                .padding(.top, 8)
 
                 if isSelectionMode {
                     selectionBar
@@ -171,6 +172,8 @@ struct SavedMomentsView: View {
         .navigationBarBackButtonHidden(true)
         .navigationInteractivePopEnabled()
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .momentsScrollEdgeChrome()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -191,6 +194,10 @@ struct SavedMomentsView: View {
         }
     }
 
+    private var hasSecondaryFiltersActive: Bool {
+        collectionFilter != .all || sortMode != .newest
+    }
+
     private var background: some View {
         ZStack {
             (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
@@ -198,11 +205,151 @@ struct SavedMomentsView: View {
     }
 
     private var content: some View {
-        VStack(spacing: 14) {
-            searchBar
-            filterPanel
-            gridContent
+        ScrollView {
+            savedGridBody
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .profileGridNavigationChrome(colorScheme: colorScheme)
+        .momentRefresh { await refreshMoments() }
+        .modifier(SavedMomentsToolbarChromeModifier {
+            savedToolbarChrome
+        })
+        .animation(MotionPolicy.Spring.header, value: isSearchExpanded)
+        .animation(MotionPolicy.Spring.header, value: hasSecondaryFiltersActive)
+    }
+
+    /// Chrome de filtros como barra de sistema: el grid pasa por debajo con blur nativo.
+    private var savedToolbarChrome: some View {
+        VStack(spacing: 10) {
+            chromeRow
+            if isSearchExpanded || !searchText.isEmpty {
+                searchBar
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+            if hasSecondaryFiltersActive {
+                activeFilterChips
+            }
+        }
+        .padding(.top, 4)
+        .padding(.bottom, 8)
+    }
+
+    /// Una sola fila: media segmented nativo + búsqueda + menú de filtros.
+    private var chromeRow: some View {
+        HStack(spacing: 8) {
+            mediaSegments
+            chromeIconButton(
+                systemName: "magnifyingglass",
+                isActive: isSearchExpanded || !searchText.isEmpty
+            ) {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
+                    isSearchExpanded.toggle()
+                    if isSearchExpanded {
+                        isSearchFieldFocused = true
+                    } else if searchText.isEmpty {
+                        isSearchFieldFocused = false
+                    }
+                }
+            }
+            filtersMenu
+        }
+        .padding(.horizontal, 14)
+    }
+
+    private var filtersMenu: some View {
+        Menu {
+            Section(NSLocalizedString("savedMoments.filters.sort", comment: "Sort section")) {
+                ForEach(SavedSortMode.allCases, id: \.self) { mode in
+                    Button {
+                        sortMode = mode
+                    } label: {
+                        if sortMode == mode {
+                            Label(mode.title, systemImage: "checkmark")
+                        } else {
+                            Text(mode.title)
+                        }
+                    }
+                }
+            }
+
+            Section(NSLocalizedString("savedMoments.filters.contains", comment: "Contains section")) {
+                ForEach(SavedCollectionFilter.allCases.filter { $0 != .all }, id: \.self) { filter in
+                    Button {
+                        collectionFilter = collectionFilter == filter ? .all : filter
+                    } label: {
+                        if collectionFilter == filter {
+                            Label(filter.title, systemImage: "checkmark")
+                        } else {
+                            Text(filter.title)
+                        }
+                    }
+                }
+            }
+
+            if hasSecondaryFiltersActive {
+                Button(NSLocalizedString("savedMoments.filters.reset", comment: "Reset filters"), role: .destructive) {
+                    sortMode = .newest
+                    collectionFilter = .all
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 10)
+                .background(
+                    Group {
+                        if hasSecondaryFiltersActive {
+                            Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
+                        } else {
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    Capsule()
+                                        .stroke(
+                                            Color.white.opacity(colorScheme == .dark ? 0.06 : 0.16),
+                                            lineWidth: 1
+                                        )
+                                )
+                        }
+                    }
+                )
+        }
+        .buttonStyle(.momentsPressSubtle)
+        .accessibilityLabel(NSLocalizedString("savedMoments.filters.button", comment: "Filters"))
+    }
+
+    private func chromeIconButton(
+        systemName: String,
+        isActive: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 10)
+                .background(
+                    Group {
+                        if isActive {
+                            Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
+                        } else {
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    Capsule()
+                                        .stroke(
+                                            Color.white.opacity(colorScheme == .dark ? 0.06 : 0.16),
+                                            lineWidth: 1
+                                        )
+                                )
+                        }
+                    }
+                )
+        }
+        .buttonStyle(.momentsPressSubtle)
     }
 
     private var searchBar: some View {
@@ -213,6 +360,7 @@ struct SavedMomentsView: View {
                 .font(.system(size: legacyPoppinsSize(15)))
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .focused($isSearchFieldFocused)
 
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
@@ -227,103 +375,49 @@ struct SavedMomentsView: View {
         .padding(.horizontal, 14)
     }
 
-    private var filterPanel: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                mediaSegments
-
-                Menu {
-                    ForEach(SavedSortMode.allCases, id: \.self) { mode in
-                        Button(mode.title) { sortMode = mode }
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 13, weight: .semibold))
-                        Text(sortMode.title)
-                            .lineLimit(1)
-                    }
-                    .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
-                }
-            }
-
-            collectionRail
-        }
-        .padding(.horizontal, 14)
-    }
-
     private var mediaSegments: some View {
-        HStack(spacing: 8) {
+        Picker("", selection: $mediaFilter) {
             ForEach(SavedMediaFilter.allCases, id: \.self) { filter in
-                Button(action: { mediaFilter = filter }) {
-                    Text(filter.title)
-                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(
-                            Group {
-                                if mediaFilter == filter {
-                                    Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
-                                } else {
-                                    Capsule()
-                                        .fill(.ultraThinMaterial)
-                                        .overlay(
-                                            Capsule()
-                                                .stroke(
-                                                    Color.white.opacity(colorScheme == .dark ? 0.06 : 0.16),
-                                                    lineWidth: 1
-                                                )
-                                        )
-                                }
-                            }
-                        )
-                }
-                .buttonStyle(.momentsPressSubtle)
+                Text(filter.title).tag(filter)
             }
         }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(maxWidth: .infinity)
     }
 
-    private var collectionRail: some View {
+    private var activeFilterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(SavedCollectionFilter.allCases, id: \.self) { filter in
-                    Button(action: { collectionFilter = filter }) {
-                        Text(filter.title)
-                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 9)
-                            .background(
-                                Group {
-                                    if collectionFilter == filter {
-                                        Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
-                                    } else {
-                                        Capsule()
-                                            .fill(.ultraThinMaterial)
-                                            .overlay(
-                                                Capsule()
-                                                    .stroke(
-                                                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.16),
-                                                        lineWidth: 1
-                                                    )
-                                            )
-                                    }
-                                }
-                            )
-                    }
-                    .buttonStyle(.momentsPressSubtle)
+                if sortMode != .newest {
+                    activeChip(title: sortMode.title) { sortMode = .newest }
+                }
+                if collectionFilter != .all {
+                    activeChip(title: collectionFilter.title) { collectionFilter = .all }
                 }
             }
+            .padding(.horizontal, 14)
         }
     }
 
-    private var gridContent: some View {
-        ScrollView {
+    private func activeChip(title: String, onClear: @escaping () -> Void) -> some View {
+        Button(action: onClear) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 7)
+            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
+        }
+        .buttonStyle(.momentsPressSubtle)
+    }
+
+    private var savedGridBody: some View {
+        Group {
             if filteredMoments.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: "line.3.horizontal.decrease.circle")
@@ -339,8 +433,10 @@ struct SavedMomentsView: View {
 
                     Button(NSLocalizedString("savedMoments.clearFilters", comment: "Clear filters action")) {
                         searchText = ""
+                        isSearchExpanded = false
                         mediaFilter = .all
                         collectionFilter = .all
+                        sortMode = .newest
                     }
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     .foregroundStyle(.primary)
@@ -348,7 +444,8 @@ struct SavedMomentsView: View {
                     .padding(.vertical, 10)
                     .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                 }
-                .padding(.top, 80)
+                .frame(maxWidth: .infinity, minHeight: 420, alignment: .center)
+                .padding(.top, 40)
             } else {
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3),
@@ -387,13 +484,9 @@ struct SavedMomentsView: View {
                         }
                     }
                 }
-                .profileGridNavigationChrome(colorScheme: colorScheme)
                 .padding(.horizontal, 10)
                 .padding(.bottom, isSelectionMode ? 90 : 20)
             }
-        }
-        .momentRefresh {
-            await refreshMoments()
         }
     }
 
@@ -565,7 +658,7 @@ struct SavedMomentsView: View {
             moment: moment,
             moments: accessibleMoments,
             initialIndex: resolvedIndex,
-            presentation: .saved,
+            presentation: .carousel,
             destination: &zoomDestination,
             zoomIDPrefix: "saved"
         )
@@ -644,6 +737,23 @@ struct SavedMomentsView: View {
         await withCheckedContinuation { continuation in
             viewModel.loadSavedMoments { _ in
                 continuation.resume()
+            }
+        }
+    }
+}
+
+/// Ancla el chrome de Guardados como barra de sistema: el scroll pasa por debajo con blur nativo.
+private struct SavedMomentsToolbarChromeModifier<Chrome: View>: ViewModifier {
+    @ViewBuilder var chrome: () -> Chrome
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.safeAreaBar(edge: .top, spacing: 0) {
+                chrome()
+            }
+        } else {
+            content.safeAreaInset(edge: .top, spacing: 0) {
+                chrome()
             }
         }
     }
@@ -844,6 +954,7 @@ struct ModernSavedMomentsDetailView: View {
     let onRemoveMoment: ((Moment) -> Void)?
 
     @StateObject private var firestoreService = FirestoreService()
+    @State private var feedViewModel = FeedViewModel()
     @State private var currentIndex: Int
     @State private var commentsRoute: SavedMomentCommentsRoute?
     @State private var showingRemoveAlert = false
@@ -959,7 +1070,11 @@ struct ModernSavedMomentsDetailView: View {
         .onAppear {
             currentIndex = initialIndex
         }
+        .onDisappear {
+            feedViewModel.shutdown()
+        }
         .environmentObject(firestoreService)
+        .environment(feedViewModel)
     }
 
     // ✅ ScrollView principal para momentos guardados
@@ -1015,6 +1130,7 @@ struct ModernSavedMomentsDetailView: View {
                         }
                         .id(index)
                         .environmentObject(firestoreService)
+                        .environment(feedViewModel)
                         .feedMomentVisibility(momentId: GlobalVideoManager.profileVideoConsumerId(for: moment))
                         .onAppear {
                             if index != currentIndex {
