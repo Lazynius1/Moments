@@ -30,6 +30,7 @@ enum ChatListScrollCommand: Equatable {
 struct ChatViewportAnchor: Equatable {
     let rowId: String
     let offsetFromContentTop: CGFloat
+    var messageId: String? = nil
 }
 
 struct ChatListUpdateTransaction {
@@ -186,6 +187,7 @@ struct ChatMessageListView: UIViewControllerRepresentable {
     @Binding var isAtBottom: Bool
     var suspendUpdates: Bool = false
     var onReachedTop: () -> Void
+    var canLoadOlderHistory = true
     var composerBottomInset: CGFloat = 0
     var isVanishGestureEnabled: Bool = true
     var isVanishModeActive: Bool = false
@@ -213,6 +215,7 @@ struct ChatMessageListView: UIViewControllerRepresentable {
     private func configure(_ viewController: ChatMessageListViewController) {
         viewController.rowContent = rowContent
         viewController.onReachedTop = onReachedTop
+        viewController.canLoadOlderHistory = canLoadOlderHistory
         viewController.composerBottomInset = composerBottomInset
         viewController.isVanishGestureEnabled = isVanishGestureEnabled
         viewController.isVanishModeActive = isVanishModeActive
@@ -239,6 +242,14 @@ struct ChatMessageListView: UIViewControllerRepresentable {
 /// deshace cualquier salto programático a un mensaje lejano con celdas aún sin medir.
 final class ChatNavigationAwareCompositionalLayout: UICollectionViewCompositionalLayout {
     var suppressesPreferredOffsetAdjustment = false
+    /// Keep the visible message in place during the layout update itself.
+    var viewportTargetContentOffset: (() -> CGPoint?)?
+
+    override func targetContentOffset(forProposedContentOffset proposedContentOffset: CGPoint) -> CGPoint {
+        viewportTargetContentOffset?()
+            ?? super.targetContentOffset(forProposedContentOffset: proposedContentOffset)
+    }
+
     /// Notifica cada altura real medida por self-sizing para alimentar la caché de alturas.
     var onPreferredHeightMeasured: ((IndexPath, CGFloat) -> Void)?
     /// Cards/media altas: no encoger al placeholder ~60pt (se apelotonan). Los borrados no entran.
@@ -345,26 +356,42 @@ final class ChatRowHeightCache {
         measuredHeights[rowId] = height
     }
 
-    func invalidate(_ rowIds: [String]) {
-        for rowId in rowIds {
-            measuredHeights.removeValue(forKey: rowId)
+    func seedEstimates(
+        for rows: [ChatRenderRow],
+        containerWidth: CGFloat,
+        changedRowIds: Set<String> = []
+    ) {
+        guard containerWidth > 0 else { return }
+        syncWidth(containerWidth)
+        let retainedIds = Set(rows.map(\.id))
+        measuredHeights = measuredHeights.filter { retainedIds.contains($0.key) }
+        estimatedHeights = estimatedHeights.filter { retainedIds.contains($0.key) }
+        for row in rows where estimatedHeights[row.id] == nil || changedRowIds.contains(row.id) {
+            let estimate = ChatRowHeightEstimator.estimatedHeight(for: row, containerWidth: containerWidth)
+            if let previous = estimatedHeights[row.id], abs(previous - estimate) > 0.5 {
+                measuredHeights.removeValue(forKey: row.id)
+            }
+            estimatedHeights[row.id] = estimate
         }
     }
 
-    func seedEstimates(for rows: [ChatRenderRow], containerWidth: CGFloat) {
-        guard containerWidth > 0 else { return }
-        var updated: [String: CGFloat] = [:]
-        updated.reserveCapacity(rows.count)
-        for row in rows {
-            updated[row.id] = ChatRowHeightEstimator.estimatedHeight(for: row, containerWidth: containerWidth)
-        }
-        estimatedHeights = updated
-    }
 }
 
 final class ChatMessageListViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSourcePrefetching, UIGestureRecognizerDelegate {
     var rowContent: ((ChatRenderRow) -> AnyView)?
     var onReachedTop: (() -> Void)?
+    var canLoadOlderHistory = true {
+        didSet {
+            guard canLoadOlderHistory != oldValue, isViewLoaded else { return }
+            if canLoadOlderHistory {
+                scheduleHistoryLoadIfNeeded()
+            } else {
+                historyLoadWorkItem?.cancel()
+                historyLoadWorkItem = nil
+                historyLoadArmed = true
+            }
+        }
+    }
     var onIsAtBottomChanged: ((Bool) -> Void)?
     var onVanishPullReleased: ((VanishPullResult) -> Void)?
     var onVanishDraggingChanged: ((Bool) -> Void)?
@@ -411,6 +438,10 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     private var rowsById: [String: ChatRenderRow] = [:]
     private var orderedItemIds: [String] = []
     private var hasLoadedInitial = false
+    private var isApplyingSnapshot = false
+    private var pendingTransaction: (transaction: ChatListUpdateTransaction, animated: Bool)?
+    private var updateViewportAnchor: ChatViewportAnchor?
+    private var didResolveLayoutAnchor = false
     private var pendingScrollToId: String?
     private var pendingScrollPosition: UICollectionView.ScrollPosition = .centeredVertically
     private var pendingScrollAnimated = false
@@ -422,7 +453,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     private var needsDeferredInitialScroll = false
     private var lastAppliedRows: [ChatRenderRow] = []
     private var isRestoringPrependAnchor = false
-    private var suppressHistoryLoadUntilNextUserScroll = false
     private var historyLoadWorkItem: DispatchWorkItem?
     private var historyLoadArmed = true
     private var scrollIntentQueue: [ChatListScrollIntent] = []
@@ -660,17 +690,12 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             let heightDimension: NSCollectionLayoutDimension
             if let self, sectionIndex < self.orderedItemIds.count {
                 let rowId = self.orderedItemIds[sectionIndex]
-                let row = self.rowsById[rowId]
                 let width = max(self.collectionView.bounds.width, 1)
-                let structural = row.map {
-                    ChatRowHeightEstimator.estimatedHeight(for: $0, containerWidth: width)
-                } ?? ChatListLayoutMetrics.estimatedRowHeight
-                if let row, ChatRowHeightEstimator.usesReservedHeight(row) {
-                    heightDimension = .estimated(structural)
-                } else {
-                    let cached = self.rowHeightCache?.height(for: rowId)
-                    heightDimension = .estimated(cached ?? structural)
-                }
+                let height = self.rowHeightCache?.height(for: rowId)
+                    ?? self.rowsById[rowId].map {
+                        ChatRowHeightEstimator.estimatedHeight(for: $0, containerWidth: width)
+                    } ?? ChatListLayoutMetrics.estimatedRowHeight
+                heightDimension = .estimated(height)
             } else {
                 heightDimension = .estimated(ChatListLayoutMetrics.estimatedRowHeight)
             }
@@ -694,6 +719,12 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             return section
         }, configuration: configuration)
         navigationAwareLayout = layout
+        layout.viewportTargetContentOffset = { [weak self] in
+            guard let self, let anchor = self.updateViewportAnchor,
+                  let offset = self.contentOffset(preserving: anchor) else { return nil }
+            self.didResolveLayoutAnchor = true
+            return offset
+        }
         layout.suppressesPreferredOffsetAdjustment = scrollNavigationTargetRowId != nil || isRestoringPrependAnchor
         layout.onPreferredHeightMeasured = { [weak self] indexPath, height in
             guard let self, let rowId = self.dataSource?.itemIdentifier(for: indexPath) else { return }
@@ -740,9 +771,35 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         }
     }
 
+    private func applySnapshot(
+        _ snapshot: NSDiffableDataSourceSnapshot<String, String>,
+        animated: Bool,
+        completion: @escaping () -> Void
+    ) {
+        isApplyingSnapshot = true
+        dataSource.apply(snapshot, animatingDifferences: animated) { [weak self] in
+            guard let self else { return }
+            completion()
+            self.isApplyingSnapshot = false
+            if let pending = self.pendingTransaction {
+                self.pendingTransaction = nil
+                self.apply(transaction: pending.transaction, animated: pending.animated)
+            }
+            if self.reconfigureAllVisiblePending || !self.pendingReconfigureRowIds.isEmpty {
+                self.scheduleReconfigureFlush()
+            }
+        }
+    }
+
     func apply(transaction: ChatListUpdateTransaction, animated: Bool) {
         loadViewIfNeeded()
         guard dataSource != nil else { return }
+        // A receipt/media update can arrive while a history snapshot is committing.
+        // Apply the latest complete timeline only after that layout has finished.
+        if isApplyingSnapshot {
+            pendingTransaction = (transaction, animated)
+            return
+        }
 
         let rows = transaction.rows
         let oldRowsById = rowsById
@@ -769,7 +826,10 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         rowsById = newRowsById
         rebuildMessageIdToRowIdIndex(rows)
 
-        guard newIds != oldIds || !hasLoadedInitial || !changedRowIds.isEmpty else { return }
+        guard newIds != oldIds || !hasLoadedInitial || !changedRowIds.isEmpty else {
+            applyScrollCommandIfNeeded(transaction.scrollCommand)
+            return
+        }
         if isInitial {
             // Marcar ya: `dataSource.apply` es async y SwiftUI puede llamar
             // updateUIViewController varias veces en el primer layout (intro de grupo).
@@ -777,8 +837,11 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             hasLoadedInitial = true
         }
         orderedItemIds = newIds
-        rowHeightCache?.invalidate(changedRowIds)
-        rowHeightCache?.seedEstimates(for: rows, containerWidth: collectionView.bounds.width)
+        rowHeightCache?.seedEstimates(
+            for: rows,
+            containerWidth: collectionView.bounds.width,
+            changedRowIds: Set(changedRowIds)
+        )
         lastAppliedRows = rows
 
         let normalizedKind = normalizedTransactionKind(
@@ -793,7 +856,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             : nil
         if normalizedKind == .prependHistory {
             isRestoringPrependAnchor = true
-            suppressHistoryLoadUntilNextUserScroll = true
         } else {
             isRestoringPrependAnchor = false
         }
@@ -805,13 +867,13 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
                 : nil
             var snapshot = dataSource.snapshot()
             snapshot.reconfigureItems(changedRowIds)
-            dataSource.apply(snapshot, animatingDifferences: false) { [weak self] in
+            applySnapshot(snapshot, animated: false) { [weak self] in
                 guard let self else { return }
                 self.collectionView.layoutIfNeeded()
                 self.updateBottomAnchorInset()
-                if wasAtBottom, self.scrollNavigationTargetRowId == nil {
+                if wasAtBottom, !self.isUserScrolling, self.scrollNavigationTargetRowId == nil {
                     self.forceScrollToBottom(animated: false)
-                } else if let stationaryAnchor {
+                } else if let stationaryAnchor, !self.isUserScrolling {
                     self.restoreViewportAnchor(stationaryAnchor)
                 } else {
                     self.recomputeBottomPinnedState()
@@ -833,20 +895,24 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         }
 
         if normalizedKind == .prependHistory {
-            dataSource.apply(snapshot, animatingDifferences: false) { [weak self] in
+            updateViewportAnchor = prependAnchor
+            didResolveLayoutAnchor = false
+            applySnapshot(snapshot, animated: false) { [weak self] in
                 guard let self else { return }
                 self.collectionView.layoutIfNeeded()
                 self.updateBottomAnchorInset()
-                if let prependAnchor {
-                    self.restoreViewportAnchor(prependAnchor)
+                if let anchor = self.updateViewportAnchor,
+                   !self.didResolveLayoutAnchor || !self.isUserScrolling {
+                    self.restoreViewportAnchor(anchor)
                 }
+                self.updateViewportAnchor = nil
                 self.isRestoringPrependAnchor = false
                 self.updatePreferredOffsetAdjustmentSuppression()
                 self.recomputeBottomPinnedState()
                 self.onPrependFinished?()
+                self.applyScrollCommandIfNeeded(transaction.scrollCommand)
+                self.resolvePendingScrollIfPossible()
             }
-            self.applyScrollCommandIfNeeded(transaction.scrollCommand)
-            self.resolvePendingScrollIfPossible()
             return
         }
 
@@ -857,20 +923,21 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
                 && scrollNavigationTargetRowId == nil
         ) ? liveViewportAnchor : nil
 
-        let shouldAnimateDiff = animated && normalizedKind != .initial && normalizedKind != .prependHistory
-        dataSource.apply(snapshot, animatingDifferences: shouldAnimateDiff) { [weak self] in
+        let shouldAnimateDiff = animated && normalizedKind == .appendMessages
+            && wasAtBottom && !isUserScrolling
+        applySnapshot(snapshot, animated: shouldAnimateDiff) { [weak self] in
             guard let self else { return }
             self.collectionView.layoutIfNeeded()
             self.updateBottomAnchorInset()
             if normalizedKind == .initial {
                 self.applyInitialScrollPolicy(animated: false)
-            } else if wasAtBottom, self.scrollNavigationTargetRowId == nil {
+            } else if wasAtBottom, !self.isUserScrolling, self.scrollNavigationTargetRowId == nil {
                 if normalizedKind == .appendMessages {
                     self.forceScrollToBottom(animated: animated)
                 } else {
                     self.recomputeBottomPinnedState()
                 }
-            } else if let stationaryAnchor {
+            } else if let stationaryAnchor, !self.isUserScrolling {
                 self.restoreViewportAnchor(stationaryAnchor)
             } else {
                 self.recomputeBottomPinnedState()
@@ -1033,25 +1100,40 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         let offsetFromContentTop = attributes.frame.minY - collectionView.contentOffset.y
         return ChatViewportAnchor(
             rowId: orderedItemIds[index],
-            offsetFromContentTop: offsetFromContentTop
+            offsetFromContentTop: offsetFromContentTop,
+            messageId: rowsById[orderedItemIds[index]]?.anchorMessageId
         )
     }
 
+    private var isUserScrolling: Bool {
+        collectionView.isDragging || collectionView.isTracking || collectionView.isDecelerating
+    }
+
+    private func contentOffset(preserving anchor: ChatViewportAnchor) -> CGPoint? {
+        guard scrollNavigationTargetRowId == nil else { return nil }
+        let rowId = rowsById[anchor.rowId] != nil
+            ? anchor.rowId
+            : anchor.messageId.flatMap { messageIdToRowId[$0] }
+        guard let rowId, let index = orderedItemIds.firstIndex(of: rowId),
+              let attributes = collectionView.collectionViewLayout.layoutAttributesForItem(
+                at: IndexPath(item: 0, section: index)
+              ) else { return nil }
+        // During an update contentSize can still be the old value; ask the layout.
+        let minY = -collectionView.adjustedContentInset.top
+        let maxY = max(minY,
+            collectionView.collectionViewLayout.collectionViewContentSize.height
+                - collectionView.bounds.height + collectionView.adjustedContentInset.bottom)
+        let targetY = min(max(attributes.frame.minY - anchor.offsetFromContentTop, minY), maxY)
+        return CGPoint(x: collectionView.contentOffset.x, y: targetY)
+    }
+
     private func restoreViewportAnchor(_ anchor: ChatViewportAnchor) {
-        guard let index = orderedItemIds.firstIndex(of: anchor.rowId),
-              let attributes = collectionView.layoutAttributesForItem(at: IndexPath(item: 0, section: index))
-        else {
+        guard let target = contentOffset(preserving: anchor) else {
             recomputeBottomPinnedState()
             return
         }
-        let currentOffsetFromContentTop = attributes.frame.minY - collectionView.contentOffset.y
-        let viewportDeltaY = currentOffsetFromContentTop - anchor.offsetFromContentTop
-        guard abs(viewportDeltaY) > 0.5 else { return }
-        let targetY = clampedContentOffsetY(collectionView.contentOffset.y + viewportDeltaY)
-        collectionView.setContentOffset(
-            CGPoint(x: collectionView.contentOffset.x, y: targetY),
-            animated: false
-        )
+        guard abs(collectionView.contentOffset.y - target.y) > 0.5 else { return }
+        collectionView.setContentOffset(target, animated: false)
     }
 
     private func clampedContentOffsetY(_ offsetY: CGFloat) -> CGFloat {
@@ -1073,6 +1155,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     func perform(_ command: ChatListScrollCommand) {
+        if command != .none { updateViewportAnchor = nil }
         switch command {
         case .none:
             return
@@ -1087,6 +1170,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     func enqueue(_ intent: ChatListScrollIntent) {
+        updateViewportAnchor = nil
         if case .scrollToBottom = intent,
            case .scrollToBottom? = scrollIntentQueue.last {
             return
@@ -1305,7 +1389,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     private func flushReconfigure() {
-        guard let dataSource else { return }
+        guard let dataSource, !isApplyingSnapshot else { return }
         let visibleIds = Set(collectionView.indexPathsForVisibleItems.compactMap { dataSource.itemIdentifier(for: $0) })
         guard !visibleIds.isEmpty else {
             reconfigureAllVisiblePending = false
@@ -1334,7 +1418,7 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
             ? captureTopVisibleAnchor() : nil
         var snapshot = dataSource.snapshot()
         snapshot.reconfigureItems(targetIds)
-        dataSource.apply(snapshot, animatingDifferences: false) { [weak self] in
+        applySnapshot(snapshot, animated: false) { [weak self] in
             guard let self else { return }
             self.collectionView.layoutIfNeeded()
             self.updateBottomAnchorInset()
@@ -1349,8 +1433,8 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     private func scheduleHistoryLoadIfNeeded(triggerIndex: Int? = nil) {
-        guard historyLoadArmed,
-              !suppressHistoryLoadUntilNextUserScroll,
+        guard canLoadOlderHistory, historyLoadArmed,
+              !isApplyingSnapshot, !isRestoringPrependAnchor,
               let firstIndex = triggerIndex ?? firstVisibleRowIndex,
               firstIndex <= loadOlderItemThreshold else { return }
 
@@ -1358,11 +1442,16 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         historyLoadWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            DispatchQueue.main.async {
-                self.onReachedTop?()
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            self.historyLoadWorkItem = nil
+            guard self.canLoadOlderHistory, !self.isApplyingSnapshot,
+                  !self.isRestoringPrependAnchor else {
                 self.historyLoadArmed = true
+                return
+            }
+            self.onReachedTop?()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+                self?.historyLoadArmed = true
+                self?.scheduleHistoryLoadIfNeeded()
             }
         }
         historyLoadWorkItem = work
@@ -1669,12 +1758,11 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        navigationAwareLayout?.suppressesPreferredOffsetAdjustment = true
-        suppressHistoryLoadUntilNextUserScroll = false
         // El usuario toma el control: soltar el nav target para no pelear contra su gesto.
         if scrollNavigationTargetRowId != nil {
             scrollNavigationTargetRowId = nil
         }
+        updatePreferredOffsetAdjustmentSuppression()
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -1720,6 +1808,14 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 }
 
 private extension ChatRenderRow {
+    var anchorMessageId: String? {
+        guard case .message(let item) = self else { return nil }
+        switch item {
+        case .single(let message): return message.id
+        case .mediaCluster(let messages): return messages.last?.id
+        }
+    }
+
     var visualSignature: Int {
         var hasher = Hasher()
         switch self {

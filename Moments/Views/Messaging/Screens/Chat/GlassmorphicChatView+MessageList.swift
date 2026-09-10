@@ -286,6 +286,8 @@ extension GlassmorphicChatView {
                     loadOlderHistoryIfNeeded()
                 }
             },
+            canLoadOlderHistory: hasCompletedInitialScroll && viewModel.canLoadMore
+                && !viewModel.isLoadingMore && !viewModel.isLoadingOlderHistory,
             composerBottomInset: ChatComposerChromeMetrics.listBottomInset(composerChromeHeight: lastComposerHeight),
             isVanishGestureEnabled: !viewModel.conversation.isGroup && hasCompletedInitialScroll && !isSearchVisible,
             isVanishModeActive: viewModel.vanishModeActive,

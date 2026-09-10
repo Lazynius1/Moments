@@ -206,6 +206,7 @@ class EnhancedChatViewModel: ObservableObject {
     static let recentChatWindowSize = 20
     static let staleChatWindowSize = 6
     static let staleChatThresholdDays = 45
+    private var historyRestorationTask: Task<Void, Never>?
     private static let historyPageSize = 50
     private static let navigationWindowRadius = 25
     @Published private(set) var forwardingPreferences: [String: Bool] = [:]
@@ -1277,10 +1278,11 @@ class EnhancedChatViewModel: ObservableObject {
 
     // ✅ FUNCIÓN: Cargar más mensajes (SwiftData primero, luego Firestore)
     func loadMoreMessages() {
-        guard !isLoadingMore, canLoadMore, let conversationId = conversation.id, let oldest = messages.first else {
+        guard !isLoadingMore, !isLoadingOlderHistory, canLoadMore, let conversationId = conversation.id, let oldest = messages.first else {
             return
         }
 
+        historyRestorationTask?.cancel()
         isLoadingMore = true
         isLoadingOlderHistory = true
         historyLoadNotice = .hidden
@@ -1394,10 +1396,20 @@ class EnhancedChatViewModel: ObservableObject {
     private func finishHistoryLoad(canLoadMore: Bool) {
         self.canLoadMore = canLoadMore
         isLoadingMore = false
+        historyRestorationTask?.cancel()
+        if isLoadingOlderHistory {
+            historyRestorationTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 900_000_000)
+                guard !Task.isCancelled else { return }
+                self?.endHistoryScrollRestoration()
+            }
+        }
     }
 
     /// La vista llama esto cuando el scroll quedó re-anclado tras prepend.
     func endHistoryScrollRestoration() {
+        historyRestorationTask?.cancel()
+        historyRestorationTask = nil
         isLoadingOlderHistory = false
     }
 

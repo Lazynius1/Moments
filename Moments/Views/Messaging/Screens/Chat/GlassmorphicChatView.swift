@@ -537,6 +537,7 @@ struct GlassmorphicChatView: View {
             .navigationDestination(item: $clusterGallerySelection) { selection in
                 clusterGalleryDestination(messageIds: selection.messageIds)
                     .toolbar(.hidden, for: .tabBar)
+                    .momentsFloatingTabBarHidden()
             }
     }
 

@@ -2258,6 +2258,8 @@ struct FullScreenMediaView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .safeAreaInset(edge: .top, spacing: 0) {
             headerView
                 .padding(.horizontal, 16)

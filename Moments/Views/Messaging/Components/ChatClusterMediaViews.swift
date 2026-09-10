@@ -729,6 +729,7 @@ struct ClusterGalleryView<Detail: View>: View {
             }
         }
         .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
         .onDisappear {
             detailNavigationEpoch &+= 1
         }
@@ -800,6 +801,7 @@ struct ClusterGalleryView<Detail: View>: View {
                 .chatInteractivePopEnabled()
                 .toolbar(.hidden, for: .navigationBar)
                 .toolbar(.hidden, for: .tabBar)
+                .momentsFloatingTabBarHidden()
         }
     }
 
