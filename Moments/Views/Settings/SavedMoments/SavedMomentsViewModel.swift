@@ -162,7 +162,7 @@ class SavedMomentsViewModel: ObservableObject {
         }
 
 
-        firestoreService.toggleSaveMoment(userId: userId, momentId: momentId) { [weak self] error in
+        firestoreService.toggleSaveMoment(userId: userId, momentId: momentId, desiredSaved: false) { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(error)

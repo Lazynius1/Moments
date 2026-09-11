@@ -89,7 +89,11 @@ struct StoriesView: View {
         self._startWithUserId = .constant(nil)
         self.shouldIncludeConnections = true
         self._initialTargetUserId = State(initialValue: startAtUserId)
-        self._lockedRingNavigationUserIds = State(initialValue: ringNavigationUserIds.filter { !$0.isEmpty })
+        var navigationIds = ringNavigationUserIds.filter { !$0.isEmpty }
+        if !startAtUserId.isEmpty, !navigationIds.contains(startAtUserId) {
+            navigationIds.insert(startAtUserId, at: 0)
+        }
+        self._lockedRingNavigationUserIds = State(initialValue: navigationIds)
         self._handoffStoryId = State(initialValue: startStoryId ?? "")
         self._handoffElapsed = State(initialValue: startElapsed)
     }
@@ -622,6 +626,18 @@ struct StoriesView: View {
             let newUserIds = self.resolvedNavigationUserIds(from: stories)
 
             let previousActiveUserId = self.userIds[safe: self.currentUserIndex]
+
+            if !self.hasResolvedInitialViewerPosition, self.initialTargetUserId.isEmpty,
+               !self.handoffStoryId.isEmpty {
+                guard let owner = newUserIds.first(where: { userId in
+                    stories[userId]?.contains(where: { $0.id == self.handoffStoryId }) == true
+                }) else {
+                    // Author reels arrive separately; wait for the requested story.
+                    self.isLoading = true
+                    return
+                }
+                self.initialTargetUserId = owner
+            }
 
             // Feed / ring: esperar a que el usuario tocado tenga historias cargadas.
             if !self.initialTargetUserId.isEmpty {

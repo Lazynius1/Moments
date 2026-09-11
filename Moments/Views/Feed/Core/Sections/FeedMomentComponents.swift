@@ -1040,6 +1040,7 @@ struct ModernPostCardView: View {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let momentId = moment.id else { return }
 
+        let desiredSaved = !isSaved
         // ✅ OPTIMISTIC UPDATE
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             self.isSaved.toggle()
@@ -1047,13 +1048,13 @@ struct ModernPostCardView: View {
 
         isSaveLoading = true
 
-        firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId, authorId: moment.authorId) { error in
+        firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId, authorId: moment.authorId, desiredSaved: desiredSaved) { error in
             DispatchQueue.main.async {
                 self.isSaveLoading = false
                 if error != nil {
                     // Revert on error
                     MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
-                        self.isSaved.toggle()
+                        self.isSaved = !desiredSaved
                     }
                 }
             }

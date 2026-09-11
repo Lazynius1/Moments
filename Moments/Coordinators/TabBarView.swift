@@ -521,7 +521,7 @@ struct CustomTabBar: View {
                 inactiveColor: inactiveColor,
                 usesSystemIcon: true,
                 forceFill: badgeService.unreadMessagesCount > 0,
-                showUnreadDot: badgeService.unreadMessagesCount > 0
+                unreadMessagesCount: badgeService.unreadMessagesCount
             ) {
                 HapticManager.shared.selection()
                 selectedTab = 1
@@ -576,9 +576,10 @@ struct TabBarItem: View {
     let inactiveColor: Color
     let usesSystemIcon: Bool
     var forceFill: Bool = false
-    var showUnreadDot: Bool = false
+    /// Si > 0, muestra badge (resumen → puntito). Home/perfil no pasan conteo.
+    var unreadMessagesCount: Int = 0
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
@@ -597,14 +598,12 @@ struct TabBarItem: View {
                             )
                         }
                     }
-                    if showUnreadDot {
-                        Circle()
-                            .fill(Color(red: 1, green: 59 / 255, blue: 48 / 255)) // #FF3B30
-                            .frame(width: 7, height: 7)
+                    if unreadMessagesCount > 0 {
+                        CollapsingMessagesUnreadBadge(count: unreadMessagesCount)
                             .offset(x: 5, y: 3)
                     }
                 }
-                
+
                 // Etiqueta: siempre visible según HIG
                 Text(title)
                     .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
@@ -616,6 +615,89 @@ struct TabBarItem: View {
         .buttonStyle(.momentsPress(haptic: .none))
         .accessibilityLabel(title)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+}
+
+/// Badge rojo de mensajes: una sola cápsula que crece (conteo) y encoge (círculo).
+/// Usado por tab bar docked y por `MomentsFloatingTabBar` (misma vista).
+struct CollapsingMessagesUnreadBadge: View {
+    let count: Int
+    @State private var expanded = true
+    @State private var collapseWork: DispatchWorkItem?
+
+    private let collapseDelay: TimeInterval = 3
+    private let compactSize: CGFloat = 8
+    /// 1–9: cuadrado fijo → Capsule = círculo perfecto. 10+: píldora.
+    private let expandedHeight: CGFloat = 20
+    private let badgeRed = Color(red: 1, green: 59 / 255, blue: 48 / 255) // #FF3B30
+    private let morphAnimation: Animation = .spring(response: 0.42, dampingFraction: 0.78)
+
+    private var label: String {
+        count >= 10 ? "10+" : "\(count)"
+    }
+
+    private var isPill: Bool { count >= 10 }
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .multilineTextAlignment(.center)
+            // Sin padding en 1–9: el frame fijo centra el glifo en el círculo.
+            .padding(.horizontal, (expanded && isPill) ? 5 : 0)
+            .opacity(expanded ? 1 : 0)
+            .scaleEffect(expanded ? 1 : 0.01)
+            .frame(
+                width: expanded ? (isPill ? nil : expandedHeight) : compactSize,
+                height: expanded ? expandedHeight : compactSize,
+                alignment: .center
+            )
+            .frame(
+                minWidth: expanded ? expandedHeight : compactSize,
+                minHeight: expanded ? expandedHeight : compactSize,
+                alignment: .center
+            )
+            .background(Capsule().fill(badgeRed))
+            .clipShape(Capsule())
+            .animation(morphAnimation, value: expanded)
+            .accessibilityHidden(true)
+            .onAppear { presentExpanded() }
+            .onChange(of: count) { oldCount, newCount in
+                guard newCount > 0 else {
+                    cancelCollapse()
+                    expanded = false
+                    return
+                }
+                if oldCount != newCount {
+                    presentExpanded()
+                }
+            }
+            .onDisappear { cancelCollapse() }
+    }
+
+    private func presentExpanded() {
+        withAnimation(morphAnimation) {
+            expanded = true
+        }
+        scheduleCollapse()
+    }
+
+    private func scheduleCollapse() {
+        cancelCollapse()
+        let work = DispatchWorkItem {
+            withAnimation(morphAnimation) {
+                expanded = false
+            }
+        }
+        collapseWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + collapseDelay, execute: work)
+    }
+
+    private func cancelCollapse() {
+        collapseWork?.cancel()
+        collapseWork = nil
     }
 }
 

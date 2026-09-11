@@ -50,8 +50,13 @@ struct FeedNotificationRoutingModifier: ViewModifier {
             }
             .onReceive(navigationService.$pendingNavigation) { navigation in
                 guard let navigation else { return }
-                // The router retains moment links until this screen is ready.
-                if case .moment = navigation, AppRouter.shared.pending != nil { return }
+                // The router retains moment and story links until this screen is ready.
+                if AppRouter.shared.pending != nil {
+                    switch navigation {
+                    case .moment, .story: return
+                    default: break
+                    }
+                }
 
                 switch navigation {
                 case .conversation(let conversationId):
@@ -111,6 +116,7 @@ struct FeedNotificationRoutingModifier: ViewModifier {
         switch destination {
         case .profile(let id): onOpenUserProfile(id)
         case .moment(let id, let author): openSharedMoment(momentId: id, userId: author)
+        case .story(let id, let author): onOpenStory(id, author)
         case .chain(let id, let title): onOpenStoryChain(id, title)
         }
     }

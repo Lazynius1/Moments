@@ -1774,6 +1774,15 @@ final class LocalPersistenceService: ObservableObject {
             saveContext()
         }
     }
+
+    func updateActionPayload(id: String, payloadData: Data) {
+        guard let context = modelContext else { return }
+        let predicate = #Predicate<CachedAction> { $0.id == id }
+        if let action = (try? context.fetch(FetchDescriptor<CachedAction>(predicate: predicate)))?.first {
+            action.payloadData = payloadData
+            saveContext()
+        }
+    }
     
     // MARK: - 🧹 AUTOMATIC CLEANUP
     

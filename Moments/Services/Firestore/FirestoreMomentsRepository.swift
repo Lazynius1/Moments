@@ -380,9 +380,9 @@ extension FirestoreService {
         }
     }
 
-    func toggleSaveMoment(userId: String, momentId: String, authorId: String? = nil, completion: @escaping (Error?) -> Void) {
+    func toggleSaveMoment(userId: String, momentId: String, authorId: String? = nil, desiredSaved: Bool, completion: @escaping (Error?) -> Void) {
         if !NetworkMonitor.shared.isConnected {
-            let payload = SavePayload(userId: userId, momentId: momentId, authorId: authorId)
+            let payload = SavePayload(userId: userId, momentId: momentId, authorId: authorId, desiredSaved: desiredSaved)
             if let data = try? JSONEncoder().encode(payload) {
                 let action = CachedAction(
                     id: UUID().uuidString,
@@ -392,6 +392,7 @@ extension FirestoreService {
 
                 Task {
                     await LocalPersistenceService.shared.saveAction(action)
+                    self.applySavedMomentCache(momentId: momentId, saved: desiredSaved)
                     print("💾 FirestoreService: Guardado (save) en outbox (offline)")
                     completion(nil)
                 }
@@ -400,22 +401,17 @@ extension FirestoreService {
         }
 
         let savedMomentRef = db.collection("users").document(userId).collection("savedMoments").document(momentId)
-        db.runTransaction({ [weak self] (transaction, errorPointer) -> Any? in
+        db.runTransaction({ (transaction, errorPointer) -> Any? in
             let snapshot: DocumentSnapshot
             do {
                 try snapshot = transaction.getDocument(savedMomentRef)
-                if snapshot.exists {
-                    transaction.deleteDocument(savedMomentRef)
-                    DispatchQueue.main.async {
-                        self?.savedMomentIds.removeAll { $0 == momentId }
-                    }
-                } else {
+                if desiredSaved {
+                    guard !snapshot.exists else { return nil }
                     var data: [String: Any] = ["momentId": momentId, "timestamp": Timestamp()]
                     if let authorId, !authorId.isEmpty { data["authorId"] = authorId }
                     transaction.setData(data, forDocument: savedMomentRef)
-                    DispatchQueue.main.async {
-                        self?.savedMomentIds.append(momentId)
-                    }
+                } else if snapshot.exists {
+                    transaction.deleteDocument(savedMomentRef)
                 }
                 return nil
             } catch let error {
@@ -423,7 +419,19 @@ extension FirestoreService {
                 return nil
             }
         }) { _, error in
+            if error == nil { self.applySavedMomentCache(momentId: momentId, saved: desiredSaved) }
             completion(error)
+        }
+    }
+
+    private func applySavedMomentCache(momentId: String, saved: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if saved {
+                if !self.savedMomentIds.contains(momentId) { self.savedMomentIds.append(momentId) }
+            } else {
+                self.savedMomentIds.removeAll { $0 == momentId }
+            }
         }
     }
 

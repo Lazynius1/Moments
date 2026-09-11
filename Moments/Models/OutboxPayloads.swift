@@ -9,12 +9,16 @@ struct ReactionPayload: Codable {
     let reaction: String
     let authorId: String // Moment author ID
     let userId: String   // Current user ID
+    var desiredActive: Bool? = nil
 }
 
 struct SavePayload: Codable {
     let userId: String
     let momentId: String
     var authorId: String? = nil
+    /// The state requested by the user at action time. `nil` is retained only
+    /// for decoding legacy toggle payloads and is resolved before replay.
+    var desiredSaved: Bool? = nil
 }
 
 struct CommentPayload: Codable {

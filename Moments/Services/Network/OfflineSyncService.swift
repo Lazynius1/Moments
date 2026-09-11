@@ -80,10 +80,15 @@ class OfflineSyncService: ObservableObject {
                 handleExhaustedAction(action)
                 continue
             }
-            guard ignoreBackoff || isReadyForAttempt(action) else { continue }
+            guard ignoreBackoff || isReadyForAttempt(action) else {
+                if action.type == CachedAction.ActionType.reaction.rawValue { break }
+                continue
+            }
 
             LocalPersistenceService.shared.markActionAttempt(id: action.id)
             await executeAction(action)
+            if action.type == CachedAction.ActionType.reaction.rawValue,
+               LocalPersistenceService.shared.hasPendingAction(id: action.id) { break }
         }
     }
 
@@ -149,8 +154,22 @@ class OfflineSyncService: ObservableObject {
             case CachedAction.ActionType.reaction.rawValue:
                 // Retomar toggle de reacción
                 if let payload = try? JSONDecoder().decode(ReactionPayload.self, from: action.payloadData) {
+                    var resolved = payload
+                    if resolved.desiredActive == nil {
+                        let ref = Firestore.firestore().collection("users").document(payload.authorId)
+                            .collection("moments").document(payload.momentId).collection("reactions").document(payload.userId)
+                        let state: Bool? = await withCheckedContinuation { continuation in
+                            ref.getDocument(source: .server) { snapshot, error in
+                                continuation.resume(returning: error == nil ? ((snapshot?.data()?["reactionType"] as? String) != payload.reaction) : nil)
+                            }
+                        }
+                        guard let state else { break }
+                        resolved.desiredActive = state
+                        guard let data = try? JSONEncoder().encode(resolved) else { break }
+                        LocalPersistenceService.shared.updateActionPayload(id: action.id, payloadData: data)
+                    }
                     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                        FirestoreService.shared.addReaction(to: payload.momentId, reaction: payload.reaction, userId: payload.userId, authorId: payload.authorId) { error in
+                        FirestoreService.shared.addReaction(to: payload.momentId, reaction: payload.reaction, userId: payload.userId, authorId: payload.authorId, desiredActive: resolved.desiredActive) { error in
                             if error == nil {
                                 LocalPersistenceService.shared.deleteAction(id: action.id)
                             }
@@ -305,15 +324,30 @@ class OfflineSyncService: ObservableObject {
                 break
                 
             case CachedAction.ActionType.save.rawValue:
-                // Retomar toggle de guardado
                 if let payload = try? JSONDecoder().decode(SavePayload.self, from: action.payloadData) {
-                    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                        FirestoreService.shared.toggleSaveMoment(userId: payload.userId, momentId: payload.momentId, authorId: payload.authorId) { error in
+                    let replay: (Bool) async -> Void = { desiredSaved in
+                        let resolved = SavePayload(userId: payload.userId, momentId: payload.momentId, authorId: payload.authorId, desiredSaved: desiredSaved)
+                        if let data = try? JSONEncoder().encode(resolved) {
+                            LocalPersistenceService.shared.updateActionPayload(id: action.id, payloadData: data)
+                        }
+                        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                            FirestoreService.shared.toggleSaveMoment(userId: resolved.userId, momentId: resolved.momentId, authorId: resolved.authorId, desiredSaved: desiredSaved) { error in
                             if error == nil {
                                 LocalPersistenceService.shared.deleteAction(id: action.id)
                             }
                             continuation.resume()
+                            }
                         }
+                    }
+                    if let desiredSaved = payload.desiredSaved {
+                        await replay(desiredSaved)
+                    } else {
+                        let currentlySaved: Bool? = await withCheckedContinuation { continuation in
+                            FirestoreService.shared.checkIfSaved(userId: payload.userId, momentId: payload.momentId) { result in
+                                continuation.resume(returning: try? result.get())
+                            }
+                        }
+                        if let currentlySaved { await replay(!currentlySaved) }
                     }
                 } else {
                     LocalPersistenceService.shared.deleteAction(id: action.id)
@@ -507,6 +541,7 @@ class OfflineSyncService: ObservableObject {
                         // 1. Eliminar documento de Firestore
                         Firestore.firestore().collection("users").document(payload.userId).collection("moments").document(payload.momentId).delete { error in
                             
+                            guard error == nil else { continuation.resume(); return }
                             // 2. Eliminar archivos de Storage (fire & forget, no bloquea la cola si falla)
                             let storageService = StorageService() // Asumiendo que es accesible o se puede instanciar
                              
@@ -562,46 +597,22 @@ class OfflineSyncService: ObservableObject {
             }
         }
         
-        // 2. OPTIMIZAR REACCIONES (Toggle + Toggle = Nada)
-        // Agrupar por (momentId + userId + reaction)
-        let reactionActions = actions.filter { $0.type == CachedAction.ActionType.reaction.rawValue }
-        let reactionGroups = Dictionary(grouping: reactionActions) { action -> String in
-            guard let payload = try? JSONDecoder().decode(ReactionPayload.self, from: action.payloadData) else { return "unknown" }
-            return "\(payload.momentId)_\(payload.userId)_\(payload.reaction)"
-        }
-        
-        for (_, group) in reactionGroups {
-            if group.count > 1 {
-                // Si la cantidad es par, se cancelan todas (Toggle on -> off -> on -> off)
-                if group.count % 2 == 0 {
-                    for action in group {
-                        actionsToDelete.insert(action.id)
-                    }
-                } else {
-                    // Si es impar, dejar solo el último, borrar los anteriores
-                    let sorted = group.sorted { $0.createdAt < $1.createdAt }
-                    for i in 0..<(sorted.count - 1) {
-                        actionsToDelete.insert(sorted[i].id)
-                    }
-                }
-            }
-        }
-        
-        // 3. OPTIMIZAR SAVE (Toggle + Toggle = Nada)
+        // Reaction actions retain their order, including resolved retries.
+
+        // 3. OPTIMIZAR SAVE: preserve the final requested state; replay must not toggle.
         let saveActions = actions.filter { $0.type == CachedAction.ActionType.save.rawValue }
         let saveGroups = Dictionary(grouping: saveActions) { action -> String in
-            guard let payload = try? JSONDecoder().decode(SavePayload.self, from: action.payloadData) else { return "unknown" }
+            guard let payload = try? JSONDecoder().decode(SavePayload.self, from: action.payloadData) else { return "unknown_\(action.id)" }
             return "\(payload.momentId)_\(payload.userId)"
         }
         
         for (_, group) in saveGroups {
-            if group.count > 1 {
-                if group.count % 2 == 0 {
-                    for action in group { actionsToDelete.insert(action.id) }
-                } else {
-                    let sorted = group.sorted { $0.createdAt < $1.createdAt }
-                    for i in 0..<(sorted.count - 1) { actionsToDelete.insert(sorted[i].id) }
-                }
+            let payloads = group.compactMap { try? JSONDecoder().decode(SavePayload.self, from: $0.payloadData) }
+            // Legacy nil desiredSaved records are toggles. Leave any group
+            // containing one intact so parity and ordering remain unchanged.
+            if group.count > 1, payloads.count == group.count, payloads.allSatisfy({ $0.desiredSaved != nil }) {
+                let sorted = group.sorted { $0.createdAt < $1.createdAt }
+                for i in 0..<(sorted.count - 1) { actionsToDelete.insert(sorted[i].id) }
             }
         }
         

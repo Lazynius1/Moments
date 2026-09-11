@@ -21,7 +21,7 @@ struct StoryUserPresentationRoute: Identifiable, Equatable {
     let startStoryId: String?
     let startElapsed: TimeInterval
 
-    var id: String { userId }
+    var id: String { "\(userId)|\(startStoryId ?? "")" }
 
     init(userId: String, startStoryId: String? = nil, startElapsed: TimeInterval = 0) {
         self.userId = userId

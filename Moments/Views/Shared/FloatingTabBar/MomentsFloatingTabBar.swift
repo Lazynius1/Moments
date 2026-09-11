@@ -43,13 +43,11 @@ struct MomentsFloatingTabBar: View {
         badgeService.unreadMessagesCount > 0 ? "paperplane.fill" : "paperplane"
     }
 
-    /// Paperplane (+ fill si hay no leídos) con puntito rojo cuando unread > 0.
+    /// Paperplane (+ fill si hay no leídos). El badge rojo va en overlay SwiftUI (animable).
     private var messagesTabImage: UIImage {
         let base = UIImage(systemName: messagesSymbolName, withConfiguration: symbolConfig) ?? UIImage()
         let tint = colorScheme == .dark ? UIColor.white : UIColor(Color(hex: "0B1215"))
-        let tinted = base.withTintColor(tint, renderingMode: .alwaysOriginal)
-        guard badgeService.unreadMessagesCount > 0 else { return tinted }
-        return Self.withUnreadDot(tinted)
+        return base.withTintColor(tint, renderingMode: .alwaysOriginal)
     }
 
     private var tabImages: [UIImage] {
@@ -100,36 +98,8 @@ struct MomentsFloatingTabBar: View {
     }
 
     private var preservedTabImageIndices: Set<Int> {
-        var indices: Set<Int> = [4] // El avatar/ring mantiene sus colores propios.
-        if badgeService.unreadMessagesCount > 0 {
-            indices.insert(1) // Mantiene el punto rojo de mensajes no leídos.
-        }
-        return indices
-    }
-
-    /// Puntito (7pt) abajo-trailing — lejos de la punta del paperplane.
-    private static func withUnreadDot(_ image: UIImage) -> UIImage {
-        let pad: CGFloat = 4
-        let dot: CGFloat = 7
-        let canvas = CGSize(
-            width: image.size.width + pad + 2,
-            height: image.size.height + pad + 2
-        )
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = image.scale
-        format.opaque = false
-        let renderer = UIGraphicsImageRenderer(size: canvas, format: format)
-        return renderer.image { _ in
-            image.draw(at: CGPoint(x: 0, y: 0))
-            let rect = CGRect(
-                x: canvas.width - dot,
-                y: canvas.height - dot,
-                width: dot,
-                height: dot
-            )
-            UIColor(red: 1, green: 59 / 255, blue: 48 / 255, alpha: 1).setFill() // #FF3B30
-            UIBezierPath(ovalIn: rect).fill()
-        }.withRenderingMode(.alwaysOriginal)
+        // Solo el avatar/ring mantiene colores propios.
+        [4]
     }
 
     var body: some View {
@@ -161,6 +131,32 @@ struct MomentsFloatingTabBar: View {
         .background {
             Color.clear
                 .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
+        }
+        // Badge encima del tab Mensajes, anclado al icono 23pt (mismo sitio que el puntito).
+        .overlay {
+            if badgeService.unreadMessagesCount > 0 {
+                HStack(spacing: 0) {
+                    ForEach(0..<5, id: \.self) { index in
+                        Group {
+                            if index == 1 {
+                                ZStack(alignment: .bottomTrailing) {
+                                    Color.clear
+                                        .frame(width: 23, height: 23)
+                                    CollapsingMessagesUnreadBadge(
+                                        count: badgeService.unreadMessagesCount
+                                    )
+                                    .offset(x: 5, y: 3)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                Color.clear
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                        }
+                    }
+                }
+                .allowsHitTesting(false)
+            }
         }
         .frame(maxWidth: .infinity)
         .scaleEffect(1 - (minimize.progress * 0.15), anchor: .bottom)

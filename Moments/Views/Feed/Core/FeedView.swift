@@ -100,7 +100,7 @@ struct FeedView: View {
     private var feedHeaderHeight: CGFloat { 88 }
     private var feedSelectorHeight: CGFloat { 35 }
     private var floatingSelectorTopInset: CGFloat { isFeedHeaderHidden ? 18 : feedHeaderHeight }
-    private var feedContentTopInset: CGFloat { floatingSelectorTopInset + feedSelectorHeight + 37 }
+    private var feedContentTopInset: CGFloat { floatingSelectorTopInset + feedSelectorHeight + 40 }
     
     var body: some View {
         ZStack {
@@ -255,10 +255,13 @@ struct FeedView: View {
             storyRingCoordinator: storyRingCoordinator,
             firestoreService: firestoreService,
             onOpenUserProfile: openUserProfile,
-            onOpenStory: { _, authorId in
+            onOpenStory: { storyId, authorId in
                 syncStoryRingNavigationOrder()
+                let target = storyId.trimmingCharacters(in: .whitespacesAndNewlines)
                 if let authorId, !authorId.isEmpty {
-                    selectedStoryRoute = StoryUserPresentationRoute(userId: authorId)
+                    selectedStoryRoute = StoryUserPresentationRoute(userId: authorId, startStoryId: target.isEmpty ? nil : target)
+                } else if !target.isEmpty {
+                    selectedStoryRoute = StoryUserPresentationRoute(userId: "", startStoryId: target)
                 } else {
                     showStories = true
                 }

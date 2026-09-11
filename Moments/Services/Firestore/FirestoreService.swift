@@ -121,14 +121,16 @@ class FirestoreService: ObservableObject {
 
     // ✅ FUNCIÓN fetchComments CORREGIDA - Incluye TODOS los campos necesarios
     // ✅ MÉTODO CORREGIDO para FirestoreService.swift - REEMPLAZAR el método existente
-    func addReaction(to momentId: String, reaction: String, userId: String, authorId: String, completion: @escaping (Error?) -> Void) {
+    func addReaction(to momentId: String, reaction: String, userId: String, authorId: String, desiredActive: Bool? = nil, completion: @escaping (Error?) -> Void) {
         // ✅ Optimistic UI: Actualizar caché local en background (no bloquea el return)
-        Task(priority: .background) { @MainActor in
-            LocalPersistenceService.shared.toggleMomentReactionLocally(momentId: momentId, reaction: reaction, userId: userId)
+        if desiredActive == nil {
+            Task(priority: .background) { @MainActor in
+                LocalPersistenceService.shared.toggleMomentReactionLocally(momentId: momentId, reaction: reaction, userId: userId)
+            }
         }
 
         // ✅ OFFLINE SUPPORT: Si no hay conexión, persistir acción y retornar éxito optimista
-        if !NetworkMonitor.shared.isConnected {
+        if desiredActive == nil && !NetworkMonitor.shared.isConnected {
             let payload = ReactionPayload(
                 momentId: momentId,
                 reaction: reaction,
@@ -164,6 +166,23 @@ class FirestoreService: ObservableObject {
                 return
             }
 
+            if let desiredActive {
+                let existingReaction = snapshot?.data()?["reactionType"] as? String
+                if desiredActive {
+                    if existingReaction == reaction { completion(nil); return }
+                    reactionRef.setData(["userId": userId, "reactionType": reaction, "timestamp": FieldValue.serverTimestamp()], completion: completion)
+                } else {
+                    reactionRef.delete { error in
+                        if error == nil, userId != authorId {
+                            Task { @MainActor in
+                                NotificationService.shared.removeNotification(type: .reaction, senderId: userId, recipientId: authorId, momentId: momentId, reaction: reaction)
+                            }
+                        }
+                        completion(error)
+                    }
+                }
+                return
+            }
             if let document = snapshot, document.exists {
                 // Ya existe una reacción, verificar si es la misma
                 let existingData = document.data() ?? [:]

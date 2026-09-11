@@ -1348,15 +1348,16 @@ struct ReelVideoView: View {
         guard let userId = Auth.auth().currentUser?.uid,
               let momentId = video.moment.id else { return }
 
+        let desiredSaved = !isSaved
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
             isSaved.toggle()
         }
 
-        firestoreService.toggleSaveMoment(userId: userId, momentId: momentId, authorId: video.moment.authorId) { error in
+        firestoreService.toggleSaveMoment(userId: userId, momentId: momentId, authorId: video.moment.authorId, desiredSaved: desiredSaved) { error in
             if error != nil {
                 DispatchQueue.main.async {
                     MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
-                        self.isSaved.toggle()
+                        self.isSaved = !desiredSaved
                     }
                 }
             }

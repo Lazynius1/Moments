@@ -80,11 +80,7 @@ extension AppRouter {
 
         case .story(let storyId, let authorId):
             context.selectedTab.wrappedValue = 0
-            NotificationCenter.default.post(
-                name: NSNotification.Name("NavigateToStoryInFeed"),
-                object: nil,
-                userInfo: ["storyId": storyId, "authorId": authorId ?? ""]
-            )
+            NavigationLaunchIntents.shared.feed = .story(storyId, authorId)
 
         case .storyChain(let chainId, let chainTitle):
             context.selectedTab.wrappedValue = 0
@@ -209,6 +205,7 @@ final class NavigationLaunchIntents {
     enum FeedDestination: Equatable {
         case profile(String)
         case moment(String, String)
+        case story(String, String?)
         case chain(String, String)
     }
     struct CreatorChain: Equatable {

@@ -12,8 +12,11 @@ struct SuggestedUsersView: View {
     
     var body: some View {
         contentView
+            .background(momentsCanvasBackground.ignoresSafeArea())
             .navigationTitle(NSLocalizedString("explore.suggestedUsers.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .tabBar)
+            .momentsFloatingTabBarHidden()
             .task {
                 guard !hasLoadedInitialUsers else { return }
                 hasLoadedInitialUsers = true
@@ -23,6 +26,10 @@ struct SuggestedUsersView: View {
                 item: $selectedProfileRoute,
                 namespace: profileZoomNamespace
             )
+    }
+
+    private var momentsCanvasBackground: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }
 
     // MARK: - Content View
