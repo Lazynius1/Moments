@@ -336,7 +336,7 @@ struct StoryEditingView: View {
             resetBaseMediaTransform()
 
             // ✅ AGREGAR STICKER INICIAL SI EXISTE
-            if let initialSticker = initialSticker {
+            if let initialSticker, !selectedStickers.contains(where: { $0.id == initialSticker.id }) {
                 selectedStickers.append(initialSticker)
             }
 
@@ -2897,32 +2897,27 @@ struct StoryEditingView: View {
     }
 
     // MARK: - Response Sticker Handling
+    @State private var stickerListenerToken: NSObjectProtocol?
+    @State private var chainListenerToken: NSObjectProtocol?
+
     private func setupStickerListener() {
-        NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("AddStickerToStoryEditor"),
-            object: nil,
-            queue: .main
+        removeStickerListener()
+        stickerListenerToken = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("AddStickerToStoryEditor"), object: nil, queue: .main
         ) { notification in
-            if let sticker = notification.object as? StickerItem {
-                addStickerToStory(sticker)
-            }
+            if let sticker = notification.object as? StickerItem { addStickerToStory(sticker) }
         }
     }
 
     private func removeStickerListener() {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: NSNotification.Name("AddStickerToStoryEditor"),
-            object: nil
-        )
+        if let stickerListenerToken { NotificationCenter.default.removeObserver(stickerListenerToken) }
+        stickerListenerToken = nil
     }
 
-    // MARK: - Chain Context Handling
     private func setupChainContextListener() {
-        NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("SetChainContext"),
-            object: nil,
-            queue: .main
+        removeChainContextListener()
+        chainListenerToken = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("SetChainContext"), object: nil, queue: .main
         ) { notification in
             if let userInfo = notification.userInfo,
                let chainId = userInfo["chainId"] as? String,
@@ -2934,11 +2929,8 @@ struct StoryEditingView: View {
     }
 
     private func removeChainContextListener() {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: NSNotification.Name("SetChainContext"),
-            object: nil
-        )
+        if let chainListenerToken { NotificationCenter.default.removeObserver(chainListenerToken) }
+        chainListenerToken = nil
     }
 
     private func setChainContext(chainId: String, chainTitle: String, chainPosition: Int) {

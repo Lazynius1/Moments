@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - 🎨 Componente de resultados de búsqueda mejorado
 struct SmartSearchResultsView: View {
@@ -427,19 +428,56 @@ struct ExplorePagingFooter: View {
     let onLoadMore: () -> Void
     let onRetry: () -> Void
 
+    @State private var isNearViewport = false
+
     var body: some View {
-        VStack(spacing: 12) {
-            if isLoading {
-                ProgressView().accessibilityLabel(Text("explore.global.loading"))
+        VStack(spacing: 8) {
+            if isLoading || (hasMore && !failed) {
+                ProgressView().controlSize(.small)
+                    .accessibilityLabel(Text("explore.global.loading"))
             } else if failed {
                 Text("explore.global.error").foregroundStyle(.secondary)
                 Button("explore.global.retry", action: onRetry)
-            } else if hasMore {
-                Button("explore.global.more", action: onLoadMore)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 20)
+        // Separación media del grid (~20) + hueco de tab bar debajo.
+        .padding(.top, 20)
+        .padding(.bottom, 72)
+        .background {
+            GeometryReader { proxy in
+                let frame = proxy.frame(in: .global)
+                Color.clear
+                    .onAppear { updateVisibility(frame) }
+                    .onChange(of: frame.minY) { _, _ in updateVisibility(frame) }
+                    .onChange(of: frame.height) { _, _ in updateVisibility(frame) }
+            }
+        }
+        .onChange(of: isNearViewport) { _, visible in
+            guard visible else { return }
+            requestMoreIfNeeded()
+        }
+        .onChange(of: isLoading) { _, loading in
+            guard !loading, isNearViewport else { return }
+            requestMoreIfNeeded()
+        }
+        .onChange(of: hasMore) { _, more in
+            guard more, isNearViewport else { return }
+            requestMoreIfNeeded()
+        }
+    }
+
+    private func updateVisibility(_ frame: CGRect) {
+        let screen = UIScreen.main.bounds
+        let buffer: CGFloat = 160
+        let visible = frame.maxY > -buffer && frame.minY < screen.height + buffer
+        if visible != isNearViewport {
+            isNearViewport = visible
+        }
+    }
+
+    private func requestMoreIfNeeded() {
+        guard hasMore, !isLoading, !failed else { return }
+        onLoadMore()
     }
 }

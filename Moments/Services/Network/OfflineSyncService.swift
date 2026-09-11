@@ -308,7 +308,7 @@ class OfflineSyncService: ObservableObject {
                 // Retomar toggle de guardado
                 if let payload = try? JSONDecoder().decode(SavePayload.self, from: action.payloadData) {
                     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                        FirestoreService.shared.toggleSaveMoment(userId: payload.userId, momentId: payload.momentId) { error in
+                        FirestoreService.shared.toggleSaveMoment(userId: payload.userId, momentId: payload.momentId, authorId: payload.authorId) { error in
                             if error == nil {
                                 LocalPersistenceService.shared.deleteAction(id: action.id)
                             }

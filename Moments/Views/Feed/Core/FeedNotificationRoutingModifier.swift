@@ -19,6 +19,8 @@ struct FeedNotificationRoutingModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .onAppear { consumeLaunchIntent() }
+            .onChange(of: NavigationLaunchIntents.shared.feed) { _, _ in consumeLaunchIntent() }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                 notificationSummaryService.markAppClosed()
             }
@@ -48,6 +50,8 @@ struct FeedNotificationRoutingModifier: ViewModifier {
             }
             .onReceive(navigationService.$pendingNavigation) { navigation in
                 guard let navigation else { return }
+                // The router retains moment links until this screen is ready.
+                if case .moment = navigation, AppRouter.shared.pending != nil { return }
 
                 switch navigation {
                 case .conversation(let conversationId):
@@ -99,6 +103,16 @@ struct FeedNotificationRoutingModifier: ViewModifier {
                 let userId = notification.userInfo?["userId"] as? String ?? ""
                 openSharedMoment(momentId: momentId, userId: userId)
             }
+    }
+
+    private func consumeLaunchIntent() {
+        guard let destination = NavigationLaunchIntents.shared.feed else { return }
+        NavigationLaunchIntents.shared.feed = nil
+        switch destination {
+        case .profile(let id): onOpenUserProfile(id)
+        case .moment(let id, let author): openSharedMoment(momentId: id, userId: author)
+        case .chain(let id, let title): onOpenStoryChain(id, title)
+        }
     }
 
     private func openSharedMoment(momentId: String, userId: String) {

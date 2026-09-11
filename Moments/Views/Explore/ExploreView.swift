@@ -10,6 +10,7 @@ struct ExploreView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = ExploreViewModel()
     @State private var searchText: String = ""
+    @State private var didApplyInitialQuery = false
     @State private var showPrivateProfileAlert: Bool = false
     @Namespace private var zoomNamespace
     @Namespace private var profileZoomNamespace
@@ -161,18 +162,11 @@ struct ExploreView: View {
     }
 
     private func handleExploreAppear() {
-        if let query = initialSearchQuery, !query.isEmpty {
-            searchText = query
-            if !viewModel.moments.isEmpty {
-                viewModel.smartSearch(query: query)
-            } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    viewModel.smartSearch(query: query)
-                }
-            }
+        if !didApplyInitialQuery {
+            didApplyInitialQuery = true
+            if let query = initialSearchQuery, !query.isEmpty { searchText = query }
         }
-
-        if viewModel.moments.isEmpty {
+        if viewModel.moments.isEmpty && !viewModel.isLoading {
             viewModel.fetchMomentsByInterests()
         }
     }
@@ -240,7 +234,6 @@ struct ExploreView: View {
                     ExplorePagingFooter(isLoading: viewModel.isLoadingMoreExplore, failed: viewModel.explorePageFailed,
                         hasMore: viewModel.hasMoreExplore, onLoadMore: viewModel.loadMoreExplore,
                         onRetry: viewModel.loadMoreExplore)
-                        .padding(.bottom, 80)
                 } else {
                     searchResultsSection
                 }

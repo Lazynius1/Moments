@@ -1485,7 +1485,7 @@ class MomentDetailViewModel: ObservableObject {
             return
         }
 
-        firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId) { [weak self] error in
+        firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId, authorId: moment.authorId) { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
                     self?.errorMessage = "Error al guardar Moment: \(error.localizedDescription)"

@@ -167,6 +167,7 @@ struct CreatorView: View {
         .onAppear {
             setupResponseStickerListener()
             setupContinueChainListener()
+            consumeChainLaunchIntent()
 
             // Si llega solo un sticker de pregunta, abrimos la cámara primero y lo conservamos para el editor.
             if let sticker = initialSticker {
@@ -188,6 +189,9 @@ struct CreatorView: View {
                 }
             }
         }
+        .onChange(of: NavigationLaunchIntents.shared.creatorChain) { _, _ in
+            consumeChainLaunchIntent()
+        }
         .onDisappear {
             removeResponseStickerListener()
             removeContinueChainListener()
@@ -195,6 +199,17 @@ struct CreatorView: View {
             // ✅ Limpiar video y audio cuando se cierra CreatorView
             cleanupVideoAndAudio()
         }
+    }
+
+    private func consumeChainLaunchIntent() {
+        guard let chain = NavigationLaunchIntents.shared.creatorChain else { return }
+        NavigationLaunchIntents.shared.creatorChain = nil
+        pendingChainId = chain.id
+        pendingChainTitle = chain.title
+        pendingChainPosition = chain.position
+        contentType = .story
+        currentFlow = .storyCamera
+        isCreatingStory = true
     }
 
     // MARK: - Response Sticker Handling

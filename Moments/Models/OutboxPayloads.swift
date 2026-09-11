@@ -14,6 +14,7 @@ struct ReactionPayload: Codable {
 struct SavePayload: Codable {
     let userId: String
     let momentId: String
+    var authorId: String? = nil
 }
 
 struct CommentPayload: Codable {

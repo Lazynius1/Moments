@@ -66,22 +66,11 @@ extension AppRouter {
         switch destination {
         case .moment(let momentId, let authorId):
             context.selectedTab.wrappedValue = 0
-            var userInfo: [String: Any] = [:]
-            if !authorId.isEmpty {
-                userInfo["userId"] = authorId
-            }
-            NotificationCenter.default.post(
-                name: NSNotification.Name("NavigateToMoment"),
-                object: momentId,
-                userInfo: userInfo.isEmpty ? nil : userInfo
-            )
+            NavigationLaunchIntents.shared.feed = .moment(momentId, authorId)
 
         case .profile(let userId):
             context.selectedTab.wrappedValue = 0
-            NotificationCenter.default.post(
-                name: NSNotification.Name("NavigateToProfile"),
-                object: userId
-            )
+            NavigationLaunchIntents.shared.feed = .profile(userId)
 
         case .conversation(let conversationId):
             NotificationCenter.default.post(
@@ -99,11 +88,7 @@ extension AppRouter {
 
         case .storyChain(let chainId, let chainTitle):
             context.selectedTab.wrappedValue = 0
-            NotificationCenter.default.post(
-                name: NSNotification.Name("NavigateToStoryChain"),
-                object: nil,
-                userInfo: ["chainId": chainId, "chainTitle": chainTitle]
-            )
+            NavigationLaunchIntents.shared.feed = .chain(chainId, chainTitle)
 
         case .followRequests(let requestId):
             context.selectedTab.wrappedValue = 4
@@ -153,10 +138,7 @@ extension AppRouter {
 
         case .showProfileVisits:
             context.selectedTab.wrappedValue = 4
-            NotificationCenter.default.post(
-                name: NSNotification.Name("ShowProfileVisits"),
-                object: nil
-            )
+            NavigationLaunchIntents.shared.profileVisits = true
 
         case .showStories:
             context.selectedTab.wrappedValue = 0
@@ -176,12 +158,7 @@ extension AppRouter {
 
         case .userProfileInFeed(let userId):
             context.selectedTab.wrappedValue = 0
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("NavigateToUserProfileInFeed"),
-                    object: userId
-                )
-            }
+            NavigationLaunchIntents.shared.feed = .profile(userId)
 
         case .showExplore:
             context.selectedTab.wrappedValue = 0
@@ -223,4 +200,23 @@ extension AppRouter.Destination {
             return nil
         }
     }
+}
+
+/// Retains destinations until their receiving screen has mounted. Latest intent wins.
+@Observable
+final class NavigationLaunchIntents {
+    static let shared = NavigationLaunchIntents()
+    enum FeedDestination: Equatable {
+        case profile(String)
+        case moment(String, String)
+        case chain(String, String)
+    }
+    struct CreatorChain: Equatable {
+        let id: String
+        let title: String
+        let position: Int
+    }
+    var feed: FeedDestination?
+    var creatorChain: CreatorChain?
+    var profileVisits = false
 }

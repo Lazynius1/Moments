@@ -252,32 +252,179 @@ struct ExploreBentoLayout: Layout {
     }
 }
 
+private struct ExploreBentoGridPlacement: Equatable {
+    let frame: CGRect
+    let kind: ExploreBentoTileKind
+}
+
+private enum ExploreBentoGridPlacementCalculator {
+    static func placements(
+        descriptors: [ExploreGridTileDescriptor],
+        availableWidth: CGFloat,
+        spacing: CGFloat = ExploreMomentsGridMetrics.spacing,
+        columns: Int = ExploreMomentsGridMetrics.columns
+    ) -> [ExploreBentoGridPlacement] {
+        guard availableWidth > 0, !descriptors.isEmpty else { return [] }
+
+        let unitWidth = ExploreMomentsGridMetrics.columnWidth(for: availableWidth)
+        var columnHeights = Array(repeating: CGFloat(0), count: max(columns, 1))
+        var result: [ExploreBentoGridPlacement] = []
+        result.reserveCapacity(descriptors.count)
+
+        for descriptor in descriptors {
+            let kind = descriptor.layoutKind
+            let tileSize = ExploreMomentsGridMetrics.tileSize(
+                kind: kind,
+                unitWidth: unitWidth,
+                spacing: spacing
+            )
+            let placement = bestPlacement(
+                colSpan: kind.colSpan,
+                columnHeights: columnHeights,
+                columns: columns,
+                spacing: spacing
+            )
+            let x = (unitWidth + spacing) * CGFloat(placement.startColumn)
+            result.append(
+                ExploreBentoGridPlacement(
+                    frame: CGRect(x: x, y: placement.y, width: tileSize.width, height: tileSize.height),
+                    kind: kind
+                )
+            )
+
+            let newBottom = placement.y + tileSize.height
+            for column in placement.startColumn..<(placement.startColumn + kind.colSpan) {
+                columnHeights[column] = newBottom
+            }
+        }
+
+        return result
+    }
+
+    private static func bestPlacement(
+        colSpan: Int,
+        columnHeights: [CGFloat],
+        columns: Int,
+        spacing: CGFloat
+    ) -> (startColumn: Int, y: CGFloat) {
+        var bestColumn = 0
+        var bestY = CGFloat.greatestFiniteMagnitude
+
+        for startColumn in 0...(columns - colSpan) {
+            let y = columnHeights[startColumn..<(startColumn + colSpan)].map { height in
+                height > 0 ? height + spacing : 0
+            }.max() ?? 0
+            if y < bestY || (y == bestY && startColumn < bestColumn) {
+                bestY = y
+                bestColumn = startColumn
+            }
+        }
+        return (bestColumn, bestY)
+    }
+}
+
+private struct ExploreBentoVisibleIndex: Identifiable {
+    let index: Int
+    let id: String
+}
+
+private struct ExploreBentoGridLayoutKey: Equatable {
+    let descriptors: [ExploreGridTileDescriptor]
+    let width: CGFloat
+}
+
 private struct ExploreBentoGridContainer<Cell: View>: View {
     let moments: [Moment]
     let availableWidth: CGFloat
     let descriptors: [ExploreGridTileDescriptor]
     @ViewBuilder let cell: (Moment, CGFloat, Int, ExploreGridTileDescriptor) -> Cell
 
-    private var bentoHeight: CGFloat {
-        ExploreMomentsGridMetrics.bentoHeight(
-            tileKinds: descriptors.map(\.layoutKind),
-            availableWidth: availableWidth
+    @State private var viewportBucket: Int = 0
+    @State private var cachedLayoutKey: ExploreBentoGridLayoutKey?
+    @State private var cachedPlacements: [ExploreBentoGridPlacement] = []
+
+    private var layoutKey: ExploreBentoGridLayoutKey {
+        ExploreBentoGridLayoutKey(descriptors: descriptors, width: availableWidth)
+    }
+
+    private func makePlacements(for key: ExploreBentoGridLayoutKey) -> [ExploreBentoGridPlacement] {
+        ExploreBentoGridPlacementCalculator.placements(
+            descriptors: key.descriptors,
+            availableWidth: key.width
         )
     }
 
-    var body: some View {
-        let columnWidth = ExploreMomentsGridMetrics.columnWidth(for: availableWidth)
+    private func visibleItems(
+        placements: [ExploreBentoGridPlacement]
+    ) -> [ExploreBentoVisibleIndex] {
+        guard !placements.isEmpty else { return [] }
 
-        ExploreBentoLayout {
-            ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
-                let descriptor = index < descriptors.count
-                    ? descriptors[index]
-                    : ExploreGridTileDescriptor.standard(for: moment)
+        // The bucket changes once per tile-sized scroll interval. This keeps
+        // preference updates cheap while retaining a generous prefetch window.
+        let unitWidth = max(ExploreMomentsGridMetrics.columnWidth(for: availableWidth), 1)
+        let viewportTop = CGFloat(viewportBucket) * unitWidth
+        let buffer = max(unitWidth * 3, 600)
+        let visibleRect = CGRect(
+            x: 0,
+            y: max(0, viewportTop - buffer),
+            width: availableWidth,
+            height: UIApplication.shared.activeWindowSize.height + buffer * 2
+        )
+
+        return placements.enumerated().compactMap { index, placement in
+            guard placement.frame.intersects(visibleRect) else { return nil }
+            let moment = moments[index]
+            let stableID: String
+            if let momentID = moment.id {
+                stableID = "\(moment.authorId)|\(momentID)"
+            } else {
+                stableID = "\(moment.authorId)|\(moment.timestamp.timeIntervalSince1970)|\(index)"
+            }
+            return ExploreBentoVisibleIndex(index: index, id: stableID)
+        }
+    }
+
+    var body: some View {
+        let key = layoutKey
+        let placements = cachedLayoutKey == key
+            ? cachedPlacements
+            : makePlacements(for: key)
+        let columnWidth = ExploreMomentsGridMetrics.columnWidth(for: availableWidth)
+        let visibleItems = visibleItems(placements: placements)
+        let bentoHeight = placements.map { $0.frame.maxY }.max() ?? 0
+
+        ZStack(alignment: .topLeading) {
+            ForEach(visibleItems) { item in
+                let index = item.index
+                let moment = moments[index]
+                let descriptor = descriptors[index]
                 cell(moment, columnWidth, index, descriptor)
-                    .exploreBentoTileKind(descriptor.layoutKind)
+                    .frame(
+                        width: placements[index].frame.width,
+                        height: placements[index].frame.height
+                    )
+                    .position(
+                        x: placements[index].frame.midX,
+                        y: placements[index].frame.midY
+                    )
             }
         }
         .frame(width: availableWidth, height: bentoHeight, alignment: .topLeading)
+        .onGeometryChange(for: Int.self) { proxy in
+            guard availableWidth > 0 else { return 0 }
+            let unitWidth = max(ExploreMomentsGridMetrics.columnWidth(for: availableWidth), 1)
+            let localViewportTop = max(0, -proxy.frame(in: .global).minY)
+            return Int(floor(localViewportTop / unitWidth))
+        } action: { _, bucket in
+            if bucket != viewportBucket {
+                viewportBucket = bucket
+            }
+        }
+        .onChange(of: key, initial: true) { _, newKey in
+            guard cachedLayoutKey != newKey else { return }
+            cachedPlacements = makePlacements(for: newKey)
+            cachedLayoutKey = newKey
+        }
     }
 }
 

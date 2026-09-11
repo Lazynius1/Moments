@@ -137,11 +137,6 @@ struct FeedListSection: View {
                 MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
                     proxy.scrollTo("feed-top", anchor: .top)
                 }
-                if let userId = Auth.auth().currentUser?.uid {
-                    Task {
-                        await onManualRefresh(userId)
-                    }
-                }
             }
             .onChange(of: selectedFeedType) { _, _ in
                 recommendations.clearVisibility()

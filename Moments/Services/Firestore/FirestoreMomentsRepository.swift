@@ -380,9 +380,9 @@ extension FirestoreService {
         }
     }
 
-    func toggleSaveMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
+    func toggleSaveMoment(userId: String, momentId: String, authorId: String? = nil, completion: @escaping (Error?) -> Void) {
         if !NetworkMonitor.shared.isConnected {
-            let payload = SavePayload(userId: userId, momentId: momentId)
+            let payload = SavePayload(userId: userId, momentId: momentId, authorId: authorId)
             if let data = try? JSONEncoder().encode(payload) {
                 let action = CachedAction(
                     id: UUID().uuidString,
@@ -410,7 +410,9 @@ extension FirestoreService {
                         self?.savedMomentIds.removeAll { $0 == momentId }
                     }
                 } else {
-                    transaction.setData(["momentId": momentId, "timestamp": Timestamp()], forDocument: savedMomentRef)
+                    var data: [String: Any] = ["momentId": momentId, "timestamp": Timestamp()]
+                    if let authorId, !authorId.isEmpty { data["authorId"] = authorId }
+                    transaction.setData(data, forDocument: savedMomentRef)
                     DispatchQueue.main.async {
                         self?.savedMomentIds.append(momentId)
                     }

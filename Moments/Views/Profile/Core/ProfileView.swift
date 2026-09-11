@@ -311,6 +311,7 @@ private extension CGFloat {
 
 struct ProfileView: View {
     @EnvironmentObject var authService: AuthService
+    @State private var authListener: AuthStateDidChangeListenerHandle?
     @StateObject private var viewModel = ProfileViewModel()
     @Binding var selectedTab: Int
     @StateObject private var storyViewModel = StoryViewModel()
@@ -542,21 +543,24 @@ struct ProfileView: View {
                 }
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: socialConnectionsRoute), value: socialConnectionsRoute)
                 .onChange(of: selectedTab) { _, newTab in
-                    if newTab == 4 {
-                        isShowingSettings = false
-                        isShowingNotifications = false
-                        isShowingEditProfile = false
-                    } else {
+                    if newTab != 4 {
                         // ✅ Resetear detalle y menús al salir del tab de perfil
                         heroCoordinator.dismissMenu()
                         heroCoordinator.dismissDetail()
                     }
                 }
                 .onAppear {
+                    if NavigationLaunchIntents.shared.profileVisits {
+                        NavigationLaunchIntents.shared.profileVisits = false
+                        socialConnectionsRoute = SocialConnectionsRoute(initialTab: .visits)
+                    }
                     incognitoModeService.loadState()
-                    _ = Auth.auth().addStateDidChangeListener { _, user in
+                    if let authListener { Auth.auth().removeStateDidChangeListener(authListener) }
+                    authListener = Auth.auth().addStateDidChangeListener { _, user in
                         if let userId = user?.uid {
-                            viewModel.fetchProfile(userId: userId)
+                            if viewModel.userProfile?.id != userId {
+                                viewModel.fetchProfile(userId: userId)
+                            }
                             storyViewModel.fetchStories(for: userId, includeConnections: false)
                             storyViewModel.checkActiveStories(userId: userId)
                         } else {
@@ -565,11 +569,20 @@ struct ProfileView: View {
                         }
                     }
                 }
+                .onChange(of: NavigationLaunchIntents.shared.profileVisits) { _, pending in
+                    if pending {
+                        NavigationLaunchIntents.shared.profileVisits = false
+                        socialConnectionsRoute = SocialConnectionsRoute(initialTab: .visits)
+                    }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowProfileVisits"))) { _ in
                     socialConnectionsRoute = SocialConnectionsRoute(initialTab: .visits)
                 }
                 .onDisappear {
-                    // Reset profile transition and detail states immediately when switching tabs or leaving the screen
+                    if let authListener {
+                        Auth.auth().removeStateDidChangeListener(authListener)
+                        self.authListener = nil
+                    }
                     heroCoordinator.resetToIdle()
                 }
 

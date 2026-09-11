@@ -333,35 +333,31 @@ struct ModernTabView: View {
 }
     // MARK: - Legacy Tab View (iOS < 26)
     private var legacyTabView: some View {
-        ZStack {
-            // Contenido a pantalla completa; chrome = MomentsFloatingTabBar (overlay en TabBarView).
-            ZStack {
-                switch selectedTab {
-                case 0:
-                    NavigationStack {
-                        FeedView(showCreatorView: $showCreatorView)
-                    }
-                case 1:
-                    NavigationStack {
-                        MessagingView(targetConversationId: $messagesTargetConversationId)
-                    }
-                    .environmentObject(messagingViewModel)
-                    .environmentObject(firestoreService)
-                case 2:
-                    Color.clear
-                case 3:
-                    ExploreView()
-                        .environmentObject(exploreViewModel)
-                case 4:
-                    NavigationStack {
-                        ProfileView(selectedTab: $selectedTab)
-                    }
-                default:
-                    FeedView(showCreatorView: $showCreatorView)
-                }
+        TabView(selection: $selectedTab) {
+            NavigationStack {
+                FeedView(showCreatorView: $showCreatorView)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .hideNativeTabBar()
+            .tag(0)
+            NavigationStack {
+                MessagingView(targetConversationId: $messagesTargetConversationId)
+            }
+            .environmentObject(messagingViewModel)
+            .environmentObject(firestoreService)
+            .hideNativeTabBar()
+            .tag(1)
+            Color.clear.hideNativeTabBar().tag(2)
+            ExploreView()
+                .environmentObject(exploreViewModel)
+                .hideNativeTabBar()
+                .tag(3)
+            NavigationStack {
+                ProfileView(selectedTab: $selectedTab)
+            }
+            .hideNativeTabBar()
+            .tag(4)
         }
+        .toolbar(.hidden, for: .tabBar)
         .environmentObject(authService)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .setupTabBarHandlers(
@@ -426,9 +422,7 @@ struct ModernTabView: View {
             if url.path == "/visits" {
                 // Abrir perfil propio y mostrar visitas
                 selectedTab = 4
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    AppRouter.shared.navigate(to: .showProfileVisits)
-                }
+                AppRouter.shared.navigate(to: .showProfileVisits)
             } else if url.pathComponents.count > 1 {
                 // Es un perfil de usuario: glowsy://profile/username
                 let username = url.lastPathComponent
@@ -466,9 +460,7 @@ struct ModernTabView: View {
         if pathComponents.count >= 3 && pathComponents[1] == "moment" {
             let momentId = pathComponents[2]
             let authorId = shareAuthorId(from: url)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                AppRouter.shared.navigate(to: .moment(id: momentId, authorId: authorId))
-            }
+            AppRouter.shared.navigate(to: .moment(id: momentId, authorId: authorId))
         }
     }
 
@@ -696,7 +688,9 @@ extension View {
                 if (Auth.auth().currentUser?.uid) != nil {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                         if !hasPreloadedExplore.wrappedValue {
-                            exploreViewModel.fetchMomentsByInterests()
+                            if exploreViewModel.moments.isEmpty && !exploreViewModel.isLoading {
+                                exploreViewModel.fetchMomentsByInterests()
+                            }
                             hasPreloadedExplore.wrappedValue = true
                         }
                     }
@@ -706,7 +700,9 @@ extension View {
             }
             .onChange(of: selectedTab.wrappedValue) { _, newSelection in
                 if newSelection == 3 && !hasPreloadedExplore.wrappedValue {
-                    exploreViewModel.fetchMomentsByInterests()
+                    if exploreViewModel.moments.isEmpty && !exploreViewModel.isLoading {
+                        exploreViewModel.fetchMomentsByInterests()
+                    }
                     hasPreloadedExplore.wrappedValue = true
                 }
                 
@@ -720,7 +716,7 @@ extension View {
                     previousSelectedTab.wrappedValue = newSelection
                 }
             }
-            .onChange(of: appRouter.pending) { _, pending in
+            .onChange(of: appRouter.pending, initial: true) { _, pending in
                 guard pending != nil else { return }
                 appRouter.dispatchPending(
                     using: AppRouterTabBarContext(
@@ -744,9 +740,7 @@ extension View {
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUserProfile"))) { notification in
                 if let userId = notification.object as? String {
                     selectedTab.wrappedValue = 0
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToUserProfileInFeed"), object: userId)
-                    }
+                    NavigationLaunchIntents.shared.feed = .profile(userId)
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowStoryChain"))) { notification in
@@ -754,13 +748,7 @@ extension View {
                    let chainId = userInfo["chainId"] as? String,
                    let chainTitle = userInfo["chainTitle"] as? String {
                     selectedTab.wrappedValue = 0
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("NavigateToStoryChainInFeed"),
-                            object: nil,
-                            userInfo: ["chainId": chainId, "chainTitle": chainTitle]
-                        )
-                    }
+                    NavigationLaunchIntents.shared.feed = .chain(chainId, chainTitle)
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ReturnToFeedAfterMomentPublish"))) { _ in
@@ -772,26 +760,12 @@ extension View {
                    let chainId = userInfo["chainId"] as? String,
                    let chainTitle = userInfo["chainTitle"] as? String,
                    let chainPosition = userInfo["chainPosition"] as? Int {
-                    showCreatorView.wrappedValue = true
+                    NavigationLaunchIntents.shared.creatorChain = .init(
+                        id: chainId, title: chainTitle, position: chainPosition
+                    )
+                    openCreatorInStoryMode.wrappedValue = true
                     isCreatingStory.wrappedValue = true
-                    
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("SetContentType"),
-                            object: nil,
-                            userInfo: ["contentType": "story"]
-                        )
-                        
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("SetChainContext"),
-                            object: nil,
-                            userInfo: [
-                                "chainId": chainId,
-                                "chainTitle": chainTitle,
-                                "chainPosition": chainPosition
-                            ]
-                        )
-                    }
+                    showCreatorView.wrappedValue = true
                 }
             }
             .fullScreenCover(isPresented: showCreatorView) {

@@ -1047,7 +1047,7 @@ struct ModernPostCardView: View {
 
         isSaveLoading = true
 
-        firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId) { error in
+        firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId, authorId: moment.authorId) { error in
             DispatchQueue.main.async {
                 self.isSaveLoading = false
                 if error != nil {

@@ -1352,7 +1352,7 @@ struct ReelVideoView: View {
             isSaved.toggle()
         }
 
-        firestoreService.toggleSaveMoment(userId: userId, momentId: momentId) { error in
+        firestoreService.toggleSaveMoment(userId: userId, momentId: momentId, authorId: video.moment.authorId) { error in
             if error != nil {
                 DispatchQueue.main.async {
                     MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {

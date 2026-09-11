@@ -83,9 +83,9 @@ class ExploreViewModel: ObservableObject {
         }
 
         self.currentUserId = userId
-        loadExplorePage(reset: true)
         isLoading = true
         errorMessage = nil
+        loadExplorePage(reset: true)
 
         // ✅ SwiftData: Cargar del caché local inmediatamente
         let cachedMoments = LocalPersistenceService.shared.loadExploreMoments()
@@ -511,12 +511,7 @@ extension ExploreViewModel {
 
     // ✅ FUNCIÓN PARA REFRESCAR CONTENIDO
     func refreshContent() {
-        moments = []
-        filteredMoments = []
-        suggestedUsers = []
-        searchedUsers = []
-        followedUserIds = [] // ✅ Limpiar usuarios seguidos para recargarlos
-        pendingRequests = [] // ✅ Limpiar solicitudes pendientes para recargarlas
+        // Keep the current page visible until its replacement succeeds.
         fetchMomentsByInterests()
     }
 
@@ -609,8 +604,7 @@ extension ExploreViewModel {
 
     // ✅ FUNCIÓN para refrescar todo
     func refreshAllContent() {
-        clearData()
-        fetchMomentsByInterests()
+        refreshContent()
     }
 }
 
@@ -716,9 +710,9 @@ extension ExploreViewModel {
             self.isLoading = false
             self.isLoadingMoreExplore = false
             guard let page else { self.explorePageFailed = true; return }
-            if replacesResults { self.moments = [] }
-            var keys = Set(self.moments.map { "\($0.authorId)/\($0.id ?? "")" })
-            self.moments += page.moments.filter { keys.insert("\($0.authorId)/\($0.id ?? "")").inserted }
+            let retained = replacesResults ? [] : self.moments
+            var keys = Set(retained.map { "\($0.authorId)/\($0.id ?? "")" })
+            self.moments = retained + page.moments.filter { keys.insert("\($0.authorId)/\($0.id ?? "")").inserted }
             if self.activeSearchQuery.isEmpty { self.filteredMoments = self.moments }
             self.exploreCursor = page.nextCursor
             self.hasMoreExplore = page.nextCursor != nil

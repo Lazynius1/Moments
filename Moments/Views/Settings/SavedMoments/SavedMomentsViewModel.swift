@@ -14,196 +14,139 @@ class SavedMomentsViewModel: ObservableObject {
     private let privacyService = PrivacyService.shared
     private var visibilityValidationToken = UUID()
 
+    private var loadTask: Task<Void, Never>?
+    private var loadGeneration = UUID()
+    private var dataOwnerId: String?
+
     func loadSavedMoments(completion: @escaping (Error?) -> Void = { _ in }) {
+        loadTask?.cancel()
+        let generation = UUID()
+        loadGeneration = generation
         guard let userId = Auth.auth().currentUser?.uid else {
+            isLoading = false
             completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no autenticado"]))
             return
         }
-
+        if dataOwnerId != userId {
+            moments = []
+            savedMomentIds = []
+            visibilityByMomentId = [:]
+            mutedUserIds = []
+            dataOwnerId = userId
+        }
         isLoading = true
         error = nil
         firestoreService.fetchMutedUserIds(userId: userId) { [weak self] mutedIds in
             DispatchQueue.main.async {
+                guard self?.loadGeneration == generation else { return }
                 self?.mutedUserIds = mutedIds
             }
         }
-
-        // Cargar los IDs de momentos guardados primero
-        firestoreService.db.collection("users").document(userId).collection("savedMoments")
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                if let error = error {
-                    DispatchQueue.main.async {
-                        self.error = error
-                        self.isLoading = false
-                        completion(error)
-                    }
-                    return
+        loadTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let snapshot = try await self.firestoreService.db.collection("users").document(userId)
+                    .collection("savedMoments").getDocuments()
+                try Task.checkCancellation()
+                guard self.loadGeneration == generation, Auth.auth().currentUser?.uid == userId else { return }
+                let ids = snapshot.documents.map(\.documentID)
+                let cachedAuthors = Dictionary(self.moments.compactMap { moment in
+                    moment.id.map { ($0, moment.authorId) }
+                }, uniquingKeysWith: { first, _ in first })
+                let references = snapshot.documents.compactMap { document -> (String, String)? in
+                    guard let author = (document.data()["authorId"] as? String) ?? cachedAuthors[document.documentID],
+                          !author.isEmpty else { return nil }
+                    return (document.documentID, author)
                 }
-
-                let savedDocuments = snapshot?.documents ?? []
-                let momentIds = savedDocuments.compactMap { $0.documentID }
-
-                DispatchQueue.main.async {
-                    self.savedMomentIds = momentIds
-                }
-
-                // Si no hay momentos guardados
-                guard !momentIds.isEmpty else {
-                    DispatchQueue.main.async {
-                        self.moments = []
-                        self.visibilityByMomentId = [:]
-                        self.isLoading = false
-                        completion(nil)
+                let resolvedIds = Set(references.map { $0.0 })
+                let legacyIds = Set(ids).subtracting(resolvedIds)
+                var found: [Moment] = []
+                var firstError: Error?
+                // Read exact paths for new saves, with bounded concurrency.
+                for start in stride(from: 0, to: references.count, by: 6) {
+                    try Task.checkCancellation()
+                    let batch = Array(references[start..<min(start + 6, references.count)])
+                    let results = await withTaskGroup(of: Result<Moment?, Error>.self) { group in
+                        for (id, author) in batch {
+                            group.addTask {
+                                do {
+                                    let doc = try await Firestore.firestore().collection("users").document(author)
+                                        .collection("moments").document(id).getDocument()
+                                    guard doc.exists else { return .success(nil) }
+                                    let moment = try doc.data(as: Moment.self)
+                                    return .success(moment.isArchived == true ? nil : moment)
+                                } catch { return .failure(error) }
+                            }
+                        }
+                        var results: [Result<Moment?, Error>] = []
+                        for await result in group { results.append(result) }
+                        return results
                     }
-                    return
-                }
-
-                // ✅ BUSCAR MOMENTOS SIN FILTROS DE PRIVACIDAD
-                self.fetchSavedMomentsDirectly(momentIds: momentIds, completion: completion)
-            }
-    }
-
-    // ✅ NUEVA FUNCIÓN: Buscar momentos guardados directamente sin filtros de privacidad
-    private func fetchSavedMomentsDirectly(momentIds: [String], completion: @escaping (Error?) -> Void) {
-        let group = DispatchGroup()
-        var foundMoments: [Moment] = []
-        var notFoundMomentIds: [String] = []
-        let syncQueue = DispatchQueue(label: "saved.moments.direct.sync")
-
-
-        // Obtener usuarios activos para buscar
-        fetchActiveUsers { [weak self] userIds in
-            guard let self = self else {
-                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Self deallocated"]))
-                return
-            }
-
-            for userId in userIds {
-                group.enter()
-
-                // Buscar momentos de este usuario
-                self.fetchMomentsFromUser(userId: userId) { userMoments in
-                    defer { group.leave() }
-
-                    // Filtrar solo los momentos que están en nuestros guardados
-                    let matchingMoments = userMoments.filter { moment in
-                        guard let momentId = moment.id else { return false }
-                        return momentIds.contains(momentId)
-                    }
-
-                    if !matchingMoments.isEmpty {
-                        syncQueue.async {
-                            foundMoments.append(contentsOf: matchingMoments)
+                    for result in results {
+                        switch result {
+                        case .success(let moment): if let moment { found.append(moment) }
+                        case .failure(let error): firstError = firstError ?? error
                         }
                     }
                 }
-            }
-
-            group.notify(queue: .main) {
-                // Identificar momentos no encontrados para limpieza
-                let foundMomentIds = Set(foundMoments.compactMap { $0.id })
-                notFoundMomentIds = momentIds.filter { !foundMomentIds.contains($0) }
-
-                // Limpiar momentos que ya no existen
-                if !notFoundMomentIds.isEmpty {
-                    self.cleanupMissingMoments(missingIds: notFoundMomentIds)
+                // Compatibility for old bookmarks that have no author. Never infer deletion
+                // from this incomplete search; the bookmark stays available for a later retry.
+                if !legacyIds.isEmpty {
+                    let db = self.firestoreService.db
+                    let cutoff = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
+                    var authors: [String] = []
+                    do {
+                        authors = try await db.collection("users")
+                            .whereField("lastActiveAt", isGreaterThan: Timestamp(date: cutoff)).limit(to: 100).getDocuments()
+                            .documents.map(\.documentID)
+                    } catch {
+                        try Task.checkCancellation()
+                    }
+                    if authors.isEmpty {
+                        authors = try await db.collection("users").limit(to: 200).getDocuments().documents.map(\.documentID)
+                    }
+                    for start in stride(from: 0, to: authors.count, by: 6) {
+                        try Task.checkCancellation()
+                        let batch = Array(authors[start..<min(start + 6, authors.count)])
+                        let legacyMoments = await withTaskGroup(of: [Moment].self) { group in
+                            for author in batch {
+                                group.addTask {
+                                    await withCheckedContinuation { continuation in
+                                        FirestoreService.shared.fetchMoments(for: author) { result in
+                                            continuation.resume(returning: (try? result.get()) ?? [])
+                                        }
+                                    }
+                                }
+                            }
+                            var matches: [Moment] = []
+                            for await moments in group {
+                                matches += moments.filter { $0.id.map(legacyIds.contains) ?? false }
+                            }
+                            return matches
+                        }
+                        found += legacyMoments
+                    }
                 }
-
-                // Ordenar por timestamp
-                let sortedMoments = foundMoments.sorted { $0.timestamp > $1.timestamp }
-
-                self.moments = sortedMoments
-                self.validateVisibilityForLoadedMoments(sortedMoments)
+                try Task.checkCancellation()
+                guard self.loadGeneration == generation, Auth.auth().currentUser?.uid == userId else { return }
+                if found.isEmpty, let firstError { throw firstError }
+                self.savedMomentIds = ids
+                self.moments = found.sorted { $0.timestamp > $1.timestamp }
+                self.validateVisibilityForLoadedMoments(self.moments)
+                self.error = firstError
                 self.isLoading = false
-                completion(nil)
+                completion(firstError)
+            } catch is CancellationError {
+                // A newer load owns the UI state.
+            } catch {
+                guard self.loadGeneration == generation, Auth.auth().currentUser?.uid == userId else { return }
+                self.error = error
+                self.isLoading = false
+                completion(error)
             }
         }
     }
 
-    // ✅ FUNCIÓN AUXILIAR: Obtener momentos de un usuario específico
-    private func fetchMomentsFromUser(userId: String, completion: @escaping ([Moment]) -> Void) {
-        firestoreService.fetchMoments(for: userId) { result in
-            switch result {
-            case .success(let moments):
-                completion(moments)
-            case .failure:
-                completion([])
-            }
-        }
-    }
-
-    // ✅ FUNCIÓN AUXILIAR: Obtener usuarios activos
-    private func fetchActiveUsers(completion: @escaping ([String]) -> Void) {
-        // Obtener usuarios que han estado activos en los últimos 6 meses
-        let recentDate = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
-
-        firestoreService.db.collection("users")
-            .whereField("lastActiveAt", isGreaterThan: Timestamp(date: recentDate))
-            .limit(to: 100) // Aumentar límite para mejor cobertura
-            .getDocuments { snapshot, error in
-                if error != nil {
-                    // Fallback: buscar en todos los usuarios (menos eficiente pero funcional)
-                    self.fetchAllUsers(completion: completion)
-                    return
-                }
-
-                let userIds = snapshot?.documents.compactMap { doc in
-                    doc.documentID
-                } ?? []
-
-
-                if userIds.isEmpty {
-                    // Fallback si no hay usuarios con lastActiveAt
-                    self.fetchAllUsers(completion: completion)
-                } else {
-                    completion(userIds)
-                }
-            }
-    }
-
-    // ✅ FUNCIÓN FALLBACK: Obtener todos los usuarios
-    private func fetchAllUsers(completion: @escaping ([String]) -> Void) {
-        firestoreService.db.collection("users")
-            .limit(to: 200)
-            .getDocuments { snapshot, error in
-                if error != nil {
-                    completion([])
-                    return
-                }
-
-                let userIds = snapshot?.documents.compactMap { doc in
-                    doc.documentID
-                } ?? []
-
-                completion(userIds)
-            }
-    }
-
-    // ✅ FUNCIÓN DE LIMPIEZA: Remover momentos que ya no existen
-    private func cleanupMissingMoments(missingIds: [String]) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-
-        let group = DispatchGroup()
-
-        for momentId in missingIds {
-            group.enter()
-
-            firestoreService.db.collection("users").document(userId)
-                .collection("savedMoments").document(momentId)
-                .delete { _ in
-                    group.leave()
-                }
-        }
-
-        group.notify(queue: .main) {
-            // Actualizar IDs locales
-            self.savedMomentIds.removeAll { missingIds.contains($0) }
-        }
-    }
-
-    // MARK: - Public Methods
     func isMomentSaved(momentId: String) -> Bool {
         return savedMomentIds.contains(momentId)
     }
@@ -280,9 +223,6 @@ class SavedMomentsViewModel: ObservableObject {
     }
 
     func forceRefresh() {
-        moments = []
-        savedMomentIds = []
-        visibilityByMomentId = [:]
         loadSavedMoments()
     }
 
