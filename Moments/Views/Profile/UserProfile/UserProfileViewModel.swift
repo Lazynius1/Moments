@@ -226,10 +226,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             isRefreshing = true
         }
 
-        // Delay mínimo para que Firestore procese cambios recientes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.performRefresh(currentUserId: currentUserId)
-        }
+        performRefresh(currentUserId: currentUserId)
     }
 
     private func performRefresh(currentUserId: String) {

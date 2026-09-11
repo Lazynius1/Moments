@@ -83,21 +83,9 @@ enum StoryTextAttributesBuilder {
         paragraphStyle.lineBreakMode = .byWordWrapping
 
         let selectedColor = config.textColor
-        var textBackgroundColor: UIColor? = nil
         var textForegroundColor: UIColor = UIColor(selectedColor)
 
-        // Solo .plain usa el fondo por atributo (tiras por línea). Para .boxedCaption la placa
-        // redondeada la pinta el contenedor; duplicarlo aquí dejaba una tira tipo "subrayado"
-        // encima de la placa en Mono/Strong.
-        if config.visualTreatment == .plain {
-            textBackgroundColor = backgroundUIColor(
-                fill: config.textBackgroundFill,
-                selectedColor: selectedColor,
-                effect: config.effect,
-                style: config.style
-            )
-        }
-
+        // Background plates are rendered separately so glyphs have breathing room.
         switch config.textBackgroundFill {
         case .none:
             break
@@ -112,10 +100,6 @@ enum StoryTextAttributesBuilder {
             .foregroundColor: textForegroundColor,
             .paragraphStyle: paragraphStyle
         ]
-
-        if let bg = textBackgroundColor, config.visualTreatment != .markerHighlight {
-            attributes[.backgroundColor] = bg
-        }
 
         // Glow / neon / sparkle se pintan con CALayer en StoryTextOverlayContainerView;
         // NSShadow aquí duplica el efecto y lo deja borroso o “sucio”.

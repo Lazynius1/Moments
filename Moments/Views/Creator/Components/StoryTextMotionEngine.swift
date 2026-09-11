@@ -4,12 +4,18 @@ enum StoryTextMotionEngine {
     private static let motionKey = "story.text.motion"
 
     static func apply(to view: UIView, motion: StoryEditingView.TextMotion, replayToken: Int) {
+        if let container = view as? StoryTextOverlayContainerView {
+            let text = view.subviews.compactMap { ($0 as? UILabel)?.attributedText?.description }.joined()
+            let signature = "\(motion)|\(replayToken)|\(view.bounds)|\(text)|\(UIAccessibility.isReduceMotionEnabled)"
+            guard signature != container.appliedMotionSignature else { return }
+            container.appliedMotionSignature = signature
+        }
         view.layer.removeAnimation(forKey: motionKey)
         view.layer.mask = nil
         view.transform = .identity
         view.alpha = 1
 
-        guard motion != .none else { return }
+        guard motion != .none, !UIAccessibility.isReduceMotionEnabled else { return }
 
         switch motion {
         case .pop:
@@ -177,57 +183,67 @@ enum StoryTextMotionEngine {
     }
 
     private static func applyTypewriter(to view: UIView) {
-        let layer = view.layer
-        guard layer.bounds.width > 1, layer.bounds.height > 1 else { return }
+        guard let label = view.subviews.compactMap({ $0 as? UILabel }).last(where: { !$0.isHidden }),
+              let text = label.attributedText, text.length > 0 else { return }
+        let storage = NSTextStorage(attributedString: text)
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(size: label.bounds.size)
+        container.lineFragmentPadding = 0
+        container.maximumNumberOfLines = 0
+        storage.addLayoutManager(layout)
+        layout.addTextContainer(container)
+        layout.ensureLayout(for: container)
 
-        // Find the visible text character count
-        var textLength = 10
-        for subview in view.subviews {
-            if let label = subview as? UILabel, !label.isHidden {
-                if let text = label.text, !text.isEmpty {
-                    textLength = text.count
-                    break
-                }
+        // Reveal whole composed characters in reading order, preserving final line layout.
+        var ends: [Int] = []
+        (text.string as NSString).enumerateSubstrings(in: NSRange(location: 0, length: text.length), options: .byComposedCharacterSequences) { _, range, _, _ in
+            ends.append(NSMaxRange(range))
+        }
+        guard !ends.isEmpty else { return }
+        let fontSize = (text.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)?.pointSize ?? 28
+        let padH = max(14, fontSize * 0.36)
+        let padV = max(10, fontSize * 0.24)
+        let steps = min(ends.count, 240)
+        var paths: [CGPath] = [UIBezierPath().cgPath]
+        for step in 1...steps {
+            let end = ends[min(ends.count - 1, (step * ends.count - 1) / steps)]
+            let glyphs = layout.glyphRange(forCharacterRange: NSRange(location: 0, length: end), actualCharacterRange: nil)
+            let path = UIBezierPath()
+            layout.enumerateLineFragments(forGlyphRange: glyphs) { _, _, _, lineGlyphs, _ in
+                let visible = NSIntersectionRange(glyphs, lineGlyphs)
+                var rect = layout.boundingRect(forGlyphRange: visible, in: container)
+                rect = rect.offsetBy(dx: label.frame.minX, dy: label.frame.minY).insetBy(dx: -padH, dy: -padV)
+                path.append(UIBezierPath(rect: rect))
             }
+            paths.append(path.cgPath)
         }
-
-        let mask = CALayer()
-        mask.backgroundColor = UIColor.black.cgColor
-        mask.anchorPoint = CGPoint(x: 0, y: 0.5)
-        mask.position = CGPoint(x: 0, y: layer.bounds.midY)
-        mask.bounds = CGRect(x: 0, y: 0, width: 0, height: layer.bounds.height)
-        layer.mask = mask
-
-        let N = max(1, textLength)
-        // Add hold steps at the end (about 25-30% of the total duration) to pause on full word
-        let M = max(2, N / 3)
-        let totalSteps = N + M
-
-        var values: [CGFloat] = []
-        var keyTimes: [NSNumber] = []
-
-        // Typing phase (discrete steps)
-        for i in 0...N {
-            values.append(layer.bounds.width * CGFloat(i) / CGFloat(N))
-            keyTimes.append(NSNumber(value: Double(i) / Double(totalSteps)))
+        // Nova-inspired rhythm, slowed for stories: write, read, erase, rest.
+        let writeDuration = Double(ends.count) * 0.090
+        let eraseDuration = Double(ends.count) * 0.055
+        let duration = writeDuration + 2.20 + eraseDuration + 0.45
+        var values = paths
+        var times = (0...steps).map { Double($0) / Double(steps) * writeDuration / duration }
+        values.append(paths[steps])
+        times.append((writeDuration + 2.20) / duration)
+        for step in 1...steps {
+            values.append(paths[steps - step])
+            times.append((writeDuration + 2.20 + Double(step) / Double(steps) * eraseDuration) / duration)
         }
-
-        // Holding phase
-        for j in 1...M {
-            values.append(layer.bounds.width)
-            keyTimes.append(NSNumber(value: Double(N + j) / Double(totalSteps)))
-        }
-
-        let reveal = CAKeyframeAnimation(keyPath: "bounds.size.width")
+        values.append(paths[0])
+        times.append(1)
+        let mask = CAShapeLayer()
+        mask.frame = view.bounds
+        mask.path = paths[steps]
+        view.layer.mask = mask
+        let reveal = CAKeyframeAnimation(keyPath: "path")
         reveal.values = values
-        reveal.keyTimes = keyTimes
+        reveal.keyTimes = times.map { NSNumber(value: $0) }
         reveal.calculationMode = .discrete
-        reveal.duration = max(1.2, Double(N) * 0.15) // snapper speed per character
+        reveal.duration = duration
         reveal.repeatCount = .infinity
-        reveal.autoreverses = true
-        reveal.isRemovedOnCompletion = false
         mask.add(reveal, forKey: motionKey)
     }
+
 
     private static func applyReveal(to layer: CALayer) {
         let opacity = CABasicAnimation(keyPath: "opacity")

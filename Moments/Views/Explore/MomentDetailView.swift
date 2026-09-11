@@ -1486,12 +1486,12 @@ class MomentDetailViewModel: ObservableObject {
         }
 
         let desiredSaved = !isSaved
+        isSaved = desiredSaved
         firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId, authorId: moment.authorId, desiredSaved: desiredSaved) { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
                     self?.errorMessage = "Error al guardar Moment: \(error.localizedDescription)"
-                } else {
-                    self?.isSaved = desiredSaved
+                    if self?.isSaved == desiredSaved { self?.isSaved = !desiredSaved }
                 }
             }
         }

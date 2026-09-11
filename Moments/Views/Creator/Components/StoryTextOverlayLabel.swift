@@ -127,7 +127,7 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
     ) {
         latestConfiguration = configuration
         latestMaxWidth = maxWidth
-        latestMotion = motion
+        latestMotion = isFocused ? .none : motion
         latestReplayToken = replayToken
 
         let contentSize = StoryTextAttributesBuilder.measuredSize(for: configuration, maxWidth: maxWidth)
@@ -140,7 +140,7 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
         textView.frame = resolvedFrame
 
         effectView.apply(configuration: configuration, maxWidth: maxWidth, containerSize: resolvedFrame.size)
-        StoryTextMotionEngine.apply(to: effectView, motion: motion, replayToken: replayToken)
+        StoryTextMotionEngine.apply(to: effectView, motion: isFocused ? .none : motion, replayToken: replayToken)
 
         let caretColor: UIColor
         switch configuration.textBackgroundFill {
@@ -235,7 +235,7 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
         textView.frame = resolvedFrame
 
         effectView.apply(configuration: latestConfiguration, maxWidth: latestMaxWidth, containerSize: resolvedFrame.size)
-        StoryTextMotionEngine.apply(to: effectView, motion: latestMotion, replayToken: latestReplayToken)
+        StoryTextMotionEngine.apply(to: effectView, motion: textView.isFirstResponder ? .none : latestMotion, replayToken: latestReplayToken)
         textView.typingAttributes = Self.clearTypingAttributes(for: latestConfiguration)
     }
 
@@ -275,6 +275,7 @@ struct StoryTextOverlayContainerRepresentable: UIViewRepresentable {
 // MARK: - Overlay container (editor + viewer)
 
 final class StoryTextOverlayContainerView: UIView {
+    var appliedMotionSignature: String?
     private let plateLayer = CALayer()
     private let sparkleLayer = CALayer()
     private let gradientLayer = CAGradientLayer()
@@ -413,6 +414,7 @@ final class StoryTextOverlayContainerView: UIView {
         case .memeStrong:
             applyMeme(configuration: configuration, attributed: attributed, alignment: alignment)
         case .plain:
+            applyBoxedPlate(configuration: configuration, textFrame: textFrame)
             textLabel.attributedText = attributed
         }
 
@@ -837,7 +839,7 @@ final class StoryTextOverlayContainerView: UIView {
     /// (Antes placa y texto compartían color — negro sobre negro — y no se leía nada.)
     private func applyMarker(configuration: StoryTextRenderConfiguration, textFrame: CGRect) {
         let padH: CGFloat = 14
-        let padV: CGFloat = 8
+        let padV: CGFloat = max(10, configuration.fontSize * 0.24)
         let highlight = UIColor(configuration.textColor)
         plateLayer.isHidden = false
         plateLayer.backgroundColor = highlight.withAlphaComponent(0.92).cgColor
@@ -1028,8 +1030,10 @@ final class StoryTextOverlayContainerView: UIView {
 
         plateLayer.isHidden = false
         plateLayer.backgroundColor = fill.cgColor
-        plateLayer.cornerRadius = 8
-        plateLayer.frame = textFrame.insetBy(dx: -12, dy: -8)
+        let horizontalPadding = max(14, configuration.fontSize * 0.36)
+        let verticalPadding = max(10, configuration.fontSize * 0.24)
+        plateLayer.cornerRadius = min(14, max(8, configuration.fontSize * 0.24))
+        plateLayer.frame = textFrame.insetBy(dx: -horizontalPadding, dy: -verticalPadding)
         plateLayer.zPosition = -1
     }
 

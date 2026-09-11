@@ -397,10 +397,11 @@ struct ActionSubCardView: View {
         guard let userId = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
         // Usar toggleSaveMoment en lugar de saveMoment/removeSavedMoment
         let desiredSaved = !isSaved
+        isSaved = desiredSaved
         firestoreService.toggleSaveMoment(userId: userId, momentId: momentId, authorId: moment.authorId, desiredSaved: desiredSaved) { error in
-            if error == nil {
+            if error != nil {
                 DispatchQueue.main.async {
-                    self.isSaved = desiredSaved // Actualizar estado local
+                    if self.isSaved == desiredSaved { self.isSaved = !desiredSaved }
                 }
             }
         }

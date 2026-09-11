@@ -184,9 +184,7 @@ struct ExploreMomentDetailView: View {
                 firestoreService.loadSavedMoments(userId: userId)
             }
             GlobalVideoManager.shared.pauseAllVideos()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                activateVideoForIndex(target)
-            }
+            activateVideoForIndex(target)
         }
         .onDisappear {
             GlobalVideoManager.shared.pauseAllVideos()

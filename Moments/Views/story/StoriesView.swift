@@ -797,34 +797,13 @@ struct StoriesView: View {
             return
         }
 
-        let group = DispatchGroup()
-        var firstUnseenIndex: Int?
-        let syncQueue = DispatchQueue(label: "story.viewers.check")
-
-        for (index, story) in stories.enumerated() {
-            guard let storyId = story.id else { continue }
-
-            group.enter()
-
-            firestoreService.db.collection("users").document(userId)
-                .collection("stories").document(storyId)
-                .collection("viewers").document(currentUserId)
-                .getDocument { document, _ in
-                    let wasViewed = document?.exists == true
-
-                    syncQueue.async {
-                        if !wasViewed && firstUnseenIndex == nil {
-                            firstUnseenIndex = index
-                        }
-                    }
-
-                    group.leave()
-                }
-        }
-
-        group.notify(queue: .main) {
-            completion(firstUnseenIndex ?? 0)
-        }
+        let lastSeen = StorySeenStateService.shared.lastSeenDate(viewerId: currentUserId, authorId: userId)
+        let index = stories.firstIndex { story in
+            let locallyViewed = story.id.flatMap { storyViewModel.storyViewers[$0] }?
+                .contains { $0.userId == currentUserId } ?? false
+            return !locallyViewed && (lastSeen.map { story.timestamp > $0 } ?? true)
+        } ?? 0
+        completion(index)
     }
 
     private func getFirstUnseenStoryIndex(for stories: [Story]) -> Int {
