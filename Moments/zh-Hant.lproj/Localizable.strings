@@ -3362,7 +3362,9 @@
 "privacyPolicy.section.messages.title" = "6. 訊息與通訊";
 "privacyPolicy.section.messages.body" = "為了提供訊息功能，我們會處理對話、訊息請求、參與者、時間戳記、已讀回條、媒體檔案、限時訊息及分享的內容。\n\n我們會採用加密和安全措施來保護訊息及敏感資料。不過，部分中繼資料、媒體檔案 URL，或提供服務所需的資訊，可能會另外儲存及處理。\n\n如果您選擇在對話中分享即時位置資訊，我們會持續處理該位置資訊，直到分享工作階段結束或到期。";
 "privacyPolicy.section.permissions.title" = "7. 裝置權限";
-"privacyPolicy.section.permissions.body" = "我們只會在特定功能需要時要求權限：使用相機建立照片或影片、使用照片圖庫上傳或儲存內容、使用麥克風錄製音訊，以及使用位置資訊標記貼文、顯示地圖、附近內容和選用的 Nova 情境資訊。\n\n您可以在 iOS 設定中變更這些權限。如果關閉權限，部分功能可能無法使用。";
+"privacyPolicy.section.permissions.body" = "我們只會在特定功能需要時要求權限：使用相機建立照片或影片、使用照片圖庫上傳或儲存內容、使用麥克風錄製音訊，以及使用位置資訊標記貼文、顯示地圖並在聊天中分享，或提供 Nova 選用的情境資訊。
+
+您可以在 iOS 設定中變更這些權限。如果關閉權限，部分功能可能無法使用。";
 "privacyPolicy.section.ads.title" = "8. 廣告與同意";
 "privacyPolicy.section.ads.body" = "Moments 可能會透過 Google AdMob 顯示廣告。視您的所在地區和設定而定，我們可能會透過 Google 的隱私權表單及 Apple 的追蹤權限請求您的同意。\n\n如果您同意，廣告可能會使用廣告識別碼及獲准的訊號進行個人化。如果您不同意，我們可能會顯示非個人化或受限制的廣告。我們也會使用 SKAdNetwork 和類似技術進行彙總成效衡量。";
 "privacyPolicy.section.moderation.title" = "9. 安全、檢舉與審核";
@@ -4155,11 +4157,11 @@
 "permission.photos.denied.subtitle" = "請前往「設定」開啟照片存取權限，將照片分享至你的限時動態、動態和個人檔案。";
 "permission.photos.denied.openSettings" = "開啟設定";
 "permission.location.primer.title" = "開啟定位";
-"permission.location.primer.subtitle" = "允許使用定位功能，為貼文標註位置並顯示附近的相關內容。";
+"permission.location.primer.subtitle" = "允許使用定位功能，為貼文標註位置並在聊天中分享。";
 "permission.location.primer.allow" = "允許使用定位功能";
 "permission.location.primer.notNow" = "現在不要";
 "permission.location.denied.title" = "定位存取權已關閉";
-"permission.location.denied.subtitle" = "請前往「設定」開啟定位功能，為貼文標註位置並顯示附近的相關內容。";
+"permission.location.denied.subtitle" = "請前往「設定」開啟定位功能，為貼文標註位置並在聊天中分享。";
 "permission.location.denied.openSettings" = "開啟設定";
 "permission.location.always.primer.title" = "分享即時位置";
 "permission.location.always.primer.subtitle" = "允許「永遠」，讓朋友即使 Moments 在背景執行時也能看到你的即時位置。";

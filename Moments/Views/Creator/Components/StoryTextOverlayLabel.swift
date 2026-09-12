@@ -125,12 +125,14 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
         replayToken: Int,
         isFocused: Bool
     ) {
-        latestConfiguration = configuration
+        var editorConfiguration = configuration
+        editorConfiguration.appliesDisplayTransform = !isFocused
+        latestConfiguration = editorConfiguration
         latestMaxWidth = maxWidth
         latestMotion = isFocused ? .none : motion
         latestReplayToken = replayToken
 
-        let contentSize = StoryTextAttributesBuilder.measuredSize(for: configuration, maxWidth: maxWidth)
+        let contentSize = StoryTextAttributesBuilder.measuredSize(for: editorConfiguration, maxWidth: maxWidth)
         let resolvedHeight = max(140, min(280, contentSize.height + 24))
         let resolvedFrame = CGRect(
             origin: .zero,
@@ -139,7 +141,7 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
         effectView.frame = resolvedFrame
         textView.frame = resolvedFrame
 
-        effectView.apply(configuration: configuration, maxWidth: maxWidth, containerSize: resolvedFrame.size)
+        effectView.apply(configuration: editorConfiguration, maxWidth: maxWidth, containerSize: resolvedFrame.size)
         StoryTextMotionEngine.apply(to: effectView, motion: isFocused ? .none : motion, replayToken: replayToken)
 
         let caretColor: UIColor
@@ -153,10 +155,10 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
         textView.textAlignment = configuration.uiTextAlignment
 
         let stylingSignature = editorStylingSignature(configuration: configuration, motion: motion, maxWidth: maxWidth)
-        let textDidChange = textView.text != configuration.displayText
+        let textDidChange = textView.text != configuration.text
         let styleDidChange = stylingSignature != appliedSignature
 
-        if textDidChange || styleDidChange {
+        if textView.markedTextRange == nil, textDidChange || styleDidChange {
             appliedSignature = stylingSignature
 
             let selectedRange = textView.selectedRange
@@ -167,7 +169,7 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
             textView.selectedRange = NSRange(location: safeLocation, length: min(selectedRange.length, remaining))
 
             textView.typingAttributes = Self.clearTypingAttributes(for: configuration)
-        } else {
+        } else if textView.markedTextRange == nil {
             textView.typingAttributes = Self.clearTypingAttributes(for: configuration)
         }
 

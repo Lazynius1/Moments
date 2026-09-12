@@ -3585,7 +3585,9 @@ Apliquem xifratge i mesures de seguretat per protegir missatges i dades sensible
 
 Si decideixes compartir ubicació en viu en una conversa, tractem aquesta ubicació fins que la sessió de compartició acabi o expiri.";
 "privacyPolicy.section.permissions.title" = "7. Permisos del dispositiu";
-"privacyPolicy.section.permissions.body" = "Demanem permisos només quan són necessaris per a una funció concreta: càmera per crear fotos o vídeos, galeria per pujar o desar contingut, micròfon per a àudio, i ubicació per etiquetar publicacions, mapes, contingut proper i context opcional de Nova.\n\nPots canviar aquests permisos des dels ajustos d'iOS. Si els desactives, algunes funcions poden deixar d'estar disponibles.";
+"privacyPolicy.section.permissions.body" = "Demanem permisos només quan són necessaris per a una funció concreta: càmera per crear fotos o vídeos, galeria per pujar o desar contingut, micròfon per a àudio, ubicació per etiquetar publicacions, mapes i compartir-la als xats, més context opcional de Nova.
+
+Pots canviar aquests permisos des dels ajustos d’iOS. Si els desactives, algunes funcions poden deixar d’estar disponibles.";
 "privacyPolicy.section.ads.title" = "8. Publicitat i consentiment";
 "privacyPolicy.section.ads.body" = "Moments pot mostrar anuncis mitjançant Google AdMob. Segons la teva regió i ajustos, podem demanar consentiment mitjançant el formulari de privacitat de Google i el permís de rastreig d'Apple.\n\nSi acceptes, els anuncis poden ser personalitzats utilitzant identificadors publicitaris i senyals permesos. Si no acceptes, podem mostrar anuncis no personalitzats o limitats. També fem servir SKAdNetwork i tecnologies similars per a mesurament agregat.";
 "privacyPolicy.section.moderation.title" = "9. Seguretat, denúncies i moderació";
@@ -4390,11 +4392,11 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "permission.photos.denied.subtitle" = "Activa l'accés a les fotos als Ajustos per compartir imatges a les teves històries, moments i perfil.";
 "permission.photos.denied.openSettings" = "Obrir Ajustos";
 "permission.location.primer.title" = "Activa la ubicació";
-"permission.location.primer.subtitle" = "Permet usar la teva ubicació per etiquetar les teves publicacions i mostrar contingut proper.";
+"permission.location.primer.subtitle" = "Permet usar la teva ubicació per etiquetar les teves publicacions i compartir-la als xats.";
 "permission.location.primer.allow" = "Permetre l'accés a la ubicació";
 "permission.location.primer.notNow" = "Ara no";
 "permission.location.denied.title" = "L'accés a la ubicació està desactivat";
-"permission.location.denied.subtitle" = "Activa la ubicació als Ajustos per etiquetar les teves publicacions i mostrar contingut proper.";
+"permission.location.denied.subtitle" = "Activa la ubicació als Ajustos per etiquetar les teves publicacions i compartir-la als xats.";
 "permission.location.denied.openSettings" = "Obrir Ajustos";
 "permission.location.always.primer.title" = "Comparteix la ubicació en viu";
 "permission.location.always.primer.subtitle" = "Permet Sempre perquè els amics vegin la teva ubicació en viu encara que Moments estigui en segon pla.";

@@ -295,7 +295,8 @@ struct StoryEditingView: View {
                             gradientAngle: $storyGradientAngle,
                             selectedGradientStopIndex: $storySelectedGradientStopIndex,
                             forcesAllCaps: $storyForcesAllCaps,
-                            mediaSampleImage: currentStorySampleImage()
+                            mediaSampleImage: currentStorySampleImage(),
+                            onCancel: cancelTextEditing
                         )
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                         .zIndex(40)
@@ -2719,6 +2720,16 @@ struct StoryEditingView: View {
         activeTextOverlayId = nil
     }
 
+    private func cancelTextEditing() {
+        if let id = activeTextOverlayId {
+            textOverlays.removeAll { $0.id == id && $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        }
+        // Clear the active ID before leaving text mode so its observer cannot commit the draft.
+        activeTextOverlayId = nil
+        storyText = ""
+        activeEditorMode = .idle
+    }
+
     private func commitActiveTextOverlayIfNeeded(canvasSize: CGSize) {
         guard let activeTextOverlayId else { return }
         let trimmed = storyText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2738,7 +2749,7 @@ struct StoryEditingView: View {
         let preservedRotation = textOverlays.first(where: { $0.id == activeTextOverlayId })?.rotationRadians ?? 0
         let updated = StoryTextOverlayDraft(
             id: activeTextOverlayId,
-            text: trimmed,
+            text: storyText,
             position: seededPosition,
             style: selectedTextStyle,
             visualEffect: selectedVisualEffect,

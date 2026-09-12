@@ -3362,7 +3362,9 @@
 "privacyPolicy.section.messages.title" = "6. メッセージとコミュニケーション";
 "privacyPolicy.section.messages.body" = "メッセージ機能を提供するため、会話、メッセージリクエスト、参加者、タイムスタンプ、既読情報、メディアファイル、一時メッセージ、共有コンテンツを処理します。\n\nメッセージや機密データを保護するため、暗号化やセキュリティ対策を実施しています。ただし、一部のメタデータ、メディアファイルのURL、サービス提供に必要な情報は、別途保存・処理される場合があります。\n\n会話でライブ位置情報を共有することを選択した場合、共有セッションが終了または期限切れになるまで、その位置情報を処理します。";
 "privacyPolicy.section.permissions.title" = "7. デバイスのアクセス許可";
-"privacyPolicy.section.permissions.body" = "特定の機能に必要な場合にのみ、アクセス許可を求めます。写真や動画の作成にはカメラ、コンテンツのアップロードや保存には写真ライブラリ、音声にはマイク、投稿への位置情報の追加、地図や近くのコンテンツの表示、任意のNovaコンテキストには位置情報を使用します。\n\niOSの設定から、これらのアクセス許可を変更できます。オフにすると、一部の機能を利用できなくなる場合があります。";
+"privacyPolicy.section.permissions.body" = "特定の機能に必要な場合にのみ、アクセス許可を求めます。写真や動画の作成にはカメラ、コンテンツのアップロードや保存には写真ライブラリ、音声にはマイク、投稿への位置情報の追加、地図の表示、チャットでの共有、任意のNovaコンテキストには位置情報を使用します。
+
+iOSの設定から、これらのアクセス許可を変更できます。オフにすると、一部の機能を利用できなくなる場合があります。";
 "privacyPolicy.section.ads.title" = "8. 広告と同意";
 "privacyPolicy.section.ads.body" = "Momentsでは、Google AdMobを通じて広告を表示する場合があります。地域や設定によっては、GoogleのプライバシーフォームやAppleのトラッキング許可を通じて同意を求めることがあります。\n\n同意した場合、広告識別子や許可されたシグナルを使って広告がパーソナライズされることがあります。同意しない場合は、パーソナライズされていない広告や、表示が制限された広告が表示されることがあります。また、集計による効果測定のためにSKAdNetworkなどの類似技術も使用します。";
 "privacyPolicy.section.moderation.title" = "9. 安全対策、報告、モデレーション";
@@ -4155,11 +4157,11 @@
 "permission.photos.denied.subtitle" = "ストーリーズ、Moments、プロフィールで写真を共有するには、「設定」で写真へのアクセスをオンにしてください。";
 "permission.photos.denied.openSettings" = "設定を開く";
 "permission.location.primer.title" = "位置情報をオンにする";
-"permission.location.primer.subtitle" = "投稿に位置情報を付けたり、近くの関連コンテンツを表示したりできるよう、位置情報へのアクセスを許可してください。";
+"permission.location.primer.subtitle" = "投稿に位置情報を付けたり、チャットで共有したりできるよう、位置情報へのアクセスを許可してください。";
 "permission.location.primer.allow" = "位置情報へのアクセスを許可";
 "permission.location.primer.notNow" = "今はしない";
 "permission.location.denied.title" = "位置情報へのアクセスがオフです";
-"permission.location.denied.subtitle" = "投稿に位置情報を付けたり、近くの関連コンテンツを表示したりするには、「設定」で位置情報をオンにしてください。";
+"permission.location.denied.subtitle" = "投稿に位置情報を付けたり、チャットで共有したりするには、「設定」で位置情報をオンにしてください。";
 "permission.location.denied.openSettings" = "設定を開く";
 "permission.location.always.primer.title" = "ライブ位置情報を共有";
 "permission.location.always.primer.subtitle" = "Momentsがバックグラウンドで動作しているときも友達にライブ位置情報を表示するには、「常に許可」を選択してください。";

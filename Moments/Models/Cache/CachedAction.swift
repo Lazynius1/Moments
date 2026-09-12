@@ -6,6 +6,8 @@ import SwiftData
 
 @Model
 final class CachedAction {
+    #Index<CachedAction>([\.status, \.createdAt])
+
     @Attribute(.unique) var id: String
     var type: String          // "moment_upload", "story_upload", "message", "reaction"
     var status: String        // "pending", "executing", "failed"

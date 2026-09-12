@@ -3,6 +3,8 @@ import SwiftData
 
 @Model
 final class CachedConnection {
+    #Index<CachedConnection>([\.userId, \.type], [\.userId, \.targetId])
+
     @Attribute(.unique) var id: String // composite key: userId_targetId_type
     var userId: String
     var targetId: String

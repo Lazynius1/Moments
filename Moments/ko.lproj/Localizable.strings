@@ -3362,7 +3362,9 @@
 "privacyPolicy.section.messages.title" = "6. 메시지 및 커뮤니케이션";
 "privacyPolicy.section.messages.body" = "메시지 기능을 제공하기 위해 대화, 메시지 요청, 참여자, 타임스탬프, 읽음 확인, 미디어 파일, 사라지는 메시지 및 공유된 콘텐츠를 처리해요.\n\n메시지와 민감한 데이터를 보호하기 위해 암호화 및 보안 조치를 적용해요. 다만 일부 메타데이터, 미디어 파일 URL 또는 서비스 제공에 필요한 정보는 별도로 저장되고 처리될 수 있어요.\n\n대화에서 실시간 위치 공유를 선택하면 공유 세션이 종료되거나 만료될 때까지 해당 위치 정보를 처리해요.";
 "privacyPolicy.section.permissions.title" = "7. 기기 권한";
-"privacyPolicy.section.permissions.body" = "특정 기능에 필요한 경우에만 권한을 요청해요. 사진이나 동영상을 만들 때는 카메라, 콘텐츠를 업로드하거나 저장할 때는 사진 보관함, 오디오 기능에는 마이크, 게시물에 위치를 표시하거나 지도와 주변 콘텐츠 및 선택적 Nova 정보를 표시할 때는 위치 권한이 필요해요.\n\n이 권한은 iOS 설정에서 변경할 수 있어요. 권한을 끄면 일부 기능을 이용하지 못할 수 있어요.";
+"privacyPolicy.section.permissions.body" = "특정 기능에 필요한 경우에만 권한을 요청해요. 사진이나 동영상을 만들 때는 카메라, 콘텐츠를 업로드하거나 저장할 때는 사진 보관함, 오디오 기능에는 마이크, 게시물에 위치를 표시하거나 지도를 보고 채팅에서 공유할 때와 선택적 Nova 정보에는 위치 권한이 필요해요.
+
+이 권한은 iOS 설정에서 변경할 수 있어요. 권한을 끄면 일부 기능을 이용하지 못할 수 있어요.";
 "privacyPolicy.section.ads.title" = "8. 광고 및 동의";
 "privacyPolicy.section.ads.body" = "Moments는 Google AdMob을 통해 광고를 표시할 수 있어요. 지역과 설정에 따라 Google의 개인정보 보호 양식과 Apple의 추적 권한 요청을 통해 동의를 요청할 수 있어요.\n\n동의하면 광고 식별자와 허용된 신호를 사용해 광고가 맞춤형으로 표시될 수 있어요. 동의하지 않으면 맞춤 설정되지 않은 광고 또는 제한된 광고가 표시될 수 있어요. 또한 통합 측정을 위해 SKAdNetwork 및 유사한 기술을 사용해요.";
 "privacyPolicy.section.moderation.title" = "9. 안전, 신고 및 검토";
@@ -4155,11 +4157,11 @@
 "permission.photos.denied.subtitle" = "스토리, 모먼츠, 프로필에서 사진을 공유하려면 설정에서 사진 접근을 켜 주세요.";
 "permission.photos.denied.openSettings" = "설정 열기";
 "permission.location.primer.title" = "위치 켜기";
-"permission.location.primer.subtitle" = "게시물에 위치를 태그하고 주변의 관련 콘텐츠를 보려면 위치 접근을 허용해 주세요.";
+"permission.location.primer.subtitle" = "게시물에 위치를 태그하고 채팅에서 공유하려면 위치 접근을 허용해 주세요.";
 "permission.location.primer.allow" = "위치 접근 허용";
 "permission.location.primer.notNow" = "나중에";
 "permission.location.denied.title" = "위치 접근이 꺼져 있어요";
-"permission.location.denied.subtitle" = "게시물에 위치를 태그하고 주변의 관련 콘텐츠를 보려면 설정에서 위치를 켜 주세요.";
+"permission.location.denied.subtitle" = "게시물에 위치를 태그하고 채팅에서 공유하려면 설정에서 위치를 켜 주세요.";
 "permission.location.denied.openSettings" = "설정 열기";
 "permission.location.always.primer.title" = "실시간 위치 공유";
 "permission.location.always.primer.subtitle" = "Moments가 백그라운드에 있어도 친구들이 실시간 위치를 볼 수 있도록 '항상 허용'을 선택해 주세요.";

@@ -439,6 +439,26 @@ struct ShareRecipientsPickerSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            ScrollView {
+                recipientsListContent
+            }
+            .momentsSheetScrollHeader(maximumContentHeight: flexibleListHeight ? nil : 350) {
+                recipientsHeader
+            }
+
+            SendActionBottomBar(
+                selectedCount: selectedUsers.count,
+                onSend: {
+                    onSend(selectedUsers, conversations)
+                }
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: flexibleListHeight ? .infinity : nil, alignment: .top)
+        .onAppear(perform: loadConversations)
+    }
+
+    private var recipientsHeader: some View {
+        VStack(spacing: 0) {
             header
 
             HStack(spacing: 12) {
@@ -489,20 +509,7 @@ struct ShareRecipientsPickerSheet: View {
             }
             .padding(.bottom, 16)
 
-            ScrollView {
-                recipientsListContent
-            }
-            .applyRecipientsListHeight(flexible: flexibleListHeight)
-
-            SendActionBottomBar(
-                selectedCount: selectedUsers.count,
-                onSend: {
-                    onSend(selectedUsers, conversations)
-                }
-            )
         }
-        .frame(maxWidth: .infinity, maxHeight: flexibleListHeight ? .infinity : nil, alignment: .top)
-        .onAppear(perform: loadConversations)
     }
 
     @ViewBuilder

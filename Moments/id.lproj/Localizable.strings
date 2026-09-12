@@ -3362,7 +3362,9 @@
 "privacyPolicy.section.messages.title" = "6. Pesan dan komunikasi";
 "privacyPolicy.section.messages.body" = "Kami memproses percakapan, permintaan pesan, peserta, waktu, tanda sudah dibaca, file media, pesan sementara, dan konten yang dibagikan untuk menyediakan layanan pesan.\n\nKami menerapkan enkripsi dan langkah-langkah keamanan untuk melindungi pesan serta data sensitif. Namun, beberapa metadata, URL file media, atau informasi yang diperlukan untuk menyediakan layanan dapat disimpan dan diproses secara terpisah.\n\nJika Anda memilih untuk membagikan lokasi secara langsung dalam percakapan, kami memproses lokasi tersebut sampai sesi berbagi berakhir atau kedaluwarsa.";
 "privacyPolicy.section.permissions.title" = "7. Izin perangkat";
-"privacyPolicy.section.permissions.body" = "Kami hanya meminta izin saat diperlukan untuk fitur tertentu: kamera untuk membuat foto atau video, perpustakaan foto untuk mengunggah atau menyimpan konten, mikrofon untuk audio, dan lokasi untuk menambahkan tag pada postingan, menampilkan peta, konten di sekitar, serta konteks Nova opsional.\n\nAnda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberapa fitur mungkin tidak tersedia.";
+"privacyPolicy.section.permissions.body" = "Kami hanya meminta izin saat diperlukan untuk fitur tertentu: kamera untuk membuat foto atau video, perpustakaan foto untuk mengunggah atau menyimpan konten, mikrofon untuk audio, dan lokasi untuk menandai postingan, menampilkan peta, serta membagikannya di chat, plus konteks Nova opsional.
+
+Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberapa fitur mungkin tidak tersedia.";
 "privacyPolicy.section.ads.title" = "8. Iklan dan persetujuan";
 "privacyPolicy.section.ads.body" = "Moments dapat menampilkan iklan melalui Google AdMob. Bergantung pada wilayah dan pengaturan Anda, kami mungkin meminta persetujuan melalui formulir privasi Google dan izin pelacakan Apple.\n\nJika Anda menyetujuinya, iklan dapat dipersonalisasi menggunakan pengenal iklan dan sinyal yang diizinkan. Jika Anda tidak menyetujuinya, kami dapat menampilkan iklan yang tidak dipersonalisasi atau terbatas. Kami juga menggunakan SKAdNetwork dan teknologi serupa untuk pengukuran gabungan.";
 "privacyPolicy.section.moderation.title" = "9. Keamanan, laporan, dan moderasi";
@@ -4155,11 +4157,11 @@
 "permission.photos.denied.subtitle" = "Aktifkan akses foto di Pengaturan agar kamu bisa membagikan foto di Story, momen, dan profilmu.";
 "permission.photos.denied.openSettings" = "Buka Pengaturan";
 "permission.location.primer.title" = "Aktifkan lokasi";
-"permission.location.primer.subtitle" = "Izinkan akses lokasi untuk menandai postinganmu dan menampilkan konten relevan di sekitar.";
+"permission.location.primer.subtitle" = "Izinkan akses lokasi untuk menandai postinganmu dan membagikannya di chat.";
 "permission.location.primer.allow" = "Izinkan akses lokasi";
 "permission.location.primer.notNow" = "Nanti saja";
 "permission.location.denied.title" = "Akses lokasi nonaktif";
-"permission.location.denied.subtitle" = "Aktifkan lokasi di Pengaturan untuk menandai postinganmu dan menampilkan konten relevan di sekitar.";
+"permission.location.denied.subtitle" = "Aktifkan lokasi di Pengaturan untuk menandai postinganmu dan membagikannya di chat.";
 "permission.location.denied.openSettings" = "Buka Pengaturan";
 "permission.location.always.primer.title" = "Bagikan lokasi langsung";
 "permission.location.always.primer.subtitle" = "Izinkan Selalu agar teman-teman bisa melihat lokasi langsungmu meski Moments berjalan di latar belakang.";

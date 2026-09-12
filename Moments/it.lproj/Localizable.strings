@@ -3566,7 +3566,9 @@ Applichiamo crittografia e misure di sicurezza per proteggere messaggi e dati se
 
 Se scegli di condividere la posizione in tempo reale in una conversazione, trattiamo quella posizione fino al termine o alla scadenza della sessione di condivisione.";
 "privacyPolicy.section.permissions.title" = "7. Permessi del dispositivo";
-"privacyPolicy.section.permissions.body" = "Richiediamo i permessi solo quando servono per una funzione specifica: fotocamera per creare foto o video, libreria foto per caricare o salvare contenuti, microfono per l'audio e posizione per taggare i post, mostrare mappe, contenuti vicini e contesto opzionale per Nova.\n\nPuoi modificare questi permessi nelle Impostazioni di iOS. Se li disattivi, alcune funzioni potrebbero non essere più disponibili.";
+"privacyPolicy.section.permissions.body" = "Richiediamo i permessi solo quando servono per una funzione specifica: fotocamera per creare foto o video, libreria foto per caricare o salvare contenuti, microfono per l’audio e posizione per taggare i post, mostrare mappe e condividerla nelle chat, più contesto opzionale per Nova.
+
+Puoi modificare questi permessi nelle Impostazioni iOS. Se li disattivi, alcune funzioni potrebbero non essere più disponibili.";
 "privacyPolicy.section.ads.title" = "8. Pubblicità e consenso";
 "privacyPolicy.section.ads.body" = "Moments può mostrare annunci tramite Google AdMob. A seconda della tua regione e delle impostazioni, potremmo chiederti il consenso tramite il modulo privacy di Google e il permesso di tracciamento di Apple.\n\nSe accetti, gli annunci possono essere personalizzati usando identificatori pubblicitari e segnali consentiti. Se non accetti, potremmo mostrare annunci non personalizzati o limitati. Usiamo anche SKAdNetwork e tecnologie simili per misurazioni aggregate.";
 "privacyPolicy.section.moderation.title" = "9. Sicurezza, segnalazioni e moderazione";
@@ -4371,11 +4373,11 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "permission.photos.denied.subtitle" = "Attiva l’accesso alle foto nelle Impostazioni per condividere immagini nelle tue storie, nei momenti e nel profilo.";
 "permission.photos.denied.openSettings" = "Apri Impostazioni";
 "permission.location.primer.title" = "Attiva la posizione";
-"permission.location.primer.subtitle" = "Consenti l’accesso alla posizione per taggare i tuoi post e mostrare contenuti rilevanti nelle vicinanze.";
+"permission.location.primer.subtitle" = "Consenti l’accesso alla posizione per taggare i tuoi post e condividerla nelle chat.";
 "permission.location.primer.allow" = "Consenti accesso alla posizione";
 "permission.location.primer.notNow" = "Non ora";
 "permission.location.denied.title" = "L’accesso alla posizione è disattivato";
-"permission.location.denied.subtitle" = "Attiva la posizione nelle Impostazioni per taggare i tuoi post e mostrare contenuti nelle vicinanze.";
+"permission.location.denied.subtitle" = "Attiva la posizione nelle Impostazioni per taggare i tuoi post e condividerla nelle chat.";
 "permission.location.denied.openSettings" = "Apri Impostazioni";
 "permission.location.always.primer.title" = "Condividi la posizione in tempo reale";
 "permission.location.always.primer.subtitle" = "Consenti Sempre così gli amici possono vedere la tua posizione live anche quando Moments è in background.";

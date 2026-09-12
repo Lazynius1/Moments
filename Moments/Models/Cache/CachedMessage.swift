@@ -3,6 +3,8 @@ import SwiftData
 
 @Model
 final class CachedMessage {
+    #Index<CachedMessage>([\.conversationId, \.timestamp])
+
     @Attribute(.unique) var id: String
     var conversationId: String
     var senderId: String

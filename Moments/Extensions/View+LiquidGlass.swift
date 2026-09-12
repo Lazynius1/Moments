@@ -511,3 +511,74 @@ struct MomentsTabBarChromeBackground: View {
             .ignoresSafeArea(edges: .bottom)
     }
 }
+
+/// A pinned sheet header whose backdrop appears only as content scrolls underneath it.
+private struct MomentsSheetScrollHeaderModifier<Header: View>: ViewModifier {
+    let header: Header
+    var maximumContentHeight: CGFloat?
+    @State private var headerHeight: CGFloat = 0
+    @State private var scrollProgress: CGFloat = 0
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .safeAreaBar(edge: .top, spacing: 0) {
+                    measuredHeader
+                }
+                .scrollEdgeEffectStyle(.soft, for: .top)
+                .frame(maxHeight: maximumContentHeight.map { $0 + headerHeight })
+        } else {
+            content
+                .contentMargins(.top, headerHeight, for: .scrollContent)
+                .frame(maxHeight: maximumContentHeight.map { $0 + headerHeight })
+                .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                    min(1, max(0, (geometry.contentOffset.y + geometry.contentInsets.top) / 36))
+                } action: { _, progress in
+                    scrollProgress = progress
+                }
+                .overlay(alignment: .top) {
+                    measuredHeader
+                        .background(alignment: .top) {
+                            Group {
+                                if reduceTransparency {
+                                    Rectangle().fill(Color(uiColor: .systemBackground))
+                                } else {
+                                    Rectangle().fill(.ultraThinMaterial)
+                                }
+                            }
+                            .frame(height: headerHeight + 28)
+                            .mask {
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .black, location: 0),
+                                        .init(color: .black, location: 0.65),
+                                        .init(color: .clear, location: 1)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            }
+                            .opacity(scrollProgress)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                        }
+                }
+        }
+    }
+
+    private var measuredHeader: some View {
+        header
+            .frame(maxWidth: .infinity)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                if abs(headerHeight - height) > 0.5 { headerHeight = height }
+            }
+    }
+}
+
+extension View {
+    /// Apply directly to the vertical ScrollView; its content keeps scrolling behind the header.
+    func momentsSheetScrollHeader<Header: View>(maximumContentHeight: CGFloat? = nil, @ViewBuilder header: () -> Header) -> some View {
+        modifier(MomentsSheetScrollHeaderModifier(header: header(), maximumContentHeight: maximumContentHeight))
+    }
+}

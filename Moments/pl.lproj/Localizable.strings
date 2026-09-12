@@ -3362,7 +3362,9 @@
 "privacyPolicy.section.messages.title" = "6. Wiadomości i komunikacja";
 "privacyPolicy.section.messages.body" = "Przetwarzamy rozmowy, prośby o wiadomość, uczestników, znaczniki czasu, potwierdzenia odczytania, pliki multimedialne, wiadomości znikające i udostępniane treści, aby zapewnić działanie komunikatora.\n\nStosujemy szyfrowanie i środki bezpieczeństwa, aby chronić wiadomości oraz poufne dane. Niektóre metadane, adresy URL plików multimedialnych lub informacje potrzebne do świadczenia usługi mogą być jednak przechowywane i przetwarzane oddzielnie.\n\nJeśli zdecydujesz się udostępnić w rozmowie swoją lokalizację na żywo, będziemy ją przetwarzać do zakończenia lub wygaśnięcia sesji udostępniania.";
 "privacyPolicy.section.permissions.title" = "7. Uprawnienia urządzenia";
-"privacyPolicy.section.permissions.body" = "Prosimy o uprawnienia tylko wtedy, gdy są potrzebne do konkretnej funkcji: aparat do tworzenia zdjęć lub filmów, biblioteka zdjęć do przesyłania lub zapisywania treści, mikrofon do obsługi dźwięku oraz lokalizacja do oznaczania postów, wyświetlania map, treści w pobliżu i opcjonalnego kontekstu dla Nova.\n\nMożesz zmienić te uprawnienia w Ustawieniach iOS. Jeśli je wyłączysz, niektóre funkcje mogą przestać być dostępne.";
+"privacyPolicy.section.permissions.body" = "Prosimy o uprawnienia tylko wtedy, gdy są potrzebne do konkretnej funkcji: aparat do tworzenia zdjęć lub filmów, biblioteka zdjęć do przesyłania lub zapisywania treści, mikrofon do obsługi dźwięku oraz lokalizacja do oznaczania postów, wyświetlania map i udostępniania jej na czatach, a także opcjonalnego kontekstu dla Nova.
+
+Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niektóre funkcje mogą przestać być dostępne.";
 "privacyPolicy.section.ads.title" = "8. Reklamy i zgoda";
 "privacyPolicy.section.ads.body" = "Moments może wyświetlać reklamy za pośrednictwem Google AdMob. W zależności od regionu i ustawień możemy poprosić Cię o zgodę za pomocą formularza Google dotyczącego prywatności oraz systemowego pytania Apple o zgodę na śledzenie.\n\nJeśli wyrazisz zgodę, reklamy mogą być personalizowane na podstawie identyfikatorów reklamowych i dozwolonych sygnałów. Jeśli nie wyrazisz zgody, możemy wyświetlać reklamy niespersonalizowane lub ograniczone. Korzystamy również z SKAdNetwork i podobnych technologii do pomiarów zbiorczych.";
 "privacyPolicy.section.moderation.title" = "9. Bezpieczeństwo, zgłoszenia i moderacja";
@@ -4155,11 +4157,11 @@
 "permission.photos.denied.subtitle" = "Włącz dostęp do zdjęć w Ustawieniach, aby udostępniać je w relacjach, momentach i profilu.";
 "permission.photos.denied.openSettings" = "Otwórz Ustawienia";
 "permission.location.primer.title" = "Włącz lokalizację";
-"permission.location.primer.subtitle" = "Zezwól na dostęp do lokalizacji, aby oznaczać nią swoje posty i wyświetlać trafne treści w pobliżu.";
+"permission.location.primer.subtitle" = "Zezwól na dostęp do lokalizacji, aby oznaczać nią swoje posty i udostępniać ją na czatach.";
 "permission.location.primer.allow" = "Zezwól na dostęp do lokalizacji";
 "permission.location.primer.notNow" = "Nie teraz";
 "permission.location.denied.title" = "Dostęp do lokalizacji jest wyłączony";
-"permission.location.denied.subtitle" = "Włącz lokalizację w Ustawieniach, aby oznaczać nią swoje posty i wyświetlać trafne treści w pobliżu.";
+"permission.location.denied.subtitle" = "Włącz lokalizację w Ustawieniach, aby oznaczać nią swoje posty i udostępniać ją na czatach.";
 "permission.location.denied.openSettings" = "Otwórz Ustawienia";
 "permission.location.always.primer.title" = "Udostępniaj lokalizację na żywo";
 "permission.location.always.primer.subtitle" = "Wybierz „Zawsze”, aby znajomi mogli widzieć Twoją lokalizację na żywo, nawet gdy Moments działa w tle.";

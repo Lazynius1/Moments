@@ -462,6 +462,10 @@ struct MediaSelectionView: View {
         Task {
             let fetchOptions = PHFetchOptions()
             fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            // Mantiene el mismo máximo que la biblioteca principal y Android.
+            // Sin este límite, abrir un álbum grande materializaba toda su
+            // colección antes de que el grid pudiera mostrar los primeros ítems.
+            fetchOptions.fetchLimit = 500
 
             let assets = PHAsset.fetchAssets(in: album.assetCollection, options: fetchOptions)
             var assetArray: [PHAsset] = []

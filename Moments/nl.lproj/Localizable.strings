@@ -3362,7 +3362,9 @@
 "privacyPolicy.section.messages.title" = "6. Berichten en communicatie";
 "privacyPolicy.section.messages.body" = "We verwerken gesprekken, berichtverzoeken, deelnemers, tijdstempels, leesbevestigingen, mediabestanden, verdwijnende berichten en gedeelde content om berichten te kunnen aanbieden.\n\nWe gebruiken versleuteling en beveiligingsmaatregelen om berichten en gevoelige gegevens te beschermen. Sommige metadata, URL's van mediabestanden of informatie die nodig is om de dienst te leveren, kunnen echter afzonderlijk worden opgeslagen en verwerkt.\n\nAls je ervoor kiest om je live locatie in een gesprek te delen, verwerken we die locatie totdat de deelsessie eindigt of verloopt.";
 "privacyPolicy.section.permissions.title" = "7. Toestemmingen op je apparaat";
-"privacyPolicy.section.permissions.body" = "We vragen alleen om toestemmingen wanneer die nodig zijn voor een specifieke functie: de camera om foto's of video's te maken, je fotobibliotheek om content te uploaden of op te slaan, de microfoon voor audio en je locatie om berichten van een locatie te voorzien, kaarten en content in de buurt te tonen en optionele context voor Nova te bieden.\n\nJe kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakelt, zijn sommige functies mogelijk niet meer beschikbaar.";
+"privacyPolicy.section.permissions.body" = "We vragen alleen om toestemmingen wanneer die nodig zijn voor een specifieke functie: de camera om foto’s of video’s te maken, je fotobibliotheek om content te uploaden of op te slaan, je microfoon voor audio en je locatie om berichten te taggen, kaarten te tonen en die in chats te delen, plus optionele context voor Nova.
+
+Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakelt, zijn sommige functies mogelijk niet meer beschikbaar.";
 "privacyPolicy.section.ads.title" = "8. Advertenties en toestemming";
 "privacyPolicy.section.ads.body" = "Moments kan advertenties tonen via Google AdMob. Afhankelijk van je regio en instellingen kunnen we je om toestemming vragen via het privacyformulier van Google en de trackingtoestemming van Apple.\n\nAls je akkoord gaat, kunnen advertenties worden gepersonaliseerd met behulp van advertentie-ID's en toegestane signalen. Als je niet akkoord gaat, kunnen we niet-gepersonaliseerde of beperkte advertenties tonen. We gebruiken ook SKAdNetwork en vergelijkbare technologieën voor geaggregeerde metingen.";
 "privacyPolicy.section.moderation.title" = "9. Veiligheid, meldingen en moderatie";
@@ -4155,11 +4157,11 @@
 "permission.photos.denied.subtitle" = "Schakel toegang tot je foto's in via Instellingen om foto's te delen in je stories, momenten en profiel.";
 "permission.photos.denied.openSettings" = "Instellingen openen";
 "permission.location.primer.title" = "Locatie inschakelen";
-"permission.location.primer.subtitle" = "Geef toegang tot je locatie om je berichten te taggen en relevante content in de buurt te tonen.";
+"permission.location.primer.subtitle" = "Geef toegang tot je locatie om je berichten te taggen en die in chats te delen.";
 "permission.location.primer.allow" = "Locatietoegang toestaan";
 "permission.location.primer.notNow" = "Niet nu";
 "permission.location.denied.title" = "Locatietoegang staat uit";
-"permission.location.denied.subtitle" = "Schakel je locatie in via Instellingen om je berichten te taggen en relevante content in de buurt te tonen.";
+"permission.location.denied.subtitle" = "Schakel je locatie in via Instellingen om je berichten te taggen en die in chats te delen.";
 "permission.location.denied.openSettings" = "Instellingen openen";
 "permission.location.always.primer.title" = "Live locatie delen";
 "permission.location.always.primer.subtitle" = "Kies 'Altijd toestaan', zodat vrienden je live locatie kunnen zien, ook als Moments op de achtergrond actief is.";

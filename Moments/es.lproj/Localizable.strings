@@ -3684,7 +3684,9 @@ Aplicamos cifrado y medidas de seguridad para proteger mensajes y datos sensible
 
 Si decides compartir ubicación en vivo en una conversación, tratamos esa ubicación hasta que la sesión de compartición termine o expire.";
 "privacyPolicy.section.permissions.title" = "7. Permisos del dispositivo";
-"privacyPolicy.section.permissions.body" = "Pedimos permisos solo cuando son necesarios para una función concreta: cámara para crear fotos o vídeos, galería para subir o guardar contenido, micrófono para audio, ubicación para etiquetar publicaciones, mapas, contenido cercano y contexto opcional de Nova.\n\nPuedes cambiar estos permisos desde los ajustes de iOS. Si los desactivas, algunas funciones pueden dejar de estar disponibles.";
+"privacyPolicy.section.permissions.body" = "Pedimos permisos solo cuando son necesarios para una función concreta: cámara para crear fotos o vídeos, galería para subir o guardar contenido, micrófono para audio, ubicación para etiquetar publicaciones, mapas y compartirla en chats, más contexto opcional de Nova.
+
+Puedes cambiar estos permisos desde los ajustes de iOS. Si los desactivas, algunas funciones pueden dejar de estar disponibles.";
 "privacyPolicy.section.ads.title" = "8. Publicidad y consentimiento";
 "privacyPolicy.section.ads.body" = "Moments puede mostrar anuncios mediante Google AdMob. Según tu región y ajustes, podemos pedir consentimiento mediante el formulario de privacidad de Google y el permiso de rastreo de Apple.\n\nSi aceptas, los anuncios pueden ser personalizados usando identificadores publicitarios y señales permitidas. Si no aceptas, podemos mostrar anuncios no personalizados o limitados. También usamos SKAdNetwork y tecnologías similares para medición agregada.";
 "privacyPolicy.section.moderation.title" = "9. Seguridad, reportes y moderación";
@@ -4504,11 +4506,11 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "permission.photos.denied.openSettings" = "Abrir Ajustes";
 
 "permission.location.primer.title" = "Activa la ubicación";
-"permission.location.primer.subtitle" = "Permite usar tu ubicación para etiquetar tus publicaciones y mostrar contenido cercano.";
+"permission.location.primer.subtitle" = "Permite usar tu ubicación para etiquetar tus publicaciones y compartirla en los chats.";
 "permission.location.primer.allow" = "Permitir la ubicación";
 "permission.location.primer.notNow" = "Ahora no";
 "permission.location.denied.title" = "La ubicación está desactivada";
-"permission.location.denied.subtitle" = "Activa la ubicación en Ajustes para etiquetar tus publicaciones y mostrar contenido cercano.";
+"permission.location.denied.subtitle" = "Activa la ubicación en Ajustes para etiquetar tus publicaciones y compartirla en los chats.";
 "permission.location.denied.openSettings" = "Abrir Ajustes";
 "permission.location.always.primer.title" = "Comparte ubicación en vivo";
 "permission.location.always.primer.subtitle" = "Permite Siempre para que tus amigos vean tu ubicación en vivo aunque Moments esté en segundo plano.";

@@ -264,7 +264,7 @@ struct ModernTabView: View {
             }
             // Explore: custom floating bar (no native .search role chrome)
             Tab(NSLocalizedString("tabBar.explore", comment: ""), systemImage: "magnifyingglass", value: AppTab.explore) {
-                ExploreView()
+                ExploreView(isTabActive: modernTab == .explore)
                     .environmentObject(exploreViewModel)
                     .hideNativeTabBar()
             }
@@ -347,7 +347,7 @@ struct ModernTabView: View {
             .hideNativeTabBar()
             .tag(1)
             Color.clear.hideNativeTabBar().tag(2)
-            ExploreView()
+            ExploreView(isTabActive: selectedTab == 3)
                 .environmentObject(exploreViewModel)
                 .hideNativeTabBar()
                 .tag(3)

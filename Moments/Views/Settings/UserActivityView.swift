@@ -8,8 +8,6 @@ import AVFoundation
 struct UserActivityView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var summaryVM = ActivitySummaryViewModel()
-
     var body: some View {
         ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
@@ -64,10 +62,6 @@ struct UserActivityView: View {
                     .padding(.top, 16)
                     .padding(.bottom, 24)
                 }
-                .momentRefresh {
-                    summaryVM.load()
-                    try? await Task.sleep(nanoseconds: 400_000_000)
-                }
             }
             .navigationTitle(NSLocalizedString("userActivity.title", comment: "User activity title"))
             .navigationBarTitleDisplayMode(.inline)
@@ -75,10 +69,6 @@ struct UserActivityView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     SettingsToolbarBackButton(action: { dismiss() })
                 }
-            }
-            .onAppear {
-                summaryVM.load()
-                summaryVM.autoRefresh()
             }
         .settingsSubsectionNavigationChrome(colorScheme: colorScheme)
     }
@@ -96,8 +86,7 @@ struct UserActivityView: View {
                         activityDestination(for: category)
                     } label: {
                         ActivityInteractionCategoryRow(
-                            category: category,
-                            summary: summaryVM.summaries[category]
+                            category: category
                         )
                     }
                     .buttonStyle(.momentsPressSubtle)

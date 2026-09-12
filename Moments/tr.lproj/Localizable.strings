@@ -3362,7 +3362,9 @@
 "privacyPolicy.section.messages.title" = "6. Mesajlar ve iletişim";
 "privacyPolicy.section.messages.body" = "Mesajlaşma hizmetini sunabilmek için sohbetleri, mesaj isteklerini, katılımcıları, zaman bilgilerini, okundu bilgilerini, medya dosyalarını, geçici mesajları ve paylaşılan içerikleri işleriz.\n\nMesajları ve hassas verileri korumak için şifreleme ve güvenlik önlemleri kullanırız. Ancak bazı üst veriler, medya dosyası URL'leri veya hizmeti sunmak için gereken bilgiler ayrı olarak saklanabilir ve işlenebilir.\n\nBir sohbette canlı konumunuzu paylaşmayı seçerseniz, paylaşım oturumu sona erene veya süresi dolana kadar bu konumu işleriz.";
 "privacyPolicy.section.permissions.title" = "7. Cihaz izinleri";
-"privacyPolicy.section.permissions.body" = "İzinleri yalnızca belirli bir özellik için gerektiğinde isteriz: fotoğraf veya video çekmek için kamera, içerik yüklemek veya kaydetmek için fotoğraf arşivi, ses için mikrofon ve gönderilere konum eklemek, haritaları ve yakındaki içerikleri göstermek ve isteğe bağlı Nova bağlamı için konum.\n\nBu izinleri iOS Ayarları'ndan değiştirebilirsiniz. İzinleri kapatırsanız bazı özellikler kullanılamayabilir.";
+"privacyPolicy.section.permissions.body" = "İzinleri yalnızca belirli bir özellik için gerektiğinde isteriz: fotoğraf veya video çekmek için kamera, içerik yüklemek veya kaydetmek için fotoğraf arşivi, ses için mikrofon ve gönderilere konum eklemek, haritaları göstermek ve sohbetlerde paylaşmak ile isteğe bağlı Nova bağlamı için konum.
+
+Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız bazı özellikler kullanılamayabilir.";
 "privacyPolicy.section.ads.title" = "8. Reklamlar ve izinler";
 "privacyPolicy.section.ads.body" = "Moments, Google AdMob aracılığıyla reklam gösterebilir. Bölgenize ve ayarlarınıza bağlı olarak Google'ın gizlilik formu ve Apple'ın izleme izni aracılığıyla sizden izin isteyebiliriz.\n\nOnay verirseniz reklamlar, reklam tanımlayıcıları ve izin verilen sinyaller kullanılarak kişiselleştirilebilir. Onay vermezseniz kişiselleştirilmemiş veya sınırlı reklamlar gösterebiliriz. Toplu ölçüm için SKAdNetwork ve benzer teknolojileri de kullanırız.";
 "privacyPolicy.section.moderation.title" = "9. Güvenlik, bildirimler ve moderasyon";
@@ -4155,11 +4157,11 @@
 "permission.photos.denied.subtitle" = "Hikâyelerinde, Moments paylaşımlarında ve profilinde fotoğraf paylaşmak için Ayarlar'dan fotoğraf erişimini aç.";
 "permission.photos.denied.openSettings" = "Ayarları Aç";
 "permission.location.primer.title" = "Konumunu aç";
-"permission.location.primer.subtitle" = "Gönderilerini konumla etiketlemek ve yakındaki alakalı içerikleri göstermek için konumuna erişime izin ver.";
+"permission.location.primer.subtitle" = "Gönderilerini konumla etiketlemek ve sohbetlerde paylaşmak için konumuna erişime izin ver.";
 "permission.location.primer.allow" = "Konum erişimine izin ver";
 "permission.location.primer.notNow" = "Şimdi değil";
 "permission.location.denied.title" = "Konum erişimi kapalı";
-"permission.location.denied.subtitle" = "Gönderilerini konumla etiketlemek ve yakındaki alakalı içerikleri göstermek için Ayarlar'dan konumunu aç.";
+"permission.location.denied.subtitle" = "Gönderilerini konumla etiketlemek ve sohbetlerde paylaşmak için Ayarlar'dan konumunu aç.";
 "permission.location.denied.openSettings" = "Ayarları Aç";
 "permission.location.always.primer.title" = "Canlı konumunu paylaş";
 "permission.location.always.primer.subtitle" = "Arkadaşların, Moments arka plandayken bile canlı konumunu görebilsin diye \"Her Zaman\" seçeneğine izin ver.";

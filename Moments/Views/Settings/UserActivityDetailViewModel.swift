@@ -13,11 +13,6 @@ struct ThumbInfo: Identifiable {
     let canView: Bool        // false → blur + lock icon
 }
 
-struct ActivityCategorySummary {
-    let count: Int
-    let thumbnails: [ThumbInfo]
-}
-
 final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sendable {
     @Published var isLoading = false
     @Published var errorMessage: String?

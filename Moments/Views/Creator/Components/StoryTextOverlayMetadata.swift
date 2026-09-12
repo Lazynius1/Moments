@@ -205,7 +205,7 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
 
         return StoryTextOverlayMetadata(
             id: id,
-            text: trimmed,
+            text: text,
             normalizedPosition: norm,
             layerOrder: layerOrder,
             styleRaw: style.rawValue,

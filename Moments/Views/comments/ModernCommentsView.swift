@@ -43,6 +43,9 @@ struct ModernCommentsView: View {
     @State private var isLoading = true
     @State private var commentsListener: ListenerRegistration?
     @State private var muteSettingsListener: ListenerRegistration?
+    @State private var commentsLoadingTask: Task<Void, Never>?
+    @State private var commentsListenerRefreshID = 0
+    @State private var loadedMomentID: String?
     @EnvironmentObject private var firestoreService: FirestoreService
     @EnvironmentObject private var authService: AuthService
     @Environment(\.dismiss) private var dismiss
@@ -83,10 +86,6 @@ struct ModernCommentsView: View {
             }
     }
     
-    private var totalCommentsCount: Int {
-        filteredComments.count
-    }
-    
     var body: some View {
         ZStack {
             modernBackgroundView.ignoresSafeArea()
@@ -115,15 +114,9 @@ struct ModernCommentsView: View {
                     Spacer()
                 }
             } else {
-                // UI normal de comentarios (código existente)
-                VStack(spacing: 0) {
-                    modernHeaderView
-                    
-                    ZStack(alignment: .bottom) {
-                        enhancedCommentsListView
-                            .padding(.bottom, 80) // Espacio para el input flotante
-                        
-                        // Input flotante
+                enhancedCommentsListView
+                    .momentsSheetScrollHeader { modernHeaderView }
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
                         VStack(spacing: 0) {
                             if let replyComment = replyToComment {
                                 replyIndicatorView(replyComment)
@@ -132,59 +125,23 @@ struct ModernCommentsView: View {
                             commentInputView
                         }
                     }
-                }
             }
         }
-        .onAppear {
-            
-            // ✅ NUEVO: Resetear estado antes de configurar listener
-            DispatchQueue.main.async {
-                self.isLoading = true
-                self.comments = []
-                self.commentsListener?.remove() // Remover listener anterior si existe
-            }
-            
-            // ✅ NUEVO: Pequeño delay para asegurar que el estado se resetee
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.setupMuteSettingsListener()
-                self.setupCommentsListener()
-            }
-        }
-        .task {
-            // ✅ NUEVO: Task adicional para asegurar inicialización
-            await initializeCommentsView()
+        .task(id: commentsListenerRefreshID) {
+            initializeCommentsView(clearExistingComments: loadedMomentID != moment.id)
+            loadedMomentID = moment.id
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            // ✅ NUEVO: Re-inicializar cuando la app vuelve a estar activa
-            Task {
-                await initializeCommentsView()
-            }
+            // Reinicia los listeners mediante la tarea estructurada de la vista.
+            commentsListenerRefreshID &+= 1
         }
-        .onChange(of: moment.id) { _, newMomentId in
-            
-            // ✅ NUEVO: Resetear estado cuando cambia el momento
-            DispatchQueue.main.async {
-                self.isLoading = true
-                self.comments = []
-                self.commentsListener?.remove()
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.setupMuteSettingsListener()
-                self.setupCommentsListener()
-            }
+        .onChange(of: moment.id) { _, _ in
+            commentsListenerRefreshID &+= 1
         }
         .onDisappear {
-            commentsListener?.remove()
-            muteSettingsListener?.remove()
-            
-            // ✅ NUEVO: Limpiar estado al desaparecer
-            DispatchQueue.main.async {
-                self.isLoading = false
-                self.comments = []
-                self.commentsListener = nil
-                self.muteSettingsListener = nil
-            }
+            stopCommentObservers()
+            isLoading = false
+            comments = []
         }
         .alert(NSLocalizedString("modernComments.delete.title", comment: "Delete comment"), isPresented: $showDeleteAlert) {
             Button(NSLocalizedString("modernComments.cancel", comment: "Cancel"), role: .cancel) { }
@@ -222,20 +179,6 @@ struct ModernCommentsView: View {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                             .scaleEffect(0.7)
-                    } else if !filteredComments.isEmpty {
-                        Text("\(totalCommentsCount)")
-                            .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                LinearGradient(
-                                    colors: [Color.blue, Color.purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .clipShape(Capsule())
                     }
                 }
 
@@ -781,6 +724,7 @@ struct ModernCommentsView: View {
                     .filter { !$0.isEmpty }
 
                 DispatchQueue.main.async {
+                    guard Auth.auth().currentUser?.uid == currentUserId else { return }
                     self.mutedUserIds = mutedUsers
                     self.mutedWordsNormalized = mutedWords
                 }
@@ -907,28 +851,13 @@ struct ModernCommentsView: View {
     
     private func setupCommentsListener() {
         guard let momentId = moment.id else {
-            DispatchQueue.main.async {
-                self.isLoading = false
-            }
+            isLoading = false
             return
         }
-        
-        
-        // ✅ NUEVO: Asegurar que isLoading esté en true
-        DispatchQueue.main.async {
-            self.isLoading = true
-        }
-        
-        // ✅ NUEVO: Timeout más corto para mejor UX
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-            if self.isLoading {
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                }
-            }
-        }
-        
-        // ✅ NUEVO: Remover listener anterior si existe
+
+        let listenerRefreshID = commentsListenerRefreshID
+        isLoading = true
+        scheduleCommentsLoadingTimeout()
         commentsListener?.remove()
         
         commentsListener = firestoreService.db
@@ -940,6 +869,9 @@ struct ModernCommentsView: View {
                 
                 if error != nil {
                     DispatchQueue.main.async {
+                        guard self.commentsListenerRefreshID == listenerRefreshID,
+                              self.moment.id == momentId else { return }
+                        self.commentsLoadingTask?.cancel()
                         self.isLoading = false
                     }
                     return
@@ -947,6 +879,9 @@ struct ModernCommentsView: View {
                 
                 guard let documents = snapshot?.documents else {
                     DispatchQueue.main.async {
+                        guard self.commentsListenerRefreshID == listenerRefreshID,
+                              self.moment.id == momentId else { return }
+                        self.commentsLoadingTask?.cancel()
                         self.comments = []
                         self.isLoading = false
                     }
@@ -965,6 +900,9 @@ struct ModernCommentsView: View {
                 }
                 
                 DispatchQueue.main.async {
+                    guard self.commentsListenerRefreshID == listenerRefreshID,
+                          self.moment.id == momentId else { return }
+                    self.commentsLoadingTask?.cancel()
                     self.comments = loadedComments
                     self.isLoading = false
                 }
@@ -976,21 +914,36 @@ struct ModernCommentsView: View {
         setupCommentsListener()
     }
     
-    // ✅ NUEVO: Método de inicialización robusto
-    private func initializeCommentsView() async {
-        
-        // Asegurar que el estado esté correcto
-        await MainActor.run {
-            self.isLoading = true
-            self.comments = []
-            self.commentsListener?.remove()
+    private func initializeCommentsView(clearExistingComments: Bool) {
+        stopCommentObservers()
+        if clearExistingComments {
+            comments = []
         }
-        
-        // Pequeño delay para asegurar que la vista esté lista
-        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 segundos
-        
-        await MainActor.run {
-            self.setupCommentsListener()
+
+        guard !moment.disableComments else {
+            isLoading = false
+            return
+        }
+
+        setupMuteSettingsListener()
+        setupCommentsListener()
+    }
+
+    private func stopCommentObservers() {
+        commentsLoadingTask?.cancel()
+        commentsLoadingTask = nil
+        commentsListener?.remove()
+        commentsListener = nil
+        muteSettingsListener?.remove()
+        muteSettingsListener = nil
+    }
+
+    private func scheduleCommentsLoadingTimeout() {
+        commentsLoadingTask?.cancel()
+        commentsLoadingTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard !Task.isCancelled else { return }
+            isLoading = false
         }
     }
     
@@ -1376,25 +1329,18 @@ struct EnhancedModernCommentRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 0) {
-                // ✅ Línea de conexión visual (Gradient)
+                // Línea de conexión neutra
                 if shouldShowConnectorLine {
                     VStack {
-                        // Gradiente que se desvanece
-                        LinearGradient(
-                            colors: [
-                                Color.blue.opacity(0.3),
-                                Color.purple.opacity(0.3)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                        Rectangle()
+                            .fill(Color.primary.opacity(colorScheme == .dark ? 0.18 : 0.12))
                         .frame(width: 2)
                         .padding(.leading, indentationWidth - 10)
                         
                         // Pequeño punto en la conexión (opcional, para detalle premium)
                         if nestingLevel > 0 {
                             Circle()
-                                .fill(Color.purple.opacity(0.5))
+                                .fill(Color.primary.opacity(colorScheme == .dark ? 0.28 : 0.22))
                                 .frame(width: 4, height: 4)
                                 .padding(.leading, indentationWidth - 11)
                                 .offset(y: -4)

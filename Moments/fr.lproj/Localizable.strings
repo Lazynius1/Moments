@@ -3566,7 +3566,9 @@ Nous appliquons des mesures de chiffrement et de sécurité pour protéger les m
 
 Si vous choisissez de partager votre localisation en direct dans une conversation, nous traitons cette localisation jusqu'à la fin ou l'expiration de la session de partage.";
 "privacyPolicy.section.permissions.title" = "7. Autorisations de l'appareil";
-"privacyPolicy.section.permissions.body" = "Nous demandons des autorisations uniquement lorsqu'elles sont nécessaires à une fonctionnalité précise : l'appareil photo pour créer des photos ou des vidéos, la photothèque pour importer ou enregistrer du contenu, le microphone pour l'audio, et la localisation pour identifier des publications, afficher des cartes, du contenu à proximité et un contexte optionnel pour Nova.\n\nVous pouvez modifier ces autorisations dans les Réglages iOS. Si vous les désactivez, certaines fonctionnalités peuvent ne plus être disponibles.";
+"privacyPolicy.section.permissions.body" = "Nous demandons des autorisations uniquement lorsqu’elles sont nécessaires à une fonctionnalité précise : l’appareil photo pour créer des photos ou des vidéos, la photothèque pour importer ou enregistrer du contenu, le microphone pour l’audio, et la localisation pour identifier des publications, afficher des cartes et la partager dans les chats, plus un contexte optionnel pour Nova.
+
+Vous pouvez modifier ces autorisations dans Réglages iOS. Si vous les désactivez, certaines fonctionnalités peuvent ne plus être disponibles.";
 "privacyPolicy.section.ads.title" = "8. Publicité et consentement";
 "privacyPolicy.section.ads.body" = "Moments peut afficher des publicités via Google AdMob. Selon votre région et vos paramètres, nous pouvons demander votre consentement via le formulaire de confidentialité de Google et la permission de suivi d'Apple.\n\nSi vous acceptez, les publicités peuvent être personnalisées à l'aide de votre identifiant publicitaire et de signaux autorisés. Si vous refusez, nous pouvons afficher des publicités non personnalisées ou limitées. Nous utilisons également SKAdNetwork et des technologies similaires pour la mesure agrégée.";
 "privacyPolicy.section.moderation.title" = "9. Sécurité, signalements et modération";
@@ -4371,11 +4373,11 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "permission.photos.denied.subtitle" = "Activez l’accès aux photos dans Réglages pour partager des images dans vos stories, vos moments et votre profil.";
 "permission.photos.denied.openSettings" = "Ouvrir Réglages";
 "permission.location.primer.title" = "Activez la localisation";
-"permission.location.primer.subtitle" = "Autorisez la localisation pour taguer vos publications et afficher du contenu pertinent à proximité.";
+"permission.location.primer.subtitle" = "Autorisez la localisation pour taguer vos publications et la partager dans les chats.";
 "permission.location.primer.allow" = "Autoriser la localisation";
 "permission.location.primer.notNow" = "Plus tard";
 "permission.location.denied.title" = "L’accès à la localisation est désactivé";
-"permission.location.denied.subtitle" = "Activez la localisation dans Réglages pour taguer vos publications et afficher du contenu à proximité.";
+"permission.location.denied.subtitle" = "Activez la localisation dans Réglages pour taguer vos publications et la partager dans les chats.";
 "permission.location.denied.openSettings" = "Ouvrir Réglages";
 "permission.location.always.primer.title" = "Partagez votre position en direct";
 "permission.location.always.primer.subtitle" = "Autorisez Toujours pour que vos amis voient votre position en direct même lorsque Moments est en arrière-plan.";

@@ -218,6 +218,15 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
             return
         }
 
+        // Al abrir un chat desde un aviso, retirar inmediatamente los demás avisos
+        // entregados de esa misma conversación. La activación del chat lo repite
+        // como respaldo si la ruta tarda en resolverse.
+        if response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+           ChatNotificationThread.isChatMessagePush(userInfo["type"] as? String),
+           let conversationId = ChatNotificationThread.conversationId(from: userInfo) {
+            ChatNotificationThread.clearDelivered(conversationId: conversationId)
+        }
+
         // ✅ USAR EL SERVICIO DE NAVEGACIÓN
         NotificationNavigationService.shared.handleNotificationData(userInfo)
         

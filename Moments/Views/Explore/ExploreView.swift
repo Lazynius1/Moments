@@ -10,6 +10,7 @@ struct ExploreView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = ExploreViewModel()
     @State private var searchText: String = ""
+    @FocusState private var isSearchFieldFocused: Bool
     @State private var didApplyInitialQuery = false
     @State private var showPrivateProfileAlert: Bool = false
     @Namespace private var zoomNamespace
@@ -21,10 +22,16 @@ struct ExploreView: View {
     @State private var showSuggestedUsersView = false
     let initialSearchQuery: String?
     let isDismissable: Bool
+    let isTabActive: Bool
 
-    init(initialSearchQuery: String? = nil, isDismissable: Bool = false) {
+    init(
+        initialSearchQuery: String? = nil,
+        isDismissable: Bool = false,
+        isTabActive: Bool = true
+    ) {
         self.initialSearchQuery = initialSearchQuery
         self.isDismissable = isDismissable
+        self.isTabActive = isTabActive
     }
 
     var body: some View {
@@ -46,6 +53,10 @@ struct ExploreView: View {
             }
             .onChange(of: searchText) { _, newValue in
                 viewModel.smartSearch(query: newValue)
+            }
+            .onChange(of: isTabActive) { wasActive, active in
+                guard wasActive, !active else { return }
+                clearSearchSession()
             }
             .onAppear(perform: handleExploreAppear)
             .alert("explore.privateProfile.title", isPresented: $showPrivateProfileAlert) {
@@ -83,6 +94,7 @@ struct ExploreView: View {
                 placement: .navigationBarDrawer(displayMode: .automatic),
                 prompt: NSLocalizedString("explore.search.placeholder", comment: "")
             )
+            .searchFocused($isSearchFieldFocused)
             .searchSuggestions {
                 exploreRecentSearchSuggestions
             }
@@ -98,6 +110,7 @@ struct ExploreView: View {
                     preset: .navigationBack,
                     action: {
                         ExploreHapticFeedback.impact(.light)
+                        clearSearchSession()
                         dismiss()
                     }
                 )
@@ -180,6 +193,11 @@ struct ExploreView: View {
         }
     }
 
+    private func clearSearchSession() {
+        isSearchFieldFocused = false
+        searchText = ""
+    }
+
     // MARK: - Componentes de la Vista
 
     private var backgroundGradient: some View {
@@ -199,6 +217,7 @@ struct ExploreView: View {
             Group {
                 if searchText.isEmpty && viewModel.isLoading && viewModel.moments.isEmpty && viewModel.errorMessage == nil {
                     LoadingStateView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else if let errorMessage = viewModel.errorMessage, viewModel.moments.isEmpty, searchText.isEmpty {
                     ErrorStateView(message: errorMessage) {
                         viewModel.fetchMomentsByInterests()
@@ -216,6 +235,7 @@ struct ExploreView: View {
                 .padding(.top, 8)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var contentScrollView: some View {
@@ -292,6 +312,7 @@ struct ExploreView: View {
             presentation: MomentZoomPresentationKind,
             zoomIDPrefix: String
         ) {
+            preserveSearchSessionForNavigation()
             ForYouPreferences.shared.recordOpenedMoment(moment)
             let resolvedIndex = moments.firstIndex(where: { $0.id == moment.id }) ?? index
             zoomDestination = MomentZoomDestination(
@@ -305,6 +326,13 @@ struct ExploreView: View {
                 presentation: presentation
             )
             HapticManager.shared.lightImpact()
+        }
+
+        /// Al volver desde un resultado conservamos la consulta y su lista,
+        /// pero no reabrimos el teclado automáticamente.
+        private func preserveSearchSessionForNavigation() {
+            guard !searchText.isEmpty else { return }
+            isSearchFieldFocused = false
         }
 
         private func momentsForZoomDestination(_ destination: MomentZoomDestination) -> [Moment] {
@@ -333,6 +361,7 @@ struct ExploreView: View {
                 currentUserInterests: viewModel.currentUserInterests,
                 onFollowUser: viewModel.followUser,
                 onUserTap: { user in
+                    preserveSearchSessionForNavigation()
                     selectedProfileRoute = FeedProfileSheetRoute(userId: user.id)
                     viewModel.checkCanViewContent(for: user.id) { _ in }
                     // ✅ Guardar en historial

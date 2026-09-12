@@ -518,21 +518,13 @@ struct ReactionsListSheet: View {
     }
 
     var body: some View {
-                        VStack(spacing: 0) {
-                    // Header con título
+        reactionsList
+            .momentsSheetScrollHeader {
+                VStack(spacing: 0) {
                     headerView
-                    
-                    // Searchbar para buscar usuarios
                     searchBarView
-                    
-                    // Contenido principal
-                    if isLoading { loadingView }
-                    else if filteredReactionGroups.isEmpty { 
-                        if reactionGroups.isEmpty { emptyStateView }
-                        else { noResultsView }
-                    }
-                    else { reactionsList }
                 }
+            }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .onReceive(NotificationCenter.default.publisher(for: FollowStateStore.didChangeNotification)) { notification in
@@ -636,8 +628,18 @@ struct ReactionsListSheet: View {
     private var reactionsList: some View {
         ScrollView {
             LazyVStack(spacing: 8) {
-                ForEach(filteredReactionGroups, id: \.type.rawValue) { group in
-                    reactionGroupView(group: group)
+                if isLoading {
+                    loadingView.padding(.vertical, 40)
+                } else if filteredReactionGroups.isEmpty {
+                    if reactionGroups.isEmpty {
+                        emptyStateView.padding(.vertical, 40)
+                    } else {
+                        noResultsView.padding(.vertical, 40)
+                    }
+                } else {
+                    ForEach(filteredReactionGroups, id: \.type.rawValue) { group in
+                        reactionGroupView(group: group)
+                    }
                 }
             }
             .padding(.horizontal, 12)

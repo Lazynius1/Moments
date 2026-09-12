@@ -22,7 +22,12 @@ actor MessagePersistenceStore {
         }
 
         let messageIds = messages.map(\.id)
-        let predicate = #Predicate<CachedMessage> { messageIds.contains($0.id) }
+        // Los IDs de mensajes se buscan dentro de su conversación. Además de
+        // evitar mezclar dos conversaciones si el backend reutilizase un ID,
+        // esta forma puede aprovechar el índice (conversationId, timestamp).
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && messageIds.contains($0.id)
+        }
         let existing = try modelContext.fetch(FetchDescriptor<CachedMessage>(predicate: predicate))
         let existingById = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
 
@@ -177,6 +182,71 @@ actor MessagePersistenceStore {
         descriptor.fetchLimit = 1
         guard let message = try modelContext.fetch(descriptor).first else { return nil }
         return MessageSyncCursor(timestamp: message.timestamp, messageId: message.id)
+    }
+
+    /// Ejecuta la parte potencialmente grande de la retención de mensajes en
+    /// el contexto aislado de SwiftData, sin ocupar el actor principal durante
+    /// el arranque de la aplicación.
+    func cleanupOldMessages(
+        cutoffDate: Date,
+        staleThresholdDate: Date,
+        recentWindow: Int,
+        staleWindow: Int
+    ) throws {
+        let conversationIds = Set(
+            try modelContext.fetch(FetchDescriptor<CachedMessage>()).map(\.conversationId)
+        )
+        var evicted: [(conversationId: String, messageId: String)] = []
+
+        for conversationId in conversationIds {
+            let conversationPredicate = #Predicate<CachedMessage> {
+                $0.conversationId == conversationId
+            }
+            var latestDescriptor = FetchDescriptor<CachedMessage>(
+                predicate: conversationPredicate,
+                sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+            )
+            latestDescriptor.fetchLimit = 1
+            let latestTimestamp = try modelContext.fetch(latestDescriptor).first?.timestamp
+            let keepCount = (latestTimestamp.map { $0 < staleThresholdDate } ?? true)
+                ? staleWindow
+                : recentWindow
+
+            var protectedDescriptor = FetchDescriptor<CachedMessage>(
+                predicate: conversationPredicate,
+                sortBy: [
+                    SortDescriptor(\.timestamp, order: .reverse),
+                    SortDescriptor(\.id, order: .reverse)
+                ]
+            )
+            protectedDescriptor.fetchLimit = keepCount
+            let protectedIds = Set(try modelContext.fetch(protectedDescriptor).map(\.id))
+
+            let stalePredicate = #Predicate<CachedMessage> {
+                $0.conversationId == conversationId && $0.timestamp < cutoffDate
+            }
+            let staleCandidates = try modelContext.fetch(
+                FetchDescriptor<CachedMessage>(predicate: stalePredicate)
+            )
+            for message in staleCandidates where !protectedIds.contains(message.id) {
+                evicted.append((conversationId: conversationId, messageId: message.id))
+                modelContext.delete(message)
+            }
+        }
+
+        if modelContext.hasChanges {
+            try modelContext.save()
+        }
+
+        guard !evicted.isEmpty else { return }
+        Task.detached(priority: .utility) {
+            for item in evicted {
+                ChatCacheStore.deleteMessageFiles(
+                    conversationId: item.conversationId,
+                    messageId: item.messageId
+                )
+            }
+        }
     }
 
     private func trimMessages(for conversationId: String) throws {

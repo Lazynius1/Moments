@@ -4,6 +4,8 @@ import FirebaseFirestore
 
 @Model
 final class CachedStory {
+    #Index<CachedStory>([\.authorId], [\.expirationDate])
+
     @Attribute(.unique) var id: String
     var authorId: String
     var username: String

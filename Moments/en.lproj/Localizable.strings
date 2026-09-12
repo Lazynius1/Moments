@@ -3626,7 +3626,9 @@ We apply encryption and security measures to protect messages and sensitive data
 
 If you choose to share live location in a conversation, we process that location until the sharing session ends or expires.";
 "privacyPolicy.section.permissions.title" = "7. Device permissions";
-"privacyPolicy.section.permissions.body" = "We request permissions only when needed for a specific feature: camera to create photos or videos, photo library to upload or save content, microphone for audio, and location to tag posts, show maps, nearby content, and optional Nova context.\n\nYou can change these permissions in iOS Settings. If you turn them off, some features may no longer be available.";
+"privacyPolicy.section.permissions.body" = "We request permissions only when needed for a specific feature: camera to create photos or videos, photo library to upload or save content, microphone for audio, and location to tag posts, show maps and share it in chats, plus optional Nova context.
+
+You can change these permissions in iOS Settings. If you turn them off, some features may no longer be available.";
 "privacyPolicy.section.ads.title" = "8. Advertising and consent";
 "privacyPolicy.section.ads.body" = "Moments may show ads through Google AdMob. Depending on your region and settings, we may ask for consent through Google's privacy form and Apple's tracking permission.\n\nIf you agree, ads may be personalized using advertising identifiers and permitted signals. If you do not agree, we may show non-personalized or limited ads. We also use SKAdNetwork and similar technologies for aggregated measurement.";
 "privacyPolicy.section.moderation.title" = "9. Safety, reports, and moderation";
@@ -4452,11 +4454,11 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "permission.photos.denied.openSettings" = "Open Settings";
 
 "permission.location.primer.title" = "Turn on location";
-"permission.location.primer.subtitle" = "Allow location to tag your posts and show nearby relevant content.";
+"permission.location.primer.subtitle" = "Allow location to tag your posts and share it in chats.";
 "permission.location.primer.allow" = "Allow location access";
 "permission.location.primer.notNow" = "Not now";
 "permission.location.denied.title" = "Location access is off";
-"permission.location.denied.subtitle" = "Turn on location in Settings to tag your posts and show nearby relevant content.";
+"permission.location.denied.subtitle" = "Turn on location in Settings to tag your posts and share it in chats.";
 "permission.location.denied.openSettings" = "Open Settings";
 "permission.location.always.primer.title" = "Share live location";
 "permission.location.always.primer.subtitle" = "Allow Always so friends can see your live location even when Moments is in the background.";

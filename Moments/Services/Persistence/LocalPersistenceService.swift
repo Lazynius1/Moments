@@ -1839,6 +1839,60 @@ final class LocalPersistenceService: ObservableObject {
         saveContext()
     }
 
+    /// Variante usada durante el arranque: los recorridos de mensajes se hacen
+    /// en el actor SwiftData aislado y la UI solo conserva las operaciones
+    /// pequeñas que pertenecen a su `mainContext`.
+    func cleanupOldDataInBackground() async {
+        guard let context = modelContext else { return }
+
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -maxDataAgeDays, to: Date()) ?? Date()
+        let staleThresholdDate = Calendar.current.date(
+            byAdding: .day,
+            value: -EnhancedChatViewModel.staleChatThresholdDays,
+            to: Date()
+        ) ?? Date()
+
+        cleanupOldStories()
+
+        if let messagePersistenceStore {
+            do {
+                try await messagePersistenceStore.cleanupOldMessages(
+                    cutoffDate: cutoffDate,
+                    staleThresholdDate: staleThresholdDate,
+                    recentWindow: EnhancedChatViewModel.recentChatWindowSize,
+                    staleWindow: EnhancedChatViewModel.staleChatWindowSize
+                )
+            } catch {
+                AppLog.error("LocalPersistence background message cleanup failed: \(error.localizedDescription)")
+            }
+        } else {
+            cleanupOldChats()
+        }
+
+        let chatPredicate = #Predicate<CachedConversation> {
+            $0.timestamp < cutoffDate && !$0.isPinned
+        }
+        do {
+            try context.delete(model: CachedConversation.self, where: chatPredicate)
+            try context.delete(
+                model: CachedMoment.self,
+                where: #Predicate<CachedMoment> { $0.lastSyncedAt < cutoffDate }
+            )
+            let currentUserSection = "currentUser"
+            try context.delete(
+                model: CachedUser.self,
+                where: #Predicate<CachedUser> {
+                    $0.lastSyncedAt < cutoffDate && $0.cacheSection != currentUserSection
+                }
+            )
+        } catch {
+            AppLog.error("LocalPersistence background cleanup failed: \(error.localizedDescription)")
+        }
+
+        trimCachedUsersToLimit(context: context)
+        saveContext()
+    }
+
     /// Mantiene como máximo `maxCachedUsers` usuarios cacheados (excluyendo currentUser),
     /// expulsando los menos recientemente sincronizados.
     private func trimCachedUsersToLimit(context: ModelContext) {

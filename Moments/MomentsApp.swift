@@ -73,9 +73,7 @@ struct MomentsApp: App {
                                 // ✅ SwiftData: Limpiar datos locales antiguos (>7 días) — fuera del path crítico.
                                 Task.detached(priority: .utility) {
                                     try? await Task.sleep(nanoseconds: 8_000_000_000)
-                                    await MainActor.run {
-                                        LocalPersistenceService.shared.cleanupOldData()
-                                    }
+                                    await LocalPersistenceService.shared.cleanupOldDataInBackground()
                                     ChatCacheStore.runMaintenance()
 
                                     if Auth.auth().currentUser != nil {

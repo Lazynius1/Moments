@@ -4341,7 +4341,9 @@ Aplicamos criptografia e medidas de segurança para proteger mensagens e dados s
 
 Se optares por partilhar localização em tempo real numa conversa, tratamos essa localização até a sessão de partilha terminar ou expirar.";
 "privacyPolicy.section.permissions.title" = "7. Permissões do dispositivo";
-"privacyPolicy.section.permissions.body" = "Solicitamos permissões apenas quando necessárias para um recurso específico: câmara para criar fotos ou vídeos, galeria para enviar ou guardar conteúdos, microfone para áudio e localização para marcar posts, mostrar mapas, conteúdos próximos e contexto opcional da Nova.\n\nPodes alterar estas permissões nas Definições do iOS. Se as desativares, algumas funcionalidades podem deixar de estar disponíveis.";
+"privacyPolicy.section.permissions.body" = "Solicitamos permissões apenas quando necessárias para um recurso específico: câmara para criar fotos ou vídeos, galeria para enviar ou guardar conteúdos, microfone para áudio e localização para marcar publicações, mostrar mapas e partilhá-la nos chats, além de contexto opcional da Nova.
+
+Podes alterar estas permissões nas Definições do iOS. Se as desativares, alguns recursos podem deixar de estar disponíveis.";
 "privacyPolicy.section.ads.title" = "8. Publicidade e consentimento";
 "privacyPolicy.section.ads.body" = "O Moments pode mostrar anúncios através do Google AdMob. Dependendo da tua região e das tuas definições, podemos solicitar consentimento via formulário de privacidade do Google e pela permissão de rastreio da Apple.\n\nSe concordares, os anúncios podem ser personalizados com identificadores de publicidade e sinais permitidos. Se não concordares, poderemos mostrar anúncios não personalizados ou limitados. Também usamos SKAdNetwork e tecnologias semelhantes para medição agregada.";
 "privacyPolicy.section.moderation.title" = "9. Segurança, denúncias e moderação";
@@ -5145,11 +5147,11 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "permission.photos.denied.subtitle" = "Ativa o acesso às fotografias nas Definições para partilhar imagens nas tuas histórias, momentos e perfil.";
 "permission.photos.denied.openSettings" = "Abrir Definições";
 "permission.location.primer.title" = "Ativa a localização";
-"permission.location.primer.subtitle" = "Permite o acesso à localização para etiquetar as tuas publicações e mostrar conteúdo relevante nas proximidades.";
+"permission.location.primer.subtitle" = "Permite o acesso à localização para etiquetar as tuas publicações e partilhá-la nos chats.";
 "permission.location.primer.allow" = "Permitir acesso à localização";
 "permission.location.primer.notNow" = "Agora não";
 "permission.location.denied.title" = "O acesso à localização está desativado";
-"permission.location.denied.subtitle" = "Ativa a localização nas Definições para etiquetar as tuas publicações e mostrar conteúdo nas proximidades.";
+"permission.location.denied.subtitle" = "Ativa a localização nas Definições para etiquetar as tuas publicações e partilhá-la nos chats.";
 "permission.location.denied.openSettings" = "Abrir Definições";
 "permission.location.always.primer.title" = "Partilha localização em direto";
 "permission.location.always.primer.subtitle" = "Permite Sempre para que os amigos vejam a tua localização em direto mesmo com o Moments em segundo plano.";

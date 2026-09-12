@@ -6,6 +6,8 @@ import SwiftData
 
 @Model
 final class CachedMoment {
+    #Index<CachedMoment>([\.feedSection], [\.lastSyncedAt])
+
     // MARK: - Identificador
     @Attribute(.unique) var momentId: String // Firestore Document ID
     

@@ -5,7 +5,6 @@ import AVFoundation
 struct ActivityInteractionCategoryRow: View {
     @Environment(\.colorScheme) private var colorScheme
     let category: ActivityInteractionCategory
-    let summary: ActivityCategorySummary?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -37,23 +36,9 @@ struct ActivityInteractionCategoryRow: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(NSLocalizedString(category.titleKey, comment: "Interaction category title"))
-                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                            .foregroundStyle(colorScheme == .dark ? .white : .black)
-
-                        if let count = summary?.count, count > 0 {
-                            Text("\(count)")
-                                .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(
-                                    Capsule()
-                                        .fill(category.accentColor)
-                                )
-                        }
-                    }
+                    Text(NSLocalizedString(category.titleKey, comment: "Interaction category title"))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                     Text(NSLocalizedString(category.subtitleKey, comment: "Interaction category subtitle"))
                         .font(.system(size: legacyPoppinsSize(12)))

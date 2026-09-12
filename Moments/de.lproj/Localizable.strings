@@ -3566,7 +3566,9 @@ Wir wenden Verschlüsselung und Sicherheitsmaßnahmen an, um Nachrichten und sen
 
 Wenn du dich entscheidest, Live-Standort in einer Unterhaltung zu teilen, verarbeiten wir diesen Standort, bis die Freigabesitzung endet oder abläuft.";
 "privacyPolicy.section.permissions.title" = "7. Geräteberechtigungen";
-"privacyPolicy.section.permissions.body" = "Wir fragen Berechtigungen nur dann an, wenn sie für eine bestimmte Funktion nötig sind: Kamera zum Erstellen von Fotos oder Videos, Fotomediathek zum Hochladen oder Speichern von Inhalten, Mikrofon für Audio und Standort zum Markieren von Beiträgen, Anzeigen von Karten, Inhalten in der Nähe und optionalem Nova-Kontext.\n\nDu kannst diese Berechtigungen in den iOS-Einstellungen ändern. Wenn du sie deaktivierst, stehen manche Funktionen möglicherweise nicht mehr zur Verfügung.";
+"privacyPolicy.section.permissions.body" = "Wir fragen Berechtigungen nur dann an, wenn sie für eine bestimmte Funktion nötig sind: Kamera zum Erstellen von Fotos oder Videos, Fotomediathek zum Hochladen oder Speichern von Inhalten, Mikrofon für Audio und Standort zum Markieren von Beiträgen, Anzeigen von Karten und Teilen in Chats sowie optionalem Nova-Kontext.
+
+Du kannst diese Berechtigungen in den iOS-Einstellungen ändern. Wenn du sie ausschaltest, sind einige Funktionen möglicherweise nicht mehr verfügbar.";
 "privacyPolicy.section.ads.title" = "8. Werbung und Einwilligung";
 "privacyPolicy.section.ads.body" = "Moments kann Werbung über Google AdMob anzeigen. Je nach Region und Einstellungen können wir dich über Googles Datenschutzformular und Apples Tracking-Berechtigung um Einwilligung bitten.\n\nWenn du zustimmst, kann Werbung mithilfe von Werbe-IDs und erlaubten Signalen personalisiert werden. Wenn du nicht zustimmst, zeigen wir möglicherweise nicht personalisierte oder eingeschränkte Werbung an. Außerdem verwenden wir SKAdNetwork und ähnliche Technologien für aggregierte Messungen.";
 "privacyPolicy.section.moderation.title" = "9. Sicherheit, Meldungen und Moderation";
@@ -4371,11 +4373,11 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "permission.photos.denied.subtitle" = "Aktiviere den Fotozugriff in den Einstellungen, um Fotos in deinen Stories, Momenten und deinem Profil zu teilen.";
 "permission.photos.denied.openSettings" = "Einstellungen öffnen";
 "permission.location.primer.title" = "Standort aktivieren";
-"permission.location.primer.subtitle" = "Erlaube den Standortzugriff, um deine Beiträge zu markieren und relevante Inhalte in der Nähe anzuzeigen.";
+"permission.location.primer.subtitle" = "Erlaube den Standortzugriff, um deine Beiträge zu markieren und sie in Chats zu teilen.";
 "permission.location.primer.allow" = "Standortzugriff erlauben";
 "permission.location.primer.notNow" = "Jetzt nicht";
 "permission.location.denied.title" = "Standortzugriff ist aus";
-"permission.location.denied.subtitle" = "Aktiviere den Standort in den Einstellungen, um deine Beiträge zu markieren und Inhalte in der Nähe anzuzeigen.";
+"permission.location.denied.subtitle" = "Aktiviere den Standort in den Einstellungen, um deine Beiträge zu markieren und sie in Chats zu teilen.";
 "permission.location.denied.openSettings" = "Einstellungen öffnen";
 "permission.location.always.primer.title" = "Live-Standort teilen";
 "permission.location.always.primer.subtitle" = "Erlaube Immer, damit Freunde deinen Live-Standort auch sehen, wenn Moments im Hintergrund ist.";

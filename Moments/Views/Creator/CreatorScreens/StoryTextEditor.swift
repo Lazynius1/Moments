@@ -21,6 +21,7 @@ struct StoryTextEditor: View {
     @Binding var selectedGradientStopIndex: Int
     @Binding var forcesAllCaps: Bool
     var mediaSampleImage: UIImage?
+    var onCancel: (() -> Void)? = nil
 
     @State private var isTextFieldFocused = false
     @StateObject private var keyboardMonitor = KeyboardMonitor()
@@ -146,7 +147,10 @@ struct StoryTextEditor: View {
             .frame(width: canvasSize.width, height: canvasSize.height)
             .overlay(alignment: .top) {
                 HStack {
-                    Button(action: { isPresented = false }) {
+                    Button(action: {
+                        hideKeyboard()
+                        if let onCancel { onCancel() } else { isPresented = false }
+                    }) {
                         Image(systemName: "xmark")
                             .font(.title2)
                             .foregroundStyle(StoryEditorChromeColor.icon(colorScheme))
