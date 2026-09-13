@@ -4708,6 +4708,7 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "groups.typing.one" = "%@ está digitando…";
 "groups.typing.two" = "%@ e %@ estão digitando…";
 "groups.typing.several" = "Várias pessoas estão digitando…";
+"groups.typing.more" = "%@ e mais %d estão digitando…";
 "groups.searchMembers" = "Buscar membros";
 "groups.noMembersFound" = "Nenhum membro encontrado.";
 "groups.mention.placeholder" = "Mencionar um membro";

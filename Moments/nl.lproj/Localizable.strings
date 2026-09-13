@@ -4478,6 +4478,7 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "groups.typing.one" = "%@ typt…";
 "groups.typing.two" = "%@ en %@ typen…";
 "groups.typing.several" = "Meerdere mensen typen…";
+"groups.typing.more" = "%@ en %d anderen typen…";
 "groups.searchMembers" = "Leden zoeken";
 "groups.noMembersFound" = "Geen leden gevonden.";
 "groups.mention.placeholder" = "Een lid vermelden";

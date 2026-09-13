@@ -4708,6 +4708,7 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "groups.typing.one" = "%@ sta scrivendo…";
 "groups.typing.two" = "%@ e %@ stanno scrivendo…";
 "groups.typing.several" = "Più persone stanno scrivendo…";
+"groups.typing.more" = "%@ e altri %d stanno scrivendo…";
 "groups.searchMembers" = "Cerca membri";
 "groups.noMembersFound" = "Nessun membro trovato.";
 "groups.mention.placeholder" = "Menziona un membro";

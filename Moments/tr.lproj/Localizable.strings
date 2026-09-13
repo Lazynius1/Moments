@@ -4478,6 +4478,7 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "groups.typing.one" = "%@ yazıyor…";
 "groups.typing.two" = "%@ ve %@ yazıyor…";
 "groups.typing.several" = "Birden fazla kişi yazıyor…";
+"groups.typing.more" = "%@ ve %d kişi daha yazıyor…";
 "groups.searchMembers" = "Üye ara";
 "groups.noMembersFound" = "Üye bulunamadı.";
 "groups.mention.placeholder" = "Bir üyeden bahset";

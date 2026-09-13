@@ -5482,6 +5482,7 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "groups.typing.one" = "%@ está a escrever…";
 "groups.typing.two" = "%@ e %@ estão a escrever…";
 "groups.typing.several" = "Várias pessoas estão a escrever…";
+"groups.typing.more" = "%@ e mais %d estão a escrever…";
 "groups.searchMembers" = "Pesquisar membros";
 "groups.noMembersFound" = "Nenhum membro encontrado.";
 "groups.mention.placeholder" = "Mencionar um membro";

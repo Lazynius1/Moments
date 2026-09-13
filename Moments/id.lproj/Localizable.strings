@@ -4478,6 +4478,7 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "groups.typing.one" = "%@ sedang mengetik…";
 "groups.typing.two" = "%@ dan %@ sedang mengetik…";
 "groups.typing.several" = "Beberapa orang sedang mengetik…";
+"groups.typing.more" = "%@ dan %d lainnya sedang mengetik…";
 "groups.searchMembers" = "Cari anggota";
 "groups.noMembersFound" = "Tidak ada anggota ditemukan.";
 "groups.mention.placeholder" = "Sebut anggota";

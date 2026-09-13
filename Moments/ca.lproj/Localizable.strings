@@ -4727,6 +4727,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "groups.typing.one" = "%@ està escrivint…";
 "groups.typing.two" = "%@ i %@ estan escrivint…";
 "groups.typing.several" = "Diverses persones estan escrivint…";
+"groups.typing.more" = "%@ i %d més estan escrivint…";
 "groups.searchMembers" = "Cercar membres";
 "groups.noMembersFound" = "No s’han trobat membres.";
 "groups.mention.placeholder" = "Mencionar un membre";

@@ -4478,6 +4478,7 @@
 "groups.typing.one" = "%@正在輸入…";
 "groups.typing.two" = "%@和%@正在輸入…";
 "groups.typing.several" = "多人正在輸入…";
+"groups.typing.more" = "%@ 和其他 %d 人正在輸入…";
 "groups.searchMembers" = "搜尋成員";
 "groups.noMembersFound" = "找不到成員。";
 "groups.mention.placeholder" = "提及成員";

@@ -4700,6 +4700,7 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "groups.typing.one" = "%@ is typing…";
 "groups.typing.two" = "%@ and %@ are typing…";
 "groups.typing.several" = "Several people are typing…";
+"groups.typing.more" = "%@ and %d more are typing…";
 "groups.searchMembers" = "Search members";
 "groups.noMembersFound" = "No members found.";
 "groups.mention.placeholder" = "Mention a member";

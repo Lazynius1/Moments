@@ -4721,6 +4721,7 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "groups.typing.one" = "%@ está escribiendo…";
 "groups.typing.two" = "%@ y %@ están escribiendo…";
 "groups.typing.several" = "Varias personas están escribiendo…";
+"groups.typing.more" = "%@ y %d más están escribiendo…";
 "groups.searchMembers" = "Buscar miembros";
 "groups.noMembersFound" = "No se han encontrado miembros.";
 "groups.mention.placeholder" = "Mencionar a un miembro";

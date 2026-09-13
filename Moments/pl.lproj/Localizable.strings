@@ -4478,6 +4478,7 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "groups.typing.one" = "%@ pisze…";
 "groups.typing.two" = "%@ i %@ piszą…";
 "groups.typing.several" = "Kilka osób pisze…";
+"groups.typing.more" = "%@ i jeszcze %d piszą…";
 "groups.searchMembers" = "Szukaj członków";
 "groups.noMembersFound" = "Nie znaleziono członków.";
 "groups.mention.placeholder" = "Wspomnij członka";

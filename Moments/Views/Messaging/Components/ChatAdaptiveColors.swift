@@ -91,7 +91,8 @@ extension AdaptiveColors {
     }
 
     var typingIndicatorColor: Color {
-        colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6)
+        // Contraste sobre `messageBubbleBackground` (no glass).
+        colorScheme == .dark ? Color.white.opacity(0.82) : Color.black.opacity(0.42)
     }
 
     var replyBarBackground: Color {

@@ -932,39 +932,75 @@ struct GlassmorphicAvatar: View {
 }
 
 struct GlassmorphicTypingIndicator: View {
-    @State private var animationAmounts = [0.0, 0.0, 0.0]
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .body) private var horizontalPadding = ChatTextBubbleMetrics.horizontalPadding
+    @ScaledMetric(relativeTo: .body) private var verticalPadding = ChatTextBubbleMetrics.verticalPadding
+    @ScaledMetric(relativeTo: .body) private var cornerRadius = ChatTextBubbleMetrics.cornerRadius
+    @ScaledMetric(relativeTo: .body) private var joinedRadius = ChatTextBubbleMetrics.joinedRadius
+    /// Misma altura de línea que un texto de burbuja (~15pt escalado).
+    private var textLineHeight: CGFloat {
+        UIFontMetrics(forTextStyle: .body)
+            .scaledFont(for: UIFont.systemFont(ofSize: 15, weight: .regular))
+            .lineHeight
+    }
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
+    /// Misma geometría que un mensaje entrante suelto (`ChatTextBubbleView` incoming / single).
+    private var bubbleShape: ChatBubbleShape {
+        ChatBubbleShape(
+            side: .leading,
+            position: .single,
+            cornerRadius: cornerRadius,
+            joinedRadius: joinedRadius
+        )
+    }
+
     var body: some View {
         HStack(spacing: 4) {
-            ForEach(0..<3) { index in
-                Circle()
-                    .fill(adaptiveColors.typingIndicatorColor)
-                    .frame(width: 8, height: 8)
-                    .scaleEffect(reduceMotion ? 0.85 : animationAmounts[index])
-                    .opacity(reduceMotion ? 0.85 : animationAmounts[index])
-                    .onAppear {
-                        // Con reduceMotion los puntos quedan estáticos, sin pulso infinito.
-                        guard !reduceMotion else { return }
-                        withAnimation(
-                            Animation.easeInOut(duration: 0.6)
-                                .repeatForever(autoreverses: true)
-                                .delay(Double(index) * 0.2)
-                        ) {
-                            animationAmounts[index] = 1.0
-                        }
-                    }
+            ForEach(0..<3, id: \.self) { index in
+                ChatTypingDot(
+                    color: adaptiveColors.typingIndicatorColor,
+                    delay: Double(index) * 0.18,
+                    reduceMotion: reduceMotion
+                )
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .glassmorphicChat()
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .frame(minHeight: textLineHeight, alignment: .center)
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, verticalPadding)
+        .background(adaptiveColors.messageBubbleBackground, in: bubbleShape)
+        .overlay {
+            bubbleShape.stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
+        }
+    }
+}
+
+private struct ChatTypingDot: View {
+    let color: Color
+    let delay: Double
+    let reduceMotion: Bool
+    @State private var bouncing = false
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 6.5, height: 6.5)
+            .offset(y: reduceMotion ? 0 : (bouncing ? -3.5 : 1.5))
+            .opacity(reduceMotion ? 0.55 : 0.85)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(
+                    .easeInOut(duration: 0.55)
+                    .repeatForever(autoreverses: true)
+                    .delay(delay)
+                ) {
+                    bouncing = true
+                }
+            }
     }
 }
 

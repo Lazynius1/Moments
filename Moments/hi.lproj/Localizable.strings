@@ -4478,6 +4478,7 @@
 "groups.typing.one" = "%@ टाइप कर रहे हैं…";
 "groups.typing.two" = "%@ और %@ टाइप कर रहे हैं…";
 "groups.typing.several" = "कई लोग टाइप कर रहे हैं…";
+"groups.typing.more" = "%@ और %d अन्य टाइप कर रहे हैं…";
 "groups.searchMembers" = "सदस्य खोजें";
 "groups.noMembersFound" = "कोई सदस्य नहीं मिला।";
 "groups.mention.placeholder" = "किसी सदस्य का उल्लेख करें";

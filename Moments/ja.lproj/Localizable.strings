@@ -4478,6 +4478,7 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "groups.typing.one" = "%@さんが入力中…";
 "groups.typing.two" = "%@さんと%@さんが入力中…";
 "groups.typing.several" = "複数の人が入力中…";
+"groups.typing.more" = "%@とその他%d人が入力中…";
 "groups.searchMembers" = "メンバーを検索";
 "groups.noMembersFound" = "メンバーが見つかりません。";
 "groups.mention.placeholder" = "メンバーをメンション";

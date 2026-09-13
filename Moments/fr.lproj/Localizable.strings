@@ -4708,6 +4708,7 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "groups.typing.one" = "%@ est en train d’écrire…";
 "groups.typing.two" = "%@ et %@ sont en train d’écrire…";
 "groups.typing.several" = "Plusieurs personnes écrivent…";
+"groups.typing.more" = "%@ et %d autres écrivent…";
 "groups.searchMembers" = "Rechercher des membres";
 "groups.noMembersFound" = "Aucun membre trouvé.";
 "groups.mention.placeholder" = "Mentionner un membre";

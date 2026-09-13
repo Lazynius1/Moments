@@ -4708,6 +4708,7 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "groups.typing.one" = "%@ schreibt…";
 "groups.typing.two" = "%@ und %@ schreiben…";
 "groups.typing.several" = "Mehrere Personen schreiben…";
+"groups.typing.more" = "%@ und %d weitere schreiben…";
 "groups.searchMembers" = "Mitglieder suchen";
 "groups.noMembersFound" = "Keine Mitglieder gefunden.";
 "groups.mention.placeholder" = "Mitglied erwähnen";

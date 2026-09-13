@@ -1513,10 +1513,14 @@ struct GlassmorphicConversationRow: View {
     private var messagePreviewRow: some View {
         let cleanDraft = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
         let showsUnavailablePreview = isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser
-        let showsDraftPreview = !showsUnavailablePreview && !cleanDraft.isEmpty
         let currentUserId = Auth.auth().currentUser?.uid ?? ""
         let isUnread = !(conversation.readStatus[currentUserId] ?? true)
         let isOwnLastMessage = conversation.isOwnLastMessage(for: currentUserId)
+        // Borrador no tapa mensajes recibidos ni no leídos: solo si el último es tuyo (o aún no hay sender).
+        let showsDraftPreview = !showsUnavailablePreview
+            && !cleanDraft.isEmpty
+            && !isUnread
+            && (isOwnLastMessage || conversation.lastMessageSenderId == nil)
 
         let resolvedPreview: String = {
             if showsDraftPreview {

@@ -77,7 +77,11 @@ extension GroupChatScope {
         case 2:
             return String(format: NSLocalizedString("groups.typing.two", comment: ""), resolved[0], resolved[1])
         default:
-            return NSLocalizedString("groups.typing.several", comment: "")
+            return String(
+                format: NSLocalizedString("groups.typing.more", comment: ""),
+                resolved[0],
+                resolved.count - 1
+            )
         }
     }
 
