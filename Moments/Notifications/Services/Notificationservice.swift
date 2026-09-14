@@ -17,7 +17,10 @@ class NotificationService: ObservableObject {
     @Published var pendingDeletion: PendingNotificationDeletion?
 
     private var listener: ListenerRegistration?
+    private var observedUserId: String?
     private var lastDocument: DocumentSnapshot?
+    private var liveHeadNotificationIds: Set<String> = []
+    private var hasLoadedAdditionalPages = false
     private let pageSize = 20
     private var profileCache: [String: User] = [:]
     private var pendingDeletionTask: Task<Void, Never>?
@@ -38,10 +41,24 @@ class NotificationService: ObservableObject {
     }
     
     // MARK: - Lifecycle Management
-    func startObserving() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+    func startObserving(forceRefresh: Bool = false) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            listener?.remove()
+            listener = nil
+            observedUserId = nil
+            return
+        }
+
+        // El servicio vive durante toda la sesión. Entrar de nuevo en la pantalla
+        // no debe reconstruir el mismo listener ni descartar páginas ya cargadas.
+        guard forceRefresh || listener == nil || observedUserId != userId else { return }
         
         listener?.remove()
+        observedUserId = userId
+        lastDocument = nil
+        liveHeadNotificationIds.removeAll()
+        hasLoadedAdditionalPages = false
+        canLoadMore = true
         isLoading = true
         
         let query = db.collection("users").document(userId).collection("notifications")
@@ -69,13 +86,29 @@ class NotificationService: ObservableObject {
                     return 
                 }
                 
-                self.lastDocument = documents.last
-                self.canLoadMore = documents.count >= self.pageSize
-                
                 let fetched = documents.compactMap { doc in
                     self.decodeNotificationDocument(doc)
                 }
-                self.notifications = self.visibleNotifications(from: fetched)
+                let liveHead = self.visibleNotifications(from: fetched)
+                let nextHeadIds = Set(liveHead.compactMap(\.id))
+
+                if isFirstSnapshot {
+                    self.notifications = liveHead
+                } else {
+                    // Sustituir solo la ventana en tiempo real. Las páginas antiguas
+                    // permanecen y cualquier elemento que ascienda a la cabecera se deduplica.
+                    let retainedTail = self.notifications.filter { notification in
+                        guard let id = notification.id else { return true }
+                        return !self.liveHeadNotificationIds.contains(id) && !nextHeadIds.contains(id)
+                    }
+                    self.notifications = liveHead + retainedTail
+                }
+                self.liveHeadNotificationIds = nextHeadIds
+
+                if !self.hasLoadedAdditionalPages {
+                    self.lastDocument = documents.last
+                    self.canLoadMore = documents.count >= self.pageSize
+                }
                 // ✅ Guardar en caché local
                 // Si es el primer snapshot, usamos sync: true para purgar borrados del servidor
                 LocalPersistenceService.shared.saveNotifications(self.notifications, sync: isFirstSnapshot)
@@ -91,7 +124,7 @@ class NotificationService: ObservableObject {
     func loadMore() {
         guard let userId = Auth.auth().currentUser?.uid, 
               let lastDoc = lastDocument, 
-              canLoadMore && !isLoading else { return }
+              canLoadMore && !isLoading && !isLoadingMore else { return }
         
         isLoadingMore = true
         
@@ -110,12 +143,18 @@ class NotificationService: ObservableObject {
                     
                     self.lastDocument = documents.last
                     self.canLoadMore = documents.count >= self.pageSize
+                    self.hasLoadedAdditionalPages = true
                     
                     let newNotifications = self.visibleNotifications(from: documents.compactMap { doc in
                         self.decodeNotificationDocument(doc)
                     })
-                    
-                    self.notifications.append(contentsOf: newNotifications)
+
+                    var existingIds = Set(self.notifications.compactMap(\.id))
+                    let uniqueNotifications = newNotifications.filter { notification in
+                        guard let id = notification.id else { return true }
+                        return existingIds.insert(id).inserted
+                    }
+                    self.notifications.append(contentsOf: uniqueNotifications)
                     self.isLoadingMore = false
                 }
             }

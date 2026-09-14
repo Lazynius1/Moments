@@ -376,29 +376,28 @@ struct NotificationsView: View {
             }
 
             if viewModel.canLoadMore {
-                Button(NSLocalizedString("notifications.loadMore", comment: "Load more button")) {
+                ZStack {
+                    if viewModel.isLoadingMore {
+                        ProgressView()
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
+                // List crea esta fila cuando entra en el viewport. Si la nueva
+                // página aún no llena la pantalla, el cambio de count rearma el trigger.
+                .task(id: viewModel.notifications.count) {
+                    guard !viewModel.isLoadingMore else { return }
                     viewModel.loadMoreNotifications()
                 }
-                .disabled(viewModel.isLoadingMore)
-                .frame(maxWidth: .infinity, alignment: .center)
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
-
-                if viewModel.isLoadingMore {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                }
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .momentsScrollEdgeChrome()
         .momentRefresh {
-            await viewModel.refreshNotifications()
+            await viewModel.refreshNotifications(force: true)
         }
     }
     

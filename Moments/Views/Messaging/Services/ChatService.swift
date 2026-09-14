@@ -4,6 +4,12 @@ import FirebaseAuth
 import Combine
 import CryptoKit
 
+struct SharedGalleryMediaPage {
+    let messages: [EnhancedMessage]
+    let nextCursor: MessageSyncCursor?
+    let hasMore: Bool
+}
+
 @MainActor
 class ChatService: ObservableObject {
     // MARK: - Properties
@@ -216,25 +222,42 @@ class ChatService: ObservableObject {
     /// Media compartido del hilo (fotos/vídeos) para Conversation Settings — no depende del prefetch.
     func fetchSharedGalleryMedia(
         conversationId: String,
-        limit: Int = 400,
-        completion: @escaping (Result<[EnhancedMessage], Error>) -> Void
+        limit: Int = 30,
+        before: MessageSyncCursor? = nil,
+        completion: @escaping (Result<SharedGalleryMediaPage, Error>) -> Void
     ) {
         Task { [weak self] in
             guard let self else { return }
             await preloadConversationKey(for: conversationId)
             do {
-                let snapshot = try await db.messagingThread(conversationId)
+                var query: Query = db.messagingThread(conversationId)
                     .messagingMessages
                     .whereField("type", in: [MessageType.image.rawValue, MessageType.video.rawValue])
+                    .order(by: "timestamp", descending: true)
+                    .order(by: FieldPath.documentID(), descending: true)
                     .limit(to: limit)
-                    .getDocuments()
+                if let before {
+                    query = query.start(after: [Timestamp(date: before.timestamp), before.messageId])
+                }
+                let snapshot = try await query.getDocuments()
+                let nextCursor = snapshot.documents.last.flatMap { document -> MessageSyncCursor? in
+                    guard let timestamp = document.data()["timestamp"] as? Timestamp else { return nil }
+                    return MessageSyncCursor(timestamp: timestamp.dateValue(), messageId: document.documentID)
+                }
                 await handleMessagesSnapshot(
                     snapshot: snapshot,
                     error: nil,
                     conversationId: conversationId,
-                    hydrateReactions: false,
-                    completion: completion
-                )
+                    hydrateReactions: false
+                ) { result in
+                    completion(result.map { messages in
+                        SharedGalleryMediaPage(
+                            messages: messages,
+                            nextCursor: nextCursor,
+                            hasMore: snapshot.documents.count == limit && nextCursor != nil
+                        )
+                    })
+                }
             } catch {
                 await MainActor.run { completion(.failure(error)) }
             }

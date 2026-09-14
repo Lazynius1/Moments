@@ -105,6 +105,18 @@ class UserCacheService: ObservableObject {
     func getCachedUser(userId: String) -> AppUser? {
         return userCache[userId]
     }
+
+    /// Inserta un perfil obtenido por una lectura compartida (por ejemplo perfil + disponibilidad)
+    /// para que otras superficies no vuelvan a pedir el mismo documento.
+    func cacheUser(_ user: AppUser) {
+        userCache[user.id] = user
+        lastFetchTimes[user.id] = Date()
+        evictIfNeeded()
+    }
+
+    func invalidateUser(userId: String) {
+        lastFetchTimes.removeValue(forKey: userId)
+    }
     
     func preloadUsers(userIds: [String]) {
         for userId in userIds {

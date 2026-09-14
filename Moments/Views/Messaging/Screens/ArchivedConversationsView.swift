@@ -6,6 +6,7 @@ private struct ArchivedProfileRoute: Identifiable, Hashable {
 }
 
 struct ArchivedConversationsView: View {
+    @ObservedObject private var groupDirectory = GroupDirectory.shared
     @ObservedObject var viewModel: MessagingViewModel
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
@@ -116,6 +117,11 @@ struct ArchivedConversationsView: View {
 
         ConversationPressableRow(
             conversation: conversation,
+            participantState: viewModel.participantStates[conversation.otherParticipantId],
+            draftText: conversation.id.map { viewModel.draftText(for: $0) } ?? "",
+            groupMemberIds: conversation.participants.isEmpty
+                ? (conversation.id.flatMap { groupDirectory.groups[$0]?.members.map(\.id) } ?? [])
+                : conversation.participants,
             isMenuSelected: isMenuSelected,
             colorScheme: colorScheme,
             profileZoomNamespace: profileZoomNamespace,
@@ -131,7 +137,8 @@ struct ArchivedConversationsView: View {
                     conversation: conversation,
                     rowFrame: frame
                 )
-            }
+            },
+            onNeedsParticipantState: { viewModel.loadParticipantState(for: conversation) }
         )
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)

@@ -20,7 +20,13 @@ class MomentsChatViewModel: EnhancedChatViewModel {
 
     func syncMessagePresentation() {
         let calendar = Calendar.current
-        let sortedMessages = messages.sorted {
+        let messagesAreOrdered = messages.indices.dropFirst().allSatisfy { index in
+            let previous = messages.index(before: index)
+            let previousCursor = MessageSyncCursor(timestamp: messages[previous].timestamp, messageId: messages[previous].id)
+            let currentCursor = MessageSyncCursor(timestamp: messages[index].timestamp, messageId: messages[index].id)
+            return !(currentCursor < previousCursor)
+        }
+        let orderedMessages = messagesAreOrdered ? messages : messages.sorted {
             MessageSyncCursor(timestamp: $0.timestamp, messageId: $0.id)
                 < MessageSyncCursor(timestamp: $1.timestamp, messageId: $1.id)
         }
@@ -39,7 +45,7 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             }
         }
 
-        for message in sortedMessages {
+        for message in orderedMessages {
             let day = calendar.startOfDay(for: message.timestamp)
             if day != currentDay {
                 flushDay()

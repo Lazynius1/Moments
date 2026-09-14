@@ -27,6 +27,7 @@ class NotificationsViewModel: ObservableObject {
     private let notificationService = NotificationService.shared
     private var cancellables = Set<AnyCancellable>()
     private var userProfileImageCache: [String: String] = [:]
+    private var resolvedProfileUserIds: Set<String> = []
 
     init() {
         setupSubscribers()
@@ -63,8 +64,8 @@ class NotificationsViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    func refreshNotifications() async {
-        notificationService.startObserving()
+    func refreshNotifications(force: Bool = false) async {
+        notificationService.startObserving(forceRefresh: force)
     }
 
     func loadMoreNotifications() {
@@ -168,9 +169,12 @@ class NotificationsViewModel: ObservableObject {
     // ✅ #5: Pre-cargar perfiles de senders en batch (evita N+1 queries por fila)
     private func preloadSenderProfiles(for notifications: [Notification]) {
         let senderIds = Set(notifications.map { $0.senderId }.filter { !$0.isEmpty })
-        let uncachedIds = senderIds.filter { userProfileImageCache[$0] == nil }
+        let uncachedIds = senderIds.subtracting(resolvedProfileUserIds)
         
         guard !uncachedIds.isEmpty else { return }
+        // Reservar antes de lanzar las consultas evita duplicados si llega otro
+        // snapshot o cambia la pestaña mientras Firestore sigue respondiendo.
+        resolvedProfileUserIds.formUnion(uncachedIds)
         
         // Firestore 'in' queries support max 30 items
         let chunks = Array(uncachedIds).chunked(into: 30)
@@ -179,9 +183,12 @@ class NotificationsViewModel: ObservableObject {
             Firestore.firestore().collection("users")
                 .whereField(FieldPath.documentID(), in: chunk)
                 .getDocuments { [weak self] snapshot, error in
-                    guard let self = self, let docs = snapshot?.documents else { return }
-                    
+                    guard let self else { return }
                     DispatchQueue.main.async {
+                        guard let docs = snapshot?.documents, error == nil else {
+                            self.resolvedProfileUserIds.subtract(chunk)
+                            return
+                        }
                         for doc in docs {
                             let data = doc.data()
                             if let imagePath = data["profileImagePath"] as? String, !imagePath.isEmpty {
@@ -325,5 +332,6 @@ class NotificationsViewModel: ObservableObject {
 
     func updateProfileImageCache(for userId: String, imagePath: String?) {
         userProfileImageCache[userId] = imagePath
+        resolvedProfileUserIds.insert(userId)
     }
 }

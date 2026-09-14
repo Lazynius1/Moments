@@ -621,6 +621,9 @@ struct ClusterGalleryView<Detail: View>: View {
     var onOpenMedia: ((EnhancedMessage, @escaping (EnhancedMessage) -> Void) -> Void)? = nil
     var isDownloadingMedia: ((String) -> Bool)? = nil
     var downloadProgress: ((String) -> Double?)? = nil
+    var canLoadMore = false
+    var isLoadingMore = false
+    var onLoadMore: (() -> Void)? = nil
     var onDeleteForMe: (([EnhancedMessage]) -> Void)? = nil
     var onDeleteForEveryone: (([EnhancedMessage]) -> Void)? = nil
     /// Visor de detalle inyectado: recibe la media tocada y un cierre para volver
@@ -650,6 +653,9 @@ struct ClusterGalleryView<Detail: View>: View {
         onOpenMedia: ((EnhancedMessage, @escaping (EnhancedMessage) -> Void) -> Void)? = nil,
         isDownloadingMedia: ((String) -> Bool)? = nil,
         downloadProgress: ((String) -> Double?)? = nil,
+        canLoadMore: Bool = false,
+        isLoadingMore: Bool = false,
+        onLoadMore: (() -> Void)? = nil,
         onDeleteForMe: (([EnhancedMessage]) -> Void)? = nil,
         onDeleteForEveryone: (([EnhancedMessage]) -> Void)? = nil,
         @ViewBuilder detail: @escaping (EnhancedMessage, @escaping () -> Void) -> Detail
@@ -664,6 +670,9 @@ struct ClusterGalleryView<Detail: View>: View {
         self.onOpenMedia = onOpenMedia
         self.isDownloadingMedia = isDownloadingMedia
         self.downloadProgress = downloadProgress
+        self.canLoadMore = canLoadMore
+        self.isLoadingMore = isLoadingMore
+        self.onLoadMore = onLoadMore
         self.onDeleteForMe = onDeleteForMe
         self.onDeleteForEveryone = onDeleteForEveryone
         self.detail = detail
@@ -890,23 +899,38 @@ struct ClusterGalleryView<Detail: View>: View {
             }
 
             ScrollView(showsIndicators: false) {
-                if scope == .conversationShared, selectedTab == .links {
-                    LazyVStack(spacing: spacing) {
-                        ForEach(visibleMessages) { message in
-                            linkGridCell(message)
+                LazyVStack(spacing: 0) {
+                    if scope == .conversationShared, selectedTab == .links {
+                        LazyVStack(spacing: spacing) {
+                            ForEach(visibleMessages) { message in
+                                linkGridCell(message)
+                            }
                         }
+                        .padding(.horizontal, spacing)
+                        .padding(.vertical, 16)
+                    } else {
+                        let columns = distribute(visibleMessages)
+                        HStack(alignment: .top, spacing: spacing) {
+                            masonryColumn(columns.0)
+                            masonryColumn(columns.1)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, spacing)
+                        .padding(.vertical, 16)
                     }
-                    .padding(.horizontal, spacing)
-                    .padding(.vertical, 16)
-                } else {
-                    let columns = distribute(visibleMessages)
-                    HStack(alignment: .top, spacing: spacing) {
-                        masonryColumn(columns.0)
-                        masonryColumn(columns.1)
+
+                    if selectedTab == .media, canLoadMore, onLoadMore != nil {
+                        ProgressView()
+                            .controlSize(.regular)
+                            .tint(MomentsChromeGlass.contentColor(for: colorScheme))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 64)
+                            .opacity(isLoadingMore ? 1 : 0.01)
+                            .task(id: "\(visibleMessages.count):\(isLoadingMore)") {
+                                guard !isLoadingMore else { return }
+                                onLoadMore?()
+                            }
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, spacing)
-                    .padding(.vertical, 16)
                 }
             }
         }
@@ -928,13 +952,10 @@ struct ClusterGalleryView<Detail: View>: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .onAppear {
-            visibleMessages.forEach { onHydrateMedia?($0) }
-        }
     }
 
     private func masonryColumn(_ items: [EnhancedMessage]) -> some View {
-        VStack(spacing: spacing) {
+        LazyVStack(spacing: spacing) {
             ForEach(items) { message in
                 mediaCard(message)
             }

@@ -532,6 +532,9 @@ struct ExploreMomentThumbnail: View {
         } else if let imagePath = moment.previewImageURLString, let url = getImageURL(from: imagePath) {
             KFImage(url)
                 .placeholder { placeholder }
+                .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
+                .scaleFactor(displayScale)
+                .cancelOnDisappear(true)
                 .resizable()
                 .scaledToFill()
                 .frame(width: cellWidth, height: cellHeight)

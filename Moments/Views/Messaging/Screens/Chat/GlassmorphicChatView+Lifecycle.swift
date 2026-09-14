@@ -233,6 +233,11 @@ extension GlassmorphicChatView {
 
         firestoreService.unblockUser(currentUserId: currentUserId, targetUserId: otherUserId) { error in
             guard error == nil else { return }
+            NotificationCenter.default.post(
+                name: .messagingParticipantStateDidChange,
+                object: nil,
+                userInfo: ["userId": otherUserId]
+            )
             DispatchQueue.main.async {
                 self.isOtherParticipantBlockedByCurrentUser = false
                 self.isOtherParticipantUnavailable = false

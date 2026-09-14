@@ -442,41 +442,28 @@ class SuggestedUsersViewModel: ObservableObject {
         currentUserId = userId
         isLoading = true
         
-        // Cargar intereses del usuario actual
-        loadCurrentUserInterests()
-        
-        // Cargar usuarios bloqueados
-        loadBlockedUsers()
-        
-        // Cargar usuarios seguidos primero
-        loadFollowedUsers { [weak self] in
-            // Cargar usuarios sugeridos (ya con usuarios seguidos cargados)
+        let prerequisites = DispatchGroup()
+        prerequisites.enter()
+        loadViewerProfileContext { prerequisites.leave() }
+        prerequisites.enter()
+        loadFollowedUsers { prerequisites.leave() }
+        prerequisites.notify(queue: .main) { [weak self] in
             self?.loadSuggestedUsers()
         }
     }
     
-    private func loadCurrentUserInterests() {
-        guard let userId = currentUserId else { return }
-        
-        firestoreService.db.collection("users").document(userId).getDocument { [weak self] document, error in
-            if let data = document?.data(),
-               let interests = data["interests"] as? [String] {
-                DispatchQueue.main.async {
-                    self?.currentUserInterests = interests
-                }
-            }
+    private func loadViewerProfileContext(completion: @escaping () -> Void) {
+        guard let userId = currentUserId else {
+            completion()
+            return
         }
-    }
-    
-    private func loadBlockedUsers() {
-        guard let userId = currentUserId else { return }
         
         firestoreService.db.collection("users").document(userId).getDocument { [weak self] document, error in
-            if let data = document?.data(),
-               let blocked = data["blockedUsers"] as? [String] {
-                DispatchQueue.main.async {
-                    self?.blockedUsers = Set(blocked)
-                }
+            let data = document?.data()
+            DispatchQueue.main.async {
+                self?.currentUserInterests = data?["interests"] as? [String] ?? []
+                self?.blockedUsers = Set(data?["blockedUsers"] as? [String] ?? [])
+                completion()
             }
         }
     }

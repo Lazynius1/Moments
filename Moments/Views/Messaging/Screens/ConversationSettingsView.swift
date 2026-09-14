@@ -32,7 +32,6 @@ struct ConversationSettingsView: View {
     @State private var showHideChat = false
     @State private var showLinkAdminOnly = false
     @State private var showDissolveGroup = false
-    @State private var showMuteDuration = false
     @State private var showGroupReportSheet = false
     @State private var isLargeHeader = false
     @State private var headerTopInset: CGFloat = 0
@@ -121,12 +120,12 @@ struct ConversationSettingsView: View {
                     },
                     onMuteToggle: {
                         HapticManager.shared.lightImpact()
-                        if conversation.isGroup && viewModel.notificationsEnabled {
-                            showMuteDuration = true
-                        } else {
-                            viewModel.notificationsEnabled.toggle()
-                            viewModel.toggleNotifications()
-                        }
+                        viewModel.notificationsEnabled.toggle()
+                        viewModel.toggleNotifications()
+                    },
+                    onMuteDurationSelected: { until in
+                        HapticManager.shared.lightImpact()
+                        viewModel.muteNotifications(until: until)
                     },
                     showsIdentityEdit: isGroupAdmin,
                     onIdentityTap: isGroupAdmin ? {
@@ -139,13 +138,13 @@ struct ConversationSettingsView: View {
                 settingsListSection
                     .padding(.horizontal, 16)
 
+                sharedContentTabsSection
+                    .padding(.top, 8)
+
                 if !conversation.isGroup {
                     settingsFooter
                         .padding(.horizontal, 16)
                 }
-
-                sharedContentTabsSection
-                    .padding(.top, 8)
             }
             .padding(.bottom, 32)
         }
@@ -374,22 +373,6 @@ struct ConversationSettingsView: View {
         } message: {
             Text(NSLocalizedString("groups.dissolveBody", comment: ""))
         }
-        .confirmationDialog(
-            NSLocalizedString("conversationSettings.quickAction.mute", comment: ""),
-            isPresented: $showMuteDuration,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("groups.mute.8h", comment: "")) {
-                viewModel.muteNotifications(until: Date().addingTimeInterval(8 * 3600))
-            }
-            Button(NSLocalizedString("groups.mute.week", comment: "")) {
-                viewModel.muteNotifications(until: Date().addingTimeInterval(7 * 24 * 3600))
-            }
-            Button(NSLocalizedString("groups.mute.always", comment: "")) {
-                viewModel.muteNotifications(until: nil)
-            }
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
-        }
         .alert(NSLocalizedString("conversationSettings.hide", comment: "Hide chat"), isPresented: $showHideChat) {
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
             Button(NSLocalizedString("conversationSettings.hide", comment: "Hide chat")) {
@@ -423,6 +406,9 @@ struct ConversationSettingsView: View {
             },
             isDownloadingMedia: { viewModel.isDownloadingMedia($0) },
             downloadProgress: { viewModel.downloadProgress[$0] },
+            canLoadMore: viewModel.canLoadMoreSharedMedia,
+            isLoadingMore: viewModel.isLoadingMoreSharedMedia,
+            onLoadMore: { viewModel.loadMoreSharedMedia() },
             onDeleteForMe: { messages in
                 messages.forEach { viewModel.deleteMessageForMe($0) }
             },
@@ -616,56 +602,53 @@ struct ConversationSettingsView: View {
             }
             .buttonStyle(.momentsPressSubtle)
 
-            dividerLine.padding(.leading, 38)
-
-            // Shared photos and videos (gallery — not a storage manager)
-            Button {
-                HapticManager.shared.lightImpact()
-                viewModel.openSharedGallery(tab: .media)
-            } label: {
-                HStack(spacing: 14) {
-                    Image(systemName: "photo.on.rectangle")
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundStyle(adaptiveColors.secondary)
-                        .frame(width: 24)
-
-                    Text(NSLocalizedString("conversationSettings.sharedMedia", comment: "Shared media"))
-                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                        .foregroundStyle(adaptiveColors.primary)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(adaptiveColors.tertiary)
-                }
-                .padding(.vertical, 14)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.momentsPressSubtle)
         }
     }
 
     // MARK: - Footer
     private var settingsFooter: some View {
         VStack(spacing: 4) {
-            let sentCount = viewModel.sentMessagesCount
-            let receivedCount = viewModel.receivedMessagesCount
-            let sentText = NSLocalizedString("conversationSettings.messages.sent", value: "enviados", comment: "")
-            let receivedText = NSLocalizedString("conversationSettings.messages.received", value: "recibidos", comment: "")
-            
-            Text("\(NSLocalizedString("conversationSettings.created", comment: "")): \(viewModel.conversationCreatedDate)  •  \(NSLocalizedString("conversationSettings.messages", comment: "")): \(viewModel.totalMessages) (\(sentCount) \(sentText), \(receivedCount) \(receivedText))")
-                .font(.system(size: legacyPoppinsSize(12)))
-                .foregroundStyle(adaptiveColors.tertiary)
-                .multilineTextAlignment(.center)
+            if viewModel.isLoadingConversationStatistics {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(adaptiveColors.tertiary)
+            } else {
+                let sentCount = viewModel.sentMessagesCount
+                let receivedCount = viewModel.receivedMessagesCount
+                let sentText = NSLocalizedString("conversationSettings.messages.sent", value: "enviados", comment: "")
+                let receivedText = NSLocalizedString("conversationSettings.messages.received", value: "recibidos", comment: "")
+
+                Text("\(NSLocalizedString("conversationSettings.created", comment: "")): \(viewModel.conversationCreatedDate)  •  \(NSLocalizedString("conversationSettings.messages", comment: "")): \(viewModel.totalMessages) (\(sentCount) \(sentText), \(receivedCount) \(receivedText))")
+                    .font(.system(size: legacyPoppinsSize(12)))
+                    .foregroundStyle(adaptiveColors.tertiary)
+                    .multilineTextAlignment(.center)
+            }
         }
-        .padding(.vertical, 16)
+        .frame(minHeight: 20)
         .frame(maxWidth: .infinity)
     }
 
     // MARK: - Shared Content Tabs (Media / Links) — segmented control nativo
     private var sharedContentTabsSection: some View {
         VStack(spacing: 16) {
+            HStack {
+                Text(NSLocalizedString("conversationSettings.sharedMedia", comment: "Shared content"))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                    .foregroundStyle(adaptiveColors.primary)
+                Spacer()
+                if !viewModel.isLoadingSharedContent,
+                   (sharedTab == .media ? !viewModel.sharedMedia.isEmpty : !viewModel.sharedLinkMessages.isEmpty) {
+                    Button(NSLocalizedString("common.viewAll", comment: "View all")) {
+                        HapticManager.shared.lightImpact()
+                        viewModel.openSharedGallery(tab: sharedTab == .media ? .media : .links)
+                    }
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                    .foregroundStyle(adaptiveColors.secondary)
+                    .buttonStyle(.momentsPressSubtle)
+                }
+            }
+            .padding(.horizontal, 16)
+
             Picker("", selection: $sharedTab) {
                 Text(NSLocalizedString("chat.gallery.tab.media", comment: "Media"))
                     .tag(SharedContentTab.media)
@@ -693,11 +676,19 @@ struct ConversationSettingsView: View {
 
     @ViewBuilder
     private var sharedMediaGrid: some View {
-        if viewModel.sharedMedia.isEmpty {
+        if viewModel.isLoadingSharedContent && viewModel.sharedMedia.isEmpty {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
+                ForEach(0..<6, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(adaptiveColors.tertiary.opacity(0.10))
+                        .aspectRatio(1, contentMode: .fit)
+                }
+            }
+        } else if viewModel.sharedMedia.isEmpty {
             sharedEmptyState(icon: "photo.on.rectangle.angled", textKey: "conversationSettings.sharedContent.empty.media")
         } else {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
-                ForEach(viewModel.sharedMedia, id: \.id) { media in
+                ForEach(Array(viewModel.sharedMedia.prefix(6)), id: \.id) { media in
                     SharedMediaThumbnail(media: media, fillsGrid: true) {
                         HapticManager.shared.lightImpact()
                         viewModel.selectedMedia = media
@@ -710,11 +701,20 @@ struct ConversationSettingsView: View {
 
     @ViewBuilder
     private var sharedLinksList: some View {
-        if viewModel.sharedLinkMessages.isEmpty {
+        if viewModel.isLoadingSharedContent && viewModel.sharedLinkMessages.isEmpty {
+            VStack(spacing: 12) {
+                ForEach(0..<3, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(adaptiveColors.tertiary.opacity(0.10))
+                        .frame(height: 72)
+                }
+            }
+            .padding(.horizontal, 16)
+        } else if viewModel.sharedLinkMessages.isEmpty {
             sharedEmptyState(icon: "link", textKey: "conversationSettings.sharedContent.empty.links")
         } else {
             VStack(spacing: 12) {
-                ForEach(viewModel.sharedLinkMessages, id: \.id) { message in
+                ForEach(Array(viewModel.sharedLinkMessages.prefix(3)), id: \.id) { message in
                     if let url = ChatLinkOpener.firstURL(in: message.content ?? "") {
                         LinkPreviewCard(url: url, embedded: true)
                             .background {
@@ -964,6 +964,7 @@ class ConversationSettingsViewModel: ObservableObject {
     @Published var totalMessages = 0
     @Published var sentMessagesCount = 0
     @Published var receivedMessagesCount = 0
+    @Published private(set) var isLoadingConversationStatistics = true
     @Published var vanishModeActive = false
     @Published var vanishMessageTimer: VanishMessageTimer = .hours24
     @Published var sharedMedia: [SharedMedia] = []
@@ -979,6 +980,9 @@ class ConversationSettingsViewModel: ObservableObject {
     @Published var starredMessages: [EnhancedMessage] = []
     @Published var showSharedGallery = false
     @Published var sharedGalleryInitialTab: ClusterGalleryTab = .media
+    @Published private(set) var isLoadingSharedContent = true
+    @Published private(set) var isLoadingMoreSharedMedia = false
+    @Published private(set) var canLoadMoreSharedMedia = true
     @Published var showStarredMessages = false
     @Published var selectedMedia: SharedMedia?
     @Published var showFullScreenMedia = false
@@ -987,6 +991,8 @@ class ConversationSettingsViewModel: ObservableObject {
     private var downloadingMediaIds = Set<String>()
     private var hydratingMediaIds = Set<String>()
     private var refreshingMetadataIds = Set<String>()
+    private var sharedMediaCursor: MessageSyncCursor?
+    private let sharedMediaPageSize = 30
 
     @Published var notificationsEnabled = true
     @Published var readReceiptsEnabled = true
@@ -1053,12 +1059,23 @@ class ConversationSettingsViewModel: ObservableObject {
     func loadConversationData(conversation: Conversation) {
         guard !isLoaded else { return }
         isLoaded = true
+        isLoadingSharedContent = true
         currentConversation = conversation
         forwardingEnabled = conversation.forwardingPreferences?[currentUserId] ?? true
         vanishModeActive = conversation.vanishModeActive ?? false
         vanishMessageTimer = VanishMessageTimer(storedValue: conversation.vanishMessageTimer)
         loadPrivacySettings()
-        guard let conversationId = conversation.id else { return }
+        guard let conversationId = conversation.id else {
+            isLoadingSharedContent = false
+            isLoadingConversationStatistics = false
+            canLoadMoreSharedMedia = false
+            return
+        }
+
+        loadConversationStatistics(
+            conversationId: conversationId,
+            fallbackDate: conversation.timestamp
+        )
 
         // Local-first: pintar al instante con lo que ya hay sincronizado en disco,
         // igual que el chat principal. Sin esto, la pantalla siempre esperaba un
@@ -1066,6 +1083,7 @@ class ConversationSettingsViewModel: ObservableObject {
         let cachedMessages = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
         if !cachedMessages.isEmpty {
             processMessages(cachedMessages)
+            isLoadingSharedContent = false
         }
 
         // Refresco en segundo plano: catch-up + query dedicada de image/video
@@ -1074,12 +1092,17 @@ class ConversationSettingsViewModel: ObservableObject {
             await MessageCatchUpService.shared.sync(conversationId: conversationId)
             guard let self else { return }
             let refreshed = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
-            let remoteMedia = await self.fetchSharedMediaMessages(conversationId: conversationId)
-            let merged = self.mergeMessages(refreshed, remoteMedia)
+            let remotePage = await self.fetchSharedMediaMessages(
+                conversationId: conversationId,
+                limit: self.sharedMediaPageSize
+            )
+            let merged = self.mergeMessages(refreshed, remotePage.messages)
             await MainActor.run {
+                self.updateSharedMediaPagination(remotePage)
                 if !merged.isEmpty {
                     self.processMessages(merged)
                 }
+                self.isLoadingSharedContent = false
                 self.hydrateGalleryThumbnails()
             }
         }
@@ -1110,23 +1133,96 @@ class ConversationSettingsViewModel: ObservableObject {
         return bScore > aScore ? b : a
     }
 
-    private func fetchSharedMediaMessages(conversationId: String) async -> [EnhancedMessage] {
+    private func fetchSharedMediaMessages(
+        conversationId: String,
+        limit: Int,
+        before: MessageSyncCursor? = nil
+    ) async -> SharedGalleryMediaPage {
         await withCheckedContinuation { continuation in
-            chatService.fetchSharedGalleryMedia(conversationId: conversationId) { result in
-                continuation.resume(returning: (try? result.get()) ?? [])
+            chatService.fetchSharedGalleryMedia(
+                conversationId: conversationId,
+                limit: limit,
+                before: before
+            ) { result in
+                continuation.resume(
+                    returning: (try? result.get())
+                        ?? SharedGalleryMediaPage(messages: [], nextCursor: nil, hasMore: false)
+                )
             }
         }
     }
 
     private func processMessages(_ messages: [EnhancedMessage]) {
-        totalMessages = messages.count
-
         let activeMessages = messages.filter { !$0.isDeleted }
-        sentMessagesCount = activeMessages.filter { $0.senderId == currentUserId }.count
-        receivedMessagesCount = activeMessages.filter { $0.senderId != currentUserId }.count
+        if isLoadingConversationStatistics {
+            totalMessages = activeMessages.count
+            sentMessagesCount = activeMessages.filter { $0.senderId == currentUserId }.count
+            receivedMessagesCount = activeMessages.filter { $0.senderId != currentUserId }.count
+        }
 
+        updateSharedContent(messages)
+
+        starredMessages = messages
+            .filter { !$0.isDeleted && $0.isStarred(by: currentUserId) }
+            .sorted { $0.timestamp > $1.timestamp }
+    }
+
+    private func loadConversationStatistics(conversationId: String, fallbackDate: Date) {
+        isLoadingConversationStatistics = true
+        Task { [weak self] in
+            guard let self else { return }
+            let thread = Firestore.firestore().messagingThread(conversationId)
+            let messages = thread.messagingMessages
+
+            async let documentDate = self.fetchConversationCreatedAt(thread)
+            async let oldestMessageDate = self.fetchOldestMessageDate(messages)
+            async let totalCount = self.aggregateCount(messages)
+            async let sentCount = self.aggregateCount(messages.whereField("senderId", isEqualTo: self.currentUserId))
+
+            let (storedDate, oldestDate, exactTotal, exactSent) = await (
+                documentDate,
+                oldestMessageDate,
+                totalCount,
+                sentCount
+            )
+            guard self.currentConversation?.id == conversationId else { return }
+
+            let creationDate = [storedDate, oldestDate].compactMap { $0 }.min() ?? fallbackDate
+            self.conversationCreatedDate = MomentsFormat.smartDate(from: creationDate, context: .mediumDate)
+            if let exactTotal {
+                self.totalMessages = exactTotal
+                self.sentMessagesCount = min(exactSent ?? self.sentMessagesCount, exactTotal)
+                self.receivedMessagesCount = max(0, exactTotal - self.sentMessagesCount)
+            }
+            self.isLoadingConversationStatistics = false
+        }
+    }
+
+    private func fetchConversationCreatedAt(_ reference: DocumentReference) async -> Date? {
+        guard let snapshot = try? await reference.getDocument() else { return nil }
+        let data = snapshot.data() ?? [:]
+        return ["createdAt", "acceptedAt"]
+            .compactMap { (data[$0] as? Timestamp)?.dateValue() }
+            .min()
+    }
+
+    private func fetchOldestMessageDate(_ query: Query) async -> Date? {
+        guard let snapshot = try? await query
+            .order(by: "timestamp", descending: false)
+            .limit(to: 1)
+            .getDocuments() else { return nil }
+        return (snapshot.documents.first?.data()["timestamp"] as? Timestamp)?.dateValue()
+    }
+
+    private func aggregateCount(_ query: Query) async -> Int? {
+        guard let snapshot = try? await query.count.getAggregation(source: .server) else { return nil }
+        return snapshot.count.intValue
+    }
+
+    private func updateSharedContent(_ messages: [EnhancedMessage]) {
         let galleryMessages = messages
             .filter(isSharedGalleryEligible)
+            .map(warmingCachedMediaURLs)
             .sorted { $0.timestamp > $1.timestamp }
 
         sharedGalleryMessages = galleryMessages
@@ -1138,14 +1234,56 @@ class ConversationSettingsViewModel: ObservableObject {
         // Incluir siempre, aunque aún no haya URL local (E2E sin descifrar).
         sharedMedia = mediaMessages.compactMap(makeSharedMedia)
 
-        starredMessages = messages
-            .filter { !$0.isDeleted && $0.isStarred(by: currentUserId) }
-            .sorted { $0.timestamp > $1.timestamp }
+    }
+
+    /// Las rutas locales no viven en Firestore. Se reconstruyen desde el nombre
+    /// determinista del fichero para reutilizar miniaturas y media entre sesiones.
+    private func warmingCachedMediaURLs(_ message: EnhancedMessage) -> EnhancedMessage {
+        let cached = ChatCacheStore.localURLsIfPresent(for: message)
+        guard cached.mediaUrl != nil || cached.thumbnailUrl != nil else { return message }
+        var warmed = message
+        if let mediaUrl = cached.mediaUrl {
+            warmed.mediaUrl = mediaUrl
+        }
+        if let thumbnailUrl = cached.thumbnailUrl {
+            warmed.thumbnailUrl = thumbnailUrl
+        }
+        return warmed
+    }
+
+    private func updateSharedMediaPagination(_ page: SharedGalleryMediaPage) {
+        sharedMediaCursor = page.nextCursor
+        canLoadMoreSharedMedia = page.hasMore
+    }
+
+    func loadMoreSharedMedia() {
+        guard !isLoadingMoreSharedMedia,
+              canLoadMoreSharedMedia,
+              let conversationId = currentConversation?.id,
+              let cursor = sharedMediaCursor else { return }
+        isLoadingMoreSharedMedia = true
+        Task { [weak self] in
+            guard let self else { return }
+            let page = await self.fetchSharedMediaMessages(
+                conversationId: conversationId,
+                limit: self.sharedMediaPageSize,
+                before: cursor
+            )
+            guard self.currentConversation?.id == conversationId else {
+                self.isLoadingMoreSharedMedia = false
+                return
+            }
+            self.updateSharedMediaPagination(page)
+            if !page.messages.isEmpty {
+                self.updateSharedContent(self.mergeMessages(self.sharedGalleryMessages, page.messages))
+            }
+            self.isLoadingMoreSharedMedia = false
+        }
     }
 
     /// Miniaturas del grid de Media (listar + resolver thumbs E2E).
-    func hydrateGalleryThumbnails() {
-        for message in sharedGalleryMessages where isSharedMediaItem(message) {
+    func hydrateGalleryThumbnails(_ messages: [EnhancedMessage]? = nil) {
+        for message in (messages ?? Array(sharedGalleryMessages.prefix(6))) where isSharedMediaItem(message) {
             let cached = ChatCacheStore.localURLsIfPresent(for: message)
             let hasThumb = cached.thumbnailUrl != nil || message.thumbnailUrl != nil
             let hasMedia = cached.mediaUrl != nil || message.mediaUrl != nil
@@ -1858,7 +1996,13 @@ class ConversationSettingsViewModel: ObservableObject {
         let otherParticipantId = currentConversation?.otherParticipantId ?? ""
 
         // Bloquear usuario usando FirestoreService
-        firestoreService.blockUser(currentUserId: currentUserId, targetUserId: otherParticipantId) { _ in
+        firestoreService.blockUser(currentUserId: currentUserId, targetUserId: otherParticipantId) { error in
+            guard error == nil else { return }
+            NotificationCenter.default.post(
+                name: .messagingParticipantStateDidChange,
+                object: nil,
+                userInfo: ["userId": otherParticipantId]
+            )
         }
     }
 }

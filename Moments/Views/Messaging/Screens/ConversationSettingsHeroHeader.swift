@@ -15,6 +15,7 @@ struct ConversationSettingsHeroHeader: View {
     let onProfile: () -> Void
     let onSearch: () -> Void
     let onMuteToggle: () -> Void
+    let onMuteDurationSelected: (Date?) -> Void
     var showsIdentityEdit: Bool = false
     var onIdentityTap: (() -> Void)? = nil
     var identitySubtitle: String? = nil
@@ -123,32 +124,46 @@ struct ConversationSettingsHeroHeader: View {
                 title: NSLocalizedString("conversationSettings.quickAction.search", comment: ""),
                 action: onSearch
             )
-            compactActionButton(
-                icon: notificationsEnabled ? "bell" : "bell.slash",
-                title: NSLocalizedString(
-                    notificationsEnabled
-                        ? "conversationSettings.quickAction.mute"
-                        : "conversationSettings.quickAction.unmute",
-                    comment: ""
-                ),
-                action: onMuteToggle
-            )
+            compactMuteAction
         }
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func compactActionButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .semibold))
-                Text(title)
-                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-            }
-            .foregroundStyle(adaptiveColors.primary)
-            .frame(width: 70)
+            compactActionLabel(icon: icon, title: title)
         }
         .buttonStyle(.momentsPressSubtle)
+    }
+
+    private func compactActionLabel(icon: String, title: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+            Text(title)
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+        }
+        .foregroundStyle(adaptiveColors.primary)
+        .frame(width: 70)
+    }
+
+    @ViewBuilder
+    private var compactMuteAction: some View {
+        if isGroup && notificationsEnabled {
+            Menu {
+                muteDurationMenuItems
+            } label: {
+                compactActionLabel(icon: "bell", title: muteActionTitle)
+            }
+            .buttonStyle(.momentsPressSubtle)
+            .menuOrder(.fixed)
+        } else {
+            compactActionButton(
+                icon: notificationsEnabled ? "bell" : "bell.slash",
+                title: muteActionTitle,
+                action: onMuteToggle
+            )
+        }
     }
 
     // MARK: - Grande (hero)
@@ -312,57 +327,93 @@ struct ConversationSettingsHeroHeader: View {
                 title: NSLocalizedString("conversationSettings.quickAction.search", comment: ""),
                 action: onSearch
             )
-            largeActionButton(
-                icon: notificationsEnabled ? "bell" : "bell.slash",
-                title: NSLocalizedString(
-                    notificationsEnabled
-                        ? "conversationSettings.quickAction.mute"
-                        : "conversationSettings.quickAction.unmute",
-                    comment: ""
-                ),
-                action: onMuteToggle
-            )
+            largeMuteAction
         }
     }
 
     private func largeActionButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .frame(height: 28)
-                Text(title)
-                    .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-            }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background {
-                if #available(iOS 26.0, *) {
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(.clear)
-                        .glassEffect(
-                            MomentsChromeGlass.chromeGlass(
-                                interactive: true,
-                                tint: MomentsChromeGlass.canvasTint(for: colorScheme)
-                            ),
-                            in: RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        )
-                } else {
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(.clear)
-                        .momentsChromeGlass(
-                            in: RoundedRectangle(cornerRadius: 15, style: .continuous),
-                            interactive: true,
-                            style: .tinted
-                        )
-                }
-            }
-            .contentShape(Rectangle())
+            largeActionLabel(icon: icon, title: title)
         }
         .buttonStyle(.momentsPressSubtle)
+    }
+
+    private func largeActionLabel(icon: String, title: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .frame(height: 28)
+            Text(title)
+                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+        }
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background {
+            if #available(iOS 26.0, *) {
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .fill(.clear)
+                    .glassEffect(
+                        MomentsChromeGlass.chromeGlass(
+                            interactive: true,
+                            tint: MomentsChromeGlass.canvasTint(for: colorScheme)
+                        ),
+                        in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    )
+            } else {
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .fill(.clear)
+                    .momentsChromeGlass(
+                        in: RoundedRectangle(cornerRadius: 15, style: .continuous),
+                        interactive: true,
+                        style: .tinted
+                    )
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var largeMuteAction: some View {
+        if isGroup && notificationsEnabled {
+            Menu {
+                muteDurationMenuItems
+            } label: {
+                largeActionLabel(icon: "bell", title: muteActionTitle)
+            }
+            .buttonStyle(.momentsPressSubtle)
+            .menuOrder(.fixed)
+        } else {
+            largeActionButton(
+                icon: notificationsEnabled ? "bell" : "bell.slash",
+                title: muteActionTitle,
+                action: onMuteToggle
+            )
+        }
+    }
+
+    private var muteActionTitle: String {
+        NSLocalizedString(
+            notificationsEnabled
+                ? "conversationSettings.quickAction.mute"
+                : "conversationSettings.quickAction.unmute",
+            comment: ""
+        )
+    }
+
+    @ViewBuilder
+    private var muteDurationMenuItems: some View {
+        Button(NSLocalizedString("groups.mute.8h", comment: "")) {
+            onMuteDurationSelected(Date().addingTimeInterval(8 * 3600))
+        }
+        Button(NSLocalizedString("groups.mute.week", comment: "")) {
+            onMuteDurationSelected(Date().addingTimeInterval(7 * 24 * 3600))
+        }
+        Button(NSLocalizedString("groups.mute.always", comment: "")) {
+            onMuteDurationSelected(nil)
+        }
     }
 
     // MARK: - Shared

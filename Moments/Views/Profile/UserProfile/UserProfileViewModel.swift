@@ -15,8 +15,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     @Published var suggestedConnectionsForViewer: [AppUser] = []
     @Published var moments: [Moment] = []
     @Published var isLoadingMoments: Bool = true
+    @Published private(set) var isLoadingMoreMoments: Bool = false
+    @Published private(set) var hasMoreMoments: Bool = false
     @Published var taggedMoments: [Moment] = [] // ✅ NUEVO
     @Published var isLoadingTagged: Bool = false // ✅ NUEVO
+    @Published private(set) var isLoadingMoreTagged: Bool = false
+    @Published private(set) var hasMoreTagged: Bool = false
     @Published var isFollowing: Bool = false
     @Published var isBlockedByCurrentUser: Bool = false
     @Published var isCurrentUserBlocked: Bool = false
@@ -55,7 +59,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     private var targetVisibleFollowingIds: Set<String> = []
     private var targetVisibleFollowerIds: Set<String> = []
     private var lastSuggestionsSignature: String?
-    private var momentsFetchLimit: Int = 50
+    private var momentsPageSize: Int = 18
+    private var momentsCursor: FeedCursor?
+    private var legacyVisibleMoments: [Moment] = []
+    private var isFetchingMomentsPage = false
+    private var taggedCursor: BackendTagsCursor?
+    private var isFetchingTaggedPage = false
 
     // Cache local para tracking de unfollows recientes
     private var recentUnfollows: Set<String> = []
@@ -85,8 +94,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         }
     }
 
-    func fetchProfile(momentsLimit: Int = 50) {
-        momentsFetchLimit = max(1, momentsLimit)
+    func fetchProfile(momentsLimit: Int = 18) {
+        momentsPageSize = max(1, momentsLimit)
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             isLoading = false
             return
@@ -119,7 +128,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         // ✅ SwiftData: Moments cacheados del perfil (evita el flash a "No moments yet" sin red)
         let cachedMoments = LocalPersistenceService.shared.loadProfileMoments(userId: userId, viewerId: currentUserId)
         if !cachedMoments.isEmpty && self.moments.isEmpty {
-            self.moments = Array(cachedMoments.prefix(self.momentsFetchLimit))
+            self.moments = Array(cachedMoments.prefix(self.momentsPageSize))
         }
 
         // ✅ Cargar conexiones del caché
@@ -361,23 +370,60 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     }
 
     // ✅ NUEVA FUNCIÓN: Obtener momentos etiquetados con filtrado de audiencia
-    func fetchTaggedMoments(completion: (() -> Void)? = nil) {
+    func fetchTaggedMoments(reset: Bool = true, completion: (() -> Void)? = nil) {
         guard Auth.auth().currentUser?.uid != nil else {
             completion?()
             return
         }
 
-        isLoadingTagged = true
+        if reset {
+            guard !isFetchingTaggedPage else {
+                completion?()
+                return
+            }
+            taggedCursor = nil
+            hasMoreTagged = false
+            isLoadingTagged = true
+        } else {
+            guard hasMoreTagged, !isLoadingMoreTagged, taggedCursor != nil else {
+                completion?()
+                return
+            }
+            isLoadingMoreTagged = true
+        }
+        isFetchingTaggedPage = true
         Task { @MainActor [weak self] in
             guard let self else {
                 completion?()
                 return
             }
-            let result = await BackendFeedService.shared.fetchTaggedMoments(targetUserId: self.userId, limit: 50)
-            self.taggedMoments = result?.moments ?? []
+            let result = await BackendFeedService.shared.fetchTaggedMoments(
+                targetUserId: self.userId,
+                cursor: reset ? nil : self.taggedCursor,
+                limit: self.momentsPageSize
+            )
+            if let result {
+                if reset {
+                    self.taggedMoments = result.moments
+                } else {
+                    let existingIds = Set(self.taggedMoments.compactMap(\.id))
+                    self.taggedMoments.append(contentsOf: result.moments.filter { moment in
+                        guard let id = moment.id else { return true }
+                        return !existingIds.contains(id)
+                    })
+                }
+                self.taggedCursor = result.nextCursor
+                self.hasMoreTagged = result.nextCursor != nil
+            }
             self.isLoadingTagged = false
+            self.isLoadingMoreTagged = false
+            self.isFetchingTaggedPage = false
             completion?()
         }
+    }
+
+    func loadMoreTaggedMoments() {
+        fetchTaggedMoments(reset: false)
     }
 
     // ✅ NUEVA FUNCIÓN: Categorizar conexiones respetando configuraciones de privacidad
@@ -552,12 +598,42 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         }
     }
 
-    func fetchMoments(completion: (() -> Void)? = nil) {
+    func fetchMoments(reset: Bool = true, completion: (() -> Void)? = nil) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             isLoadingMoments = false
+            isLoadingMoreMoments = false
             completion?()
             return
         }
+
+        if reset {
+            guard !isFetchingMomentsPage else {
+                completion?()
+                return
+            }
+            momentsCursor = nil
+            legacyVisibleMoments = []
+            hasMoreMoments = false
+        } else {
+            guard hasMoreMoments, !isLoadingMoreMoments else {
+                completion?()
+                return
+            }
+            if !legacyVisibleMoments.isEmpty {
+                let nextCount = min(moments.count + momentsPageSize, legacyVisibleMoments.count)
+                moments = Array(legacyVisibleMoments.prefix(nextCount))
+                hasMoreMoments = nextCount < legacyVisibleMoments.count
+                completion?()
+                return
+            }
+            guard momentsCursor != nil else {
+                hasMoreMoments = false
+                completion?()
+                return
+            }
+            isLoadingMoreMoments = true
+        }
+        isFetchingMomentsPage = true
 
         Task { @MainActor [weak self] in
             guard let self else {
@@ -567,13 +643,36 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
             if let result = await BackendFeedService.shared.fetchProfileMoments(
                 targetUserId: self.userId,
-                limit: self.momentsFetchLimit
+                cursor: reset ? nil : self.momentsCursor,
+                limit: self.momentsPageSize
             ) {
-                self.moments = result.moments
-                self.isLoadingMoments = false
-                if self.momentsFetchLimit >= 50 {
-                    LocalPersistenceService.shared.saveProfileMoments(result.moments, userId: self.userId, viewerId: currentUserId, sync: true)
+                if reset {
+                    self.moments = result.moments
+                } else {
+                    let existingIds = Set(self.moments.compactMap(\.id))
+                    self.moments.append(contentsOf: result.moments.filter { moment in
+                        guard let id = moment.id else { return true }
+                        return !existingIds.contains(id)
+                    })
                 }
+                self.momentsCursor = result.nextCursor
+                self.hasMoreMoments = result.nextCursor != nil
+                self.isLoadingMoments = false
+                self.isLoadingMoreMoments = false
+                self.isFetchingMomentsPage = false
+                LocalPersistenceService.shared.saveProfileMoments(
+                    self.moments,
+                    userId: self.userId,
+                    viewerId: currentUserId,
+                    sync: true
+                )
+                completion?()
+                return
+            }
+
+            guard reset else {
+                self.isLoadingMoreMoments = false
+                self.isFetchingMomentsPage = false
                 completion?()
                 return
             }
@@ -588,11 +687,13 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 case .success(let allMoments):
                     self.filterMomentsForAudience(moments: allMoments, viewerId: currentUserId) { filteredMoments in
                         DispatchQueue.main.async {
-                            self.moments = Array(filteredMoments.prefix(self.momentsFetchLimit))
+                            self.legacyVisibleMoments = filteredMoments
+                            self.moments = Array(filteredMoments.prefix(self.momentsPageSize))
+                            self.hasMoreMoments = self.moments.count < filteredMoments.count
                             self.isLoadingMoments = false
-                            if self.momentsFetchLimit >= 50 {
-                                LocalPersistenceService.shared.saveProfileMoments(filteredMoments, userId: self.userId, viewerId: currentUserId, sync: true)
-                            }
+                            self.isLoadingMoreMoments = false
+                            self.isFetchingMomentsPage = false
+                            LocalPersistenceService.shared.saveProfileMoments(filteredMoments, userId: self.userId, viewerId: currentUserId, sync: true)
                             completion?()
                         }
                     }
@@ -600,11 +701,17 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                     DispatchQueue.main.async {
                         // ✅ No pisar los moments ya cacheados si el fetch falla (p. ej. sin red)
                         self.isLoadingMoments = false
+                        self.isLoadingMoreMoments = false
+                        self.isFetchingMomentsPage = false
                         completion?()
                     }
                 }
             }
         }
+    }
+
+    func loadMoreMoments() {
+        fetchMoments(reset: false)
     }
 
     private func filterMomentsForAudience(moments: [Moment], viewerId: String, completion: @escaping ([Moment]) -> Void) {

@@ -36,20 +36,24 @@ class EnhancedChatViewModel: ObservableObject {
     private(set) var messagesById: [String: EnhancedMessage] = [:]
     private(set) var messageIndexById: [String: Int] = [:]
     private(set) var unreadIncomingCount = 0
+    private(set) var lastOutgoingMessageId: String?
 
     private func rebuildMessageIndex() {
         var byId = [String: EnhancedMessage](minimumCapacity: messages.count)
         var indexById = [String: Int](minimumCapacity: messages.count)
         var unread = 0
+        var lastOutgoing: String?
         let selfId = currentUserId
         for (offset, message) in messages.enumerated() {
             byId[message.id] = message
             indexById[message.id] = offset
             if !message.isRead, message.senderId != selfId { unread += 1 }
+            if message.senderId == selfId { lastOutgoing = message.id }
         }
         messagesById = byId
         messageIndexById = indexById
         unreadIncomingCount = unread
+        lastOutgoingMessageId = lastOutgoing
     }
 
     @Published var typingUsers: Set<String> = []

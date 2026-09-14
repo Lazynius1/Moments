@@ -1,6 +1,5 @@
 import SwiftUI
 import Kingfisher
-import AVFoundation
 import FirebaseAuth
 
 enum ProfileMomentsGridMetrics {
@@ -270,6 +269,9 @@ struct ModernMomentThumbnail: View {
                 .placeholder {
                     Rectangle().fill(.ultraThinMaterial)
                 }
+                .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
+                .scaleFactor(displayScale)
+                .cancelOnDisappear(true)
                 .resizable()
                 .scaledToFill()
                 .frame(width: cellWidth, height: cellHeight)
@@ -423,26 +425,20 @@ struct ModernMomentThumbnail: View {
     }
 
     private func loadVideoThumbnail(from urlString: String) {
-        guard let url = URL(string: urlString) else { return }
+        guard videoThumbnail == nil, !isLoadingVideoThumbnail else { return }
+
+        if let cached = VideoThumbnailCache.shared.cachedThumbnail(for: urlString) {
+            videoThumbnail = cached
+            return
+        }
 
         isLoadingVideoThumbnail = true
 
         Task {
-            let asset = AVURLAsset(url: url)
-            let imageGenerator = AVAssetImageGenerator(asset: asset)
-            imageGenerator.appliesPreferredTrackTransform = true
-            imageGenerator.maximumSize = CGSize(width: size * 2, height: size * 2)
-
-            do {
-                let (cgImage, _) = try await imageGenerator.image(at: CMTime(seconds: 1, preferredTimescale: 600))
-                await MainActor.run {
-                    self.videoThumbnail = UIImage(cgImage: cgImage)
-                    self.isLoadingVideoThumbnail = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.isLoadingVideoThumbnail = false
-                }
+            let image = await VideoThumbnailCache.shared.thumbnail(for: urlString)
+            await MainActor.run {
+                videoThumbnail = image
+                isLoadingVideoThumbnail = false
             }
         }
     }

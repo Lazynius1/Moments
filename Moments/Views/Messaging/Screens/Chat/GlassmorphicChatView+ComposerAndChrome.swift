@@ -879,12 +879,8 @@ extension GlassmorphicChatView {
         }.joined(separator: ";")
     }
 
-    var lastOutgoingMessageId: String? {
-        viewModel.messages.last(where: { $0.senderId == viewModel.currentUserId })?.id
-    }
-
     func shouldShowSeenLabel(for messageId: String, status: MessageStatus) -> Bool {
-        status == .read && messageId == lastOutgoingMessageId
+        status == .read && messageId == viewModel.lastOutgoingMessageId
     }
 
     func reactionIdentitySuffix(for item: MessageItem) -> String {

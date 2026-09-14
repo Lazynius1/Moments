@@ -637,15 +637,7 @@ struct FeedView: View {
         }
         prefetchImages()
 
-        try? await Task.sleep(nanoseconds: 400_000_000)
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask {
-                await self.notificationsViewModel.refreshNotifications()
-            }
-            group.addTask {
-                await self.messagingViewModel.fetchConversations(for: userId)
-            }
-        }
+        await self.notificationsViewModel.refreshNotifications()
     }
     
     // ✅ OPTIMIZADO: Prefetching mejorado

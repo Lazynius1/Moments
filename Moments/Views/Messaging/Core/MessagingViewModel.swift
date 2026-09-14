@@ -3,6 +3,13 @@ import FirebaseAuth
 import FirebaseFirestore
 import Combine
 
+struct InboxParticipantState: Equatable {
+    let username: String
+    let imagePath: String
+    let isUnavailable: Bool
+    let isBlockedByCurrentUser: Bool
+}
+
 @MainActor
 class MessagingViewModel: ObservableObject {
     @Published var conversations: [Conversation] = []
@@ -18,6 +25,8 @@ class MessagingViewModel: ObservableObject {
     @Published var searchedUsers: [AppUser] = []
     @Published var searchedMessages: [GlobalMessageSearchResult] = []
     @Published var isSearchingContent: Bool = false
+    @Published private(set) var participantStates: [String: InboxParticipantState] = [:]
+    @Published private(set) var draftTexts: [String: String] = [:]
 
     private let chatService = ChatService.shared
     private let messageRequestService = MessageRequestService()
@@ -29,6 +38,9 @@ class MessagingViewModel: ObservableObject {
     private var activeUserSearchQuery: String = ""
     private var locallyReadConversationIds: Set<String> = []
     private var conversationReadObserver: NSObjectProtocol?
+    private var participantStateFetches: Set<String> = []
+    private var participantStateFetchTimes: [String: Date] = [:]
+    private let participantStateTTL: TimeInterval = 300
 
     init() {
         conversationReadObserver = NotificationCenter.default.addObserver(
@@ -157,37 +169,28 @@ class MessagingViewModel: ObservableObject {
 
     private func hasDraft(_ conversation: Conversation, userId: String?) -> Bool {
         guard let conversationId = conversation.id else { return false }
-        return !ChatDraftStore.shared.draft(for: conversationId, userId: userId)
+        return !(draftTexts[conversationId] ?? ChatDraftStore.shared.draft(for: conversationId, userId: userId))
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .isEmpty
     }
 
-    func refreshDraftOrdering() {
+    func draftText(for conversationId: String) -> String {
+        draftTexts[conversationId] ?? ChatDraftStore.shared.draft(for: conversationId)
+    }
+
+    func refreshDraftOrdering(conversationId: String? = nil) {
+        if let conversationId {
+            draftTexts[conversationId] = ChatDraftStore.shared.draft(for: conversationId)
+        }
         conversations = sortConversationsForInbox(conversations)
         archivedConversations = sortConversationsForInbox(archivedConversations)
         filteredConversations = sortConversationsForInbox(filteredConversations)
     }
 
-    /// Misma identidad por `id`. Conserva la fila si no cambió; sustituye si sí; inserta nuevas; quita las que ya no están.
-    private func mergingInboxById(_ existing: [Conversation], with incoming: [Conversation]) -> [Conversation] {
-        guard !existing.isEmpty else { return incoming }
-        var existingById: [String: Conversation] = [:]
-        existingById.reserveCapacity(existing.count)
-        for conversation in existing {
-            guard let id = conversation.id, !id.isEmpty else { continue }
-            existingById[id] = conversation
-        }
-        return incoming.map { next in
-            guard let id = next.id, let previous = existingById[id], previous == next else { return next }
-            return previous
-        }
-    }
-
     private func applyingInboxSnapshot(_ incoming: [Conversation], to existing: inout [Conversation]) {
-        let merged = mergingInboxById(existing, with: incoming)
-        if existing != merged {
-            existing = merged
-        }
+        // Conversation.== compara identidad (id), no contenido. El listener puede traer
+        // una preview/timestamp nuevos con el mismo id; siempre aplicamos ese snapshot.
+        existing = incoming
     }
 
     func applyLocalConversationState(
@@ -300,17 +303,76 @@ class MessagingViewModel: ObservableObject {
         }
     }
 
-    func refreshUserData(userId: String) {
-        UserCacheService.shared.refreshUser(userId: userId) { [weak self] user in
-            DispatchQueue.main.async {
+    func loadParticipantState(for conversation: Conversation, force: Bool = false) {
+        guard !conversation.isGroup else { return }
+        let userId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !userId.isEmpty else { return }
+        if !force,
+           participantStates[userId] != nil,
+           let fetchedAt = participantStateFetchTimes[userId],
+           Date().timeIntervalSince(fetchedAt) < participantStateTTL { return }
+        guard !participantStateFetches.contains(userId) else { return }
+        participantStateFetches.insert(userId)
+
+        let fallbackName = conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
+        let fallbackImage = conversation.otherParticipantProfileImagePath ?? ""
+        FirestoreService().fetchUserProfileWithAvailability(userId: userId) { [weak self] result, availability in
+            Task { @MainActor in
                 guard let self else { return }
-                let username = user?.username ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
-                let imagePath = user?.profileImagePath ?? ""
-                self.applyRefreshedParticipant(userId: userId, username: username, imagePath: imagePath, to: &self.conversations)
-                self.applyRefreshedParticipant(userId: userId, username: username, imagePath: imagePath, to: &self.archivedConversations)
-                self.applyRefreshedParticipant(userId: userId, username: username, imagePath: imagePath, to: &self.filteredConversations)
+                let fetchedUser = try? result.get()
+                if let fetchedUser { UserCacheService.shared.cacheUser(fetchedUser) }
+                let currentUserId = Auth.auth().currentUser?.uid
+                guard let currentUserId, !currentUserId.isEmpty else {
+                    self.finishParticipantState(
+                            userId: userId,
+                            user: fetchedUser,
+                            fallbackName: fallbackName,
+                            fallbackImage: fallbackImage,
+                            unavailable: availability == .unavailable,
+                            blockedByCurrentUser: false
+                        )
+                    return
+                }
+                UserCacheService.shared.getUser(userId: currentUserId) { [weak self] currentUser in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        let blockedByCurrentUser = currentUser?.blockedUsers.contains(userId) == true
+                        let blockedCurrentUser = fetchedUser?.blockedUsers.contains(currentUserId) == true
+                        self.finishParticipantState(
+                            userId: userId,
+                            user: fetchedUser,
+                            fallbackName: fallbackName,
+                            fallbackImage: fallbackImage,
+                            unavailable: availability == .unavailable || blockedByCurrentUser || blockedCurrentUser,
+                            blockedByCurrentUser: blockedByCurrentUser
+                        )
+                    }
+                }
             }
         }
+    }
+
+    private func finishParticipantState(
+        userId: String,
+        user: AppUser?,
+        fallbackName: String,
+        fallbackImage: String,
+        unavailable: Bool,
+        blockedByCurrentUser: Bool
+    ) {
+        participantStateFetches.remove(userId)
+        participantStateFetchTimes[userId] = Date()
+        let username = user?.username ?? fallbackName
+        let imagePath = user?.profileImagePath ?? fallbackImage
+        participantStates[userId] = InboxParticipantState(
+            username: username,
+            imagePath: imagePath,
+            isUnavailable: unavailable,
+            isBlockedByCurrentUser: blockedByCurrentUser
+        )
+        applyRefreshedParticipant(userId: userId, username: username, imagePath: imagePath, to: &conversations)
+        applyRefreshedParticipant(userId: userId, username: username, imagePath: imagePath, to: &archivedConversations)
+        applyRefreshedParticipant(userId: userId, username: username, imagePath: imagePath, to: &filteredConversations)
     }
 
     /// Muta solo los datos de perfil del participante: el resto de la conversación
@@ -328,9 +390,26 @@ class MessagingViewModel: ObservableObject {
     }
 
     func refreshVisibleUsers() {
-        let visibleUsers = Array(conversations.prefix(10))
-        for conversation in visibleUsers {
-            refreshUserData(userId: conversation.otherParticipantId)
+        let visible = Array(conversations.filter { !$0.isGroup }.prefix(10))
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        UserCacheService.shared.refreshUser(userId: currentUserId) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                for conversation in visible {
+                    self.loadParticipantState(for: conversation, force: true)
+                }
+            }
+        }
+    }
+
+    func invalidateParticipantState(userId: String) {
+        participantStates.removeValue(forKey: userId)
+        participantStateFetchTimes.removeValue(forKey: userId)
+        if let currentUserId = Auth.auth().currentUser?.uid {
+            UserCacheService.shared.invalidateUser(userId: currentUserId)
+        }
+        if let conversation = (conversations + archivedConversations).first(where: { $0.otherParticipantId == userId }) {
+            loadParticipantState(for: conversation, force: true)
         }
     }
 

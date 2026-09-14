@@ -162,6 +162,13 @@ struct UserModernPublicProfileView: View {
                                     }
                                 }
                                 .frame(height: calculateBentoGridHeight(moments: viewModel.moments))
+
+                                if viewModel.isLoadingMoreMoments {
+                                    ProgressView()
+                                        .tint(UserProfileColors.textSecondary)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 18)
+                                }
                             }
 
                         case .tagged:
@@ -210,6 +217,13 @@ struct UserModernPublicProfileView: View {
                                         }
                                     }
                                     .frame(height: calculateTaggedGridHeight(moments: viewModel.taggedMoments))
+
+                                    if viewModel.isLoadingMoreTagged {
+                                        ProgressView()
+                                            .tint(UserProfileColors.textSecondary)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 18)
+                                    }
                                 }
                             }
                             .onAppear {
@@ -229,6 +243,21 @@ struct UserModernPublicProfileView: View {
                 .padding(.bottom, safeAreaBottom + 120)
             }
             .coordinateSpace(name: "scroll")
+            .onScrollGeometryChange(for: Int.self) { geometry in
+                let viewportBottom = geometry.contentOffset.y
+                    + geometry.contentInsets.top
+                    + geometry.containerSize.height
+                let hasMore = selectedTab == .moments ? viewModel.hasMoreMoments : viewModel.hasMoreTagged
+                guard hasMore, geometry.contentSize.height - viewportBottom < 900 else { return -1 }
+                return selectedTab == .moments ? viewModel.moments.count : viewModel.taggedMoments.count
+            } action: { _, visibleCountNearBottom in
+                guard visibleCountNearBottom >= 0 else { return }
+                if selectedTab == .moments {
+                    viewModel.loadMoreMoments()
+                } else {
+                    viewModel.loadMoreTaggedMoments()
+                }
+            }
             .momentRefresh {
                 await withCheckedContinuation { continuation in
                     highlightsRefreshToken += 1

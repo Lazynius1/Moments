@@ -90,6 +90,7 @@ struct MessagingView: View {
     @State private var actionToastDismissTask: Task<Void, Never>? = nil
     @Namespace private var profileZoomNamespace
     @State private var profileRoute: MessagingProfileRoute?
+    @ObservedObject private var groupDirectory = GroupDirectory.shared
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -120,13 +121,17 @@ struct MessagingView: View {
             .onChange(of: conversationIds) { _, _ in
                 handleConversationIdsChange()
             }
-            .onReceive(NotificationCenter.default.publisher(for: .chatDraftDidChange)) { _ in
-                viewModel.refreshDraftOrdering()
+            .onReceive(NotificationCenter.default.publisher(for: .chatDraftDidChange)) { notification in
+                viewModel.refreshDraftOrdering(conversationId: notification.userInfo?["conversationId"] as? String)
             }
             .onReceive(NotificationCenter.default.publisher(for: .conversationVanishModeDidChange)) { notification in
                 guard let conversationId = notification.userInfo?["conversationId"] as? String,
                       let active = notification.userInfo?["vanishModeActive"] as? Bool else { return }
                 viewModel.updateVanishMode(conversationId: conversationId, active: active)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .messagingParticipantStateDidChange)) { notification in
+                guard let userId = notification.userInfo?["userId"] as? String else { return }
+                viewModel.invalidateParticipantState(userId: userId)
             }
             .onChange(of: authService.currentUser) { _, _ in
                 handleAuthUserChange()
@@ -890,6 +895,9 @@ struct MessagingView: View {
     private func searchResultConversationRow(_ conversation: Conversation) -> some View {
         GlassmorphicConversationRow(
             conversation: conversation,
+            participantState: viewModel.participantStates[conversation.otherParticipantId],
+            draftText: conversation.id.map { viewModel.draftText(for: $0) } ?? "",
+            groupMemberIds: resolvedGroupMemberIds(for: conversation),
             profileZoomNamespace: profileZoomNamespace,
             onOpenProfile: { openConversationProfile(userId: conversation.otherParticipantId) },
             onTap: {
@@ -898,7 +906,8 @@ struct MessagingView: View {
                 isSearching = false
                 isSearchFocused = false
                 viewModel.clearSearch()
-            }
+            },
+            onNeedsParticipantState: { viewModel.loadParticipantState(for: conversation) }
         )
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
@@ -1062,6 +1071,9 @@ struct MessagingView: View {
 
         ConversationPressableRow(
             conversation: conversation,
+            participantState: viewModel.participantStates[conversation.otherParticipantId],
+            draftText: conversation.id.map { viewModel.draftText(for: $0) } ?? "",
+            groupMemberIds: resolvedGroupMemberIds(for: conversation),
             isMenuSelected: isMenuSelected,
             colorScheme: colorScheme,
             profileZoomNamespace: profileZoomNamespace,
@@ -1077,12 +1089,19 @@ struct MessagingView: View {
                     conversation: conversation,
                     rowFrame: frame
                 )
-            }
+            },
+            onNeedsParticipantState: { viewModel.loadParticipantState(for: conversation) }
         )
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
         .zIndex(isMenuSelected ? 1 : 0)
+    }
+
+    private func resolvedGroupMemberIds(for conversation: Conversation) -> [String] {
+        if !conversation.participants.isEmpty { return conversation.participants }
+        guard let id = conversation.id else { return [] }
+        return groupDirectory.groups[id]?.members.map(\.id) ?? []
     }
 
     private var archivedConversationsEntryRow: some View {
@@ -1179,11 +1198,9 @@ struct OutgoingSentRequestRow: View {
 
     private func loadReceiverIfNeeded() {
         guard receiver == nil else { return }
-        FirestoreService().fetchUser(userId: request.receiverId) { (result: Result<AppUser, Error>) in
-            if case .success(let user) = result {
-                DispatchQueue.main.async {
-                    receiver = user
-                }
+        UserCacheService.shared.getUser(userId: request.receiverId) { user in
+            if let user {
+                DispatchQueue.main.async { receiver = user }
             }
         }
     }
@@ -1193,18 +1210,25 @@ struct OutgoingSentRequestRow: View {
 
 struct ConversationPressableRow: View {
     let conversation: Conversation
+    let participantState: InboxParticipantState?
+    let draftText: String
+    let groupMemberIds: [String]
     let isMenuSelected: Bool
     let colorScheme: ColorScheme
     let profileZoomNamespace: Namespace.ID
     let onOpenProfile: () -> Void
     let onTap: () -> Void
     let onLongPress: () -> Void
+    let onNeedsParticipantState: () -> Void
 
     @State private var isPressing = false
 
     var body: some View {
         GlassmorphicConversationRow(
             conversation: conversation,
+            participantState: participantState,
+            draftText: draftText,
+            groupMemberIds: groupMemberIds,
             profileZoomNamespace: profileZoomNamespace,
             onOpenProfile: onOpenProfile,
             onTap: onTap,
@@ -1220,7 +1244,8 @@ struct ConversationPressableRow: View {
                         isPressing = pressing
                     }
                 }
-            )
+            ),
+            onNeedsParticipantState: onNeedsParticipantState
         )
         .background {
             // Frame capturado en espacio global para alinearse con el overlay ignoresSafeArea
@@ -1331,34 +1356,31 @@ struct SearchUserRow: View {
 // MARK: - Glassmorphic Conversation Row
 struct GlassmorphicConversationRow: View {
     let conversation: Conversation
+    let participantState: InboxParticipantState?
+    let draftText: String
+    let groupMemberIds: [String]
     let profileZoomNamespace: Namespace.ID
     let onOpenProfile: () -> Void
     let onTap: () -> Void
     var listInteraction: ConversationListInteraction? = nil
+    let onNeedsParticipantState: () -> Void
     @Environment(\.colorScheme) var colorScheme
 
     @State private var storyRoute: MessagingStoryRoute?
-    @State private var liveOtherParticipantUsername: String = ""
-    @State private var isOtherParticipantUnavailable: Bool = false
-    @State private var isOtherParticipantBlockedByCurrentUser: Bool = false
-    @State private var draftText: String = ""
-    @ObservedObject private var groupDirectory = GroupDirectory.shared
-    private let firestoreService = FirestoreService()
+
+    private var isOtherParticipantUnavailable: Bool { participantState?.isUnavailable ?? false }
+    private var isOtherParticipantBlockedByCurrentUser: Bool { participantState?.isBlockedByCurrentUser ?? false }
 
     private var displayUsername: String {
         let fallback = conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
-        let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
-        return live.isEmpty ? fallback : live
+        let resolved = participantState?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return resolved.isEmpty ? fallback : resolved
     }
 
     /// Miembros del grupo excepto el visor. Bloqueos/audiencia los filtra el resolver (como 1:1).
     private var groupStoryMemberIds: [String] {
         let uid = Auth.auth().currentUser?.uid
-        var ids = conversation.participants
-        if ids.isEmpty, let groupId = conversation.id {
-            ids = groupDirectory.groups[groupId]?.members.map(\.id) ?? []
-        }
-        return ids.filter { !$0.isEmpty && $0 != uid }
+        return groupMemberIds.filter { !$0.isEmpty && $0 != uid }
     }
 
     var body: some View {
@@ -1370,17 +1392,13 @@ struct GlassmorphicConversationRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .onAppear {
-            refreshOtherParticipantUsername()
-            refreshOtherParticipantAvailability()
-            refreshDraft()
+            onNeedsParticipantState()
         }
         .onChange(of: conversation.otherParticipantId) { _, _ in
-            refreshOtherParticipantUsername()
-            refreshOtherParticipantAvailability()
+            onNeedsParticipantState()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .chatDraftDidChange)) { notification in
-            guard (notification.userInfo?["conversationId"] as? String) == conversation.id else { return }
-            refreshDraft()
+        .onChange(of: participantState?.isUnavailable) { _, unavailable in
+            if unavailable == true { storyRoute = nil }
         }
         .fullScreenCover(item: $storyRoute) { route in
             // ≡ FeedPresentationModifier: StoriesView exige FirestoreService (+ Auth) en el environment.
@@ -1610,82 +1628,6 @@ struct GlassmorphicConversationRow: View {
         }
     }
 
-    private func refreshDraft() {
-        guard let conversationId = conversation.id else {
-            draftText = ""
-            return
-        }
-        draftText = ChatDraftStore.shared.draft(for: conversationId)
-    }
-
-    private func refreshOtherParticipantUsername() {
-        if conversation.isGroup {
-            liveOtherParticipantUsername = ""
-            return
-        }
-        let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !otherUserId.isEmpty else {
-            liveOtherParticipantUsername = ""
-            return
-        }
-
-        UserCacheService.shared.refreshUser(userId: otherUserId) { user in
-            let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            DispatchQueue.main.async {
-                guard self.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == otherUserId else { return }
-                self.liveOtherParticipantUsername = fetchedUsername
-            }
-        }
-    }
-
-    private func refreshOtherParticipantAvailability() {
-        guard !conversation.isGroup else { return }
-        let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !otherUserId.isEmpty, NetworkMonitor.shared.isConnected else { return }
-
-        firestoreService.checkPublicProfileAvailability(userId: otherUserId) { availability in
-            DispatchQueue.main.async {
-                guard self.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == otherUserId else { return }
-                if availability == .unavailable {
-                    self.markOtherParticipantUnavailable(clearLiveUsername: true)
-                } else {
-                    self.refreshOtherParticipantBlockAvailability(userId: otherUserId)
-                }
-            }
-        }
-    }
-
-    private func refreshOtherParticipantBlockAvailability(userId: String) {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-
-        firestoreService.checkIfBlocked(currentUserId: currentUserId, targetUserId: userId) { isBlockedByCurrentUser, isCurrentUserBlocked, _ in
-            DispatchQueue.main.async {
-                guard self.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == userId else { return }
-
-                if isBlockedByCurrentUser || isCurrentUserBlocked {
-                    self.isOtherParticipantBlockedByCurrentUser = isBlockedByCurrentUser
-                    self.markOtherParticipantUnavailable(clearLiveUsername: false)
-                } else {
-                    self.isOtherParticipantBlockedByCurrentUser = false
-                    self.isOtherParticipantUnavailable = false
-                    self.refreshOtherParticipantUsername()
-                }
-            }
-        }
-    }
-
-    private func markOtherParticipantUnavailable(clearLiveUsername: Bool) {
-        isOtherParticipantUnavailable = true
-        if clearLiveUsername {
-            liveOtherParticipantUsername = ""
-            isOtherParticipantBlockedByCurrentUser = false
-        }
-        disableUnavailableParticipantStories()
-    }
-
-    private func disableUnavailableParticipantStories() {
-        storyRoute = nil
-    }
 }
 
 // Nueva conversación — pantalla completa
