@@ -83,8 +83,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     LocalPersistenceService.shared.saveUser(profile)
                 }
 
-                self.fetchConnections(userId: userId)
-                self.fetchVisits(userId: userId)
                 self.fetchCustomAudienceListNames(userId: userId)
             case .failure(let error):
                 if self.isNetworkError(error) {
@@ -192,6 +190,11 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     func refreshVisits() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         fetchVisits(userId: userId)
+    }
+
+    func refreshConnections() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        fetchConnections(userId: userId)
     }
 
     private func fetchVisits(userId: String) {
@@ -846,6 +849,8 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 followersCount: profile.followersCount,
                 followingCount: profile.followingCount,
                 momentsCount: profile.momentsCount,
+                mutualsCount: profile.mutualsCount,
+                profileVisitorsCount: profile.profileVisitorsCount,
                 isActive: profile.isActive,
                 deactivatedAt: profile.deactivatedAt,
                 deactivatedBy: profile.deactivatedBy,

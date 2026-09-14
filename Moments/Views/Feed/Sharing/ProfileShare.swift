@@ -609,37 +609,54 @@ struct SharedProfilePreviewCard: View {
     /// Misma lógica que `FeedPostProfilePreviewCard.previewStats` para este viewer.
     private var visibleStats: [(label: String, count: Int)] {
         var stats: [(String, Int)] = []
-        let postsCount = max(viewModel.moments.count, viewModel.userProfile?.momentsCount ?? 0)
+        let postsCount = resolvedCount("momentsCount", live: viewModel.displayMomentsCount)
 
         if viewModel.canViewContent || isOwnProfile {
             stats.append((NSLocalizedString("profile.ui.posts", comment: ""), postsCount))
             if viewModel.visibleConnectionTypes.canViewFollowers {
                 stats.append((
                     NSLocalizedString("profile.ui.followers", comment: ""),
-                    max(viewModel.followers.count, viewModel.userProfile?.followersCount ?? 0)
+                    resolvedCount(
+                        "followersCount",
+                        live: max(viewModel.followers.count, viewModel.userProfile?.followersCount ?? 0)
+                    )
                 ))
             }
             if viewModel.visibleConnectionTypes.canViewFollowing {
                 stats.append((
                     NSLocalizedString("profile.ui.following", comment: ""),
-                    max(viewModel.following.count, viewModel.userProfile?.followingCount ?? 0)
+                    resolvedCount(
+                        "followingCount",
+                        live: max(viewModel.following.count, viewModel.userProfile?.followingCount ?? 0)
+                    )
                 ))
             }
         } else {
             if viewModel.visibleConnectionTypes.canViewFollowers {
                 stats.append((
                     NSLocalizedString("profile.ui.followers", comment: ""),
-                    max(viewModel.followers.count, viewModel.userProfile?.followersCount ?? 0)
+                    resolvedCount(
+                        "followersCount",
+                        live: max(viewModel.followers.count, viewModel.userProfile?.followersCount ?? 0)
+                    )
                 ))
             }
             if viewModel.visibleConnectionTypes.canViewFollowing {
                 stats.append((
                     NSLocalizedString("profile.ui.following", comment: ""),
-                    max(viewModel.following.count, viewModel.userProfile?.followingCount ?? 0)
+                    resolvedCount(
+                        "followingCount",
+                        live: max(viewModel.following.count, viewModel.userProfile?.followingCount ?? 0)
+                    )
                 ))
             }
         }
         return stats
+    }
+
+    private func resolvedCount(_ key: String, live: Int) -> Int {
+        guard viewModel.userProfile == nil else { return live }
+        return max(live, Int(sharedProfileData[key] ?? "") ?? 0)
     }
 }
 

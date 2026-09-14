@@ -212,6 +212,9 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
         .overlay(stalkerAlertOverlay)
         .onAppear {
             configureInitialTab()
+            if isOwnProfile, let profileViewModel = listViewModel as? ProfileViewModel {
+                profileViewModel.refreshConnections()
+            }
             if includesVisits {
                 if isOwnProfile, let profileViewModel = listViewModel as? ProfileViewModel {
                     profileViewModel.refreshVisits()

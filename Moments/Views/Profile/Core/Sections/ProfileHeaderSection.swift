@@ -518,10 +518,26 @@ struct ModernStatsSection: View {
 
     private var computedStats: [(String, Int, ProfileView.UserListType)] {
         [
-            (NSLocalizedString("profile.stats.visits", comment: "Visits"), viewModel.groupedVisits.count, .visits),
-            (NSLocalizedString("profile.ui.followers", comment: "Followers"), viewModel.followers.count, .followers),
-            (NSLocalizedString("profile.ui.following", comment: "Following"), viewModel.following.count, .following),
-            (NSLocalizedString("profile.ui.mutuals", comment: "Mutuals"), viewModel.mutuals.count, .mutuals)
+            (
+                NSLocalizedString("profile.stats.visits", comment: "Visits"),
+                max(viewModel.groupedVisits.count, viewModel.userProfile?.profileVisitorsCount ?? 0),
+                .visits
+            ),
+            (
+                NSLocalizedString("profile.ui.followers", comment: "Followers"),
+                max(viewModel.followers.count, viewModel.userProfile?.followersCount ?? 0),
+                .followers
+            ),
+            (
+                NSLocalizedString("profile.ui.following", comment: "Following"),
+                max(viewModel.following.count, viewModel.userProfile?.followingCount ?? 0),
+                .following
+            ),
+            (
+                NSLocalizedString("profile.ui.mutuals", comment: "Mutuals"),
+                max(viewModel.mutuals.count, viewModel.userProfile?.mutualsCount ?? 0),
+                .mutuals
+            )
         ]
     }
 

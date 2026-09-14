@@ -94,6 +94,8 @@ struct AppUser: Identifiable, Codable {
     let followersCount: Int
     let followingCount: Int
     let momentsCount: Int
+    let mutualsCount: Int
+    let profileVisitorsCount: Int
 
 
     
@@ -154,6 +156,8 @@ struct AppUser: Identifiable, Codable {
         case followersCount
         case followingCount
         case momentsCount
+        case mutualsCount
+        case profileVisitorsCount
 
 
         case isActive
@@ -198,6 +202,8 @@ struct AppUser: Identifiable, Codable {
         self.followersCount = (try container.decodeIfPresent(Int.self, forKey: .followersCount)) ?? 0
         self.followingCount = (try container.decodeIfPresent(Int.self, forKey: .followingCount)) ?? 0
         self.momentsCount = (try container.decodeIfPresent(Int.self, forKey: .momentsCount)) ?? 0
+        self.mutualsCount = (try container.decodeIfPresent(Int.self, forKey: .mutualsCount)) ?? 0
+        self.profileVisitorsCount = (try container.decodeIfPresent(Int.self, forKey: .profileVisitorsCount)) ?? 0
 
 
         
@@ -273,6 +279,8 @@ struct AppUser: Identifiable, Codable {
         followersCount: Int = 0,
         followingCount: Int = 0,
         momentsCount: Int = 0,
+        mutualsCount: Int = 0,
+        profileVisitorsCount: Int = 0,
 
 
         isActive: Bool = true,
@@ -314,6 +322,8 @@ struct AppUser: Identifiable, Codable {
         self.followersCount = followersCount
         self.followingCount = followingCount
         self.momentsCount = momentsCount
+        self.mutualsCount = mutualsCount
+        self.profileVisitorsCount = profileVisitorsCount
 
 
         self.isActive = isActive

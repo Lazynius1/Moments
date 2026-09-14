@@ -22,6 +22,8 @@ final class CachedUser {
     var followersCount: Int?
     var followingCount: Int?
     var momentsCount: Int?
+    var mutualsCount: Int?
+    var profileVisitorsCount: Int?
 
     
     // MARK: - Estado de cuenta
@@ -76,6 +78,8 @@ final class CachedUser {
         followersCount: Int? = 0,
         followingCount: Int? = 0,
         momentsCount: Int? = 0,
+        mutualsCount: Int? = 0,
+        profileVisitorsCount: Int? = 0,
         interestsData: Data? = nil,
 
         blockedUsersData: Data? = nil,
@@ -106,6 +110,8 @@ final class CachedUser {
         self.followersCount = followersCount
         self.followingCount = followingCount
         self.momentsCount = momentsCount
+        self.mutualsCount = mutualsCount
+        self.profileVisitorsCount = profileVisitorsCount
         self.interestsData = interestsData
 
         self.blockedUsersData = blockedUsersData
@@ -147,6 +153,8 @@ extension CachedUser {
             followersCount: user.followersCount,
             followingCount: user.followingCount,
             momentsCount: user.momentsCount,
+            mutualsCount: user.mutualsCount,
+            profileVisitorsCount: user.profileVisitorsCount,
             interestsData: try? encoder.encode(user.interests),
 
             blockedUsersData: try? encoder.encode(user.blockedUsers),
@@ -203,6 +211,8 @@ extension CachedUser {
             followersCount: followersCount ?? 0,
             followingCount: followingCount ?? 0,
             momentsCount: momentsCount ?? 0,
+            mutualsCount: mutualsCount ?? 0,
+            profileVisitorsCount: profileVisitorsCount ?? 0,
             isActive: isActive ?? true,
 
             ownedBadges: ownedBadges,

@@ -17,6 +17,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     @Published var isLoadingMoments: Bool = true
     @Published private(set) var isLoadingMoreMoments: Bool = false
     @Published private(set) var hasMoreMoments: Bool = false
+    /// El stat representa el total publicado del perfil; la cuadrícula aplica privacidad por página.
+    var displayMomentsCount: Int { max(userProfile?.momentsCount ?? 0, moments.count) }
     @Published var taggedMoments: [Moment] = [] // ✅ NUEVO
     @Published var isLoadingTagged: Bool = false // ✅ NUEVO
     @Published private(set) var isLoadingMoreTagged: Bool = false

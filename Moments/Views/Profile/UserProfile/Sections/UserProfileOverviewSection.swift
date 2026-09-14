@@ -102,7 +102,7 @@ struct UserModernStatsSection: View {
     }
 
     private var postsCount: Int {
-        max(viewModel.moments.count, viewModel.userProfile?.momentsCount ?? 0)
+        viewModel.displayMomentsCount
     }
 
     private var computedStats: [(String, Int, StatAction)] {
@@ -116,26 +116,30 @@ struct UserModernStatsSection: View {
             ))
             stats.append((
                 NSLocalizedString("profile.ui.followers", comment: "Followers"),
-                viewModel.visibleConnectionTypes.canViewFollowers ? viewModel.followers.count : 0,
+                viewModel.visibleConnectionTypes.canViewFollowers
+                    ? max(viewModel.followers.count, viewModel.userProfile?.followersCount ?? 0)
+                    : 0,
                 .social(.followers)
             ))
             stats.append((
                 NSLocalizedString("profile.ui.following", comment: "Following"),
-                viewModel.visibleConnectionTypes.canViewFollowing ? viewModel.following.count : 0,
+                viewModel.visibleConnectionTypes.canViewFollowing
+                    ? max(viewModel.following.count, viewModel.userProfile?.followingCount ?? 0)
+                    : 0,
                 .social(.following)
             ))
         } else {
             if viewModel.visibleConnectionTypes.canViewFollowers {
                 stats.append((
                     NSLocalizedString("profile.ui.followers", comment: "Followers"),
-                    viewModel.followers.count,
+                    max(viewModel.followers.count, viewModel.userProfile?.followersCount ?? 0),
                     .social(.followers)
                 ))
             }
             if viewModel.visibleConnectionTypes.canViewFollowing {
                 stats.append((
                     NSLocalizedString("profile.ui.following", comment: "Following"),
-                    viewModel.following.count,
+                    max(viewModel.following.count, viewModel.userProfile?.followingCount ?? 0),
                     .social(.following)
                 ))
             }

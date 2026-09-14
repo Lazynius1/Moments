@@ -362,6 +362,12 @@ service cloud.firestore {
                 && request.resource.data.get('isVerified', false) is bool
                 && request.resource.data.get('onlineStatus', 'offline') is string
                 && request.resource.data.get('isOnline', false) is bool
+                // Contadores derivados: nacen a cero y solo Admin SDK los mantiene.
+                && request.resource.data.get('followersCount', 0) == 0
+                && request.resource.data.get('followingCount', 0) == 0
+                && request.resource.data.get('momentsCount', 0) == 0
+                && request.resource.data.get('mutualsCount', 0) == 0
+                && request.resource.data.get('profileVisitorsCount', 0) == 0
                 // Campos opcionales
                 && (!("ownedBadges" in request.resource.data) || request.resource.data.ownedBadges is list)
                 && (!("plusSubscription" in request.resource.data) || request.resource.data.plusSubscription is map)
@@ -391,6 +397,9 @@ service cloud.firestore {
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['incognito'])
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
               'birthDate', 'countryCode', 'privacyPolicyAccepted', 'privacyPolicyAcceptedAt', 'privacyPolicyVersion'
+            ])
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'followersCount', 'followingCount', 'momentsCount', 'mutualsCount', 'profileVisitorsCount'
             ])
             && (
               !request.resource.data.diff(resource.data).affectedKeys().hasAny(['profileNote'])

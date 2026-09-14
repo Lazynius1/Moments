@@ -202,20 +202,17 @@ enum PendingChatContextFactory {
         async let viewerFollowedAt = followTimestamp(from: currentUserId, to: otherUserId)
         async let otherFollowedViewerAt = followerTimestamp(viewerId: currentUserId, otherId: otherUserId)
         async let profileStats = fetchProfileStats(userId: otherUserId)
-        async let followersAggregate = aggregateFollowersCount(userId: otherUserId)
-        async let visibleMoments = visibleMomentsCount(userId: otherUserId)
 
         let user = await otherUser
         let relationship = await (viewerFollowedAt, otherFollowedViewerAt)
         let stats = await profileStats
-        let counts = await (followersAggregate, visibleMoments)
 
         let context = PendingChatContext(
             otherUserId: otherUserId,
             otherUsername: user?.username ?? conversation.otherParticipantUsername ?? NSLocalizedString("common.user", value: "Usuario", comment: "Generic user fallback"),
             otherProfileImagePath: user?.profileImagePath ?? conversation.otherParticipantProfileImagePath,
-            otherFollowersCount: resolvedCount(user?.followersCount, stats?.followersCount, counts.0),
-            otherMomentsCount: counts.1 ?? resolvedCount(user?.momentsCount, stats?.momentsCount),
+            otherFollowersCount: resolvedCount(user?.followersCount, stats?.followersCount),
+            otherMomentsCount: resolvedCount(user?.momentsCount, stats?.momentsCount),
             otherIsVerified: user?.isVerified ?? false,
             viewerFollowsOther: relationship.0 != nil,
             otherFollowsViewer: relationship.1 != nil,
@@ -240,13 +237,10 @@ enum PendingChatContextFactory {
         async let otherFollowedViewerAt = followerTimestamp(viewerId: currentUserId, otherId: user.id)
         async let profileStats = fetchProfileStats(userId: user.id)
         async let pendingRequest = pendingOutgoingRequest(from: currentUserId, to: user.id)
-        async let followersAggregate = aggregateFollowersCount(userId: user.id)
-        async let visibleMoments = visibleMomentsCount(userId: user.id)
 
         let relationship = await (viewerFollowedAt, otherFollowedViewerAt)
         let stats = await profileStats
         let existingRequest = await pendingRequest
-        let counts = await (followersAggregate, visibleMoments)
 
         let receiverFollowsViewer = relationship.1 != nil
         let policy = stats?.requestPolicy ?? user.messageRequestPolicy
@@ -260,8 +254,8 @@ enum PendingChatContextFactory {
             status: status,
             initialText: existingRequest?.message,
             request: existingRequest,
-            followersCount: resolvedCount(user.followersCount, followersCountOverride, stats?.followersCount, counts.0),
-            momentsCount: momentsCountOverride ?? counts.1 ?? resolvedCount(user.momentsCount, stats?.momentsCount),
+            followersCount: resolvedCount(user.followersCount, followersCountOverride, stats?.followersCount),
+            momentsCount: momentsCountOverride ?? resolvedCount(user.momentsCount, stats?.momentsCount),
             viewerFollowsOther: relationship.0 != nil,
             otherFollowsViewer: relationship.1 != nil,
             viewerFollowedAt: relationship.0,
@@ -274,19 +268,16 @@ enum PendingChatContextFactory {
         async let viewerFollowedAt = followTimestamp(from: viewerId, to: request.senderId)
         async let otherFollowedViewerAt = followerTimestamp(viewerId: viewerId, otherId: request.senderId)
         async let profileStats = fetchProfileStats(userId: request.senderId)
-        async let followersAggregate = aggregateFollowersCount(userId: request.senderId)
-        async let visibleMoments = visibleMomentsCount(userId: request.senderId)
 
         let senderUser = await sender
         let relationship = await (viewerFollowedAt, otherFollowedViewerAt)
         let stats = await profileStats
-        let counts = await (followersAggregate, visibleMoments)
 
         return PendingChatContext(
             incoming: request,
             sender: senderUser,
-            followersCount: resolvedCount(senderUser?.followersCount, stats?.followersCount, counts.0),
-            momentsCount: counts.1 ?? resolvedCount(senderUser?.momentsCount, stats?.momentsCount),
+            followersCount: resolvedCount(senderUser?.followersCount, stats?.followersCount),
+            momentsCount: resolvedCount(senderUser?.momentsCount, stats?.momentsCount),
             viewerFollowsOther: relationship.0 != nil,
             otherFollowsViewer: relationship.1 != nil,
             viewerFollowedAt: relationship.0,
@@ -355,38 +346,6 @@ enum PendingChatContextFactory {
                 .document(otherId)
                 .getDocument()
             return (snapshot.data()?["timestamp"] as? Timestamp)?.dateValue()
-        } catch {
-            return nil
-        }
-    }
-
-    /// Cuenta seguidores con una aggregate query (1 lectura, sin traer documentos).
-    private static func aggregateFollowersCount(userId: String) async -> Int? {
-        guard !userId.isEmpty else { return nil }
-        return await aggregateCount(
-            Firestore.firestore().collection("users").document(userId).collection("followers")
-        )
-    }
-
-    /// Cuenta solo los moments que el viewer actual puede ver: audiencia, archivados y privacidad
-    /// los resuelve el backend (`getProfileMomentsPage`), igual que el grid del perfil.
-    /// Fallback: aggregate de los públicos (audience == everyone) si el backend no responde.
-    private static func visibleMomentsCount(userId: String) async -> Int? {
-        guard !userId.isEmpty else { return nil }
-        if let result = await BackendFeedService.shared.fetchProfileMoments(targetUserId: userId, limit: 1, includeTotalCount: true),
-           let total = result.totalVisibleCount {
-            return total
-        }
-        return await aggregateCount(
-            Firestore.firestore().collection("users").document(userId).collection("moments")
-                .whereField("audience", isEqualTo: "everyone")
-        )
-    }
-
-    private static func aggregateCount(_ query: Query) async -> Int? {
-        do {
-            let snapshot = try await query.count.getAggregation(source: .server)
-            return snapshot.count.intValue
         } catch {
             return nil
         }

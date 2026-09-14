@@ -318,8 +318,8 @@ struct UserModernProfileHeader: View {
                     conversation: conversation,
                     for: targetUser,
                     from: currentUserId,
-                    followersCountOverride: viewModel.followers.count,
-                    momentsCountOverride: max(viewModel.moments.count, viewModel.userProfile?.momentsCount ?? 0)
+                    followersCountOverride: max(viewModel.followers.count, viewModel.userProfile?.followersCount ?? 0),
+                    momentsCountOverride: viewModel.displayMomentsCount
                 ) {
                     switch presentation.destination {
                     case .conversation(let resolvedConversation):
