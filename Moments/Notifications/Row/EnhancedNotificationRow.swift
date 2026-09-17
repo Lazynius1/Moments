@@ -12,6 +12,8 @@ struct EnhancedNotificationRow: View {
     let onShowGroupedFollowers: ((NotificationGroup) -> Void)?
     let onModerationReviewTap: ((Notification) -> Void)?
     var onOpenProfile: ((String) -> Void)? = nil
+    /// Long-press de la fila → preview de perfil del actor más reciente (como feed).
+    var onProfilePreview: ((String, String, CGRect) -> Void)? = nil
     @Namespace private var profileZoomNamespace
     @State var showStories = false
     @State var momentImagePath: String?
@@ -24,6 +26,7 @@ struct EnhancedNotificationRow: View {
     @State var followButtonState: FollowButtonState = .canFollow
     @State var isPressed: Bool = false
     @State var senderUsernameOverride: String?
+    @State private var rowAnchorCapture = FeedStoryCircleAnchorCapture()
 
     var hasMultipleGroupedFollowActors: Bool {
         guard let type = group.notifications.first?.type else { return false }
@@ -35,6 +38,9 @@ struct EnhancedNotificationRow: View {
         HStack(spacing: 12) {
             leadingAvatar
 
+            // Texto / preview / tiempo.
+            // Tap (solo contenido): abre momento/story.
+            // Long-press (fila): preview del sender más reciente — trailing fuera.
             VStack(alignment: .leading, spacing: 2) {
                 Text(messageForGroup(group))
                     .font(.system(size: 14, weight: .regular))
@@ -58,12 +64,23 @@ struct EnhancedNotificationRow: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.gray.opacity(0.72))
             }
-            
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(
+                isPressed
+                    ? Color.primary.opacity(0.04)
+                    : Color.clear
+            )
+            .modifier(NotificationRowBodyInteractionModifier(
+                opensContentOnTap: opensContentOnBodyTap,
+                supportsProfilePreview: supportsRowProfilePreview,
+                isPressed: $isPressed,
+                onTap: onTapAction,
+                onLongPress: openMostRecentProfilePreview
+            ))
             
             trailingContent
 
-            // Indicador de no leído: punto de acento mientras la notificación esté pendiente.
             if group.isUnread {
                 Circle()
                     .fill(colorScheme == .dark ? Color.white : Color.black)
@@ -75,31 +92,17 @@ struct EnhancedNotificationRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(
-            isPressed
-                ? Color.primary.opacity(0.04)
-                : (group.isUnread ? (colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04)) : Color.clear)
+            group.isUnread
+                ? (colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04))
+                : Color.clear
         )
+        .background(FeedStoryCircleAnchorProbe(capture: rowAnchorCapture))
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.06))
                 .frame(height: 0.5)
                 .padding(.leading, leadingAvatarInset)
         }
-        .onTapGesture {
-            if opensSenderProfileOnTap, let userId = displaySenderIds.first {
-                openProfile(userId: userId)
-            } else {
-                onTapAction()
-            }
-        }
-        .onLongPressGesture(
-            minimumDuration: 0,
-            maximumDistance: .infinity,
-            pressing: { pressing in
-                isPressed = pressing
-            },
-            perform: {}
-        )
         .fullScreenCover(isPresented: $showStories) {
             StoriesView(startWithUserId: .constant(group.notifications.first?.senderId ?? ""))
                 .environmentObject(FirestoreService.shared)
@@ -257,12 +260,33 @@ struct EnhancedNotificationRow: View {
         return senderDisplayName(for: notification)
     }
 
-    var opensSenderProfileOnTap: Bool {
+    /// Follow / request: perfil solo vía avatar o nick; no tap de fila.
+    var isSocialRelationshipNotification: Bool {
         guard let type = group.notifications.first?.type else { return false }
         return type == .newFollower
             || type == .followRequest
             || type == .mutualConnection
             || type == .requestAccepted
+    }
+
+    /// Like / reaction / comment / story / mention…: el cuerpo abre el contenido.
+    var opensContentOnBodyTap: Bool {
+        !isSocialRelationshipNotification && !isModerationNotification
+    }
+
+    /// Long-press de fila → preview (no en moderación / sin sender).
+    var supportsRowProfilePreview: Bool {
+        !isModerationNotification && !(uniqueSenderIdList.first ?? "").isEmpty
+    }
+
+    /// Actor más reciente del grupo (varios likes/follows → el primero de la lista dedupe).
+    func openMostRecentProfilePreview() {
+        guard supportsRowProfilePreview,
+              let userId = uniqueSenderIdList.first,
+              let onProfilePreview else { return }
+        let momentId = group.notifications.first?.momentId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        HapticManager.shared.mediumImpact()
+        onProfilePreview(userId, momentId, rowAnchorCapture.resolvedFrame)
     }
 
     func setupPreviews() {
@@ -290,6 +314,37 @@ struct EnhancedNotificationRow: View {
         
         if (first.type == .newFollower || first.type == .mutualConnection) && !hasMultipleGroupedFollowActors {
             checkFollowingStatus()
+        }
+    }
+}
+
+/// Tap (contenido) + long-press (preview perfil) en el cuerpo; trailing fuera.
+private struct NotificationRowBodyInteractionModifier: ViewModifier {
+    let opensContentOnTap: Bool
+    let supportsProfilePreview: Bool
+    @Binding var isPressed: Bool
+    let onTap: () -> Void
+    let onLongPress: () -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if supportsProfilePreview {
+            content.chatMessagePressClassifier(
+                isPressing: $isPressed,
+                onTap: opensContentOnTap ? onTap : nil,
+                onLongPress: onLongPress
+            )
+        } else if opensContentOnTap {
+            content
+                .onTapGesture(perform: onTap)
+                .onLongPressGesture(
+                    minimumDuration: 0,
+                    maximumDistance: .infinity,
+                    pressing: { isPressed = $0 },
+                    perform: {}
+                )
+        } else {
+            content
         }
     }
 }

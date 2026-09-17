@@ -22,6 +22,8 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
     @Published var deletedStoryItems: [ActivityDeletedStoryItem] = []
     @Published var moments: [Moment] = [] // ✅ NUEVO: Para Moments y Reels (estilo ProfileView)
     @Published var customListNamesById: [String: String] = [:] // ✅ NUEVO: Para resolver audiencias custom
+    @Published private(set) var canLoadMoreArchived = false
+    @Published private(set) var isLoadingMoreArchived = false
 
     private let category: ActivityInteractionCategory
     private let recentlyDeletedKind: RecentlyDeletedContentKind
@@ -30,6 +32,8 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
     private var didLoadOnce = false
     private var reactionsNextCursor: BackendReactionsCursor?
     private var commentsNextCursor: BackendCommentsCursor?
+    private var archivedLastDocument: DocumentSnapshot?
+    private let archivedPageSize = 36
 
     init(category: ActivityInteractionCategory, recentlyDeletedKind: RecentlyDeletedContentKind = .moments) {
         self.category = category
@@ -542,10 +546,36 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
     }
 
     private func loadArchived(for userId: String) {
-        FirestoreService.shared.fetchArchivedMoments(userId: userId) { [weak self] result in
+        archivedLastDocument = nil
+        canLoadMoreArchived = true
+        loadArchivedPage(for: userId, reset: true)
+    }
+
+    func loadMoreArchived() {
+        guard category == .archived, let userId = Auth.auth().currentUser?.uid,
+              canLoadMoreArchived, !isLoadingMoreArchived else { return }
+        loadArchivedPage(for: userId, reset: false)
+    }
+
+    private func loadArchivedPage(for userId: String, reset: Bool) {
+        if !reset { isLoadingMoreArchived = true }
+        var query: Query = db.collection("users").document(userId).collection("moments")
+            .whereField("isArchived", isEqualTo: true)
+            .order(by: "archivedAt", descending: true)
+            .limit(to: archivedPageSize)
+        if !reset, let archivedLastDocument { query = query.start(afterDocument: archivedLastDocument) }
+        query.getDocuments { [weak self] snapshot, error in
             guard let self = self else { return }
-            switch result {
-            case .success(let moments):
+            if let error {
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.isLoadingMoreArchived = false
+                    self.errorMessage = self.reactionItems.isEmpty ? error.localizedDescription : nil
+                }
+                return
+            }
+            let documents = snapshot?.documents ?? []
+            let moments = documents.compactMap { try? $0.data(as: Moment.self) }
                 let mapped: [ActivityReactionItem] = moments.compactMap { moment in
                     guard let id = moment.id else { return nil }
                     return ActivityReactionItem(
@@ -559,21 +589,14 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
                     )
                 }
                 DispatchQueue.main.async {
-                    self.reactionItems = mapped
+                    self.reactionItems = reset ? mapped : (self.reactionItems + mapped).uniqued(by: \ActivityReactionItem.id)
+                    self.archivedLastDocument = documents.last
+                    self.canLoadMoreArchived = documents.count == self.archivedPageSize
                     self.commentItems = []
                     self.events = []
                     self.isLoading = false
+                    self.isLoadingMoreArchived = false
                 }
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    if self.moments.isEmpty {
-                        self.errorMessage = error.localizedDescription
-                    } else {
-                        self.errorMessage = nil
-                    }
-                }
-            }
         }
     }
 

@@ -19,6 +19,8 @@ struct NotificationsView: View {
     @ObservedObject private var chatAccessCoordinator = ChatAccessCoordinator.shared
     @State private var groupedFollowersOverlayGroup: NotificationGroup?
     @State private var profileRoute: FeedProfileSheetRoute?
+    @State private var postProfilePreviewSelection: FeedPostProfilePreviewSelection?
+    @StateObject private var messagingViewModel = MessagingViewModel()
     @Namespace private var profileZoomNamespace
     let onNotificationsCleared: (() -> Void)?
 
@@ -103,6 +105,18 @@ struct NotificationsView: View {
                 .transition(.scale(scale: 0.94).combined(with: .opacity))
                 .zIndex(5000)
             }
+
+            FeedPostProfilePreviewOverlay(
+                selection: $postProfilePreviewSelection,
+                colorScheme: colorScheme,
+                messagingViewModel: messagingViewModel,
+                onOpenProfile: { userId in
+                    postProfilePreviewSelection = nil
+                    profileRoute = FeedProfileSheetRoute(userId: userId)
+                }
+            )
+            .ignoresSafeArea()
+            .zIndex(5001)
         }
         .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: viewModel.pendingDeletion?.id), value: viewModel.pendingDeletion?.id)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: groupedFollowersOverlayGroup?.id), value: groupedFollowersOverlayGroup?.id)
@@ -355,6 +369,14 @@ struct NotificationsView: View {
                         },
                         onOpenProfile: { userId in
                             profileRoute = FeedProfileSheetRoute(userId: userId)
+                        },
+                        onProfilePreview: { userId, momentId, anchorFrame in
+                            postProfilePreviewSelection = FeedPostProfilePreviewSelection(
+                                userId: userId,
+                                momentId: momentId,
+                                anchorFrame: anchorFrame,
+                                postFrame: .zero
+                            )
                         }
                     )
                     .listRowInsets(EdgeInsets())

@@ -139,6 +139,7 @@ struct ArchiveView: View {
                                             }
                                         )
                                     }
+                                    archivePagingFooter
                                 }
                                 .padding(.top, 8)
                                 .padding(.bottom, 20)
@@ -235,6 +236,7 @@ struct ArchiveView: View {
         }
         .onChange(of: selectedDisplayMode) { _, mode in
             if mode == .map {
+                viewModel.loadAllArchivedStories()
                 fitMapToPins()
                 resolveMissingMapCoordinates()
             }
@@ -346,7 +348,13 @@ struct ArchiveView: View {
                                 }
                                 .padding(.horizontal, sectionHorizontalPadding)
                             }
+                            .onAppear {
+                                if monthSection.id == calendarMonthSections.last?.id {
+                                    viewModel.loadMoreArchivedStories()
+                                }
+                            }
                         }
+                        archivePagingFooter
                     }
                     .padding(.top, 8)
                     .padding(.bottom, 24)
@@ -413,11 +421,29 @@ struct ArchiveView: View {
                 .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
+
+            if viewModel.isLoadingMore {
+                ProgressView()
+                    .padding(10)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(12)
+            }
         }
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .padding(.horizontal, sectionHorizontalPadding)
         .padding(.top, 8)
         .padding(.bottom, 16)
+    }
+
+    @ViewBuilder
+    private var archivePagingFooter: some View {
+        if viewModel.canLoadMore {
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .onAppear { viewModel.loadMoreArchivedStories() }
+        }
     }
 
     private var allStories: [Story] {
@@ -467,7 +493,7 @@ struct ArchiveView: View {
                 days: days.sorted { $0.date < $1.date }
             )
         }
-        .sorted { $0.monthStart < $1.monthStart }
+        .sorted { $0.monthStart > $1.monthStart }
     }
 
     private func calendarMonthTitle(_ date: Date) -> String {
@@ -1552,36 +1578,77 @@ private struct ArchivedStoryReactionRow: View {
 class ArchiveViewModel: ObservableObject {
     @Published var groupedStories: [String: [Story]] = [:]
     @Published var isLoading = false
+    @Published private(set) var isLoadingMore = false
+    @Published private(set) var canLoadMore = true
     
     private let firestoreService = FirestoreService()
+    private let pageSize = 36
+    private var lastDocument: DocumentSnapshot?
+    private var loadTask: Task<Void, Never>?
     
     func loadArchivedStories() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        
+        loadTask?.cancel()
+        lastDocument = nil
+        canLoadMore = true
+        groupedStories = [:]
         isLoading = true
-        
-        firestoreService.db.collection("users").document(userId).collection("stories")
-            .whereField("expirationDate", isLessThan: Date())
-            .order(by: "timestamp", descending: true)
-            .limit(to: 100)
-            .getDocuments { [weak self] snapshot, error in
-                DispatchQueue.main.async {
-                    self?.isLoading = false
-                    
-                    if error != nil {
-                        return
-                    }
-                    
-                    let stories = snapshot?.documents.compactMap { doc -> Story? in
-                        var data = doc.data()
-                        data["id"] = doc.documentID
-                        return try? Firestore.Decoder().decode(Story.self, from: data)
-                    } ?? []
-                    
-                    self?.groupStoriesByDate(stories)
-                    self?.prefetchRecentImages(stories: stories)
+        loadTask = Task { @MainActor [weak self] in
+            await self?.loadPage(userId: userId, reset: true)
+        }
+    }
+
+    func loadMoreArchivedStories() {
+        guard let userId = Auth.auth().currentUser?.uid, canLoadMore, !isLoading, !isLoadingMore else { return }
+        loadTask = Task { @MainActor [weak self] in
+            await self?.loadPage(userId: userId, reset: false)
+        }
+    }
+
+    func loadAllArchivedStories() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        loadTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while self.canLoadMore && !Task.isCancelled {
+                if self.isLoading {
+                    try? await Task.sleep(for: .milliseconds(100))
+                } else {
+                    await self.loadPage(userId: userId, reset: false)
                 }
             }
+        }
+    }
+
+    @MainActor
+    private func loadPage(userId: String, reset: Bool) async {
+        guard reset || (canLoadMore && !isLoadingMore) else { return }
+        if !reset { isLoadingMore = true }
+        var query: Query = firestoreService.db.collection("users").document(userId).collection("stories")
+            .whereField("expirationDate", isLessThan: Date())
+            .order(by: "timestamp", descending: true)
+            .limit(to: pageSize)
+        if !reset, let lastDocument { query = query.start(afterDocument: lastDocument) }
+        do {
+            let snapshot = try await query.getDocuments()
+            let page = snapshot.documents.compactMap { doc -> Story? in
+                var data = doc.data()
+                data["id"] = doc.documentID
+                return try? Firestore.Decoder().decode(Story.self, from: data)
+            }
+            let existing = reset ? [] : groupedStories.values.flatMap { $0 }
+            var byId = Dictionary(uniqueKeysWithValues: existing.compactMap { story in
+                story.id.map { ($0, story) }
+            })
+            page.forEach { story in if let id = story.id { byId[id] = story } }
+            lastDocument = snapshot.documents.last
+            canLoadMore = snapshot.documents.count == pageSize
+            groupStoriesByDate(byId.values.sorted { $0.timestamp > $1.timestamp })
+            prefetchRecentImages(stories: page)
+        } catch {
+            canLoadMore = false
+        }
+        isLoading = false
+        isLoadingMore = false
     }
     
     private func groupStoriesByDate(_ stories: [Story]) {
