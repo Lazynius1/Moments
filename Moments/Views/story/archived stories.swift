@@ -306,43 +306,14 @@ struct ArchiveView: View {
                                 .padding(.horizontal, sectionHorizontalPadding)
 
                                 let monthCells = calendarCells(for: monthSection)
-                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 6) {
-                                    ForEach(monthCells) { cell in
-                                        if let dayNumber = cell.dayNumber {
-                                            Button {
-                                                if let bucket = cell.bucket {
-                                                    openCalendarStories(bucket.stories)
-                                                }
-                                            } label: {
-                                                ZStack {
-                                                    if let bucket = cell.bucket {
-                                                        if let story = bucket.stories.first {
-                                                            StoryStaticPreviewSurface(story: story, revealPolicy: .exposed)
-                                                                .frame(width: 40, height: 40)
-                                                                .clipShape(Circle())
-                                                                .overlay(
-                                                                    Circle()
-                                                                        .fill(Color.black.opacity(0.28))
-                                                                )
-                                                        } else {
-                                                            Circle()
-                                                                .fill(Color.gray.opacity(0.22))
-                                                                .frame(width: 40, height: 40)
-                                                        }
-                                                    }
-
-                                                    Text("\(dayNumber)")
-                                                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                                                        .foregroundStyle(cell.bucket == nil ? (colorScheme == .dark ? .white : .black) : .white)
-                                                }
-                                                .frame(height: 42)
-                                                .frame(maxWidth: .infinity)
+                                VStack(spacing: 6) {
+                                    ForEach(0..<((monthCells.count + 6) / 7), id: \.self) { row in
+                                        let start = row * 7
+                                        let end = min(start + 7, monthCells.count)
+                                        HStack(spacing: 4) {
+                                            ForEach(Array(monthCells[start..<end])) { cell in
+                                                archiveCalendarDayCell(cell)
                                             }
-                                            .buttonStyle(.plain)
-                                        } else {
-                                            Color.clear
-                                                .frame(height: 42)
-                                                .frame(maxWidth: .infinity)
                                         }
                                     }
                                 }
@@ -363,6 +334,41 @@ struct ArchiveView: View {
                     await reloadArchivedStories()
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func archiveCalendarDayCell(_ cell: ArchiveCalendarDayCell) -> some View {
+        if let dayNumber = cell.dayNumber {
+            Button {
+                if let bucket = cell.bucket {
+                    openCalendarStories(bucket.stories)
+                }
+            } label: {
+                ZStack {
+                    if let bucket = cell.bucket, let story = bucket.stories.first {
+                        StoryStaticPreviewSurface(story: story, revealPolicy: .exposed)
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
+                            .overlay(Circle().fill(Color.black.opacity(0.28)))
+                    } else if cell.bucket != nil {
+                        Circle()
+                            .fill(Color.gray.opacity(0.22))
+                            .frame(width: 40, height: 40)
+                    }
+
+                    Text("\(dayNumber)")
+                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
+                        .foregroundStyle(cell.bucket == nil ? (colorScheme == .dark ? .white : .black) : .white)
+                }
+                .frame(height: 42)
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+        } else {
+            Color.clear
+                .frame(height: 42)
+                .frame(maxWidth: .infinity)
         }
     }
 
@@ -422,7 +428,7 @@ struct ArchiveView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
 
-            if viewModel.isLoadingMore {
+            if viewModel.isLoadingMore || viewModel.isFillingAll {
                 ProgressView()
                     .padding(10)
                     .background(.ultraThinMaterial, in: Circle())
@@ -528,14 +534,27 @@ struct ArchiveView: View {
         }
 
         var cells: [ArchiveCalendarDayCell] = []
-        cells.append(contentsOf: (0..<leadingBlanks).map { _ in ArchiveCalendarDayCell(dayNumber: nil, bucket: nil) })
+        let monthId = monthSection.id
+        cells.append(contentsOf: (0..<leadingBlanks).map { index in
+            ArchiveCalendarDayCell(id: "\(monthId)-lead-\(index)", dayNumber: nil, bucket: nil)
+        })
 
         for day in dayRange {
-            cells.append(ArchiveCalendarDayCell(dayNumber: day, bucket: bucketsByDay[day]))
+            cells.append(
+                ArchiveCalendarDayCell(
+                    id: "\(monthId)-day-\(day)",
+                    dayNumber: day,
+                    bucket: bucketsByDay[day]
+                )
+            )
         }
 
+        var trailing = 0
         while cells.count % 7 != 0 {
-            cells.append(ArchiveCalendarDayCell(dayNumber: nil, bucket: nil))
+            cells.append(
+                ArchiveCalendarDayCell(id: "\(monthId)-trail-\(trailing)", dayNumber: nil, bucket: nil)
+            )
+            trailing += 1
         }
         return cells
     }
@@ -690,7 +709,7 @@ private struct ArchiveCalendarMonthSection: Identifiable {
 }
 
 private struct ArchiveCalendarDayCell: Identifiable {
-    let id = UUID()
+    let id: String
     let dayNumber: Int?
     let bucket: ArchiveCalendarDayBucket?
 }
@@ -1580,6 +1599,7 @@ class ArchiveViewModel: ObservableObject {
     @Published var isLoading = false
     @Published private(set) var isLoadingMore = false
     @Published private(set) var canLoadMore = true
+    @Published private(set) var isFillingAll = false
     
     private let firestoreService = FirestoreService()
     private let pageSize = 36
@@ -1591,6 +1611,7 @@ class ArchiveViewModel: ObservableObject {
         loadTask?.cancel()
         lastDocument = nil
         canLoadMore = true
+        isFillingAll = false
         groupedStories = [:]
         isLoading = true
         loadTask = Task { @MainActor [weak self] in
@@ -1607,8 +1628,10 @@ class ArchiveViewModel: ObservableObject {
 
     func loadAllArchivedStories() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
+        isFillingAll = true
         loadTask = Task { @MainActor [weak self] in
             guard let self else { return }
+            defer { self.isFillingAll = false }
             while self.canLoadMore && !Task.isCancelled {
                 if self.isLoading {
                     try? await Task.sleep(for: .milliseconds(100))

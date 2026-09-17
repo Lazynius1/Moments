@@ -1054,43 +1054,11 @@ class FeedViewModel {
     }
 
     func listenForCommentUpdates(momentId: String, authorId: String) {
-        if self.commentListeners[momentId] != nil || self.momentListeners[momentId] != nil {
+        if self.momentListeners[momentId] != nil {
             return
         }
 
-        // ✅ VALIDAR: Solo crear listener si el usuario puede ver el momento
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-
-        firestoreService.canViewContent(currentUserId: currentUserId, targetUserId: authorId) { [weak self] result in
-            Task { @MainActor in
-                guard let self = self else { return }
-                switch result {
-                case .success(let canView):
-                    guard canView else { return } // No crear listener si no puede ver el momento
-                    guard self.momentListeners[momentId] != nil else { return } // Ya no elegible (scrolleado fuera antes de resolver el permiso)
-
-                    // ✅ Solo crear listener si tiene permisos
-                    let commentListener = self.firestoreService.db.collection("users").document(authorId)
-                        .collection("moments").document(momentId)
-                        .collection("comments")
-                        .addSnapshotListener { snapshot, error in
-                            guard error == nil else { return }
-
-                            Task { @MainActor in
-                                NotificationCenter.default.post(
-                                    name: NSNotification.Name("CommentAdded"),
-                                    object: momentId
-                                )
-                            }
-                        }
-
-                    self.commentListeners[momentId] = commentListener
-
-                case .failure(_):
-                    return
-                }
-            }
-        }
+        guard Auth.auth().currentUser?.uid != nil else { return }
 
         if self.momentListeners[momentId] == nil {
             let momentListener = self.firestoreService.db.collection("users").document(authorId)

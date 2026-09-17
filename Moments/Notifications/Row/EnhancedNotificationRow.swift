@@ -67,7 +67,7 @@ struct EnhancedNotificationRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .background(
-                isPressed
+                !supportsRowProfilePreview && isPressed
                     ? Color.primary.opacity(0.04)
                     : Color.clear
             )
@@ -91,18 +91,28 @@ struct EnhancedNotificationRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(
-            group.isUnread
-                ? (colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04))
-                : Color.clear
-        )
-        .background(FeedStoryCircleAnchorProbe(capture: rowAnchorCapture))
+        .background(rowPlateBackground)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.06))
                 .frame(height: 0.5)
                 .padding(.leading, leadingAvatarInset)
+                .opacity(isRowLifted ? 0 : 1)
         }
+        .compositingGroup()
+        .scaleEffect(isRowLifted ? 1.07 : 1)
+        .shadow(
+            color: .black.opacity(isRowLifted ? 0.28 : 0),
+            radius: isRowLifted ? 22 : 0,
+            x: 0,
+            y: isRowLifted ? 10 : 0
+        )
+        .background(FeedStoryCircleAnchorProbe(capture: rowAnchorCapture))
+        .zIndex(isRowLifted ? 20 : 0)
+        .animation(
+            UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.32, dampingFraction: 0.86),
+            value: isRowLifted
+        )
         .fullScreenCover(isPresented: $showStories) {
             StoriesView(startWithUserId: .constant(group.notifications.first?.senderId ?? ""))
                 .environmentObject(FirestoreService.shared)
@@ -277,6 +287,25 @@ struct EnhancedNotificationRow: View {
     /// Long-press de fila → preview (no en moderación / sin sender).
     var supportsRowProfilePreview: Bool {
         !isModerationNotification && !(uniqueSenderIdList.first ?? "").isEmpty
+    }
+
+    /// Lista, no feed: la placa se despega de las filas vecinas durante el hold.
+    var isRowLifted: Bool {
+        supportsRowProfilePreview && isPressed
+    }
+
+    var rowCanvasColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    var rowPlateBackground: Color {
+        if isRowLifted {
+            return rowCanvasColor
+        }
+        if group.isUnread {
+            return colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04)
+        }
+        return .clear
     }
 
     /// Actor más reciente del grupo (varios likes/follows → el primero de la lista dedupe).

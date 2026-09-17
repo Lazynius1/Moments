@@ -196,6 +196,7 @@ struct ModernPostCardView: View {
     var onOpenUserProfile: ((String) -> Void)? = nil
     var onAuthorAvatarTap: ((String, Bool) -> Void)? = nil
     var onAuthorAvatarLongPress: ((String, CGRect, CGRect) -> Void)? = nil
+    var hidesAuthorAvatar: Bool = false
     var profileZoomNamespace: Namespace.ID? = nil
     var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK: (imageURL, realRatio, isPressing)
     /// Sesión Reels de esta superficie (feed / perfil / explore…). Evita mezclar con `VideoMomentsIndex.shared`.
@@ -239,6 +240,7 @@ struct ModernPostCardView: View {
          onOpenUserProfile: ((String) -> Void)? = nil,
          onAuthorAvatarTap: ((String, Bool) -> Void)? = nil,
          onAuthorAvatarLongPress: ((String, CGRect, CGRect) -> Void)? = nil,
+         hidesAuthorAvatar: Bool = false,
          profileZoomNamespace: Namespace.ID? = nil,
          onPeek: ((String, CGFloat, Bool) -> Void)? = nil,
          reelsVideos: [VideoMoment]? = nil) {
@@ -255,6 +257,7 @@ struct ModernPostCardView: View {
         self.onOpenUserProfile = onOpenUserProfile
         self.onAuthorAvatarTap = onAuthorAvatarTap
         self.onAuthorAvatarLongPress = onAuthorAvatarLongPress
+        self.hidesAuthorAvatar = hidesAuthorAvatar
         self.profileZoomNamespace = profileZoomNamespace
         self.onPeek = onPeek
         self.reelsVideos = reelsVideos
@@ -554,6 +557,9 @@ struct ModernPostCardView: View {
                   firestoreService.hasLoadedSavedMoments(for: currentUserId) else { return }
             isSaved = firestoreService.savedMomentIds.contains(momentId)
         }
+        .onChange(of: moment.commentCount) { _, newCount in
+            commentCount = newCount
+        }
         .onChange(of: moment.authorId) { _, _ in
             liveAuthorUsername = ""
             refreshAuthorUsername()
@@ -587,8 +593,9 @@ struct ModernPostCardView: View {
                 profileZoomNamespace: profileZoomNamespace
             )
             .scaleEffect(isAuthorAvatarPressing ? 0.94 : 1)
-            .opacity(isAuthorAvatarPressing ? 0.88 : 1)
+            .opacity(hidesAuthorAvatar ? 0 : (isAuthorAvatarPressing ? 0.88 : 1))
             .animation(.easeOut(duration: 0.12), value: isAuthorAvatarPressing)
+            .animation(.easeOut(duration: 0.12), value: hidesAuthorAvatar)
             .contentShape(Circle())
             .modifier(FeedStoryCirclePressModifier(
                 isPressing: $isAuthorAvatarPressing,
@@ -935,37 +942,7 @@ struct ModernPostCardView: View {
     }
 
     private func loadCommentCount() {
-        guard let momentId = moment.id,
-              let currentUserId = Auth.auth().currentUser?.uid else { return }
-
-        // ✅ VALIDAR: Solo cargar comentarios si el usuario puede ver el momento
-        firestoreService.canViewContent(currentUserId: currentUserId, targetUserId: moment.authorId) { result in
-            switch result {
-            case .success(let canView):
-                guard canView else { return } // No cargar comentarios si no puede ver el momento
-
-                // ✅ Solo cargar comentarios si tiene permisos
-                self.firestoreService.db.collection("users").document(self.moment.authorId)
-                    .collection("moments").document(momentId)
-                    .collection("comments")
-                    .getDocuments { snapshot, error in
-                        if error != nil {
-                            return
-                        }
-
-                        DispatchQueue.main.async {
-                            let newCount = snapshot?.documents.count ?? 0
-                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
-                                self.commentCount = newCount
-                            }
-                        }
-                    }
-
-            case .failure(_):
-                // Si falla la verificación de permisos, no cargar comentarios
-                return
-            }
-        }
+        commentCount = moment.commentCount
     }
 
     private func performFollowToggle() {
@@ -2107,6 +2084,7 @@ extension ModernPostCardView: Equatable {
     static func == (lhs: ModernPostCardView, rhs: ModernPostCardView) -> Bool {
         lhs.moment == rhs.moment
             && lhs.colorScheme == rhs.colorScheme
+            && lhs.hidesAuthorAvatar == rhs.hidesAuthorAvatar
             && abs(lhs.availableHeight - rhs.availableHeight) < 1
             && reelsVideosFingerprint(lhs.reelsVideos) == reelsVideosFingerprint(rhs.reelsVideos)
     }

@@ -176,15 +176,8 @@ struct FeedListSection: View {
             feedMomentCard(
                 moment: moment,
                 availableHeight: availableHeight,
-                index: index
-            )
-            .opacity(isHiddenForPreview ? 0 : 1)
-            .allowsHitTesting(!isHiddenForPreview)
-            .animation(
-                hiddenMomentId == nil
-                    ? (UIAccessibility.isReduceMotionEnabled ? nil : .easeOut(duration: 0.12))
-                    : (UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.42, dampingFraction: 0.84)),
-                value: isHiddenForPreview
+                index: index,
+                hidesAuthorAvatar: isHiddenForPreview
             )
 
             if showAdAfter {
@@ -197,7 +190,8 @@ struct FeedListSection: View {
     private func feedMomentCard(
         moment: Moment,
         availableHeight: CGFloat,
-        index: Int
+        index: Int,
+        hidesAuthorAvatar: Bool
     ) -> some View {
         let isProtected = (moment.audience?.lowercased() ?? "") != "everyone"
 
@@ -216,6 +210,7 @@ struct FeedListSection: View {
                 onAuthorAvatarLongPress: { userId, avatarFrame, postFrame in
                     onAuthorAvatarLongPress(userId, moment.id ?? "", avatarFrame, postFrame)
                 },
+                hidesAuthorAvatar: hidesAuthorAvatar,
                 profileZoomNamespace: profileZoomNamespace,
                 onPeek: { imageURL, ratio, isPressing in
                     handleFeedPeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing, moment: moment)

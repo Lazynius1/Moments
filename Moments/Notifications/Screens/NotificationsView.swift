@@ -20,6 +20,7 @@ struct NotificationsView: View {
     @State private var groupedFollowersOverlayGroup: NotificationGroup?
     @State private var profileRoute: FeedProfileSheetRoute?
     @State private var postProfilePreviewSelection: FeedPostProfilePreviewSelection?
+    @State private var hiddenNotificationPreviewId: String?
     @StateObject private var messagingViewModel = MessagingViewModel()
     @Namespace private var profileZoomNamespace
     let onNotificationsCleared: (() -> Void)?
@@ -113,6 +114,11 @@ struct NotificationsView: View {
                 onOpenProfile: { userId in
                     postProfilePreviewSelection = nil
                     profileRoute = FeedProfileSheetRoute(userId: userId)
+                },
+                onPresentedChange: { presented in
+                    if !presented {
+                        hiddenNotificationPreviewId = nil
+                    }
                 }
             )
             .ignoresSafeArea()
@@ -370,14 +376,24 @@ struct NotificationsView: View {
                         onOpenProfile: { userId in
                             profileRoute = FeedProfileSheetRoute(userId: userId)
                         },
-                        onProfilePreview: { userId, momentId, anchorFrame in
+                        onProfilePreview: { userId, momentId, rowFrame in
+                            hiddenNotificationPreviewId = group.id
                             postProfilePreviewSelection = FeedPostProfilePreviewSelection(
                                 userId: userId,
                                 momentId: momentId,
-                                anchorFrame: anchorFrame,
-                                postFrame: .zero
+                                anchorFrame: rowFrame,
+                                postFrame: rowFrame,
+                                anchorsToSource: true
                             )
                         }
+                    )
+                    .opacity(hiddenNotificationPreviewId == group.id ? 0 : 1)
+                    .allowsHitTesting(hiddenNotificationPreviewId != group.id)
+                    .animation(
+                        hiddenNotificationPreviewId == nil
+                            ? (UIAccessibility.isReduceMotionEnabled ? nil : .easeOut(duration: 0.12))
+                            : (UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.42, dampingFraction: 0.84)),
+                        value: hiddenNotificationPreviewId == group.id
                     )
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
@@ -417,6 +433,7 @@ struct NotificationsView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .scrollClipDisabled()
         .momentsScrollEdgeChrome()
         .momentRefresh {
             await viewModel.refreshNotifications(force: true)

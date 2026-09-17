@@ -1064,6 +1064,9 @@ struct ReelVideoView: View {
                 playerManager.pause()
             }
         }
+        .onChange(of: video.moment.commentCount) { _, newCount in
+            commentCount = newCount
+        }
         .onChange(of: video.moment.id) { _, _ in
             isReelCaptionExpanded = false
         }
@@ -1312,16 +1315,15 @@ struct ReelVideoView: View {
     }
     
     private func loadCommentCount() {
+        commentCount = video.moment.commentCount
         guard let momentId = video.moment.id else { return }
-        
         firestoreService.db.collection("users").document(video.moment.authorId)
             .collection("moments").document(momentId)
-            .collection("comments")
-            .getDocuments { snapshot, error in
-                if error == nil {
-                    DispatchQueue.main.async {
-                        self.commentCount = snapshot?.documents.count ?? 0
-                    }
+            .getDocument { snapshot, error in
+                guard error == nil else { return }
+                let count = (snapshot?.data()?["commentCount"] as? Int) ?? 0
+                DispatchQueue.main.async {
+                    self.commentCount = count
                 }
             }
     }

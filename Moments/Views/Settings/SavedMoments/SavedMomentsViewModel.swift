@@ -9,6 +9,8 @@ class SavedMomentsViewModel: ObservableObject {
     @Published private(set) var mutedUserIds: Set<String> = []
     @Published var isLoading = false
     @Published var error: Error?
+    @Published private(set) var canLoadMore = false
+    @Published private(set) var isLoadingMore = false
 
     private let firestoreService = FirestoreService()
     private let privacyService = PrivacyService.shared
@@ -17,6 +19,8 @@ class SavedMomentsViewModel: ObservableObject {
     private var loadTask: Task<Void, Never>?
     private var loadGeneration = UUID()
     private var dataOwnerId: String?
+    private var lastDocument: DocumentSnapshot?
+    private let pageSize = 24
 
     func loadSavedMoments(completion: @escaping (Error?) -> Void = { _ in }) {
         loadTask?.cancel()
@@ -34,6 +38,8 @@ class SavedMomentsViewModel: ObservableObject {
             mutedUserIds = []
             dataOwnerId = userId
         }
+        lastDocument = nil
+        canLoadMore = true
         isLoading = true
         error = nil
         firestoreService.fetchMutedUserIds(userId: userId) { [weak self] mutedIds in
@@ -43,108 +49,155 @@ class SavedMomentsViewModel: ObservableObject {
             }
         }
         loadTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                let snapshot = try await self.firestoreService.db.collection("users").document(userId)
-                    .collection("savedMoments").getDocuments()
+            await self?.loadSavedPage(userId: userId, generation: generation, reset: true, completion: completion)
+        }
+    }
+
+    func loadMoreSavedMoments() {
+        guard let userId = Auth.auth().currentUser?.uid, canLoadMore, !isLoading, !isLoadingMore else { return }
+        let generation = loadGeneration
+        Task { @MainActor [weak self] in
+            await self?.loadSavedPage(userId: userId, generation: generation, reset: false, completion: { _ in })
+        }
+    }
+
+    @MainActor
+    private func loadSavedPage(userId: String, generation: UUID, reset: Bool, completion: @escaping (Error?) -> Void) async {
+        guard generation == loadGeneration, Auth.auth().currentUser?.uid == userId else { return }
+        if !reset { isLoadingMore = true }
+        do {
+            var query: Query = firestoreService.db.collection("users").document(userId)
+                .collection("savedMoments")
+                .order(by: "timestamp", descending: true)
+                .limit(to: pageSize)
+            if !reset, let lastDocument { query = query.start(afterDocument: lastDocument) }
+            let snapshot = try await query.getDocuments()
+            try Task.checkCancellation()
+            guard loadGeneration == generation, Auth.auth().currentUser?.uid == userId else { return }
+            let documents = snapshot.documents
+            let ids = documents.map(\.documentID)
+            let cachedAuthors = Dictionary(moments.compactMap { moment in
+                moment.id.map { ($0, moment.authorId) }
+            }, uniquingKeysWith: { first, _ in first })
+            var missingAuthorIds: [String] = []
+            let references = documents.compactMap { document -> (String, String)? in
+                let stored = document.data()["authorId"] as? String
+                if let stored, !stored.isEmpty { return (document.documentID, stored) }
+                if let cached = cachedAuthors[document.documentID], !cached.isEmpty {
+                    missingAuthorIds.append(document.documentID)
+                    return (document.documentID, cached)
+                }
+                return nil
+            }
+            let resolvedIds = Set(references.map { $0.0 })
+            let legacyIds = Set(ids).subtracting(resolvedIds)
+            var found: [Moment] = []
+            var firstError: Error?
+            for start in stride(from: 0, to: references.count, by: 6) {
                 try Task.checkCancellation()
-                guard self.loadGeneration == generation, Auth.auth().currentUser?.uid == userId else { return }
-                let ids = snapshot.documents.map(\.documentID)
-                let cachedAuthors = Dictionary(self.moments.compactMap { moment in
-                    moment.id.map { ($0, moment.authorId) }
-                }, uniquingKeysWith: { first, _ in first })
-                let references = snapshot.documents.compactMap { document -> (String, String)? in
-                    guard let author = (document.data()["authorId"] as? String) ?? cachedAuthors[document.documentID],
-                          !author.isEmpty else { return nil }
-                    return (document.documentID, author)
+                let batch = Array(references[start..<min(start + 6, references.count)])
+                let results = await withTaskGroup(of: Result<Moment?, Error>.self) { group in
+                    for (id, author) in batch {
+                        group.addTask {
+                            do {
+                                let doc = try await Firestore.firestore().collection("users").document(author)
+                                    .collection("moments").document(id).getDocument()
+                                guard doc.exists else { return .success(nil) }
+                                let moment = try doc.data(as: Moment.self)
+                                return .success(moment.isArchived == true ? nil : moment)
+                            } catch { return .failure(error) }
+                        }
+                    }
+                    var results: [Result<Moment?, Error>] = []
+                    for await result in group { results.append(result) }
+                    return results
                 }
-                let resolvedIds = Set(references.map { $0.0 })
-                let legacyIds = Set(ids).subtracting(resolvedIds)
-                var found: [Moment] = []
-                var firstError: Error?
-                // Read exact paths for new saves, with bounded concurrency.
-                for start in stride(from: 0, to: references.count, by: 6) {
+                for result in results {
+                    switch result {
+                    case .success(let moment): if let moment { found.append(moment) }
+                    case .failure(let error): firstError = firstError ?? error
+                    }
+                }
+            }
+            for moment in found where missingAuthorIds.contains(moment.id ?? "") {
+                migrateSavedAuthorId(userId: userId, momentId: moment.id ?? "", authorId: moment.authorId)
+            }
+            if !legacyIds.isEmpty {
+                let db = firestoreService.db
+                let cutoff = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
+                var authors: [String] = []
+                do {
+                    authors = try await db.collection("users")
+                        .whereField("lastActiveAt", isGreaterThan: Timestamp(date: cutoff)).limit(to: 100).getDocuments()
+                        .documents.map(\.documentID)
+                } catch {
                     try Task.checkCancellation()
-                    let batch = Array(references[start..<min(start + 6, references.count)])
-                    let results = await withTaskGroup(of: Result<Moment?, Error>.self) { group in
-                        for (id, author) in batch {
-                            group.addTask {
-                                do {
-                                    let doc = try await Firestore.firestore().collection("users").document(author)
-                                        .collection("moments").document(id).getDocument()
-                                    guard doc.exists else { return .success(nil) }
-                                    let moment = try doc.data(as: Moment.self)
-                                    return .success(moment.isArchived == true ? nil : moment)
-                                } catch { return .failure(error) }
-                            }
-                        }
-                        var results: [Result<Moment?, Error>] = []
-                        for await result in group { results.append(result) }
-                        return results
-                    }
-                    for result in results {
-                        switch result {
-                        case .success(let moment): if let moment { found.append(moment) }
-                        case .failure(let error): firstError = firstError ?? error
-                        }
-                    }
                 }
-                // Compatibility for old bookmarks that have no author. Never infer deletion
-                // from this incomplete search; the bookmark stays available for a later retry.
-                if !legacyIds.isEmpty {
-                    let db = self.firestoreService.db
-                    let cutoff = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
-                    var authors: [String] = []
-                    do {
-                        authors = try await db.collection("users")
-                            .whereField("lastActiveAt", isGreaterThan: Timestamp(date: cutoff)).limit(to: 100).getDocuments()
-                            .documents.map(\.documentID)
-                    } catch {
-                        try Task.checkCancellation()
-                    }
-                    if authors.isEmpty {
-                        authors = try await db.collection("users").limit(to: 200).getDocuments().documents.map(\.documentID)
-                    }
-                    for start in stride(from: 0, to: authors.count, by: 6) {
-                        try Task.checkCancellation()
-                        let batch = Array(authors[start..<min(start + 6, authors.count)])
-                        let legacyMoments = await withTaskGroup(of: [Moment].self) { group in
-                            for author in batch {
-                                group.addTask {
-                                    await withCheckedContinuation { continuation in
-                                        FirestoreService.shared.fetchMoments(for: author) { result in
-                                            continuation.resume(returning: (try? result.get()) ?? [])
-                                        }
+                if authors.isEmpty {
+                    authors = try await db.collection("users").limit(to: 200).getDocuments().documents.map(\.documentID)
+                }
+                for start in stride(from: 0, to: authors.count, by: 6) {
+                    try Task.checkCancellation()
+                    let batch = Array(authors[start..<min(start + 6, authors.count)])
+                    let legacyMoments = await withTaskGroup(of: [Moment].self) { group in
+                        for author in batch {
+                            group.addTask {
+                                await withCheckedContinuation { continuation in
+                                    FirestoreService.shared.fetchMoments(for: author) { result in
+                                        continuation.resume(returning: (try? result.get()) ?? [])
                                     }
                                 }
                             }
-                            var matches: [Moment] = []
-                            for await moments in group {
-                                matches += moments.filter { $0.id.map(legacyIds.contains) ?? false }
-                            }
-                            return matches
                         }
-                        found += legacyMoments
+                        var matches: [Moment] = []
+                        for await moments in group {
+                            matches += moments.filter { $0.id.map(legacyIds.contains) ?? false }
+                        }
+                        return matches
+                    }
+                    found += legacyMoments
+                    for moment in legacyMoments {
+                        if let momentId = moment.id {
+                            migrateSavedAuthorId(userId: userId, momentId: momentId, authorId: moment.authorId)
+                        }
                     }
                 }
-                try Task.checkCancellation()
-                guard self.loadGeneration == generation, Auth.auth().currentUser?.uid == userId else { return }
-                if found.isEmpty, let firstError { throw firstError }
-                self.savedMomentIds = ids
-                self.moments = found.sorted { $0.timestamp > $1.timestamp }
-                self.validateVisibilityForLoadedMoments(self.moments)
-                self.error = firstError
-                self.isLoading = false
-                completion(firstError)
-            } catch is CancellationError {
-                // A newer load owns the UI state.
-            } catch {
-                guard self.loadGeneration == generation, Auth.auth().currentUser?.uid == userId else { return }
-                self.error = error
-                self.isLoading = false
-                completion(error)
             }
+            try Task.checkCancellation()
+            guard loadGeneration == generation, Auth.auth().currentUser?.uid == userId else { return }
+            if found.isEmpty, reset, let firstError { throw firstError }
+            lastDocument = documents.last
+            canLoadMore = documents.count == pageSize
+            savedMomentIds = reset ? ids : {
+                var seen = Set<String>()
+                return (savedMomentIds + ids).filter { seen.insert($0).inserted }
+            }()
+            let merged = reset ? found : (moments + found)
+            var seen = Set<String>()
+            moments = merged.filter { moment in
+                guard let id = moment.id else { return false }
+                return seen.insert(id).inserted
+            }.sorted { $0.timestamp > $1.timestamp }
+            validateVisibilityForLoadedMoments(found, replacing: reset)
+            error = firstError
+            isLoading = false
+            isLoadingMore = false
+            completion(firstError)
+        } catch is CancellationError {
+        } catch let loadError {
+            guard loadGeneration == generation, Auth.auth().currentUser?.uid == userId else { return }
+            error = loadError
+            isLoading = false
+            isLoadingMore = false
+            completion(loadError)
         }
+    }
+
+    private func migrateSavedAuthorId(userId: String, momentId: String, authorId: String) {
+        guard !momentId.isEmpty, !authorId.isEmpty else { return }
+        firestoreService.db.collection("users").document(userId)
+            .collection("savedMoments").document(momentId)
+            .setData(["authorId": authorId], merge: true)
     }
 
     func isMomentSaved(momentId: String) -> Bool {
@@ -226,13 +279,15 @@ class SavedMomentsViewModel: ObservableObject {
         loadSavedMoments()
     }
 
-    private func validateVisibilityForLoadedMoments(_ moments: [Moment]) {
+    private func validateVisibilityForLoadedMoments(_ moments: [Moment], replacing: Bool = true) {
         guard let viewerId = Auth.auth().currentUser?.uid else {
             return
         }
 
         let token = UUID()
-        visibilityValidationToken = token
+        if replacing {
+            visibilityValidationToken = token
+        }
 
         let group = DispatchGroup()
         let queue = DispatchQueue(label: "saved.moments.visibility.sync")
@@ -240,6 +295,10 @@ class SavedMomentsViewModel: ObservableObject {
 
         for moment in moments {
             guard let momentId = moment.id else { continue }
+            if mutedUserIds.contains(moment.authorId) {
+                result[momentId] = false
+                continue
+            }
             group.enter()
             privacyService.canUserViewMomentEnhanced(moment, viewerId: viewerId) { canView in
                 queue.async {
@@ -250,8 +309,13 @@ class SavedMomentsViewModel: ObservableObject {
         }
 
         group.notify(queue: .main) { [weak self] in
-            guard let self = self, self.visibilityValidationToken == token else { return }
-            self.visibilityByMomentId = result
+            guard let self = self else { return }
+            if replacing {
+                guard self.visibilityValidationToken == token else { return }
+                self.visibilityByMomentId = result
+            } else {
+                self.visibilityByMomentId.merge(result) { _, new in new }
+            }
         }
     }
 }

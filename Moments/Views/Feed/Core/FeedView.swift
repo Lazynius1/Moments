@@ -192,7 +192,8 @@ struct FeedView: View {
                     if !presented {
                         hiddenPostPreviewMomentId = nil
                     }
-                }
+                },
+                reserveFloatingTabBar: true
             )
             .ignoresSafeArea()
             .zIndex(1601)

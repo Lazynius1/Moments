@@ -447,6 +447,7 @@ struct SavedMomentsView: View {
                 .frame(maxWidth: .infinity, minHeight: 420, alignment: .center)
                 .padding(.top, 40)
             } else {
+                VStack(spacing: 0) {
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3),
                     spacing: 4
@@ -482,10 +483,23 @@ struct SavedMomentsView: View {
                                 }
                             )
                         }
+                        .onAppear {
+                            if identified.moment.id == viewModel.moments.last?.id {
+                                viewModel.loadMoreSavedMoments()
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 10)
                 .padding(.bottom, isSelectionMode ? 90 : 20)
+
+                if viewModel.canLoadMore || viewModel.isLoadingMore {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .onAppear { viewModel.loadMoreSavedMoments() }
+                }
+                }
             }
         }
     }
@@ -1484,19 +1498,14 @@ struct ModernSavedDetailMomentCard: View {
     }
     // ✅ Funciones auxiliares
     private func loadMomentData() {
+        commentCount = moment.commentCount
         guard let momentId = moment.id else { return }
-
-        // Cargar conteo de comentarios
         firestoreService.db.collection("users").document(moment.authorId)
             .collection("moments").document(momentId)
-            .collection("comments")
-            .getDocuments { snapshot, error in
-                if error != nil {
-                    return
-                }
-
+            .getDocument { snapshot, error in
+                guard error == nil else { return }
+                let newCount = (snapshot?.data()?["commentCount"] as? Int) ?? 0
                 DispatchQueue.main.async {
-                    let newCount = snapshot?.documents.count ?? 0
                     MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
                         self.commentCount = newCount
                     }

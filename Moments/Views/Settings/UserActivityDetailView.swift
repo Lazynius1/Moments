@@ -511,61 +511,74 @@ struct ActivityInteractionDetailView: View {
             let side = activityGridColumnSide()
             let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
 
-            LazyVGrid(columns: columns, spacing: spacing) {
-                ForEach(Array(filteredReactionItems.enumerated()), id: \.element.id) { index, item in
-                    ActivityReactionMomentCard(
-                        item: item,
-                        size: side,
-                        isSelectionMode: isSelectionMode,
-                        isSelected: selectedReactionIds.contains(item.id),
-                        overlayBadge: reactionCardOverlayBadge
-                    )
-                    .contentShape(Rectangle())
-                    .modifier(ProfileMomentZoomSourceModifier(
-                        namespace: item.moment == nil ? nil : zoomNamespace,
-                        sourceID: item.moment.map {
-                            ProfileMomentZoomNavigation.sourceID(moment: $0, index: index, prefix: "activity-reaction")
-                        },
-                        cornerRadius: 4
-                    ))
-                    .id(item.id)
-                    .onTapGesture {
-                        if longPressActivatedItemId == item.id {
-                            longPressActivatedItemId = nil
-                            return
-                        }
-                        if isSelectionMode {
-                            toggleSelection(for: item.id)
-                            return
-                        }
-                        guard item.canView, let moment = item.moment else { return }
-                        openActivityMomentZoom(moment: moment)
-                    }
-                    .onLongPressGesture(minimumDuration: 0.3) {
-                        guard category == .archived || category == .recentlyDeleted else { return }
-                        longPressActivatedItemId = item.id
-                        if !isSelectionMode {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
-                                isSelectionMode = true
+            VStack(spacing: 0) {
+                LazyVGrid(columns: columns, spacing: spacing) {
+                    ForEach(Array(filteredReactionItems.enumerated()), id: \.element.id) { index, item in
+                        ActivityReactionMomentCard(
+                            item: item,
+                            size: side,
+                            isSelectionMode: isSelectionMode,
+                            isSelected: selectedReactionIds.contains(item.id),
+                            overlayBadge: reactionCardOverlayBadge
+                        )
+                        .contentShape(Rectangle())
+                        .modifier(ProfileMomentZoomSourceModifier(
+                            namespace: item.moment == nil ? nil : zoomNamespace,
+                            sourceID: item.moment.map {
+                                ProfileMomentZoomNavigation.sourceID(moment: $0, index: index, prefix: "activity-reaction")
+                            },
+                            cornerRadius: 4
+                        ))
+                        .id(item.id)
+                        .onTapGesture {
+                            if longPressActivatedItemId == item.id {
+                                longPressActivatedItemId = nil
+                                return
                             }
+                            if isSelectionMode {
+                                toggleSelection(for: item.id)
+                                return
+                            }
+                            guard item.canView, let moment = item.moment else { return }
+                            openActivityMomentZoom(moment: moment)
                         }
-                        selectedReactionIds.insert(item.id)
+                        .onLongPressGesture(minimumDuration: 0.3) {
+                            guard category == .archived || category == .recentlyDeleted else { return }
+                            longPressActivatedItemId = item.id
+                            if !isSelectionMode {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                                    isSelectionMode = true
+                                }
+                            }
+                            selectedReactionIds.insert(item.id)
+                        }
+                        .onAppear {
+                            guard category == .archived, item.id == filteredReactionItems.last?.id else { return }
+                            viewModel.loadMoreArchived()
+                        }
                     }
                 }
+                .padding(.top, 8)
+                .padding(.bottom, isSelectionMode ? 88 : 12)
+                .modifier(ActivityGridDragSelectionModifier(
+                    isEnabled: category == .recentlyDeleted && isSelectionMode,
+                    gesture: recentlyDeletedDragSelectionGesture(
+                        items: filteredReactionItems.map(\.id),
+                        side: side,
+                        spacing: spacing,
+                        viewportHeight: activityGridViewportHeight,
+                        scrollProxy: scrollProxy,
+                        horizontalInset: 0
+                    )
+                ))
+
+                if category == .archived, viewModel.canLoadMoreArchived || viewModel.isLoadingMoreArchived {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .onAppear { viewModel.loadMoreArchived() }
+                }
             }
-            .padding(.top, 8)
-            .padding(.bottom, isSelectionMode ? 88 : 12)
-            .modifier(ActivityGridDragSelectionModifier(
-                isEnabled: category == .recentlyDeleted && isSelectionMode,
-                gesture: recentlyDeletedDragSelectionGesture(
-                    items: filteredReactionItems.map(\.id),
-                    side: side,
-                    spacing: spacing,
-                    viewportHeight: activityGridViewportHeight,
-                    scrollProxy: scrollProxy,
-                    horizontalInset: 0
-                )
-            ))
         }
     }
 

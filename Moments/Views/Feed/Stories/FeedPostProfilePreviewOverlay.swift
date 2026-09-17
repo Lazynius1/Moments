@@ -7,6 +7,9 @@ struct FeedPostProfilePreviewSelection: Equatable {
     let momentId: String
     let anchorFrame: CGRect
     let postFrame: CGRect
+    /// Notificaciones: escala desde el borde superior de la fila.
+    /// Feed: desde la foto del autor (`anchorFrame`).
+    var anchorsToSource: Bool = false
 }
 
 struct FeedPostProfilePreviewOverlay: View {
@@ -17,6 +20,8 @@ struct FeedPostProfilePreviewOverlay: View {
     let onOpenProfile: (String) -> Void
     /// `false` al empezar a cerrar, para devolver el post al feed como el put-back del chat.
     var onPresentedChange: (Bool) -> Void = { _ in }
+    /// Feed: deja hueco sobre la pill flotante. Notificaciones ocultan el dock.
+    var reserveFloatingTabBar: Bool = false
 
     private let cardCornerRadius: CGFloat = 26
     private let horizontalInset: CGFloat = 16
@@ -43,11 +48,11 @@ struct FeedPostProfilePreviewOverlay: View {
     }
 
     private var presentationAnimation: Animation? {
-        UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.42, dampingFraction: 0.84)
+        UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.28, dampingFraction: 0.88)
     }
 
     private var dismissalAnimation: Animation? {
-        UIAccessibility.isReduceMotionEnabled ? nil : .easeInOut(duration: 0.26)
+        UIAccessibility.isReduceMotionEnabled ? nil : .easeInOut(duration: 0.18)
     }
 
     var body: some View {
@@ -56,7 +61,6 @@ struct FeedPostProfilePreviewOverlay: View {
                 if let selection {
                     let layout = previewLayout(for: selection, in: proxy)
                     let cardCenter = isPresented ? layout.targetCenter : layout.morphCenter
-                    let cardScale = isPresented ? 1 : layout.morphScale
 
                     Color.black.opacity(isPresented ? 0.28 : 0)
                         .ignoresSafeArea()
@@ -88,7 +92,11 @@ struct FeedPostProfilePreviewOverlay: View {
                         }
                     )
                     .frame(width: layout.cardWidth)
-                    .scaleEffect(cardScale, anchor: .center)
+                    .scaleEffect(
+                        x: isPresented ? 1 : layout.morphScaleX,
+                        y: isPresented ? 1 : layout.morphScaleY,
+                        anchor: layout.scaleAnchor
+                    )
                     .opacity(cardSurfaceOpacity)
                     .position(x: cardCenter.x, y: cardCenter.y)
                     .animation(isPresented ? presentationAnimation : dismissalAnimation, value: isPresented)
@@ -155,8 +163,10 @@ struct FeedPostProfilePreviewOverlay: View {
         contentWidth: CGFloat,
         gridCellSize: CGFloat,
         morphCenter: CGPoint,
-        morphScale: CGFloat,
-        targetCenter: CGPoint
+        morphScaleX: CGFloat,
+        morphScaleY: CGFloat,
+        targetCenter: CGPoint,
+        scaleAnchor: UnitPoint
     ) {
         let overlayGlobal = proxy.frame(in: .global)
         let anchor = CGRect(
@@ -188,34 +198,87 @@ struct FeedPostProfilePreviewOverlay: View {
 
         let minCenterX = horizontalInset + cardWidth / 2
         let maxCenterX = max(minCenterX, proxy.size.width - horizontalInset - cardWidth / 2)
-        let avatarFallbackCenterX = min(max(anchor.midX, minCenterX), maxCenterX)
-        let avatarFallbackCenterY = anchor.maxY + avatarGap + cardHeight / 2
-
         let hasMorph = post.width > 1 && post.height > 1
+        let source = hasMorph ? post : anchor
+
+        let bottomClearance: CGFloat = reserveFloatingTabBar
+            ? MomentsFloatingTabBarMetrics.overlayBottomPadding(
+                safeAreaBottom: proxy.safeAreaInsets.bottom
+            )
+            : proxy.safeAreaInsets.bottom + 12
+        let minY = proxy.safeAreaInsets.top + 12
+        let maxY = proxy.size.height - bottomClearance
+        let minCenterY = minY + cardHeight / 2
+        let maxCenterY = maxY - cardHeight / 2
+        let targetCenterX = proxy.size.width / 2
+
         let morphCenter: CGPoint
-        let morphScale: CGFloat
-        if hasMorph {
-            morphCenter = CGPoint(x: post.midX, y: post.midY)
-            morphScale = min(max(min(post.width / cardWidth, post.height / cardHeight), 0.01), 1)
+        let morphScaleX: CGFloat
+        let morphScaleY: CGFloat
+        let targetCenter: CGPoint
+        let scaleAnchor: UnitPoint
+        let preferredCenterY: CGFloat
+        let preferredCenterX: CGFloat
+
+        if selection.anchorsToSource, source.width > 1, source.height > 1 {
+            preferredCenterX = targetCenterX
+            preferredCenterY = source.minY + cardHeight / 2
+            morphCenter = CGPoint(x: source.midX, y: preferredCenterY)
+            morphScaleX = min(max(source.width / cardWidth, 0.01), 1)
+            morphScaleY = min(max(source.height / cardHeight, 0.01), 1)
+            scaleAnchor = .top
+        } else if hasMorph || (anchor.width > 1 && anchor.height > 1) {
+            let origin = (anchor.width > 1 && anchor.height > 1) ? anchor : source
+            let avatarInCardX = cardPadding + previewAvatarSize / 2
+            let avatarInCardY = cardPadding + previewAvatarSize / 2
+            let uniform = min(max(min(origin.width / cardWidth, origin.height / cardHeight), 0.01), 1)
+            morphScaleX = uniform
+            morphScaleY = uniform
+            preferredCenterX = origin.midX + cardWidth / 2 - avatarInCardX
+
+            let spaceBelow = maxY - origin.maxY
+            let spaceAbove = origin.minY - minY
+            let cardBelowAvatar = cardHeight - avatarInCardY
+            let growsUpward = spaceBelow < cardBelowAvatar && spaceAbove > spaceBelow
+
+            if growsUpward {
+                // Post abajo: la card se forma desde su borde inferior, anclada a la foto.
+                preferredCenterY = origin.midY - cardHeight / 2
+                scaleAnchor = UnitPoint(x: avatarInCardX / cardWidth, y: 1)
+            } else {
+                preferredCenterY = origin.midY + cardHeight / 2 - avatarInCardY
+                scaleAnchor = UnitPoint(
+                    x: avatarInCardX / cardWidth,
+                    y: avatarInCardY / max(cardHeight, 1)
+                )
+            }
+            morphCenter = CGPoint(x: preferredCenterX, y: preferredCenterY)
         } else {
+            let avatarFallbackCenterX = min(max(anchor.midX, minCenterX), maxCenterX)
+            let avatarFallbackCenterY = anchor.maxY + avatarGap + cardHeight / 2
             morphCenter = CGPoint(x: avatarFallbackCenterX, y: avatarFallbackCenterY)
-            morphScale = 0.92
+            morphScaleX = 0.92
+            morphScaleY = 0.92
+            preferredCenterX = targetCenterX
+            preferredCenterY = avatarFallbackCenterY
+            scaleAnchor = .center
         }
 
-        let safeMidY = proxy.safeAreaInsets.top
-            + (proxy.size.height - proxy.safeAreaInsets.top - proxy.safeAreaInsets.bottom) / 2
-        let minCenterY = proxy.safeAreaInsets.top + cardHeight / 2 + 12
-        let maxCenterY = proxy.size.height - proxy.safeAreaInsets.bottom - cardHeight / 2 - 12
-        let targetCenterY = min(max(safeMidY, minCenterY), maxCenterY)
-        let targetCenterX = proxy.size.width / 2
+        let clampedY = maxCenterY < minCenterY
+            ? (minCenterY + maxCenterY) / 2
+            : min(max(preferredCenterY, minCenterY), maxCenterY)
+        let clampedX = min(max(preferredCenterX, minCenterX), maxCenterX)
+        targetCenter = CGPoint(x: clampedX, y: clampedY)
 
         return (
             cardWidth,
             contentWidth,
             gridCellSize,
             morphCenter,
-            morphScale,
-            CGPoint(x: targetCenterX, y: targetCenterY)
+            morphScaleX,
+            morphScaleY,
+            targetCenter,
+            scaleAnchor
         )
     }
 
@@ -284,12 +347,12 @@ struct FeedPostProfilePreviewOverlay: View {
         if UIAccessibility.isReduceMotionEnabled {
             cardSurfaceOpacity = 0
         } else {
-            withAnimation(.easeOut(duration: 0.14).delay(0.12)) {
+            withAnimation(.easeOut(duration: 0.10).delay(0.08)) {
                 cardSurfaceOpacity = 0
             }
         }
 
-        let delay = UIAccessibility.isReduceMotionEnabled ? 0 : 0.26
+        let delay = UIAccessibility.isReduceMotionEnabled ? 0 : 0.18
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             guard generation == dismissGeneration else { return }
             onPresentedChange(false)

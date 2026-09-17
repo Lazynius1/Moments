@@ -1240,3 +1240,10 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
     }
 
 }
+
+private extension Sequence {
+    func uniqued<Key: Hashable>(by keyPath: KeyPath<Element, Key>) -> [Element] {
+        var seen = Set<Key>()
+        return filter { seen.insert($0[keyPath: keyPath]).inserted }
+    }
+}
