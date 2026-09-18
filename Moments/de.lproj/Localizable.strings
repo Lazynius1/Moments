@@ -310,6 +310,7 @@
 "feed.uploading.more" = "+ %d weitere werden hochgeladen...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "Wird verarbeitet";
+"feed.uploading.compressing" = "Wird komprimiert...";
 "feed.uploading.published" = "Veröffentlicht!";
 "feed.uploading.retry" = "Erneut versuchen";
 "feed.uploading.files" = "%d Dateien";
@@ -782,6 +783,33 @@
 "creator.interactions.disableComments.description" = "Niemand kann diesen Moment kommentieren";
 "creator.interactions.allowSharing" = "Speichern erlauben";
 "creator.interactions.allowSharing.description" = "Andere können deinen Moment ihrer Sammlung hinzufügen";
+"creator.keepOriginalDimensions" = "Originalmaße beibehalten";
+"creator.keepOriginalDimensions.info" = "Wenn aktiv, zeigt ein langes Drücken im Feed das ganze Foto. Wenn nicht, wird nur der Zuschnitt der Karte veröffentlicht.";
+"creator.tools.filter" = "Filter";
+"creator.tools.edit" = "Bearbeiten";
+"creator.carousel.portrait" = "Hochformat";
+"creator.carousel.landscape" = "Querformat";
+"creator.carousel.square" = "Quadratisch";
+"creator.carousel.remove" = "Entfernen";
+"creator.adjust.adjust" = "Anpassen";
+"creator.adjust.straighten" = "Begradigen";
+"creator.adjust.vertical" = "Vertikal";
+"creator.adjust.horizontal" = "Horizontal";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Helligkeit";
+"creator.adjust.contrast" = "Kontrast";
+"creator.adjust.texture" = "Struktur";
+"creator.adjust.warmth" = "Wärme";
+"creator.adjust.saturation" = "Sättigung";
+"creator.adjust.color" = "Farbe";
+"creator.adjust.fade" = "Verblassen";
+"creator.adjust.highlights" = "Lichter";
+"creator.adjust.shadows" = "Schatten";
+"creator.adjust.vignette" = "Vignette";
+"creator.adjust.blur" = "Unschärfe";
+"creator.adjust.sharpen" = "Schärfe";
+"creator.adjust.radial" = "Radial";
+"creator.adjust.linear" = "Linear";
 "creator.advancedSettings.title" = "Erweiterte Einstellungen";
 "creator.visualization.title" = "Darstellung";
 "creator.visualization.hideReactions" = "Reaktionsanzahl ausblenden";
@@ -2729,6 +2757,7 @@
 "liveActivity.uploadingMoment" = "Moment wird hochgeladen";
 "liveActivity.uploading" = "Wird hochgeladen...";
 "liveActivity.processing" = "Wird verarbeitet...";
+"liveActivity.compressing" = "Wird komprimiert...";
 "liveActivity.completed" = "Abgeschlossen";
 "liveActivity.error" = "Fehler";
 
@@ -4210,6 +4239,7 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "creator.upload.initializing" = "Wird gestartet...";
 "creator.upload.uploading" = "Wird hochgeladen...";
 "creator.upload.processing" = "Wird verarbeitet...";
+"creator.upload.compressing" = "Wird komprimiert...";
 "creator.upload.completed" = "Veröffentlicht";
 "creator.upload.failed" = "Upload fehlgeschlagen";
 "errors.video.invalidSource" = "Das Video konnte nicht gelesen werden.";

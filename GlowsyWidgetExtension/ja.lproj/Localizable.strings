@@ -24,6 +24,7 @@
 "liveActivity.uploadingMoment" = "モーメントをアップロード中";
 "liveActivity.uploading" = "アップロード中…";
 "liveActivity.processing" = "処理中…";
+"liveActivity.compressing" = "圧縮中...";
 "liveActivity.completed" = "完了";
 "liveActivity.error" = "エラー";
 "incognito.activity.title" = "シークレットモード";

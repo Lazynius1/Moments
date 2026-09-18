@@ -302,6 +302,7 @@
 "feed.uploading.more" = "+ %d dosya daha yükleniyor...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "İşleniyor";
+"feed.uploading.compressing" = "Sıkıştırılıyor...";
 "feed.uploading.published" = "Yayınlandı!";
 "feed.uploading.retry" = "Tekrar dene";
 "feed.uploading.files" = "%d dosya";
@@ -751,6 +752,33 @@
 "creator.interactions.disableComments.description" = "Bu ana kimse yorum yapamayacak";
 "creator.interactions.allowSharing" = "Kaydetmeye izin ver";
 "creator.interactions.allowSharing.description" = "Diğer kişiler anını koleksiyonlarına ekleyebilir";
+"creator.keepOriginalDimensions" = "Orijinal boyutları koru";
+"creator.keepOriginalDimensions.info" = "Açıksa, akışta bir ana uzun basınca fotoğrafın tamamı görünür. Kapalıysa yalnızca karttaki kırpma yayınlanır.";
+"creator.tools.filter" = "Filtre";
+"creator.tools.edit" = "Düzenle";
+"creator.carousel.portrait" = "Dikey";
+"creator.carousel.landscape" = "Yatay";
+"creator.carousel.square" = "Kare";
+"creator.carousel.remove" = "Kaldır";
+"creator.adjust.adjust" = "Ayarla";
+"creator.adjust.straighten" = "Düzleştir";
+"creator.adjust.vertical" = "Dikey";
+"creator.adjust.horizontal" = "Yatay";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Parlaklık";
+"creator.adjust.contrast" = "Kontrast";
+"creator.adjust.texture" = "Doku";
+"creator.adjust.warmth" = "Sıcaklık";
+"creator.adjust.saturation" = "Doygunluk";
+"creator.adjust.color" = "Renk";
+"creator.adjust.fade" = "Soluklaştır";
+"creator.adjust.highlights" = "Işıklar";
+"creator.adjust.shadows" = "Gölgeler";
+"creator.adjust.vignette" = "Vinyet";
+"creator.adjust.blur" = "Bulanıklık";
+"creator.adjust.sharpen" = "Keskinlik";
+"creator.adjust.radial" = "Radyal";
+"creator.adjust.linear" = "Doğrusal";
 "creator.advancedSettings.title" = "Gelişmiş ayarlar";
 "creator.visualization.title" = "Görünüm";
 "creator.visualization.hideReactions" = "Tepki sayısını gizle";
@@ -2601,6 +2629,7 @@
 "liveActivity.uploadingMoment" = "Moment yükleniyor";
 "liveActivity.uploading" = "Yükleniyor...";
 "liveActivity.processing" = "İşleniyor...";
+"liveActivity.compressing" = "Sıkıştırılıyor...";
 "liveActivity.completed" = "Tamamlandı";
 "liveActivity.error" = "Hata";
 /* Widget */
@@ -4008,6 +4037,7 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "creator.upload.initializing" = "Başlatılıyor...";
 "creator.upload.uploading" = "Yükleniyor...";
 "creator.upload.processing" = "İşleniyor...";
+"creator.upload.compressing" = "Sıkıştırılıyor...";
 "creator.upload.completed" = "Yayınlandı";
 "creator.upload.failed" = "Yükleme başarısız";
 "errors.video.invalidSource" = "Video okunamadı.";

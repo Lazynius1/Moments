@@ -77,6 +77,21 @@ struct CaptionAndDetailsView: View {
     @State private var tagSelectorDetent: PresentationDetent = .large
     @State private var hiddenLayersDetent: PresentationDetent = .large
     @State private var activeCaptionMention: MentionDraftToken?
+    @State private var keepOriginalDimensions = true
+    @State private var showingKeepOriginalInfo = false
+
+    private var canvasColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+    private var ink: Color {
+        colorScheme == .dark ? Color.white : Color.black
+    }
+    private var inkMuted: Color {
+        ink.opacity(colorScheme == .dark ? 0.7 : 0.55)
+    }
+    private var canKeepOriginalDimensions: Bool {
+        selectedMediaItems.contains { $0.immersiveImage != nil }
+    }
 
     enum AudienceSetting {
         case everyone
@@ -135,9 +150,7 @@ struct CaptionAndDetailsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // 1. Immersive Background (Mosaic Blur)
-                SelectedMediaBlurView(mediaItems: selectedMediaItems)
-                    .ignoresSafeArea()
+                canvasColor.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // Header
@@ -147,7 +160,7 @@ struct CaptionAndDetailsView: View {
                         }) {
                             Image(systemName: "chevron.left")
                                 .font(.title2)
-                                .foregroundStyle(.white)
+                                .foregroundStyle(ink)
                                 .padding(10)
                                 .momentsChromeGlass(in: Circle(), interactive: true)
                         }
@@ -156,7 +169,7 @@ struct CaptionAndDetailsView: View {
 
                         Text("creator.newMoment")
                             .font(.headline)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(ink)
 
                         Spacer()
 
@@ -189,13 +202,13 @@ struct CaptionAndDetailsView: View {
                                     // Helper hint
                                     if !isPreviewingMedia {
                                         Text("creator.media_preview.hint")
-                                            .font(.system(size: 8, weight: .bold)) // Un poco más pequeño y bold para legibilidad
-                                            .foregroundStyle(.white.opacity(0.7))
+                                            .font(.system(size: 8, weight: .bold))
+                                            .foregroundStyle(inkMuted)
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 3)
                                             .background(.ultraThinMaterial)
                                             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                                            .offset(y: 60) // Bajado de 50 a 60 para que tape menos la imagen
+                                            .offset(y: 60)
                                             .allowsHitTesting(false)
                                     }
                                 }
@@ -204,15 +217,15 @@ struct CaptionAndDetailsView: View {
                                 ZStack(alignment: .topLeading) {
                                     if captionText.isEmpty {
                                         Text("creator.caption.placeholder")
-                                            .foregroundStyle(.white.opacity(0.6))
+                                            .foregroundStyle(inkMuted)
                                             .padding(.top, 8)
                                     }
 
                                     TextEditor(text: $captionText)
                                         .scrollContentBackground(.hidden)
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(ink)
                                         .frame(minHeight: 120) // Restored a bit of height
-                                        .tint(.white)
+                                        .tint(ink)
                                         .focused($isCaptionFocused)
                                 }
                                 .padding(.top, 4) // Tight top-only padding
@@ -236,7 +249,7 @@ struct CaptionAndDetailsView: View {
                                     showingTagSelector = true
                                 }
 
-                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
 
                                 // Add location
                                 MinimalOptionRow(
@@ -247,7 +260,7 @@ struct CaptionAndDetailsView: View {
                                     showingLocationPicker = true
                                 }
 
-                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
 
                                 MinimalOptionRow(
                                     icon: AttachmentIcon.hiddenLayer.rawValue,
@@ -261,7 +274,7 @@ struct CaptionAndDetailsView: View {
                                 .opacity(canUseHiddenLayers ? 1 : 0.45)
                                 .disabled(!canUseHiddenLayers)
 
-                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
 
                                 // Audience
                                 MinimalOptionRow(
@@ -272,7 +285,35 @@ struct CaptionAndDetailsView: View {
                                     showingAudience = true
                                 }
 
-                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
+
+                                if canKeepOriginalDimensions {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "aspectratio")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(ink)
+                                            .frame(width: 32)
+
+                                        Toggle(isOn: $keepOriginalDimensions) {
+                                            Text("creator.keepOriginalDimensions")
+                                                .font(.system(size: 16, weight: .medium))
+                                                .foregroundStyle(ink)
+                                        }
+                                        .tint(.pink)
+
+                                        Button {
+                                            showingKeepOriginalInfo = true
+                                        } label: {
+                                            Image(systemName: "info.circle")
+                                                .font(.system(size: 16, weight: .medium))
+                                                .foregroundStyle(inkMuted)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel(Text("creator.keepOriginalDimensions.info"))
+                                    }
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 12)
+                                }
 
                                 // Advanced settings removed (moved to quick access)
                             }
@@ -282,7 +323,7 @@ struct CaptionAndDetailsView: View {
                             VStack(spacing: 0) {
                                 Text("creator.interactions.title")
                                     .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(.white.opacity(0.6))
+                                    .foregroundStyle(inkMuted)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.leading, 16)
                                     .padding(.bottom, 8)
@@ -293,7 +334,7 @@ struct CaptionAndDetailsView: View {
                                     isOn: $disableComments
                                 )
 
-                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
 
                                 MinimalToggleRow(
                                     icon: "heart.slash",
@@ -301,7 +342,7 @@ struct CaptionAndDetailsView: View {
                                     isOn: $hideLikeCounts
                                 )
 
-                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
 
                                 MinimalToggleRow(
                                     icon: AttachmentIcon.bookmark.rawValue,
@@ -315,7 +356,7 @@ struct CaptionAndDetailsView: View {
                             VStack(spacing: 0) {
                                 Text("creator.scheduling.title")
                                     .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(.white.opacity(0.6))
+                                    .foregroundStyle(inkMuted)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.leading, 16)
                                     .padding(.bottom, 8)
@@ -327,11 +368,11 @@ struct CaptionAndDetailsView: View {
                                 )
 
                                 if isSchedulingEnabled {
-                                    Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+                                    Divider().background(ink.opacity(0.12)).padding(.leading, 50)
 
                                     HStack {
                                         Image(systemName: "clock")
-                                            .foregroundStyle(.white.opacity(0.7))
+                                            .foregroundStyle(inkMuted)
                                             .frame(width: 24)
 
                                         DatePicker(
@@ -340,7 +381,6 @@ struct CaptionAndDetailsView: View {
                                             in: Date()...,
                                             displayedComponents: [.date, .hourAndMinute]
                                         )
-                                        .preferredColorScheme(.dark)
                                         .tint(.pink)
                                         .labelsHidden()
 
@@ -348,7 +388,7 @@ struct CaptionAndDetailsView: View {
 
                                         Text(MomentsFormat.smartDate(from: scheduledDate, context: .mediumDateTime))
                                             .font(.subheadline)
-                                            .foregroundStyle(.white.opacity(0.7))
+                                            .foregroundStyle(inkMuted)
                                     }
                                     .padding(.vertical, 12)
                                     .padding(.horizontal, 16)
@@ -361,37 +401,35 @@ struct CaptionAndDetailsView: View {
                 }
 
                     if isPublishing && !isLaunching {
-                        Color.black.opacity(0.6)
+                        canvasColor.opacity(0.92)
                             .ignoresSafeArea()
 
                         VStack(spacing: 20) {
                             ProgressView()
                                 .scaleEffect(1.5)
-                                .tint(.white)
+                                .tint(ink)
 
                             Text("creator.publishing")
                                 .font(.headline)
-                                .foregroundStyle(.white)
+                                .foregroundStyle(ink)
                         }
                     }
 
-                    // 🔥 OVERLAY DE LANZAMIENTO (Cinematic Handoff)
                     if isLaunching {
                         ZStack {
-                            Color.black.ignoresSafeArea()
+                            canvasColor.ignoresSafeArea()
 
                             VStack(spacing: 24) {
                                 Text(NSLocalizedString("creator.uploading.success_fly", comment: "Successfully shared"))
                                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(ink)
                             }
                         }
                         .transition(.opacity)
                     }
 
-                    // Full Screen Media Preview Overlay
                     if isPreviewingMedia {
-                        Color.black.opacity(0.6)
+                        canvasColor.opacity(0.92)
                             .ignoresSafeArea()
                             .transition(.opacity)
                             .zIndex(99)
@@ -490,6 +528,14 @@ struct CaptionAndDetailsView: View {
         .onChange(of: captionText) { _, newValue in
             activeCaptionMention = MentionParsing.detectActiveToken(in: newValue)
         }
+        .alert(
+            NSLocalizedString("creator.keepOriginalDimensions", comment: "Keep original dimensions"),
+            isPresented: $showingKeepOriginalInfo
+        ) {
+            Button("common.understood", role: .cancel) {}
+        } message: {
+            Text("creator.keepOriginalDimensions.info")
+        }
     }
 
     private func insertCaptionMention(_ user: AppUser) {
@@ -515,10 +561,10 @@ struct CaptionAndDetailsView: View {
         let finalHideLikeCounts = hideLikeCounts
         let finalAllowSharing = allowSharing
         let finalScheduledDate = isSchedulingEnabled ? scheduledDate : nil
-        let detectedAspectRatio = preferredMomentAspectRatio(for: selectedMediaItems)
+        let mediaSnapshot = mediaForPublish
+        let detectedAspectRatio = preferredMomentAspectRatio(for: mediaSnapshot)
         let spatialTaggedUsers = selectedMediaItems.flatMap { $0.tags ?? [] }.map(\.userId)
         let captionSnapshot = captionText
-        let mediaSnapshot = selectedMediaItems
         let audienceSnapshot = audienceSetting
         let customViewersSnapshot = customSelectedUsers.isEmpty ? nil : customSelectedUsers
         let listIdSnapshot = selectedListId
@@ -557,21 +603,18 @@ struct CaptionAndDetailsView: View {
                 }
                 HapticManager.shared.notification(.success)
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                    isPublishing = false
-
-                    if uploadingMoment != nil {
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("ReturnToFeedAfterMomentPublish"),
-                            object: nil
-                        )
-                        showCreatorView = false
-                        resetForm()
-                    } else {
-                        HapticManager.shared.notification(.error)
-                        withAnimation {
-                            isLaunching = false
-                        }
+                isPublishing = false
+                if uploadingMoment != nil {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("ReturnToFeedAfterMomentPublish"),
+                        object: nil
+                    )
+                    showCreatorView = false
+                    resetForm()
+                } else {
+                    HapticManager.shared.notification(.error)
+                    withAnimation {
+                        isLaunching = false
                     }
                 }
             }
@@ -584,49 +627,49 @@ struct CaptionAndDetailsView: View {
     }
 
     private func preferredMomentAspectRatio(for mediaItems: [CreatorMedia]) -> String {
-        guard !mediaItems.isEmpty else { return "1:1" }
-
-        let preferredRatios = mediaItems.map { mediaItem -> CreatorMedia.AspectRatio in
-            if let recommended = mediaItem.recommendedAspectRatio {
-                return recommended
-            }
-
-            if mediaItem.aspectRatio != .square {
-                return mediaItem.aspectRatio
-            }
-
-            let imageRatio = mediaItem.image.size.width / max(mediaItem.image.size.height, 1)
-            return CreatorMedia.AspectRatio.fromRatio(imageRatio)
-        }
-
-        let mostVerticalRatio = preferredRatios.min { lhs, rhs in
-            lhs.value < rhs.value
-        } ?? .square
-
-        return mostVerticalRatio.displayName
+        guard let first = mediaItems.first else { return "1:1" }
+        return first.aspectRatio.displayName
     }
 
     private func preferredMomentDisplayAspectRatioValue(for mediaItems: [CreatorMedia]) -> CGFloat {
-        guard !mediaItems.isEmpty else { return 1.0 }
+        guard let first = mediaItems.first else { return 1.0 }
+        return first.aspectRatio.value
+    }
 
-        let preferredRatios = mediaItems.map { mediaItem -> CreatorMedia.AspectRatio in
-            if let recommended = mediaItem.recommendedAspectRatio {
-                return recommended
+    private var mediaForPublish: [CreatorMedia] {
+        selectedMediaItems.map { item in
+            var next = item
+            guard item.type == .image else { return next }
+
+            guard keepOriginalDimensions, let immersive = item.immersiveImage else {
+                next.immersiveImage = nil
+                next.immersiveAspectRatio = nil
+                next.feedCrop = .fullBounds(cardAspect: item.aspectRatio.displayName)
+                return next
             }
 
-            if mediaItem.aspectRatio != .square {
-                return mediaItem.aspectRatio
+            let oriented = immersive.momentsOrientedUp()
+            let sourceRect = MomentFeedCrop.immersiveCropRect(
+                imageSize: oriented.size,
+                preserving: item.feedCrop
+            )
+            let capped = sourceRect == CGRect(origin: .zero, size: oriented.size)
+                ? oriented
+                : oriented.cropped(to: sourceRect)
+            if let feedCrop = item.feedCrop {
+                next.feedCrop = MomentFeedCrop.remap(
+                    feedCrop,
+                    from: oriented.size,
+                    into: sourceRect
+                )
             }
-
-            let imageRatio = mediaItem.image.size.width / max(mediaItem.image.size.height, 1)
-            return CreatorMedia.AspectRatio.fromRatio(imageRatio)
+            let cappedRatio = capped.size.width / max(capped.size.height, 1)
+            next.immersiveImage = capped
+            next.immersiveAspectRatio = abs(cappedRatio - MomentFeedCrop.immersivePortraitMax) < 0.02
+                ? .nineBySixteen
+                : .custom(cappedRatio)
+            return next
         }
-
-        let mostVerticalRatio = preferredRatios.min { lhs, rhs in
-            lhs.value < rhs.value
-        } ?? .square
-
-        return mostVerticalRatio.value
     }
 
     // 🧹 NUEVA FUNCIÓN: Limpiar formulario después de publicar
@@ -768,23 +811,28 @@ struct CaptionAndDetailsView: View {
         let icon: String
         let title: String
         @Binding var isOn: Bool
+        @Environment(\.colorScheme) private var colorScheme
+
+        private var ink: Color {
+            colorScheme == .dark ? Color.white : Color.black
+        }
 
         var body: some View {
             HStack(spacing: 16) {
                 Group {
                     if let attachmentIcon = AttachmentIcon(rawValue: icon) {
-                        AttachmentIconView(icon: attachmentIcon, preset: .creatorMetaRow, tintColor: .white)
+                        AttachmentIconView(icon: attachmentIcon, preset: .creatorMetaRow, tintColor: ink)
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 20))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(ink)
                     }
                 }
                 .frame(width: 32)
 
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ink)
 
                 Spacer()
 
@@ -803,6 +851,14 @@ struct CaptionAndDetailsView: View {
         var audience: ContentAudience? = nil
         let title: String
         let value: String?
+        @Environment(\.colorScheme) private var colorScheme
+
+        private var ink: Color {
+            colorScheme == .dark ? Color.white : Color.black
+        }
+        private var inkMuted: Color {
+            ink.opacity(colorScheme == .dark ? 0.7 : 0.55)
+        }
 
         var body: some View {
             HStack(spacing: 16) {
@@ -811,15 +867,15 @@ struct CaptionAndDetailsView: View {
                         AudienceIconView(
                             audience: audience,
                             size: AudienceIconMetrics.creatorRow,
-                            tintColor: .white
+                            tintColor: ink
                         )
                     } else if let icon {
                         if let attachmentIcon = AttachmentIcon(rawValue: icon) {
-                            AttachmentIconView(icon: attachmentIcon, preset: .creatorMetaRow, tintColor: .white)
+                            AttachmentIconView(icon: attachmentIcon, preset: .creatorMetaRow, tintColor: ink)
                         } else {
                             Image(systemName: icon)
                                 .font(.system(size: 20))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(ink)
                         }
                     }
                 }
@@ -827,23 +883,23 @@ struct CaptionAndDetailsView: View {
 
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ink)
 
                 Spacer()
 
                 if let value = value {
                     Text(value)
                         .font(.system(size: 15))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(inkMuted)
                 }
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.3))
+                    .foregroundStyle(ink.opacity(0.3))
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
-            .contentShape(Rectangle()) // Full width tap area
+            .contentShape(Rectangle())
         }
     }
 }

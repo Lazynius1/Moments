@@ -225,7 +225,7 @@ struct ModernPostCardView: View {
     @State private var isFirstAppear = true
 
     private var cardHeight: CGFloat {
-        max(resolvedCardHeight, 200)
+        resolvedCardHeight
     }
 
     init(moment: Moment,
@@ -268,25 +268,11 @@ struct ModernPostCardView: View {
         if let ratioStr = moment.aspectRatio, !ratioStr.isEmpty {
             let ratio = ProcessedMedia.AspectRatio(from: ratioStr).value
             let safeRatio = (ratio > 0 && ratio.isFinite) ? ratio : 1.0
+            let displayRatio = MomentFeedCrop.feedCardAspect(from: safeRatio)
 
-            // ✅ Guardar el ratio REAL para el long press reveal
             _realAspectRatio = State(initialValue: safeRatio)
-
-            // Todo contenido más vertical que 4:5 se cropea en el feed.
-            // Vídeos se ven completos al hacer tap (Reels viewer).
-            let displayRatio: CGFloat
-            if safeRatio < 0.8 {
-                displayRatio = 0.8
-            } else {
-                displayRatio = safeRatio
-            }
-
             _detectedAspectRatio = State(initialValue: displayRatio)
-
-            if displayRatio < 0.7 { _aspectRatioType = State(initialValue: .reels) }
-            else if displayRatio < 0.9 { _aspectRatioType = State(initialValue: .portrait) }
-            else if displayRatio < 1.3 { _aspectRatioType = State(initialValue: .square) }
-            else { _aspectRatioType = State(initialValue: .landscape) }
+            _aspectRatioType = State(initialValue: Self.cardType(for: displayRatio))
         } else {
             _detectedAspectRatio = State(initialValue: 1.0)
             _realAspectRatio = State(initialValue: 1.0)
@@ -310,24 +296,25 @@ struct ModernPostCardView: View {
 
     // ✅ MEJORADO: AspectRatioType con soporte completo para todos los formatos
     enum AspectRatioType {
-        case square, portrait, landscape, reels
+        case square, portrait, tallPortrait, landscape, reels
 
         var maxHeight: CGFloat {
             switch self {
-            case .square: return 400      // Para 1:1 (1080x1080)
-            case .portrait: return 500    // Para 4:5 (1080x1350)
-            case .landscape: return 300   // Para 16:9 - más compacto
-            case .reels: return 600       // ✅ AJUSTADO: Para 9:16 (reels) - altura más razonable para el feed
+            case .square: return 400
+            case .portrait: return 500
+            case .tallPortrait: return 533
+            case .landscape: return 300
+            case .reels: return 500
             }
         }
 
-        // ✅ NUEVO: Aspect ratios exactos basados en las dimensiones reales
         var exactRatio: CGFloat {
             switch self {
-            case .square: return 1.0      // 1080÷1080 = 1.0
-            case .portrait: return 0.8    // 1080÷1350 = 0.8
-            case .landscape: return 1.78  // 16÷9 = 1.778
-            case .reels: return 0.5625    // 9÷16 = 0.5625 (formato vertical de reels)
+            case .square: return MomentFeedCrop.squareAspect
+            case .portrait: return MomentFeedCrop.portraitMax
+            case .tallPortrait: return MomentFeedCrop.reelsGridAspect
+            case .landscape: return MomentFeedCrop.landscapeMax
+            case .reels: return MomentFeedCrop.portraitMax
             }
         }
 
@@ -335,10 +322,21 @@ struct ModernPostCardView: View {
             switch self {
             case .square: return "1:1"
             case .portrait: return "4:5"
-            case .landscape: return "16:9"
-            case .reels: return "9:16"
+            case .tallPortrait: return "3:4"
+            case .landscape: return "1.91:1"
+            case .reels: return "4:5"
             }
         }
+    }
+
+    private static func cardType(for displayRatio: CGFloat) -> AspectRatioType {
+        let ratio = MomentFeedCrop.feedCardAspect(from: displayRatio)
+        if abs(ratio - MomentFeedCrop.reelsGridAspect) < 0.03 { return .tallPortrait }
+        if abs(ratio - MomentFeedCrop.portraitMax) < 0.03 { return .portrait }
+        if abs(ratio - MomentFeedCrop.landscapeMax) < 0.05 { return .landscape }
+        if ratio > 1.15 { return .landscape }
+        if ratio < 0.9 { return .portrait }
+        return .square
     }
 
     private var mediaItems: [MediaItem] {
@@ -375,11 +373,8 @@ struct ModernPostCardView: View {
         let maxWidth = containerSize.width
         guard maxWidth > 0 else { return 300 }
 
-        let ratio = (detectedAspectRatio > 0 && detectedAspectRatio.isFinite) ? detectedAspectRatio : 1.0
-        let idealHeight = maxWidth / ratio
-
-        let maxAllowed = containerSize.height * 0.95
-        return max(min(idealHeight, maxAllowed), 150)
+        let ratio = MomentFeedCrop.feedCardAspect(from: detectedAspectRatio)
+        return maxWidth / ratio
     }
 
     var body: some View {
@@ -715,30 +710,20 @@ struct ModernPostCardView: View {
         if let savedAspectRatio = moment.aspectRatio, !savedAspectRatio.isEmpty {
             let aspectRatioFromDB = ProcessedMedia.AspectRatio(from: savedAspectRatio)
             let expectedRatioValue = aspectRatioFromDB.value
+            let displayRatio = MomentFeedCrop.feedCardAspect(from: expectedRatioValue)
 
-            // Todo contenido más vertical que 4:5 se cropea
-            let displayRatio: CGFloat
-            if expectedRatioValue < 0.8 && expectedRatioValue > 0 {
-                displayRatio = 0.8
-            } else if expectedRatioValue > 0 && expectedRatioValue.isFinite {
-                displayRatio = expectedRatioValue
-            } else {
-                displayRatio = 1.0
-            }
-
-            // Solo actualizar si el valor actual es diferente
             if detectedAspectRatio != displayRatio {
                 DispatchQueue.main.async {
-                    self.realAspectRatio = expectedRatioValue // ✅ Siempre guardar el real
+                    self.realAspectRatio = expectedRatioValue
                     self.detectedAspectRatio = displayRatio
                     self.refreshCardHeight()
-
-                    // Clasificar el tipo
-                    if displayRatio < 0.7 { self.aspectRatioType = .reels }
-                    else if displayRatio < 0.9 { self.aspectRatioType = .portrait }
-                    else if displayRatio < 1.3 { self.aspectRatioType = .square }
-                    else { self.aspectRatioType = .landscape }
+                    self.aspectRatioType = Self.cardType(for: displayRatio)
+                    let crop = self.mediaItems.first?.feedCrop
+                    print("[FeedAspect] id=\(self.moment.id ?? "?") db=\(savedAspectRatio) raw=\(String(format: "%.4f", expectedRatioValue)) display=\(String(format: "%.4f", displayRatio)) type=\(Self.cardType(for: displayRatio).displayName) cardH=\(String(format: "%.1f", self.cardHeight)) feedCrop=\(crop.map { "\($0.cardAspect) full=\($0.isFullBounds) \($0.width)x\($0.height)" } ?? "nil")")
                 }
+            } else {
+                let crop = mediaItems.first?.feedCrop
+                print("[FeedAspect] id=\(moment.id ?? "?") db=\(savedAspectRatio) raw=\(String(format: "%.4f", expectedRatioValue)) display=\(String(format: "%.4f", displayRatio)) type=\(aspectRatioType.displayName) cardH=\(String(format: "%.1f", cardHeight)) feedCrop=\(crop.map { "\($0.cardAspect) full=\($0.isFullBounds) \($0.width)x\($0.height)" } ?? "nil")")
             }
             return
         }
@@ -753,7 +738,7 @@ struct ModernPostCardView: View {
         guard let firstItem = mediaItems.first, !firstItem.url.isEmpty else {
 
             DispatchQueue.main.async {
-                self.detectedAspectRatio = 0.8 // Fallback a 4:5
+                self.detectedAspectRatio = MomentFeedCrop.portraitMax
                 self.aspectRatioType = .portrait
                 self.refreshCardHeight()
             }
@@ -770,8 +755,11 @@ struct ModernPostCardView: View {
                         let ratio = imageSize.width / imageSize.height
                         DispatchQueue.main.async {
                             if ratio > 0 && ratio.isFinite {
-                                self.detectedAspectRatio = ratio
-                                self.classifyAspectRatio(ratio)
+                                let display = MomentFeedCrop.feedCardAspect(from: ratio)
+                                self.realAspectRatio = ratio
+                                self.detectedAspectRatio = display
+                                self.aspectRatioType = Self.cardType(for: display)
+                                self.refreshCardHeight()
                             } else {
                                 self.detectedAspectRatio = 1.0
                                 self.aspectRatioType = .square
@@ -796,8 +784,8 @@ struct ModernPostCardView: View {
 
             // Por defecto, asumir formato reels para videos (9:16)
             DispatchQueue.main.async {
-                self.detectedAspectRatio = 0.5625 // 9÷16 = 0.5625
-                self.aspectRatioType = .reels
+                self.detectedAspectRatio = MomentFeedCrop.portraitMax
+                self.aspectRatioType = .portrait
             }
 
             if let url = URL(string: firstItem.url) {
@@ -810,8 +798,11 @@ struct ModernPostCardView: View {
                             let videoRatio = size.width / size.height
 
                             DispatchQueue.main.async {
-                                self.detectedAspectRatio = videoRatio
-                                self.classifyAspectRatio(videoRatio)
+                                let display = MomentFeedCrop.feedCardAspect(from: videoRatio)
+                                self.realAspectRatio = videoRatio
+                                self.detectedAspectRatio = display
+                                self.aspectRatioType = Self.cardType(for: display)
+                                self.refreshCardHeight()
                             }
                         }
                     } catch {
@@ -824,33 +815,9 @@ struct ModernPostCardView: View {
 
     // ✅ NUEVA: Función helper para clasificar aspect ratios
     private func classifyAspectRatio(_ ratio: CGFloat) {
-        let tolerance: CGFloat = 0.05
-
-        if abs(ratio - 1.0) < tolerance {
-            // Square: ~1.0 (como 1080x1080)
-            self.aspectRatioType = .square
-
-        } else if abs(ratio - 0.8) < tolerance {
-            // Portrait 4:5: ~0.8 (como 1080x1350)
-            self.aspectRatioType = .portrait
-
-        } else if abs(ratio - 0.5625) < tolerance {
-            // Reels 9:16: ~0.5625 (como 1080x1920)
-            self.aspectRatioType = .reels
-
-        } else if ratio > 1.4 {
-            // Landscape: > 1.4 (16:9 = 1.778)
-            self.aspectRatioType = .landscape
-
-        } else if ratio < 0.7 {
-            // Muy vertical: usar como reels
-            self.aspectRatioType = .reels
-
-        } else {
-            // Default entre ratios: usar square
-            self.aspectRatioType = .square
-
-        }
+        let display = MomentFeedCrop.feedCardAspect(from: ratio)
+        aspectRatioType = Self.cardType(for: display)
+        detectedAspectRatio = display
     }
 
     // Resto de funciones sin cambios
@@ -1271,6 +1238,8 @@ struct MediaItemView: View {
     }
 
     private var usesBlurredFitLayout: Bool {
+        // fullBounds ≡ sin crop real (mismo path que nil → fill)
+        if let feedCrop = item.feedCrop, !feedCrop.isFullBounds { return false }
         guard prefersUnifiedCarouselFrame else { return false }
         return MomentCarouselLayoutRules.presentationMode(
             for: resolvedItemAspectRatio,
@@ -1280,6 +1249,10 @@ struct MediaItemView: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let _ = {
+                let crop = item.feedCrop
+                print("[FeedAspect.media] id=\(currentMoment.id ?? "?") item=\(item.id) type=\(item.type.rawValue) canvas=\(String(format: "%.4f", aspectRatio)) resolved=\(String(format: "%.4f", resolvedItemAspectRatio)) frame=\(Int(geometry.size.width))x\(Int(geometry.size.height)) blurFit=\(usesBlurredFitLayout) feedCrop=\(crop.map { "\($0.cardAspect) full=\($0.isFullBounds)" } ?? "nil")")
+            }()
             ZStack { // ✅ CAMBIADO: ZStack para que el overlay esté ENCIMA
                 if !prefersUnifiedCarouselFrame {
                     RoundedRectangle(cornerRadius: 20)
@@ -1317,25 +1290,50 @@ struct MediaItemView: View {
                                 .scaledToFit()
                                 .frame(width: geometry.size.width, height: geometry.size.height)
                         } else {
-                            KFImage(URL(string: item.url))
-                                .placeholder { Color.clear }
-                                .cancelOnDisappear(true)
-                                .onSuccess { result in
-                                    let ratio = result.image.size.width / max(result.image.size.height, 1)
-                                    if ratio.isFinite, ratio > 0 {
-                                        loadedAspectRatio = ratio
-                                    }
+                            // fullBounds ≡ nil → scaledToFill (evitar letterbox Fit)
+                            if let feedCrop = item.feedCrop, !feedCrop.isFullBounds {
+                                NormalizedMediaCropContainer(feedCrop: feedCrop) {
+                                    KFImage(URL(string: item.url))
+                                        .placeholder { Color.clear }
+                                        .cancelOnDisappear(true)
+                                        .onSuccess { result in
+                                            let ratio = result.image.size.width / max(result.image.size.height, 1)
+                                            if ratio.isFinite, ratio > 0 {
+                                                loadedAspectRatio = ratio
+                                            }
+                                        }
+                                        .setProcessor(
+                                            DownsamplingImageProcessor(size: CGSize(
+                                                width: geometry.size.width * displayScale / max(feedCrop.width, 0.01),
+                                                height: geometry.size.height * displayScale / max(feedCrop.height, 0.01)
+                                            ))
+                                        )
+                                        .scaleFactor(displayScale)
+                                        .resizable()
+                                        .scaledToFit()
                                 }
-                                .setProcessor(
-                                    DownsamplingImageProcessor(size: CGSize(
-                                        width: geometry.size.width * displayScale,
-                                        height: geometry.size.height * displayScale
-                                    ))
-                                )
-                                .scaleFactor(displayScale)
-                                .resizable()
-                                .scaledToFill()
                                 .frame(width: geometry.size.width, height: geometry.size.height)
+                            } else {
+                                KFImage(URL(string: item.url))
+                                    .placeholder { Color.clear }
+                                    .cancelOnDisappear(true)
+                                    .onSuccess { result in
+                                        let ratio = result.image.size.width / max(result.image.size.height, 1)
+                                        if ratio.isFinite, ratio > 0 {
+                                            loadedAspectRatio = ratio
+                                        }
+                                    }
+                                    .setProcessor(
+                                        DownsamplingImageProcessor(size: CGSize(
+                                            width: geometry.size.width * displayScale,
+                                            height: geometry.size.height * displayScale
+                                        ))
+                                    )
+                                    .scaleFactor(displayScale)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: geometry.size.width, height: geometry.size.height)
+                            }
                         }
                     }
                     .clipped()
@@ -1362,7 +1360,7 @@ struct MediaItemView: View {
                                 MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                     showTags.toggle()
                                 }
-                            } else {
+                            } else if !prefersUnifiedCarouselFrame {
                                 openReelsViewer()
                             }
                         },
@@ -1375,6 +1373,9 @@ struct MediaItemView: View {
                     PhotoTagOverlayView(tags: tags, isVisible: showTags, onTagTap: onTagTap)
                         .zIndex(20)
                 }
+            }
+            .onAppear {
+                isVisible = true
             }
         }
         .clipped()
@@ -1623,6 +1624,7 @@ struct CroppedVideoPlayer: View {
     }
 
     private var usesBlurredFitLayout: Bool {
+        if let feedCrop = item.feedCrop, !feedCrop.isFullBounds { return false }
         guard prefersUnifiedCarouselFrame else { return false }
         return MomentCarouselLayoutRules.presentationMode(
             for: resolvedItemAspectRatio,
@@ -1648,9 +1650,47 @@ struct CroppedVideoPlayer: View {
         }
     }
 
+    @ViewBuilder
+    private var feedCroppedVideo: some View {
+        NormalizedMediaCropContainer(feedCrop: item.feedCrop) {
+            if shouldMountPlayer {
+                ModernVideoPlayer(
+                    url: playbackURLString,
+                    aspectRatio: resolvedItemAspectRatio,
+                    videoId: videoConsumerId,
+                    chromeStyle: .socialReels,
+                    allowsPauseInteraction: false,
+                    posterURLString: currentMoment.videoPosterURLString(for: item),
+                    mediaItem: item,
+                    moment: currentMoment,
+                    activationMode: detailVideoActivationMode,
+                    consumesDetailHandoff: profileDetailDirectVideoPlayback
+                )
+            } else {
+                videoPosterFallback
+            }
+        }
+        .overlay {
+            Button(action: onTap) {
+                Color.clear
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .overlay(alignment: .topTrailing) {
+            LiveVideoTimeLabel(
+                consumerId: videoConsumerId,
+                totalDuration: item.videoDuration ?? currentMoment.videoDuration
+            )
+            .padding(12)
+        }
+    }
+
     var body: some View {
         ZStack {
-            if !allowsVideoPlayback {
+            if item.feedCrop != nil, item.feedCrop?.isFullBounds == false {
+                feedCroppedVideo
+            } else if !allowsVideoPlayback {
                 videoPosterFallback
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
@@ -1855,10 +1895,7 @@ struct CroppedVideoPlayer: View {
 
     // ✅ LÓGICA DE CROP: Solo para videos horizontales
     private var feedDisplayRatio: CGFloat {
-        if aspectRatio < 0.7 { // Es video vertical (reels 9:16)
-            return aspectRatio // ✅ Mostrar ratio completo para reels (no crop)
-        }
-        return aspectRatio // Otros formatos mantienen su ratio
+        MomentFeedCrop.feedCardAspect(from: aspectRatio)
     }
 
     private func formatDuration(_ duration: Double) -> String {
@@ -2028,11 +2065,25 @@ private struct CarouselImmersivePeekModifier: ViewModifier {
                       !item.isHiddenByModeration else { return }
 
                 let currentItemRatio = item.resolvedAspectRatioValue ?? realAspectRatio
+                let hasNewPeek = item.feedCrop.map { !$0.isFullBounds } ?? false
+                let hasLegacyPeek = item.feedCrop == nil
+                    && !(item.thumbnailUrl?.isEmpty ?? true)
                 guard currentItemRatio > 0,
                       currentItemRatio.isFinite,
-                      shouldUseFullscreenPeek || abs(currentItemRatio - detectedAspectRatio) > 0.035 else { return }
+                      hasNewPeek || hasLegacyPeek,
+                      shouldUseFullscreenPeek
+                        || hasNewPeek
+                        || abs(currentItemRatio - detectedAspectRatio) > 0.035 else { return }
 
-                onPeek?(item.url, currentItemRatio, true)
+                let peekURL: String = {
+                    if item.feedCrop == nil,
+                       let thumb = item.thumbnailUrl,
+                       !thumb.isEmpty {
+                        return thumb
+                    }
+                    return item.url
+                }()
+                onPeek?(peekURL, currentItemRatio, true)
             }
         }
 

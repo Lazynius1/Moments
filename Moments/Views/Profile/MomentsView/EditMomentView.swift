@@ -576,6 +576,7 @@ private struct EditMomentPhotoTagSheet: View {
             type: currentItem.type,
             url: currentItem.url,
             aspectRatio: currentItem.aspectRatio,
+            feedCrop: currentItem.feedCrop,
             thumbnailUrl: currentItem.thumbnailUrl,
             videoDuration: currentItem.videoDuration,
             videoFileSize: currentItem.videoFileSize,
@@ -601,9 +602,16 @@ private struct EditMomentPreviewCard: View {
     var body: some View {
         VStack(spacing: 12) {
             if let imageURL = moment.previewImageURLString, let url = URL(string: imageURL) {
-                KFImage(url)
-                    .resizable()
-                    .aspectRatio(moment.primaryVisibleMediaItem?.resolvedAspectRatioValue ?? 4.0 / 5.0, contentMode: .fit)
+                FeedCroppedRemoteImage(
+                    url: url,
+                    feedCrop: moment.primaryVisibleMediaItem?.feedCrop
+                )
+                    .aspectRatio(
+                        moment.primaryVisibleMediaItem?.feedCrop?.cardAspectValue
+                            ?? moment.primaryVisibleMediaItem?.resolvedAspectRatioValue
+                            ?? 4.0 / 5.0,
+                        contentMode: .fit
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             } else {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)

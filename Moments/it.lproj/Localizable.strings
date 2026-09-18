@@ -310,6 +310,7 @@
 "feed.uploading.more" = "+ altri %d in caricamento...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "Elaborazione";
+"feed.uploading.compressing" = "Compressione...";
 "feed.uploading.published" = "Pubblicato!";
 "feed.uploading.retry" = "Riprova";
 "feed.uploading.files" = "%d file";
@@ -782,6 +783,33 @@
 "creator.interactions.disableComments.description" = "Nessuno potrà commentare questo momento";
 "creator.interactions.allowSharing" = "Consenti salvataggio";
 "creator.interactions.allowSharing.description" = "Gli altri possono aggiungere il tuo momento alla loro raccolta";
+"creator.keepOriginalDimensions" = "Mantieni le dimensioni originali";
+"creator.keepOriginalDimensions.info" = "Se è attivo, tenendo premuto il momento nel feed vedi la foto intera. Altrimenti viene pubblicato solo il ritaglio della scheda.";
+"creator.tools.filter" = "Filtri";
+"creator.tools.edit" = "Modifica";
+"creator.carousel.portrait" = "Ritratto";
+"creator.carousel.landscape" = "Paesaggio";
+"creator.carousel.square" = "Quadrato";
+"creator.carousel.remove" = "Rimuovi";
+"creator.adjust.adjust" = "Regola";
+"creator.adjust.straighten" = "Raddrizza";
+"creator.adjust.vertical" = "Verticale";
+"creator.adjust.horizontal" = "Orizzontale";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Luminosità";
+"creator.adjust.contrast" = "Contrasto";
+"creator.adjust.texture" = "Texture";
+"creator.adjust.warmth" = "Calore";
+"creator.adjust.saturation" = "Saturazione";
+"creator.adjust.color" = "Colore";
+"creator.adjust.fade" = "Dissolvenza";
+"creator.adjust.highlights" = "Luci";
+"creator.adjust.shadows" = "Ombre";
+"creator.adjust.vignette" = "Vignettatura";
+"creator.adjust.blur" = "Sfocatura";
+"creator.adjust.sharpen" = "Nitidezza";
+"creator.adjust.radial" = "Radiale";
+"creator.adjust.linear" = "Lineare";
 "creator.advancedSettings.title" = "Impostazioni avanzate";
 "creator.visualization.title" = "Visualizzazione";
 "creator.visualization.hideReactions" = "Nascondi conteggio reazioni";
@@ -2729,6 +2757,7 @@
 "liveActivity.uploadingMoment" = "Caricamento momento";
 "liveActivity.uploading" = "Caricamento...";
 "liveActivity.processing" = "Elaborazione...";
+"liveActivity.compressing" = "Compressione...";
 "liveActivity.completed" = "Completato";
 "liveActivity.error" = "Errore";
 
@@ -4210,6 +4239,7 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "creator.upload.initializing" = "Avvio...";
 "creator.upload.uploading" = "Caricamento...";
 "creator.upload.processing" = "Elaborazione...";
+"creator.upload.compressing" = "Compressione...";
 "creator.upload.completed" = "Pubblicato";
 "creator.upload.failed" = "Caricamento non riuscito";
 "errors.video.invalidSource" = "Impossibile leggere il video.";

@@ -38,12 +38,13 @@ struct EchoMomentRef: Codable {
     let mediaType: String
     let mediaUrl: String
     let aspectRatio: String?     // ✅ NUEVO: Para manejo de orientación (fit/fill)
+    let feedCrop: MediaItemFeedCrop?
     let thumbnailUrl: String?    // ✅ NUEVO: Para pre-visualización y blur background
     let audience: String?        // ✅ NUEVO: Para validación de privacidad en vivo
     let customListId: String?    // ✅ NUEVO: Para validación de listas personalizadas
     
     enum CodingKeys: String, CodingKey {
-        case momentId, authorId, username, timestamp, mediaType, mediaUrl, aspectRatio, thumbnailUrl, audience, customListId
+        case momentId, authorId, username, timestamp, mediaType, mediaUrl, aspectRatio, feedCrop, thumbnailUrl, audience, customListId
     }
     
     init(from moment: Moment) {
@@ -54,6 +55,7 @@ struct EchoMomentRef: Codable {
         self.mediaType = moment.videoUrl != nil ? "video" : "image"
         self.mediaUrl = moment.videoUrl ?? moment.imagePath ?? ""
         self.aspectRatio = moment.aspectRatio
+        self.feedCrop = nil
         self.thumbnailUrl = moment.thumbnailUrl
         self.audience = moment.audience
         self.customListId = moment.customListId
@@ -67,7 +69,8 @@ struct EchoMomentRef: Codable {
         self.timestamp = author.timestamp
         self.mediaType = mediaItem.type == .video ? "video" : "image"
         self.mediaUrl = mediaItem.url
-        self.aspectRatio = author.aspectRatio // Opcional: Podríamos sacar el de la media si existiera
+        self.aspectRatio = mediaItem.aspectRatio ?? author.aspectRatio
+        self.feedCrop = mediaItem.feedCrop
         self.thumbnailUrl = mediaItem.thumbnailUrl
         self.audience = author.audience
         self.customListId = author.customListId

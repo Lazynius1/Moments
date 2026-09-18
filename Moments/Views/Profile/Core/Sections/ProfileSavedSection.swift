@@ -328,9 +328,13 @@ struct ProfileSavedMomentThumbnail: View {
                 Group {
                     if let mediaItem = moment.primaryVisibleMediaItem {
                         if mediaItem.type == .video {
-                            videoView(videoURL: mediaItem.url, thumbnailURL: mediaItem.thumbnailUrl)
+                            videoView(
+                                videoURL: mediaItem.url,
+                                thumbnailURL: mediaItem.thumbnailUrl,
+                                feedCrop: mediaItem.feedCrop
+                            )
                         } else {
-                            imageView(url: mediaItem.url)
+                            imageView(url: mediaItem.url, feedCrop: mediaItem.feedCrop)
                         }
                     } else if let imagePath = moment.imagePath {
                         imageView(url: imagePath)
@@ -398,34 +402,40 @@ struct ProfileSavedMomentThumbnail: View {
     }
 
     @ViewBuilder
-    private func imageView(url: String) -> some View {
+    private func imageView(url: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
         KFImage(URL(string: url))
             .placeholder {
                 Rectangle()
                     .fill(ProfileColors.borderColor.opacity(0.3))
                     .overlay(ProgressView().scaleEffect(0.8))
             }
+            .applyingFeedCrop(feedCrop)
             .resizable()
-            .aspectRatio(contentMode: .fill)
+            .scaledToFill()
             .frame(width: size, height: size)
             .clipped()
     }
 
     @ViewBuilder
-    private func videoView(videoURL: String, thumbnailURL: String?) -> some View {
+    private func videoView(
+        videoURL: String,
+        thumbnailURL: String?,
+        feedCrop: MediaItemFeedCrop? = nil
+    ) -> some View {
         ZStack {
             if let thumb = thumbnailURL, let url = URL(string: thumb) {
                 // Usar thumbnail del servidor
                 KFImage(url)
+                    .applyingFeedCrop(feedCrop)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
+                    .scaledToFill()
                     .frame(width: size, height: size)
                     .clipped()
             } else if let generated = videoThumbnail {
                 // Usar thumbnail generado localmente
                 Image(uiImage: generated)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
+                    .scaledToFill()
                     .frame(width: size, height: size)
                     .clipped()
             } else {

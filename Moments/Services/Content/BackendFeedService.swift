@@ -177,6 +177,8 @@ struct BackendMoment: Codable {
     let hideLikeCounts: Bool?
     let allowSharing: Bool?
     let scheduledDate: Double? // epoch millis
+    let isPinned: Bool?
+    let pinnedAt: Double? // epoch millis
     let hasHiddenLayers: Bool?
     let hiddenLayerCount: Int?
     
@@ -209,6 +211,8 @@ struct BackendMoment: Codable {
             hideLikeCounts: hideLikeCounts ?? false,
             allowSharing: allowSharing ?? true,
             scheduledDate: scheduledDate.map { Date(timeIntervalSince1970: $0 / 1000) },
+            isPinned: isPinned == true ? true : nil,
+            pinnedAt: pinnedAt.map { Date(timeIntervalSince1970: $0 / 1000) },
             hasHiddenLayers: hasHiddenLayers ?? false,
             hiddenLayerCount: hiddenLayerCount ?? 0
         )

@@ -700,6 +700,7 @@ private struct SharedProfileMomentThumb: View {
                             .placeholder {
                                 Rectangle().fill(UserProfileColors.cardBackground)
                             }
+                            .applyingFeedCrop(moment.primaryVisibleMediaItem?.feedCrop)
                             .downsampling(size: CGSize(width: size * displayScale, height: size * displayScale))
                             .scaleFactor(displayScale)
                             .cancelOnDisappear(true)

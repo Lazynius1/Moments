@@ -1832,6 +1832,7 @@ class BackgroundStoryUploadService: ObservableObject {
             localFileName: fileName,
             thumbnailFileName: thumbName,
             aspectRatio: media.aspectRatio.displayName,
+            feedCrop: nil,
             videoDuration: media.videoDuration,
             videoFileSize: media.videoFileSize,
             videoResolution: media.videoResolution,
@@ -2421,6 +2422,8 @@ extension BackgroundStoryUploadService {
                 statusString = "uploading"
             case .uploading:
                 statusString = "uploading"
+            case .compressing:
+                statusString = "processing"
             case .processing:
                 statusString = "processing"
             case .completed:

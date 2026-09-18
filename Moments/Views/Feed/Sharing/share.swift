@@ -1206,11 +1206,17 @@ struct AddToStoryView: View {
             errorMessage = NSLocalizedString("errors.momentImageUnavailable", comment: "Moment image unavailable")
             return
         }
+        let primaryCrop = moment.primaryVisibleMediaItem?.feedCrop
+        let displayedContent = primaryCrop.map {
+            content.momentsOrientedUp().cropped(to: $0.rect(in: content.momentsOrientedUp().size))
+        } ?? content
         let naturalSize = sharedMomentStoryCardSize(
-            aspectRatio: moment.primaryVisibleMediaItem?.aspectRatio ?? moment.aspectRatio,
-            image: content
+            aspectRatio: primaryCrop?.cardAspect
+                ?? moment.primaryVisibleMediaItem?.aspectRatio
+                ?? moment.aspectRatio,
+            image: displayedContent
         )
-        let stickerView = SharedMomentStorySnapshotView(image: content, size: naturalSize)
+        let stickerView = SharedMomentStorySnapshotView(image: displayedContent, size: naturalSize)
             .environment(\.colorScheme, .dark)
             .frame(width: naturalSize.width, height: naturalSize.height)
         
@@ -1788,6 +1794,13 @@ struct SharedMomentMessageBubble: View {
         payload["momentAspectRatio"] = moment.primaryVisibleMediaItem?.aspectRatio
             ?? moment.aspectRatio
             ?? "1:1"
+        if let crop = moment.primaryVisibleMediaItem?.feedCrop {
+            payload["momentFeedCropAspect"] = crop.cardAspect
+            payload["momentFeedCropX"] = String(crop.x)
+            payload["momentFeedCropY"] = String(crop.y)
+            payload["momentFeedCropWidth"] = String(crop.width)
+            payload["momentFeedCropHeight"] = String(crop.height)
+        }
         payload["momentMediaCount"] = String(max(moment.visibleMediaCount, 1))
         payload["momentVideoUrl"] = moment.previewVideoURLString ?? ""
         payload["momentTimestamp"] = String(moment.timestamp.timeIntervalSince1970)
@@ -1936,6 +1949,23 @@ struct ReelPreviewCard: View {
 // MARK: - ✅ Moment Visual Content
 struct MomentVisualContent: View {
     let sharedMomentData: [String: String]
+
+    private var feedCrop: MediaItemFeedCrop? {
+        guard let aspect = sharedMomentData["momentFeedCropAspect"],
+              let x = Double(sharedMomentData["momentFeedCropX"] ?? ""),
+              let y = Double(sharedMomentData["momentFeedCropY"] ?? ""),
+              let width = Double(sharedMomentData["momentFeedCropWidth"] ?? ""),
+              let height = Double(sharedMomentData["momentFeedCropHeight"] ?? "") else {
+            return nil
+        }
+        return MediaItemFeedCrop(
+            cardAspect: aspect,
+            x: x,
+            y: y,
+            width: width,
+            height: height
+        )
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -1945,14 +1975,11 @@ struct MomentVisualContent: View {
             if let imageUrl = sharedMomentData["momentImageUrl"],
                       !imageUrl.isEmpty,
                       let url = URL(string: imageUrl) {
-                KFImage(url)
-                    .resizable()
-                    .placeholder {
-                        ZStack {
-                            Color.gray.opacity(0.2)
-                            ProgressView().tint(.white)
-                        }
-                    }
+                FeedCroppedRemoteImage(
+                    url: url,
+                    feedCrop: feedCrop,
+                    placeholderColor: Color.gray.opacity(0.2)
+                )
                     .scaledToFill()
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .clipped()

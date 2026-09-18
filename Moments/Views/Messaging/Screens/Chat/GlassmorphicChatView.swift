@@ -695,6 +695,18 @@ struct GlassmorphicChatView: View {
             .overlay {
                 chatAttachmentOverlayContent
             }
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
+            .overlay {
+                chatAttachmentOverlayContent
+            }
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
+            .overlay {
+                chatAttachmentOverlayContent
+            }
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
+            .overlay {
+                chatAttachmentOverlayContent
+            }
     }
 
     func liveClusterGalleryMessages(messageIds: [String]) -> [EnhancedMessage] {

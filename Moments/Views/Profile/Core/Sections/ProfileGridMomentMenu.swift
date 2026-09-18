@@ -268,22 +268,25 @@ struct ProfileGridHeroCard: View {
         if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
             if mediaItem.type == .video {
                 if !mediaItem.url.isEmpty {
-                    ModernVideoPlayer(
-                        url: mediaItem.url,
-                        aspectRatio: heroVideoAspectRatio,
-                        videoId: GlobalVideoManager.profileVideoConsumerId(for: moment),
-                        hideMuteButton: true,
-                        chromeStyle: .socialReels,
-                        allowsPauseInteraction: false,
-                        posterURLString: moment.videoPosterURLString(for: mediaItem),
-                        mediaItem: mediaItem,
-                        moment: moment,
-                        activationMode: .alwaysWhenVisible,
-                        consumesDetailHandoff: false
-                    )
+                    NormalizedMediaCropContainer(feedCrop: mediaItem.feedCrop) {
+                        ModernVideoPlayer(
+                            url: mediaItem.url,
+                            aspectRatio: mediaItem.resolvedAspectRatioValue ?? heroVideoAspectRatio,
+                            videoId: GlobalVideoManager.profileVideoConsumerId(for: moment),
+                            hideMuteButton: true,
+                            chromeStyle: .socialReels,
+                            allowsPauseInteraction: false,
+                            posterURLString: moment.videoPosterURLString(for: mediaItem),
+                            mediaItem: mediaItem,
+                            moment: moment,
+                            activationMode: .alwaysWhenVisible,
+                            consumesDetailHandoff: false
+                        )
+                    }
                     .allowsHitTesting(false)
                 } else if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty, let url = imageURL(thumbnailUrl) {
                     KFImage(url)
+                        .applyingFeedCrop(mediaItem.feedCrop)
                         .resizable()
                         .scaledToFill()
                 } else {
@@ -291,6 +294,7 @@ struct ProfileGridHeroCard: View {
                 }
             } else if let url = imageURL(mediaItem.url) {
                 KFImage(url)
+                    .applyingFeedCrop(mediaItem.feedCrop)
                     .resizable()
                     .scaledToFill()
             } else {

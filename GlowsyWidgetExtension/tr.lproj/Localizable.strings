@@ -24,6 +24,7 @@
 "liveActivity.uploadingMoment" = "Moment yükleniyor";
 "liveActivity.uploading" = "Yükleniyor...";
 "liveActivity.processing" = "İşleniyor...";
+"liveActivity.compressing" = "Sıkıştırılıyor...";
 "liveActivity.completed" = "Tamamlandı";
 "liveActivity.error" = "Hata";
 "incognito.activity.title" = "Gizli";

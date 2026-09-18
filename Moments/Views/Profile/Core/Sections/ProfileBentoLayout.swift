@@ -71,25 +71,40 @@ enum ProfileBentoTileAssigner {
     static func assign(moments: [Moment]) -> [ProfileGridTileDescriptor] {
         guard !moments.isEmpty else { return [] }
 
-        var layoutKinds = Array(repeating: BentoTileKind.unit, count: moments.count)
+        // Hero/tall se decide en orden cronológico (ignorando pines) y se aplica por id.
+        // Así pinear solo reordena + badge, sin promover a hero ni cambiar tamaños.
+        let chronological = moments.sorted { lhs, rhs in
+            if lhs.timestamp != rhs.timestamp {
+                return lhs.timestamp > rhs.timestamp
+            }
+            return (lhs.id ?? "") < (rhs.id ?? "")
+        }
 
-        if let heroIndex = heroCandidateIndex(in: moments) {
-            layoutKinds[heroIndex] = .hero
+        var chronoKinds = Array(repeating: BentoTileKind.unit, count: chronological.count)
+        if let heroIndex = heroCandidateIndex(in: chronological) {
+            chronoKinds[heroIndex] = .hero
         }
 
         var tallCount = 0
-        for index in moments.indices {
+        for index in chronological.indices {
             guard index < 12 else { break }
-            guard layoutKinds[index] == .unit else { continue }
+            guard chronoKinds[index] == .unit else { continue }
             guard tallCount < 2 else { break }
-            guard moments[index].isReelCandidate else { continue }
-
-            layoutKinds[index] = .tall
+            guard chronological[index].isReelCandidate else { continue }
+            chronoKinds[index] = .tall
             tallCount += 1
         }
 
-        return zip(moments, layoutKinds).map { moment, layoutKind in
-            ProfileGridTileDescriptor.standard(for: moment, layoutKind: layoutKind)
+        var kindsByMomentId: [String: BentoTileKind] = [:]
+        for (moment, kind) in zip(chronological, chronoKinds) {
+            if let id = moment.id {
+                kindsByMomentId[id] = kind
+            }
+        }
+
+        return moments.map { moment in
+            let kind = moment.id.flatMap { kindsByMomentId[$0] } ?? .unit
+            return ProfileGridTileDescriptor.standard(for: moment, layoutKind: kind)
         }
     }
 
@@ -99,19 +114,7 @@ enum ProfileBentoTileAssigner {
 
     private static func heroCandidateIndex(in moments: [Moment]) -> Int? {
         let candidates = Array(moments.indices.prefix(min(moments.count, 9)))
-
-        if let pinnedReel = candidates.first(where: { moments[$0].isPinned == true && moments[$0].isReelCandidate }) {
-            return pinnedReel
-        }
-
-        if let firstReel = candidates.first(where: { moments[$0].isReelCandidate }) {
-            return firstReel
-        }
-
-        return candidates.first(where: { index in
-            let moment = moments[index]
-            return moment.isPinned == true && moment.previewImageURLString != nil
-        })
+        return candidates.first(where: { moments[$0].isReelCandidate })
     }
 }
 

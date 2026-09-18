@@ -308,6 +308,7 @@
 "feed.uploading.more" = "+ %d més pujant...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "Processant";
+"feed.uploading.compressing" = "Comprimint...";
 "feed.uploading.published" = "¡Publicat!";
 "feed.uploading.retry" = "Tornar a provar";
 "feed.uploading.files" = "%d arxius";
@@ -772,6 +773,33 @@
 "creator.interactions.disableComments.description" = "Ningú podrà comentar en aquest moment";
 "creator.interactions.allowSharing" = "Permetre col·leccionar";
 "creator.interactions.allowSharing.description" = "Altres poden afegir el teu moment a la seva col·lecció";
+"creator.keepOriginalDimensions" = "Conservar les dimensions originals";
+"creator.keepOriginalDimensions.info" = "Si està activat, en mantenir premut el moment al feed es veu la foto completa. Si no, només es publica el retall de la targeta.";
+"creator.tools.filter" = "Filtre";
+"creator.tools.edit" = "Editar";
+"creator.carousel.portrait" = "Retrat";
+"creator.carousel.landscape" = "Apaïsada";
+"creator.carousel.square" = "Quadrada";
+"creator.carousel.remove" = "Treure";
+"creator.adjust.adjust" = "Ajust";
+"creator.adjust.straighten" = "Redreçar";
+"creator.adjust.vertical" = "Vertical";
+"creator.adjust.horizontal" = "Horitzontal";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Brillantor";
+"creator.adjust.contrast" = "Contrast";
+"creator.adjust.texture" = "Textura";
+"creator.adjust.warmth" = "Calidesa";
+"creator.adjust.saturation" = "Saturació";
+"creator.adjust.color" = "Color";
+"creator.adjust.fade" = "Esvaïment";
+"creator.adjust.highlights" = "Llums";
+"creator.adjust.shadows" = "Ombres";
+"creator.adjust.vignette" = "Vinyeta";
+"creator.adjust.blur" = "Desenfocament";
+"creator.adjust.sharpen" = "Nitidesa";
+"creator.adjust.radial" = "Radial";
+"creator.adjust.linear" = "Lineal";
 "creator.advancedSettings.title" = "Configuració avançada";
 "creator.visualization.title" = "Visualització";
 "creator.visualization.hideReactions" = "Amagar comptador de reaccions";
@@ -2761,6 +2789,7 @@
 "liveActivity.uploadingMoment" = "Pujant moment";
 "liveActivity.uploading" = "Pujant...";
 "liveActivity.processing" = "Processant...";
+"liveActivity.compressing" = "Comprimint...";
 "liveActivity.completed" = "Completat";
 "liveActivity.error" = "Error";
 
@@ -4229,6 +4258,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "creator.upload.initializing" = "Iniciant...";
 "creator.upload.uploading" = "Pujant...";
 "creator.upload.processing" = "Processant...";
+"creator.upload.compressing" = "Comprimint...";
 "creator.upload.completed" = "Publicat";
 "creator.upload.failed" = "Error en pujar";
 "errors.video.invalidSource" = "No s'ha pogut llegir el vídeo.";

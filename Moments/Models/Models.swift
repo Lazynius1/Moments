@@ -304,6 +304,58 @@ struct PhotoTag: Codable, Identifiable, Equatable {
     let y: Double // 0.0 to 1.0 (relative to image height)
 }
 
+/// Encuadre no destructivo de una card sobre el único archivo publicado.
+/// Las coordenadas están normalizadas en el espacio orientado-up de `MediaItem.url`.
+struct MediaItemFeedCrop: Codable, Equatable {
+    let cardAspect: String
+    let x: Double
+    let y: Double
+    let width: Double
+    let height: Double
+
+    init(cardAspect: String, x: Double, y: Double, width: Double, height: Double) {
+        self.cardAspect = cardAspect
+        self.x = min(max(x, 0), 1)
+        self.y = min(max(y, 0), 1)
+        self.width = min(max(width, 0), 1)
+        self.height = min(max(height, 0), 1)
+    }
+
+    static func fullBounds(cardAspect: String) -> MediaItemFeedCrop {
+        MediaItemFeedCrop(cardAspect: cardAspect, x: 0, y: 0, width: 1, height: 1)
+    }
+
+    var isFullBounds: Bool {
+        abs(x) < 0.0001
+            && abs(y) < 0.0001
+            && abs(width - 1) < 0.0001
+            && abs(height - 1) < 0.0001
+    }
+
+    var cardAspectValue: CGFloat {
+        let parts = cardAspect.split(separator: ":")
+        if parts.count == 2,
+           let width = Double(parts[0]),
+           let height = Double(parts[1]),
+           height > 0 {
+            return CGFloat(width / height)
+        }
+        if let value = Double(cardAspect), value > 0 {
+            return CGFloat(value)
+        }
+        return 1
+    }
+
+    func rect(in size: CGSize) -> CGRect {
+        CGRect(
+            x: x * size.width,
+            y: y * size.height,
+            width: width * size.width,
+            height: height * size.height
+        ).intersection(CGRect(origin: .zero, size: size))
+    }
+}
+
 struct MediaItem: Identifiable, Codable {
     enum ModerationState: String, Codable {
         case visible
@@ -322,6 +374,7 @@ struct MediaItem: Identifiable, Codable {
     let type: MediaType
     let url: String
     let aspectRatio: String?
+    let feedCrop: MediaItemFeedCrop?
     // 🔥 NUEVOS CAMPOS
     let thumbnailUrl: String?
     let videoDuration: Double?
@@ -349,6 +402,7 @@ struct MediaItem: Identifiable, Codable {
         case type
         case url
         case aspectRatio
+        case feedCrop
         case thumbnailUrl
         case videoDuration
         case videoFileSize
@@ -384,6 +438,12 @@ struct MediaItem: Identifiable, Codable {
                 }
             }
 
+            if let exactValue = Double(normalizedAspectRatio),
+               exactValue.isFinite,
+               exactValue > 0 {
+                return CGFloat(exactValue)
+            }
+
             let canonicalRatio = CreatorMedia.AspectRatio(from: normalizedAspectRatio).value
             if canonicalRatio.isFinite, canonicalRatio > 0 {
                 return canonicalRatio
@@ -413,6 +473,7 @@ struct MediaItem: Identifiable, Codable {
         type: MediaType,
         url: String,
         aspectRatio: String? = nil,
+        feedCrop: MediaItemFeedCrop? = nil,
         thumbnailUrl: String? = nil,
         videoDuration: Double? = nil,
         videoFileSize: Int64? = nil,
@@ -432,6 +493,7 @@ struct MediaItem: Identifiable, Codable {
         self.type = type
         self.url = url
         self.aspectRatio = aspectRatio
+        self.feedCrop = feedCrop
         self.thumbnailUrl = thumbnailUrl
         self.videoDuration = videoDuration
         self.videoFileSize = videoFileSize
@@ -454,6 +516,7 @@ struct MediaItem: Identifiable, Codable {
         self.type = try container.decode(MediaType.self, forKey: .type)
         self.url = try container.decode(String.self, forKey: .url)
         self.aspectRatio = try container.decodeIfPresent(String.self, forKey: .aspectRatio)
+        self.feedCrop = try container.decodeIfPresent(MediaItemFeedCrop.self, forKey: .feedCrop)
         self.thumbnailUrl = try container.decodeIfPresent(String.self, forKey: .thumbnailUrl)
         self.videoDuration = try container.decodeIfPresent(Double.self, forKey: .videoDuration)
         self.videoFileSize = try container.decodeIfPresent(Int64.self, forKey: .videoFileSize)
@@ -484,6 +547,7 @@ struct MediaItem: Identifiable, Codable {
         try container.encode(type, forKey: .type)
         try container.encode(url, forKey: .url)
         try container.encodeIfPresent(aspectRatio, forKey: .aspectRatio)
+        try container.encodeIfPresent(feedCrop, forKey: .feedCrop)
         try container.encodeIfPresent(thumbnailUrl, forKey: .thumbnailUrl)
         try container.encodeIfPresent(videoDuration, forKey: .videoDuration)
         try container.encodeIfPresent(videoFileSize, forKey: .videoFileSize)

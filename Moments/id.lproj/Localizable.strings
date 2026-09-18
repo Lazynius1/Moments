@@ -302,6 +302,7 @@
 "feed.uploading.more" = "+ %d lagi sedang diunggah...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "Sedang diproses";
+"feed.uploading.compressing" = "Mengompres...";
 "feed.uploading.published" = "Berhasil dipublikasikan!";
 "feed.uploading.retry" = "Coba lagi";
 "feed.uploading.files" = "%d file";
@@ -751,6 +752,33 @@
 "creator.interactions.disableComments.description" = "Tidak ada yang bisa mengomentari momen ini";
 "creator.interactions.allowSharing" = "Izinkan menyimpan";
 "creator.interactions.allowSharing.description" = "Orang lain bisa menambahkan momenmu ke koleksi mereka";
+"creator.keepOriginalDimensions" = "Pertahankan dimensi asli";
+"creator.keepOriginalDimensions.info" = "Jika aktif, menahan pos di feed menampilkan foto lengkap. Jika tidak, hanya potongan kartu yang dipublikasikan.";
+"creator.tools.filter" = "Filter";
+"creator.tools.edit" = "Edit";
+"creator.carousel.portrait" = "Potret";
+"creator.carousel.landscape" = "Lanskap";
+"creator.carousel.square" = "Persegi";
+"creator.carousel.remove" = "Hapus";
+"creator.adjust.adjust" = "Sesuaikan";
+"creator.adjust.straighten" = "Luruskan";
+"creator.adjust.vertical" = "Vertikal";
+"creator.adjust.horizontal" = "Horizontal";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Kecerahan";
+"creator.adjust.contrast" = "Kontras";
+"creator.adjust.texture" = "Tekstur";
+"creator.adjust.warmth" = "Kehangatan";
+"creator.adjust.saturation" = "Saturasi";
+"creator.adjust.color" = "Warna";
+"creator.adjust.fade" = "Pudar";
+"creator.adjust.highlights" = "Highlight";
+"creator.adjust.shadows" = "Bayangan";
+"creator.adjust.vignette" = "Vignette";
+"creator.adjust.blur" = "Buram";
+"creator.adjust.sharpen" = "Ketajaman";
+"creator.adjust.radial" = "Radial";
+"creator.adjust.linear" = "Linear";
 "creator.advancedSettings.title" = "Pengaturan Lanjutan";
 "creator.visualization.title" = "Tampilan";
 "creator.visualization.hideReactions" = "Sembunyikan jumlah reaksi";
@@ -2601,6 +2629,7 @@
 "liveActivity.uploadingMoment" = "Mengunggah momen";
 "liveActivity.uploading" = "Mengunggah...";
 "liveActivity.processing" = "Memproses...";
+"liveActivity.compressing" = "Mengompres...";
 "liveActivity.completed" = "Selesai";
 "liveActivity.error" = "Terjadi kesalahan";
 /* Widget */
@@ -4008,6 +4037,7 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "creator.upload.initializing" = "Memulai...";
 "creator.upload.uploading" = "Mengunggah...";
 "creator.upload.processing" = "Memproses...";
+"creator.upload.compressing" = "Mengompres...";
 "creator.upload.completed" = "Dipublikasikan";
 "creator.upload.failed" = "Gagal mengunggah";
 "errors.video.invalidSource" = "Video tidak dapat dibaca.";

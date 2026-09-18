@@ -26,6 +26,7 @@
 "liveActivity.uploadingMoment" = "Moment wird hochgeladen";
 "liveActivity.uploading" = "Wird hochgeladen...";
 "liveActivity.processing" = "Wird verarbeitet...";
+"liveActivity.compressing" = "Wird komprimiert...";
 "liveActivity.completed" = "Abgeschlossen";
 "liveActivity.error" = "Fehler";
 "incognito.activity.title" = "Inkognito";

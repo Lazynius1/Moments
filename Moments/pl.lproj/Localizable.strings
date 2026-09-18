@@ -302,6 +302,7 @@
 "feed.uploading.more" = "+ %d kolejnych — przesyłanie...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "Przetwarzanie";
+"feed.uploading.compressing" = "Kompresowanie...";
 "feed.uploading.published" = "Opublikowano!";
 "feed.uploading.retry" = "Spróbuj ponownie";
 "feed.uploading.files" = "%d plików";
@@ -751,6 +752,33 @@
 "creator.interactions.disableComments.description" = "Nikt nie będzie mógł komentować tego momentu";
 "creator.interactions.allowSharing" = "Zezwól na dodawanie do zakładek";
 "creator.interactions.allowSharing.description" = "Inni będą mogli dodać Twój moment do swojej kolekcji";
+"creator.keepOriginalDimensions" = "Zachowaj oryginalne wymiary";
+"creator.keepOriginalDimensions.info" = "Gdy włączone, przytrzymanie posta w feedzie pokazuje całe zdjęcie. Gdy wyłączone, publikowany jest tylko kadr z karty.";
+"creator.tools.filter" = "Filtr";
+"creator.tools.edit" = "Edytuj";
+"creator.carousel.portrait" = "Portret";
+"creator.carousel.landscape" = "Poziomo";
+"creator.carousel.square" = "Kwadrat";
+"creator.carousel.remove" = "Usuń";
+"creator.adjust.adjust" = "Dopasuj";
+"creator.adjust.straighten" = "Wyprostuj";
+"creator.adjust.vertical" = "Pionowo";
+"creator.adjust.horizontal" = "Poziomo";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Jasność";
+"creator.adjust.contrast" = "Kontrast";
+"creator.adjust.texture" = "Tekstura";
+"creator.adjust.warmth" = "Ciepło";
+"creator.adjust.saturation" = "Nasycenie";
+"creator.adjust.color" = "Kolor";
+"creator.adjust.fade" = "Blaknięcie";
+"creator.adjust.highlights" = "Światła";
+"creator.adjust.shadows" = "Cienie";
+"creator.adjust.vignette" = "Winieta";
+"creator.adjust.blur" = "Rozmycie";
+"creator.adjust.sharpen" = "Ostrość";
+"creator.adjust.radial" = "Radialne";
+"creator.adjust.linear" = "Liniowe";
 "creator.advancedSettings.title" = "Ustawienia zaawansowane";
 "creator.visualization.title" = "Wyświetlanie";
 "creator.visualization.hideReactions" = "Ukryj liczbę reakcji";
@@ -2601,6 +2629,7 @@
 "liveActivity.uploadingMoment" = "Przesyłanie momentu";
 "liveActivity.uploading" = "Przesyłanie...";
 "liveActivity.processing" = "Przetwarzanie...";
+"liveActivity.compressing" = "Kompresowanie...";
 "liveActivity.completed" = "Ukończono";
 "liveActivity.error" = "Błąd";
 /* Widget */
@@ -4008,6 +4037,7 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "creator.upload.initializing" = "Uruchamianie...";
 "creator.upload.uploading" = "Przesyłanie...";
 "creator.upload.processing" = "Przetwarzanie...";
+"creator.upload.compressing" = "Kompresowanie...";
 "creator.upload.completed" = "Opublikowano";
 "creator.upload.failed" = "Przesyłanie nie powiodło się";
 "errors.video.invalidSource" = "Nie udało się odczytać filmu.";

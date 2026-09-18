@@ -470,7 +470,9 @@ function pickMomentPreviewUrl(momentData) {
     for (const item of momentData.mediaItems) {
       if (!item || typeof item !== 'object') continue;
       if (item.moderationState === 'hidden') continue;
-      if (typeof item.thumbnailUrl === 'string' && item.thumbnailUrl.trim()) {
+      if (item.type === 'video'
+          && typeof item.thumbnailUrl === 'string'
+          && item.thumbnailUrl.trim()) {
         return item.thumbnailUrl.trim();
       }
       if (typeof item.url === 'string' && item.url.trim()) {

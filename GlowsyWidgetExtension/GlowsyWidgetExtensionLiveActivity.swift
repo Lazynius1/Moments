@@ -381,6 +381,7 @@ struct MomentUploadLiveActivity: Widget {
                                 .foregroundColor(.primary)
                             
                             Text(context.state.status == "uploading" ? localizedString("liveActivity.uploading", comment: "Uploading status") :
+                                 context.state.status == "compressing" ? localizedString("liveActivity.compressing", comment: "Compressing status") :
                                  context.state.status == "processing" ? localizedString("liveActivity.processing", comment: "Processing status") :
                                  context.state.status == "completed" ? localizedString("liveActivity.completed", comment: "Completed status") : localizedString("liveActivity.error", comment: "Error status"))
                                 .font(.caption)

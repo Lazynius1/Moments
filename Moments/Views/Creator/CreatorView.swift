@@ -64,6 +64,7 @@ struct CreatorView: View {
 
     // ✅ Geometry Effect Namespace
     @Namespace private var animation
+    @Environment(\.colorScheme) private var colorScheme
 
     enum CreatorFlow {
         case typeSelection
@@ -82,7 +83,8 @@ struct CreatorView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                .ignoresSafeArea()
 
             switch currentFlow {
             case .typeSelection:
@@ -358,13 +360,7 @@ struct CreatorView: View {
 extension CreatorMedia.AspectRatio {
     // ✅ NUEVO: Inicializar desde string guardado en Firestore
     init(from string: String?) {
-        switch string {
-        case "1:1": self = .square
-        case "4:5": self = .portrait
-        case "16:9": self = .landscape
-        case "9:16": self = .nineBySixteen
-        default: self = .square // Default fallback
-        }
+        self = .parsePersisted(string)
     }
 
     // ✅ NOTA: La función fromRatio está definida dentro del enum AspectRatio (línea 78)

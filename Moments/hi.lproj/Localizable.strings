@@ -302,6 +302,7 @@
 "feed.uploading.more" = "+ %d और अपलोड हो रहे हैं...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "प्रोसेस हो रहा है";
+"feed.uploading.compressing" = "कंप्रेस हो रहा है...";
 "feed.uploading.published" = "पब्लिश हो गया!";
 "feed.uploading.retry" = "फिर कोशिश करें";
 "feed.uploading.files" = "%d फ़ाइलें";
@@ -751,6 +752,33 @@
 "creator.interactions.disableComments.description" = "कोई भी इस मोमेंट पर कमेंट नहीं कर पाएगा";
 "creator.interactions.allowSharing" = "बुकमार्क करने की अनुमति दें";
 "creator.interactions.allowSharing.description" = "दूसरे लोग आपके मोमेंट को अपने कलेक्शन में जोड़ सकेंगे";
+"creator.keepOriginalDimensions" = "मूल आयाम बनाए रखें";
+"creator.keepOriginalDimensions.info" = "चालू होने पर फ़ीड में पोस्ट को देर तक दबाने से पूरी फ़ोटो दिखती है। बंद होने पर केवल कार्ड का क्रॉप पब्लिश होता है।";
+"creator.tools.filter" = "फ़िल्टर";
+"creator.tools.edit" = "संपादित करें";
+"creator.carousel.portrait" = "पोर्ट्रेट";
+"creator.carousel.landscape" = "लैंडस्केप";
+"creator.carousel.square" = "वर्ग";
+"creator.carousel.remove" = "हटाएँ";
+"creator.adjust.adjust" = "समायोजित";
+"creator.adjust.straighten" = "सीधा करें";
+"creator.adjust.vertical" = "लंबवत";
+"creator.adjust.horizontal" = "क्षैतिज";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "चमक";
+"creator.adjust.contrast" = "कंट्रास्ट";
+"creator.adjust.texture" = "टेक्सचर";
+"creator.adjust.warmth" = "गर्माहट";
+"creator.adjust.saturation" = "संतृप्ति";
+"creator.adjust.color" = "रंग";
+"creator.adjust.fade" = "फ़ेड";
+"creator.adjust.highlights" = "हाईलाइट";
+"creator.adjust.shadows" = "छाया";
+"creator.adjust.vignette" = "विग्नेट";
+"creator.adjust.blur" = "ब्लर";
+"creator.adjust.sharpen" = "शार्पन";
+"creator.adjust.radial" = "रेडियल";
+"creator.adjust.linear" = "रैखिक";
 "creator.advancedSettings.title" = "एडवांस सेटिंग्स";
 "creator.visualization.title" = "दिखावट";
 "creator.visualization.hideReactions" = "रिएक्शन की संख्या छिपाएँ";
@@ -2601,6 +2629,7 @@
 "liveActivity.uploadingMoment" = "मोमेंट अपलोड हो रहा है";
 "liveActivity.uploading" = "अपलोड हो रहा है...";
 "liveActivity.processing" = "प्रोसेस हो रहा है...";
+"liveActivity.compressing" = "कंप्रेस हो रहा है...";
 "liveActivity.completed" = "पूरा हुआ";
 "liveActivity.error" = "गड़बड़ी";
 /* Widget */
@@ -4008,6 +4037,7 @@
 "creator.upload.initializing" = "शुरू हो रहा है...";
 "creator.upload.uploading" = "अपलोड हो रहा है...";
 "creator.upload.processing" = "प्रोसेसिंग हो रही है...";
+"creator.upload.compressing" = "कंप्रेस हो रहा है...";
 "creator.upload.completed" = "प्रकाशित";
 "creator.upload.failed" = "अपलोड विफल रहा";
 "errors.video.invalidSource" = "वीडियो पढ़ा नहीं जा सका।";

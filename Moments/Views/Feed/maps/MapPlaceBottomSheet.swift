@@ -439,13 +439,12 @@ struct MapPlaceIndexRow: View {
     private var previewStrip: some View {
         HStack(spacing: 4) {
             ForEach(Array(place.moments.prefix(3).enumerated()), id: \.element.id) { _, moment in
-                KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
-                    .placeholder {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.18))
-                    }
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+                FeedCroppedRemoteImage(
+                    url: URL(string: moment.mapPreferredImageURL ?? ""),
+                    feedCrop: moment.mapPreferredFeedCrop,
+                    placeholderColor: Color.gray.opacity(0.18)
+                )
+                    .scaledToFill()
                     .frame(width: 44, height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }

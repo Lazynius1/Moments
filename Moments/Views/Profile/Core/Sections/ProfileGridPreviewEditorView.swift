@@ -3,6 +3,7 @@ import Kingfisher
 
 struct ProfileGridPreviewEditorView: View {
     let imageURL: URL
+    let feedCrop: MediaItemFeedCrop?
     let initialSettings: MomentGridPreviewSettings
     let onSave: (MomentGridPreviewSettings) -> Void
 
@@ -40,11 +41,14 @@ struct ProfileGridPreviewEditorView: View {
                 GeometryReader { proxy in
                     let side = previewCropSide(in: proxy)
 
-                    VStack(spacing: 10) {
+                    VStack(spacing: 0) {
                         headerView(cropSide: side)
                             .padding(.top, 4)
 
+                        Spacer(minLength: 0)
+
                         cropArea(with: image, cropSide: side)
+                            .frame(maxWidth: .infinity)
 
                         Spacer(minLength: 0)
 
@@ -52,7 +56,7 @@ struct ProfileGridPreviewEditorView: View {
                             .padding(.horizontal, 16)
                             .padding(.bottom, max(proxy.safeAreaInsets.bottom, 10))
                     }
-                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
                     .onAppear {
                         cropSide = side
                     }
@@ -71,6 +75,10 @@ struct ProfileGridPreviewEditorView: View {
             fitMode = initialSettings.fitMode
             background = initialSettings.background
             loadImage()
+        }
+        .onChange(of: cropSide) { _, side in
+            guard let image = loadedImage, side > 1 else { return }
+            applyInitialTransform(for: image.size, cropSide: side)
         }
     }
 
@@ -397,9 +405,17 @@ struct ProfileGridPreviewEditorView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let value):
-                    loadedImage = value.image.normalized()
+                    let source = value.image.normalized().momentsOrientedUp()
+                    // El editor ajusta la grid 1:1 sobre el encuadre de card,
+                    // no sobre el aspect ratio del archivo completo.
+                    let cardImage: UIImage = {
+                        guard let feedCrop, !feedCrop.isFullBounds else { return source }
+                        return source.cropped(to: feedCrop.rect(in: source.size))
+                    }()
+                    loadedImage = cardImage
                     if let image = loadedImage {
-                        applyInitialTransform(for: image.size, cropSide: cropSide)
+                        let side = max(cropSide, 220)
+                        applyInitialTransform(for: image.size, cropSide: side)
                     }
                 case .failure:
                     break
@@ -463,7 +479,7 @@ struct ProfileGridPreviewEditorView: View {
 
 // MARK: - Icono del botón modo (2 esquinas en Rellenar, 4 en Ajustar)
 
-private struct GridPreviewModeChipIcon: View {
+struct GridPreviewModeChipIcon: View {
     let fitMode: MomentGridPreviewFitMode
 
     var body: some View {
@@ -473,7 +489,7 @@ private struct GridPreviewModeChipIcon: View {
     }
 }
 
-private struct GridPreviewModeChipIconShape: Shape {
+struct GridPreviewModeChipIconShape: Shape {
     let fitMode: MomentGridPreviewFitMode
 
     private let leg: CGFloat = 5.5

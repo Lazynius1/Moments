@@ -24,6 +24,7 @@
 "liveActivity.uploadingMoment" = "Moment uploaden";
 "liveActivity.uploading" = "Uploaden...";
 "liveActivity.processing" = "Verwerken...";
+"liveActivity.compressing" = "Comprimeren...";
 "liveActivity.completed" = "Voltooid";
 "liveActivity.error" = "Fout";
 "incognito.activity.title" = "Incognito";

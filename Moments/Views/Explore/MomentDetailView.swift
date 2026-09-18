@@ -444,6 +444,14 @@ struct MomentDetailView: View {
                     self.aspectRatioType = .square
                 case .nineBySixteen:
                     self.aspectRatioType = .reels // ✅ CORREGIDO: Usar reels para 9:16
+                case .custom(let ratio):
+                    if ratio > 1.2 {
+                        self.aspectRatioType = .landscape
+                    } else if ratio < 0.9 {
+                        self.aspectRatioType = .portrait
+                    } else {
+                        self.aspectRatioType = .square
+                    }
                 }
             }
             return

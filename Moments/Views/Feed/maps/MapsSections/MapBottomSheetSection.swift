@@ -401,14 +401,12 @@ struct MapBottomSheetGridCell: View {
                         colorScheme: colorScheme
                     )
                 } else {
-                    KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
-                        .placeholder {
-                            ProgressView()
-                                .tint(adaptiveColors.accent)
-                                .scaleEffect(0.6)
-                        }
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
+                    FeedCroppedRemoteImage(
+                        url: URL(string: moment.mapPreferredImageURL ?? ""),
+                        feedCrop: moment.mapPreferredFeedCrop,
+                        placeholderColor: Color.gray.opacity(0.12)
+                    )
+                        .scaledToFill()
                         .frame(width: geometry.size.width, height: geometry.size.width)
                         .clipped()
                 }
@@ -452,22 +450,14 @@ struct MapsVideoThumbnailView: View {
     var body: some View {
         ZStack {
             // ✅ THUMBNAIL DEL VIDEO
-            AsyncImage(url: URL(string: moment.mapPreferredVideoThumbnailURL ?? "")) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: size.width, height: size.height)
-                    .clipped()
-            } placeholder: {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: size.width, height: size.height)
-                    .overlay(
-                        ProgressView()
-                            .tint(adaptiveColors.accent)
-                            .scaleEffect(0.6)
-                    )
-            }
+            FeedCroppedRemoteImage(
+                url: URL(string: moment.mapPreferredVideoThumbnailURL ?? ""),
+                feedCrop: moment.mapPreferredFeedCrop,
+                placeholderColor: Color.gray.opacity(0.12)
+            )
+            .scaledToFill()
+            .frame(width: size.width, height: size.height)
+            .clipped()
 
             // ✅ OVERLAY OSCURO PARA ICONO
             Rectangle()
@@ -614,18 +604,15 @@ struct ModernLocationMomentRow: View {
                 colorScheme: colorScheme
             )
         } else {
-            AsyncImage(url: URL(string: moment.mapPreferredImageURL ?? "")) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(height: 180)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-            } placeholder: {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .overlay(ProgressView().tint(adaptiveColors.accent))
-            }
+            FeedCroppedRemoteImage(
+                url: URL(string: moment.mapPreferredImageURL ?? ""),
+                feedCrop: moment.mapPreferredFeedCrop,
+                placeholderColor: Color.gray.opacity(0.12)
+            )
+            .scaledToFill()
+            .frame(height: 180)
+            .frame(maxWidth: .infinity)
+            .clipped()
         }
     }
 

@@ -24,6 +24,7 @@
 "liveActivity.uploadingMoment" = "Przesyłanie momentu";
 "liveActivity.uploading" = "Przesyłanie...";
 "liveActivity.processing" = "Przetwarzanie...";
+"liveActivity.compressing" = "Kompresowanie...";
 "liveActivity.completed" = "Ukończono";
 "liveActivity.error" = "Błąd";
 "incognito.activity.title" = "Tryb incognito";

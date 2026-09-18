@@ -7,6 +7,7 @@ struct FilterOption: View {
     let isSelected: Bool
     let onTap: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var previewImage: UIImage?
 
     var body: some View {
@@ -39,7 +40,7 @@ struct FilterOption: View {
 
                 Text(filter.rawValue)
                     .font(.system(size: 11, weight: isSelected ? .bold : .medium))
-                    .foregroundStyle(isSelected ? .white : .gray)
+                    .foregroundStyle(isSelected ? (colorScheme == .dark ? Color.white : Color.black) : .gray)
             }
         }
         .onAppear {

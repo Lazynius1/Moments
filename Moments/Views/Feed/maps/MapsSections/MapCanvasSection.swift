@@ -330,46 +330,26 @@ struct ModernLocationPhotoCard: View {
                     colorScheme: colorScheme
                 )
             } else {
-                AsyncImage(url: URL(string: moment.mapPreferredImageURL ?? "")) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 90, height: 120)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [.white.opacity(0.3), .clear],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
+                FeedCroppedRemoteImage(
+                    url: URL(string: moment.mapPreferredImageURL ?? ""),
+                    feedCrop: moment.mapPreferredFeedCrop,
+                    placeholderColor: Color.gray.opacity(0.12)
+                )
+                .scaledToFill()
+                .frame(width: 90, height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(
+                            LinearGradient(
+                                colors: [.white.opacity(0.3), .clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
                         )
-                        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 70, height: 70)
-                        .overlay(
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                                .tint(adaptiveColors.accent)
-                                .scaleEffect(0.7)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: adaptiveColors.overlayStroke,
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                }
+                )
+                .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
             }
         }
         .onAppear {
@@ -513,14 +493,12 @@ struct ModernLocationGalleryView: View {
                                     colorScheme: colorScheme
                                 )
                             } else {
-                                KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
-                                    .placeholder {
-                                        Rectangle()
-                                            .fill(.ultraThinMaterial)
-                                            .overlay(ProgressView().tint(adaptiveColors.accent))
-                                    }
-                                    .resizable()
-                                    .aspectRatio(1, contentMode: .fill)
+                                FeedCroppedRemoteImage(
+                                    url: URL(string: moment.mapPreferredImageURL ?? ""),
+                                    feedCrop: moment.mapPreferredFeedCrop,
+                                    placeholderColor: Color.gray.opacity(0.12)
+                                )
+                                    .scaledToFill()
                                     .frame(maxWidth: .infinity)
                                     .aspectRatio(1, contentMode: .fit)
                                     .clipped()

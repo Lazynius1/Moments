@@ -59,18 +59,27 @@ extension ChatService {
             }
             let freshMomentAuthor = UserCacheService.shared.getCachedUser(userId: moment.authorId)?.username ?? moment.username
 
-            let sharedMomentData: [String: String] = [
+            var sharedMomentData: [String: String] = [
                 "momentId": moment.id ?? "",
                 "momentAuthor": freshMomentAuthor,
                 "momentAuthorId": moment.authorId,
                 "momentContent": moment.content,
                 "momentImageUrl": moment.previewImageURLString ?? moment.thumbnailUrl ?? moment.imagePath ?? "",
-                "momentAspectRatio": moment.primaryVisibleMediaItem?.aspectRatio ?? moment.aspectRatio ?? "1:1",
+                "momentAspectRatio": moment.primaryVisibleMediaItem?.feedCrop?.cardAspect
+                    ?? moment.aspectRatio
+                    ?? "1:1",
                 "momentMediaCount": String(max(moment.visibleMediaCount, 1)),
                 "momentVideoUrl": moment.videoUrl ?? "",
                 "momentTimestamp": String(moment.timestamp.timeIntervalSince1970),
                 "shareUrl": momentUrl
             ]
+            if let crop = moment.primaryVisibleMediaItem?.feedCrop {
+                sharedMomentData["momentFeedCropAspect"] = crop.cardAspect
+                sharedMomentData["momentFeedCropX"] = String(crop.x)
+                sharedMomentData["momentFeedCropY"] = String(crop.y)
+                sharedMomentData["momentFeedCropWidth"] = String(crop.width)
+                sharedMomentData["momentFeedCropHeight"] = String(crop.height)
+            }
 
             let messageId = UUID().uuidString
             let message = EnhancedMessage(

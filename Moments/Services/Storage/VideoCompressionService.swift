@@ -61,24 +61,37 @@ struct VideoCompressionService {
         preset: VideoCompressionPreset
     ) async throws -> URL {
         let limits = limits(for: preset)
-        let inputSize = try fileSize(at: inputURL)
 
-        guard inputSize > limits.compressIfLargerThan else {
-            return inputURL
+        if preset == .moment {
+            if isPreparedMomentVideo(inputURL) {
+                let size = try fileSize(at: inputURL)
+                guard size <= limits.maxOutputBytes else {
+                    throw VideoCompressionError.outputTooLarge(size: size, limit: limits.maxOutputBytes)
+                }
+                return inputURL
+            }
+
+            let compressedURL = try await compressVideo(inputURL: inputURL)
+            let compressedSize = try fileSize(at: compressedURL)
+            guard compressedSize <= limits.maxOutputBytes else {
+                try? FileManager.default.removeItem(at: compressedURL)
+                throw VideoCompressionError.outputTooLarge(size: compressedSize, limit: limits.maxOutputBytes)
+            }
+            return compressedURL
         }
 
-        let compressedURL = try await compressVideo(inputURL: inputURL)
-        let compressedSize = try fileSize(at: compressedURL)
+        let sandboxURL = try await materializeInAppSandbox(inputURL)
+        let inputSize = try fileSize(at: sandboxURL)
+        guard inputSize > limits.compressIfLargerThan else {
+            return sandboxURL
+        }
 
+        let compressedURL = try await compressVideo(inputURL: sandboxURL)
+        let compressedSize = try fileSize(at: compressedURL)
         guard compressedSize <= limits.maxOutputBytes else {
             try? FileManager.default.removeItem(at: compressedURL)
             throw VideoCompressionError.outputTooLarge(size: compressedSize, limit: limits.maxOutputBytes)
         }
-
-        if compressedURL != inputURL {
-            // Caller uploads compressed file; original can remain for local preview until upload completes.
-        }
-
         return compressedURL
     }
 
@@ -93,10 +106,35 @@ struct VideoCompressionService {
         return try await prepareVideoForUpload(inputURL: tempURL, preset: preset)
     }
 
+    func materializeInAppSandbox(_ inputURL: URL) async throws -> URL {
+        if isInsideAppSandbox(inputURL) {
+            return inputURL
+        }
+        return try await compressVideo(inputURL: inputURL)
+    }
+
+    private func isPreparedMomentVideo(_ url: URL) -> Bool {
+        isInsideAppSandbox(url)
+            && url.pathExtension.lowercased() == "mp4"
+            && (url.lastPathComponent.hasPrefix("compressed_") || url.lastPathComponent.hasPrefix("moment_video_"))
+    }
+
+    private func isInsideAppSandbox(_ url: URL) -> Bool {
+        let path = url.path
+        if path.contains("/Media/DCIM") || path.contains("/Media/PhotoData") {
+            return false
+        }
+        return path.hasPrefix(NSHomeDirectory())
+    }
+
     private func compressVideo(inputURL: URL) async throws -> URL {
         let asset = AVURLAsset(url: inputURL)
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("compressed_\(UUID().uuidString).mp4")
+
+        if FileManager.default.fileExists(atPath: outputURL.path) {
+            try? FileManager.default.removeItem(at: outputURL)
+        }
 
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else {
             throw VideoCompressionError.exportFailed

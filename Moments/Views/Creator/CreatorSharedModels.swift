@@ -75,6 +75,9 @@ struct CreatorMedia: Identifiable {
     var videoResolution: String?
     var tags: [PhotoTag]? = nil // ✅ Etiquetas espaciales para esta imagen
     var storyVideoMode: StoryVideoMode = .normal
+    var immersiveImage: UIImage? = nil
+    var immersiveAspectRatio: AspectRatio? = nil
+    var feedCrop: MediaItemFeedCrop? = nil
 
     // Helper para acceder al thumbnail de manera segura
     var thumbnail: UIImage? {
@@ -91,11 +94,12 @@ struct CreatorMedia: Identifiable {
         case autoSplit
     }
 
-    enum AspectRatio: Equatable {
+    enum AspectRatio: Equatable, Hashable {
         case square          // 1:1
         case portrait        // 4:5
         case landscape       // 16:9
         case nineBySixteen   // 9:16 (stories)
+        case custom(CGFloat) // posts de momento: 3:4, 4:5, 1:1, 1.91:1
 
         var value: CGFloat {
             switch self {
@@ -103,6 +107,7 @@ struct CreatorMedia: Identifiable {
             case .portrait: return 0.8  // 4:5
             case .landscape: return 1.777 // 16:9
             case .nineBySixteen: return 0.5625 // 9:16
+            case .custom(let ratio): return ratio
             }
         }
 
@@ -112,6 +117,12 @@ struct CreatorMedia: Identifiable {
             case .portrait: return "4:5"
             case .landscape: return "16:9"
             case .nineBySixteen: return "9:16"
+            case .custom(let ratio):
+                if abs(ratio - MomentFeedCrop.reelsGridAspect) < 0.02 { return "3:4" }
+                if abs(ratio - MomentFeedCrop.landscapeMax) < 0.03 { return "1.91:1" }
+                if abs(ratio - 3.0 / 2.0) < 0.02 { return "3:2" }
+                if abs(ratio - 4.0 / 3.0) < 0.02 { return "4:3" }
+                return String(format: "%.4f", Double(ratio))
             }
         }
 
@@ -121,9 +132,11 @@ struct CreatorMedia: Identifiable {
             case .portrait: return 4.0/5.0
             case .landscape: return 16.0/9.0
             case .nineBySixteen: return 9.0/16.0
+            case .custom(let value): return value
             }
         }
 
+        /// Buckets para historias / cámara 9:16. No usar en posts de momento.
         static func fromRatio(_ ratio: CGFloat) -> AspectRatio {
             let tolerance: CGFloat = 0.15
 
@@ -137,11 +150,53 @@ struct CreatorMedia: Identifiable {
             else if ratio < 1.15 { return .square }
             else { return .landscape }
         }
+
+        /// Ratio de la card: 3:4 / 4:5 / 1:1 / 1.91:1. Reels 9:16 → 4:5.
+        static func fromFeedPostRatio(_ ratio: CGFloat) -> AspectRatio {
+            let safe = MomentFeedCrop.feedCardAspect(from: ratio)
+            if abs(safe - MomentFeedCrop.squareAspect) < 0.008 { return .square }
+            if abs(safe - MomentFeedCrop.portraitMax) < 0.008 { return .portrait }
+            if abs(safe - MomentFeedCrop.reelsGridAspect) < 0.008 {
+                return .custom(MomentFeedCrop.reelsGridAspect)
+            }
+            if abs(safe - MomentFeedCrop.landscapeMax) < 0.015 {
+                return .custom(MomentFeedCrop.landscapeMax)
+            }
+            return .custom(safe)
+        }
+
+        static func parsePersisted(_ string: String?) -> AspectRatio {
+            guard let raw = string?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+                return .square
+            }
+            switch raw {
+            case "1:1": return .square
+            case "4:5": return .portrait
+            case "3:4": return .custom(MomentFeedCrop.reelsGridAspect)
+            case "1.91:1": return .custom(MomentFeedCrop.landscapeMax)
+            case "16:9": return .landscape
+            case "9:16": return .nineBySixteen
+            default:
+                if raw.contains(":") {
+                    let parts = raw.split(separator: ":")
+                    if parts.count == 2,
+                       let w = Double(parts[0]),
+                       let h = Double(parts[1]),
+                       h > 0 {
+                        return .fromFeedPostRatio(CGFloat(w / h))
+                    }
+                }
+                if let value = Double(raw), value > 0 {
+                    return .fromFeedPostRatio(CGFloat(value))
+                }
+                return .square
+            }
+        }
     }
 
     // MARK: - Initializers & Helpers
 
-    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, thumbnailURL: URL? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) {
+    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, thumbnailURL: URL? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil, feedCrop: MediaItemFeedCrop? = nil) {
         self.id = id
         self.image = image
         self.videoURL = videoURL
@@ -155,9 +210,12 @@ struct CreatorMedia: Identifiable {
         self.videoDuration = videoDuration
         self.videoFileSize = videoFileSize
         self.videoResolution = videoResolution
+        self.immersiveImage = nil
+        self.immersiveAspectRatio = nil
+        self.feedCrop = feedCrop
     }
 
-    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, thumbnailURL: URL? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) {
+    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, thumbnailURL: URL? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil, feedCrop: MediaItemFeedCrop? = nil) {
         self.id = UUID().uuidString
         self.image = image
         self.videoURL = videoURL
@@ -170,10 +228,13 @@ struct CreatorMedia: Identifiable {
         self.videoDuration = videoDuration
         self.videoFileSize = videoFileSize
         self.videoResolution = videoResolution
+        self.immersiveImage = nil
+        self.immersiveAspectRatio = nil
+        self.feedCrop = feedCrop
     }
 
     func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, thumbnailURL: URL? = nil, image: UIImage? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode? = nil, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) -> CreatorMedia {
-        CreatorMedia(
+        var copy = CreatorMedia(
             id: self.id,
             image: image ?? self.image,
             videoURL: videoURL ?? self.videoURL,
@@ -188,6 +249,10 @@ struct CreatorMedia: Identifiable {
             videoFileSize: videoFileSize ?? self.videoFileSize,
             videoResolution: videoResolution ?? self.videoResolution
         )
+        copy.immersiveImage = self.immersiveImage
+        copy.immersiveAspectRatio = self.immersiveAspectRatio
+        copy.feedCrop = self.feedCrop
+        return copy
     }
 
     var isValidVideo: Bool {
@@ -265,104 +330,5 @@ struct CreatorScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         MomentsPressButtonStyle(scale: 0.95, pressedOpacity: 0.9, haptic: .light)
             .makeBody(configuration: configuration)
-    }
-}
-
-// MARK: - Selected Media Blur Background
-// MARK: - Selected Media Blur Background
-struct SelectedMediaBlurView: View {
-    let mediaItems: [CreatorMedia]
-    @Environment(\.colorScheme) var colorScheme
-
-    var body: some View {
-        ZStack {
-            // Base background
-            Color.black.ignoresSafeArea()
-
-            if !mediaItems.isEmpty {
-                GeometryReader { geometry in
-                    let displayItems = Array(mediaItems.prefix(4))
-
-                    ZStack {
-                        // Dynamic layout based on count to fill space
-                        switch displayItems.count {
-                        case 1:
-                            // Full screen
-                            Image(uiImage: displayItems[0].image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: geometry.size.width, height: geometry.size.height)
-                                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-
-                        case 2:
-                            // Split vertically (Top/Bottom) with slight overlap
-                            ForEach(0..<2, id: \.self) { index in
-                                Image(uiImage: displayItems[index].image)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: geometry.size.width, height: geometry.size.height * 0.6)
-                                    .position(
-                                        x: geometry.size.width / 2,
-                                        y: index == 0 ? geometry.size.height * 0.25 : geometry.size.height * 0.75
-                                    )
-                            }
-
-                        case 3:
-                            // Top half full width, bottom half split
-                            ForEach(0..<3, id: \.self) { index in
-                                let item = displayItems[index]
-                                if index == 0 {
-                                    // Top Hero
-                                    Image(uiImage: item.image)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: geometry.size.width, height: geometry.size.height * 0.6)
-                                        .position(x: geometry.size.width / 2, y: geometry.size.height * 0.25)
-                                } else {
-                                    // Bottom Left/Right
-                                    let isRight = index == 2
-                                    Image(uiImage: item.image)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: geometry.size.width * 0.6, height: geometry.size.height * 0.6)
-                                        .position(
-                                            x: isRight ? geometry.size.width * 0.75 : geometry.size.width * 0.25,
-                                            y: geometry.size.height * 0.75
-                                        )
-                                }
-                            }
-
-                        default: // 4 or more
-                            // 2x2 Grid with overlap
-                            ForEach(0..<displayItems.count, id: \.self) { index in
-                                let item = displayItems[index]
-                                let isRight = index % 2 != 0
-                                let isBottom = index >= 2
-
-                                Image(uiImage: item.image)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: geometry.size.width * 0.6, height: geometry.size.height * 0.6)
-                                    .position(
-                                        x: isRight ? geometry.size.width * 0.75 : geometry.size.width * 0.25,
-                                        y: isBottom ? geometry.size.height * 0.75 : geometry.size.height * 0.25
-                                    )
-                            }
-                        }
-                    }
-                    .blur(radius: 40) // Moderate blur as requested (balanced for text legibility vs aesthetics)
-                    .overlay(Color.black.opacity(0.4)) // Darker overlay for text contrast
-                }
-                .ignoresSafeArea()
-            } else {
-                // Fallback gradient
-                LinearGradient(
-                    colors: [Color.black, Color.purple.opacity(0.2), Color.blue.opacity(0.1)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-            }
-        }
     }
 }

@@ -4,13 +4,13 @@ import CoreImage.CIFilterBuiltins
 
 class FilterService {
     static let shared = FilterService()
-    private let context = CIContext(options: [.useSoftwareRenderer: false, .priorityRequestLow: true])
+    let context = CIContext(options: [.useSoftwareRenderer: false, .priorityRequestLow: true])
 
     enum FilterCategory {
         case basic
         case look
     }
-    
+
     enum FilterType: String, CaseIterable {
         case normal = "Normal"
         case vivid = "Vivid"
@@ -32,7 +32,7 @@ class FilterService {
         case velvet = "Velvet"
         case slate = "Slate"
         case halo = "Halo"
-        
+
         var filterName: String? {
             switch self {
             case .normal: return nil
@@ -68,7 +68,7 @@ class FilterService {
     var lookFilters: [FilterType] {
         FilterType.allCases.filter { $0.category == .look }
     }
-    
+
     func applyFilter(_ type: FilterType, to image: UIImage, intensity: Double = 1.0) -> UIImage {
         let ciImage: CIImage
         if let existingCI = image.ciImage {
@@ -98,13 +98,12 @@ class FilterService {
         guard let cgImage = context.createCGImage(finalOutput, from: finalOutput.extent) else {
             return image
         }
-        
+
         return UIImage(cgImage: cgImage, scale: image.scale, orientation: image.imageOrientation)
     }
-    
-    // Optimized for previews
+
     func applyFilterToThumbnail(_ type: FilterType, to image: UIImage) -> UIImage {
-        return applyFilter(type, to: image, intensity: 1.0)
+        applyFilter(type, to: image, intensity: 1.0)
     }
 
     private func blendFilteredImage(_ filteredOutput: CIImage, over original: CIImage, intensity: Double) -> CIImage {

@@ -12,7 +12,7 @@ struct EchoViewerUI: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel: EchoViewModel
-
+    
     @State private var dragOffset: CGSize = .zero
     @State private var showLockoutAlert = false
     @State private var showIncompleteDecision = false
@@ -24,7 +24,7 @@ struct EchoViewerUI: View {
         case horizontal
         case vertical
     }
-
+    
     private struct EchoLocationPresentation: Identifiable {
         let id: String
         let locationName: String
@@ -34,30 +34,30 @@ struct EchoViewerUI: View {
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
-
+    
     init(echoId: String, initialEcho: Echo? = nil) {
         self.echoId = echoId
         self._viewModel = StateObject(wrappedValue: EchoViewModel(echoId: echoId, initialEcho: initialEcho))
     }
-
+    
     var body: some View {
-        ZStack {
+            ZStack {
             adaptiveColors.surfaceBackground.ignoresSafeArea()
-
-            if viewModel.isLoading {
+                
+                if viewModel.isLoading {
                 ProgressView()
                     .tint(adaptiveColors.primary)
-            } else if let echo = viewModel.echo {
+                } else if let echo = viewModel.echo {
                 VStack(spacing: 0) {
                     sessionHeader(echo: echo)
 
                     if viewModel.canBrowseMedia, viewModel.currentPost != nil {
                         deckStage
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if viewModel.isHistoricalIncomplete {
+                        } else if viewModel.isHistoricalIncomplete {
                         Spacer(minLength: 0)
-                    } else {
-                        waitingStateView
+                        } else {
+                            waitingStateView
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
 
@@ -67,14 +67,14 @@ struct EchoViewerUI: View {
                 }
             }
 
-            if showLockoutAlert {
-                glassAlertView
-            }
+                if showLockoutAlert {
+                    glassAlertView
+                }
 
-            if showIncompleteDecision {
-                incompleteDecisionOverlay
+                if showIncompleteDecision {
+                    incompleteDecisionOverlay
+                }
             }
-        }
         .statusBarHidden(false)
         .environment(\.profileDetailDirectVideoPlayback, true)
         .onAppear {
@@ -108,7 +108,7 @@ struct EchoViewerUI: View {
             )
         }
     }
-
+    
     // MARK: - Session header (hecho, no story bars)
 
     private func sessionHeader(echo: Echo) -> some View {
@@ -168,7 +168,7 @@ struct EchoViewerUI: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 10)
+                .padding(.top, 10)
         .padding(.bottom, 8)
     }
 
@@ -531,20 +531,20 @@ struct EchoViewerUI: View {
 
         return VStack(alignment: .leading, spacing: 0) {
             // Chrome de card: solo la franja superior.
-            HStack(spacing: 10) {
+                HStack(spacing: 10) {
                 if let perspective {
                     AsyncProfileImageView(userId: perspective.authorId)
                         .frame(width: 30, height: 30)
-                        .clipShape(Circle())
+                            .clipShape(Circle())
                         .overlay(Circle().stroke(adaptiveColors.primary.opacity(0.16), lineWidth: 1))
-
+                        
                     VStack(alignment: .leading, spacing: 1) {
                         Text(perspective.username)
-                            .font(.system(size: 14, weight: .semibold))
+                                .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(adaptiveColors.primary)
-                            .lineLimit(1)
+                                .lineLimit(1)
                         Text(relativeTimeText(from: post.timestamp))
-                            .font(.system(size: 11, weight: .medium))
+                                .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(adaptiveColors.secondary)
                     }
                 }
@@ -608,7 +608,7 @@ struct EchoViewerUI: View {
             }
         }
     }
-
+    
     private func deckDragGesture(allowsHorizontal: Bool) -> some Gesture {
         DragGesture(minimumDistance: 12)
             .onChanged { value in
@@ -662,14 +662,14 @@ struct EchoViewerUI: View {
     // MARK: - Perspective chooser (ángulo)
 
     private var perspectiveChooser: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
                 ForEach(Array(viewModel.groupedPerspectives.enumerated()), id: \.element.id) { index, perspective in
-                    Button {
-                        guard index != viewModel.currentPerspectiveIndex else { return }
-                        HapticManager.shared.selection()
-                        viewModel.switchPerspective(to: index)
-                    } label: {
+                        Button {
+                            guard index != viewModel.currentPerspectiveIndex else { return }
+                            HapticManager.shared.selection()
+                            viewModel.switchPerspective(to: index)
+                        } label: {
                         VStack(spacing: 4) {
                             ZStack(alignment: .bottomTrailing) {
                                 AsyncProfileImageView(userId: perspective.authorId)
@@ -686,7 +686,7 @@ struct EchoViewerUI: View {
                                     )
                                     .scaleEffect(viewModel.currentPerspectiveIndex == index ? 1.04 : 1)
                                     .animation(.easeOut(duration: 0.18), value: viewModel.currentPerspectiveIndex)
-
+                                
                                 if perspective.posts.count > 1 {
                                     Text("\(perspective.posts.count)")
                                         .font(.system(size: 10, weight: .bold))
@@ -703,22 +703,22 @@ struct EchoViewerUI: View {
                             }
 
                             Text(perspective.username)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(
-                                    viewModel.currentPerspectiveIndex == index
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(
+                                        viewModel.currentPerspectiveIndex == index
                                         ? adaptiveColors.primary
                                         : adaptiveColors.secondary
-                                )
-                                .lineLimit(1)
+                                    )
+                                    .lineLimit(1)
                                 .frame(maxWidth: 72)
+                            }
                         }
-                    }
                     .buttonStyle(.plain)
+                    }
                 }
-            }
             .padding(.horizontal, 12)
-        }
-        .scrollClipDisabled()
+            }
+            .scrollClipDisabled()
         .padding(.top, 2)
         .padding(.bottom, 2)
         .frame(maxWidth: .infinity)
@@ -819,7 +819,7 @@ struct EchoViewerUI: View {
                     Text(NSLocalizedString("echo.viewer.incomplete.delete", comment: ""))
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Color.red)
-                        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity)
                         .frame(height: 54)
                 }
 
@@ -852,13 +852,13 @@ struct EchoViewerUI: View {
         guard let date else { return "" }
         return MomentsFormat.relativeTime(from: date)
     }
-
+    
     private func leaveEchoAction(userId: String) {
         guard let echoId = viewModel.echo?.id else {
             dismiss()
             return
         }
-
+        
         EchoService.shared.leaveEcho(echoId: echoId, userId: userId) { error in
             if let error = error {
                 if (error as NSError).code == 403 {
@@ -870,13 +870,13 @@ struct EchoViewerUI: View {
                     return
                 }
             }
-
+            
             DispatchQueue.main.async {
                 dismiss()
             }
         }
     }
-
+    
     private var glassAlertView: some View {
         ZStack {
             Color.black.opacity(0.4)
@@ -884,14 +884,14 @@ struct EchoViewerUI: View {
                 .onTapGesture {
                     withAnimation { showLockoutAlert = false }
                 }
-
+            
             VStack(spacing: 18) {
                 Text(NSLocalizedString("echo.leave.locked", comment: ""))
                     .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 4)
-
+                
                 Button {
                     withAnimation { showLockoutAlert = false }
                 } label: {
@@ -918,7 +918,7 @@ struct EchoViewerUI: View {
             .transition(MotionPolicy.Transition.enterPop)
         }
     }
-
+    
     private func openInAppMap(for echo: Echo) {
         guard viewModel.canOpenLocationMap else { return }
         HapticManager.shared.lightImpact()
@@ -930,9 +930,9 @@ struct EchoViewerUI: View {
                 ? NSLocalizedString("echo.viewer.location.fallback", comment: "")
                 : resolvedLocationName,
             coordinate: CLLocationCoordinate2D(
-                latitude: echo.location.latitude,
-                longitude: echo.location.longitude
-            )
+            latitude: echo.location.latitude,
+            longitude: echo.location.longitude
+        )
         )
     }
 }
@@ -1022,7 +1022,7 @@ private struct EchoDeckCarousel: View {
             for: slideRatio,
             canvasAspectRatio: canvasRatio
         )
-        let isFit = mode == .fitWithBlur
+        let isFit = slide.feedCrop == nil && mode == .fitWithBlur
         let mediaItem = mediaItem(for: slide)
 
         ZStack {
@@ -1039,20 +1039,29 @@ private struct EchoDeckCarousel: View {
                 .frame(width: width, height: height)
                 .clipped()
             } else {
-                if isFit {
+                if let feedCrop = slide.feedCrop {
+                    NormalizedMediaCropContainer(feedCrop: feedCrop) {
+                        KFImage(URL(string: slide.mediaUrl))
+                            .resizable()
+                            .scaledToFit()
+                    }
+                    .frame(width: width, height: height)
+                } else {
+                    if isFit {
+                        KFImage(URL(string: slide.thumbnailUrl ?? slide.mediaUrl))
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: width, height: height)
+                            .blur(radius: 18)
+                            .opacity(0.55)
+                    }
+
                     KFImage(URL(string: slide.thumbnailUrl ?? slide.mediaUrl))
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .aspectRatio(contentMode: mode.swiftUIContentMode)
                         .frame(width: width, height: height)
-                        .blur(radius: 18)
-                        .opacity(0.55)
+                        .clipped()
                 }
-
-                KFImage(URL(string: slide.thumbnailUrl ?? slide.mediaUrl))
-                    .resizable()
-                    .aspectRatio(contentMode: mode.swiftUIContentMode)
-                    .frame(width: width, height: height)
-                    .clipped()
             }
 
             if isCarousel, onMediaTap != nil {
@@ -1093,6 +1102,7 @@ private struct EchoDeckCarousel: View {
             type: slide.mediaType == "video" ? .video : .image,
             url: slide.mediaUrl,
             aspectRatio: slide.aspectRatio ?? moment.aspectRatio,
+            feedCrop: slide.feedCrop,
             thumbnailUrl: slide.thumbnailUrl
         )
     }

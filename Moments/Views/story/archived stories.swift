@@ -314,29 +314,29 @@ struct ArchiveView: View {
                                             ForEach(Array(monthCells[start..<end])) { cell in
                                                 archiveCalendarDayCell(cell)
                                             }
-                            openCalendarStories(pin.stories)
-                        } label: {
-                            ZStack(alignment: .topTrailing) {
-                                if let story = pin.stories.first {
-                                    StoryStaticPreviewSurface(story: story, revealPolicy: .exposed)
-                                        .frame(width: 48, height: 48)
-                                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .stroke(Color.white.opacity(0.95), lineWidth: 2)
-                                        )
-                                } else {
-                                    Image(systemName: "mappin.circle.fill")
-                                        .font(.system(size: 34))
-                                        .foregroundStyle(Color(hex: "0A84FF"))
+                                        }
+                                    }
                                 }
+                                .padding(.horizontal, sectionHorizontalPadding)
+                            }
+                            .onAppear {
+                                if monthSection.id == calendarMonthSections.last?.id {
+                                    viewModel.loadMoreArchivedStories()
+                                }
+                            }
+                        }
+                        archivePagingFooter
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 24)
+                }
+                .momentRefresh {
+                    await reloadArchivedStories()
+                }
+            }
+        }
+    }
 
-                                if pin.stories.count > 1 {
-                                    Text("\(pin.stories.count)")
-                                        .font(.system(size: legacyPoppinsSize(10), weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 2)
     @ViewBuilder
     private func archiveCalendarDayCell(_ cell: ArchiveCalendarDayCell) -> some View {
         if let dayNumber = cell.dayNumber {
@@ -372,6 +372,35 @@ struct ArchiveView: View {
         }
     }
 
+    private var archiveMapView: some View {
+        ZStack {
+            Map(position: $mapPosition) {
+                ForEach(mapPins) { pin in
+                    Annotation("", coordinate: pin.coordinate) {
+                        Button {
+                            openCalendarStories(pin.stories)
+                        } label: {
+                            ZStack(alignment: .topTrailing) {
+                                if let story = pin.stories.first {
+                                    StoryStaticPreviewSurface(story: story, revealPolicy: .exposed)
+                                        .frame(width: 48, height: 48)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.white.opacity(0.95), lineWidth: 2)
+                                        )
+                                } else {
+                                    Image(systemName: "mappin.circle.fill")
+                                        .font(.system(size: 34))
+                                        .foregroundStyle(Color(hex: "0A84FF"))
+                                }
+
+                                if pin.stories.count > 1 {
+                                    Text("\(pin.stories.count)")
+                                        .font(.system(size: legacyPoppinsSize(10), weight: .bold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
                                         .background(Capsule().fill(Color(hex: "0A84FF")))
                                         .offset(x: 8, y: -8)
                                 }
@@ -505,35 +534,6 @@ struct ArchiveView: View {
         }
 
         var cells: [ArchiveCalendarDayCell] = []
-        cells.append(contentsOf: (0..<leadingBlanks).map { _ in ArchiveCalendarDayCell(dayNumber: nil, bucket: nil) })
-
-        for day in dayRange {
-            cells.append(ArchiveCalendarDayCell(dayNumber: day, bucket: bucketsByDay[day]))
-        }
-
-        while cells.count % 7 != 0 {
-            cells.append(ArchiveCalendarDayCell(dayNumber: nil, bucket: nil))
-        }
-        return cells
-    }
-
-    private var mapPins: [ArchiveStoryPin] {
-        var grouped: [String: (coordinate: CLLocationCoordinate2D, stories: [Story])] = [:]
-
-        for story in allStories {
-            guard let coordinate = storyCoordinate(story) else { continue }
-            let key = "\(round(coordinate.latitude * 1000) / 1000)|\(round(coordinate.longitude * 1000) / 1000)"
-            if grouped[key] == nil {
-                grouped[key] = (coordinate, [story])
-            } else {
-                grouped[key]?.stories.append(story)
-            }
-        }
-
-        return grouped.map { key, value in
-            let sortedStories = value.stories.sorted { $0.timestamp > $1.timestamp }
-            return ArchiveStoryPin(id: key, coordinate: value.coordinate, stories: sortedStories)
-        }
         let monthId = monthSection.id
         cells.append(contentsOf: (0..<leadingBlanks).map { index in
             ArchiveCalendarDayCell(id: "\(monthId)-lead-\(index)", dayNumber: nil, bucket: nil)
@@ -555,6 +555,35 @@ struct ArchiveView: View {
                 ArchiveCalendarDayCell(id: "\(monthId)-trail-\(trailing)", dayNumber: nil, bucket: nil)
             )
             trailing += 1
+        }
+        return cells
+    }
+
+    private var mapPins: [ArchiveStoryPin] {
+        var grouped: [String: (coordinate: CLLocationCoordinate2D, stories: [Story])] = [:]
+
+        for story in allStories {
+            guard let coordinate = storyCoordinate(story) else { continue }
+            let key = "\(round(coordinate.latitude * 1000) / 1000)|\(round(coordinate.longitude * 1000) / 1000)"
+            if grouped[key] == nil {
+                grouped[key] = (coordinate, [story])
+            } else {
+                grouped[key]?.stories.append(story)
+            }
+        }
+
+        return grouped.map { key, value in
+            let sortedStories = value.stories.sorted { $0.timestamp > $1.timestamp }
+            return ArchiveStoryPin(id: key, coordinate: value.coordinate, stories: sortedStories)
+        }
+    }
+
+    private func storyCoordinate(_ story: Story) -> CLLocationCoordinate2D? {
+        if let direct = storyCoordinateFromStickers(story) {
+            return direct
+        }
+        if let storyId = story.id, let cached = geocodedCoordinatesByStoryId[storyId] {
+            return cached
         }
         return nil
     }
@@ -680,7 +709,7 @@ private struct ArchiveCalendarMonthSection: Identifiable {
 }
 
 private struct ArchiveCalendarDayCell: Identifiable {
-    let id = UUID()
+    let id: String
     let dayNumber: Int?
     let bucket: ArchiveCalendarDayBucket?
 }
@@ -709,7 +738,7 @@ struct ArchiveDateSectionVertical: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
-    let id: String
+            
             // Stories in vertical format
             LazyVStack(spacing: 12) {
                 ForEach(stories) { story in

@@ -302,6 +302,7 @@
 "feed.uploading.more" = "+ %d개 더 업로드 중...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "처리 중";
+"feed.uploading.compressing" = "압축 중...";
 "feed.uploading.published" = "게시 완료!";
 "feed.uploading.retry" = "다시 시도";
 "feed.uploading.files" = "파일 %d개";
@@ -751,6 +752,33 @@
 "creator.interactions.disableComments.description" = "이 순간에 댓글을 남길 수 있는 사람이 없습니다";
 "creator.interactions.allowSharing" = "저장 허용";
 "creator.interactions.allowSharing.description" = "다른 사람들이 회원님의 순간을 컬렉션에 추가할 수 있어요";
+"creator.keepOriginalDimensions" = "원본 비율 유지";
+"creator.keepOriginalDimensions.info" = "켜면 피드에서 게시물을 길게 눌러 전체 사진을 볼 수 있어요. 끄면 카드에 보이는 크롭만 게시됩니다.";
+"creator.tools.filter" = "필터";
+"creator.tools.edit" = "편집";
+"creator.carousel.portrait" = "세로";
+"creator.carousel.landscape" = "가로";
+"creator.carousel.square" = "정사각형";
+"creator.carousel.remove" = "삭제";
+"creator.adjust.adjust" = "조정";
+"creator.adjust.straighten" = "수평 맞추기";
+"creator.adjust.vertical" = "세로";
+"creator.adjust.horizontal" = "가로";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "밝기";
+"creator.adjust.contrast" = "대비";
+"creator.adjust.texture" = "질감";
+"creator.adjust.warmth" = "온기";
+"creator.adjust.saturation" = "채도";
+"creator.adjust.color" = "색상";
+"creator.adjust.fade" = "페이드";
+"creator.adjust.highlights" = "하이라이트";
+"creator.adjust.shadows" = "그림자";
+"creator.adjust.vignette" = "비네팅";
+"creator.adjust.blur" = "흐리게";
+"creator.adjust.sharpen" = "선명하게";
+"creator.adjust.radial" = "원형";
+"creator.adjust.linear" = "선형";
 "creator.advancedSettings.title" = "고급 설정";
 "creator.visualization.title" = "시각화";
 "creator.visualization.hideReactions" = "반응 수 숨기기";
@@ -2601,6 +2629,7 @@
 "liveActivity.uploadingMoment" = "모먼트 업로드 중";
 "liveActivity.uploading" = "업로드 중...";
 "liveActivity.processing" = "처리 중...";
+"liveActivity.compressing" = "압축 중...";
 "liveActivity.completed" = "완료";
 "liveActivity.error" = "오류";
 /* Widget */
@@ -4008,6 +4037,7 @@
 "creator.upload.initializing" = "시작 중...";
 "creator.upload.uploading" = "업로드 중...";
 "creator.upload.processing" = "처리 중...";
+"creator.upload.compressing" = "압축 중...";
 "creator.upload.completed" = "게시됨";
 "creator.upload.failed" = "업로드하지 못했어요";
 "errors.video.invalidSource" = "동영상을 읽을 수 없어요.";

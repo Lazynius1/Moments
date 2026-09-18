@@ -328,10 +328,28 @@ final class LocalPersistenceService: ObservableObject {
         
         do {
             let cached = try context.fetch(descriptor)
-            return cached.compactMap { $0.toMoment() }
+            return sortProfileMoments(cached.compactMap { $0.toMoment() })
         } catch {
             AppLog.debug("❌ LocalPersistence: Error al cargar perfil: \(error)")
             return []
+        }
+    }
+
+    private func sortProfileMoments(_ moments: [Moment]) -> [Moment] {
+        moments.sorted { lhs, rhs in
+            let lhsPinned = lhs.isPinned == true
+            let rhsPinned = rhs.isPinned == true
+            if lhsPinned != rhsPinned {
+                return lhsPinned && !rhsPinned
+            }
+            if lhsPinned, rhsPinned {
+                let lhsPinnedAt = lhs.pinnedAt ?? lhs.timestamp
+                let rhsPinnedAt = rhs.pinnedAt ?? rhs.timestamp
+                if lhsPinnedAt != rhsPinnedAt {
+                    return lhsPinnedAt > rhsPinnedAt
+                }
+            }
+            return lhs.timestamp > rhs.timestamp
         }
     }
     

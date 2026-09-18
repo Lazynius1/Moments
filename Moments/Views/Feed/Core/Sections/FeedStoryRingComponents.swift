@@ -309,7 +309,7 @@ struct StoryUploadStatusLabel: View {
         switch status {
         case .initializing:
             return NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status")
-        case .uploading, .processing:
+        case .uploading, .processing, .compressing:
             return NSLocalizedString("feed.uploading.uploading", comment: "Uploading files status")
         case .completed, .moderated:
             return NSLocalizedString("feed.uploading.published", comment: "Moment published status")
@@ -441,7 +441,7 @@ struct StoryUploadCircleOverlay: View {
             Image(systemName: "exclamationmark")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(.white)
-        case .uploading, .processing:
+        case .uploading, .processing, .compressing:
             ZStack {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 18, weight: .bold))
@@ -487,7 +487,7 @@ struct StoryUploadCircleOverlay: View {
             auraOpacity = 0
             auraScale = 1
             auraBlur = 0
-        case .uploading, .processing:
+        case .uploading, .processing, .compressing:
             arrowOpacity = 1
             withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
                 arrowOffset = -3

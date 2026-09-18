@@ -1084,6 +1084,7 @@
 "feed.uploading.more" = "+ %d em envio...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "A processar";
+"feed.uploading.compressing" = "A comprimir...";
 "feed.uploading.published" = "Publicado!";
 "feed.uploading.retry" = "Tentar novamente";
 "feed.uploading.files" = "%d ficheiros";
@@ -1556,6 +1557,33 @@
 "creator.interactions.disableComments.description" = "Ninguém poderá comentar este moment";
 "creator.interactions.allowSharing" = "Permitir guardar";
 "creator.interactions.allowSharing.description" = "Outras pessoas podem adicionar o teu moment à coleção delas";
+"creator.keepOriginalDimensions" = "Manter dimensões originais";
+"creator.keepOriginalDimensions.info" = "Se estiver ativo, ao manter premido o moment no feed vês a foto completa. Se não, publica-se só o recorte do cartão.";
+"creator.tools.filter" = "Filtro";
+"creator.tools.edit" = "Editar";
+"creator.carousel.portrait" = "Retrato";
+"creator.carousel.landscape" = "Paisagem";
+"creator.carousel.square" = "Quadrada";
+"creator.carousel.remove" = "Remover";
+"creator.adjust.adjust" = "Ajuste";
+"creator.adjust.straighten" = "Endireitar";
+"creator.adjust.vertical" = "Vertical";
+"creator.adjust.horizontal" = "Horizontal";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Brilho";
+"creator.adjust.contrast" = "Contraste";
+"creator.adjust.texture" = "Textura";
+"creator.adjust.warmth" = "Calor";
+"creator.adjust.saturation" = "Saturação";
+"creator.adjust.color" = "Cor";
+"creator.adjust.fade" = "Desvanecer";
+"creator.adjust.highlights" = "Luzes";
+"creator.adjust.shadows" = "Sombras";
+"creator.adjust.vignette" = "Vinheta";
+"creator.adjust.blur" = "Desfoque";
+"creator.adjust.sharpen" = "Nitidez";
+"creator.adjust.radial" = "Radial";
+"creator.adjust.linear" = "Linear";
 "creator.advancedSettings.title" = "Definições avançadas";
 "creator.visualization.title" = "Visualização";
 "creator.visualization.hideReactions" = "Ocultar contagem de reações";
@@ -3503,6 +3531,7 @@
 "liveActivity.uploadingMoment" = "A enviar moment";
 "liveActivity.uploading" = "A enviar...";
 "liveActivity.processing" = "A processar...";
+"liveActivity.compressing" = "A comprimir...";
 "liveActivity.completed" = "Concluído";
 "liveActivity.error" = "Erro";
 
@@ -4984,6 +5013,7 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "creator.upload.initializing" = "A iniciar...";
 "creator.upload.uploading" = "A carregar...";
 "creator.upload.processing" = "A processar...";
+"creator.upload.compressing" = "A comprimir...";
 "creator.upload.completed" = "Publicado";
 "creator.upload.failed" = "Falha no carregamento";
 "errors.video.invalidSource" = "Não foi possível ler o vídeo.";

@@ -11,6 +11,7 @@ struct InAppBannerView: View {
     @State private var isQuickReplyExpanded = false
     @State private var suppressTapUntil: Date = .distantPast
     @State private var contentPreviewImage: String?
+    @State private var contentPreviewFeedCrop: MediaItemFeedCrop?
 
     private var isBannerInteractive: Bool {
         service.showBanner
@@ -116,6 +117,7 @@ struct InAppBannerView: View {
         }
         .onChange(of: notification.id) { _, _ in
             contentPreviewImage = nil
+            contentPreviewFeedCrop = nil
             loadImages(for: notification)
         }
     }
@@ -201,8 +203,7 @@ struct InAppBannerView: View {
     @ViewBuilder
     private func bannerTrailingIcon(for notification: Notification, isSystem: Bool, accentColor: Color) -> some View {
         if !isSystem, let previewPath = contentPreviewImage, let url = URL(string: previewPath) {
-            KFImage(url)
-                .resizable()
+            FeedCroppedRemoteImage(url: url, feedCrop: contentPreviewFeedCrop)
                 .scaledToFill()
                 .frame(width: 30, height: 30)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
@@ -287,12 +288,14 @@ struct InAppBannerView: View {
             DispatchQueue.main.async {
                 if case .success(let moment) = result {
                     contentPreviewImage = moment.previewImageURLString
+                    contentPreviewFeedCrop = moment.primaryVisibleMediaItem?.feedCrop
                 }
             }
         }
     }
 
     private func fetchStoryPreview(storyId: String, authorId: String?) {
+        contentPreviewFeedCrop = nil
         guard let userId = authorId else { return }
         Firestore.firestore()
             .collection("users")

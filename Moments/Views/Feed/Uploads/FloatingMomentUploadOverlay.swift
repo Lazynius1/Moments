@@ -263,7 +263,7 @@ struct FloatingMomentUploadOverlay: View {
             .frame(height: 6)
 
             HStack(spacing: 6) {
-                Text(statusLabel(for: moment.status))
+                    Text(statusLabel(for: moment.status))
                     .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                     .foregroundStyle(secondaryTextColor)
 
@@ -333,7 +333,7 @@ struct FloatingMomentUploadOverlay: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(iconColor)
                 .transition(MotionPolicy.Transition.enterPop)
-        case .processing, .uploading:
+        case .processing, .compressing, .uploading:
             ZStack {
                 // Ascending aura arrow
                 Image(systemName: "arrow.up")
@@ -412,7 +412,7 @@ struct FloatingMomentUploadOverlay: View {
                 isExpanded = true
             }
             resetAnimationStates()
-        case .uploading, .processing:
+        case .uploading, .compressing, .processing:
             resetAnimationStates()
         }
     }
@@ -454,7 +454,7 @@ struct FloatingMomentUploadOverlay: View {
     }
 
     private func updateArrowAnimation(for status: UploadStatus) {
-        if status == .uploading || status == .processing {
+        if status == .uploading || status == .compressing || status == .processing {
             // Main arrow bobs gently
             withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
                 arrowBobOffset = -3
@@ -497,6 +497,8 @@ struct FloatingMomentUploadOverlay: View {
                 return "\(statusText(for: moment)) · \(moment.currentMediaIndex + 1)/\(moment.mediaCount) · \(fileDetail)"
             }
             return "\(statusText(for: moment)) · \(fileDetail)"
+        case .compressing:
+            return NSLocalizedString("feed.uploading.compressing", comment: "Compressing video status")
         case .processing:
             return NSLocalizedString("feed.uploading.creating", comment: "Creating moment status")
         case .completed, .moderated:
@@ -512,6 +514,8 @@ struct FloatingMomentUploadOverlay: View {
             return NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status")
         case .uploading:
             return NSLocalizedString("feed.uploading.uploading", comment: "Uploading files status")
+        case .compressing:
+            return NSLocalizedString("feed.uploading.compressing", comment: "Compressing video status")
         case .processing:
             return NSLocalizedString("feed.uploading.processing", comment: "Processing upload status")
         case .completed, .moderated:
@@ -527,6 +531,8 @@ struct FloatingMomentUploadOverlay: View {
             return NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status")
         case .uploading:
             return NSLocalizedString("feed.uploading.uploading", comment: "Uploading files status")
+        case .compressing:
+            return NSLocalizedString("feed.uploading.compressing", comment: "Compressing video status")
         case .processing:
             return NSLocalizedString("feed.uploading.processing", comment: "Processing upload status")
         case .completed, .moderated:

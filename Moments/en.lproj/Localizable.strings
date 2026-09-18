@@ -317,6 +317,7 @@
 "feed.uploading.more" = "+ %d more uploading...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "Processing";
+"feed.uploading.compressing" = "Compressing...";
 "feed.uploading.published" = "Published!";
 "feed.uploading.retry" = "Retry";
 "feed.uploading.files" = "%d files";
@@ -810,6 +811,33 @@
 "creator.interactions.disableComments.description" = "No one will be able to comment on this moment";
 "creator.interactions.allowSharing" = "Allow bookmarking";
 "creator.interactions.allowSharing.description" = "Others can add your moment to their collection";
+"creator.keepOriginalDimensions" = "Keep original dimensions";
+"creator.keepOriginalDimensions.info" = "When on, holding a post in the feed reveals the full photo. When off, only the cropped card is published.";
+"creator.tools.filter" = "Filter";
+"creator.tools.edit" = "Edit";
+"creator.carousel.portrait" = "Portrait";
+"creator.carousel.landscape" = "Landscape";
+"creator.carousel.square" = "Square";
+"creator.carousel.remove" = "Remove";
+"creator.adjust.adjust" = "Adjust";
+"creator.adjust.straighten" = "Straighten";
+"creator.adjust.vertical" = "Vertical";
+"creator.adjust.horizontal" = "Horizontal";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Brightness";
+"creator.adjust.contrast" = "Contrast";
+"creator.adjust.texture" = "Texture";
+"creator.adjust.warmth" = "Warmth";
+"creator.adjust.saturation" = "Saturation";
+"creator.adjust.color" = "Color";
+"creator.adjust.fade" = "Fade";
+"creator.adjust.highlights" = "Highlights";
+"creator.adjust.shadows" = "Shadows";
+"creator.adjust.vignette" = "Vignette";
+"creator.adjust.blur" = "Blur";
+"creator.adjust.sharpen" = "Sharpen";
+"creator.adjust.radial" = "Radial";
+"creator.adjust.linear" = "Linear";
 "creator.advancedSettings.title" = "Advanced Settings";
 "creator.visualization.title" = "Visualization";
 "creator.visualization.hideReactions" = "Hide reaction count";
@@ -2739,6 +2767,7 @@
 "liveActivity.uploadingMoment" = "Uploading moment";
 "liveActivity.uploading" = "Uploading...";
 "liveActivity.processing" = "Processing...";
+"liveActivity.compressing" = "Compressing...";
 "liveActivity.completed" = "Completed";
 "liveActivity.error" = "Error";
 
@@ -4289,6 +4318,7 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "creator.upload.initializing" = "Starting...";
 "creator.upload.uploading" = "Uploading...";
 "creator.upload.processing" = "Processing...";
+"creator.upload.compressing" = "Compressing...";
 "creator.upload.completed" = "Published";
 "creator.upload.failed" = "Upload failed";
 "errors.video.invalidSource" = "Could not read the video.";

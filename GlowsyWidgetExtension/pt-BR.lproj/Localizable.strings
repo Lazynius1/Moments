@@ -26,6 +26,7 @@
 "liveActivity.uploadingMoment" = "Enviando moment";
 "liveActivity.uploading" = "Enviando...";
 "liveActivity.processing" = "Processando...";
+"liveActivity.compressing" = "Compactando...";
 "liveActivity.completed" = "Concluído";
 "liveActivity.error" = "Erro";
 "incognito.activity.title" = "Anônimo";

@@ -542,7 +542,7 @@ struct ModernVideoPlayer: View {
         ZStack {
             RoundedRectangle(cornerRadius: 0)
                 .fill(.ultraThinMaterial)
-                .aspectRatio(min(aspectRatio, 0.8), contentMode: .fit)
+                .aspectRatio(MomentFeedCrop.feedCardAspect(from: aspectRatio), contentMode: .fit)
             
             if hasLoadError {
                 VStack(spacing: 10) {

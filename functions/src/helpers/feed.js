@@ -537,6 +537,15 @@ function serializeMediaItem(item) {
     type: item.type || null,
     url: item.url || null,
     aspectRatio: item.aspectRatio || null,
+    feedCrop: item.feedCrop && typeof item.feedCrop === 'object'
+      ? {
+          cardAspect: item.feedCrop.cardAspect || null,
+          x: Number(item.feedCrop.x),
+          y: Number(item.feedCrop.y),
+          width: Number(item.feedCrop.width),
+          height: Number(item.feedCrop.height)
+        }
+      : null,
     thumbnailUrl: item.thumbnailUrl || null,
     videoDuration: item.videoDuration || null,
     videoFileSize: item.videoFileSize || null,
@@ -646,7 +655,9 @@ function serializeMoment(docId, data) {
     aspectRatio: data.aspectRatio || null,
     customListId: data.customListId || null,
     thumbnailUrl: hasStructuredMediaItems
-      ? (primaryVisibleThumbnailUrl || previewUrl || null)
+      ? (primaryVisibleMediaItem?.type === 'video'
+          ? (primaryVisibleThumbnailUrl || previewUrl || null)
+          : null)
       : data.thumbnailUrl || null,
     videoDuration: data.videoDuration || null,
     videoFileSize: data.videoFileSize || null,
@@ -655,6 +666,8 @@ function serializeMoment(docId, data) {
     hideLikeCounts: data.hideLikeCounts || false,
     allowSharing: data.allowSharing !== false,
     scheduledDate: tsToMillis(data.scheduledDate),
+    isPinned: data.isPinned === true ? true : null,
+    pinnedAt: tsToMillis(data.pinnedAt),
     hasHiddenLayers: data.hasHiddenLayers === true,
     hiddenLayerCount: Number.isInteger(data.hiddenLayerCount) ? data.hiddenLayerCount : 0
   };

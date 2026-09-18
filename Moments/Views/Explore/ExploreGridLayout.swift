@@ -522,12 +522,12 @@ struct ExploreMomentThumbnail: View {
         } else if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
             if mediaItem.type == .video {
                 if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
-                    fillImage(urlString: thumbnailUrl)
+                    fillImage(urlString: thumbnailUrl, feedCrop: mediaItem.feedCrop)
                 } else {
                     generatedVideoThumbnail(videoURL: mediaItem.url)
                 }
             } else {
-                fillImage(urlString: mediaItem.url)
+                fillImage(urlString: mediaItem.url, feedCrop: mediaItem.feedCrop)
             }
         } else if let imagePath = moment.previewImageURLString, let url = getImageURL(from: imagePath) {
             KFImage(url)
@@ -548,9 +548,9 @@ struct ExploreMomentThumbnail: View {
     private var portraitMedia: some View {
         if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
             if mediaItem.type == .image {
-                fillImage(urlString: mediaItem.url)
+                fillImage(urlString: mediaItem.url, feedCrop: mediaItem.feedCrop)
             } else if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
-                fillImage(urlString: thumbnailUrl)
+                fillImage(urlString: thumbnailUrl, feedCrop: mediaItem.feedCrop)
             } else {
                 generatedVideoThumbnail(videoURL: mediaItem.url)
             }
@@ -564,10 +564,11 @@ struct ExploreMomentThumbnail: View {
     }
 
     @ViewBuilder
-    private func fillImage(urlString: String) -> some View {
+    private func fillImage(urlString: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
         if let url = getImageURL(from: urlString) {
             KFImage(url)
                 .placeholder { placeholder }
+                .applyingFeedCrop(feedCrop)
                 .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
                 .scaleFactor(displayScale)
                 .cancelOnDisappear(true)

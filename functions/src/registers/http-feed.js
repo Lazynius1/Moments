@@ -2175,21 +2175,38 @@ const getProfileMomentsPage = onRequest(
         return;
       }
 
-      let query = db.collection(`users/${targetUserId}/moments`)
-        .orderBy('timestamp', 'desc');
+      const momentsRef = db.collection(`users/${targetUserId}/moments`);
+      const hasCursor = Number.isFinite(cursorTimestamp) && cursorTimestamp > 0;
 
-      if (Number.isFinite(cursorTimestamp) && cursorTimestamp > 0) {
-        query = query.startAfter(admin.firestore.Timestamp.fromMillis(cursorTimestamp));
+      let recentQuery = momentsRef.orderBy('timestamp', 'desc');
+      if (hasCursor) {
+        recentQuery = recentQuery.startAfter(admin.firestore.Timestamp.fromMillis(cursorTimestamp));
       }
 
-      const snap = await query.limit(scanLimit).get();
-      if (snap.empty) {
+      // Primera página: fusionar pineados (como el cliente propio) para que no se pierdan
+      // posts antiguos fijados fuera de la ventana por timestamp.
+      const [recentSnap, pinnedSnap] = await Promise.all([
+        recentQuery.limit(scanLimit).get(),
+        hasCursor
+          ? Promise.resolve({ docs: [], empty: true, size: 0 })
+          : momentsRef.where('isPinned', '==', true).limit(50).get()
+      ]);
+
+      if (recentSnap.empty && pinnedSnap.empty) {
         res.status(200).json({ moments: [], nextCursor: null, source: 'backend', totalCandidates: 0, totalVisibleCount: includeTotalCount ? 0 : undefined });
         return;
       }
 
+      const seenIds = new Set();
+      const mergedDocs = [];
+      for (const doc of [...pinnedSnap.docs, ...recentSnap.docs]) {
+        if (seenIds.has(doc.id)) continue;
+        seenIds.add(doc.id);
+        mergedDocs.push(doc);
+      }
+
       const now = Date.now();
-      const filteredByCursor = snap.docs.filter((doc) => !cursorMomentId || doc.id !== cursorMomentId);
+      const filteredByCursor = mergedDocs.filter((doc) => !cursorMomentId || doc.id !== cursorMomentId);
       const candidates = filteredByCursor.filter((doc) => {
         const data = doc.data() || {};
         if (data.isArchived === true) return false;
@@ -2220,19 +2237,48 @@ const getProfileMomentsPage = onRequest(
       );
 
       const visibleDocs = privacyResults.filter((entry) => entry.canView);
-      const moments = visibleDocs.slice(0, limit).map(({ doc, data }) => serializeMoment(doc.id, data));
+      visibleDocs.sort((a, b) => {
+        const aPinned = a.data.isPinned === true;
+        const bPinned = b.data.isPinned === true;
+        if (aPinned !== bPinned) return aPinned ? -1 : 1;
+        if (aPinned && bPinned) {
+          const aPin = tsToMillis(a.data.pinnedAt) || tsToMillis(a.data.timestamp) || 0;
+          const bPin = tsToMillis(b.data.pinnedAt) || tsToMillis(b.data.timestamp) || 0;
+          if (aPin !== bPin) return bPin - aPin;
+        }
+        return (tsToMillis(b.data.timestamp) || 0) - (tsToMillis(a.data.timestamp) || 0);
+      });
+
+      // Garantizar todos los pineados visibles en la primera página; el resto llena hasta limit.
+      let pageEntries;
+      if (!hasCursor) {
+        const pins = visibleDocs.filter((entry) => entry.data.isPinned === true);
+        const nonPins = visibleDocs.filter((entry) => entry.data.isPinned !== true);
+        const nonPinSlots = Math.max(0, limit - pins.length);
+        pageEntries = [...pins, ...nonPins.slice(0, nonPinSlots)];
+      } else {
+        pageEntries = visibleDocs.slice(0, limit);
+      }
+      const moments = pageEntries.map(({ doc, data }) => serializeMoment(doc.id, data));
 
       let nextCursor = null;
-      if (!includeTotalCount && snap.size >= limit && snap.docs.length > 0) {
-        const lastDoc = snap.docs[snap.docs.length - 1];
-        nextCursor = {
-          timestamp: tsToMillis(lastDoc.data().timestamp),
-          momentId: lastDoc.id,
-          authorId: targetUserId
-        };
+      if (!includeTotalCount) {
+        const returnedNonPins = pageEntries.filter((entry) => entry.data.isPinned !== true);
+        const lastReturnedNonPin = returnedNonPins[returnedNonPins.length - 1];
+        const hasMoreRecent =
+          recentSnap.size >= scanLimit ||
+          visibleDocs.filter((entry) => entry.data.isPinned !== true).length > returnedNonPins.length;
+        if (hasMoreRecent && (lastReturnedNonPin || recentSnap.docs.length > 0)) {
+          const cursorDoc = lastReturnedNonPin?.doc || recentSnap.docs[recentSnap.docs.length - 1];
+          nextCursor = {
+            timestamp: tsToMillis(cursorDoc.data().timestamp),
+            momentId: cursorDoc.id,
+            authorId: targetUserId
+          };
+        }
       }
 
-      console.log(`✅ getProfileMomentsPage: viewer=${uid}, target=${targetUserId}, scanned=${snap.size}, returned=${moments.length}${includeTotalCount ? `, totalVisible=${visibleDocs.length}` : ''}`);
+      console.log(`✅ getProfileMomentsPage: viewer=${uid}, target=${targetUserId}, scanned=${recentSnap.size}+pinned=${pinnedSnap.size || 0}, returned=${moments.length}${includeTotalCount ? `, totalVisible=${visibleDocs.length}` : ''}`);
       res.status(200).json({
         moments,
         nextCursor,

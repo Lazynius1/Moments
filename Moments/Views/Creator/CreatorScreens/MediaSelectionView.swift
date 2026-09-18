@@ -16,7 +16,6 @@ struct MediaSelectionView: View {
     @State private var thumbnails: [String: UIImage] = [:]
     @State private var selectedAssetIDs: [String] = []
     @State private var isLoadingLibrary = true
-    @State private var showingCamera = false
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
     @StateObject private var photosGate = PermissionPrimerGate(.photos)
     @State private var showingVideoTooLongAlert = false
@@ -26,47 +25,40 @@ struct MediaSelectionView: View {
     @State private var availableAlbums: [AlbumInfo] = []
     @State private var selectedAlbum: AlbumInfo?
     @State private var showingAlbumPicker = false
+    @State private var cropSessions: [String: AssetCropSession] = [:]
+    @State private var cropWindowSizes: [String: CGSize] = [:]
+    @State private var previewImages: [String: UIImage] = [:]
+    @State private var isMultiSelect = false
 
     private let imageManager = PHImageManager.default()
     private let thumbnailSize = CGSize(width: 300, height: 300)
-
-    // Grid layout mejorado con columnas fijas para mejor control
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 4)
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            headerView
-
-            // Preview del archivo seleccionado principal
-            if !selectedAssetIDs.isEmpty {
+        GeometryReader { geo in
+            VStack(spacing: 0) {
+                headerView
                 mainPreviewSection
+                    .frame(width: geo.size.width, height: previewHeight(in: geo.size))
+                mediaGridSection
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-
-            // Grid de fotos y videos
-            mediaGridSection
         }
         .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
         .matchedGeometryEffect(id: "momentSource", in: animation) // ✅ Unfold Target
         .onAppear {
+#if DEBUG
+            MomentFeedCrop.validateDebugContract()
+#endif
             requestPhotoLibraryAccess()
         }
-        .permissionPrimerGate(photosGate)
-        .fullScreenCover(isPresented: $showingCamera) {
-            CameraAccessBoundary(requiresMicrophone: true, onCancel: { showingCamera = false }) {
-                CameraCapture { media in
-                    if media.type == .video,
-                       let duration = media.videoDuration,
-                       duration > CreatorMedia.maxMomentVideoDuration {
-                        rejectedVideoDuration = duration
-                        showingVideoTooLongAlert = true
-                        return
-                    }
-                    selectedMediaItems.append(media)
-                    currentFlow = .mediaEditing
-                }
-            }
+        .onChange(of: selectedAssetIDs.last) { _, id in
+            guard let id,
+                  let asset = mediaAssets.first(where: { $0.localIdentifier == id }) else { return }
+            ensureCropSession(for: asset)
+            loadPreviewImage(for: asset)
         }
+        .permissionPrimerGate(photosGate)
         .alert("momentVideo.tooLong.title", isPresented: $showingVideoTooLongAlert) {
             Button("common.understood") {
                 showingVideoTooLongAlert = false
@@ -90,7 +82,6 @@ struct MediaSelectionView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(width: 40, height: 40)
-                    .momentsChromeGlass(in: Circle(), interactive: true)
             }
 
             Spacer()
@@ -102,12 +93,10 @@ struct MediaSelectionView: View {
             Spacer()
 
             if !selectedAssetIDs.isEmpty {
-                GlowSharePill(
-                    title: "creator.next",
-                    icon: "chevron.right",
-                    isSmall: true
-                ) {
-                    processSelectedAssets()
+                Button(action: processSelectedAssets) {
+                    Text(NSLocalizedString("creator.next", comment: ""))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color(hex: "0095F6"))
                 }
             } else {
                 Color.clear.frame(width: 40, height: 40)
@@ -126,113 +115,30 @@ struct MediaSelectionView: View {
     // MARK: - Preview principal
     private var mainPreviewSection: some View {
         VStack(spacing: 0) {
-            // Preview grande del archivo seleccionado
-            if let currentAssetID = selectedAssetIDs.last, // Usar el último seleccionado para el preview principal
-               let currentAsset = mediaAssets.first(where: { $0.localIdentifier == currentAssetID }) {
-
-                ZStack {
-                    Color.black
-
-                    // Fondo Cinemático (Blur) — recortado al lienzo fijo
-                    if let thumbnail = thumbnails[currentAssetID] {
-                        Image(uiImage: thumbnail)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .blur(radius: 30)
-                            .opacity(0.6)
-                            .overlay(Color.black.opacity(0.2))
+            let currentAssetID = selectedAssetIDs.last
+            let currentAsset = currentAssetID.flatMap { id in
+                mediaAssets.first(where: { $0.localIdentifier == id })
+            }
+            MomentFeedCropCanvas(
+                image: currentAssetID.flatMap { previewImages[$0] },
+                isVideo: currentAsset?.mediaType == .video,
+                videoDurationText: currentAsset.map { formatDuration($0.duration) },
+                session: currentCropSession(for: currentAsset),
+                cropAspect: sharedCropAspect,
+                onSessionChange: { session in
+                    if let id = currentAssetID {
+                        cropSessions[id] = session
                     }
-
-                    if let thumbnail = thumbnails[currentAssetID] {
-                        Image(uiImage: thumbnail)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .padding(.vertical, 10)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
-                    } else {
-                        ProgressView()
-                            .tint(.white)
-                    }
-
-                    // Indicador de video
-                    if currentAsset.mediaType == .video {
-                        VStack {
-                            Spacer()
-                            HStack {
-                                Spacer()
-                                HStack(spacing: 4) {
-                                    Image(systemName: "video.fill")
-                                        .font(.caption)
-                                    Text(formatDuration(currentAsset.duration))
-                                        .font(.caption.bold())
-                                }
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(.black.opacity(0.5))
-                                .clipShape(Capsule())
-                                .padding(12)
-                            }
-                        }
-                    }
-
-                    // Botón para deseleccionar rápido
-                    VStack {
-                        HStack {
-                            Button(action: { toggleAssetSelection(currentAsset) }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.title3)
-                                    .foregroundStyle(.white.opacity(0.8))
-                                    .padding(12)
-                            }
-                            Spacer()
-                        }
-                        Spacer()
+                },
+                showsAspectToggle: currentAssetID != nil && currentAssetID == selectedAssetIDs.first,
+                onWindowSizeChange: { size in
+                    if let id = currentAssetID {
+                        cropWindowSizes[id] = size
                     }
                 }
-                .frame(height: 320)
-                .clipped()
-                .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.95)), removal: .opacity))
-            }
-
-            // Carrusel de Multiselección
-            if selectedAssetIDs.count > 0 {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(selectedAssetIDs, id: \.self) { id in
-                            if let thumb = thumbnails[id] {
-                                ZStack {
-                                    Image(uiImage: thumb)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: 50, height: 50)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(id == selectedAssetIDs.last ? Color.pink : Color.white.opacity(0.3), lineWidth: 2)
-                                        )
-                                }
-                                .onTapGesture {
-                                    // Mover al final para que sea el preview principal
-                                    if let index = selectedAssetIDs.firstIndex(of: id) {
-                                        let item = selectedAssetIDs.remove(at: index)
-                                        selectedAssetIDs.append(item)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                }
-                .background(
-                    (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                        .opacity(colorScheme == .dark ? 0.92 : 0.98)
-                )
-            }
+            )
+            .id(currentAssetID)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -244,48 +150,42 @@ struct MediaSelectionView: View {
                 .fill(Color.gray.opacity(0.3))
                 .frame(height: 1)
 
-            // Header con selector de álbum y botón de cámara
-            HStack {
+            // Header con selector de álbum
+            HStack(spacing: 12) {
                 Button(action: {
                     showingAlbumPicker = true
                 }) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         Text(selectedAlbum?.title ?? NSLocalizedString("creator.album.recents", comment: "Recents"))
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
-
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5))
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .rotationEffect(.degrees(showingAlbumPicker ? 180 : 0))
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
-                    .clipShape(Capsule())
                 }
 
                 Spacer()
 
-                Button(action: {
-                    showingCamera = true
-                }) {
-                    HStack(spacing: 6) {
-                        AttachmentIconView(icon: .camera, preset: .creatorCameraChip, tintColor: .white)
-                        Text(NSLocalizedString("creator.camera", comment: ""))
-                            .font(.system(size: 14, weight: .bold))
+                Button {
+                    isMultiSelect.toggle()
+                    if !isMultiSelect, let current = selectedAssetIDs.last {
+                        selectedAssetIDs = [current]
                     }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(
-                        LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing)
-                    )
-                    .clipShape(Capsule())
+                } label: {
+                    Image(systemName: "square.on.square")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(isMultiSelect ? Color(hex: "0B1215") : (colorScheme == .dark ? .white : .black))
+                        .frame(width: 32, height: 32)
+                        .background(
+                            Circle().fill(isMultiSelect ? Color.white : (colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.08)))
+                        )
                 }
+                .accessibilityLabel(Text("creator.multiple"))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
             .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
 
             // Grid de fotos
@@ -295,19 +195,21 @@ struct MediaSelectionView: View {
                 permissionDeniedView
             } else {
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 2, pinnedViews: []) {
+                    LazyVGrid(columns: columns, spacing: 1) {
                         ForEach(mediaAssets, id: \.localIdentifier) { asset in
                             MediaGridCell(
                                 asset: asset,
                                 thumbnail: thumbnails[asset.localIdentifier],
                                 isSelected: selectedAssetIDs.contains(asset.localIdentifier),
-                                selectionNumber: selectedAssetIDs.firstIndex(of: asset.localIdentifier).map { $0 + 1 },
+                                isMultiSelect: isMultiSelect,
+                                selectionNumber: isMultiSelect
+                                    ? selectedAssetIDs.firstIndex(of: asset.localIdentifier).map { $0 + 1 }
+                                    : nil,
                                 onTap: { toggleAssetSelection(asset) }
                             )
                             .aspectRatio(1, contentMode: .fit)
                         }
                     }
-                    .padding(.horizontal, 2)
                     .padding(.bottom, 20)
                 }
             }
@@ -459,6 +361,8 @@ struct MediaSelectionView: View {
         mediaAssets = []
         thumbnails = [:]
         selectedAssetIDs = []
+        cropSessions = [:]
+        previewImages = [:]
 
         Task {
             let fetchOptions = PHFetchOptions()
@@ -478,6 +382,7 @@ struct MediaSelectionView: View {
             await MainActor.run {
                 self.mediaAssets = assetArray
                 loadThumbnails()
+                autoSelectFirstIfNeeded()
             }
         }
     }
@@ -500,6 +405,7 @@ struct MediaSelectionView: View {
             await MainActor.run {
                 self.mediaAssets = assetArray
                 loadThumbnails()
+                autoSelectFirstIfNeeded()
             }
         }
     }
@@ -553,40 +459,86 @@ struct MediaSelectionView: View {
         }
     }
 
-    private func toggleAssetSelection(_ asset: PHAsset) {
-        let assetID = asset.localIdentifier
-
-        if selectedAssetIDs.contains(assetID) {
-            selectedAssetIDs.removeAll { $0 == assetID }
-        } else {
-            if asset.mediaType == .video, asset.duration > CreatorMedia.maxMomentVideoDuration {
-                rejectedVideoDuration = asset.duration
-                showingVideoTooLongAlert = true
-                return
-            }
-
-            if selectedAssetIDs.count < 10 {
-                selectedAssetIDs.append(assetID)
-            }
+    private var sharedCropAspect: CGFloat {
+        guard let id = selectedAssetIDs.first else { return MomentFeedCrop.squareAspect }
+        if let session = cropSessions[id] {
+            return session.cropAspect
         }
+        return MomentFeedCrop.squareAspect
+    }
 
-        if thumbnails[assetID] == nil {
-            loadHighQualityThumbnail(for: asset)
+    private func previewHeight(in size: CGSize) -> CGFloat {
+        size.width
+    }
+
+    private func currentCropSession(for asset: PHAsset?) -> AssetCropSession {
+        guard let asset else { return AssetCropSession(pixelWidth: 1, pixelHeight: 1) }
+        return cropSessions[asset.localIdentifier]
+            ?? AssetCropSession(pixelWidth: asset.pixelWidth, pixelHeight: asset.pixelHeight)
+    }
+
+    private func ensureCropSession(for asset: PHAsset) {
+        if cropSessions[asset.localIdentifier] == nil {
+            cropSessions[asset.localIdentifier] = AssetCropSession(
+                pixelWidth: asset.pixelWidth,
+                pixelHeight: asset.pixelHeight
+            )
         }
     }
 
-    private func loadHighQualityThumbnail(for asset: PHAsset) {
+    private func autoSelectFirstIfNeeded() {
+        guard selectedAssetIDs.isEmpty else { return }
+        guard let firstEligible = mediaAssets.first(where: { asset in
+            asset.mediaType != .video || asset.duration <= CreatorMedia.maxMomentVideoDuration
+        }) else { return }
+        ensureCropSession(for: firstEligible)
+        selectedAssetIDs = [firstEligible.localIdentifier]
+        loadPreviewImage(for: firstEligible)
+    }
+
+    private func toggleAssetSelection(_ asset: PHAsset) {
+        let assetID = asset.localIdentifier
+
+        if asset.mediaType == .video, asset.duration > CreatorMedia.maxMomentVideoDuration,
+           !selectedAssetIDs.contains(assetID) {
+            rejectedVideoDuration = asset.duration
+            showingVideoTooLongAlert = true
+            return
+        }
+
+        if isMultiSelect {
+            if selectedAssetIDs.contains(assetID) {
+                if selectedAssetIDs.count == 1 { return }
+                selectedAssetIDs.removeAll { $0 == assetID }
+            } else if selectedAssetIDs.count < 20 {
+                selectedAssetIDs.append(assetID)
+                ensureCropSession(for: asset)
+                loadPreviewImage(for: asset)
+            }
+        } else {
+            if selectedAssetIDs == [assetID] { return }
+            selectedAssetIDs = [assetID]
+            ensureCropSession(for: asset)
+            loadPreviewImage(for: asset)
+        }
+
+        if thumbnails[assetID] == nil {
+            loadGridThumbnail(for: asset)
+        }
+    }
+
+    private func loadGridThumbnail(for asset: PHAsset) {
         let options = PHImageRequestOptions()
-        options.deliveryMode = .highQualityFormat
-        options.isNetworkAccessAllowed = true
+        options.deliveryMode = .opportunistic
+        options.isNetworkAccessAllowed = false
 
         imageManager.requestImage(
             for: asset,
-            targetSize: CGSize(width: 500, height: 500),
+            targetSize: thumbnailSize,
             contentMode: .aspectFill,
             options: options
         ) { image, _ in
-            if let image = image {
+            if let image {
                 DispatchQueue.main.async {
                     self.thumbnails[asset.localIdentifier] = image
                 }
@@ -594,11 +546,50 @@ struct MediaSelectionView: View {
         }
     }
 
+    private func loadPreviewImage(for asset: PHAsset) {
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .highQualityFormat
+        options.resizeMode = .exact
+        options.version = .current
+        options.isNetworkAccessAllowed = true
+
+        let width = max(asset.pixelWidth, 1)
+        let height = max(asset.pixelHeight, 1)
+        let maxSide: CGFloat = 1600
+        let scale = min(maxSide / CGFloat(width), maxSide / CGFloat(height), 1)
+        let target = CGSize(width: CGFloat(width) * scale, height: CGFloat(height) * scale)
+
+        imageManager.requestImage(
+            for: asset,
+            targetSize: target,
+            contentMode: .aspectFit,
+            options: options
+        ) { image, info in
+            if let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool, isDegraded {
+                return
+            }
+            guard let image else { return }
+            let oriented = image.momentsOrientedUp()
+            DispatchQueue.main.async {
+                let id = asset.localIdentifier
+                self.previewImages[id] = oriented
+                var session = self.cropSessions[id]
+                    ?? AssetCropSession(pixelWidth: asset.pixelWidth, pixelHeight: asset.pixelHeight)
+                session.applyOrientedSize(oriented.size)
+                self.cropSessions[id] = session
+            }
+        }
+    }
+
     // Reemplaza tu función processSelectedAssets() con esta versión mejorada
 
     private func processSelectedAssets() {
+        let cropAspect = sharedCropAspect
+        // La preview gestiona el crop sobre el cuadrado; el aspect solo define el export.
+        let window = MomentFeedCrop.squareSize
         Task {
             var processedMedia: [ProcessedMedia] = []
+            var lockAspect: CGFloat?
 
             for assetID in selectedAssetIDs {
                 guard let asset = mediaAssets.first(where: { $0.localIdentifier == assetID }) else { continue }
@@ -613,62 +604,56 @@ struct MediaSelectionView: View {
 
                 if asset.mediaType == .image {
                     if let image = await loadFullImage(for: asset) {
-                        // ✅ Detectar aspect ratio automáticamente
-                        let detectedAspectRatio = detectAspectRatio(from: image)
-
-                        let media = CreatorMedia(
-                            id: assetID,
-                            image: image,
-                            videoURL: nil,
-                            type: .image,
-                            aspectRatio: detectedAspectRatio,
-                            recommendedAspectRatio: detectedAspectRatio // ✅ Guardar el aspect ratio detectado como recomendado
+                        let session = cropSessions[assetID] ?? AssetCropSession(pixelWidth: asset.pixelWidth, pixelHeight: asset.pixelHeight)
+                        processedMedia.append(
+                            framedMedia(
+                                from: image,
+                                assetID: assetID,
+                                type: .image,
+                                session: session,
+                                cropAspect: cropAspect,
+                                window: window,
+                                sourceWindow: cropWindowSizes[assetID],
+                                lockAspect: lockAspect
+                            )
                         )
-                        processedMedia.append(media)
+                        if lockAspect == nil {
+                            lockAspect = processedMedia.last.map {
+                                $0.image.size.width / max($0.image.size.height, 1)
+                            }
+                        }
                     }
                 } else if asset.mediaType == .video {
                     let (thumbnail, videoURL, videoFileSize) = await loadFullVideo(for: asset)
 
                     let finalImage = thumbnail ?? createVideoPlaceholder()
-
-                    // ✅ Detectar aspect ratio del video
-                    let detectedAspectRatio = detectAspectRatio(from: finalImage)
-
-                    let media = ProcessedMedia(
-                        id: assetID,
-                        image: finalImage,
-                        videoURL: videoURL,
-                        type: .video,
-                        aspectRatio: detectedAspectRatio,
-                        recommendedAspectRatio: detectedAspectRatio, // ✅ Guardar el aspect ratio detectado como recomendado
-                        videoDuration: asset.duration,
-                        videoFileSize: videoFileSize
+                    let session = cropSessions[assetID] ?? AssetCropSession(pixelWidth: asset.pixelWidth, pixelHeight: asset.pixelHeight)
+                    processedMedia.append(
+                        framedMedia(
+                            from: finalImage,
+                            assetID: assetID,
+                            type: .video,
+                            session: session,
+                            cropAspect: cropAspect,
+                            window: window,
+                            sourceWindow: cropWindowSizes[assetID],
+                            lockAspect: lockAspect,
+                            videoURL: videoURL,
+                            videoDuration: asset.duration,
+                            videoFileSize: videoFileSize
+                        )
                     )
-                    processedMedia.append(media)
+                    if lockAspect == nil {
+                        lockAspect = processedMedia.last.map {
+                            $0.image.size.width / max($0.image.size.height, 1)
+                        }
+                    }
                 }
             }
 
             await MainActor.run {
                 selectedMediaItems = processedMedia
-
-                // ✅ NUEVA LÓGICA: Determinar flujo basado en tipo de medios
-                let hasImages = processedMedia.contains { $0.type == .image }
-                let hasVideos = processedMedia.contains { $0.type == .video }
-
-
-                if hasVideos && !hasImages {
-                    // Solo videos: ir al editor de videos
-                    currentFlow = .videoEditing
-                } else if hasImages && !hasVideos {
-                    // Solo imágenes: ir al editor de fotos
-                    currentFlow = .mediaEditing
-                } else if hasImages && hasVideos {
-                    // Mezcla: permitir al usuario elegir o ir directo a caption
-                    currentFlow = .captionAndDetails
-                } else {
-                    // Fallback (no debería pasar)
-                    currentFlow = .mediaEditing
-                }
+                currentFlow = .mediaEditing
             }
         }
     }
@@ -686,51 +671,60 @@ struct MediaSelectionView: View {
     // Reemplaza tu función detectAspectRatio en MediaSelectionView con esta versión mejorada
 
     private func detectAspectRatio(from image: UIImage) -> CreatorMedia.AspectRatio {
-        let imageRatio = image.size.width / image.size.height
+        CreatorMedia.AspectRatio.fromFeedPostRatio(image.size.width / max(image.size.height, 1))
+    }
 
-        // ✅ MEJORADO: Tolerancia más amplia (15%) para detectar mejor ratios comunes
-        let tolerance: CGFloat = 0.15
-
-        // ✅ MEJORADO: Detectar ratios específicos con mayor precisión y tolerancia
-
-        // 9:16 (Stories/Reels) - ratio ≈ 0.5625
-        if abs(imageRatio - 0.5625) < tolerance {
-            return .nineBySixteen
-        }
-
-        // 4:5 (Portrait posts) - ratio = 0.8
-        if abs(imageRatio - 0.8) < tolerance {
-            return .portrait
-        }
-
-        // 1:1 (Square) - ratio = 1.0
-        if abs(imageRatio - 1.0) < tolerance {
-            return .square
-        }
-
-        // 16:9 (Landscape) - ratio ≈ 1.777
-        if abs(imageRatio - 1.777) < tolerance {
-            return .landscape
-        }
-
-        // ✅ MEJORADO: Detección por rangos más precisos y amplios
-        // Rangos ajustados para cubrir más casos comunes
-        if imageRatio < 0.65 {
-            // Muy vertical (más vertical que 9:16)
-            return .nineBySixteen
-        } else if imageRatio < 0.85 {
-            // Vertical moderado (entre 9:16 y 4:5)
-            return .portrait
-        } else if imageRatio < 1.15 {
-            // Casi cuadrado o cuadrado (entre 4:5 y 16:9)
-            return .square
-        } else if imageRatio < 2.0 {
-            // Horizontal moderado (16:9 o similar)
-            return .landscape
-        } else {
-            // Muy horizontal (panorámica)
-            return .landscape
-        }
+    private func framedMedia(
+        from image: UIImage,
+        assetID: String,
+        type: CreatorMedia.MediaType,
+        session: AssetCropSession,
+        cropAspect: CGFloat,
+        window: CGSize,
+        sourceWindow: CGSize?,
+        lockAspect: CGFloat? = nil,
+        videoURL: URL? = nil,
+        videoDuration: Double? = nil,
+        videoFileSize: Int64? = nil
+    ) -> CreatorMedia {
+        let oriented = image.momentsOrientedUp()
+        let originalAspect = oriented.size.width / max(oriented.size.height, 1)
+        let previewCanvas = sourceWindow ?? window
+        let visible = MomentFeedCrop.visiblePhotoRect(
+            imageSize: oriented.size,
+            canvas: previewCanvas,
+            scale: session.scale,
+            offset: session.offset,
+            fillWindow: session.fillsPreview
+        )
+        let targetAspect = lockAspect ?? session.cropAspect
+        let cropRect = MomentFeedCrop.cropRect(
+            visible,
+            toAspect: targetAspect,
+            in: oriented.size
+        )
+        let framed = oriented.cropped(to: cropRect)
+        let framedAspect = framed.size.width / max(framed.size.height, 1)
+        let cardRatio = CreatorMedia.AspectRatio.fromFeedPostRatio(targetAspect)
+        var media = CreatorMedia(
+            id: assetID,
+            image: framed,
+            videoURL: videoURL,
+            type: type,
+            aspectRatio: cardRatio,
+            recommendedAspectRatio: cardRatio,
+            hasEdits: true,
+            videoDuration: videoDuration,
+            videoFileSize: videoFileSize
+        )
+        media.immersiveImage = oriented
+        media.immersiveAspectRatio = .custom(originalAspect)
+        media.feedCrop = MomentFeedCrop.normalizedFeedCrop(
+            cropRect,
+            in: oriented.size,
+            cardAspect: framedAspect
+        )
+        return media
     }
 
 
@@ -898,6 +892,6 @@ struct MediaSelectionView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(colorScheme == .dark ? Color.black : Color.white)
+        .background(ProfileMomentZoomNavigation.canvasBackground(for: colorScheme))
     }
 }

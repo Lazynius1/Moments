@@ -302,6 +302,7 @@
 "feed.uploading.more" = "+ %d件をアップロード中…";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "処理中";
+"feed.uploading.compressing" = "圧縮中...";
 "feed.uploading.published" = "公開しました！";
 "feed.uploading.retry" = "再試行";
 "feed.uploading.files" = "%dファイル";
@@ -751,6 +752,33 @@
 "creator.interactions.disableComments.description" = "このモーメントには誰もコメントできなくなります";
 "creator.interactions.allowSharing" = "保存を許可";
 "creator.interactions.allowSharing.description" = "他のユーザーがあなたのモーメントをコレクションに追加できるようになります";
+"creator.keepOriginalDimensions" = "元のサイズを保持";
+"creator.keepOriginalDimensions.info" = "オンにすると、フィードで長押ししたときに写真全体が表示されます。オフの場合はカードの切り抜きだけが公開されます。";
+"creator.tools.filter" = "フィルター";
+"creator.tools.edit" = "編集";
+"creator.carousel.portrait" = "縦";
+"creator.carousel.landscape" = "横";
+"creator.carousel.square" = "正方形";
+"creator.carousel.remove" = "削除";
+"creator.adjust.adjust" = "調整";
+"creator.adjust.straighten" = "水平";
+"creator.adjust.vertical" = "垂直";
+"creator.adjust.horizontal" = "水平方向";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "明るさ";
+"creator.adjust.contrast" = "コントラスト";
+"creator.adjust.texture" = "テクスチャ";
+"creator.adjust.warmth" = "暖かさ";
+"creator.adjust.saturation" = "彩度";
+"creator.adjust.color" = "カラー";
+"creator.adjust.fade" = "フェード";
+"creator.adjust.highlights" = "ハイライト";
+"creator.adjust.shadows" = "シャドウ";
+"creator.adjust.vignette" = "ビネット";
+"creator.adjust.blur" = "ぼかし";
+"creator.adjust.sharpen" = "シャープ";
+"creator.adjust.radial" = "放射";
+"creator.adjust.linear" = "リニア";
 "creator.advancedSettings.title" = "詳細設定";
 "creator.visualization.title" = "表示設定";
 "creator.visualization.hideReactions" = "リアクション数を非表示";
@@ -2601,6 +2629,7 @@
 "liveActivity.uploadingMoment" = "モーメントをアップロード中";
 "liveActivity.uploading" = "アップロード中…";
 "liveActivity.processing" = "処理中…";
+"liveActivity.compressing" = "圧縮中...";
 "liveActivity.completed" = "完了";
 "liveActivity.error" = "エラー";
 /* Widget */
@@ -4008,6 +4037,7 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "creator.upload.initializing" = "開始しています…";
 "creator.upload.uploading" = "アップロード中…";
 "creator.upload.processing" = "処理中…";
+"creator.upload.compressing" = "圧縮中...";
 "creator.upload.completed" = "公開済み";
 "creator.upload.failed" = "アップロードに失敗しました";
 "errors.video.invalidSource" = "動画を読み込めませんでした。";

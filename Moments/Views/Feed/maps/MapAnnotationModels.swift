@@ -68,6 +68,13 @@ extension Moment {
         return nil
     }
 
+    var mapPreferredFeedCrop: MediaItemFeedCrop? {
+        if let image = mediaItems?.first(where: { $0.type == .image && !$0.isHiddenByModeration }) {
+            return image.feedCrop
+        }
+        return mediaItems?.first(where: { $0.type == .video && !$0.isHiddenByModeration })?.feedCrop
+    }
+
     var mapPreferredVideoThumbnailURL: String? {
         if let mediaItems, let firstVideo = mediaItems.first(where: { $0.type == .video }) {
             if let thumb = firstVideo.thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !thumb.isEmpty {

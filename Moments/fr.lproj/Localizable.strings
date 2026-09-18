@@ -310,6 +310,7 @@
 "feed.uploading.more" = "+ %d more uploading...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "Traitement";
+"feed.uploading.compressing" = "Compression...";
 "feed.uploading.published" = "Publié!";
 "feed.uploading.retry" = "Réessayer";
 "feed.uploading.files" = "%d files";
@@ -782,6 +783,33 @@
 "creator.interactions.disableComments.description" = "Personne ne pourra commenter ce moment";
 "creator.interactions.allowSharing" = "Autoriser l’enregistrement";
 "creator.interactions.allowSharing.description" = "Les autres peuvent ajouter votre moment à leur collection";
+"creator.keepOriginalDimensions" = "Conserver les dimensions d’origine";
+"creator.keepOriginalDimensions.info" = "Si c’est activé, un appui long sur le moment dans le fil affiche la photo entière. Sinon, seul le recadrage de la carte est publié.";
+"creator.tools.filter" = "Filtres";
+"creator.tools.edit" = "Modifier";
+"creator.carousel.portrait" = "Portrait";
+"creator.carousel.landscape" = "Paysage";
+"creator.carousel.square" = "Carré";
+"creator.carousel.remove" = "Retirer";
+"creator.adjust.adjust" = "Ajuster";
+"creator.adjust.straighten" = "Redresser";
+"creator.adjust.vertical" = "Vertical";
+"creator.adjust.horizontal" = "Horizontal";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Luminosité";
+"creator.adjust.contrast" = "Contraste";
+"creator.adjust.texture" = "Texture";
+"creator.adjust.warmth" = "Chaleur";
+"creator.adjust.saturation" = "Saturation";
+"creator.adjust.color" = "Couleur";
+"creator.adjust.fade" = "Fondu";
+"creator.adjust.highlights" = "Hautes lumières";
+"creator.adjust.shadows" = "Ombres";
+"creator.adjust.vignette" = "Vignette";
+"creator.adjust.blur" = "Flou";
+"creator.adjust.sharpen" = "Netteté";
+"creator.adjust.radial" = "Radial";
+"creator.adjust.linear" = "Linéaire";
 "creator.advancedSettings.title" = "Réglages avancés";
 "creator.visualization.title" = "Visualisation";
 "creator.visualization.hideReactions" = "Masquer le nombre de réactions";
@@ -2729,6 +2757,7 @@
 "liveActivity.uploadingMoment" = "Uploading moment";
 "liveActivity.uploading" = "Uploading...";
 "liveActivity.processing" = "Processing...";
+"liveActivity.compressing" = "Compression...";
 "liveActivity.completed" = "Terminé";
 "liveActivity.error" = "Erreur";
 
@@ -4210,6 +4239,7 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "creator.upload.initializing" = "Démarrage...";
 "creator.upload.uploading" = "Téléversement...";
 "creator.upload.processing" = "Traitement...";
+"creator.upload.compressing" = "Compression...";
 "creator.upload.completed" = "Publié";
 "creator.upload.failed" = "Échec du téléversement";
 "errors.video.invalidSource" = "Impossible de lire la vidéo.";

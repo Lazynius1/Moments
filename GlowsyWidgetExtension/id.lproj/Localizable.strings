@@ -24,6 +24,7 @@
 "liveActivity.uploadingMoment" = "Mengunggah momen";
 "liveActivity.uploading" = "Mengunggah...";
 "liveActivity.processing" = "Memproses...";
+"liveActivity.compressing" = "Mengompres...";
 "liveActivity.completed" = "Selesai";
 "liveActivity.error" = "Terjadi kesalahan";
 "incognito.activity.title" = "Mode anonim";

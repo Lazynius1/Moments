@@ -26,6 +26,7 @@
 "liveActivity.uploadingMoment" = "Pujant moment";
 "liveActivity.uploading" = "Pujant...";
 "liveActivity.processing" = "Processant...";
+"liveActivity.compressing" = "Comprimint...";
 "liveActivity.completed" = "Completat";
 "liveActivity.error" = "Error";
 "incognito.activity.title" = "Incògnit";

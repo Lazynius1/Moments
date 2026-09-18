@@ -310,6 +310,7 @@
 "feed.uploading.more" = "+ %d ainda em envio...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "Processando";
+"feed.uploading.compressing" = "Compactando...";
 "feed.uploading.published" = "Publicado!";
 "feed.uploading.retry" = "Tentar novamente";
 "feed.uploading.files" = "%d arquivos";
@@ -782,6 +783,33 @@
 "creator.interactions.disableComments.description" = "Ninguém poderá comentar neste momento";
 "creator.interactions.allowSharing" = "Permitir salvar";
 "creator.interactions.allowSharing.description" = "Outras pessoas podem adicionar seu momento à coleção delas";
+"creator.keepOriginalDimensions" = "Manter dimensões originais";
+"creator.keepOriginalDimensions.info" = "Se estiver ativado, ao pressionar e segurar o momento no feed a foto completa aparece. Se não, só o recorte do card é publicado.";
+"creator.tools.filter" = "Filtro";
+"creator.tools.edit" = "Editar";
+"creator.carousel.portrait" = "Retrato";
+"creator.carousel.landscape" = "Paisagem";
+"creator.carousel.square" = "Quadrada";
+"creator.carousel.remove" = "Remover";
+"creator.adjust.adjust" = "Ajuste";
+"creator.adjust.straighten" = "Endireitar";
+"creator.adjust.vertical" = "Vertical";
+"creator.adjust.horizontal" = "Horizontal";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Brilho";
+"creator.adjust.contrast" = "Contraste";
+"creator.adjust.texture" = "Textura";
+"creator.adjust.warmth" = "Calor";
+"creator.adjust.saturation" = "Saturação";
+"creator.adjust.color" = "Cor";
+"creator.adjust.fade" = "Esmaecer";
+"creator.adjust.highlights" = "Luzes";
+"creator.adjust.shadows" = "Sombras";
+"creator.adjust.vignette" = "Vinheta";
+"creator.adjust.blur" = "Desfoque";
+"creator.adjust.sharpen" = "Nitidez";
+"creator.adjust.radial" = "Radial";
+"creator.adjust.linear" = "Linear";
 "creator.advancedSettings.title" = "Configurações avançadas";
 "creator.visualization.title" = "Visualização";
 "creator.visualization.hideReactions" = "Ocultar contagem de reações";
@@ -2729,6 +2757,7 @@
 "liveActivity.uploadingMoment" = "Enviando momento";
 "liveActivity.uploading" = "Enviando...";
 "liveActivity.processing" = "Processando...";
+"liveActivity.compressing" = "Compactando...";
 "liveActivity.completed" = "Concluído";
 "liveActivity.error" = "Erro";
 
@@ -4210,6 +4239,7 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "creator.upload.initializing" = "Iniciando...";
 "creator.upload.uploading" = "Enviando...";
 "creator.upload.processing" = "Processando...";
+"creator.upload.compressing" = "Compactando...";
 "creator.upload.completed" = "Publicado";
 "creator.upload.failed" = "Falha no envio";
 "errors.video.invalidSource" = "Não foi possível ler o vídeo.";

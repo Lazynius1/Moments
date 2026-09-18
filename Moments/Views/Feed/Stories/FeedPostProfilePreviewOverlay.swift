@@ -691,21 +691,22 @@ private struct FeedPostProfilePreviewMomentThumb: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
-                if let urlString = moment.previewImageURLString, let url = URL(string: urlString) {
-                    KFImage(url)
-                        .placeholder {
-                            Rectangle().fill(UserProfileColors.cardBackground)
-                        }
-                        .downsampling(size: CGSize(width: size * displayScale, height: size * displayScale))
-                        .scaleFactor(displayScale)
-                        .cancelOnDisappear(true)
-                        .resizable()
-                } else {
-                    Rectangle()
-                        .fill(UserProfileColors.cardBackground)
+                GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                    if let urlString = moment.previewImageURLString, let url = URL(string: urlString) {
+                        KFImage(url)
+                            .placeholder {
+                                Rectangle().fill(UserProfileColors.cardBackground)
+                            }
+                            .applyingFeedCrop(moment.primaryVisibleMediaItem?.feedCrop)
+                            .downsampling(size: CGSize(width: size * displayScale, height: size * displayScale))
+                            .scaleFactor(displayScale)
+                            .cancelOnDisappear(true)
+                            .resizable()
+                    } else {
+                        Rectangle()
+                            .fill(UserProfileColors.cardBackground)
+                    }
                 }
-            }
 
             if moment.hasVideoMedia {
                 ChatVideoPlayBadge(size: 14, padding: 8)

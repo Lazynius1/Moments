@@ -81,12 +81,12 @@ struct UserModernMomentThumbnail: View {
         } else if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
             if mediaItem.type == .video {
                 if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
-                    imageView(imageURL: thumbnailUrl)
+                    imageView(imageURL: thumbnailUrl, feedCrop: mediaItem.feedCrop)
                 } else {
                     videoThumbnailView(videoURL: mediaItem.url)
                 }
             } else {
-                imageView(imageURL: mediaItem.url)
+                imageView(imageURL: mediaItem.url, feedCrop: mediaItem.feedCrop)
             }
         } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
             GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
@@ -163,9 +163,9 @@ struct UserModernMomentThumbnail: View {
     private var portraitMedia: some View {
         if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
             if mediaItem.type == .image {
-                portraitFillImage(urlString: mediaItem.url)
+                portraitFillImage(urlString: mediaItem.url, feedCrop: mediaItem.feedCrop)
             } else if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
-                portraitFillImage(urlString: thumbnailUrl)
+                portraitFillImage(urlString: thumbnailUrl, feedCrop: mediaItem.feedCrop)
             } else {
                 videoThumbnailView(videoURL: mediaItem.url)
             }
@@ -179,12 +179,13 @@ struct UserModernMomentThumbnail: View {
     }
 
     @ViewBuilder
-    private func portraitFillImage(urlString: String) -> some View {
+    private func portraitFillImage(urlString: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
         if let url = getImageURL(from: urlString) {
             KFImage(url)
                 .placeholder {
                     Rectangle().fill(UserProfileColors.cardBackground)
                 }
+                .applyingFeedCrop(feedCrop)
                 .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
                 .scaleFactor(displayScale)
                 .cancelOnDisappear(true)
@@ -290,7 +291,7 @@ struct UserModernMomentThumbnail: View {
     }
 
     @ViewBuilder
-    private func imageView(imageURL: String) -> some View {
+    private func imageView(imageURL: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
         if let url = getImageURL(from: imageURL) {
             GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
                 KFImage(url)
@@ -308,6 +309,7 @@ struct UserModernMomentThumbnail: View {
                                 }
                             )
                     }
+                    .applyingFeedCrop(feedCrop)
                     .downsampling(size: CGSize(width: size, height: size))
                     .scaleFactor(displayScale)
                     .cancelOnDisappear(true)

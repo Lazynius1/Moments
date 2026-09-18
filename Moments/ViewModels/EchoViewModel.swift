@@ -304,6 +304,7 @@ class EchoViewModel: ObservableObject {
                 type: slide.mediaType == "video" ? .video : .image,
                 url: slide.mediaUrl,
                 aspectRatio: slide.aspectRatio ?? post.aspectRatio,
+                feedCrop: slide.feedCrop,
                 thumbnailUrl: slide.thumbnailUrl
             )
         }

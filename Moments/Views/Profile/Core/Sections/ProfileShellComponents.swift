@@ -420,6 +420,7 @@ struct ModernProfileContentView: View {
                    let url = profileGridPreviewImageURL(from: imagePath) {
                     ProfileGridPreviewEditorView(
                         imageURL: url,
+                        feedCrop: moment.primaryVisibleMediaItem?.feedCrop,
                         initialSettings: moment.gridPreviewSettings,
                         onSave: { settings in
                             saveGridPreview(for: moment, settings: settings)

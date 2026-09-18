@@ -118,6 +118,15 @@ extension FirestoreService {
             if let aspectRatio = item.aspectRatio {
                 mediaData["aspectRatio"] = aspectRatio
             }
+            if let feedCrop = item.feedCrop {
+                mediaData["feedCrop"] = [
+                    "cardAspect": feedCrop.cardAspect,
+                    "x": feedCrop.x,
+                    "y": feedCrop.y,
+                    "width": feedCrop.width,
+                    "height": feedCrop.height
+                ]
+            }
             if let thumbnailUrl = item.thumbnailUrl {
                 mediaData["thumbnailUrl"] = thumbnailUrl
             }

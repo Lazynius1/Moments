@@ -130,7 +130,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         // ✅ SwiftData: Moments cacheados del perfil (evita el flash a "No moments yet" sin red)
         let cachedMoments = LocalPersistenceService.shared.loadProfileMoments(userId: userId, viewerId: currentUserId)
         if !cachedMoments.isEmpty && self.moments.isEmpty {
-            self.moments = Array(cachedMoments.prefix(self.momentsPageSize))
+            self.moments = Array(sortProfileMoments(cachedMoments).prefix(self.momentsPageSize))
         }
 
         // ✅ Cargar conexiones del caché
@@ -649,13 +649,14 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 limit: self.momentsPageSize
             ) {
                 if reset {
-                    self.moments = result.moments
+                    self.moments = self.sortProfileMoments(result.moments)
                 } else {
                     let existingIds = Set(self.moments.compactMap(\.id))
                     self.moments.append(contentsOf: result.moments.filter { moment in
                         guard let id = moment.id else { return true }
                         return !existingIds.contains(id)
                     })
+                    self.moments = self.sortProfileMoments(self.moments)
                 }
                 self.momentsCursor = result.nextCursor
                 self.hasMoreMoments = result.nextCursor != nil
@@ -689,13 +690,14 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 case .success(let allMoments):
                     self.filterMomentsForAudience(moments: allMoments, viewerId: currentUserId) { filteredMoments in
                         DispatchQueue.main.async {
-                            self.legacyVisibleMoments = filteredMoments
-                            self.moments = Array(filteredMoments.prefix(self.momentsPageSize))
-                            self.hasMoreMoments = self.moments.count < filteredMoments.count
+                            let sorted = self.sortProfileMoments(filteredMoments)
+                            self.legacyVisibleMoments = sorted
+                            self.moments = Array(sorted.prefix(self.momentsPageSize))
+                            self.hasMoreMoments = self.moments.count < sorted.count
                             self.isLoadingMoments = false
                             self.isLoadingMoreMoments = false
                             self.isFetchingMomentsPage = false
-                            LocalPersistenceService.shared.saveProfileMoments(filteredMoments, userId: self.userId, viewerId: currentUserId, sync: true)
+                            LocalPersistenceService.shared.saveProfileMoments(sorted, userId: self.userId, viewerId: currentUserId, sync: true)
                             completion?()
                         }
                     }
@@ -714,6 +716,28 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
     func loadMoreMoments() {
         fetchMoments(reset: false)
+    }
+
+    /// Misma prioridad que el perfil propio: pineados arriba, luego por fecha.
+    private func sortProfileMoments(_ moments: [Moment]) -> [Moment] {
+        moments.sorted { lhs, rhs in
+            let lhsPinned = lhs.isPinned == true
+            let rhsPinned = rhs.isPinned == true
+
+            if lhsPinned != rhsPinned {
+                return lhsPinned && !rhsPinned
+            }
+
+            if lhsPinned, rhsPinned {
+                let lhsPinnedAt = lhs.pinnedAt ?? lhs.timestamp
+                let rhsPinnedAt = rhs.pinnedAt ?? rhs.timestamp
+                if lhsPinnedAt != rhsPinnedAt {
+                    return lhsPinnedAt > rhsPinnedAt
+                }
+            }
+
+            return lhs.timestamp > rhs.timestamp
+        }
     }
 
     private func filterMomentsForAudience(moments: [Moment], viewerId: String, completion: @escaping ([Moment]) -> Void) {

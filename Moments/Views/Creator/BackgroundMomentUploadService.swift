@@ -15,7 +15,7 @@ class UploadingMoment: ObservableObject, Identifiable {
     let tempId: String
     let userId: String
     let content: String
-    let mediaItems: [ProcessedMedia]
+    var mediaItems: [ProcessedMedia]
     let taggedUsers: [String]?
     let mentionedUsers: [String]?
     let location: String?
@@ -93,6 +93,7 @@ class UploadingMoment: ObservableObject, Identifiable {
 
 enum UploadStatus {
     case initializing // 🔄 Iniciando...
+    case compressing
     case uploading
     case processing
     case completed
@@ -101,17 +102,18 @@ enum UploadStatus {
 
     var displayText: String {
         switch self {
-        case .initializing: return NSLocalizedString("creator.upload.initializing", comment: "")
-        case .uploading: return NSLocalizedString("creator.upload.uploading", comment: "")
-        case .processing: return NSLocalizedString("creator.upload.processing", comment: "")
-        case .completed, .moderated: return NSLocalizedString("creator.upload.completed", comment: "")
-        case .failed: return NSLocalizedString("creator.upload.failed", comment: "")
+        case .initializing: return NSLocalizedString("creator.upload.initializing", comment: "Initializing upload status")
+        case .compressing: return NSLocalizedString("creator.upload.compressing", comment: "Compressing video status")
+        case .uploading: return NSLocalizedString("creator.upload.uploading", comment: "Uploading files status")
+        case .processing: return NSLocalizedString("creator.upload.processing", comment: "Processing upload status")
+        case .completed, .moderated: return NSLocalizedString("creator.upload.completed", comment: "Published status")
+        case .failed: return NSLocalizedString("creator.upload.failed", comment: "Upload failed status")
         }
     }
 
     var shouldShowInFeed: Bool {
         switch self {
-        case .initializing, .uploading, .processing: return true
+        case .initializing, .compressing, .uploading, .processing: return true
         case .completed, .moderated: return false // Se reemplaza por el momento real
         case .failed: return true // Para permitir reintentos
         }
@@ -158,6 +160,7 @@ struct CachedMediaItem: Codable {
     let localFileName: String
     let thumbnailFileName: String?
     let aspectRatio: String?
+    let feedCrop: MediaItemFeedCrop?
     let videoDuration: Double?
     let videoFileSize: Int64?
     let videoResolution: String?
@@ -255,6 +258,9 @@ class BackgroundMomentUploadService: ObservableObject {
         )
 
         // Agregar al feed inmediatamente
+        if mediaItems.contains(where: { $0.type == .video }) {
+            uploadingMoment.status = .compressing
+        }
         self.uploadingMoments.append(uploadingMoment)
         self.isProcessing = true
 
@@ -273,6 +279,19 @@ class BackgroundMomentUploadService: ObservableObject {
 
         // Procesar en background
         let uploadTask = Task {
+            do {
+                try await self.prepareVideosForMomentUpload(uploadingMoment)
+            } catch {
+                uploadingMoment.status = .failed
+                uploadingMoment.errorMessage = error.localizedDescription
+                self.runningUploadTasks.removeValue(forKey: uploadingMoment.tempId)
+                if backgroundTaskID != .invalid {
+                    UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                    backgroundTaskID = .invalid
+                }
+                return
+            }
+
             // 1. Persistir acción en disco por si la app muere
             if shouldPersistAction {
                 do {
@@ -429,7 +448,9 @@ class BackgroundMomentUploadService: ObservableObject {
             self.feedViewModel?.resumeListenersAfterUpload()
         }
 
-        self.isProcessing = self.uploadingMoments.contains { $0.status == .uploading || $0.status == .processing }
+        self.isProcessing = self.uploadingMoments.contains {
+            $0.status == .compressing || $0.status == .uploading || $0.status == .processing
+        }
     }
 
     // ✅ FUNCIÓN NUEVA: Configurar referencia al FeedViewModel
@@ -454,8 +475,9 @@ class BackgroundMomentUploadService: ObservableObject {
 
             let baseProgress = Double(index) / Double(totalFiles) * 0.7
             let fileProgressSpan = 0.7 / Double(totalFiles)
+            let videoPosterSource = media.immersiveImage ?? media.image
             let hasValidVideoThumbnail = media.type == .video &&
-                media.image.storageUploadJPEGData(compressionQuality: 0.75, maxPixelDimension: 720) != nil
+                videoPosterSource.storageUploadJPEGData(compressionQuality: 0.75, maxPixelDimension: 720) != nil
             let thumbnailProgressShare = hasValidVideoThumbnail ? 0.1 : 0.0
             let mediaProgressShare = 1.0 - thumbnailProgressShare
             await updateProgress(uploadingMoment, progress: baseProgress)
@@ -466,7 +488,7 @@ class BackgroundMomentUploadService: ObservableObject {
 
             let finalMediaItem = UploadMediaItem(
                 type: media.type == .image ? .image : .video,
-                image: media.type == .image ? media.image : nil,
+                image: media.type == .image ? (media.immersiveImage ?? media.image) : nil,
                 videoURL: media.type == .video ? media.videoURL : nil
             )
 
@@ -481,7 +503,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     storageService.uploadMomentThumbnail(
                         userId: uploadingMoment.userId,
                         momentId: momentId,
-                        image: media.image,
+                        image: videoPosterSource,
                         mediaId: "\(mediaId)_thumb",
                         progress: { [weak uploadingMoment] progress in
                             guard let uploadingMoment else { return }
@@ -523,11 +545,20 @@ class BackgroundMomentUploadService: ObservableObject {
             let mediaItemType: MediaItem.MediaType = media.type == .image ? .image : .video
             let shouldProcessVideo = mediaItemType == .video &&
                 (finalVideoFileSize ?? 0) > CreatorMedia.maxMomentVideoReadySizeBytes
+            let publishedAspect: String = {
+                if mediaItemType == .image {
+                    let source = media.immersiveImage ?? media.image
+                    let ratio = source.size.width / max(source.size.height, 1)
+                    return CreatorMedia.AspectRatio.custom(ratio).displayName
+                }
+                return (media.immersiveAspectRatio ?? media.aspectRatio).displayName
+            }()
             uploadedItems.append(MediaItem(
                 id: mediaId,
                 type: mediaItemType,
                 url: urlString,
-                aspectRatio: media.aspectRatio.displayName,
+                aspectRatio: publishedAspect,
+                feedCrop: media.feedCrop,
                 thumbnailUrl: thumbnailUrlString, // ✅ Usar el URL del thumbnail recién subido
                 videoDuration: media.videoDuration,
                 videoFileSize: finalVideoFileSize,
@@ -703,19 +734,11 @@ class BackgroundMomentUploadService: ObservableObject {
             throw StorageError.invalidData
         }
 
-        let originalFileSize = media.videoFileSize ?? (try? fileSize(at: videoURL)) ?? 0
-        guard originalFileSize > CreatorMedia.maxMomentVideoUploadSizeBytes else {
-            return videoURL
-        }
-
         await updateProgress(uploadingMoment, progress: baseProgress, status: .processing)
-        let compressedURL = try await compressVideo(inputURL: videoURL)
-        let compressedFileSize = try fileSize(at: compressedURL)
-
-        guard compressedFileSize <= CreatorMedia.maxMomentVideoUploadSizeBytes else {
-            throw MomentVideoUploadPreparationError.compressedVideoTooLarge(size: compressedFileSize)
-        }
-
+        let compressedURL = try await VideoCompressionService.shared.prepareVideoForUpload(
+            inputURL: videoURL,
+            preset: .moment
+        )
         await updateProgress(uploadingMoment, progress: baseProgress, status: .uploading)
         return compressedURL
     }
@@ -954,6 +977,8 @@ class BackgroundMomentUploadService: ObservableObject {
             switch status {
             case .initializing:
                 statusString = "uploading"
+            case .compressing:
+                statusString = "compressing"
             case .uploading:
                 statusString = "uploading"
             case .processing:
@@ -974,25 +999,31 @@ class BackgroundMomentUploadService: ObservableObject {
     @MainActor
     private func removeUploadingMoment(_ moment: UploadingMoment) {
         uploadingMoments.removeAll { $0.id == moment.id }
-        isProcessing = uploadingMoments.contains { $0.status == .uploading || $0.status == .processing }
+        isProcessing = uploadingMoments.contains {
+            $0.status == .compressing || $0.status == .uploading || $0.status == .processing
+        }
     }
 
     // MARK: - 🔄 REINTENTAR UPLOAD FALLIDO
     func retryUpload(_ moment: UploadingMoment) {
         guard moment.status == .failed else { return }
 
-        moment.status = .uploading
+        moment.status = moment.mediaItems.contains(where: { $0.type == .video }) ? .compressing : .uploading
         moment.uploadProgress = 0.0
         moment.errorMessage = nil
         moment.currentMediaIndex = 0
         moment.currentMediaThumbnailImage = moment.mediaItems.first?.image
         self.isProcessing = true
 
-        let retryTask = Task.detached(priority: .userInitiated) {
-            await self.processUpload(moment)
-            await MainActor.run {
-                self.runningUploadTasks.removeValue(forKey: moment.tempId)
+        let retryTask = Task {
+            do {
+                try await self.prepareVideosForMomentUpload(moment)
+                await self.processUpload(moment)
+            } catch {
+                moment.status = .failed
+                moment.errorMessage = error.localizedDescription
             }
+            self.runningUploadTasks.removeValue(forKey: moment.tempId)
         }
         runningUploadTasks[moment.tempId] = retryTask
     }
@@ -1139,6 +1170,35 @@ class BackgroundMomentUploadService: ObservableObject {
         return paths[0].appendingPathComponent("pending_uploads")
     }
 
+    private func prepareVideosForMomentUpload(_ uploadingMoment: UploadingMoment) async throws {
+        let videoIndices = uploadingMoment.mediaItems.indices.filter {
+            uploadingMoment.mediaItems[$0].type == .video
+        }
+        guard !videoIndices.isEmpty else { return }
+
+        await updateProgress(uploadingMoment, progress: 0.04, status: .compressing)
+
+        for (offset, index) in videoIndices.enumerated() {
+            if Task.isCancelled { throw CancellationError() }
+            guard let videoURL = uploadingMoment.mediaItems[index].videoURL else { continue }
+
+            let compressed = try await VideoCompressionService.shared.prepareVideoForUpload(
+                inputURL: videoURL,
+                preset: .moment
+            )
+            let size = try? fileSize(at: compressed)
+            uploadingMoment.mediaItems[index] = uploadingMoment.mediaItems[index].with(
+                videoURL: compressed,
+                videoFileSize: size
+            )
+
+            let progress = 0.04 + (0.12 * Double(offset + 1) / Double(videoIndices.count))
+            await updateProgress(uploadingMoment, progress: progress, status: .compressing)
+        }
+
+        await updateProgress(uploadingMoment, progress: 0.16, status: .uploading)
+    }
+
     /// Prepara una acción persistente antes de iniciar el upload
     func persistAction(_ uploadingMoment: UploadingMoment) async throws {
                 // 1. Asegurar que existe el directorio
@@ -1197,7 +1257,7 @@ class BackgroundMomentUploadService: ObservableObject {
         let fileURL = pendingUploadsDir.appendingPathComponent(fileName)
 
         if media.type == .image {
-            let image = media.image
+            let image = media.immersiveImage ?? media.image
             if let data = image.jpegData(compressionQuality: 0.8) {
                 try data.write(to: fileURL)
             }
@@ -1212,7 +1272,8 @@ class BackgroundMomentUploadService: ObservableObject {
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? FileManager.default.copyItem(at: thumbURL, to: thumbDest)
         } else if media.type == .video,
-                  let thumbnailData = media.image.storageUploadJPEGData(compressionQuality: 0.75, maxPixelDimension: 720) {
+                  let thumbnailData = (media.immersiveImage ?? media.image)
+                    .storageUploadJPEGData(compressionQuality: 0.75, maxPixelDimension: 720) {
             thumbName = "\(actionId)_\(id)_thumb.jpg"
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? thumbnailData.write(to: thumbDest)
@@ -1224,7 +1285,13 @@ class BackgroundMomentUploadService: ObservableObject {
             type: media.type == .image ? "image" : "video",
             localFileName: fileName,
             thumbnailFileName: thumbName,
-            aspectRatio: media.aspectRatio.displayName,
+            aspectRatio: media.type == .image
+                ? CreatorMedia.AspectRatio.custom(
+                    (media.immersiveImage ?? media.image).size.width
+                        / max((media.immersiveImage ?? media.image).size.height, 1)
+                ).displayName
+                : (media.immersiveAspectRatio ?? media.aspectRatio).displayName,
+            feedCrop: media.feedCrop,
             videoDuration: media.videoDuration,
             videoFileSize: media.videoFileSize,
             videoResolution: media.videoResolution,
@@ -1313,7 +1380,7 @@ class BackgroundMomentUploadService: ObservableObject {
 
             // 2. ✅ DUPLICATE CHECK: Evitar re-subir si ya está en proceso
             let isAlreadyUploading = uploadingMoments.contains { moment in
-                guard moment.status == .uploading || moment.status == .processing else {
+                guard moment.status == .compressing || moment.status == .uploading || moment.status == .processing else {
                     return false
                 }
                 // Coincidir por contenido Y audiencia Y (opcionalmente) ubicación
@@ -1350,10 +1417,13 @@ class BackgroundMomentUploadService: ObservableObject {
                 // Determinar aspect ratio del item
                 let itemAspectRatio: CreatorMedia.AspectRatio = {
                     if let cachedAspectRatio = item.aspectRatio {
-                        return CreatorMedia.AspectRatio(from: cachedAspectRatio)
+                        if let exact = Double(cachedAspectRatio), exact.isFinite, exact > 0 {
+                            return .custom(CGFloat(exact))
+                        }
+                        return CreatorMedia.AspectRatio.parsePersisted(cachedAspectRatio)
                     }
                     if let uiImage = image {
-                        return CreatorMedia.AspectRatio.fromRatio(uiImage.size.width / uiImage.size.height)
+                        return CreatorMedia.AspectRatio.fromFeedPostRatio(uiImage.size.width / uiImage.size.height)
                     }
                     return .square
                 }()
@@ -1362,10 +1432,37 @@ class BackgroundMomentUploadService: ObservableObject {
                     type: item.type == "image" ? .image : .video,
                     image: image ?? thumbnailImage ?? UIImage(),
                     videoURL: item.type == "video" ? fileURL : nil,
-                    aspectRatio: itemAspectRatio
+                    aspectRatio: item.feedCrop.map {
+                        CreatorMedia.AspectRatio.parsePersisted($0.cardAspect)
+                    } ?? itemAspectRatio,
+                    feedCrop: item.feedCrop
                 )
 
-                processed.thumbnailURL = thumbURL
+                if item.type == "image", let source = image {
+                    if let feedCrop = item.feedCrop {
+                        processed.image = source.cropped(to: feedCrop.rect(in: source.size))
+                        if !feedCrop.isFullBounds {
+                            processed.immersiveImage = source
+                            processed.immersiveAspectRatio = itemAspectRatio
+                        }
+                    } else {
+                        // Compatibilidad con uploads pendientes dual-file anteriores.
+                        processed.aspectRatio = CreatorMedia.AspectRatio.fromFeedPostRatio(
+                            source.size.width / max(source.size.height, 1)
+                        )
+                    }
+                    if item.feedCrop == nil, let thumb = thumbnailImage {
+                        processed.immersiveImage = thumb
+                        processed.immersiveAspectRatio = itemAspectRatio
+                    }
+                } else if item.type == "video", let poster = thumbnailImage {
+                    processed.immersiveImage = poster
+                    if let feedCrop = item.feedCrop {
+                        processed.image = poster.cropped(to: feedCrop.rect(in: poster.size))
+                    }
+                }
+
+                processed.thumbnailURL = item.type == "video" ? thumbURL : nil
                 processed.videoDuration = item.videoDuration
                 processed.videoFileSize = item.videoFileSize
                 processed.videoResolution = item.videoResolution

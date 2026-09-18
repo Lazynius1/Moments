@@ -39,7 +39,7 @@ struct UploadProgressRow: View {
                     uploadStatusView
                 }
 
-                if uploadingMoment.status == .uploading || uploadingMoment.status == .processing {
+                if uploadingMoment.status == .compressing || uploadingMoment.status == .uploading || uploadingMoment.status == .processing {
                     progressBarView
                 }
             }
@@ -88,6 +88,21 @@ struct UploadProgressRow: View {
                 Text(String(format: NSLocalizedString("feed.uploading.progress", comment: "Upload progress"), Int(uploadingMoment.uploadProgress * 100)))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.blue)
+
+            case .compressing:
+                Image(systemName: "rectangle.compress.vertical")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.orange)
+                    .rotationEffect(.degrees(rotationAngle))
+                    .onAppear {
+                        withAnimation(.linear(duration: 1.0).repeatForever(autoreverses: false)) {
+                            rotationAngle = 360
+                        }
+                    }
+
+                Text("feed.uploading.compressing")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.orange)
 
             case .processing:
                 Image(systemName: "gearshape.2")
@@ -186,7 +201,7 @@ struct UploadProgressRow: View {
 
     private var statusBorderColor: Color {
         switch uploadingMoment.status {
-        case .initializing, .uploading, .processing:
+        case .initializing, .compressing, .uploading, .processing:
             return Color.white.opacity(0.15)
         case .completed, .moderated:
             return Color.green.opacity(0.3)
@@ -215,6 +230,12 @@ struct UploadProgressRow: View {
                 startPoint: .leading,
                 endPoint: .trailing
             )
+        case .compressing:
+            return LinearGradient(
+                colors: [Color(hex: "007AFF"), Color.orange],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
         default:
             return LinearGradient(
                 colors: [.green],
@@ -230,6 +251,8 @@ struct UploadProgressRow: View {
             return NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status")
         case .uploading:
             return NSLocalizedString("feed.uploading.uploading", comment: "Uploading files status")
+        case .compressing:
+            return NSLocalizedString("feed.uploading.compressing", comment: "Compressing video status")
         case .processing:
             return NSLocalizedString("feed.uploading.creating", comment: "Creating moment status")
         case .completed, .moderated:

@@ -24,6 +24,7 @@
 "liveActivity.uploadingMoment" = "Moment 업로드 중";
 "liveActivity.uploading" = "업로드 중...";
 "liveActivity.processing" = "처리 중...";
+"liveActivity.compressing" = "압축 중...";
 "liveActivity.completed" = "완료";
 "liveActivity.error" = "오류";
 "incognito.activity.title" = "시크릿 모드";

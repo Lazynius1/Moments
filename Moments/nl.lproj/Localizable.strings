@@ -302,6 +302,7 @@
 "feed.uploading.more" = "+ %d meer worden geüpload...";
 "feed.uploading.progress" = "%d%%";
 "feed.uploading.processing" = "Bezig met verwerken";
+"feed.uploading.compressing" = "Comprimeren...";
 "feed.uploading.published" = "Gepubliceerd!";
 "feed.uploading.retry" = "Opnieuw proberen";
 "feed.uploading.files" = "%d bestanden";
@@ -751,6 +752,33 @@
 "creator.interactions.disableComments.description" = "Niemand kan op dit moment reageren";
 "creator.interactions.allowSharing" = "Opslaan in collecties toestaan";
 "creator.interactions.allowSharing.description" = "Anderen kunnen je moment aan hun collectie toevoegen";
+"creator.keepOriginalDimensions" = "Originele afmetingen behouden";
+"creator.keepOriginalDimensions.info" = "Als dit aan staat, zie je bij lang indrukken in de feed de volledige foto. Uit betekent dat alleen de uitsnede van de kaart wordt geplaatst.";
+"creator.tools.filter" = "Filter";
+"creator.tools.edit" = "Bewerken";
+"creator.carousel.portrait" = "Portret";
+"creator.carousel.landscape" = "Landschap";
+"creator.carousel.square" = "Vierkant";
+"creator.carousel.remove" = "Verwijderen";
+"creator.adjust.adjust" = "Aanpassen";
+"creator.adjust.straighten" = "Rechtzetten";
+"creator.adjust.vertical" = "Verticaal";
+"creator.adjust.horizontal" = "Horizontaal";
+"creator.adjust.lux" = "Lux";
+"creator.adjust.brightness" = "Helderheid";
+"creator.adjust.contrast" = "Contrast";
+"creator.adjust.texture" = "Textuur";
+"creator.adjust.warmth" = "Warmte";
+"creator.adjust.saturation" = "Verzadiging";
+"creator.adjust.color" = "Kleur";
+"creator.adjust.fade" = "Vervagen";
+"creator.adjust.highlights" = "Lichten";
+"creator.adjust.shadows" = "Schaduwen";
+"creator.adjust.vignette" = "Vignet";
+"creator.adjust.blur" = "Vervagen";
+"creator.adjust.sharpen" = "Verscherpen";
+"creator.adjust.radial" = "Radiaal";
+"creator.adjust.linear" = "Lineair";
 "creator.advancedSettings.title" = "Geavanceerde instellingen";
 "creator.visualization.title" = "Weergave";
 "creator.visualization.hideReactions" = "Aantal reacties verbergen";
@@ -2601,6 +2629,7 @@
 "liveActivity.uploadingMoment" = "Moment uploaden";
 "liveActivity.uploading" = "Uploaden...";
 "liveActivity.processing" = "Verwerken...";
+"liveActivity.compressing" = "Comprimeren...";
 "liveActivity.completed" = "Voltooid";
 "liveActivity.error" = "Fout";
 /* Widget */
@@ -4008,6 +4037,7 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "creator.upload.initializing" = "Bezig met starten...";
 "creator.upload.uploading" = "Bezig met uploaden...";
 "creator.upload.processing" = "Bezig met verwerken...";
+"creator.upload.compressing" = "Comprimeren...";
 "creator.upload.completed" = "Gepubliceerd";
 "creator.upload.failed" = "Uploaden mislukt";
 "errors.video.invalidSource" = "Kan de video niet lezen.";

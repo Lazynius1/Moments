@@ -24,6 +24,7 @@
 "liveActivity.uploadingMoment" = "正在上傳動態";
 "liveActivity.uploading" = "正在上傳…";
 "liveActivity.processing" = "處理中…";
+"liveActivity.compressing" = "壓縮中...";
 "liveActivity.completed" = "已完成";
 "liveActivity.error" = "錯誤";
 "incognito.activity.title" = "隱身模式";

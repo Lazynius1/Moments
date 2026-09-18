@@ -24,6 +24,7 @@
 "liveActivity.uploadingMoment" = "मोमेंट अपलोड हो रहा है";
 "liveActivity.uploading" = "अपलोड हो रहा है...";
 "liveActivity.processing" = "प्रोसेस हो रहा है...";
+"liveActivity.compressing" = "कंप्रेस हो रहा है...";
 "liveActivity.completed" = "पूरा हुआ";
 "liveActivity.error" = "गड़बड़ी";
 "incognito.activity.title" = "गुप्त मोड";

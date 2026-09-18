@@ -874,6 +874,7 @@ private struct SavedMomentGridCard: View {
                 savedVideoPreview(url: media.url, thumbnail: media.thumbnailUrl)
             } else {
                 KFImage(URL(string: media.url))
+                    .applyingFeedCrop(media.feedCrop)
                     .resizable()
                     .scaledToFill()
             }

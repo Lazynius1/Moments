@@ -167,11 +167,12 @@ struct ActivityCommentMomentPreview: View {
     private func preview(for moment: Moment) -> some View {
         if let media = moment.primaryVisibleMediaItem {
             if media.type == .image {
-                mediaImage(urlString: media.url)
+                mediaImage(urlString: media.url, feedCrop: media.feedCrop)
             } else {
                 mediaVideoPreview(
                     videoURL: media.url,
-                    thumbnailURL: resolvedVideoThumbnailURL(for: moment, preferred: media.thumbnailUrl)
+                    thumbnailURL: resolvedVideoThumbnailURL(for: moment, preferred: media.thumbnailUrl),
+                    feedCrop: media.feedCrop
                 )
             }
         } else if let imagePath = moment.previewImageURLString, !imagePath.isEmpty {
@@ -186,28 +187,38 @@ struct ActivityCommentMomentPreview: View {
         }
     }
 
-    private func mediaImage(urlString: String) -> some View {
-        KFImage(URL(string: urlString))
-            .placeholder { placeholder }
-            .resizable()
+    private func mediaImage(urlString: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
+        FeedCroppedRemoteImage(
+            url: URL(string: urlString),
+            feedCrop: feedCrop,
+            placeholderColor: Color.gray.opacity(0.12)
+        )
             .scaledToFill()
             .frame(width: size, height: size)
             .clipped()
     }
 
-    private func mediaVideoPreview(videoURL: String, thumbnailURL: String?) -> some View {
+    private func mediaVideoPreview(
+        videoURL: String,
+        thumbnailURL: String?,
+        feedCrop: MediaItemFeedCrop? = nil
+    ) -> some View {
         ZStack {
             if let thumb = thumbnailURL, !thumb.isEmpty {
-                KFImage(URL(string: thumb))
-                    .placeholder { placeholder }
-                    .resizable()
+                FeedCroppedRemoteImage(
+                    url: URL(string: thumb),
+                    feedCrop: feedCrop,
+                    placeholderColor: Color.gray.opacity(0.12)
+                )
                     .scaledToFill()
                     .frame(width: size, height: size)
                     .clipped()
             } else if let generatedVideoThumbnail {
-                Image(uiImage: generatedVideoThumbnail)
-                    .resizable()
-                    .scaledToFill()
+                NormalizedMediaCropContainer(feedCrop: feedCrop) {
+                    Image(uiImage: generatedVideoThumbnail)
+                        .resizable()
+                        .scaledToFit()
+                }
                     .frame(width: size, height: size)
                     .clipped()
             } else {
@@ -827,9 +838,13 @@ struct ActivityReactionMomentCard: View {
     private func preview(for moment: Moment) -> some View {
         if let media = moment.primaryVisibleMediaItem {
             if media.type == .image {
-                mediaImage(urlString: media.url)
+                mediaImage(urlString: media.url, feedCrop: media.feedCrop)
             } else {
-                mediaVideoPreview(videoURL: media.url, thumbnailURL: media.thumbnailUrl ?? moment.thumbnailUrl)
+                mediaVideoPreview(
+                    videoURL: media.url,
+                    thumbnailURL: media.thumbnailUrl ?? moment.thumbnailUrl,
+                    feedCrop: media.feedCrop
+                )
             }
         } else if let imagePath = moment.previewImageURLString, !imagePath.isEmpty {
             mediaImage(urlString: imagePath)
@@ -840,32 +855,38 @@ struct ActivityReactionMomentCard: View {
         }
     }
 
-    private func mediaImage(urlString: String) -> some View {
-        KFImage(URL(string: urlString))
-            .placeholder {
-                Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
-            }
-            .resizable()
+    private func mediaImage(urlString: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
+        FeedCroppedRemoteImage(
+            url: URL(string: urlString),
+            feedCrop: feedCrop,
+            placeholderColor: Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+        )
             .scaledToFill()
             .frame(width: size, height: size)
             .clipped()
     }
 
-    private func mediaVideoPreview(videoURL: String, thumbnailURL: String?) -> some View {
+    private func mediaVideoPreview(
+        videoURL: String,
+        thumbnailURL: String?,
+        feedCrop: MediaItemFeedCrop? = nil
+    ) -> some View {
         ZStack {
             if let thumb = thumbnailURL, !thumb.isEmpty {
-                KFImage(URL(string: thumb))
-                    .placeholder {
-                        Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
-                    }
-                    .resizable()
+                FeedCroppedRemoteImage(
+                    url: URL(string: thumb),
+                    feedCrop: feedCrop,
+                    placeholderColor: Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+                )
                     .scaledToFill()
                     .frame(width: size, height: size)
                     .clipped()
             } else if let generatedVideoThumbnail {
-                Image(uiImage: generatedVideoThumbnail)
-                    .resizable()
-                    .scaledToFill()
+                NormalizedMediaCropContainer(feedCrop: feedCrop) {
+                    Image(uiImage: generatedVideoThumbnail)
+                        .resizable()
+                        .scaledToFit()
+                }
                     .frame(width: size, height: size)
                     .clipped()
             } else {
@@ -1013,9 +1034,13 @@ struct ActivityPortraitMomentCard: View {
     private var cardPreview: some View {
         if let media = moment.primaryVisibleMediaItem {
             if media.type == .image {
-                mediaImage(urlString: media.url)
+                mediaImage(urlString: media.url, feedCrop: media.feedCrop)
             } else {
-                mediaVideoPreview(videoURL: media.url, thumbnailURL: media.thumbnailUrl ?? moment.thumbnailUrl)
+                mediaVideoPreview(
+                    videoURL: media.url,
+                    thumbnailURL: media.thumbnailUrl ?? moment.thumbnailUrl,
+                    feedCrop: media.feedCrop
+                )
             }
         } else if let imagePath = moment.previewImageURLString, !imagePath.isEmpty {
             mediaImage(urlString: imagePath)
@@ -1026,29 +1051,35 @@ struct ActivityPortraitMomentCard: View {
         }
     }
 
-    private func mediaImage(urlString: String) -> some View {
-        KFImage(URL(string: urlString))
-            .placeholder {
-                Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
-            }
-            .resizable()
+    private func mediaImage(urlString: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
+        FeedCroppedRemoteImage(
+            url: URL(string: urlString),
+            feedCrop: feedCrop,
+            placeholderColor: Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+        )
             .scaledToFill()
     }
 
     @ViewBuilder
-    private func mediaVideoPreview(videoURL: String, thumbnailURL: String?) -> some View {
+    private func mediaVideoPreview(
+        videoURL: String,
+        thumbnailURL: String?,
+        feedCrop: MediaItemFeedCrop? = nil
+    ) -> some View {
         ZStack {
             if let thumb = thumbnailURL, !thumb.isEmpty {
-                KFImage(URL(string: thumb))
-                    .placeholder {
-                        Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
-                    }
-                    .resizable()
+                FeedCroppedRemoteImage(
+                    url: URL(string: thumb),
+                    feedCrop: feedCrop,
+                    placeholderColor: Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+                )
                     .scaledToFill()
             } else if let generatedVideoThumbnail {
-                Image(uiImage: generatedVideoThumbnail)
-                    .resizable()
-                    .scaledToFill()
+                NormalizedMediaCropContainer(feedCrop: feedCrop) {
+                    Image(uiImage: generatedVideoThumbnail)
+                        .resizable()
+                        .scaledToFit()
+                }
             } else {
                 videoPlaceholder
                     .onAppear {
