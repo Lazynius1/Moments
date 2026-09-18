@@ -377,23 +377,11 @@ struct EchoViewerUI: View {
         }
     }
 
-    /// Debug: fuerza un caption largo para validar truncado / ver más / traducción.
-    private let debugForceEchoCaption = true
-    private let debugEchoCaptionText =
-        "Debug Echo: un momento compartido desde este ángulo con bastante texto para probar el truncado a una línea, el ver más del feed y la fila de traducción debajo."
-
     private func resolvedCaption(for post: EchoDeckPost?) -> String {
-        guard let post else {
-            return debugForceEchoCaption ? debugEchoCaptionText : ""
-        }
-        let cached = viewModel.postCaptions[post.momentId]
+        guard let post else { return "" }
+        return viewModel.postCaptions[post.momentId]
             ?? viewModel.postMoments[post.momentId]?.content
             ?? ""
-        let trimmed = cached.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty, debugForceEchoCaption {
-            return debugEchoCaptionText
-        }
-        return cached
     }
 
     private func captionMoment(for post: EchoDeckPost, caption: String) -> Moment {
