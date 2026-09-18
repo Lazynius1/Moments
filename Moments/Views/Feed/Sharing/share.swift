@@ -1975,11 +1975,10 @@ struct MomentVisualContent: View {
             if let imageUrl = sharedMomentData["momentImageUrl"],
                       !imageUrl.isEmpty,
                       let url = URL(string: imageUrl) {
-                FeedCroppedRemoteImage(
-                    url: url,
-                    feedCrop: feedCrop,
-                    placeholderColor: Color.gray.opacity(0.2)
-                )
+                KFImage(url)
+                    .placeholder { Color.gray.opacity(0.2) }
+                    .applyingFeedCrop(feedCrop)
+                    .resizable()
                     .scaledToFill()
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .clipped()

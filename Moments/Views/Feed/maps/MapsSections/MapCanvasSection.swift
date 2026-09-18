@@ -330,14 +330,13 @@ struct ModernLocationPhotoCard: View {
                     colorScheme: colorScheme
                 )
             } else {
-                FeedCroppedRemoteImage(
-                    url: URL(string: moment.mapPreferredImageURL ?? ""),
-                    feedCrop: moment.mapPreferredFeedCrop,
-                    placeholderColor: Color.gray.opacity(0.12)
-                )
-                .scaledToFill()
-                .frame(width: 90, height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
+                    .placeholder { Color.gray.opacity(0.12) }
+                    .applyingFeedCrop(moment.mapPreferredFeedCrop)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 90, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
                         .stroke(
@@ -493,11 +492,10 @@ struct ModernLocationGalleryView: View {
                                     colorScheme: colorScheme
                                 )
                             } else {
-                                FeedCroppedRemoteImage(
-                                    url: URL(string: moment.mapPreferredImageURL ?? ""),
-                                    feedCrop: moment.mapPreferredFeedCrop,
-                                    placeholderColor: Color.gray.opacity(0.12)
-                                )
+                                KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
+                                    .placeholder { Color.gray.opacity(0.12) }
+                                    .applyingFeedCrop(moment.mapPreferredFeedCrop)
+                                    .resizable()
                                     .scaledToFill()
                                     .frame(maxWidth: .infinity)
                                     .aspectRatio(1, contentMode: .fit)

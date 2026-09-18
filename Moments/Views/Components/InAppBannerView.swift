@@ -203,7 +203,9 @@ struct InAppBannerView: View {
     @ViewBuilder
     private func bannerTrailingIcon(for notification: Notification, isSystem: Bool, accentColor: Color) -> some View {
         if !isSystem, let previewPath = contentPreviewImage, let url = URL(string: previewPath) {
-            FeedCroppedRemoteImage(url: url, feedCrop: contentPreviewFeedCrop)
+            KFImage(url)
+                .applyingFeedCrop(contentPreviewFeedCrop)
+                .resizable()
                 .scaledToFill()
                 .frame(width: 30, height: 30)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))

@@ -401,11 +401,10 @@ struct MapBottomSheetGridCell: View {
                         colorScheme: colorScheme
                     )
                 } else {
-                    FeedCroppedRemoteImage(
-                        url: URL(string: moment.mapPreferredImageURL ?? ""),
-                        feedCrop: moment.mapPreferredFeedCrop,
-                        placeholderColor: Color.gray.opacity(0.12)
-                    )
+                    KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
+                        .placeholder { Color.gray.opacity(0.12) }
+                        .applyingFeedCrop(moment.mapPreferredFeedCrop)
+                        .resizable()
                         .scaledToFill()
                         .frame(width: geometry.size.width, height: geometry.size.width)
                         .clipped()
@@ -450,14 +449,13 @@ struct MapsVideoThumbnailView: View {
     var body: some View {
         ZStack {
             // ✅ THUMBNAIL DEL VIDEO
-            FeedCroppedRemoteImage(
-                url: URL(string: moment.mapPreferredVideoThumbnailURL ?? ""),
-                feedCrop: moment.mapPreferredFeedCrop,
-                placeholderColor: Color.gray.opacity(0.12)
-            )
-            .scaledToFill()
-            .frame(width: size.width, height: size.height)
-            .clipped()
+            KFImage(URL(string: moment.mapPreferredVideoThumbnailURL ?? ""))
+                .placeholder { Color.gray.opacity(0.12) }
+                .applyingFeedCrop(moment.mapPreferredFeedCrop)
+                .resizable()
+                .scaledToFill()
+                .frame(width: size.width, height: size.height)
+                .clipped()
 
             // ✅ OVERLAY OSCURO PARA ICONO
             Rectangle()
@@ -604,15 +602,14 @@ struct ModernLocationMomentRow: View {
                 colorScheme: colorScheme
             )
         } else {
-            FeedCroppedRemoteImage(
-                url: URL(string: moment.mapPreferredImageURL ?? ""),
-                feedCrop: moment.mapPreferredFeedCrop,
-                placeholderColor: Color.gray.opacity(0.12)
-            )
-            .scaledToFill()
-            .frame(height: 180)
-            .frame(maxWidth: .infinity)
-            .clipped()
+            KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
+                .placeholder { Color.gray.opacity(0.12) }
+                .applyingFeedCrop(moment.mapPreferredFeedCrop)
+                .resizable()
+                .scaledToFill()
+                .frame(height: 180)
+                .frame(maxWidth: .infinity)
+                .clipped()
         }
     }
 

@@ -188,11 +188,10 @@ struct ActivityCommentMomentPreview: View {
     }
 
     private func mediaImage(urlString: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
-        FeedCroppedRemoteImage(
-            url: URL(string: urlString),
-            feedCrop: feedCrop,
-            placeholderColor: Color.gray.opacity(0.12)
-        )
+        KFImage(URL(string: urlString))
+            .placeholder { placeholder }
+            .applyingFeedCrop(feedCrop)
+            .resizable()
             .scaledToFill()
             .frame(width: size, height: size)
             .clipped()
@@ -205,20 +204,17 @@ struct ActivityCommentMomentPreview: View {
     ) -> some View {
         ZStack {
             if let thumb = thumbnailURL, !thumb.isEmpty {
-                FeedCroppedRemoteImage(
-                    url: URL(string: thumb),
-                    feedCrop: feedCrop,
-                    placeholderColor: Color.gray.opacity(0.12)
-                )
+                KFImage(URL(string: thumb))
+                    .placeholder { placeholder }
+                    .applyingFeedCrop(feedCrop)
+                    .resizable()
                     .scaledToFill()
                     .frame(width: size, height: size)
                     .clipped()
             } else if let generatedVideoThumbnail {
-                NormalizedMediaCropContainer(feedCrop: feedCrop) {
-                    Image(uiImage: generatedVideoThumbnail)
-                        .resizable()
-                        .scaledToFit()
-                }
+                Image(uiImage: activityCroppedImage(generatedVideoThumbnail, feedCrop: feedCrop))
+                    .resizable()
+                    .scaledToFill()
                     .frame(width: size, height: size)
                     .clipped()
             } else {
@@ -856,11 +852,12 @@ struct ActivityReactionMomentCard: View {
     }
 
     private func mediaImage(urlString: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
-        FeedCroppedRemoteImage(
-            url: URL(string: urlString),
-            feedCrop: feedCrop,
-            placeholderColor: Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
-        )
+        KFImage(URL(string: urlString))
+            .placeholder {
+                Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+            }
+            .applyingFeedCrop(feedCrop)
+            .resizable()
             .scaledToFill()
             .frame(width: size, height: size)
             .clipped()
@@ -873,20 +870,19 @@ struct ActivityReactionMomentCard: View {
     ) -> some View {
         ZStack {
             if let thumb = thumbnailURL, !thumb.isEmpty {
-                FeedCroppedRemoteImage(
-                    url: URL(string: thumb),
-                    feedCrop: feedCrop,
-                    placeholderColor: Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
-                )
+                KFImage(URL(string: thumb))
+                    .placeholder {
+                        Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+                    }
+                    .applyingFeedCrop(feedCrop)
+                    .resizable()
                     .scaledToFill()
                     .frame(width: size, height: size)
                     .clipped()
             } else if let generatedVideoThumbnail {
-                NormalizedMediaCropContainer(feedCrop: feedCrop) {
-                    Image(uiImage: generatedVideoThumbnail)
-                        .resizable()
-                        .scaledToFit()
-                }
+                Image(uiImage: activityCroppedImage(generatedVideoThumbnail, feedCrop: feedCrop))
+                    .resizable()
+                    .scaledToFill()
                     .frame(width: size, height: size)
                     .clipped()
             } else {
@@ -1052,11 +1048,12 @@ struct ActivityPortraitMomentCard: View {
     }
 
     private func mediaImage(urlString: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
-        FeedCroppedRemoteImage(
-            url: URL(string: urlString),
-            feedCrop: feedCrop,
-            placeholderColor: Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
-        )
+        KFImage(URL(string: urlString))
+            .placeholder {
+                Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+            }
+            .applyingFeedCrop(feedCrop)
+            .resizable()
             .scaledToFill()
     }
 
@@ -1068,18 +1065,17 @@ struct ActivityPortraitMomentCard: View {
     ) -> some View {
         ZStack {
             if let thumb = thumbnailURL, !thumb.isEmpty {
-                FeedCroppedRemoteImage(
-                    url: URL(string: thumb),
-                    feedCrop: feedCrop,
-                    placeholderColor: Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
-                )
+                KFImage(URL(string: thumb))
+                    .placeholder {
+                        Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+                    }
+                    .applyingFeedCrop(feedCrop)
+                    .resizable()
                     .scaledToFill()
             } else if let generatedVideoThumbnail {
-                NormalizedMediaCropContainer(feedCrop: feedCrop) {
-                    Image(uiImage: generatedVideoThumbnail)
-                        .resizable()
-                        .scaledToFit()
-                }
+                Image(uiImage: activityCroppedImage(generatedVideoThumbnail, feedCrop: feedCrop))
+                    .resizable()
+                    .scaledToFill()
             } else {
                 videoPlaceholder
                     .onAppear {
@@ -1159,6 +1155,12 @@ struct ActivityDeletedStoryCard: View {
         .clipped()
     }
 
+}
+
+/// Recorte de bitmap para thumbs de grid (≡ perfil `applyingFeedCrop`), no el contenedor Fit.
+private func activityCroppedImage(_ image: UIImage, feedCrop: MediaItemFeedCrop?) -> UIImage {
+    guard let feedCrop, !feedCrop.isFullBounds else { return image }
+    return image.cropped(to: feedCrop.rect(in: image.size))
 }
 
 struct ActivityThumbnailVideoPlayIndicator: View {
