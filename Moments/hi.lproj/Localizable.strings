@@ -2740,6 +2740,8 @@
 "echo.viewer.location.header" = "%@ पर टैप किया गया";
 "echo.viewer.location.viewMaps" = "मैप्स में देखें";
 "echo.viewer.perspective.change" = "नज़रिया बदलें";
+"echo.viewer.perspective.previous" = "पिछला नज़रिया";
+"echo.viewer.perspective.next" = "अगला नज़रिया";
 "echo.viewer.waiting.title" = "दोस्तों का इंतज़ार हो रहा है...";
 "echo.viewer.waiting.subtitle" = "Echo तभी रहता है जब दूसरे लोग भी जुड़ें। 2 या उससे ज़्यादा लोगों के स्वीकार करने पर कॉन्टेंट शेयर किया जाएगा।";
 "echo.viewer.ok" = "ठीक है";

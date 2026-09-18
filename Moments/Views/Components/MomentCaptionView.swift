@@ -6,6 +6,8 @@ enum MomentCaptionPresentationStyle {
     case feed
     case reels
     case detail
+    /// Echo deck: 1 línea de texto + 1 de traducción; “ver más” como el feed.
+    case echo
 }
 
 /// Normalización de caption para cards (feed/reels).
@@ -55,10 +57,10 @@ struct MomentCaptionView: View {
         moment.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Feed/Reels: flujo continuo. Detail: respeta saltos del autor.
+    /// Feed/Reels/Echo: flujo continuo. Detail: respeta saltos del autor.
     private var cardContent: String {
         switch style {
-        case .feed, .reels:
+        case .feed, .reels, .echo:
             return MomentCaptionText.flowing(visibleContent)
         case .detail:
             return visibleContent
@@ -70,7 +72,11 @@ struct MomentCaptionView: View {
     }
 
     private var lineLimit: Int {
-        style == .detail ? 4 : 3
+        switch style {
+        case .detail: return 4
+        case .echo: return 1
+        case .feed, .reels: return 3
+        }
     }
 
     private var bodyFontSize: CGFloat {
@@ -257,7 +263,7 @@ struct MomentCaptionView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
-            .padding(.top, style == .detail ? 0 : 2)
+            .padding(.top, style == .detail ? 0 : (style == .echo ? 0 : 2))
         } destination: { close, reportContentHeight in
             MomentCaptionReaderCard(
                 moment: moment,

@@ -182,8 +182,16 @@ struct MessagingView: View {
         content
             .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: actionToastMessage), value: actionToastMessage)
             .coordinateSpace(name: "messagingRoot")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("messaging.title")
+            .toolbarRole(.browser)
+            .modifier(MessagingInboxTitleDisplayMode())
             .toolbar { messagingToolbarContent }
+            .momentsScrollEdgeChrome()
+            .messagingTitleStatusAccessory(
+                status: onlineStatusService.currentUserStatus,
+                secondary: adaptiveColors.secondary,
+                onTap: { showingStatusSelector = true }
+            )
             .safeAreaInset(edge: .top, spacing: 0) {
                 if !viewModel.conversations.isEmpty || !viewModel.archivedConversations.isEmpty {
                     searchBar
@@ -547,22 +555,18 @@ struct MessagingView: View {
                 messagingToolbarBackButton
             }
             .chatHideSharedBackgroundIfAvailable()
-        } else {
-            ToolbarItem(placement: .topBarLeading) {
-                messagingToolbarComposeButton
-            }
         }
 
-        ToolbarItem(placement: .principal) {
-            messagingToolbarTitleStack
+        if #unavailable(iOS 26.0) {
+            ToolbarItem(placement: .principal) {
+                messagingToolbarTitleStack(compact: true)
+            }
+            .chatHideSharedBackgroundIfAvailable()
         }
 
         ToolbarItemGroup(placement: .topBarTrailing) {
-            if onDismiss != nil {
-                messagingToolbarComposeButton
-            }
-            messagingToolbarGroupRequestsButton
-            messagingToolbarRequestsClusterButton
+            messagingToolbarComposeButton
+            messagingToolbarFilterMenu
         }
     }
 
@@ -575,24 +579,6 @@ struct MessagingView: View {
         )
     }
 
-    private var messagingToolbarGroupRequestsButton: some View {
-        Button(action: { groupRequestsStartSent = false; showingGroupRequests = true }) {
-            AttachmentIconView(icon: .groups, preset: .settingsRow, tintColor: adaptiveColors.primary)
-                .overlay(alignment: .topTrailing) {
-                    if groupRequests.count > 0 {
-                        Text("\(groupRequests.count)")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.white)
-                            .frame(width: 18, height: 18)
-                            .background(Circle().fill(Color(hex: "FF3B30")))
-                            .offset(x: 8, y: -8)
-                    }
-                }
-        }
-        .accessibilityLabel(NSLocalizedString("groups.requestsTitle", comment: "Group requests"))
-    }
-
     private var messagingToolbarComposeButton: some View {
         Button(action: { isShowingNewConversation = true }) {
             AttachmentIconView(icon: .compose, preset: .settingsRow, tintColor: adaptiveColors.primary)
@@ -600,12 +586,35 @@ struct MessagingView: View {
         .accessibilityLabel(NSLocalizedString("messaging.newConversation", comment: "New conversation"))
     }
 
-    private var messagingToolbarRequestsClusterButton: some View {
-        Button(action: { showingMessageRequests = true }) {
-            AttachmentIconView(icon: .messageRequests, preset: .settingsRow, tintColor: adaptiveColors.primary)
+    private var messagingInboxFilterBadgeCount: Int {
+        pendingRequestCount + groupRequests.count
+    }
+
+    private var messagingToolbarFilterMenu: some View {
+        Menu {
+            Button {
+                showingMessageRequests = true
+            } label: {
+                Label("messageRequests.title", systemImage: "envelope")
+            }
+            Button {
+                groupRequestsStartSent = false
+                showingGroupRequests = true
+            } label: {
+                Label("groups.requestsTitle", systemImage: "person.3")
+            }
+            Button {
+                showingArchivedConversations = true
+            } label: {
+                Label("messaging.section.archived", systemImage: "archivebox")
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(adaptiveColors.primary)
                 .overlay(alignment: .topTrailing) {
-                    if pendingRequestCount > 0 {
-                        Text("\(pendingRequestCount)")
+                    if messagingInboxFilterBadgeCount > 0 {
+                        Text("\(messagingInboxFilterBadgeCount)")
                             .font(.caption2)
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
@@ -615,35 +624,33 @@ struct MessagingView: View {
                     }
                 }
         }
-        .accessibilityLabel(NSLocalizedString("messageRequests.title", comment: "Message requests"))
+        .accessibilityLabel(NSLocalizedString("savedMoments.filters.button", comment: "Filters"))
     }
 
-    private var messagingToolbarTitleStack: some View {
-        VStack(spacing: 2) {
-            Text("messaging.title")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(adaptiveColors.primary)
-                .lineLimit(1)
+    private func messagingToolbarTitleStack(compact: Bool) -> some View {
+        let status = onlineStatusService.currentUserStatus
+        return Button(action: { showingStatusSelector = true }) {
+            HStack(spacing: compact ? 5 : 8) {
+                Text("messaging.title")
+                    .font(compact ? .headline.weight(.semibold) : .largeTitle.weight(.bold))
+                    .foregroundStyle(adaptiveColors.primary)
+                    .lineLimit(1)
 
-            Button(action: { showingStatusSelector = true }) {
-                HStack(spacing: 4) {
-                    Image(systemName: onlineStatusService.currentUserStatus.icon)
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(onlineStatusService.currentUserStatus.color)
+                Image(systemName: status.icon)
+                    .font(.system(size: compact ? 9 : 12, weight: .medium))
+                    .foregroundStyle(status.color)
 
-                    Text(onlineStatusService.currentUserStatus.displayName)
-                        .font(.system(size: 11, weight: .regular))
-                        .foregroundStyle(adaptiveColors.secondary)
-                        .lineLimit(1)
-
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(adaptiveColors.secondary)
-                }
+                Image(systemName: "chevron.down")
+                    .font(.system(size: compact ? 8 : 11, weight: .semibold))
+                    .foregroundStyle(adaptiveColors.secondary)
             }
-            .buttonStyle(.momentsPressSubtle)
+            .contentShape(Rectangle())
         }
-        .fixedSize(horizontal: false, vertical: true)
+        .buttonStyle(.plain)
+        .accessibilityLabel(
+            Text("messaging.title") + Text(", ") + Text(status.displayName)
+        )
+        .fixedSize(horizontal: true, vertical: true)
     }
 
     // ✅ Barra de búsqueda
@@ -1039,10 +1046,6 @@ struct MessagingView: View {
 
     @ViewBuilder
     private var conversationsSection: some View {
-        if !viewModel.archivedConversations.isEmpty {
-            archivedConversationsEntryRow
-        }
-
         ForEach(mergedConversationRows) { row in
             switch row {
             case .conversation(let conversation):
@@ -1104,40 +1107,6 @@ struct MessagingView: View {
         return groupDirectory.groups[id]?.members.map(\.id) ?? []
     }
 
-    private var archivedConversationsEntryRow: some View {
-        let userId = Auth.auth().currentUser?.uid ?? ""
-        let unreadCount = viewModel.archivedUnreadCount(for: userId)
-
-        return Button {
-            showingArchivedConversations = true
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "archivebox")
-                    .font(.system(size: 15, weight: .semibold))
-                    .frame(width: 22)
-
-                Text(
-                    unreadCount > 0
-                        ? String(format: NSLocalizedString("messaging.section.archivedWithUnread", comment: "Archived section with unread count"), unreadCount)
-                        : NSLocalizedString("messaging.section.archived", comment: "Archived section")
-                )
-                .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .opacity(0.45)
-            }
-            .foregroundStyle(adaptiveColors.primary.opacity(0.85))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-        }
-        .buttonStyle(.momentsPressSubtle)
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-    }
 }
 
 // MARK: - Outgoing sent request row
@@ -1854,6 +1823,18 @@ private struct NewConversationUserRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+    }
+}
+
+private struct MessagingInboxTitleDisplayMode: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .navigationBarTitleDisplayMode(.large)
+                .toolbarTitleDisplayMode(.large)
+        } else {
+            content.navigationBarTitleDisplayMode(.inline)
+        }
     }
 }
 

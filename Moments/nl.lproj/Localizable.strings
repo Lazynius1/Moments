@@ -2740,6 +2740,8 @@
 "echo.viewer.location.header" = "Aangetikt om %@";
 "echo.viewer.location.viewMaps" = "Bekijken in Kaarten";
 "echo.viewer.perspective.change" = "Wissel van perspectief";
+"echo.viewer.perspective.previous" = "Vorig perspectief";
+"echo.viewer.perspective.next" = "Volgend perspectief";
 "echo.viewer.waiting.title" = "Wachten op vrienden...";
 "echo.viewer.waiting.subtitle" = "Een Echo bestaat pas als anderen meedoen. De inhoud wordt gedeeld zodra minstens twee mensen accepteren.";
 "echo.viewer.ok" = "Begrepen";

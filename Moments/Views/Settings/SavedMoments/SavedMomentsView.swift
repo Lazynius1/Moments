@@ -1400,15 +1400,6 @@ struct ModernSavedDetailMomentCard: View {
                         .opacity(isImmersive ? 0 : 1)
                         .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
 
-                    if mediaItems.count > 1 {
-                        MomentCarouselPageIndicators(
-                            count: mediaItems.count,
-                            currentIndex: currentImageIndex
-                        )
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, aspectRatioType == .reels ? 80 : 18)
-                        .opacity(isImmersive ? 0 : 1)
-                    }
                 }
 
                 ModernActionButtons(
@@ -1443,6 +1434,16 @@ struct ModernSavedDetailMomentCard: View {
             }
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.10), radius: 18, x: 0, y: 12)
 
+            if mediaItems.count > 1 {
+                MomentCarouselPageIndicators(
+                    count: mediaItems.count,
+                    currentIndex: $currentImageIndex,
+                    tone: .onCanvas
+                )
+                .frame(maxWidth: .infinity)
+                .opacity(isImmersive ? 0 : 1)
+            }
+
             MomentCaptionView(
                 moment: moment,
                 style: .detail,
@@ -1451,7 +1452,6 @@ struct ModernSavedDetailMomentCard: View {
             )
             .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
         }
-        .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
         .padding(.vertical, 4)
         .onAppear {
             if !hasLoadedInitialData {

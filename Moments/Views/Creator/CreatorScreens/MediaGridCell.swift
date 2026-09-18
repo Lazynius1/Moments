@@ -11,13 +11,15 @@ struct MediaGridCell: View {
     var body: some View {
         Button(action: onTap) {
             ZStack {
-                if let thumbnail = thumbnail {
+                Color.gray.opacity(0.3)
+
+                if let thumbnail {
                     Image(uiImage: thumbnail)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.gray.opacity(0.3))
                         .clipped()
+                        .background(Color.gray.opacity(0.3))
                         .contentShape(Rectangle())
                         .overlay(
                             Rectangle()
@@ -32,7 +34,6 @@ struct MediaGridCell: View {
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
-                        .aspectRatio(1, contentMode: .fit)
 
                     ProgressView()
                         .tint(Color(hex: "00A896"))
@@ -91,6 +92,8 @@ struct MediaGridCell: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
         }
         .buttonStyle(PlainButtonStyle())
     }

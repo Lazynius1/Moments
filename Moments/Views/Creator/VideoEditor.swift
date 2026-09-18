@@ -174,17 +174,6 @@ struct SocialVideoEditorView: View {
         colorScheme == .dark ? .white : .black
     }
 
-    private var videoPreviewHeight: CGFloat {
-        switch selectedFormat {
-        case .reels:
-            return 600
-        case .square:
-            return 420
-        case .landscape:
-            return 320
-        }
-    }
-
     var body: some View {
         GeometryReader { proxy in
             let resolvedPreviewHeight = resolvedVideoPreviewHeight(in: proxy.size)
@@ -297,9 +286,7 @@ struct SocialVideoEditorView: View {
         let timelineHeight: CGFloat = currentVideo == nil ? 0 : 104
         let reservedHeight = headerHeight + spacerHeight + controlsHeight + timelineHeight
         let availablePreviewHeight = availableSize.height - reservedHeight
-        let fallbackMinimumHeight: CGFloat = selectedFormat == .landscape ? 150 : 180
-
-        return max(fallbackMinimumHeight, min(videoPreviewHeight, availablePreviewHeight))
+        return max(180, availablePreviewHeight)
     }
 
     // MARK: - Processing Overlay

@@ -2740,6 +2740,8 @@
 "echo.viewer.location.header" = "%@にタップ";
 "echo.viewer.location.viewMaps" = "マップで見る";
 "echo.viewer.perspective.change" = "視点を切り替える";
+"echo.viewer.perspective.previous" = "前の視点";
+"echo.viewer.perspective.next" = "次の視点";
 "echo.viewer.waiting.title" = "友達を待っています…";
 "echo.viewer.waiting.subtitle" = "Echoは、他の人が参加して初めて成立します。2人以上が承認するとコンテンツが共有されます。";
 "echo.viewer.ok" = "了解";

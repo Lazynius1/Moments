@@ -3655,6 +3655,8 @@
 "echo.viewer.location.header" = "Tocado em %@";
 "echo.viewer.location.viewMaps" = "Ver no Maps";
 "echo.viewer.perspective.change" = "Mudar perspetiva";
+"echo.viewer.perspective.previous" = "Perspetiva anterior";
+"echo.viewer.perspective.next" = "Perspetiva seguinte";
 "echo.viewer.waiting.title" = "À espera de amigos...";
 "echo.viewer.waiting.subtitle" = "Um Echo só ganha vida quando outras pessoas se juntam. O conteúdo será partilhado quando 2 ou mais pessoas aceitarem.";
 "echo.viewer.ok" = "Percebi";

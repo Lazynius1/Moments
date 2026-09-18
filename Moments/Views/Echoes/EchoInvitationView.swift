@@ -64,6 +64,8 @@ struct EchoInvitationView: View {
                     Text(echo.locationName ?? NSLocalizedString("echo.viewer.location.fallback", comment: ""))
                         .font(.system(size: 14))
                         .foregroundStyle(secondaryTextColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
                 }
                 
                 Spacer()

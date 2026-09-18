@@ -8,7 +8,21 @@ struct GroupedPerspective: Identifiable {
     let authorId: String
     let username: String
     let profileImagePath: String?
+    /// Refs planas (validación / preload).
     var moments: [EchoMomentRef]
+    /// Posts únicos: un carrusel por `momentId` (no una capa por slide).
+    var posts: [EchoDeckPost]
+}
+
+/// Un momento del Echo (puede tener varias medias = carrusel).
+struct EchoDeckPost: Identifiable {
+    var id: String { momentId }
+    let momentId: String
+    let authorId: String
+    let username: String
+    let timestamp: Date
+    let aspectRatio: String?
+    let slides: [EchoMomentRef]
 }
 
 class EchoViewModel: ObservableObject {
@@ -64,16 +78,38 @@ class EchoViewModel: ObservableObject {
         groupedPerspectives.flatMap { $0.moments }
     }
     
-    // Current active moment helper
-    var currentMoment: EchoMomentRef? {
+    // Current active post (ángulo + índice vertical de posts, no de slides)
+    var currentPost: EchoDeckPost? {
         guard canBrowseMedia else { return nil }
-        guard currentPerspectiveIndex < groupedPerspectives.count,
-              currentVerticalIndex < groupedPerspectives[currentPerspectiveIndex].moments.count else {
-            return nil
-        }
-        return groupedPerspectives[currentPerspectiveIndex].moments[currentVerticalIndex]
+        guard currentPerspectiveIndex < groupedPerspectives.count else { return nil }
+        let posts = groupedPerspectives[currentPerspectiveIndex].posts
+        guard currentVerticalIndex < posts.count else { return nil }
+        return posts[currentVerticalIndex]
     }
-    
+
+    /// Primera slide del post actual (compat media / video flag).
+    var currentMoment: EchoMomentRef? {
+        guard let post = currentPost else { return nil }
+        return visibleSlides(for: post).first ?? post.slides.first
+    }
+
+    /// Paridad feed `visibleMediaItems`: saca del carrusel las slides ocultas por moderación.
+    func visibleSlides(for post: EchoDeckPost) -> [EchoMomentRef] {
+        guard let moment = postMoments[post.momentId] else { return post.slides }
+        let visible = moment.visibleMediaItems
+        if (moment.mediaItems ?? []).isEmpty && visible.isEmpty {
+            return post.slides
+        }
+        let urls = Set(visible.map(\.url))
+        return post.slides.filter { urls.contains($0.mediaUrl) }
+    }
+
+    /// Caption denormalizado cargado desde el documento del momento.
+    @Published var postCaptions: [String: String] = [:]
+    @Published var postAspectRatios: [String: String] = [:]
+    /// Momento completo (para CroppedVideoPlayer / mediaItems del feed).
+    @Published var postMoments: [String: Moment] = [:]
+
     // ✅ NUEVO: Estado de disponibilidad en vivo (momentId -> isAvailable)
     @Published var momentAvailability: [String: Bool] = [:]
     
@@ -160,12 +196,14 @@ class EchoViewModel: ObservableObject {
         var perspectives: [GroupedPerspective] = grouped.map { (authorId, moments) in
             let first = moments[0]
             let participant = echo.participants.first(where: { $0.userId == authorId })
-            
+            let ordered = moments.sorted { $0.timestamp < $1.timestamp }
+
             return GroupedPerspective(
                 authorId: authorId,
                 username: participant?.username ?? first.username,
                 profileImagePath: participant?.profileImagePath,
-                moments: moments.sorted { $0.timestamp < $1.timestamp }
+                moments: ordered,
+                posts: Self.posts(from: ordered)
             )
         }
         
@@ -174,8 +212,8 @@ class EchoViewModel: ObservableObject {
             if p1.authorId == currentUserId { return true }
             if p2.authorId == currentUserId { return false }
             
-            let t1 = p1.moments.first?.timestamp ?? Date()
-            let t2 = p2.moments.first?.timestamp ?? Date()
+            let t1 = p1.posts.first?.timestamp ?? Date()
+            let t2 = p2.posts.first?.timestamp ?? Date()
             return t1 < t2
         }
         
@@ -184,13 +222,118 @@ class EchoViewModel: ObservableObject {
             currentPerspectiveIndex = max(0, groupedPerspectives.count - 1)
         }
         if currentPerspectiveIndex < groupedPerspectives.count {
-            let visibleMoments = groupedPerspectives[currentPerspectiveIndex].moments
-            if currentVerticalIndex >= visibleMoments.count {
-                currentVerticalIndex = max(0, visibleMoments.count - 1)
+            let visiblePosts = groupedPerspectives[currentPerspectiveIndex].posts
+            if currentVerticalIndex >= visiblePosts.count {
+                currentVerticalIndex = max(0, visiblePosts.count - 1)
+            }
+            if let post = currentPost {
+                loadPostDetailsIfNeeded(post)
             }
         } else {
             currentVerticalIndex = 0
         }
+    }
+
+    private static func posts(from refs: [EchoMomentRef]) -> [EchoDeckPost] {
+        var order: [String] = []
+        var buckets: [String: [EchoMomentRef]] = [:]
+        for ref in refs {
+            if buckets[ref.momentId] == nil {
+                order.append(ref.momentId)
+                buckets[ref.momentId] = []
+            }
+            buckets[ref.momentId]?.append(ref)
+        }
+        return order.compactMap { momentId in
+            guard let slides = buckets[momentId], let first = slides.first else { return nil }
+            return EchoDeckPost(
+                momentId: momentId,
+                authorId: first.authorId,
+                username: first.username,
+                timestamp: first.timestamp,
+                aspectRatio: first.aspectRatio,
+                slides: slides
+            )
+        }
+    }
+
+    func loadPostDetailsIfNeeded(_ post: EchoDeckPost) {
+        if postMoments[post.momentId] != nil {
+            if postCaptions[post.momentId] == nil {
+                postCaptions[post.momentId] = postMoments[post.momentId]?.content ?? ""
+            }
+            return
+        }
+        db.collection("users").document(post.authorId)
+            .collection("moments").document(post.momentId)
+            .getDocument { [weak self] snapshot, _ in
+                guard let self else { return }
+                let moment = try? snapshot?.data(as: Moment.self)
+                DispatchQueue.main.async {
+                    self.applyLoadedMoment(moment, fallbackPost: post)
+                }
+            }
+    }
+
+    func playbackMoment(for post: EchoDeckPost) -> Moment {
+        if let moment = postMoments[post.momentId] { return moment }
+        return Self.stubMoment(from: post, caption: postCaptions[post.momentId] ?? "")
+    }
+
+    private func applyLoadedMoment(_ moment: Moment?, fallbackPost: EchoDeckPost) {
+        if let moment {
+            postMoments[fallbackPost.momentId] = moment
+            postCaptions[fallbackPost.momentId] = moment.content
+            if let ratio = moment.aspectRatio, !ratio.isEmpty {
+                postAspectRatios[fallbackPost.momentId] = ratio
+            } else if let existing = fallbackPost.aspectRatio {
+                postAspectRatios[fallbackPost.momentId] = existing
+            }
+        } else {
+            postCaptions[fallbackPost.momentId] = postCaptions[fallbackPost.momentId] ?? ""
+            if let existing = fallbackPost.aspectRatio {
+                postAspectRatios[fallbackPost.momentId] = existing
+            }
+            setMoment(fallbackPost.momentId, available: false)
+        }
+    }
+
+    private static func stubMoment(from post: EchoDeckPost, caption: String) -> Moment {
+        let mediaItems = post.slides.map { slide -> MediaItem in
+            MediaItem(
+                type: slide.mediaType == "video" ? .video : .image,
+                url: slide.mediaUrl,
+                aspectRatio: slide.aspectRatio ?? post.aspectRatio,
+                thumbnailUrl: slide.thumbnailUrl
+            )
+        }
+        let firstVideo = post.slides.first(where: { $0.mediaType == "video" })
+        let firstImage = post.slides.first(where: { $0.mediaType != "video" })
+        return Moment(
+            id: post.momentId,
+            authorId: post.authorId,
+            username: post.username,
+            content: caption,
+            imagePath: firstImage?.mediaUrl,
+            videoUrl: firstVideo?.mediaUrl,
+            timestamp: post.timestamp,
+            reactions: [:],
+            commentCount: 0,
+            profileImagePath: nil,
+            taggedUsers: nil,
+            location: nil,
+            audience: post.slides.first?.audience,
+            mediaItems: mediaItems,
+            aspectRatio: post.aspectRatio,
+            customListId: post.slides.first?.customListId,
+            thumbnailUrl: post.slides.first?.thumbnailUrl,
+            videoDuration: nil,
+            videoFileSize: nil,
+            videoResolution: nil,
+            disableComments: false,
+            hideLikeCounts: false,
+            allowSharing: true
+        )
     }
     
     private func preloadMedia() {
@@ -231,11 +374,13 @@ class EchoViewModel: ObservableObject {
                 self.currentVerticalIndex = 0 // ✅ Reset vertical index when changing person / Reset a 0
                 self.ripplePhase = 0
                 
-                // 2. Solo activar video si el primer momento de la nueva persona es video y está disponible
-                if let firstMoment = self.groupedPerspectives[index].moments.first,
-                   firstMoment.mediaType == "video",
-                   self.momentAvailability[firstMoment.momentId] != false {
-                    self.isVideoPlaying = true
+                if let firstPost = self.groupedPerspectives[index].posts.first {
+                    self.loadPostDetailsIfNeeded(firstPost)
+                    if let firstSlide = firstPost.slides.first,
+                       firstSlide.mediaType == "video",
+                       self.momentAvailability[firstPost.momentId] != false {
+                        self.isVideoPlaying = true
+                    }
                 }
             }
         }
@@ -247,20 +392,19 @@ class EchoViewModel: ObservableObject {
     
     func switchVerticalIndex(to index: Int) {
         guard currentPerspectiveIndex < groupedPerspectives.count else { return }
-        let moments = groupedPerspectives[currentPerspectiveIndex].moments
-        guard index >= 0 && index < moments.count else { return }
+        let posts = groupedPerspectives[currentPerspectiveIndex].posts
+        guard index >= 0 && index < posts.count else { return }
         
-        // 1. Apagar video antes de cambiar el índice para frenar el audio del actual
         isVideoPlaying = false
         
-        // 🚀 Delay sutil para que el player actual reciba el 'pause' antes de ser desmontado
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
             withAnimation(.easeOut(duration: 0.22)) {
                 self.currentVerticalIndex = index
-                
-                // 2. Solo activar video si el siguiente momento es un video y está disponible
-                if moments[index].mediaType == "video",
-                   self.momentAvailability[moments[index].momentId] != false {
+                let post = posts[index]
+                self.loadPostDetailsIfNeeded(post)
+                if let firstSlide = post.slides.first,
+                   firstSlide.mediaType == "video",
+                   self.momentAvailability[post.momentId] != false {
                     self.isVideoPlaying = true
                 }
             }
@@ -273,10 +417,6 @@ class EchoViewModel: ObservableObject {
         let privacyService = PrivacyService.shared
         
         for momentRef in allMoments {
-            if momentRef.authorId == currentUserId {
-                setMoment(momentRef.momentId, available: true)
-                continue
-            }
             validateSingleMoment(momentRef: momentRef, viewerId: currentUserId, privacyService: privacyService)
         }
     }
@@ -293,9 +433,25 @@ class EchoViewModel: ObservableObject {
                     return
                 }
 
-                if let moment = try? snapshot?.data(as: Moment.self), moment.isArchived == true {
+                let moment = try? snapshot?.data(as: Moment.self)
+                if moment?.isArchived == true {
                     DispatchQueue.main.async { self.setMoment(momentRef.momentId, available: false) }
                     return
+                }
+
+                if momentRef.authorId == viewerId {
+                    DispatchQueue.main.async { self.setMoment(momentRef.momentId, available: true) }
+                    return
+                }
+
+                DispatchQueue.main.async {
+                    if let moment {
+                        self.postMoments[momentRef.momentId] = moment
+                        self.postCaptions[momentRef.momentId] = moment.content
+                        if let ratio = moment.aspectRatio, !ratio.isEmpty {
+                            self.postAspectRatios[momentRef.momentId] = ratio
+                        }
+                    }
                 }
                 
                 let audience = momentRef.audience ?? "everyone"
@@ -307,8 +463,7 @@ class EchoViewModel: ObservableObject {
                         DispatchQueue.main.async { self.setMoment(momentRef.momentId, available: isBestFriend) }
                     }
                 } else if audience == "custom" || audience == "customList" {
-                    let moment = try? snapshot?.data(as: Moment.self)
-                    if let moment = moment {
+                    if let moment {
                         privacyService.canUserViewMomentEnhanced(moment, viewerId: viewerId) { canView in
                             DispatchQueue.main.async { self.setMoment(momentRef.momentId, available: canView) }
                         }

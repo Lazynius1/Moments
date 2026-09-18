@@ -131,13 +131,14 @@ struct MediaSelectionView: View {
                let currentAsset = mediaAssets.first(where: { $0.localIdentifier == currentAssetID }) {
 
                 ZStack {
-                    // Fondo Cinemático (Blur)
+                    Color.black
+
+                    // Fondo Cinemático (Blur) — recortado al lienzo fijo
                     if let thumbnail = thumbnails[currentAssetID] {
                         Image(uiImage: thumbnail)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 320)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .blur(radius: 30)
                             .opacity(0.6)
                             .overlay(Color.black.opacity(0.2))
@@ -147,10 +148,10 @@ struct MediaSelectionView: View {
                         Image(uiImage: thumbnail)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(height: 300)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(.vertical, 10)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
-                            .padding(.vertical, 10)
                     } else {
                         ProgressView()
                             .tint(.white)
@@ -303,7 +304,7 @@ struct MediaSelectionView: View {
                                 selectionNumber: selectedAssetIDs.firstIndex(of: asset.localIdentifier).map { $0 + 1 },
                                 onTap: { toggleAssetSelection(asset) }
                             )
-                            .frame(minHeight: 100) // ✅ NUEVO: Altura mínima para consistencia
+                            .aspectRatio(1, contentMode: .fit)
                         }
                     }
                     .padding(.horizontal, 2)

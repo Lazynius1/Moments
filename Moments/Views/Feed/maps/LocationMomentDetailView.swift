@@ -446,7 +446,6 @@ struct LocationMomentDetailView: View {
                         }
                     }
                 }
-                .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
                 .padding(.bottom, 24)
                 .feedScrollVisibilityAnchor()
             }
@@ -840,7 +839,7 @@ struct LocationMomentCard: View {
                 VStack {
                     MomentCarouselPageIndicators(
                         count: mediaItems.count,
-                        currentIndex: currentImageIndex
+                        currentIndex: $currentImageIndex
                     )
                     .padding(.top, 20)
                     Spacer()

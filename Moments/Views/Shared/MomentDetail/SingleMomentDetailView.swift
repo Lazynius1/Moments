@@ -252,7 +252,6 @@ struct SingleMomentDetailView: View {
                     .environment(feedViewModel)
                 }
             }
-            .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
             .padding(.bottom, 24)
             .feedScrollVisibilityAnchor()
         }

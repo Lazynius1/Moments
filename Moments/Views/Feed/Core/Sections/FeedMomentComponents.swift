@@ -438,19 +438,6 @@ struct ModernPostCardView: View {
                             .zIndex(3)
                     }
 
-                    if mediaItems.count > 1 {
-                        VStack {
-                            MomentCarouselPageIndicators(
-                                count: mediaItems.count,
-                                currentIndex: currentImageIndex
-                            )
-                            .padding(.top, 20)
-                            Spacer()
-                        }
-                        .opacity(isImmersive ? 0 : 1)
-                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
-                    }
-
                     let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
                     if let currentMediaItem, !currentMediaItem.isHiddenByModeration,
                        let tags = currentMediaItem.tags, !tags.isEmpty {
@@ -520,6 +507,17 @@ struct ModernPostCardView: View {
                 .environmentObject(firestoreService)
             }
             .padding(.horizontal, FeedMomentCardLayout.actionRowHorizontalPadding)
+
+            if mediaItems.count > 1 {
+                MomentCarouselPageIndicators(
+                    count: mediaItems.count,
+                    currentIndex: $currentImageIndex,
+                    tone: .onCanvas
+                )
+                .frame(maxWidth: .infinity)
+                .opacity(isImmersive ? 0 : 1)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isImmersive), value: isImmersive)
+            }
 
             MomentCaptionView(
                 moment: moment,

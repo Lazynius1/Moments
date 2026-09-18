@@ -2899,6 +2899,8 @@
 "echo.viewer.location.header" = "Tocat en %@";
 "echo.viewer.location.viewMaps" = "Veure Mapa";
 "echo.viewer.perspective.change" = "Canviar Perspectiva";
+"echo.viewer.perspective.previous" = "Perspectiva anterior";
+"echo.viewer.perspective.next" = "Següent perspectiva";
 "echo.viewer.waiting.title" = "Esperant amics...";
 "echo.viewer.waiting.subtitle" = "Un Echo només viu quan altres s'uneixen. El contingut es compartirà quan 2 o més persones acceptin.";
 "echo.viewer.ok" = "Entès";

@@ -2740,6 +2740,8 @@
 "echo.viewer.location.header" = "於 %@ 點擊";
 "echo.viewer.location.viewMaps" = "在地圖中查看";
 "echo.viewer.perspective.change" = "切換視角";
+"echo.viewer.perspective.previous" = "上一個視角";
+"echo.viewer.perspective.next" = "下一個視角";
 "echo.viewer.waiting.title" = "等待朋友加入……";
 "echo.viewer.waiting.subtitle" = "Echo 必須有人加入才會成立。當至少 2 人接受後，內容就會分享。";
 "echo.viewer.ok" = "知道了";

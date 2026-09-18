@@ -2880,6 +2880,8 @@
 "echo.viewer.location.header" = "Toccato a %@";
 "echo.viewer.location.viewMaps" = "Vedi in Mappe";
 "echo.viewer.perspective.change" = "Cambia prospettiva";
+"echo.viewer.perspective.previous" = "Prospettiva precedente";
+"echo.viewer.perspective.next" = "Prossima prospettiva";
 "echo.viewer.waiting.title" = "In attesa degli amici...";
 "echo.viewer.waiting.subtitle" = "Un Echo prende vita solo quando si uniscono anche gli altri. Il contenuto verrà condiviso quando 2 o più persone accetteranno.";
 "echo.viewer.ok" = "Capito";

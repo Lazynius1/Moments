@@ -2890,6 +2890,8 @@
 "echo.viewer.location.header" = "Tapped at %@";
 "echo.viewer.location.viewMaps" = "View in Maps";
 "echo.viewer.perspective.change" = "Switch Perspective";
+"echo.viewer.perspective.previous" = "Previous perspective";
+"echo.viewer.perspective.next" = "Next perspective";
 "echo.viewer.waiting.title" = "Waiting for friends...";
 "echo.viewer.waiting.subtitle" = "An Echo only lives when others join. Content will be shared when 2 or more people accept.";
 "echo.viewer.ok" = "Got it";

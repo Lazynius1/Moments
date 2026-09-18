@@ -2740,6 +2740,8 @@
 "echo.viewer.location.header" = "탭한 시간: %@";
 "echo.viewer.location.viewMaps" = "지도에서 보기";
 "echo.viewer.perspective.change" = "시점 전환";
+"echo.viewer.perspective.previous" = "이전 시점";
+"echo.viewer.perspective.next" = "다음 시점";
 "echo.viewer.waiting.title" = "친구를 기다리는 중…";
 "echo.viewer.waiting.subtitle" = "Echo는 다른 사람이 참여해야만 의미가 있어요. 2명 이상이 수락하면 콘텐츠가 공유돼요.";
 "echo.viewer.ok" = "알겠어요";

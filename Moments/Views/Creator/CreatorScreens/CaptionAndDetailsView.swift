@@ -398,15 +398,19 @@ struct CaptionAndDetailsView: View {
 
                         TabView {
                             ForEach(selectedMediaItems) { item in
-                                Image(uiImage: item.image)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                                    .padding()
-                                    .shadow(radius: 20)
+                                ZStack {
+                                    Color.clear
+                                    Image(uiImage: item.image)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                        .padding()
+                                        .shadow(radius: 20)
+                                }
                             }
                         }
                         .tabViewStyle(.page(indexDisplayMode: .always))
+                        .frame(maxWidth: .infinity)
                         .frame(height: 500)
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                         .zIndex(100)

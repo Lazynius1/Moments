@@ -328,7 +328,6 @@ struct ExploreMomentDetailView: View {
                         }
                     }
                 }
-                .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
                 .padding(.bottom, 24)
                 .feedScrollVisibilityAnchor()
             }

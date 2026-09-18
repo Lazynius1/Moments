@@ -311,6 +311,8 @@ struct EchoHistoryCard: View {
                         Text(location)
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
                     } else {
                         Text("Echo")
                             .font(.system(size: 15, weight: .semibold))

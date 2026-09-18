@@ -118,6 +118,25 @@ extension View {
         chatInteractivePopEnabled()
     }
 
+    @ViewBuilder
+    func messagingTitleStatusAccessory(
+        status: OnlineStatus,
+        secondary: Color,
+        onTap: @escaping () -> Void
+    ) -> some View {
+        if #available(iOS 26.0, *) {
+            background {
+                MessagingTitleStatusAccessoryInstaller(
+                    status: status,
+                    secondary: secondary,
+                    onTap: onTap
+                )
+            }
+        } else {
+            self
+        }
+    }
+
     func chatComposerHeightReporting() -> some View {
         background {
             GeometryReader { geo in
@@ -128,6 +147,210 @@ extension View {
 
     func onChatComposerHeightChange(_ action: @escaping (CGFloat) -> Void) -> some View {
         onPreferenceChange(ChatComposerHeightKey.self, perform: action)
+    }
+}
+
+// MARK: - Estado pegado al título nativo (large y compacto)
+
+@available(iOS 26.0, *)
+private struct MessagingTitleStatusAccessoryInstaller: UIViewControllerRepresentable {
+    var status: OnlineStatus
+    var secondary: Color
+    var onTap: () -> Void
+
+    func makeUIViewController(context: Context) -> Controller {
+        let controller = Controller()
+        controller.apply(status: status, secondary: secondary, onTap: onTap)
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: Controller, context: Context) {
+        uiViewController.apply(status: status, secondary: secondary, onTap: onTap)
+    }
+
+    final class Controller: UIViewController {
+        private let chrome = MessagingTitleStatusAccessoryView()
+
+        func apply(status: OnlineStatus, secondary: Color, onTap: @escaping () -> Void) {
+            chrome.apply(status: status, secondary: secondary, onTap: onTap)
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            attach()
+        }
+
+        override func viewDidLayoutSubviews() {
+            super.viewDidLayoutSubviews()
+            attach()
+        }
+
+        override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            chrome.removeFromSuperview()
+        }
+
+        private func attach() {
+            guard let navBar = navigationController?.navigationBar else { return }
+            if chrome.superview !== navBar {
+                chrome.removeFromSuperview()
+                chrome.attach(to: navBar)
+            }
+            chrome.setNeedsLayout()
+        }
+    }
+}
+
+@available(iOS 26.0, *)
+private final class MessagingTitleStatusAccessoryView: UIView {
+    private let button = UIButton(type: .system)
+    private let chevron = UIImageView()
+    private weak var navBar: UINavigationBar?
+    private var lastCompact: Bool?
+    private var status: OnlineStatus = .online
+    private var secondary = UIColor.secondaryLabel
+    private var onTap: () -> Void = {}
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        button.addTarget(self, action: #selector(handleTap), for: .touchUpInside)
+        button.configuration = .plain()
+        addSubview(button)
+        chevron.contentMode = .scaleAspectFit
+        button.addSubview(chevron)
+        isUserInteractionEnabled = true
+        backgroundColor = .clear
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+
+    func apply(status: OnlineStatus, secondary: Color, onTap: @escaping () -> Void) {
+        self.status = status
+        self.secondary = UIColor(secondary)
+        self.onTap = onTap
+        rebuildButton(compact: lastCompact ?? false)
+        setNeedsLayout()
+    }
+
+    func attach(to navBar: UINavigationBar) {
+        self.navBar = navBar
+        navBar.addSubview(self)
+        autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        frame = navBar.bounds
+    }
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        button.frame.contains(point)
+    }
+
+    @objc private func handleTap() {
+        onTap()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard let navBar else { return }
+        frame = navBar.bounds
+
+        guard let anchor = Self.titleAnchor(in: navBar, excluding: self) else {
+            button.isHidden = true
+            return
+        }
+        button.isHidden = false
+
+        let compact = Self.isCompactTitle(anchor)
+        if compact != lastCompact {
+            lastCompact = compact
+            rebuildButton(compact: compact)
+        }
+
+        button.sizeToFit()
+        var fitted = button.bounds.size
+        let chevronSize: CGFloat = compact ? 8 : 10
+        fitted.width += chevronSize + (compact ? 10 : 12)
+        fitted.height = max(fitted.height, compact ? 28 : 32)
+        let anchorFrame = convert(anchor.bounds, from: anchor)
+        var x = anchorFrame.maxX + (compact ? 4 : 8)
+        let y = anchorFrame.midY - fitted.height / 2
+        let maxX = bounds.width - fitted.width - 12
+        if x > maxX { x = max(8, maxX) }
+        button.frame = CGRect(x: x, y: y, width: fitted.width, height: fitted.height)
+        chevron.frame = CGRect(
+            x: button.bounds.maxX - chevronSize - (compact ? 4 : 2),
+            y: (button.bounds.height - chevronSize) / 2,
+            width: chevronSize,
+            height: chevronSize
+        )
+    }
+
+    private func rebuildButton(compact: Bool) {
+        var configuration = UIButton.Configuration.plain()
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: compact ? 4 : 2,
+            leading: compact ? 4 : 2,
+            bottom: compact ? 4 : 2,
+            trailing: compact ? 14 : 16
+        )
+        configuration.imagePadding = compact ? 3 : 5
+        configuration.image = UIImage(systemName: status.icon)?.withTintColor(UIColor(status.color), renderingMode: .alwaysOriginal)
+        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
+            pointSize: compact ? 8 : 11,
+            weight: .semibold
+        )
+        if compact {
+            configuration.attributedTitle = nil
+            configuration.title = nil
+        } else {
+            var title = AttributedString(status.displayName)
+            title.font = .systemFont(ofSize: 13, weight: .regular)
+            title.foregroundColor = secondary
+            configuration.attributedTitle = title
+        }
+        configuration.baseForegroundColor = secondary
+        button.configuration = configuration
+        button.tintColor = UIColor(status.color)
+        button.accessibilityLabel = status.displayName
+        chevron.image = UIImage(systemName: "chevron.down")
+        chevron.preferredSymbolConfiguration = UIImage.SymbolConfiguration(
+            pointSize: compact ? 7 : 9,
+            weight: .semibold
+        )
+        chevron.tintColor = secondary
+    }
+
+    private static func isCompactTitle(_ anchor: UIView) -> Bool {
+        if anchor.bounds.height < 30 { return true }
+        let name = NSStringFromClass(type(of: anchor))
+        if name.contains("TitleControl") { return true }
+        if let label = anchor as? UILabel { return label.font.pointSize < 24 }
+        return false
+    }
+
+    private static func titleAnchor(in root: UIView, excluding accessory: UIView) -> UIView? {
+        var large: UIView?
+        var compact: UIView?
+
+        func walk(_ view: UIView) {
+            if view === accessory { return }
+            let name = NSStringFromClass(type(of: view))
+            if view.alpha > 0.12, !view.isHidden, view.bounds.width > 4, view.bounds.height > 4 {
+                if name.contains("LargeTitle") {
+                    large = view
+                } else if name.contains("TitleControl") {
+                    compact = view
+                } else if let label = view as? UILabel, label.font.pointSize >= 28 {
+                    large = label
+                }
+            }
+            for subview in view.subviews where subview !== accessory {
+                walk(subview)
+            }
+        }
+
+        walk(root)
+        if let large, large.alpha > 0.45 { return large }
+        return compact ?? large
     }
 }
 

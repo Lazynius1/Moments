@@ -2740,6 +2740,8 @@
 "echo.viewer.location.header" = "%@ tarihinde dokunuldu";
 "echo.viewer.location.viewMaps" = "Haritalar'da görüntüle";
 "echo.viewer.perspective.change" = "Bakış açısını değiştir";
+"echo.viewer.perspective.previous" = "Önceki bakış açısı";
+"echo.viewer.perspective.next" = "Sonraki bakış açısı";
 "echo.viewer.waiting.title" = "Arkadaşlar bekleniyor...";
 "echo.viewer.waiting.subtitle" = "Bir Echo, yalnızca başkaları katıldığında yaşar. 2 veya daha fazla kişi kabul ettiğinde içerik paylaşılır.";
 "echo.viewer.ok" = "Anladım";

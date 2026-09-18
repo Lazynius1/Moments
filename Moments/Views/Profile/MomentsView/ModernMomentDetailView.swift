@@ -542,7 +542,6 @@ struct ModernMomentDetailView: View {
                         )
                     }
                 }
-                .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
                 .padding(.bottom, 24)
                 .feedScrollVisibilityAnchor(transform: { mergedVisibilityValues($0) })
             }

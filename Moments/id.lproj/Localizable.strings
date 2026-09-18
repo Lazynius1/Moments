@@ -2740,6 +2740,8 @@
 "echo.viewer.location.header" = "Diketuk pada %@";
 "echo.viewer.location.viewMaps" = "Lihat di Maps";
 "echo.viewer.perspective.change" = "Ganti Perspektif";
+"echo.viewer.perspective.previous" = "Perspektif sebelumnya";
+"echo.viewer.perspective.next" = "Perspektif berikutnya";
 "echo.viewer.waiting.title" = "Menunggu teman...";
 "echo.viewer.waiting.subtitle" = "Echo hanya bisa hidup jika ada yang ikut bergabung. Konten akan dibagikan setelah 2 orang atau lebih menerimanya.";
 "echo.viewer.ok" = "Oke";

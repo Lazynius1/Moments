@@ -295,7 +295,6 @@ struct MomentDetailView: View {
             )
             .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
         }
-        .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
         .padding(.top, 20)
     }
     
@@ -367,7 +366,7 @@ struct MomentDetailView: View {
                 VStack {
                     MomentCarouselPageIndicators(
                         count: mediaItems.count,
-                        currentIndex: currentImageIndex
+                        currentIndex: $currentImageIndex
                     )
                     .padding(.top, 20)
                     Spacer()

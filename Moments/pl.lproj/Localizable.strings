@@ -2740,6 +2740,8 @@
 "echo.viewer.location.header" = "Naciśnięto o %@";
 "echo.viewer.location.viewMaps" = "Wyświetl w Mapach";
 "echo.viewer.perspective.change" = "Zmień perspektywę";
+"echo.viewer.perspective.previous" = "Poprzednia perspektywa";
+"echo.viewer.perspective.next" = "Następna perspektywa";
 "echo.viewer.waiting.title" = "Czekamy na znajomych…";
 "echo.viewer.waiting.subtitle" = "Echo działa tylko wtedy, gdy dołączą inni. Treści zostaną udostępnione, gdy zaakceptują je co najmniej 2 osoby.";
 "echo.viewer.ok" = "Rozumiem";

@@ -28,7 +28,6 @@ struct MediaEditingView: View {
     }
 
     var body: some View {
-
             VStack(spacing: 0) {
                 // Header (Branded)
                 HStack {
@@ -94,50 +93,53 @@ struct MediaEditingView: View {
                     LinearGradient(colors: [.black.opacity(0.6), .clear], startPoint: .top, endPoint: .bottom)
                 )
 
-                Spacer()
-
-                // Media preview (con aspecto mejorado)
-                ZStack {
-                    TabView(selection: $currentMediaIndex) {
-                        ForEach(selectedMediaItems.indices, id: \.self) { index in
-                            ZStack {
-                                if index == currentMediaIndex, let preview = previewImage, showingFilterToolbar {
-                                    Image(uiImage: preview)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                } else {
-                                    Image(uiImage: selectedMediaItems[index].image)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
+                // Lienzo fijo: el ratio del media no mueve header ni herramientas.
+                GeometryReader { previewGeo in
+                    ZStack {
+                        TabView(selection: $currentMediaIndex) {
+                            ForEach(selectedMediaItems.indices, id: \.self) { index in
+                                ZStack {
+                                    Color.clear
+                                    if index == currentMediaIndex, let preview = previewImage, showingFilterToolbar {
+                                        Image(uiImage: preview)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                            .padding(.horizontal, 10)
+                                            .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
+                                    } else {
+                                        Image(uiImage: selectedMediaItems[index].image)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                            .padding(.horizontal, 10)
+                                            .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
+                                    }
                                 }
+                                .frame(width: previewGeo.size.width, height: previewGeo.size.height)
+                                .tag(index)
                             }
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .padding(.horizontal, 10)
-                            .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
-                            .tag(index)
                         }
-                    }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                    .containerRelativeFrame(.vertical) { height, _ in height * 0.6 }
+                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                        .frame(width: previewGeo.size.width, height: previewGeo.size.height)
 
-                    // Recommended Dimensions badge
-                    VStack {
-                        if recommendedAspectRatio != .square || (currentMediaIndex < selectedMediaItems.count && selectedMediaItems[currentMediaIndex].aspectRatio != recommendedAspectRatio) {
-                            Text("creator.recommendedDimensions")
-                                .font(.caption2)
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(.ultraThinMaterial)
-                                .clipShape(Capsule())
-                                .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 0.5))
-                                .padding(.top, 12)
+                        VStack {
+                            if recommendedAspectRatio != .square || (currentMediaIndex < selectedMediaItems.count && selectedMediaItems[currentMediaIndex].aspectRatio != recommendedAspectRatio) {
+                                Text("creator.recommendedDimensions")
+                                    .font(.caption2)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(Capsule())
+                                    .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 0.5))
+                                    .padding(.top, 12)
+                            }
+                            Spacer()
                         }
-                        Spacer()
                     }
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 // Bottom Area: Thumbnails, Format and Tools
                 VStack(spacing: 0) {
@@ -282,6 +284,7 @@ struct MediaEditingView: View {
                     LinearGradient(colors: [.clear, .black.opacity(0.9)], startPoint: .top, endPoint: .bottom)
                 )
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar(.hidden, for: .navigationBar)
         .background(
             ZStack {
