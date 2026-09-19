@@ -134,6 +134,8 @@ struct GlassmorphicChatView: View {
     @State var didRunConsumedViewOnceCleanup = false
 
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @Environment(\.momentsToolbarVerticalEdge) var momentsToolbarVerticalEdge
     @State var screenshotObserver: NSObjectProtocol?
     @State var screenshotTakenObserver: NSObjectProtocol?
     @State var otherUserStatus: OnlineStatus = .offline
@@ -142,6 +144,7 @@ struct GlassmorphicChatView: View {
     @FocusState var isTextFieldFocused: Bool
     @FocusState var isSearchFieldFocused: Bool
     @Environment(\.dismiss) var dismiss
+    @Environment(\.messagingPreferredCompactColumn) var messagingPreferredCompactColumn
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Namespace var viewOnceZoomNamespace
     let privacyService = PrivacyService()
@@ -313,7 +316,7 @@ struct GlassmorphicChatView: View {
                 }
                 guard has != had else { return }
                 lastGroupDirectoryIDs = has ? [id] : []
-                if had, !has { dismiss() }
+                if had, !has { popChatToInbox() }
             }
             .toolbar(isSearchVisible ? .hidden : .visible, for: .navigationBar)
             .toolbar { chatToolbarContent }

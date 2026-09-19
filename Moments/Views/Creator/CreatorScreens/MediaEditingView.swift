@@ -37,15 +37,14 @@ struct MediaEditingView: View {
     @State private var carouselPortraitAspect: CGFloat = MomentFeedCrop.portraitMax
     @State private var reframeDragStart: MediaItemFeedCrop?
     @State private var reframeZoomStart: MediaItemFeedCrop?
+    @State private var mediaStageSize: CGSize = .zero
     /// Padding lateral del stage (single y carrusel), igual que el feed.
     private let editMediaHorizontalPadding: CGFloat = FeedMomentCardLayout.listHorizontalPadding
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            mediaStage
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            bottomChrome
+            adaptiveEditorContent
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .bottom) {
@@ -67,6 +66,24 @@ struct MediaEditingView: View {
         }
         .onChange(of: currentEdits) { _, _ in
             updatePreviewTask()
+        }
+    }
+
+    @ViewBuilder
+    private var adaptiveEditorContent: some View {
+        if #available(iOS 27.1, *) {
+            ArrangementView {
+                mediaStage
+            } secondary: {
+                bottomChrome
+            }
+            .arrangementViewStyle(.split.axes([.horizontal, .vertical]))
+        } else {
+            VStack(spacing: 0) {
+                mediaStage
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                bottomChrome
+            }
         }
     }
 
@@ -127,6 +144,8 @@ struct MediaEditingView: View {
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height)
+            .onAppear { mediaStageSize = geo.size }
+            .onChange(of: geo.size) { _, size in mediaStageSize = size }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
@@ -229,7 +248,7 @@ struct MediaEditingView: View {
                     reframeDragStart = start
                 }
 
-                let cardWidth = max(UIApplication.shared.activeWindowSize.width - editMediaHorizontalPadding * 2, 1)
+                let cardWidth = max(mediaStageSize.width - editMediaHorizontalPadding * 2, 1)
                 let cardHeight = cardWidth / max(item.aspectRatio.value, 0.01)
                 // Delta normalizado: arrastrar media a la derecha = crop a la izquierda.
                 let next = MomentFeedCrop.translated(

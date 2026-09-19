@@ -102,8 +102,8 @@ enum FeedMomentCardLayout {
     /// Long-press peek y hero del grid de perfil.
     static var peekCornerRadius: CGFloat { mediaCornerRadius }
 
-    static var mediaContentWidth: CGFloat {
-        max(UIApplication.shared.activeWindowSize.width - (listHorizontalPadding * 2), 1)
+    static func mediaContentWidth(containerWidth: CGFloat) -> CGFloat {
+        max(containerWidth - (listHorizontalPadding * 2), 1)
     }
 }
 

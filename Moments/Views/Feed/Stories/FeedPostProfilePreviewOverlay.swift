@@ -38,6 +38,7 @@ struct FeedPostProfilePreviewOverlay: View {
     @State private var unfollowViewModel: UserProfileViewModel?
 
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.momentsToolbarVerticalEdge) private var momentsToolbarVerticalEdge
 
     private var canvasColor: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
@@ -203,7 +204,8 @@ struct FeedPostProfilePreviewOverlay: View {
 
         let bottomClearance: CGFloat = reserveFloatingTabBar
             ? MomentsFloatingTabBarMetrics.overlayBottomPadding(
-                safeAreaBottom: proxy.safeAreaInsets.bottom
+                safeAreaBottom: proxy.safeAreaInsets.bottom,
+                verticalBarEdge: momentsToolbarVerticalEdge
             )
             : proxy.safeAreaInsets.bottom + 12
         let minY = proxy.safeAreaInsets.top + 12

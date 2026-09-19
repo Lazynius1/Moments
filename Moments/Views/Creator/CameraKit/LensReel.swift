@@ -41,6 +41,7 @@ struct LensReel: View {
                 onLongPressStart: onStartVideo,
                 onLongPressEnd: onStopVideo
             )
+            .momentsAvoidsActiveDivision(padding: 14)
         }
         .frame(height: 100)
     }

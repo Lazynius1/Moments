@@ -503,6 +503,8 @@ struct MapsVideoThumbnailView: View {
 // ✅ ROW PARA VISTA DE LISTA CON GLASSMORPHISM
 // ✅ COMPONENTE DE FILA MODERNA (Inspirado en ModernPostCardView)
 struct ModernLocationMomentRow: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let moment: Moment
     let colorScheme: ColorScheme
     let isAvailable: Bool
@@ -597,7 +599,7 @@ struct ModernLocationMomentRow: View {
         if moment.mapHasVideoMedia {
             MapsVideoThumbnailView(
                 moment: moment,
-                size: CGSize(width: UIApplication.shared.activeWindowSize.width - 40, height: 180),
+                size: CGSize(width: momentsViewportSize.width - 40, height: 180),
                 cornerRadius: 18,
                 colorScheme: colorScheme
             )

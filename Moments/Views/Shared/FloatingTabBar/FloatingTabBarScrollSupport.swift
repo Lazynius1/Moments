@@ -9,6 +9,8 @@ extension View {
     }
 
     /// Oculta la floating pill de Moments (además del tab bar nativo si aplica).
+    /// En rail vertical (`momentsToolbarVerticalEdge` ≠ nil) no oculta: el espacio
+    /// lateral ya está reservado y la pill es el único salto entre tabs.
     func momentsFloatingTabBarHidden(_ hidden: Bool = true) -> some View {
         modifier(MomentsFloatingTabBarHiddenModifier(hidden: hidden))
     }
@@ -23,30 +25,43 @@ extension ScrollView {
 
 private struct MomentsFloatingTabBarHiddenModifier: ViewModifier {
     @EnvironmentObject private var minimize: TabBarMinimizeController
+    @Environment(\.momentsToolbarVerticalEdge) private var verticalBarEdge
     let hidden: Bool
+
+    /// Con rail vertical (Duo / multitasking) la pill se queda: el inset lateral
+    /// ya está reservado y sin ella no hay forma de cambiar de tab.
+    @State private var isHoldingHide = false
+
+    private var shouldHoldHide: Bool {
+        hidden && verticalBarEdge == nil
+    }
 
     func body(content: Content) -> some View {
         content
-            .onAppear {
-                if hidden { minimize.requestHidden(true) }
-            }
+            .onAppear { syncHideHold() }
             .onDisappear {
+                guard isHoldingHide else { return }
+                isHoldingHide = false
                 // Async: la hija puede pedir hide en el mismo ciclo antes de soltar el padre.
-                guard hidden else { return }
                 DispatchQueue.main.async {
                     minimize.requestHidden(false)
                 }
             }
-            .onChange(of: hidden) { oldValue, newValue in
-                if oldValue == newValue { return }
-                if newValue {
-                    minimize.requestHidden(true)
-                } else {
-                    DispatchQueue.main.async {
-                        minimize.requestHidden(false)
-                    }
-                }
+            .onChange(of: hidden) { _, _ in syncHideHold() }
+            .onChange(of: verticalBarEdge) { _, _ in syncHideHold() }
+    }
+
+    private func syncHideHold() {
+        let wantHold = shouldHoldHide
+        if wantHold, !isHoldingHide {
+            minimize.requestHidden(true)
+            isHoldingHide = true
+        } else if !wantHold, isHoldingHide {
+            isHoldingHide = false
+            DispatchQueue.main.async {
+                minimize.requestHidden(false)
             }
+        }
     }
 }
 

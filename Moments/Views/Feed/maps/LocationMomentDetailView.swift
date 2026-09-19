@@ -8,6 +8,8 @@ import AVFoundation
 
 // MARK: - ✅ Vista detallada para momentos de ubicación con diseño moderno
 struct LocationMomentDetailView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @State private var moments: [Moment]
     let initialIndex: Int
     let locationName: String
@@ -147,8 +149,8 @@ struct LocationMomentDetailView: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(
-                                    width: UIApplication.shared.activeWindowSize.width - 32,
-                                    height: (UIApplication.shared.activeWindowSize.width - 32) / max(peekAspectRatio, 0.1)
+                                    width: momentsViewportSize.width - 32,
+                                    height: (momentsViewportSize.width - 32) / max(peekAspectRatio, 0.1)
                                 )
                                 .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
@@ -263,7 +265,7 @@ struct LocationMomentDetailView: View {
 
                 if value.translation.width > dismissThreshold || velocity > 300 {
                     withAnimation(.easeOut(duration: 0.3)) {
-                        dragOffset = UIApplication.shared.activeWindowSize.width
+                        dragOffset = momentsViewportSize.width
                         backgroundOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -377,7 +379,7 @@ struct LocationMomentDetailView: View {
     }
 
     private func locationMomentsScrollView() -> some View {
-        let screenHeight = UIApplication.shared.activeWindowSize.height
+        let screenHeight = momentsViewportSize.height
         let feedCardHeight = screenHeight * 0.58
 
         return ScrollViewReader { proxy in
@@ -570,6 +572,8 @@ enum LocationMomentCardLayout {
 }
 
 struct LocationMomentCard: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let moment: Moment
     let isAvailable: Bool
     let availableHeight: CGFloat
@@ -608,7 +612,9 @@ struct LocationMomentCard: View {
     }
 
     private var cardHeight: CGFloat {
-        let maxWidth = FeedMomentCardLayout.mediaContentWidth
+        let maxWidth = FeedMomentCardLayout.mediaContentWidth(
+            containerWidth: momentsViewportSize.width
+        )
 
         guard maxWidth > 0 else {
             return 400 // Fallback seguro

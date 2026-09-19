@@ -3,6 +3,8 @@ import Kingfisher
 import AVFoundation
 
 struct ActivityInteractionDetailView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     let category: ActivityInteractionCategory
@@ -493,10 +495,11 @@ struct ActivityInteractionDetailView: View {
     }
 
     private var activityGridViewportHeight: CGFloat {
-        UIApplication.shared.activeWindowSize.height * 0.62
+        momentsViewportSize.height * 0.62
     }
 
-    private func activityGridColumnSide(containerWidth: CGFloat = UIApplication.shared.activeWindowSize.width) -> CGFloat {
+    private func activityGridColumnSide() -> CGFloat {
+        let containerWidth = momentsViewportSize.width
         let spacing = activityGridSpacing
         return floor((containerWidth - spacing * 2) / 3)
     }

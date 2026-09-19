@@ -429,6 +429,7 @@ struct ExplorePagingFooter: View {
     let onRetry: () -> Void
 
     @State private var isNearViewport = false
+    @Environment(\.momentsViewportSize) private var viewportSize
 
     var body: some View {
         VStack(spacing: 8) {
@@ -468,9 +469,8 @@ struct ExplorePagingFooter: View {
     }
 
     private func updateVisibility(_ frame: CGRect) {
-        let screen = UIScreen.main.bounds
         let buffer: CGFloat = 160
-        let visible = frame.maxY > -buffer && frame.minY < screen.height + buffer
+        let visible = frame.maxY > -buffer && frame.minY < viewportSize.height + buffer
         if visible != isNearViewport {
             isNearViewport = visible
         }

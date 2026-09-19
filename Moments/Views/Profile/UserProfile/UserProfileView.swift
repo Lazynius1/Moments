@@ -370,6 +370,8 @@ struct UserProfileView: View {
                 .ignoresSafeArea(.all, edges: .all)
 
                 contentView(safeAreaTop: safeAreaTop, safeAreaBottom: safeAreaBottom)
+                    .frame(maxWidth: 760)
+                    .frame(maxWidth: .infinity)
 
                 ProfileGridHeroDetailLayer(
                     coordinator: heroCoordinator,

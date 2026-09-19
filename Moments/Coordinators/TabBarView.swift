@@ -52,44 +52,40 @@ struct TabBarView: View {
         ZStack {
             Group {
                 if shouldShowMainApp {
-                    Group {
-                        if #available(iOS 26.0, *) {
-                            ModernTabView(
-                                selectedTab: $selectedTab,
-                                previousSelectedTab: $previousSelectedTab,
-                                showCreatorView: $showCreatorView,
-                                isCreatingStory: $isCreatingStory,
-                                openCreatorInStoryMode: $openCreatorInStoryMode,
-                                hasPreloadedExplore: $hasPreloadedExplore,
-                                showEchoInvitation: $showEchoInvitation,
-                                pendingEchoId: $pendingEchoId,
-                                showEchoViewer: $showEchoViewer,
-                                messagesTargetConversationId: $messagesTargetConversationId,
-                                exploreViewModel: exploreViewModel,
-                                authService: authService,
-                                navigationService: navigationService,
-                                messagingViewModel: messagingViewModel,
-                                onEchoInvitationRoute: { echoId in
-                                    echoInvitationRoute = EchoInvitationRoute(echoId: echoId)
-                                }
-                            )
-                        } else {
-                            legacyTabView
+                    MomentsToolbarVerticalEdgeProvider { _ in
+                        Group {
+                            if #available(iOS 26.0, *) {
+                                ModernTabView(
+                                    selectedTab: $selectedTab,
+                                    previousSelectedTab: $previousSelectedTab,
+                                    showCreatorView: $showCreatorView,
+                                    isCreatingStory: $isCreatingStory,
+                                    openCreatorInStoryMode: $openCreatorInStoryMode,
+                                    hasPreloadedExplore: $hasPreloadedExplore,
+                                    showEchoInvitation: $showEchoInvitation,
+                                    pendingEchoId: $pendingEchoId,
+                                    showEchoViewer: $showEchoViewer,
+                                    messagesTargetConversationId: $messagesTargetConversationId,
+                                    exploreViewModel: exploreViewModel,
+                                    authService: authService,
+                                    navigationService: navigationService,
+                                    messagingViewModel: messagingViewModel,
+                                    onEchoInvitationRoute: { echoId in
+                                        echoInvitationRoute = EchoInvitationRoute(echoId: echoId)
+                                    }
+                                )
+                            } else {
+                                legacyTabView
+                            }
                         }
-                    }
-                    .environmentObject(tabBarMinimize)
-                    .environmentObject(messagingViewModel)
-                    .environmentObject(firestoreService)
-                    .overlay(alignment: .top) {
-                        InAppBannerView()
-                    }
-                    .overlay {
-                        // VStack + ignoresSafeArea: ancla al borde físico, no al safe area.
-                        VStack(spacing: 0) {
-                            Spacer(minLength: 0)
-                                // Sin esto, el Spacer a pantalla completa se come taps
-                                // del context menu / sheets del feed.
-                                .allowsHitTesting(false)
+                        .environmentObject(tabBarMinimize)
+                        .environmentObject(messagingViewModel)
+                        .environmentObject(firestoreService)
+                        .overlay(alignment: .top) {
+                            InAppBannerView()
+                        }
+                        .overlay {
+                            // Pill: abajo, o rail vertical si toolbarVerticalEdge ≠ nil.
                             MomentsFloatingTabBar(
                                 selectedTab: $selectedTab,
                                 showCreatorView: $showCreatorView,
@@ -97,18 +93,17 @@ struct TabBarView: View {
                                 minimize: tabBarMinimize
                             )
                         }
-                        .ignoresSafeArea(edges: .bottom)
-                    }
-                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowMessages"))) { _ in
-                        selectedTab = 1
-                        tabBarMinimize.expand()
-                    }
-                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToConversation"))) { notification in
-                        if let conversationId = notification.object as? String, !conversationId.isEmpty {
-                            messagesTargetConversationId = conversationId
+                        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowMessages"))) { _ in
+                            selectedTab = 1
+                            tabBarMinimize.expand()
                         }
-                        selectedTab = 1
-                        tabBarMinimize.expand()
+                        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToConversation"))) { notification in
+                            if let conversationId = notification.object as? String, !conversationId.isEmpty {
+                                messagesTargetConversationId = conversationId
+                            }
+                            selectedTab = 1
+                            tabBarMinimize.expand()
+                        }
                     }
                 } else {
                     LoginView()
@@ -250,9 +245,7 @@ struct ModernTabView: View {
                 .hideNativeTabBar()
             }
             Tab(NSLocalizedString("messaging.title", comment: ""), systemImage: "paperplane", value: AppTab.messages) {
-                NavigationStack {
-                    MessagingView(targetConversationId: $messagesTargetConversationId)
-                }
+                MessagingView(targetConversationId: $messagesTargetConversationId)
                 .environmentObject(authService)
                 .environmentObject(messagingViewModel)
                 .environmentObject(FirestoreService.shared)
@@ -339,9 +332,7 @@ struct ModernTabView: View {
             }
             .hideNativeTabBar()
             .tag(0)
-            NavigationStack {
-                MessagingView(targetConversationId: $messagesTargetConversationId)
-            }
+            MessagingView(targetConversationId: $messagesTargetConversationId)
             .environmentObject(messagingViewModel)
             .environmentObject(firestoreService)
             .hideNativeTabBar()

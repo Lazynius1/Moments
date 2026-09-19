@@ -118,6 +118,7 @@ struct ChatCameraView: View {
                     onLongPressStart: { startRecording() },
                     onLongPressEnd: { stopRecording() }
                 )
+                .momentsAvoidsActiveDivision(padding: 14)
                 .position(x: captureRect.midX, y: captureButtonY)
 
                 if isEditorActive {
@@ -161,6 +162,18 @@ struct ChatCameraView: View {
         .onDisappear {
             stopRecording()
             orientationManager.stopTracking()
+        }
+        .onChange(of: isRecording) { _, recording in
+            DuoCameraAccessoryCoordinator.shared.updateRecording(
+                recording,
+                duration: recordingDuration
+            )
+        }
+        .onChange(of: recordingDuration) { _, duration in
+            DuoCameraAccessoryCoordinator.shared.updateRecording(
+                isRecording,
+                duration: duration
+            )
         }
     }
 

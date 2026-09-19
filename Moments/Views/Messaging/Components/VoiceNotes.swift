@@ -415,12 +415,12 @@ enum VoiceMessageLayout {
     static let timeLabelWidth: CGFloat = 36
     static let speedControlWidth: CGFloat = 34
 
-    static var bubbleWidth: CGFloat {
-        UIApplication.shared.activeWindowSize.width * bubbleWidthFraction
+    static func bubbleWidth(containerWidth: CGFloat) -> CGFloat {
+        min(containerWidth, 520) * bubbleWidthFraction
     }
 
-    static func availableWaveformWidth(includesSpeedControl: Bool) -> CGFloat {
-        let innerWidth = bubbleWidth - horizontalPadding * 2
+    static func availableWaveformWidth(containerWidth: CGFloat, includesSpeedControl: Bool) -> CGFloat {
+        let innerWidth = bubbleWidth(containerWidth: containerWidth) - horizontalPadding * 2
         let trailingBlock = timeLabelWidth
             + (includesSpeedControl ? outerSpacing + speedControlWidth : 0)
         let leadingBlock = playButtonSize + outerSpacing + waveformLeadingInset
@@ -436,8 +436,11 @@ enum VoiceMessageLayout {
         return max(24, min(50, Int((trackWidth / unit).rounded(.down))))
     }
 
-    static func waveformTrackWidth(includesSpeedControl: Bool) -> CGFloat {
-        let target = availableWaveformWidth(includesSpeedControl: includesSpeedControl)
+    static func waveformTrackWidth(containerWidth: CGFloat, includesSpeedControl: Bool) -> CGFloat {
+        let target = availableWaveformWidth(
+            containerWidth: containerWidth,
+            includesSpeedControl: includesSpeedControl
+        )
         let barCount = waveformBarCount(for: target)
         return CGFloat(barCount) * barWidth + CGFloat(max(barCount - 1, 0)) * barSpacing
     }
@@ -563,13 +566,18 @@ struct GlassmorphicAudioMessage: View {
     @State private var waveformLevels: [Float] = ChatVoiceWaveformGenerator.levels(
         seed: "voice",
         count: VoiceMessageLayout.waveformBarCount(
-            for: VoiceMessageLayout.availableWaveformWidth(includesSpeedControl: true)
+            for: VoiceMessageLayout.availableWaveformWidth(containerWidth: 393, includesSpeedControl: true)
         )
     )
 
     @StateObject private var proximityManager = SimpleProximityManager()
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    private var layoutContainerWidth: CGFloat {
+        ChatBubbleLayoutWidth.containerWidth(chatListWidth: chatListContainerWidth)
+    }
 
     /// Tuyos: mismo color sólido saliente que el texto. Del otro: glass como el resto.
     private var contentColor: Color {
@@ -643,7 +651,7 @@ struct GlassmorphicAudioMessage: View {
             } else if isAudioAvailable {
                 scrubbableWaveform
                     .frame(
-                        width: VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: showsSpeedControl),
+                        width: VoiceMessageLayout.waveformTrackWidth(containerWidth: layoutContainerWidth, includesSpeedControl: showsSpeedControl),
                         height: VoiceMessageLayout.waveformHeight
                     )
                     .padding(.leading, VoiceMessageLayout.waveformLeadingInset)
@@ -661,7 +669,7 @@ struct GlassmorphicAudioMessage: View {
         }
         .padding(.horizontal, VoiceMessageLayout.horizontalPadding)
         .padding(.vertical, VoiceMessageLayout.verticalPadding)
-        .frame(width: VoiceMessageLayout.bubbleWidth, alignment: .leading)
+        .frame(width: VoiceMessageLayout.bubbleWidth(containerWidth: layoutContainerWidth), alignment: .leading)
         .background(bubbleBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 18)
@@ -718,7 +726,7 @@ struct GlassmorphicAudioMessage: View {
     }
 
     private var loadingWaveformPlaceholder: some View {
-        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: showsSpeedControl)
+        let trackWidth = VoiceMessageLayout.waveformTrackWidth(containerWidth: layoutContainerWidth, includesSpeedControl: showsSpeedControl)
         let barCount = VoiceMessageLayout.waveformBarCount(for: trackWidth)
 
         return HStack(spacing: VoiceMessageLayout.barSpacing) {
@@ -733,7 +741,7 @@ struct GlassmorphicAudioMessage: View {
     }
 
     private var scrubbableWaveform: some View {
-        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: showsSpeedControl)
+        let trackWidth = VoiceMessageLayout.waveformTrackWidth(containerWidth: layoutContainerWidth, includesSpeedControl: showsSpeedControl)
 
         return VisualWaveformView(
             levels: waveformLevels,
@@ -831,7 +839,7 @@ struct GlassmorphicAudioMessage: View {
 
     private func refreshWaveformLevels() {
         let seed = audioUrl ?? messageId
-        let trackWidth = VoiceMessageLayout.waveformTrackWidth(includesSpeedControl: showsSpeedControl)
+        let trackWidth = VoiceMessageLayout.waveformTrackWidth(containerWidth: layoutContainerWidth, includesSpeedControl: showsSpeedControl)
         let barCount = VoiceMessageLayout.waveformBarCount(for: trackWidth)
         if let waveformSamples, !waveformSamples.isEmpty {
             waveformLevels = ChatVoiceWaveformSamples.resampled(waveformSamples, count: barCount)

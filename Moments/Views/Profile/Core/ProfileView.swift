@@ -310,6 +310,8 @@ private extension CGFloat {
 }
 
 struct ProfileView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @EnvironmentObject var authService: AuthService
     @State private var authListener: AuthStateDidChangeListenerHandle?
     @StateObject private var viewModel = ProfileViewModel()
@@ -404,9 +406,11 @@ struct ProfileView: View {
                         editingMoment: $editingMoment,
                         pendingDeleteMoment: $pendingDeleteMoment
                     )
+                    .frame(maxWidth: 760)
+                    .frame(maxWidth: .infinity)
                     .environmentObject(heroCoordinator)
                 }
-                .ignoresSafeArea(.all, edges: .all)
+                .ignoresSafeArea(edges: .top)
                 .navigationDestination(isPresented: $isShowingSettings) {
                     SettingsView()
                         .navigationTransition(.zoom(sourceID: "settings-view", in: profileZoomNamespace))
@@ -503,7 +507,7 @@ struct ProfileView: View {
                             story: stories[safeStoryIndex],
                             storyCount: stories.count,
                             storyIndex: safeStoryIndex,
-                            screenSize: UIApplication.shared.activeWindowSize,
+                            screenSize: momentsViewportSize,
                             storyViewModel: storyViewModel,
                             // ✅ AGREGAR: Pasar los bindings
                             showingReportSheet: $showingReportSheet,

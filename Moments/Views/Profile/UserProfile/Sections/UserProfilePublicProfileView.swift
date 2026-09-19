@@ -48,7 +48,7 @@ struct UserModernPublicProfileView: View {
     var body: some View {
         ZStack(alignment: .top) {
             ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
-                .ignoresSafeArea()
+                .ignoresSafeArea(edges: .top)
                 .allowsHitTesting(false)
 
             ScrollView {

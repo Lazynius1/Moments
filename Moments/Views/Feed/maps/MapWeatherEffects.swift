@@ -93,7 +93,7 @@ final class WeatherEffectsUIView: UIView {
     }
 
     private var particleBudget: CGFloat {
-        CGFloat(MotionPolicy.maxParticleCount)
+        CGFloat(MotionPolicy.maxParticleCount(for: bounds.size))
     }
 
     // MARK: - Lluvia (dos planos de profundidad)

@@ -417,6 +417,8 @@ struct InteractivePollOptionButton: View {
 
 // MARK: - Interactive Poll Option
 struct InteractivePollOption: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let text: String
     let percentage: Double
     let isSelected: Bool
@@ -433,7 +435,7 @@ struct InteractivePollOption: View {
                     .overlay(
                         Rectangle()
                             .fill(isSelected ? Color.blue : Color.white.opacity(0.3))
-                            .frame(width: UIApplication.shared.activeWindowSize.width * 0.7 * (percentage / 100))
+                            .frame(width: momentsViewportSize.width * 0.7 * (percentage / 100))
                             .animation(.easeInOut(duration: 0.5), value: percentage)
                         , alignment: .leading
                     )

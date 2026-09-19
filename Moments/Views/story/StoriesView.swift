@@ -3,6 +3,8 @@ import FirebaseAuth
 
 // MARK: - StoriesView
 struct StoriesView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     private enum StoryLoadingMode: Equatable {
         case initial
         case author(String)
@@ -145,7 +147,7 @@ struct StoriesView: View {
                     },
                     storyCount: adStoryCount,
                     storyIndex: adStoryIndex,
-                    screenSize: UIApplication.shared.activeWindowSize
+                    screenSize: momentsViewportSize
                 )
                 .environmentObject(authService)
 
@@ -286,7 +288,7 @@ struct StoriesView: View {
                     story: story,
                     storyCount: stories.count,
                     storyIndex: storyIndex,
-                    screenSize: UIApplication.shared.activeWindowSize,
+                    screenSize: momentsViewportSize,
                     storyViewModel: storyViewModel,
                     showingReportSheet: $showingReportSheet,
                     showingBlockConfirmation: $showingBlockConfirmation,

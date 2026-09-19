@@ -2,6 +2,8 @@ import SwiftUI
 import Kingfisher
 
 struct FeedOverlaysSection: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @Binding var isPeeking: Bool
     @Binding var peekImageURL: String?
     @Binding var peekAspectRatio: CGFloat
@@ -36,8 +38,8 @@ struct FeedOverlaysSection: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(
-                                    width: UIApplication.shared.activeWindowSize.width - 32,
-                                    height: (UIApplication.shared.activeWindowSize.width - 32) / peekAspectRatio
+                                    width: momentsViewportSize.width - 32,
+                                    height: (momentsViewportSize.width - 32) / peekAspectRatio
                                 )
                                 .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)

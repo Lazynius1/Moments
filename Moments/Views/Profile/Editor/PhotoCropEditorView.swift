@@ -33,6 +33,8 @@ extension UIImage {
 
 // MARK: -  Profile Picture Editor
 struct PhotoCropEditorView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     let originalAsset: PHAsset
@@ -59,7 +61,7 @@ struct PhotoCropEditorView: View {
     private let outputSize: CGSize = CGSize(width: 400, height: 400) // ✅ COINCIDIR CON STORAGESERVICE
     
     private var cropFrameSide: CGFloat {
-        UIApplication.shared.activeWindowSize.width
+        momentsViewportSize.width
     }
     
     private var cropSize: CGFloat {
@@ -352,18 +354,18 @@ struct PhotoCropEditorView: View {
         VStack(spacing: 0) {
             if isLoadingRecentPhotos {
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 4),
+                    columns: [GridItem(.adaptive(minimum: 86, maximum: 150), spacing: 4)],
                     spacing: 4
                 ) {
                     ForEach(0..<8, id: \.self) { _ in
                         Rectangle()
                             .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.08))
-                            .frame(height: gridItemSize)
+                            .aspectRatio(1, contentMode: .fit)
                     }
                 }
             } else {
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 4),
+                    columns: [GridItem(.adaptive(minimum: 86, maximum: 150), spacing: 4)],
                     spacing: 4
                 ) {
                     ForEach(Array(photoAssets.prefix(visiblePhotoCount).enumerated()), id: \.element.localIdentifier) { index, asset in
@@ -722,7 +724,7 @@ private struct PhotoGridItem: View {
     @State private var isLoading = true
     
     private var itemSize: CGFloat {
-        gridItemSize
+        120
     }
     
     var body: some View {
@@ -798,11 +800,4 @@ private struct PhotoGridItem: View {
             }
         }
     }
-}
-
-private var gridItemSize: CGFloat {
-    let screenWidth = UIApplication.shared.activeWindowSize.width
-    let horizontalPadding: CGFloat = 12
-    let totalSpacing: CGFloat = 12
-    return floor((screenWidth - horizontalPadding - totalSpacing) / 4)
 }

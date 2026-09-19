@@ -52,17 +52,13 @@ struct EchoViewerUI: View {
                     sessionHeader(echo: echo)
 
                     if viewModel.canBrowseMedia, viewModel.currentPost != nil {
-                        deckStage
+                        adaptiveBrowsingContent
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else if viewModel.isHistoricalIncomplete {
                         Spacer(minLength: 0)
                         } else {
                             waitingStateView
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-
-                    if viewModel.canBrowseMedia, !viewModel.groupedPerspectives.isEmpty {
-                        perspectiveChooser
                     }
                 }
             }
@@ -106,6 +102,28 @@ struct EchoViewerUI: View {
                     set: { if !$0 { selectedLocationPresentation = nil } }
                 )
             )
+        }
+    }
+
+    @ViewBuilder
+    private var adaptiveBrowsingContent: some View {
+        if #available(iOS 27.1, *) {
+            ArrangementView {
+                deckStage
+            } secondary: {
+                if !viewModel.groupedPerspectives.isEmpty {
+                    perspectiveChooser
+                }
+            }
+            .arrangementViewStyle(.split.axes([.horizontal, .vertical]))
+        } else {
+            VStack(spacing: 0) {
+                deckStage
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if !viewModel.groupedPerspectives.isEmpty {
+                    perspectiveChooser
+                }
+            }
         }
     }
     
@@ -971,6 +989,7 @@ private struct EchoDeckCarousel: View {
                         .scrollTargetLayout()
                     }
                     .scrollTargetBehavior(.paging)
+                    .scrollDisabled(true)
                     .scrollPosition(id: $scrollPosition)
                     .onAppear { scrollPosition = currentIndex }
                     .onChange(of: currentIndex) { _, newValue in

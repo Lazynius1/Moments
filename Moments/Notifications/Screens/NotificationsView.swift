@@ -6,6 +6,8 @@ import Kingfisher
 import Combine
 
 struct NotificationsView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @StateObject private var viewModel = NotificationsViewModel()
     @StateObject private var storyViewModel = StoryViewModel() // ✅ AGREGADO
     @Environment(\.colorScheme) var colorScheme // ✅ AGREGADO
@@ -159,7 +161,7 @@ struct NotificationsView: View {
                 story: presentation.story,
                 storyCount: 1,
                 storyIndex: 0,
-                screenSize: UIApplication.shared.activeWindowSize,
+                screenSize: momentsViewportSize,
                 storyViewModel: storyViewModel,
                 showingReportSheet: .constant(false),
                 showingBlockConfirmation: .constant(false),

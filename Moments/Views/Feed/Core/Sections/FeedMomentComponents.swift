@@ -184,6 +184,8 @@ struct ModernLoadingMoreView: View {
 
 // ✅ ACTUALIZADO: ModernPostCardView con círculo de historia en el header
 struct ModernPostCardView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let moment: Moment
     let availableHeight: CGFloat
     let colorScheme: ColorScheme
@@ -363,7 +365,9 @@ struct ModernPostCardView: View {
 
     private func refreshCardHeight() {
         let containerSize = CGSize(
-            width: FeedMomentCardLayout.mediaContentWidth,
+            width: FeedMomentCardLayout.mediaContentWidth(
+                containerWidth: momentsViewportSize.width
+            ),
             height: availableHeight
         )
         resolvedCardHeight = calculateCardHeight(for: containerSize)

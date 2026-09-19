@@ -705,6 +705,16 @@ struct EnhancedCaptureButton: View {
             } else {
                 stopRecordingTimer()
             }
+            DuoCameraAccessoryCoordinator.shared.updateRecording(
+                recording,
+                duration: recordingTime
+            )
+        }
+        .onChange(of: recordingTime) { _, duration in
+            DuoCameraAccessoryCoordinator.shared.updateRecording(
+                isRecording,
+                duration: duration
+            )
         }
     }
 
@@ -1027,6 +1037,10 @@ struct CameraView: UIViewControllerRepresentable {
         Coordinator(self)
     }
 
+    static func dismantleUIViewController(_ uiViewController: CameraViewController, coordinator: Coordinator) {
+        uiViewController.detachDuoAccessory()
+    }
+
     class Coordinator: NSObject, CameraViewControllerDelegate {
         let parent: CameraView
         private var currentEphemeralMode: Bool = false
@@ -1201,10 +1215,11 @@ class CameraViewController: UIViewController {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        detachDuoAccessory()
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        return .portrait
+        return .allButUpsideDown
     }
 
     override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation {
@@ -1212,7 +1227,7 @@ class CameraViewController: UIViewController {
     }
 
     override var shouldAutorotate: Bool {
-        return false
+        return true
     }
 
     private func configureHardwareCaptureInteraction() {
@@ -1448,6 +1463,15 @@ class CameraViewController: UIViewController {
 
         DispatchQueue.global(qos: .userInitiated).async {
             self.captureSession.startRunning()
+            Task { @MainActor in
+                DuoCameraAccessoryCoordinator.shared.activate(session: self.captureSession)
+            }
+        }
+    }
+
+    func detachDuoAccessory() {
+        Task { @MainActor in
+            DuoCameraAccessoryCoordinator.shared.deactivate(session: captureSession)
         }
     }
 

@@ -6,6 +6,8 @@ import CoreLocation
 
 /// Detalle de momentos del explorer: scroll vertical estilo feed + chrome con blur.
 struct ExploreMomentDetailView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @State private var moments: [Moment]
     let initialIndex: Int
     let initialMomentId: String?
@@ -105,8 +107,8 @@ struct ExploreMomentDetailView: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(
-                                    width: UIApplication.shared.activeWindowSize.width - 32,
-                                    height: (UIApplication.shared.activeWindowSize.width - 32) / max(peekAspectRatio, 0.1)
+                                    width: momentsViewportSize.width - 32,
+                                    height: (momentsViewportSize.width - 32) / max(peekAspectRatio, 0.1)
                                 )
                                 .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
@@ -228,7 +230,7 @@ struct ExploreMomentDetailView: View {
 
                 if value.translation.width > dismissThreshold || velocity > 300 {
                     withAnimation(.easeOut(duration: 0.3)) {
-                        dragOffset = UIApplication.shared.activeWindowSize.width
+                        dragOffset = momentsViewportSize.width
                         backgroundOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -256,7 +258,7 @@ struct ExploreMomentDetailView: View {
     }
 
     private func exploreMomentsScrollView() -> some View {
-                    let screenHeight = UIApplication.shared.activeWindowSize.height
+                    let screenHeight = momentsViewportSize.height
                     let feedCardHeight = screenHeight * 0.58
                     let adAfterIndices = FeedAdPlacement.indicesAfterWhichToShowAd(
             momentIds: moments.map { $0.id ?? "" },

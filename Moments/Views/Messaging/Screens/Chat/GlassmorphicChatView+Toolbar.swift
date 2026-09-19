@@ -10,12 +10,45 @@ import MapKit
 extension GlassmorphicChatView {
     // MARK: - Toolbar nativo (scroll edge blur del sistema en iOS 26)
 
+    /// Compacto = hilo empujado sobre el inbox. Regular (Duo abierto) = split a la vista, sin back.
+    private var showsChatBackButton: Bool {
+        horizontalSizeClass == .compact
+    }
+
+    /// En split, el back solo cambia `preferredCompactColumn` a `.sidebar`.
+    /// `dismiss()` sacaría todo Messages del tab y recrearía el hilo.
+    func popChatToInbox() {
+        if let preferredColumn = messagingPreferredCompactColumn {
+            preferredColumn.wrappedValue = .sidebar
+        } else {
+            dismiss()
+        }
+    }
+
+    /// Duo cerrado / barra vertical del sistema: Back va al borde lateral
+    /// (`cancellationAction`), no al nav bar horizontal. El glass custom
+    /// en `topBarLeading` no entra en esa barra.
+    private var usesVerticalBarBackPlacement: Bool {
+        momentsToolbarVerticalEdge != nil
+    }
+
     @ToolbarContentBuilder
     var chatToolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            chatToolbarBackButton
+        if showsChatBackButton {
+            if usesVerticalBarBackPlacement {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(action: popChatToInbox) {
+                        Image(systemName: "chevron.backward")
+                    }
+                    .accessibilityLabel(Text("common.back"))
+                }
+            } else {
+                ToolbarItem(placement: .topBarLeading) {
+                    chatToolbarBackButton
+                }
+                .chatHideSharedBackgroundIfAvailable()
+            }
         }
-        .chatHideSharedBackgroundIfAvailable()
 
         ToolbarItem(placement: .topBarLeading) {
             if viewModel.conversation.isGroup {
@@ -150,7 +183,7 @@ extension GlassmorphicChatView {
             systemName: "chevron.left",
             foregroundColor: adaptiveColors.primary,
             preset: .navigationBack,
-            action: { dismiss() }
+            action: popChatToInbox
         )
     }
 

@@ -210,7 +210,7 @@ struct StickerEmojiPalettePicker: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var activeVariantSourceID: String?
     @State private var selectedCategory: StickerEmojiCategory = .smileys
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 7)
+    private let columns = [GridItem(.adaptive(minimum: 38, maximum: 54), spacing: 10)]
 
     private var backgroundFill: Color {
         colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.04)

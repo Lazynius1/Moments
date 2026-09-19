@@ -38,6 +38,7 @@ struct ProfileContextFlipTransition<Source: View, Destination: View>: View {
     @ViewBuilder let destination: (@escaping () -> Void) -> Destination
 
     @State private var sourceFrame: CGRect = .zero
+    @State private var viewportSize: CGSize = .zero
     @State private var presentationSourceFrame: CGRect = .zero
     @State private var sourceImage: UIImage?
     @State private var isPresented = false
@@ -52,6 +53,11 @@ struct ProfileContextFlipTransition<Source: View, Destination: View>: View {
                 proxy.frame(in: .global)
             } action: { frame in
                 sourceFrame = frame
+            }
+            .onGeometryChange(for: CGSize.self) { proxy in
+                proxy.size
+            } action: { size in
+                viewportSize = size
             }
             .onChange(of: isRequested) { _, requested in
                 guard requested else { return }
@@ -109,7 +115,7 @@ struct ProfileContextFlipTransition<Source: View, Destination: View>: View {
     }
 
     private func resolvedPresentationFrame(for frame: CGRect) -> CGRect {
-        let visibleBounds = UIScreen.main.bounds.insetBy(dx: 0, dy: 8)
+        let visibleBounds = CGRect(origin: .zero, size: viewportSize).insetBy(dx: 0, dy: 8)
         guard frame.intersects(visibleBounds) else {
             // Cuando el avatar ya salió por arriba, el mismo retrato reaparece en
             // el centro del chrome fijado, sin forzar el scroll del perfil.

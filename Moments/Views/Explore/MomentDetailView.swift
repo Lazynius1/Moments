@@ -7,6 +7,8 @@ import AVFoundation
 import CoreLocation
 
 struct MomentDetailView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let moment: Moment
     @StateObject private var viewModel: MomentDetailViewModel
     @Environment(\.dismiss) private var dismiss
@@ -219,7 +221,7 @@ struct MomentDetailView: View {
 
                 if value.translation.width > dismissThreshold || velocity > 300 {
                     withAnimation(.easeOut(duration: 0.3)) {
-                        dragOffset = UIApplication.shared.activeWindowSize.width
+                        dragOffset = momentsViewportSize.width
                         backgroundOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -505,7 +507,7 @@ struct MomentDetailView: View {
     
     // ✅ Cálculo de altura con aspect ratio dinámico
     private var cardHeight: CGFloat {
-        let maxWidth = UIApplication.shared.activeWindowSize.width - 30
+        let maxWidth = momentsViewportSize.width - 30
         guard maxWidth > 0 else { return 400 }
         
         let aspectRatio: CGFloat = (detectedAspectRatio > 0 && detectedAspectRatio.isFinite) ? detectedAspectRatio : aspectRatioType.exactRatio
@@ -513,7 +515,7 @@ struct MomentDetailView: View {
 
         // Para Reels, dejamos que crezca más libremente como en el perfil
         if aspectRatioType == .reels {
-            let maxReelsHeight = UIApplication.shared.activeWindowSize.height * 0.75
+            let maxReelsHeight = momentsViewportSize.height * 0.75
             return min(calculatedHeight, maxReelsHeight)
         }
         

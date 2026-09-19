@@ -116,6 +116,10 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
         Coordinator(self)
     }
 
+    static func dismantleUIView(_ uiView: CameraPreviewView, coordinator: Coordinator) {
+        uiView.detachDuoAccessory()
+    }
+
     class Coordinator: NSObject, AVCapturePhotoCaptureDelegate, AVCaptureFileOutputRecordingDelegate {
         var parent: CameraPreviewRepresentable
 
@@ -335,6 +339,16 @@ class CameraPreviewView: UIView {
             rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: camera, previewLayer: previewLayer)
         }
         configurePreviewConnection()
+        Task { @MainActor in
+            DuoCameraAccessoryCoordinator.shared.activate(session: session)
+        }
+    }
+
+    func detachDuoAccessory() {
+        guard let captureSession else { return }
+        Task { @MainActor in
+            DuoCameraAccessoryCoordinator.shared.deactivate(session: captureSession)
+        }
     }
 
     func updateCameraPosition(_ position: AVCaptureDevice.Position) {

@@ -32,7 +32,7 @@ struct MediaSelectionView: View {
 
     private let imageManager = PHImageManager.default()
     private let thumbnailSize = CGSize(width: 300, height: 300)
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 4)
+    private let columns = [GridItem(.adaptive(minimum: 86, maximum: 150), spacing: 1)]
 
     var body: some View {
         GeometryReader { geo in

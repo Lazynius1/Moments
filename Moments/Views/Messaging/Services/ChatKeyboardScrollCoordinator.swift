@@ -97,7 +97,9 @@ final class ChatKeyboardScrollCoordinator: NSObject, ObservableObject {
             return max(0, window.bounds.height - convertedFrame.minY)
         }
 
-        let screenHeight = UIApplication.shared.activeWindowSize.height
-        return max(0, screenHeight - keyboardFrame.minY)
+        // Sin una ventana no existe un sistema de coordenadas fiable al que
+        // convertir el frame del teclado. La siguiente notificación, ya con la
+        // escena conectada, recalculará el solapamiento.
+        return 0
     }
 }

@@ -47,7 +47,7 @@ struct ChatGiphyPickerContent: View {
     private let maxRecentCount = 8
 
     private var gridColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
+        [GridItem(.adaptive(minimum: 82, maximum: 150), spacing: 6)]
     }
 
     private var gridSpacing: CGFloat { 6 }

@@ -1320,13 +1320,10 @@ struct ModernEmojiGridView: View {
                   "👍", "👎", "👏", "🙏", "💪", "✌️", "🤟", "👌"]
 
     var body: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 15),
-            GridItem(.flexible(), spacing: 15),
-            GridItem(.flexible(), spacing: 15),
-            GridItem(.flexible(), spacing: 15),
-            GridItem(.flexible(), spacing: 15)
-        ], spacing: 20) {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 55, maximum: 72), spacing: 15)],
+            spacing: 20
+        ) {
             ForEach(emojis, id: \.self) { emoji in
                 Button(action: {
                     withAnimation(.easeOut(duration: 0.1)) {

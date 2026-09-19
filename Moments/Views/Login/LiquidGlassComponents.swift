@@ -15,7 +15,7 @@ enum AuthFormMetrics {
     }
 
     static var defaultScreenHorizontalInset: CGFloat {
-        screenHorizontalInset(for: UIApplication.shared.activeWindowSize.width)
+        screenHorizontalInset(for: 393)
     }
 
     static func responsiveFieldHeight(for screenHeight: CGFloat) -> CGFloat {
@@ -38,11 +38,11 @@ enum AuthFormMetrics {
     }
 
     static var fieldHeight: CGFloat {
-        responsiveFieldHeight(for: UIApplication.shared.activeWindowSize.height)
+        responsiveFieldHeight(for: 852)
     }
 
     static var buttonHeight: CGFloat {
-        responsiveButtonHeight(for: UIApplication.shared.activeWindowSize.height)
+        responsiveButtonHeight(for: 852)
     }
 
     static let registerLogoHeight: CGFloat = 112

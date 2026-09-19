@@ -2,6 +2,8 @@ import SwiftUI
 
 // MARK: - Componentes UI Originales
 struct ConversationHistoryOverlay: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @ObservedObject var viewModel: NovaAgent
     @Binding var showConversationHistory: Bool
     @Binding var showSuggestedOptions: Bool
@@ -124,7 +126,7 @@ struct ConversationHistoryOverlay: View {
                         }
                         .padding(.bottom, 20)
                     }
-                    .frame(maxHeight: UIApplication.shared.activeWindowSize.height * 0.6)
+                    .frame(maxHeight: momentsViewportSize.height * 0.6)
                 }
                 .padding(.top, 6)
                 .padding(.bottom, 8)

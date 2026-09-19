@@ -322,6 +322,7 @@ extension View {
 
     /// El reveal nace en la superficie vacía de la fila (entrantes y propios).
     /// Sobre la burbuja propia el reply (mismo eje) tiene prioridad.
+    /// `layoutPriority(0)` para ceder el eje al hug de la burbuja y no apelotonar.
     @ViewBuilder
     func chatTimestampRevealGutter(
         minLength: CGFloat = 50,
@@ -331,11 +332,13 @@ extension View {
         if isEnabled {
             Color.clear
                 .frame(minWidth: minLength, maxWidth: .infinity, maxHeight: .infinity)
+                .layoutPriority(0)
                 .contentShape(Rectangle())
                 .chatTimestampRevealGesture(state: state)
         } else {
             Color.clear
                 .frame(minWidth: minLength, maxWidth: .infinity, maxHeight: .infinity)
+                .layoutPriority(0)
                 .contentShape(Rectangle())
         }
     }

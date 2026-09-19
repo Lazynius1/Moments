@@ -963,6 +963,8 @@ private struct SavedMomentGridCard: View {
 
 // MARK: - ✅ Vista detallada de momentos GUARDADOS con diseño del feed
 struct ModernSavedMomentsDetailView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let moments: [Moment]
     let initialIndex: Int
     let onDismiss: () -> Void
@@ -1034,8 +1036,8 @@ struct ModernSavedMomentsDetailView: View {
                                     .resizable()
                                     .scaledToFill()
                                     .frame(
-                                        width: UIApplication.shared.activeWindowSize.width - 32,
-                                        height: (UIApplication.shared.activeWindowSize.width - 32) / max(peekAspectRatio, 0.1)
+                                        width: momentsViewportSize.width - 32,
+                                        height: (momentsViewportSize.width - 32) / max(peekAspectRatio, 0.1)
                                     )
                                     .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                     .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
@@ -1267,6 +1269,8 @@ struct ModernSavedDetailHeader: View {
 
 // MARK: - ✅ Tarjeta de momento guardado con funcionalidad completa
 struct ModernSavedDetailMomentCard: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let moment: Moment
     let availableHeight: CGFloat
     var reelsVideos: [VideoMoment]? = nil
@@ -1338,7 +1342,9 @@ struct ModernSavedDetailMomentCard: View {
     }
 
     private var cardHeight: CGFloat {
-        let maxWidth = FeedMomentCardLayout.mediaContentWidth
+        let maxWidth = FeedMomentCardLayout.mediaContentWidth(
+            containerWidth: momentsViewportSize.width
+        )
         guard maxWidth > 0 else { return 350 }
 
         let aspectRatio = detectedAspectRatio > 0 ? detectedAspectRatio : aspectRatioType.exactRatio

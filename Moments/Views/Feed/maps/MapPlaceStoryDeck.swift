@@ -2,6 +2,8 @@ import SwiftUI
 
 /// Viewer de stories filtradas por lugar (varios autores en el mismo cluster).
 struct MapPlaceStoryDeckView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let previews: [MapStoryPreview]
     let initialPreviewId: String?
     let onClose: () -> Void
@@ -24,7 +26,7 @@ struct MapPlaceStoryDeckView: View {
                     story: story,
                     storyCount: stories.count,
                     storyIndex: currentIndex,
-                    screenSize: UIApplication.shared.activeWindowSize,
+                    screenSize: momentsViewportSize,
                     storyViewModel: storyViewModel,
                     showingReportSheet: $showingReportSheet,
                     showingBlockConfirmation: $showingBlockConfirmation,

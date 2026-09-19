@@ -65,28 +65,122 @@ enum ChatTextBubbleMetrics {
     static let lineSpacing: CGFloat = 2
     static let cornerRadius: CGFloat = 20
     static let joinedRadius: CGFloat = 4
-    /// Fracción del ancho de pantalla que puede ocupar una burbuja.
+    /// Fracción del ancho del **contenedor del chat** (no de la escena Duo).
     static let maxWidthScreenFraction: CGFloat = 0.78
 }
 
+// MARK: - Ancho del listado (celda UIKit → SwiftUI)
+
+private struct ChatListContainerWidthKey: EnvironmentKey {
+    /// 0 = sin inyección; las burbujas caen a `activeWindowSize`.
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    /// Ancho real de `ChatMessageListView` (columna del split / phone).
+    /// Las burbujas deben usar esto, no `momentsViewportSize` (escena completa).
+    var chatListContainerWidth: CGFloat {
+        get { self[ChatListContainerWidthKey.self] }
+        set { self[ChatListContainerWidthKey.self] = newValue }
+    }
+}
+
+enum ChatBubbleLayoutWidth {
+    /// Margen lateral típico de fila (avatar/padding) para no rozar el borde.
+    static let cardGutter: CGFloat = 24
+
+    static func containerWidth(chatListWidth: CGFloat) -> CGFloat {
+        // Anchos minúsculos (celda aún no medida) no valen: caen a la ventana.
+        if chatListWidth >= 120 { return chatListWidth }
+        return UIApplication.shared.activeWindowSize.width
+    }
+
+    static func maxTextBubbleWidth(chatListWidth: CGFloat) -> CGFloat {
+        containerWidth(chatListWidth: chatListWidth) * ChatTextBubbleMetrics.maxWidthScreenFraction
+    }
+
+    /// Ancho de diseño de tarjeta, nunca mayor que el contenedor del chat.
+    static func capped(_ designWidth: CGFloat, chatListWidth: CGFloat, gutter: CGFloat = cardGutter) -> CGFloat {
+        let available = max(120, containerWidth(chatListWidth: chatListWidth) - gutter)
+        return min(designWidth, available)
+    }
+
+    /// Escala altura manteniendo la proporción del diseño.
+    static func cappedSize(
+        width designWidth: CGFloat,
+        height designHeight: CGFloat,
+        chatListWidth: CGFloat,
+        gutter: CGFloat = cardGutter
+    ) -> CGSize {
+        let width = capped(designWidth, chatListWidth: chatListWidth, gutter: gutter)
+        guard designWidth > 0 else { return CGSize(width: width, height: designHeight) }
+        return CGSize(width: width, height: width * (designHeight / designWidth))
+    }
+}
+
+/// Ancho/alto de diseño, nunca más anchos que la columna del chat.
+private struct ChatCappedCardFrame: ViewModifier {
+    let designWidth: CGFloat
+    let designHeight: CGFloat
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    func body(content: Content) -> some View {
+        let size = ChatBubbleLayoutWidth.cappedSize(
+            width: designWidth,
+            height: designHeight,
+            chatListWidth: chatListContainerWidth
+        )
+        content.frame(width: size.width, height: size.height)
+    }
+}
+
+extension View {
+    func chatCappedCardSize(width: CGFloat, height: CGFloat) -> some View {
+        modifier(ChatCappedCardFrame(designWidth: width, designHeight: height))
+    }
+}
+
+#if DEBUG
+enum ChatBubbleLayoutDebug {
+    private static var didLog = false
+
+    static func logIfNeeded(maxWidth: CGFloat, listWidth: CGFloat, sample: String) {
+        guard !didLog else { return }
+        didLog = true
+        let windowW = UIApplication.shared.activeWindowSize.width
+        print(
+            "[ChatBubble] maxWidth=\(Int(maxWidth)) listWidth=\(Int(listWidth)) windowWidth=\(Int(windowW)) sample=\(sample.prefix(24))"
+        )
+    }
+}
+#endif
+
 /// Cap de ancho que **no** hincha el layout: propone como máximo `maxWidth` al hijo
 /// y devuelve el tamaño intrínseco (texto corto = burbuja corta).
-/// `frame(maxWidth:)` de SwiftUI expandiría el hit-test al máximo aunque el dibujo sea menor.
+///
+/// ⚠️ En Duo / iOS 27.1 + `.fixedSize(horizontal:)` de la fila, las propuestas
+/// de ancho “ideal/mínimo” (~1 carácter) rompen el wrap. Preferir
+/// `.frame(maxWidth:)` en `ChatTextBubbleView` hasta validar este Layout otra vez.
 struct ChatBubbleWidthCapLayout: Layout {
     var maxWidth: CGFloat
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         guard let subview = subviews.first else { return .zero }
-        let widthCap = min(proposal.width ?? maxWidth, maxWidth)
-        return subview.sizeThatFits(ProposedViewSize(width: widthCap, height: proposal.height))
+        // Siempre medir al tope de wrap. Una propuesta estrecha (UIHostingConfiguration
+        // en el primer pase) partía "hii whats up?" en dos líneas; al tap se remedía.
+        return subview.sizeThatFits(ProposedViewSize(width: wrapWidth, height: proposal.height))
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard let subview = subviews.first else { return }
         subview.place(
             at: bounds.origin,
-            proposal: ProposedViewSize(width: bounds.width, height: bounds.height)
+            proposal: ProposedViewSize(width: wrapWidth, height: bounds.height)
         )
+    }
+
+    private var wrapWidth: CGFloat {
+        max(maxWidth, 120)
     }
 }
 
@@ -192,6 +286,8 @@ extension EnvironmentValues {
 }
 
 struct ChatTextBubbleView: View {
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
     let text: String
     let isOutgoing: Bool
     var messageId: String? = nil
@@ -220,7 +316,7 @@ struct ChatTextBubbleView: View {
     }
 
     private var maxBubbleWidth: CGFloat {
-        UIApplication.shared.activeWindowSize.width * ChatTextBubbleMetrics.maxWidthScreenFraction
+        ChatBubbleLayoutWidth.maxTextBubbleWidth(chatListWidth: chatListContainerWidth)
     }
 
     private var bubbleShape: ChatBubbleShape {
@@ -367,7 +463,17 @@ struct ChatTextBubbleView: View {
     }
 
     var body: some View {
-        ChatBubbleWidthCapLayout(maxWidth: maxBubbleWidth) {
+        let maxW = maxBubbleWidth
+        #if DEBUG
+        let _ = ChatBubbleLayoutDebug.logIfNeeded(
+            maxWidth: maxW,
+            listWidth: chatListContainerWidth,
+            sample: text
+        )
+        #endif
+        // Igual que el audio: tamaño intrínseco, no flexible. `frame(maxWidth:)`
+        // se come el Spacer de la fila y deja outgoing a la izquierda.
+        ChatBubbleWidthCapLayout(maxWidth: maxW) {
             textContent
         }
     }

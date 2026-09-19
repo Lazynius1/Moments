@@ -88,6 +88,8 @@ struct HiddenLayerDraft: Identifiable, Equatable {
 }
 
 struct HiddenLayersEditorView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let image: UIImage
     let postAspectRatio: CGFloat?
     @Binding var layers: [HiddenLayerDraft]
@@ -372,7 +374,9 @@ struct HiddenLayersEditorView: View {
         guard availableWidth > 0 else { return 340 }
 
         let ratio = (displayedPostAspectRatio > 0 && displayedPostAspectRatio.isFinite) ? displayedPostAspectRatio : 1.0
-        let canonicalFeedWidth = FeedMomentCardLayout.mediaContentWidth
+        let canonicalFeedWidth = FeedMomentCardLayout.mediaContentWidth(
+            containerWidth: momentsViewportSize.width
+        )
         let canonicalFeedHeight = feedCardHeight(for: canonicalFeedWidth, ratio: ratio)
         let scaledWidth = availableWidth
 

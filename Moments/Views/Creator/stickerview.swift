@@ -746,7 +746,7 @@ struct StickerPickerView: View {
 
     @ViewBuilder
     private func MomentsTrendingGrid(stickers: [GiphyGif], onReachEnd: (() -> Void)? = nil) -> some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
+        let columns = [GridItem(.adaptive(minimum: 72, maximum: 110), spacing: 8)]
 
         LazyVGrid(columns: columns, spacing: 8) {
             ForEach(stickers) { sticker in
@@ -782,7 +782,7 @@ struct StickerPickerView: View {
 
     @ViewBuilder
     private func CatalogTrendingPreviewGrid(stickers: [GiphyGif]) -> some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+        let columns = [GridItem(.adaptive(minimum: 92, maximum: 150), spacing: 12)]
 
         LazyVGrid(columns: columns, spacing: 12) {
             ForEach(stickers) { sticker in
@@ -813,7 +813,7 @@ struct StickerPickerView: View {
 
     @ViewBuilder
     private func MomentsEmojiGrid() -> some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 6)
+        let columns = [GridItem(.adaptive(minimum: 44, maximum: 64), spacing: 10)]
 
         LazyVGrid(columns: columns, spacing: 10) {
             ForEach(trendingEmojis, id: \.self) { emoji in

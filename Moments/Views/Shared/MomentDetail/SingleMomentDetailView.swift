@@ -5,6 +5,8 @@ import CoreLocation
 
 /// Detalle de un solo momento con card estilo feed (actividad, notificaciones, chat…).
 struct SingleMomentDetailView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let chromeTitle: String?
 
     @State private var moment: Moment
@@ -117,8 +119,8 @@ struct SingleMomentDetailView: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(
-                                    width: UIApplication.shared.activeWindowSize.width - 32,
-                                    height: (UIApplication.shared.activeWindowSize.width - 32) / max(peekAspectRatio, 0.1)
+                                    width: momentsViewportSize.width - 32,
+                                    height: (momentsViewportSize.width - 32) / max(peekAspectRatio, 0.1)
                                 )
                                 .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
@@ -203,7 +205,7 @@ struct SingleMomentDetailView: View {
     }
 
     private func singleMomentScrollView() -> some View {
-        let screenHeight = UIApplication.shared.activeWindowSize.height
+        let screenHeight = momentsViewportSize.height
         let feedCardHeight = screenHeight * 0.58
 
         return ScrollView(.vertical, showsIndicators: false) {
@@ -280,7 +282,7 @@ struct SingleMomentDetailView: View {
 
                 if value.translation.width > dismissThreshold || velocity > 300 {
                     withAnimation(.easeOut(duration: 0.3)) {
-                        dragOffset = UIApplication.shared.activeWindowSize.width
+                        dragOffset = momentsViewportSize.width
                         backgroundOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

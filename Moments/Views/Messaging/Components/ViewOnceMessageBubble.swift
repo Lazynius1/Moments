@@ -134,6 +134,7 @@ private struct ViewOncePillBubble: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+        .fixedSize(horizontal: true, vertical: true)
         .background(
             ZStack {
                 Capsule().fill(.ultraThinMaterial)

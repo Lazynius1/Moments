@@ -14,6 +14,7 @@ enum FloatingTabProfileSegmentRenderer {
     static func render(
         userId: String,
         colorScheme: ColorScheme,
+        displayScale: CGFloat = 1,
         forceRefresh: Bool = false
     ) async -> UIImage {
         guard !userId.isEmpty else {
@@ -24,7 +25,12 @@ enum FloatingTabProfileSegmentRenderer {
         async let snapshotTask = loadSnapshot(userId: userId, forceRefresh: forceRefresh)
         let (avatar, snapshot) = await (avatarTask, snapshotTask)
 
-        return compose(avatar: avatar, snapshot: snapshot, colorScheme: colorScheme)
+        return compose(
+            avatar: avatar,
+            snapshot: snapshot,
+            colorScheme: colorScheme,
+            displayScale: displayScale
+        )
     }
 
     private static func loadAvatar(userId: String) async -> UIImage? {
@@ -69,7 +75,8 @@ enum FloatingTabProfileSegmentRenderer {
     private static func compose(
         avatar: UIImage?,
         snapshot: StoryRingSnapshot,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        displayScale: CGFloat
     ) -> UIImage {
         let content = FloatingTabProfileSegmentIcon(
             avatar: avatar,
@@ -79,7 +86,7 @@ enum FloatingTabProfileSegmentRenderer {
         .frame(width: canvasSize, height: canvasSize)
 
         let renderer = ImageRenderer(content: content)
-        renderer.scale = UIScreen.main.scale
+        renderer.scale = displayScale
         let rendered = renderer.uiImage ?? personPlaceholder(colorScheme: colorScheme)
         return rendered.withRenderingMode(.alwaysOriginal)
     }

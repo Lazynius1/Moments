@@ -175,6 +175,8 @@ struct ModernContextMenuOverlay: View {
     @State private var canLoadMoreSelectedLayerDiscoveries = false
     @State private var storyRoute: StoryUserPresentationRoute?
 
+    @Environment(\.momentsToolbarVerticalEdge) private var momentsToolbarVerticalEdge
+
     let onEdit: () -> Void
     let onDelete: () -> Void
     let onReport: () -> Void
@@ -190,11 +192,11 @@ struct ModernContextMenuOverlay: View {
         privacyService.canShareMoment(moment)
     }
 
-    /// MomentsFloatingTabBar ancla al borde físico: height 54 + pad 4×2 + bottom 18.
-    /// El menú vive en safe area → levantar lo que la pill invade + hueco mínimo.
+    /// MomentsFloatingTabBar: abajo, o rail vertical (entonces casi no hay que levantar).
     private var contextMenuBottomPadding: CGFloat {
         MomentsFloatingTabBarMetrics.overlayBottomPadding(
-            safeAreaBottom: keyWindowSafeAreaInsets().bottom
+            safeAreaBottom: keyWindowSafeAreaInsets().bottom,
+            verticalBarEdge: momentsToolbarVerticalEdge
         )
     }
 
@@ -665,7 +667,7 @@ struct ModernContextMenuOverlay: View {
                 .compactMap { $0 as? UIWindowScene }
                 .flatMap(\.windows)
                 .first(where: \.isKeyWindow)
-            let viewportSize = window?.bounds.size ?? UIApplication.shared.activeWindowSize
+            let viewportSize = window?.bounds.size ?? CGSize(width: 393, height: 852)
             let safeAreaInsets = window?.safeAreaInsets ?? .zero
             let canvasRect = creatorMomentsCaptureRect(
                 in: viewportSize,

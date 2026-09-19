@@ -109,12 +109,13 @@ final class FeedVisibilityCoordinator: ObservableObject {
 
 struct FeedMomentVisibilityReporter: ViewModifier {
     let momentId: String
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
 
     func body(content: Content) -> some View {
         content
             .onGeometryChange(for: CGFloat.self) { proxy in
                 let frame = proxy.frame(in: .global)
-                let screen = CGRect(origin: .zero, size: UIApplication.shared.activeWindowSize)
+                let screen = CGRect(origin: .zero, size: momentsViewportSize)
                 let intersection = frame.intersection(screen)
                 guard frame.height > 0 else { return 0 }
                 return max(0, min(1, intersection.height / frame.height))

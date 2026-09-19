@@ -1,4 +1,104 @@
+import SwiftUI
 import UIKit
+
+private struct MomentsViewportSizeKey: EnvironmentKey {
+    static let defaultValue = CGSize(width: 393, height: 852)
+}
+
+private struct MomentsDivisionRegionsKey: EnvironmentKey {
+    static let defaultValue: [CGRect] = []
+}
+
+extension EnvironmentValues {
+    /// Tamaño de la escena que contiene la vista. Cambia en tiempo real cuando
+    /// la ventana se redimensiona o el iPhone Duo cambia de configuración.
+    var momentsViewportSize: CGSize {
+        get { self[MomentsViewportSizeKey.self] }
+        set { self[MomentsViewportSizeKey.self] = newValue }
+    }
+
+
+    /// Regiones físicas activas que dividen la escena (por ejemplo, el pliegue
+    /// de Duo), expresadas en coordenadas locales de la raíz.
+    var momentsDivisionRegions: [CGRect] {
+        get { self[MomentsDivisionRegionsKey.self] }
+        set { self[MomentsDivisionRegionsKey.self] = newValue }
+    }
+}
+
+private struct MomentsViewportMetricsModifier: ViewModifier {
+    @State private var viewportSize = MomentsViewportSizeKey.defaultValue
+    @State private var divisionRegions: [CGRect] = []
+
+    func body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: CGSize.self) { proxy in
+                proxy.size
+            } action: { size in
+                guard size.width > 0, size.height > 0 else { return }
+                viewportSize = size
+            }
+            .onGeometryChange(for: [CGRect].self) { proxy in
+                if #available(iOS 27.1, *) {
+                    return proxy.reservedRegions(kind: .division)
+                        .filter(\.isActive)
+                        .map(\.frame)
+                }
+                return []
+            } action: { regions in
+                divisionRegions = regions
+            }
+            .environment(\.momentsViewportSize, viewportSize)
+            .environment(\.momentsDivisionRegions, divisionRegions)
+    }
+}
+
+extension View {
+    /// Instala métricas propias de esta escena en la raíz de Moments.
+    func momentsViewportMetrics() -> some View {
+        modifier(MomentsViewportMetricsModifier())
+    }
+
+    /// Desplaza localmente un control crítico si una división física lo corta.
+    func momentsAvoidsActiveDivision(padding: CGFloat = 10) -> some View {
+        modifier(MomentsDivisionAvoidanceModifier(padding: padding))
+    }
+}
+
+private struct MomentsDivisionAvoidanceModifier: ViewModifier {
+    let padding: CGFloat
+    @Environment(\.momentsViewportSize) private var viewportSize
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    @State private var frame: CGRect = .zero
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: horizontalDisplacement)
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .global)
+            } action: { newFrame in
+                frame = newFrame
+            }
+    }
+
+    private var horizontalDisplacement: CGFloat {
+        guard let division = divisionRegions.first(where: {
+            $0.height > $0.width && frame.intersects($0.insetBy(dx: -padding, dy: 0))
+        }) else { return 0 }
+
+        let moveLeading = division.minX - padding - frame.maxX
+        let moveTrailing = division.maxX + padding - frame.minX
+        let leadingFits = frame.minX + moveLeading >= 0
+        let trailingFits = frame.maxX + moveTrailing <= viewportSize.width
+
+        if leadingFits && trailingFits {
+            return abs(moveLeading) <= abs(moveTrailing) ? moveLeading : moveTrailing
+        }
+        if leadingFits { return moveLeading }
+        if trailingFits { return moveTrailing }
+        return 0
+    }
+}
 
 extension UIApplication {
     private static let fallbackSize = CGSize(width: 393, height: 852)

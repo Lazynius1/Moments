@@ -19,8 +19,7 @@ enum ChatInputBarLayout {
 // MARK: - Device corner radius (App Store safe heuristic)
 
 private enum ChatDeviceCornerRadius {
-    static var display: CGFloat {
-        let width = UIApplication.shared.activeWindowSize.width
+    static func display(for width: CGFloat) -> CGFloat {
         if width >= 430 { return 62 }
         if width >= 428 { return 53.33 }
         if width >= 402 { return 62 }
@@ -30,8 +29,8 @@ private enum ChatDeviceCornerRadius {
         return 0
     }
 
-    static var sheet: CGFloat {
-        let displayRadius = display
+    static func sheet(for width: CGFloat) -> CGFloat {
+        let displayRadius = display(for: width)
         return displayRadius > 0 ? displayRadius : ChatAttachmentSheetMetrics.cornerRadius
     }
 }
@@ -722,12 +721,14 @@ struct ChatAttachmentSearchField: View {
 }
 
 struct ChatAttachmentSheetSurface<Content: View>: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let height: CGFloat
     @ViewBuilder let content: () -> Content
 
     private var sheetShape: RoundedRectangle {
         RoundedRectangle(
-            cornerRadius: ChatDeviceCornerRadius.sheet,
+            cornerRadius: ChatDeviceCornerRadius.sheet(for: momentsViewportSize.width),
             style: .continuous
         )
     }
@@ -772,7 +773,7 @@ struct ChatAttachmentMediaGridSheet: View {
     @State private var nativePickerItems: [PhotosPickerItem] = []
     @State private var showNativePhotoPicker = false
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
+    private let columns = [GridItem(.adaptive(minimum: 108, maximum: 180), spacing: 2)]
     private let imageManager = PHImageManager.default()
     private let thumbnailSize = CGSize(width: 300, height: 300)
 

@@ -148,7 +148,7 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
         
         guard let hostingVC = context.coordinator.hostingVC else { return nil }
         let targetSize = CGSize(
-            width: proposal.width ?? UIApplication.shared.activeWindowSize.width,
+            width: proposal.width ?? uiView.window?.bounds.width ?? 393,
             height: proposal.height ?? .greatestFiniteMagnitude
         )
         return hostingVC.sizeThatFits(in: targetSize)

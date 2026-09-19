@@ -19,6 +19,19 @@ enum NewConversationRoute {
     case pending(PendingChatContext)
 }
 
+private struct MessagingPreferredCompactColumnKey: EnvironmentKey {
+    static let defaultValue: Binding<NavigationSplitViewColumn>? = nil
+}
+
+extension EnvironmentValues {
+    /// Binding a la columna compacta del inbox. El back del chat la pone en
+    /// `.sidebar` sin recrear el hilo (Apple: `preferredCompactColumn`).
+    var messagingPreferredCompactColumn: Binding<NavigationSplitViewColumn>? {
+        get { self[MessagingPreferredCompactColumnKey.self] }
+        set { self[MessagingPreferredCompactColumnKey.self] = newValue }
+    }
+}
+
 // MARK: - Glassmorphic Components
 struct GlassmorphicBackground: View {
     let adaptiveColors: AdaptiveColors
@@ -66,6 +79,9 @@ struct MessagingView: View {
     @EnvironmentObject var viewModel: MessagingViewModel
     @EnvironmentObject var messageRequestService: MessageRequestService
     @Environment(\.colorScheme) var colorScheme
+    /// Compacto (Duo cerrado / iPhone): qué columna se ve. El hilo vive
+    /// siempre en `detail`; no se recrea al plegar o desplegar.
+    @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
     @State private var isShowingNewConversation = false
     @StateObject private var groupRequests = GroupRequestsStore()
     @State private var showingGroupRequests = false
@@ -105,8 +121,53 @@ struct MessagingView: View {
 
     var body: some View {
         ChatRecoveryGateView(onCancel: onDismiss) {
-            messagingLifecycleContent
+            NavigationSplitView(preferredCompactColumn: $preferredCompactColumn) {
+                messagingLifecycleContent
+            } detail: {
+                NavigationStack {
+                    messagingSplitDetail
+                }
+            }
+            .environment(\.messagingPreferredCompactColumn, $preferredCompactColumn)
+            .onChange(of: selectedConversation?.id) { _, conversationId in
+                if conversationId != nil {
+                    preferredCompactColumn = .detail
+                }
+            }
+            .onChange(of: pendingChatContext?.id) { _, contextId in
+                if contextId != nil {
+                    preferredCompactColumn = .detail
+                }
+            }
         }
+    }
+
+    @ViewBuilder
+    private var messagingSplitDetail: some View {
+        if let conversation = selectedConversation {
+            chatDestination(for: conversation)
+                .id(conversation.id)
+        } else if let context = pendingChatContext {
+            pendingChatDestination(for: context)
+                .id(context.id)
+        } else {
+            splitDetailPlaceholder
+        }
+    }
+
+    private var splitDetailPlaceholder: some View {
+        ContentUnavailableView(
+            "messaging.title",
+            systemImage: "paperplane",
+            description: Text(
+                NSLocalizedString(
+                    "messaging.selectConversation",
+                    value: "Select a conversation",
+                    comment: "Empty detail column in Messages"
+                )
+            )
+        )
+        .background(GlassmorphicBackground(adaptiveColors: adaptiveColors))
     }
 
     private var messagingLifecycleContent: some View {
@@ -222,12 +283,6 @@ struct MessagingView: View {
             }
             .navigationDestination(isPresented: $showingMessageRequests) {
                 messageRequestsDestination
-            }
-            .navigationDestination(item: $selectedConversation) { conversation in
-                chatDestination(for: conversation)
-            }
-            .navigationDestination(item: $pendingChatContext) { context in
-                pendingChatDestination(for: context)
             }
             .navigationDestination(item: $profileRoute) { route in
                 profileDestination(for: route)
@@ -1083,6 +1138,7 @@ struct MessagingView: View {
             onOpenProfile: { openConversationProfile(userId: conversation.otherParticipantId) },
             onTap: {
                 selectedConversation = conversation
+                preferredCompactColumn = .detail
             },
             onLongPress: {
                 guard let conversationId = conversation.id,

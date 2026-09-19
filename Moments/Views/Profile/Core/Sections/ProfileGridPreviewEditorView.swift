@@ -20,7 +20,7 @@ struct ProfileGridPreviewEditorView: View {
     @State private var isDragging = false
     @State private var isZooming = false
     @GestureState private var gestureTranslation = CGSize.zero
-    @State private var cropSide: CGFloat = UIApplication.shared.activeWindowSize.width - 24
+    @State private var cropSide: CGFloat = 369
 
     private var liveOffset: CGSize {
         CGSize(

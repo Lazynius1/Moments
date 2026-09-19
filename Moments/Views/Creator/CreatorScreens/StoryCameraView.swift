@@ -180,6 +180,18 @@ struct StoryCameraView: View {
             orientationManager.stopTracking()
             cameraKit.stop()
         }
+        .onChange(of: isRecording) { _, recording in
+            DuoCameraAccessoryCoordinator.shared.updateRecording(
+                recording,
+                duration: recordingDuration
+            )
+        }
+        .onChange(of: recordingDuration) { _, duration in
+            DuoCameraAccessoryCoordinator.shared.updateRecording(
+                isRecording,
+                duration: duration
+            )
+        }
     }
 
     private var flashIcon: String {

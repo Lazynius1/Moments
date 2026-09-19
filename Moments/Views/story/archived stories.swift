@@ -1068,6 +1068,8 @@ struct ArchiveStorySquareCard: View {
 
 // MARK: - Archive Day Stories Viewer
 struct ArchiveDayStoriesViewer: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let stories: [Story]
 
     @Environment(\.dismiss) private var dismiss
@@ -1090,7 +1092,7 @@ struct ArchiveDayStoriesViewer: View {
                     story: story,
                     storyCount: stories.count,
                     storyIndex: currentIndex,
-                    screenSize: UIApplication.shared.activeWindowSize,
+                    screenSize: momentsViewportSize,
                     storyViewModel: storyViewModel,
                     showingReportSheet: $showingReportSheet,
                     showingBlockConfirmation: $showingBlockConfirmation,
@@ -1628,6 +1630,7 @@ class ArchiveViewModel: ObservableObject {
 
     func loadAllArchivedStories() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard !isFillingAll else { return }
         isFillingAll = true
         loadTask = Task { @MainActor [weak self] in
             guard let self else { return }

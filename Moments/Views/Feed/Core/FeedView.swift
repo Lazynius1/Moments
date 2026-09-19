@@ -40,6 +40,7 @@ struct FeedView: View {
     @Binding var showCreatorView: Bool
     @State private var currentTime = Date()
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var momentsToolbarVerticalEdge
     @State private var selectedFeedType: FeedType = UserDefaults.standard.selectedFeedType
     @State private var showingLocationMap = false
     @State private var selectedLocationName: String = ""
@@ -163,7 +164,8 @@ struct FeedView: View {
                     .padding(
                         .bottom,
                         MomentsFloatingTabBarMetrics.overlayBottomPadding(
-                            safeAreaBottom: keyWindowSafeAreaInsets().bottom
+                            safeAreaBottom: keyWindowSafeAreaInsets().bottom,
+                            verticalBarEdge: momentsToolbarVerticalEdge
                         )
                     )
             }

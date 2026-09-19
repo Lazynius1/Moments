@@ -51,6 +51,7 @@ struct ChatLocationMessageBubble: View {
     var onStopLive: (() -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
     @State private var snapshot: UIImage?
     @State private var now = Date()
 
@@ -58,9 +59,13 @@ struct ChatLocationMessageBubble: View {
         isCurrentUser && isLive && isLiveActive && onStopLive != nil
     }
 
-    private let bubbleWidth: CGFloat = 276
+    private let designBubbleWidth: CGFloat = 276
     private let mapHeight: CGFloat = 150
     private let cardInset: CGFloat = 6
+
+    private var bubbleWidth: CGFloat {
+        ChatBubbleLayoutWidth.capped(designBubbleWidth, chatListWidth: chatListContainerWidth)
+    }
 
     private var mapWidth: CGFloat { bubbleWidth - (cardInset * 2) }
 
@@ -90,6 +95,7 @@ struct ChatLocationMessageBubble: View {
             }
         }
         .frame(width: bubbleWidth)
+        .frame(minHeight: mapHeight + cardInset + 56 + (canStopLive ? 40 : 0))
         .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(

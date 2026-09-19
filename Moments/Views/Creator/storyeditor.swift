@@ -3073,7 +3073,7 @@ struct EmojiPickerView: View {
     private let maxRecentCount = 12
 
     private var gridColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 12), count: 6)
+        [GridItem(.adaptive(minimum: 44, maximum: 64), spacing: 12)]
     }
 
     private var secondaryText: Color {

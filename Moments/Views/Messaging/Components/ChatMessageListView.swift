@@ -649,6 +649,10 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         super.viewDidLayoutSubviews()
         if rowHeightCache?.syncWidth(collectionView.bounds.width) == true {
             rowHeightCache?.seedEstimates(for: lastAppliedRows, containerWidth: collectionView.bounds.width)
+            // Recrear hosting de celdas visibles: el ancho del contenedor alimenta
+            // el layout de burbujas (no usar el viewport de escena Duo).
+            reconfigureAllVisiblePending = true
+            scheduleReconfigureFlush()
         }
         if #available(iOS 26.0, *) {
             collectionView.bottomEdgeEffect.isHidden = true
@@ -756,11 +760,17 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     private func configureDataSource() {
         let registration = UICollectionView.CellRegistration<UICollectionViewCell, String> { [weak self] cell, _, itemId in
             guard let self, let row = self.rowsById[itemId], let rowContent = self.rowContent else { return }
+            // minSize = ancho de ESTA collection view (columna split / iPhone), no
+            // el de la escena Duo. Sin minSize el host abraza la burbuja y todo
+            // queda a la izquierda. Sin alignment: el contenido no se clava al leading.
+            let listWidth = max(self.collectionView.bounds.width, 1)
             cell.contentConfiguration = UIHostingConfiguration {
                 rowContent(row)
-                    .frame(maxWidth: .infinity)
+                    .frame(width: listWidth, alignment: .leading)
+                    .environment(\.chatListContainerWidth, listWidth)
             }
             .margins(.all, 0)
+            .minSize(width: listWidth, height: 0)
             var background = UIBackgroundConfiguration.clear()
             background.backgroundColor = .clear
             cell.backgroundConfiguration = background

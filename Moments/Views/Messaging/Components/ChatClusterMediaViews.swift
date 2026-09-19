@@ -108,86 +108,81 @@ struct GlassmorphicClusterRow: View {
     @State private var dragOffset: CGFloat = 0
     @State private var replyHapticStep = 0
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
     var body: some View {
+        let rowWidth = ChatBubbleLayoutWidth.containerWidth(chatListWidth: chatListContainerWidth)
+
         HStack(spacing: 0) {
-                HStack(alignment: .bottom, spacing: 0) {
-                    if isCurrentUser {
-                        Color.clear
-                            .chatTimestampRevealGutter(
-                                state: timestampRevealState,
-                                isEnabled: true
-                            )
-                    }
-
-                    if !isCurrentUser {
-                        ChatIncomingAvatarGutter(
-                            showAvatar: showAvatar,
-                            otherUserId: otherUserId,
-                            isUnavailable: isOtherParticipantUnavailable,
-                            onTap: onAvatarTap
-                        )
-                    }
-
-                    VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
-                        if let repliedMessage {
-                            StackedReplyQuote(
-                                repliedMessage: repliedMessage,
-                                isOutgoingRow: isCurrentUser,
-                                otherParticipantName: otherParticipantName,
-                                onTap: { onReplyTap?(repliedMessage.id) }
-                            )
-                        }
-                        MediaGridBubble(
-                            messages: messages,
-                            isCurrentUser: isCurrentUser,
-                            uploadProgress: uploadProgress,
-                            displayReactions: displayReactions,
-                            onReaction: onReaction,
-                            onMomentNavigation: onMomentNavigation,
-                            onOpenCluster: onOpenCluster,
-                            onLongPress: onLongPress,
-                            onHydrateMedia: onHydrateMedia,
-                            isMenuSelected: isMenuSelected,
-                            isBubbleFlashing: isBubbleFlashing,
-                            dragOffset: $dragOffset,
-                            hapticStep: $replyHapticStep,
-                            onReply: { onReply(messages) },
-                            onDoubleTap: onDoubleTap
-                        )
-                    }
-                    .fixedSize(horizontal: true, vertical: false)
-                    .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
-
-                    if !isCurrentUser {
-                        Color.clear
-                            .chatTimestampRevealGutter(
-                                state: timestampRevealState,
-                                isEnabled: false
-                            )
-                    }
+            HStack(alignment: .bottom, spacing: 0) {
+                if isCurrentUser {
+                    Spacer(minLength: 48)
+                        .contentShape(Rectangle())
+                        .chatTimestampRevealGesture(state: timestampRevealState)
                 }
-                .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
 
-                if let anchorMessage = messages.last {
-                    MessageTimestamp(
-                        message: anchorMessage,
-                        isCurrentUser: isCurrentUser,
-                        showSeenLabel: showSeenLabel,
-                        overrideStatus: ClusterMessageStatusAggregator.aggregate(messages)
+                if !isCurrentUser {
+                    ChatIncomingAvatarGutter(
+                        showAvatar: showAvatar,
+                        otherUserId: otherUserId,
+                        isUnavailable: isOtherParticipantUnavailable,
+                        onTap: onAvatarTap
                     )
-                    .frame(width: 55)
-                    .padding(.leading, 12)
-                    .opacity(Double(min(-timestampRevealState.offset / 40, 1.0)))
+                }
+
+                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
+                    if let repliedMessage {
+                        StackedReplyQuote(
+                            repliedMessage: repliedMessage,
+                            isOutgoingRow: isCurrentUser,
+                            otherParticipantName: otherParticipantName,
+                            onTap: { onReplyTap?(repliedMessage.id) }
+                        )
+                    }
+                    MediaGridBubble(
+                        messages: messages,
+                        isCurrentUser: isCurrentUser,
+                        uploadProgress: uploadProgress,
+                        displayReactions: displayReactions,
+                        onReaction: onReaction,
+                        onMomentNavigation: onMomentNavigation,
+                        onOpenCluster: onOpenCluster,
+                        onLongPress: onLongPress,
+                        onHydrateMedia: onHydrateMedia,
+                        isMenuSelected: isMenuSelected,
+                        isBubbleFlashing: isBubbleFlashing,
+                        dragOffset: $dragOffset,
+                        hapticStep: $replyHapticStep,
+                        onReply: { onReply(messages) },
+                        onDoubleTap: onDoubleTap
+                    )
+                }
+
+                if !isCurrentUser {
+                    Spacer(minLength: 48)
                 }
             }
-            .padding(.trailing, -67) // 55 width + 12 leading padding = 67 off-screen
-            .offset(x: timestampRevealState.offset)
-        .padding(.horizontal, 8)
+            .padding(.horizontal, 8)
+            .frame(width: rowWidth, alignment: isCurrentUser ? .trailing : .leading)
+
+            if let anchorMessage = messages.last {
+                MessageTimestamp(
+                    message: anchorMessage,
+                    isCurrentUser: isCurrentUser,
+                    showSeenLabel: showSeenLabel,
+                    overrideStatus: ClusterMessageStatusAggregator.aggregate(messages)
+                )
+                .frame(width: 55)
+                .padding(.leading, 12)
+                .opacity(Double(min(-timestampRevealState.offset / 40, 1.0)))
+            }
+        }
+        .padding(.trailing, -67)
+        .offset(x: timestampRevealState.offset)
         .padding(.vertical, 5)
         .contentShape(Rectangle())
         .chatTimestampRevealGesture(state: timestampRevealState)

@@ -3,6 +3,8 @@ import Kingfisher
 import AVFoundation
 
 struct ProfileSavedContent: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @ObservedObject var viewModel: SavedMomentsViewModel
     var zoomNamespace: Namespace.ID
     @EnvironmentObject private var heroCoordinator: ProfileGridHeroTransitionCoordinator
@@ -64,7 +66,7 @@ struct ProfileSavedContent: View {
 
     private var gridItemSize: CGFloat {
         // 20 + 20 outer padding, then 8 + 8 inner grid padding.
-        let availableWidth = UIApplication.shared.activeWindowSize.width - 56
+        let availableWidth = momentsViewportSize.width - 56
         return max(88, (availableWidth - (gridSpacing * 2)) / 3)
     }
 

@@ -183,6 +183,8 @@ struct MomentsApp: App {
                     .allowsHitTesting(false)
                 }
             }
+            .momentsViewportMetrics()
+            .momentsDuoCameraAccessory()
             .sheet(isPresented: $showWhatsNew) {
                 WhatsNewView()
                     .presentationDetents([.medium, .large])

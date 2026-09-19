@@ -677,7 +677,7 @@ struct ConversationSettingsView: View {
     @ViewBuilder
     private var sharedMediaGrid: some View {
         if viewModel.isLoadingSharedContent && viewModel.sharedMedia.isEmpty {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 108, maximum: 180), spacing: 2)], spacing: 2) {
                 ForEach(0..<6, id: \.self) { _ in
                     RoundedRectangle(cornerRadius: 2)
                         .fill(adaptiveColors.tertiary.opacity(0.10))
@@ -687,7 +687,7 @@ struct ConversationSettingsView: View {
         } else if viewModel.sharedMedia.isEmpty {
             sharedEmptyState(icon: "photo.on.rectangle.angled", textKey: "conversationSettings.sharedContent.empty.media")
         } else {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 108, maximum: 180), spacing: 2)], spacing: 2) {
                 ForEach(Array(viewModel.sharedMedia.prefix(6)), id: \.id) { media in
                     SharedMediaThumbnail(media: media, fillsGrid: true) {
                         HapticManager.shared.lightImpact()

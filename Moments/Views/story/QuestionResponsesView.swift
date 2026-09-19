@@ -445,6 +445,8 @@ private struct QuestionResponseRow: View {
 }
 
 struct CreatorViewWithResponseData: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let questionText: String
     let response: QuestionResponse
     let onDismiss: () -> Void
@@ -479,7 +481,7 @@ struct CreatorViewWithResponseData: View {
             traitCollection: UITraitCollection(displayScale: displayScale)
         )
 
-        let windowSize = UIApplication.shared.activeWindowSize
+        let windowSize = momentsViewportSize
         return StickerItem(
             image: image,
             position: CGPoint(x: windowSize.width / 2, y: windowSize.height / 2),

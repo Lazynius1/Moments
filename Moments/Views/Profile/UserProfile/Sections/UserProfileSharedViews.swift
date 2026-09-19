@@ -146,6 +146,8 @@ struct UserModernBackgroundView: View {
 
 // MARK: - UserMomentPreviewView (sin cambios - ya estaba bien)
 struct UserMomentPreviewView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let moment: Moment
     let onHashtagTap: (String) -> Void
 
@@ -155,18 +157,18 @@ struct UserMomentPreviewView: View {
                 KFImage(url)
                     .placeholder {
                         Color.gray.opacity(0.2)
-                            .frame(width: UIApplication.shared.activeWindowSize.width - 32, height: (UIApplication.shared.activeWindowSize.width - 32) * 0.75)
+                            .frame(width: momentsViewportSize.width - 32, height: (momentsViewportSize.width - 32) * 0.75)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                             .overlay(ProgressView().tint(.gray))
                     }
                     .resizable()
                     .scaledToFill()
-                    .frame(width: UIApplication.shared.activeWindowSize.width - 32, height: (UIApplication.shared.activeWindowSize.width - 32) * 0.75)
+                    .frame(width: momentsViewportSize.width - 32, height: (momentsViewportSize.width - 32) * 0.75)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.2), lineWidth: 1))
             } else {
                 Color.gray.opacity(0.2)
-                    .frame(width: UIApplication.shared.activeWindowSize.width - 32, height: (UIApplication.shared.activeWindowSize.width - 32) * 0.75)
+                    .frame(width: momentsViewportSize.width - 32, height: (momentsViewportSize.width - 32) * 0.75)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(Image(systemName: "exclamationmark.triangle").foregroundStyle(.gray))
             }
@@ -237,6 +239,8 @@ struct UserExpandableContentView: View {
 
 // MARK: - ProfileImageViewer
 struct ProfileImageViewer: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let profileImagePath: String?
     let username: String
     @Environment(\.dismiss) var dismiss
@@ -283,7 +287,7 @@ struct ProfileImageViewer: View {
                         }
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: UIApplication.shared.activeWindowSize.width - 40)
+                        .frame(maxWidth: momentsViewportSize.width - 40)
                         .clipShape(Circle())
                         .scaleEffect(scale)
                         .offset(dragOffset)

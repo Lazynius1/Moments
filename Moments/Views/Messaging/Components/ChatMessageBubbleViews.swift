@@ -40,6 +40,7 @@ struct GlassmorphicMessageRow: View {
     @ObservedObject var timestampRevealState: ChatTimestampRevealState
 
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
     @Environment(\.chatFailedMessageRetryAction) private var retryAction
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -84,99 +85,83 @@ struct GlassmorphicMessageRow: View {
     }
 
     var body: some View {
+        let rowWidth = ChatBubbleLayoutWidth.containerWidth(chatListWidth: chatListContainerWidth)
+
         HStack(spacing: 0) {
-                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
-                    HStack(alignment: .bottom, spacing: 0) {
-                        if isCurrentUser {
-                            Color.clear
-                                .chatTimestampRevealGutter(
-                                    state: timestampRevealState,
-                                    isEnabled: true
-                                )
-                        }
+            HStack(alignment: .bottom, spacing: 0) {
+                if isCurrentUser {
+                    Spacer(minLength: 48)
+                        .contentShape(Rectangle())
+                        .chatTimestampRevealGesture(state: timestampRevealState)
+                }
 
-                        if !isCurrentUser {
-                            ChatIncomingAvatarGutter(
-                                showAvatar: showAvatar,
-                                otherUserId: otherUserId,
-                                isUnavailable: isOtherParticipantUnavailable,
-                                onTap: onAvatarTap
-                            )
-                        }
+                if !isCurrentUser {
+                    ChatIncomingAvatarGutter(
+                        showAvatar: showAvatar,
+                        otherUserId: otherUserId,
+                        isUnavailable: isOtherParticipantUnavailable,
+                        onTap: onAvatarTap
+                    )
+                }
 
-                        // Estilo clásico de mensajería: círculo rojo tocable junto a la
-                        // burbuja fallida para reenviar (los estados viven en el swipe,
-                        // así que esto tiene que ser visible sin gesto).
-                        if isCurrentUser,
-                           message.status == .failed,
-                           let retryAction,
-                           retryAction.canRetry(message) {
-                            Button {
-                                HapticManager.shared.lightImpact()
-                                retryAction.retry(message)
-                            } label: {
-                                Image(systemName: "exclamationmark.arrow.circlepath")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundStyle(.red)
-                                    .padding(6)
-                                    .contentShape(Circle())
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.trailing, 2)
-                        }
+                if isCurrentUser,
+                   message.status == .failed,
+                   let retryAction,
+                   retryAction.canRetry(message) {
+                    Button {
+                        HapticManager.shared.lightImpact()
+                        retryAction.retry(message)
+                    } label: {
+                        Image(systemName: "exclamationmark.arrow.circlepath")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(.red)
+                            .padding(6)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 2)
+                }
 
-                        VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: reactionTimestampSpacing) {
-                            if let originalMessage = repliedMessage {
-                                StackedReplyQuote(
-                                    repliedMessage: originalMessage,
-                                    isOutgoingRow: isCurrentUser,
-                                    otherParticipantName: otherParticipantName,
-                                    onTap: { onReplyTap?(originalMessage.id) }
-                                )
-                            }
+                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: reactionTimestampSpacing) {
+                    if let originalMessage = repliedMessage {
+                        StackedReplyQuote(
+                            repliedMessage: originalMessage,
+                            isOutgoingRow: isCurrentUser,
+                            otherParticipantName: otherParticipantName,
+                            onTap: { onReplyTap?(originalMessage.id) }
+                        )
+                    }
 
-                            incomingTextTranslation { displayedText in
-                                messageBubbleWithReactions(
-                                    displayedText: displayedText,
-                                    repliedMessage: repliedMessage,
-                                    otherParticipantId: otherUserId,
-                                    otherParticipantName: otherParticipantName
-                                )
-                            }
-                        }
-                        // Hug al contenido: sin esto el hueco vacío de la fila sigue siendo “fila”.
-                        .fixedSize(horizontal: true, vertical: false)
-                        .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
-                        .layoutPriority(1)
-
-                        if !isCurrentUser {
-                            Color.clear
-                                .chatTimestampRevealGutter(
-                                    state: timestampRevealState,
-                                    isEnabled: false
-                                )
-                        }
+                    incomingTextTranslation { displayedText in
+                        messageBubbleWithReactions(
+                            displayedText: displayedText,
+                            repliedMessage: repliedMessage,
+                            otherParticipantId: otherUserId,
+                            otherParticipantName: otherParticipantName
+                        )
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
 
-                // Reveal timestamp al deslizar
-                MessageTimestamp(
-                    message: message,
-                    isCurrentUser: isCurrentUser,
-                    showSeenLabel: showSeenLabel
-                )
-                .frame(width: 55)
-                .padding(.leading, 12)
-                .opacity(Double(min(-timestampRevealState.offset / 40, 1.0)))
+                if !isCurrentUser {
+                    Spacer(minLength: 48)
+                }
             }
-            .padding(.trailing, -67) // 55 width + 12 leading padding = 67 off-screen
-            .offset(x: timestampRevealState.offset)
-        .padding(.horizontal, 8)
+            .padding(.horizontal, 8)
+            .frame(width: rowWidth, alignment: isCurrentUser ? .trailing : .leading)
+
+            MessageTimestamp(
+                message: message,
+                isCurrentUser: isCurrentUser,
+                showSeenLabel: showSeenLabel
+            )
+            .frame(width: 55)
+            .padding(.leading, 12)
+            .opacity(Double(min(-timestampRevealState.offset / 40, 1.0)))
+        }
+        .padding(.trailing, -67)
+        .offset(x: timestampRevealState.offset)
         .padding(.top, isGroupHead ? 5 : 1)
         .padding(.bottom, bottomRowPadding)
-        // Superficie vacía de la fila (entrantes y propios): swipe izq. → hora a la derecha.
-        // Encima de la burbuja propia manda el reply (mismo eje); el gesto de la bubble gana.
         .contentShape(Rectangle())
         .chatTimestampRevealGesture(state: timestampRevealState)
     }
@@ -236,7 +221,7 @@ struct GlassmorphicMessageRow: View {
             hapticStep: $replyHapticStep,
             isOutgoing: isCurrentUser,
             cornerRadius: cornerRadius,
-            isEnabled: allowsReplySwipe,
+            isEnabled: allowsReplySwipe && !message.isDeleted,
             onReply: onReply
         ) {
             ChatMessageBubbleChrome(
@@ -245,6 +230,7 @@ struct GlassmorphicMessageRow: View {
                 cornerRadius: cornerRadius,
                 colorScheme: colorScheme,
                 isFlashing: isBubbleFlashing,
+                allowsPressScale: !message.isDeleted,
                 onTap: ChatMessageBodyOpen.isOpenable(
                     message,
                     isCurrentUser: isCurrentUser,
@@ -287,10 +273,20 @@ struct GlassmorphicMessageRow: View {
 struct DeletedMessageBubble: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
+    var groupPosition: ChatMessageGroupPosition = .single
     @Environment(\.colorScheme) var colorScheme
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var bubbleShape: ChatBubbleShape {
+        ChatBubbleShape(
+            side: isCurrentUser ? .trailing : .leading,
+            position: groupPosition,
+            cornerRadius: 20,
+            joinedRadius: 6
+        )
     }
 
     var body: some View {
@@ -303,16 +299,16 @@ struct DeletedMessageBubble: View {
                 .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.6))
                 .italic()
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: true)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(adaptiveColors.messageBubbleBackground.opacity(0.5))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-                )
+        .fixedSize(horizontal: true, vertical: true)
+        .background(adaptiveColors.messageBubbleBackground.opacity(0.5), in: bubbleShape)
+        .overlay(
+            bubbleShape
+                .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
         )
     }
 
@@ -383,6 +379,15 @@ struct GlassmorphicMessageBubble: View {
     var viewOnceZoomNamespace: Namespace.ID? = nil
     var momentZoomNamespace: Namespace.ID? = nil
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    private var photoVideoSize: CGSize {
+        ChatBubbleLayoutWidth.cappedSize(
+            width: 208,
+            height: 272,
+            chatListWidth: chatListContainerWidth
+        )
+    }
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -440,7 +445,11 @@ struct GlassmorphicMessageBubble: View {
     var body: some View {
         Group {
             if message.isDeleted {
-                DeletedMessageBubble(message: message, isCurrentUser: isCurrentUser)
+                DeletedMessageBubble(
+                    message: message,
+                    isCurrentUser: isCurrentUser,
+                    groupPosition: groupPosition
+                )
             } else {
                 if message.type == .viewOnceImage || message.type == .viewOnceVideo {
                     attachBubbleBadges(
@@ -495,10 +504,10 @@ struct GlassmorphicMessageBubble: View {
                                     && !isDownloadingMedia,
                                 isDownloadingMedia: isDownloadingMedia,
                                 downloadProgress: downloadProgress,
-                                downsamplingSize: CGSize(width: 208, height: 272),
+                                downsamplingSize: photoVideoSize,
                                 progress: progress
                             )
-                            .frame(width: 208, height: 272)
+                            .frame(width: photoVideoSize.width, height: photoVideoSize.height)
                             .clipShape(mediaBubbleShape(cornerRadius: 16))
                         )
                         .onAppear {
@@ -534,10 +543,10 @@ struct GlassmorphicMessageBubble: View {
                                     && !isDownloadingMedia,
                                 isDownloadingMedia: isDownloadingMedia,
                                 downloadProgress: downloadProgress,
-                                downsamplingSize: CGSize(width: 208, height: 272),
+                                downsamplingSize: photoVideoSize,
                                 progress: progress
                             )
-                            .frame(width: 208, height: 272)
+                            .frame(width: photoVideoSize.width, height: photoVideoSize.height)
                             .clipShape(mediaBubbleShape(cornerRadius: 16))
                         )
                         .onAppear {
@@ -807,7 +816,13 @@ struct LinkPreviewCard: View {
     @State private var isLoading = true
     @Environment(\.colorScheme) var colorScheme
 
-    private var maxCardWidth: CGFloat? { embedded ? nil : 240 }
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    private var standaloneCardWidth: CGFloat {
+        ChatBubbleLayoutWidth.capped(240, chatListWidth: chatListContainerWidth)
+    }
+
+    private var maxCardWidth: CGFloat? { embedded ? nil : standaloneCardWidth }
     private var imageMaxHeight: CGFloat { embedded ? 150 : 120 }
     private var cornerRadius: CGFloat { embedded ? 13 : 10 }
 
@@ -840,7 +855,7 @@ struct LinkPreviewCard: View {
         if embedded {
             view.frame(maxWidth: .infinity, alignment: .leading)
         } else {
-            view.frame(maxWidth: 240, alignment: .leading)
+            view.frame(maxWidth: standaloneCardWidth, alignment: .leading)
         }
     }
 
@@ -918,6 +933,8 @@ struct LinkPreviewCard: View {
                 }
             }
         }
+        .frame(width: embedded ? nil : standaloneCardWidth, alignment: .leading)
+        .frame(minHeight: embedded ? nil : imageMaxHeight + 56)
         .buttonStyle(.plain)
         .onAppear {
             self.host = url.host

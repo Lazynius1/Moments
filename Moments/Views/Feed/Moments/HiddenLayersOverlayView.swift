@@ -4,6 +4,8 @@ import AVFoundation
 import FirebaseAuth
 
 struct HiddenLayersOverlayView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let moment: Moment
     let isImmersive: Bool
     var requiresFocusForIntro: Bool = false
@@ -433,7 +435,7 @@ struct HiddenLayersOverlayView: View {
     }
 
     private func overlayHasFocus(frame: CGRect) -> Bool {
-        let screen = CGRect(origin: .zero, size: UIApplication.shared.activeWindowSize)
+        let screen = CGRect(origin: .zero, size: momentsViewportSize)
         let visibleFrame = frame.intersection(screen)
         guard !visibleFrame.isNull, frame.height > 0 else { return false }
 

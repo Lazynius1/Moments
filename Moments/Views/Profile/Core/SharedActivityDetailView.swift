@@ -371,6 +371,8 @@ final class SharedActivityDetailViewModel: ObservableObject {
 }
 
 struct SharedActivityDetailView: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: SharedActivityDetailViewModel
@@ -615,7 +617,7 @@ struct SharedActivityDetailView: View {
     }
 
     private var gridColumnSide: CGFloat {
-        floor((UIApplication.shared.activeWindowSize.width - 2) / 3)
+        floor((momentsViewportSize.width - 2) / 3)
     }
 
     private var reactionsScrollBody: some View {

@@ -172,60 +172,61 @@ struct WelcomeContent: View {
     var body: some View {
         GeometryReader { geometry in
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    Spacer(minLength: 36)
+                let usesTwoColumns = geometry.size.width >= 720 && geometry.size.height < 900
+                let layout = usesTwoColumns
+                    ? AnyLayout(HStackLayout(alignment: .center, spacing: 56))
+                    : AnyLayout(VStackLayout(spacing: 28))
 
+                layout {
                     EnhancedHeaderView()
                         .background {
                             WelcomeAuroraHalo()
                                 .frame(width: 260, height: 260)
                                 .offset(y: -34)
                         }
-                        .authScreenContentWidth()
+                        .frame(maxWidth: 400)
                         .scaleEffect(isVisible ? 1.0 : 0.85)
                         .opacity(isVisible ? 1.0 : 0.0)
                         .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding, value: isVisible), value: isVisible)
 
-                    Spacer(minLength: 28)
+                    VStack(spacing: 18) {
+                        VStack(spacing: 12) {
+                            AuroraGlassButton(
+                                title: "welcome.createAccount",
+                                action: { goToRegister = true }
+                            )
 
-                    VStack(spacing: 12) {
-                        AuroraGlassButton(
-                            title: "welcome.createAccount",
-                            action: { goToRegister = true }
-                        )
+                            AppleContinueButton()
 
-                        AppleContinueButton()
+                            Button {
+                                showLoginForm = true
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Text("welcome.haveAccount")
+                                        .font(.subheadline.weight(.regular))
+                                        .foregroundStyle(primaryText.opacity(0.54))
 
-                        Button {
-                            showLoginForm = true
-                        } label: {
-                            HStack(spacing: 5) {
-                                Text("welcome.haveAccount")
-                                    .font(.subheadline.weight(.regular))
-                                    .foregroundStyle(primaryText.opacity(0.54))
-
-                                Text("welcome.logIn")
-                                    .font(.subheadline.bold())
-                                    .foregroundStyle(primaryText)
+                                    Text("welcome.logIn")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(primaryText)
+                                }
+                                .frame(minHeight: 44)
                             }
-                            .frame(minHeight: 44)
+                            .padding(.top, 2)
                         }
-                        .padding(.top, 2)
-                    }
-                    .authScreenContentWidth()
-                    .offset(y: isVisible ? 0 : 12)
-                    .opacity(isVisible ? 1.0 : 0.0)
-                    .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.2), value: isVisible), value: isVisible)
-
-                    Spacer(minLength: 24)
-
-                    LoginDisclaimerView()
-                        .authScreenContentWidth()
+                        .offset(y: isVisible ? 0 : 12)
                         .opacity(isVisible ? 1.0 : 0.0)
-                        .animation(.easeOut(duration: 0.35).delay(0.5), value: isVisible)
-                        .padding(.bottom, 18)
+                        .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.2), value: isVisible), value: isVisible)
+
+                        LoginDisclaimerView()
+                            .opacity(isVisible ? 1.0 : 0.0)
+                            .animation(.easeOut(duration: 0.35).delay(0.5), value: isVisible)
+                    }
+                    .frame(maxWidth: 400)
                 }
-                .frame(minHeight: geometry.size.height)
+                .padding(.horizontal, usesTwoColumns ? 48 : 20)
+                .padding(.vertical, usesTwoColumns ? 28 : 36)
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
             }
         }
         .onAppear {

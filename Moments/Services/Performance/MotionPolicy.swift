@@ -26,9 +26,8 @@ enum MotionPolicy {
     }
 
     /// Cap más bajo solo para efectos secundarios del feed, no reveal.
-    static var maxParticleCount: Int {
+    static func maxParticleCount(for windowSize: CGSize) -> Int {
         if reduceMotion { return 0 }
-        let windowSize = UIApplication.shared.activeWindowSize
         let area = windowSize.width * windowSize.height
         switch area {
         case ..<350_000: return 80

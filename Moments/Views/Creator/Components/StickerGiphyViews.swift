@@ -230,11 +230,10 @@ struct ModernGiphyGridView: View {
     let onSelect: (GiphyGif) -> Void
 
     var body: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12)
-        ], spacing: 12) {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 96, maximum: 160), spacing: 12)],
+            spacing: 12
+        ) {
             ForEach(gifs) { gif in
                 Button(action: {
                     withAnimation(.easeOut(duration: 0.1)) {

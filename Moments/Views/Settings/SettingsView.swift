@@ -144,6 +144,8 @@ struct SettingsView: View {
                     showReadReceipts: $showReadReceipts,
                     blockedAccountsCount: blockedAccountsCount
                 )
+                .frame(maxWidth: 720)
+                .frame(maxWidth: .infinity)
                 .transition(.asymmetric(
                     insertion: .move(edge: .bottom).combined(with: .opacity),
                     removal: .move(edge: .top).combined(with: .opacity)

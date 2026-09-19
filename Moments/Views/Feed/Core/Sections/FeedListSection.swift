@@ -13,6 +13,8 @@ extension Moment {
 }
 
 struct FeedListSection: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     @ObservedObject private var recommendations = ForYouPreferences.shared
     @Bindable var viewModel: FeedViewModel
     @Binding var isFeedHeaderHidden: Bool
@@ -53,7 +55,7 @@ struct FeedListSection: View {
         ScrollViewReader { proxy in
             ZStack {
                 ScrollView(.vertical, showsIndicators: false) {
-                    let screenHeight = UIApplication.shared.activeWindowSize.height
+                    let screenHeight = momentsViewportSize.height
                     let headerHeight = feedHeaderHeight
                     let segmentedToggleHeight = feedSelectorHeight
                     let tabbarHeight = 50.0
@@ -92,6 +94,15 @@ struct FeedListSection: View {
                                 .padding(.vertical, 15)
                         }
                     }
+                    .environment(
+                        \.momentsViewportSize,
+                        CGSize(
+                            width: min(momentsViewportSize.width, 700),
+                            height: momentsViewportSize.height
+                        )
+                    )
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                     .padding(.vertical, 15)
                     .feedScrollVisibilityAnchor { values in
                         viewModel.syncMomentListeners(visibilityByMomentId: values)

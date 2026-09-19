@@ -4,22 +4,76 @@ import FirebaseAuth
 
 /// Medidas de la pill flotante. Overlays en safe area (menú, toasts) usan `overlayBottomPadding`.
 enum MomentsFloatingTabBarMetrics {
-    static let barHeight: CGFloat = 54
+    static let barThickness: CGFloat = 54
     static let chromePadding: CGFloat = 4
-    static let physicalBottomInset: CGFloat = 18
+    static let physicalEdgeInset: CGFloat = 18
     static let overlayGap: CGFloat = 8
+    /// Altura de la pila vertical (5 tabs × ~52 + chrome).
+    static let verticalStackHeight: CGFloat = 290
+
+    static var barHeight: CGFloat { barThickness }
 
     static var heightFromPhysicalBottom: CGFloat {
-        barHeight + chromePadding * 2 + physicalBottomInset
+        barThickness + chromePadding * 2 + physicalEdgeInset
     }
 
-    static func overlayBottomPadding(safeAreaBottom: CGFloat) -> CGFloat {
-        max(20, heightFromPhysicalBottom - safeAreaBottom + overlayGap)
+    static var widthFromPhysicalEdge: CGFloat {
+        barThickness + chromePadding * 2 + physicalEdgeInset
+    }
+
+    /// Hueco inferior para overlays. Con rail vertical la pill ya no vive abajo.
+    static func overlayBottomPadding(
+        safeAreaBottom: CGFloat,
+        verticalBarEdge: HorizontalEdge? = nil
+    ) -> CGFloat {
+        if verticalBarEdge != nil {
+            return max(12, overlayGap)
+        }
+        return max(20, heightFromPhysicalBottom - safeAreaBottom + overlayGap)
+    }
+}
+
+// MARK: - toolbarVerticalEdge → entorno Moments (iOS 27.1+)
+
+private struct MomentsToolbarVerticalEdgeKey: EnvironmentKey {
+    static let defaultValue: HorizontalEdge? = nil
+}
+
+extension EnvironmentValues {
+    /// Borde del rail vertical del sistema. `nil` → chrome horizontal abajo.
+    var momentsToolbarVerticalEdge: HorizontalEdge? {
+        get { self[MomentsToolbarVerticalEdgeKey.self] }
+        set { self[MomentsToolbarVerticalEdgeKey.self] = newValue }
+    }
+}
+
+/// Propaga `toolbarVerticalEdge` a todo el árbol (pill + feed/overlays).
+struct MomentsToolbarVerticalEdgeProvider<Content: View>: View {
+    @ViewBuilder var content: (HorizontalEdge?) -> Content
+
+    var body: some View {
+        if #available(iOS 27.1, *) {
+            MomentsToolbarVerticalEdgeProviderModern(content: content)
+        } else {
+            content(nil)
+        }
+    }
+}
+
+@available(iOS 27.1, *)
+private struct MomentsToolbarVerticalEdgeProviderModern<Content: View>: View {
+    @Environment(\.toolbarVerticalEdge) private var edge
+    @ViewBuilder var content: (HorizontalEdge?) -> Content
+
+    var body: some View {
+        content(edge)
+            .environment(\.momentsToolbarVerticalEdge, edge)
     }
 }
 
 /// Floating pill Moments — Home · Mensajes · Creator · Explorar · Perfil.
-/// UISegmentedControl (gota arrastrable) + glass tinted. Perfil = UIImage (foto+ring).
+/// Horizontal abajo por defecto; en iOS 27.1+ sigue `toolbarVerticalEdge`
+/// (barra vertical del sistema en Duo / multitasking) → stack vertical en ese borde.
 struct MomentsFloatingTabBar: View {
     @Binding var selectedTab: Int
     @Binding var showCreatorView: Bool
@@ -27,6 +81,10 @@ struct MomentsFloatingTabBar: View {
     @ObservedObject var minimize: TabBarMinimizeController
     @ObservedObject private var badgeService = NotificationBadgeService.shared
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    @Environment(\.momentsToolbarVerticalEdge) private var verticalBarEdge
 
     @State private var profileSegmentImage: UIImage?
     @State private var profileRenderTask: Task<Void, Never>?
@@ -103,85 +161,240 @@ struct MomentsFloatingTabBar: View {
     }
 
     var body: some View {
-        Group {
-            if #available(iOS 26.0, *) {
-                MomentsFloatingSegmentedTabBar(
-                    selection: tabSelection,
-                    images: tabImages,
-                    selectedTintColor: selectedTabTintColor,
-                    accessibilityLabels: tabAccessibilityLabels,
-                    preservesImageColors: preservedTabImageIndices,
-                    onInteraction: { minimize.expand() },
-                    onReselect: { handleReselect($0) }
-                )
-            } else {
-                MomentsFloatingSwiftUITabBar(
-                    selection: tabSelection,
-                    images: tabImages,
-                    selectedTintColor: selectedTabTintColor,
-                    accessibilityLabels: tabAccessibilityLabels,
-                    preservesImageColors: preservedTabImageIndices,
-                    onInteraction: { minimize.expand() },
-                    onReselect: { handleReselect($0) }
-                )
-            }
+        MomentsFloatingTabBarChrome(
+            selectedTab: $selectedTab,
+            showCreatorView: $showCreatorView,
+            previousSelectedTab: $previousSelectedTab,
+            minimize: minimize,
+            badgeService: badgeService,
+            profileSegmentImage: $profileSegmentImage,
+            profileRenderTask: $profileRenderTask,
+            verticalBarEdge: verticalBarEdge,
+            tabImages: tabImages,
+            selectedTabTintColor: selectedTabTintColor,
+            tabAccessibilityLabels: tabAccessibilityLabels,
+            preservedTabImageIndices: preservedTabImageIndices,
+            momentsViewportSize: momentsViewportSize,
+            divisionRegions: divisionRegions,
+            colorScheme: colorScheme,
+            displayScale: displayScale,
+            currentUserId: currentUserId,
+            refreshProfileSegmentImage: refreshProfileSegmentImage
+        )
+    }
+
+    private func refreshProfileSegmentImage(forceRefresh: Bool = false) {
+        let userId = currentUserId
+        let scheme = colorScheme
+        profileRenderTask?.cancel()
+        profileRenderTask = Task { @MainActor in
+            let image = await FloatingTabProfileSegmentRenderer.render(
+                userId: userId,
+                colorScheme: scheme,
+                displayScale: displayScale,
+                forceRefresh: forceRefresh
+            )
+            guard !Task.isCancelled else { return }
+            profileSegmentImage = image
         }
-        .frame(height: 54)
-        .padding(4)
-        .background {
+    }
+}
+
+/// Chrome real de la pill (horizontal abajo o vertical en el borde del sistema).
+private struct MomentsFloatingTabBarChrome: View {
+    @Binding var selectedTab: Int
+    @Binding var showCreatorView: Bool
+    @Binding var previousSelectedTab: Int
+    @ObservedObject var minimize: TabBarMinimizeController
+    @ObservedObject var badgeService: NotificationBadgeService
+    @Binding var profileSegmentImage: UIImage?
+    @Binding var profileRenderTask: Task<Void, Never>?
+    let verticalBarEdge: HorizontalEdge?
+    let tabImages: [UIImage]
+    let selectedTabTintColor: UIColor
+    let tabAccessibilityLabels: [String]
+    let preservedTabImageIndices: Set<Int>
+    let momentsViewportSize: CGSize
+    let divisionRegions: [CGRect]
+    let colorScheme: ColorScheme
+    let displayScale: CGFloat
+    let currentUserId: String
+    let refreshProfileSegmentImage: (Bool) -> Void
+
+    private var usesVerticalChrome: Bool { verticalBarEdge != nil }
+
+    var body: some View {
+        ZStack(alignment: chromeAlignment) {
             Color.clear
-                .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
-        }
-        // Badge encima del tab Mensajes, anclado al icono 23pt (mismo sitio que el puntito).
-        .overlay {
-            if badgeService.unreadMessagesCount > 0 {
-                HStack(spacing: 0) {
-                    ForEach(0..<5, id: \.self) { index in
-                        Group {
-                            if index == 1 {
-                                ZStack(alignment: .bottomTrailing) {
-                                    Color.clear
-                                        .frame(width: 23, height: 23)
-                                    CollapsingMessagesUnreadBadge(
-                                        count: badgeService.unreadMessagesCount
-                                    )
-                                    .offset(x: 5, y: 3)
-                                }
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            } else {
-                                Color.clear
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            }
-                        }
-                    }
-                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .allowsHitTesting(false)
-            }
+
+            pillContent
+                .opacity(minimize.isHidden ? 0 : 1)
+                .allowsHitTesting(!minimize.isHidden)
         }
-        .frame(maxWidth: .infinity)
-        .scaleEffect(1 - (minimize.progress * 0.15), anchor: .bottom)
-        .padding(.horizontal, 20)
-        // Entre safe area y home indicator (~18pt de aire).
-        .padding(.bottom, 18)
-        .opacity(minimize.isHidden ? 0 : 1)
-        .allowsHitTesting(!minimize.isHidden)
         .animation(
             .interpolatingSpring(duration: 0.25, bounce: 0, initialVelocity: 0),
             value: minimize.isHidden
         )
-        .onAppear { refreshProfileSegmentImage() }
-        .onChange(of: colorScheme) { _, _ in refreshProfileSegmentImage() }
-        .onChange(of: currentUserId) { _, _ in refreshProfileSegmentImage() }
-        // El upload ya posta `StoryUploaded` (el feed lo usa); la tab bar no escuchaba.
+        .animation(
+            .interpolatingSpring(duration: 0.28, bounce: 0.05, initialVelocity: 0),
+            value: usesVerticalChrome
+        )
+        .onAppear { refreshProfileSegmentImage(false) }
+        .onChange(of: colorScheme) { _, _ in refreshProfileSegmentImage(false) }
+        .onChange(of: currentUserId) { _, _ in refreshProfileSegmentImage(false) }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StoryUploaded"))) { _ in
-            refreshProfileSegmentImage(forceRefresh: true)
+            refreshProfileSegmentImage(true)
         }
         .onDisappear {
             profileRenderTask?.cancel()
         }
     }
 
-    /// El control nunca se queda en Creator (2): abre creator y restaura.
+    @ViewBuilder
+    private var pillContent: some View {
+        let tabs = tabStrip
+            .frame(
+                width: usesVerticalChrome ? MomentsFloatingTabBarMetrics.barThickness : nil,
+                height: usesVerticalChrome
+                    ? MomentsFloatingTabBarMetrics.verticalStackHeight
+                    : MomentsFloatingTabBarMetrics.barThickness
+            )
+            .padding(MomentsFloatingTabBarMetrics.chromePadding)
+            .background {
+                Color.clear
+                    .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
+            }
+            .overlay { messagesBadgeOverlay }
+            .scaleEffect(
+                1 - (minimize.progress * 0.15),
+                anchor: scaleAnchor
+            )
+
+        if usesVerticalChrome {
+            tabs
+                .padding(.bottom, MomentsFloatingTabBarMetrics.physicalEdgeInset)
+                .padding(
+                    verticalBarEdge == .leading ? .leading : .trailing,
+                    MomentsFloatingTabBarMetrics.physicalEdgeInset
+                )
+                .ignoresSafeArea(edges: verticalBarEdge == .leading ? .leading : .trailing)
+        } else {
+            tabs
+                .frame(maxWidth: foldSafeBarWidth)
+                .frame(maxWidth: .infinity, alignment: foldSafeBarAlignment)
+                .padding(.horizontal, 20)
+                .padding(.bottom, MomentsFloatingTabBarMetrics.physicalEdgeInset)
+                .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
+    @ViewBuilder
+    private var tabStrip: some View {
+        if usesVerticalChrome {
+            MomentsFloatingSwiftUITabBar(
+                selection: tabSelection,
+                images: tabImages,
+                selectedTintColor: selectedTabTintColor,
+                accessibilityLabels: tabAccessibilityLabels,
+                preservesImageColors: preservedTabImageIndices,
+                axis: .vertical,
+                onInteraction: { minimize.expand() },
+                onReselect: { handleReselect($0) }
+            )
+        } else if #available(iOS 26.0, *) {
+            MomentsFloatingSegmentedTabBar(
+                selection: tabSelection,
+                images: tabImages,
+                selectedTintColor: selectedTabTintColor,
+                accessibilityLabels: tabAccessibilityLabels,
+                preservesImageColors: preservedTabImageIndices,
+                onInteraction: { minimize.expand() },
+                onReselect: { handleReselect($0) }
+            )
+        } else {
+            MomentsFloatingSwiftUITabBar(
+                selection: tabSelection,
+                images: tabImages,
+                selectedTintColor: selectedTabTintColor,
+                accessibilityLabels: tabAccessibilityLabels,
+                preservesImageColors: preservedTabImageIndices,
+                axis: .horizontal,
+                onInteraction: { minimize.expand() },
+                onReselect: { handleReselect($0) }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var messagesBadgeOverlay: some View {
+        if badgeService.unreadMessagesCount > 0 {
+            let layout = usesVerticalChrome
+                ? AnyLayout(VStackLayout(spacing: 0))
+                : AnyLayout(HStackLayout(spacing: 0))
+            layout {
+                ForEach(0..<5, id: \.self) { index in
+                    Group {
+                        if index == 1 {
+                            ZStack(alignment: .bottomTrailing) {
+                                Color.clear
+                                    .frame(width: 23, height: 23)
+                                CollapsingMessagesUnreadBadge(
+                                    count: badgeService.unreadMessagesCount
+                                )
+                                .offset(x: 5, y: 3)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            Color.clear
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                }
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    private var chromeAlignment: Alignment {
+        switch verticalBarEdge {
+        case .trailing: return .bottomTrailing
+        case .leading: return .bottomLeading
+        case .none: return .bottom
+        }
+    }
+
+    private var scaleAnchor: UnitPoint {
+        switch verticalBarEdge {
+        case .trailing: return .bottomTrailing
+        case .leading: return .bottomLeading
+        case .none: return .bottom
+        }
+    }
+
+    private var activeVerticalDivision: CGRect? {
+        divisionRegions.first { region in
+            region.height > region.width && region.intersects(
+                CGRect(origin: .zero, size: momentsViewportSize)
+            )
+        }
+    }
+
+    private var foldSafeBarWidth: CGFloat? {
+        guard let division = activeVerticalDivision else { return nil }
+        let leadingWidth = max(0, division.minX)
+        let trailingWidth = max(0, momentsViewportSize.width - division.maxX)
+        return max(leadingWidth, trailingWidth) - 20
+    }
+
+    private var foldSafeBarAlignment: Alignment {
+        guard let division = activeVerticalDivision else { return .center }
+        let leadingWidth = max(0, division.minX)
+        let trailingWidth = max(0, momentsViewportSize.width - division.maxX)
+        return leadingWidth >= trailingWidth ? .leading : .trailing
+    }
+
     private var tabSelection: Binding<Int> {
         Binding(
             get: { selectedTab == 2 ? previousSelectedTab : selectedTab },
@@ -212,38 +425,27 @@ struct MomentsFloatingTabBar: View {
             selectedTab = previousSelectedTab
         }
     }
-
-    private func refreshProfileSegmentImage(forceRefresh: Bool = false) {
-        let userId = currentUserId
-        let scheme = colorScheme
-        profileRenderTask?.cancel()
-        profileRenderTask = Task { @MainActor in
-            let image = await FloatingTabProfileSegmentRenderer.render(
-                userId: userId,
-                colorScheme: scheme,
-                forceRefresh: forceRefresh
-            )
-            guard !Task.isCancelled else { return }
-            profileSegmentImage = image
-        }
-    }
 }
 
-/// Tabbar nativa SwiftUI para iOS 18.x. Evita el chrome interno de
-/// UISegmentedControl, que en iOS 18 vuelve a dibujar una segunda cápsula.
+/// Tabbar nativa SwiftUI. Horizontal (abajo) o vertical (rail Duo / multitasking).
 private struct MomentsFloatingSwiftUITabBar: View {
     @Binding var selection: Int
     let images: [UIImage]
     let selectedTintColor: UIColor
     let accessibilityLabels: [String]
     let preservesImageColors: Set<Int>
+    var axis: Axis = .horizontal
     let onInteraction: () -> Void
     let onReselect: (Int) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        HStack(spacing: 0) {
+        let layout = axis == .vertical
+            ? AnyLayout(VStackLayout(spacing: 0))
+            : AnyLayout(HStackLayout(spacing: 0))
+
+        layout {
             ForEach(images.indices, id: \.self) { index in
                 let image: UIImage = images[index]
                 let imageSize: CGFloat = index == 4 ? 42 : 23
@@ -259,7 +461,7 @@ private struct MomentsFloatingSwiftUITabBar: View {
                         if selection == index {
                             Capsule()
                                 .fill(Color(uiColor: selectedTintColor))
-                                .padding(.vertical, 3)
+                                .padding(axis == .vertical ? .horizontal : .vertical, 3)
                         }
 
                         if preservesImageColors.contains(index) {

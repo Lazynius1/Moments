@@ -99,7 +99,7 @@ enum ExploreMomentsGridMetrics {
     static let spacing: CGFloat = 1
     static let columns = 3
 
-    static func columnWidth(for availableWidth: CGFloat = UIApplication.shared.activeWindowSize.width) -> CGFloat {
+    static func columnWidth(for availableWidth: CGFloat) -> CGFloat {
         let totalSpacing = spacing * CGFloat(columns - 1)
         return (availableWidth - totalSpacing) / CGFloat(columns)
     }
@@ -116,7 +116,7 @@ enum ExploreMomentsGridMetrics {
         }
     }
 
-    static func bentoHeight(tileKinds: [ExploreBentoTileKind], availableWidth: CGFloat = UIApplication.shared.activeWindowSize.width) -> CGFloat {
+    static func bentoHeight(tileKinds: [ExploreBentoTileKind], availableWidth: CGFloat) -> CGFloat {
         guard !tileKinds.isEmpty else { return 0 }
 
         let unitWidth = columnWidth(for: availableWidth)
@@ -148,7 +148,7 @@ enum ExploreMomentsGridMetrics {
     }
 }
 
-func exploreBentoGridHeight(moments: [Moment], availableWidth: CGFloat = UIApplication.shared.activeWindowSize.width) -> CGFloat {
+func exploreBentoGridHeight(moments: [Moment], availableWidth: CGFloat) -> CGFloat {
     let descriptors = ExploreBentoTileAssigner.assign(moments: moments)
     return ExploreMomentsGridMetrics.bentoHeight(
         tileKinds: descriptors.map(\.layoutKind),
@@ -334,6 +334,8 @@ private struct ExploreBentoGridLayoutKey: Equatable {
 }
 
 private struct ExploreBentoGridContainer<Cell: View>: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let moments: [Moment]
     let availableWidth: CGFloat
     let descriptors: [ExploreGridTileDescriptor]
@@ -368,7 +370,7 @@ private struct ExploreBentoGridContainer<Cell: View>: View {
             x: 0,
             y: max(0, viewportTop - buffer),
             width: availableWidth,
-            height: UIApplication.shared.activeWindowSize.height + buffer * 2
+            height: momentsViewportSize.height + buffer * 2
         )
 
         return placements.enumerated().compactMap { index, placement in
@@ -431,6 +433,8 @@ private struct ExploreBentoGridContainer<Cell: View>: View {
 // MARK: - Grid público de Explore
 
 struct ExploreMomentsBentoGrid: View {
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+
     let moments: [Moment]
     var zoomNamespace: Namespace.ID? = nil
     var zoomIDPrefix: String = "explore"
@@ -441,7 +445,7 @@ struct ExploreMomentsBentoGrid: View {
     }
 
     private var gridWidth: CGFloat {
-        UIApplication.shared.activeWindowSize.width
+        momentsViewportSize.width
     }
 
     private var gridHeight: CGFloat {

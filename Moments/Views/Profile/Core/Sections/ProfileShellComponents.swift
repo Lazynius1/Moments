@@ -124,7 +124,7 @@ struct ModernProfileContentView: View {
         } else {
             ZStack(alignment: .top) {
                 ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
-                    .ignoresSafeArea()
+                    .ignoresSafeArea(edges: .top)
                     .allowsHitTesting(false)
 
                 ScrollView {
