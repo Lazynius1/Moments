@@ -65,7 +65,6 @@ final class LocalPersistenceService: ObservableObject {
             if let modelContainer {
                 messagePersistenceStore = MessagePersistenceStore(modelContainer: modelContainer)
             }
-            AppLog.debug("✅ LocalPersistence: SwiftData inicializado correctamente")
         } catch {
             AppLog.debug("⚠️ LocalPersistence: Error de migración, reintentando con reset: \(error)")
             // FALLBACK: Si hay un error de migración (NSCocoaErrorDomain 134110), borrar el cache y reintentar

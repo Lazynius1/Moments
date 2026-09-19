@@ -140,21 +140,6 @@ extension View {
     }
 }
 
-#if DEBUG
-enum ChatBubbleLayoutDebug {
-    private static var didLog = false
-
-    static func logIfNeeded(maxWidth: CGFloat, listWidth: CGFloat, sample: String) {
-        guard !didLog else { return }
-        didLog = true
-        let windowW = UIApplication.shared.activeWindowSize.width
-        print(
-            "[ChatBubble] maxWidth=\(Int(maxWidth)) listWidth=\(Int(listWidth)) windowWidth=\(Int(windowW)) sample=\(sample.prefix(24))"
-        )
-    }
-}
-#endif
-
 /// Cap de ancho que **no** hincha el layout: propone como máximo `maxWidth` al hijo
 /// y devuelve el tamaño intrínseco (texto corto = burbuja corta).
 ///
@@ -464,13 +449,6 @@ struct ChatTextBubbleView: View {
 
     var body: some View {
         let maxW = maxBubbleWidth
-        #if DEBUG
-        let _ = ChatBubbleLayoutDebug.logIfNeeded(
-            maxWidth: maxW,
-            listWidth: chatListContainerWidth,
-            sample: text
-        )
-        #endif
         // Igual que el audio: tamaño intrínseco, no flexible. `frame(maxWidth:)`
         // se come el Spacer de la fila y deja outgoing a la izquierda.
         ChatBubbleWidthCapLayout(maxWidth: maxW) {

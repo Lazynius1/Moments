@@ -287,8 +287,8 @@ enum SharedProfileDMCardMetrics {
     static let padding: CGFloat = 11
     static let gridSpacing: CGFloat = 2
     static let stackSpacing: CGFloat = 10
-    /// Avatar 40 + nota debajo (layout sin scaleEffect) + holgura.
-    static let headerHeight: CGFloat = 108
+    /// Avatar 40 + nota (scaleEffect no hincha layout) + holgura corta.
+    static let headerHeight: CGFloat = 72
     static let statsHeight: CGFloat = 28
 
     static var gridRowHeight: CGFloat {
@@ -471,7 +471,7 @@ struct SharedProfilePreviewCard: View {
         }
         .padding(cardPadding)
         .frame(width: cardWidth, alignment: .leading)
-        .frame(minHeight: reservedCardHeight)
+        .frame(minHeight: reservedCardHeight, alignment: .topLeading)
         .background(cardBackground)
         .overlay {
             cardShape.stroke(
@@ -504,7 +504,7 @@ struct SharedProfilePreviewCard: View {
         }
         .padding(cardPadding)
         .frame(width: cardWidth, alignment: .leading)
-        .frame(minHeight: reservedCardHeight)
+        .frame(minHeight: reservedCardHeight, alignment: .topLeading)
         .background(cardBackground)
         .overlay {
             cardShape.stroke(

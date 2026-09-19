@@ -990,17 +990,12 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     func forceScrollToBottom(animated: Bool, allowDuringNavigation: Bool = false) {
         if !allowDuringNavigation, scrollNavigationTargetRowId != nil {
-            chatScrollDebugLog(
-                "forceScroll skip — navTarget=\(scrollNavigationTargetRowId ?? "nil")"
-            )
             return
         }
         resetVanishPullState(animated: false)
         guard !orderedItemIds.isEmpty else { return }
 
         let lastIndex = orderedItemIds.count - 1
-        let lastId = orderedItemIds[lastIndex]
-        let before = chatScrollDebugSnapshot(reason: "before")
 
         collectionView.collectionViewLayout.invalidateLayout()
         forceScrollToRow(at: lastIndex, position: .bottom, animated: false)
@@ -1020,22 +1015,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         }
         collectionView.layoutIfNeeded()
         recomputeBottomPinnedState()
-
-        chatScrollDebugLog(
-            "forceScroll last=\(lastId) idx=\(lastIndex) \(before) → \(chatScrollDebugSnapshot(reason: "after")) atBottom=\(isStrictlyAtBottom) lastVisible=\(isLastRowVisible())"
-        )
-    }
-
-    private func chatScrollDebugSnapshot(reason: String) -> String {
-        let inset = collectionView.adjustedContentInset
-        let layoutH = collectionView.collectionViewLayout.collectionViewContentSize.height
-        return "\(reason) y=\(Int(collectionView.contentOffset.y)) bounds=\(Int(collectionView.bounds.height)) content=\(Int(collectionView.contentSize.height)) layoutH=\(Int(layoutH)) insetB=\(Int(inset.bottom)) maxY=\(Int(maxContentOffsetY(in: collectionView))) dist=\(Int(distanceFromBottom))"
-    }
-
-    private func chatScrollDebugLog(_ message: String) {
-        #if DEBUG
-        print("[ChatScroll] \(message)")
-        #endif
     }
 
     private func isLikelyHistoryPrepend(oldIds: [String], newIds: [String]) -> Bool {

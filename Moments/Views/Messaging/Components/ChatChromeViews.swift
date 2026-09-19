@@ -1089,6 +1089,9 @@ struct GlassmorphicDateHeader: View {
             .padding(.vertical, 6)
             .glassmorphicChat()
             .clipShape(Capsule())
+            // La celda del listado clava `alignment: .leading` para las burbujas;
+            // sin esto la pastilla del día se queda a la izquierda.
+            .frame(maxWidth: .infinity)
     }
 
     private func formatDate(_ date: Date) -> String {
@@ -1137,6 +1140,7 @@ struct GlassmorphicUnreadDivider: View {
                 .fill(adaptiveColors.secondary.opacity(0.25))
                 .frame(height: 1)
         }
+        .frame(maxWidth: .infinity)
     }
 }
 
