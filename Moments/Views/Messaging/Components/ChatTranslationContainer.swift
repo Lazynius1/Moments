@@ -29,6 +29,8 @@ struct ChatTranslationContainer<Content: View>: View {
                 translateButton
             }
         }
+        // Hug: sin esto el contenido flexible empuja el icono al otro extremo de la fila.
+        .fixedSize(horizontal: true, vertical: false)
         .task(id: "\(target)\u{0}\(text)") {
             eligible = !isOutgoing && ChatTranslationService.needsTranslation(text, target: target)
         }

@@ -164,9 +164,6 @@ extension GlassmorphicChatView {
         chatListController.clearNavigationTarget()
         guard !viewModel.chatRenderRows.isEmpty else { return }
         pendingIncomingMessages = 0
-        #if DEBUG
-        print("[ChatScroll] FAB tap pinned=\(isPinnedToBottom) listAtBottom=\(listIsAtBottom) dist=\(Int(chatListController.distanceFromBottom)) lastRow=\(viewModel.chatRenderRows.last?.id ?? "nil")")
-        #endif
         chatListController.forceScrollToBottomIgnoringNavigation(animated: animated && !reduceMotion)
     }
 

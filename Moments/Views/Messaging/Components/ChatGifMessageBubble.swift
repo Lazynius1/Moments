@@ -43,6 +43,7 @@ struct ChatGifMessageBubble: View {
     let progress: Double?
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
 
     private var isSending: Bool { message.status == .sending }
 
@@ -54,7 +55,12 @@ struct ChatGifMessageBubble: View {
     }
 
     private var displaySize: CGSize {
-        ChatGifLayout.displaySize(width: message.mediaWidth, height: message.mediaHeight)
+        let raw = ChatGifLayout.displaySize(width: message.mediaWidth, height: message.mediaHeight)
+        return ChatBubbleLayoutWidth.cappedSize(
+            width: raw.width,
+            height: raw.height,
+            chatListWidth: chatListContainerWidth
+        )
     }
 
     var body: some View {

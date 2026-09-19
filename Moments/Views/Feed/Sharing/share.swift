@@ -519,7 +519,7 @@ struct ShareRecipientsPickerSheet: View {
                 PeopleSkeletonGrid()
             } else {
                 if !filteredConversations.isEmpty {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 72, maximum: 104), spacing: 12)], spacing: 16) {
                         ForEach(Array(filteredConversations.enumerated()), id: \.element.otherParticipantId) { index, conversation in
                             PersonCell(
                                 conversation: conversation,
@@ -538,7 +538,7 @@ struct ShareRecipientsPickerSheet: View {
                             .foregroundStyle(.secondary)
                             .padding(.top, 8)
 
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72, maximum: 104), spacing: 12)], spacing: 16) {
                             ForEach(globalSearchResults) { user in
                                 GlobalUserCell(
                                     user: user,
@@ -1229,7 +1229,7 @@ struct AddToStoryView: View {
                 .compactMap { $0 as? UIWindowScene }
                 .flatMap(\.windows)
                 .first(where: \.isKeyWindow)
-            let viewportSize = window?.bounds.size ?? UIApplication.shared.activeWindowSize
+            let viewportSize = window?.bounds.size ?? CGSize(width: 393, height: 852)
             let safeAreaInsets = window?.safeAreaInsets ?? .zero
             let canvasRect = creatorMomentsCaptureRect(
                 in: viewportSize,
@@ -1351,6 +1351,15 @@ struct SharedDMPostCard<Media: View>: View {
     @ViewBuilder var media: () -> Media
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    private var cardWidth: CGFloat {
+        ChatBubbleLayoutWidth.capped(SharedDMPostCardMetrics.width, chatListWidth: chatListContainerWidth)
+    }
+
+    private var mediaWidth: CGFloat {
+        cardWidth - SharedDMPostCardMetrics.mediaInset * 2
+    }
 
     private var cardBackground: Color {
         colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
@@ -1364,11 +1373,22 @@ struct SharedDMPostCard<Media: View>: View {
         guard aspectRatio > 0.01 else { return SharedDMPostCardMetrics.defaultMediaHeight }
         // El ratio decide la altura natural. Los extremos se recortan en
         // aspect-fill para conservar una tarjeta compacta, nunca con bandas.
-        let naturalHeight = SharedDMPostCardMetrics.mediaWidth / aspectRatio
+        let naturalHeight = mediaWidth / aspectRatio
         return min(
             max(naturalHeight, SharedDMPostCardMetrics.minimumMediaHeight),
             SharedDMPostCardMetrics.maximumMediaHeight
         )
+    }
+
+    private var hasCaption: Bool {
+        !(caption ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var reservedCardHeight: CGFloat {
+        SharedDMPostCardMetrics.headerHeight
+            + SharedDMPostCardMetrics.mediaVerticalInset * 2
+            + resolvedMediaHeight
+            + (hasCaption ? SharedDMPostCardMetrics.captionBlockHeight : 0)
     }
 
     var body: some View {
@@ -1377,7 +1397,8 @@ struct SharedDMPostCard<Media: View>: View {
             mediaSection
             captionSection
         }
-        .frame(width: SharedDMPostCardMetrics.width)
+        .frame(width: cardWidth)
+        .frame(minHeight: reservedCardHeight)
         .background(cardBackground)
         .compositingGroup()
         .clipShape(RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous))
@@ -1430,14 +1451,14 @@ struct SharedDMPostCard<Media: View>: View {
     private var mediaSection: some View {
         ZStack {
             media()
-                .frame(width: SharedDMPostCardMetrics.mediaWidth, height: resolvedMediaHeight)
+                .frame(width: mediaWidth, height: resolvedMediaHeight)
                 .clipped()
 
             if isVideo {
                 SharedDMCenteredPlayOverlay()
             }
         }
-        .frame(width: SharedDMPostCardMetrics.mediaWidth, height: resolvedMediaHeight)
+        .frame(width: mediaWidth, height: resolvedMediaHeight)
         .overlay(alignment: .topTrailing) {
             if mediaCount > 1 {
                 MomentCarouselIndicatorIcon(size: 20)
@@ -1500,6 +1521,15 @@ extension View {
 
 struct SharedDMPreviewCardSkeleton: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    private var cardWidth: CGFloat {
+        ChatBubbleLayoutWidth.capped(SharedDMPostCardMetrics.width, chatListWidth: chatListContainerWidth)
+    }
+
+    private var mediaWidth: CGFloat {
+        cardWidth - SharedDMPostCardMetrics.mediaInset * 2
+    }
 
     private var cardBackground: Color {
         colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
@@ -1529,7 +1559,7 @@ struct SharedDMPreviewCardSkeleton: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: .gray.opacity(0.7)))
             }
             .frame(
-                width: SharedDMPostCardMetrics.mediaWidth,
+                width: mediaWidth,
                 height: SharedDMPostCardMetrics.defaultMediaHeight
             )
             .clipShape(
@@ -1540,8 +1570,12 @@ struct SharedDMPreviewCardSkeleton: View {
             )
             .padding(.horizontal, SharedDMPostCardMetrics.mediaInset)
             .padding(.vertical, SharedDMPostCardMetrics.mediaVerticalInset)
+
+            Color.clear
+                .frame(height: SharedDMPostCardMetrics.captionBlockHeight)
         }
-        .frame(width: SharedDMPostCardMetrics.width)
+        .frame(width: cardWidth)
+        .frame(minHeight: SharedDMPostCardMetrics.cardHeight(aspectRatio: 1, hasCaption: true))
         .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous))
         .overlay(
@@ -1627,7 +1661,7 @@ func sharedMomentLooksLikeReel(isVideo: Bool, aspectRatio: CGFloat) -> Bool {
 
 struct SharedDMUnavailablePreviewCard: View {
     let titleKey: String
-    let messageKey: String
+    var messageKey: String? = nil
     let iconName: String
     let previewImageURL: String?
     let authorId: String?
@@ -1640,7 +1674,7 @@ struct SharedDMUnavailablePreviewCard: View {
             authorName: authorName,
             useStoryRing: useStoryRing,
             isVideo: false,
-            caption: NSLocalizedString(messageKey, comment: "")
+            caption: messageKey.flatMap { NSLocalizedString($0, comment: "") }
         ) {
             ZStack {
                 Group {
@@ -1702,7 +1736,6 @@ struct SharedMomentMessageBubble: View {
         Group {
             if isLoading {
                 SharedDMPreviewCardSkeleton()
-                    .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
                     .padding(.vertical, 4)
             } else if canViewMoment == true, let sharedMomentData = displayedSharedMomentData {
                 // Tarjeta con preview si tiene acceso
@@ -1713,7 +1746,6 @@ struct SharedMomentMessageBubble: View {
                 )
             } else {
                 BlockedMomentBubble(sharedMomentData: displayedSharedMomentData)
-                    .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
                     .padding(.vertical, 4)
             }
         }
@@ -1815,7 +1847,6 @@ struct BlockedMomentBubble: View {
     var body: some View {
         SharedDMUnavailablePreviewCard(
             titleKey: "share.momentUnavailable",
-            messageKey: "share.noPermission",
             iconName: "lock.fill",
             previewImageURL: sharedMomentData?["momentImageUrl"],
             authorId: sharedMomentData?["momentAuthorId"],
@@ -1891,6 +1922,16 @@ struct MomentPreviewCard: View {
 struct ReelPreviewCard: View {
     let sharedMomentData: [String: String]
 
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    private var cardSize: CGSize {
+        ChatBubbleLayoutWidth.cappedSize(
+            width: StoryShareCardMetrics.width,
+            height: StoryShareCardMetrics.height,
+            chatListWidth: chatListContainerWidth
+        )
+    }
+
     private var caption: String? {
         let raw = sharedMomentData["momentContent"]?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let raw, !raw.isEmpty else { return nil }
@@ -1900,7 +1941,7 @@ struct ReelPreviewCard: View {
     var body: some View {
         ZStack {
             MomentVisualContent(sharedMomentData: sharedMomentData)
-                .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+                .frame(width: cardSize.width, height: cardSize.height)
                 .clipped()
 
             VStack {
@@ -1939,9 +1980,9 @@ struct ReelPreviewCard: View {
                 .padding(.trailing, 12)
                 .padding(.bottom, 4)
             }
-            .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+            .frame(width: cardSize.width, height: cardSize.height)
         }
-        .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+        .frame(width: cardSize.width, height: cardSize.height)
         .clipShape(RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous))
     }
 }
@@ -2170,7 +2211,7 @@ struct GlobalUserCell: View {
 // MARK: - People Skeleton Grid
 struct PeopleSkeletonGrid: View {
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72, maximum: 104), spacing: 12)], spacing: 16) {
             ForEach(0..<8, id: \.self) { _ in
                 VStack(spacing: 8) {
                     Circle()

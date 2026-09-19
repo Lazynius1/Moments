@@ -125,8 +125,10 @@ private struct ChatExtractableContent<Content: View>: UIViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: ChatExtractSlotView, context: Context) -> CGSize? {
-        let screenCap = UIApplication.shared.activeWindowSize.width
-            * ChatTextBubbleMetrics.maxWidthScreenFraction
+        let listWidth = uiView.bounds.width > 1
+            ? uiView.bounds.width
+            : (uiView.window?.bounds.width ?? proposal.width ?? 393)
+        let screenCap = listWidth * ChatTextBubbleMetrics.maxWidthScreenFraction
         let target = CGSize(
             width: min(proposal.width ?? screenCap, screenCap),
             height: proposal.height ?? .greatestFiniteMagnitude
@@ -272,6 +274,7 @@ struct ChatMessageBubbleChrome<Content: View>: View {
     let cornerRadius: CGFloat
     let colorScheme: ColorScheme
     var isFlashing: Bool = false
+    var allowsPressScale: Bool = true
     var onTap: (() -> Void)? = nil
     let onLongPress: ((ChatMessageLiftSnapshot) -> Void)?
     @ViewBuilder let content: () -> Content
@@ -282,7 +285,7 @@ struct ChatMessageBubbleChrome<Content: View>: View {
 
     private var selectionScale: CGFloat {
         if isFlashing { return ChatBubbleAnchorMetrics.highlightScale }
-        if isPressing { return ChatBubbleAnchorMetrics.pressScale }
+        if allowsPressScale, isPressing { return ChatBubbleAnchorMetrics.pressScale }
         return 1
     }
 
@@ -599,7 +602,7 @@ struct ChatMessageContextMenuOverlay: View {
 
                 ScrollView(.vertical) {
                     LazyVGrid(
-                        columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 7),
+                        columns: [GridItem(.adaptive(minimum: 36, maximum: 48), spacing: 7)],
                         spacing: 7
                     ) {
                         ForEach(inlineReactionEmojis, id: \.self) { emoji in

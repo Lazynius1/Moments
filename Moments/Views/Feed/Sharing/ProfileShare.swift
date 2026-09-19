@@ -262,7 +262,6 @@ struct SharedProfileMessageBubble: View {
                         profileUserIdToOpen = userId
                     }
                 }
-                .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
                 .padding(.vertical, 4)
             }
         }
@@ -288,7 +287,8 @@ enum SharedProfileDMCardMetrics {
     static let padding: CGFloat = 11
     static let gridSpacing: CGFloat = 2
     static let stackSpacing: CGFloat = 10
-    static let headerHeight: CGFloat = 62
+    /// Avatar 40 + nota (scaleEffect no hincha layout) + holgura corta.
+    static let headerHeight: CGFloat = 72
     static let statsHeight: CGFloat = 28
 
     static var gridRowHeight: CGFloat {
@@ -308,12 +308,31 @@ struct SharedProfilePreviewCard: View {
     @StateObject private var viewModel: UserProfileViewModel
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
 
     private let cardCornerRadius: CGFloat = 18
     private let cardPadding: CGFloat = 11
     private let gridSpacing: CGFloat = 2
     private let avatarSize: CGFloat = 40
     private let avatarColumnWidth: CGFloat = 56
+
+    private var cardWidth: CGFloat {
+        ChatBubbleLayoutWidth.capped(SharedProfileDMCardMetrics.width, chatListWidth: chatListContainerWidth)
+    }
+
+    private var contentWidth: CGFloat {
+        cardWidth - cardPadding * 2
+    }
+
+    private var reservedCardHeight: CGFloat {
+        let cellSize = max(0, (contentWidth - gridSpacing * 3) / 4)
+        return cardPadding * 2
+            + SharedProfileDMCardMetrics.headerHeight
+            + SharedProfileDMCardMetrics.stackSpacing
+            + cellSize
+            + SharedProfileDMCardMetrics.stackSpacing
+            + SharedProfileDMCardMetrics.statsHeight
+    }
 
     init(sharedProfileData: [String: String], onOpenProfile: @escaping () -> Void) {
         self.sharedProfileData = sharedProfileData
@@ -431,7 +450,6 @@ struct SharedProfilePreviewCard: View {
         // Sin avatar del payload: bloqueo / no disponible no debe filtrar foto snapshot.
         SharedDMUnavailablePreviewCard(
             titleKey: "share.profileUnavailable",
-            messageKey: "share.noPermission",
             iconName: "lock.fill",
             previewImageURL: nil,
             authorId: nil,
@@ -441,16 +459,19 @@ struct SharedProfilePreviewCard: View {
     }
 
     private var loadingCard: some View {
-        let contentWidth: CGFloat = 280 - cardPadding * 2
+        let cellSize = max(0, (contentWidth - gridSpacing * 3) / 4)
         return VStack(alignment: .leading, spacing: 10) {
             headerRow(useLive: false)
-            ProgressView()
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 18)
-                .tint(UserProfileColors.accent)
+            ZStack {
+                Color.clear.frame(width: contentWidth, height: cellSize)
+                ProgressView()
+                    .tint(UserProfileColors.accent)
+            }
+            statsRow
         }
         .padding(cardPadding)
-        .frame(width: 280, alignment: .leading)
+        .frame(width: cardWidth, alignment: .leading)
+        .frame(minHeight: reservedCardHeight, alignment: .topLeading)
         .background(cardBackground)
         .overlay {
             cardShape.stroke(
@@ -465,7 +486,6 @@ struct SharedProfilePreviewCard: View {
     }
 
     private var liveCard: some View {
-        let contentWidth: CGFloat = 280 - cardPadding * 2
         let cellSize = max(0, (contentWidth - gridSpacing * 3) / 4)
 
         return VStack(alignment: .leading, spacing: 10) {
@@ -483,7 +503,8 @@ struct SharedProfilePreviewCard: View {
             statsRow
         }
         .padding(cardPadding)
-        .frame(width: 280, alignment: .leading)
+        .frame(width: cardWidth, alignment: .leading)
+        .frame(minHeight: reservedCardHeight, alignment: .topLeading)
         .background(cardBackground)
         .overlay {
             cardShape.stroke(

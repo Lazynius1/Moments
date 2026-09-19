@@ -718,12 +718,7 @@ struct ModernPostCardView: View {
                     self.detectedAspectRatio = displayRatio
                     self.refreshCardHeight()
                     self.aspectRatioType = Self.cardType(for: displayRatio)
-                    let crop = self.mediaItems.first?.feedCrop
-                    print("[FeedAspect] id=\(self.moment.id ?? "?") db=\(savedAspectRatio) raw=\(String(format: "%.4f", expectedRatioValue)) display=\(String(format: "%.4f", displayRatio)) type=\(Self.cardType(for: displayRatio).displayName) cardH=\(String(format: "%.1f", self.cardHeight)) feedCrop=\(crop.map { "\($0.cardAspect) full=\($0.isFullBounds) \($0.width)x\($0.height)" } ?? "nil")")
                 }
-            } else {
-                let crop = mediaItems.first?.feedCrop
-                print("[FeedAspect] id=\(moment.id ?? "?") db=\(savedAspectRatio) raw=\(String(format: "%.4f", expectedRatioValue)) display=\(String(format: "%.4f", displayRatio)) type=\(aspectRatioType.displayName) cardH=\(String(format: "%.1f", cardHeight)) feedCrop=\(crop.map { "\($0.cardAspect) full=\($0.isFullBounds) \($0.width)x\($0.height)" } ?? "nil")")
             }
             return
         }
@@ -1249,10 +1244,6 @@ struct MediaItemView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let _ = {
-                let crop = item.feedCrop
-                print("[FeedAspect.media] id=\(currentMoment.id ?? "?") item=\(item.id) type=\(item.type.rawValue) canvas=\(String(format: "%.4f", aspectRatio)) resolved=\(String(format: "%.4f", resolvedItemAspectRatio)) frame=\(Int(geometry.size.width))x\(Int(geometry.size.height)) blurFit=\(usesBlurredFitLayout) feedCrop=\(crop.map { "\($0.cardAspect) full=\($0.isFullBounds)" } ?? "nil")")
-            }()
             ZStack { // ✅ CAMBIADO: ZStack para que el overlay esté ENCIMA
                 if !prefersUnifiedCarouselFrame {
                     RoundedRectangle(cornerRadius: 20)

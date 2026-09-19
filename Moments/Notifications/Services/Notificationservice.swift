@@ -71,9 +71,6 @@ class NotificationService: ObservableObject {
             self.notifications = visibleNotifications(from: cached)
             self.updateUnreadCount()
             self.isLoading = false
-            #if DEBUG
-            print("🔔 NotificationService: Cargadas \(cached.count) notificaciones del caché")
-            #endif
         }
         
         var isFirstSnapshot = true

@@ -649,6 +649,10 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         super.viewDidLayoutSubviews()
         if rowHeightCache?.syncWidth(collectionView.bounds.width) == true {
             rowHeightCache?.seedEstimates(for: lastAppliedRows, containerWidth: collectionView.bounds.width)
+            // Recrear hosting de celdas visibles: el ancho del contenedor alimenta
+            // el layout de burbujas (no usar el viewport de escena Duo).
+            reconfigureAllVisiblePending = true
+            scheduleReconfigureFlush()
         }
         if #available(iOS 26.0, *) {
             collectionView.bottomEdgeEffect.isHidden = true
@@ -756,11 +760,17 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     private func configureDataSource() {
         let registration = UICollectionView.CellRegistration<UICollectionViewCell, String> { [weak self] cell, _, itemId in
             guard let self, let row = self.rowsById[itemId], let rowContent = self.rowContent else { return }
+            // minSize = ancho de ESTA collection view (columna split / iPhone), no
+            // el de la escena Duo. Sin minSize el host abraza la burbuja y todo
+            // queda a la izquierda. Sin alignment: el contenido no se clava al leading.
+            let listWidth = max(self.collectionView.bounds.width, 1)
             cell.contentConfiguration = UIHostingConfiguration {
                 rowContent(row)
-                    .frame(maxWidth: .infinity)
+                    .frame(width: listWidth, alignment: .leading)
+                    .environment(\.chatListContainerWidth, listWidth)
             }
             .margins(.all, 0)
+            .minSize(width: listWidth, height: 0)
             var background = UIBackgroundConfiguration.clear()
             background.backgroundColor = .clear
             cell.backgroundConfiguration = background
@@ -980,17 +990,12 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
 
     func forceScrollToBottom(animated: Bool, allowDuringNavigation: Bool = false) {
         if !allowDuringNavigation, scrollNavigationTargetRowId != nil {
-            chatScrollDebugLog(
-                "forceScroll skip — navTarget=\(scrollNavigationTargetRowId ?? "nil")"
-            )
             return
         }
         resetVanishPullState(animated: false)
         guard !orderedItemIds.isEmpty else { return }
 
         let lastIndex = orderedItemIds.count - 1
-        let lastId = orderedItemIds[lastIndex]
-        let before = chatScrollDebugSnapshot(reason: "before")
 
         collectionView.collectionViewLayout.invalidateLayout()
         forceScrollToRow(at: lastIndex, position: .bottom, animated: false)
@@ -1010,22 +1015,6 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         }
         collectionView.layoutIfNeeded()
         recomputeBottomPinnedState()
-
-        chatScrollDebugLog(
-            "forceScroll last=\(lastId) idx=\(lastIndex) \(before) → \(chatScrollDebugSnapshot(reason: "after")) atBottom=\(isStrictlyAtBottom) lastVisible=\(isLastRowVisible())"
-        )
-    }
-
-    private func chatScrollDebugSnapshot(reason: String) -> String {
-        let inset = collectionView.adjustedContentInset
-        let layoutH = collectionView.collectionViewLayout.collectionViewContentSize.height
-        return "\(reason) y=\(Int(collectionView.contentOffset.y)) bounds=\(Int(collectionView.bounds.height)) content=\(Int(collectionView.contentSize.height)) layoutH=\(Int(layoutH)) insetB=\(Int(inset.bottom)) maxY=\(Int(maxContentOffsetY(in: collectionView))) dist=\(Int(distanceFromBottom))"
-    }
-
-    private func chatScrollDebugLog(_ message: String) {
-        #if DEBUG
-        print("[ChatScroll] \(message)")
-        #endif
     }
 
     private func isLikelyHistoryPrepend(oldIds: [String], newIds: [String]) -> Bool {

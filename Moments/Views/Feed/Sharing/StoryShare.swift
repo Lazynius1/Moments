@@ -314,7 +314,7 @@ struct StoryShareRecipientsPanel: View {
                         PeopleSkeletonGrid()
                     } else {
                         if !filteredConversations.isEmpty {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 72, maximum: 104), spacing: 12)], spacing: 16) {
                                 ForEach(Array(filteredConversations.enumerated()), id: \.element.otherParticipantId) { index, conversation in
                                     PersonCell(
                                         conversation: conversation,
@@ -333,7 +333,7 @@ struct StoryShareRecipientsPanel: View {
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 8)
 
-                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 72, maximum: 104), spacing: 12)], spacing: 16) {
                                     ForEach(globalSearchResults) { user in
                                         GlobalUserCell(
                                             user: user,
@@ -558,10 +558,6 @@ struct SharedStoryMessageBubble: View {
         Group {
             if isLoading {
                 SharedStoryPreviewSkeleton()
-                    .frame(
-                        maxWidth: 280,
-                        alignment: isCurrentUser ? .trailing : .leading
-                    )
                     .padding(.vertical, 4)
             } else if canViewStory == true, let sharedStoryData = displayedSharedStoryData {
                 StoryBubbleContent(
@@ -573,10 +569,6 @@ struct SharedStoryMessageBubble: View {
                 BlockedStoryBubble(
                     reason: denialReason ?? .restricted,
                     sharedStoryData: displayedSharedStoryData
-                )
-                .frame(
-                    maxWidth: 280,
-                    alignment: isCurrentUser ? .trailing : .leading
                 )
                 .padding(.vertical, 4)
             }
@@ -689,15 +681,24 @@ enum StoryShareCardMetrics {
     static let width: CGFloat = 180
     static let height: CGFloat = 320
     static let cornerRadius: CGFloat = 18
+
+    static func size(chatListWidth: CGFloat) -> CGSize {
+        ChatBubbleLayoutWidth.cappedSize(width: width, height: height, chatListWidth: chatListWidth)
+    }
 }
 
 private struct SharedStoryPreviewSkeleton: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    private var cardSize: CGSize {
+        StoryShareCardMetrics.size(chatListWidth: chatListContainerWidth)
+    }
 
     var body: some View {
         RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous)
             .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12))
-            .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+            .frame(width: cardSize.width, height: cardSize.height)
             .overlay {
                 ProgressView()
                     .tint(colorScheme == .dark ? .white.opacity(0.6) : .gray)
@@ -711,6 +712,12 @@ private struct SharedStoryUnavailablePreview: View {
     let previewImageURL: String?
     let authorId: String?
     let authorName: String?
+
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    private var cardSize: CGSize {
+        StoryShareCardMetrics.size(chatListWidth: chatListContainerWidth)
+    }
 
     var body: some View {
         ZStack {
@@ -732,12 +739,12 @@ private struct SharedStoryUnavailablePreview: View {
                         )
                 }
             }
-            .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+            .frame(width: cardSize.width, height: cardSize.height)
             .blur(radius: previewImageURL == nil ? 0 : 18)
             .saturation(previewImageURL == nil ? 1 : 0.35)
 
             Color.black.opacity(0.48)
-                .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+                .frame(width: cardSize.width, height: cardSize.height)
 
             VStack(spacing: 8) {
                 Image(systemName: iconName)
@@ -760,9 +767,9 @@ private struct SharedStoryUnavailablePreview: View {
                 .padding(.top, 12)
                 Spacer(minLength: 0)
             }
-            .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+            .frame(width: cardSize.width, height: cardSize.height)
         }
-        .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+        .frame(width: cardSize.width, height: cardSize.height)
         .clipShape(RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous))
     }
 }
@@ -771,6 +778,12 @@ private struct SharedStoryUnavailablePreview: View {
 struct StoryPreviewCard: View {
     let sharedStoryData: [String: String]
     let story: Story?
+
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    private var cardSize: CGSize {
+        StoryShareCardMetrics.size(chatListWidth: chatListContainerWidth)
+    }
 
     private var isVideo: Bool {
         sharedStoryData["storyMediaType"] == "video"
@@ -785,7 +798,7 @@ struct StoryPreviewCard: View {
                     StoryVisualContent(sharedStoryData: sharedStoryData)
                 }
             }
-            .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+            .frame(width: cardSize.width, height: cardSize.height)
             .clipped()
 
             VStack {
@@ -807,7 +820,7 @@ struct StoryPreviewCard: View {
                 }
                 Spacer(minLength: 0)
             }
-            .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+            .frame(width: cardSize.width, height: cardSize.height)
 
             if isVideo {
                 Circle()
@@ -821,7 +834,7 @@ struct StoryPreviewCard: View {
                     )
             }
         }
-        .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+        .frame(width: cardSize.width, height: cardSize.height)
         .clipShape(RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous))
     }
 }

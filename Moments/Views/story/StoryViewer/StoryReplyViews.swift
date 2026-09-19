@@ -18,6 +18,10 @@ private enum StoryReplyPreviewMetrics {
     static let width: CGFloat = 104
     static let height: CGFloat = 162
     static let cornerRadius: CGFloat = 17
+
+    static func size(chatListWidth: CGFloat) -> CGSize {
+        ChatBubbleLayoutWidth.cappedSize(width: width, height: height, chatListWidth: chatListWidth)
+    }
 }
 
 /// Borde sutil de chasis Moments (familia fichas DM; sin anillo arcoíris).
@@ -35,6 +39,11 @@ struct StoryReplyMessageBubble: View {
     var onOpenMedia: ((EnhancedMessage) -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+
+    private var previewSize: CGSize {
+        StoryReplyPreviewMetrics.size(chatListWidth: chatListContainerWidth)
+    }
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -51,14 +60,12 @@ struct StoryReplyMessageBubble: View {
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundStyle(adaptiveColors.replyBarSecondaryText)
                 .multilineTextAlignment(isCurrentUser ? .trailing : .leading)
-                .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
 
                 storyReplyThreadedColumn(storyReplyData: storyReplyData)
             } else {
                 storyReplyBody
             }
         }
-        .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
         .padding(.vertical, 2)
         .onAppear {
             checkAndTriggerCleanupIfNeeded()
@@ -97,7 +104,7 @@ struct StoryReplyMessageBubble: View {
                 if !isCurrentUser {
                     Capsule()
                         .fill(lineColor)
-                        .frame(width: 2.5, height: StoryReplyPreviewMetrics.height)
+                        .frame(width: 2.5, height: previewSize.height)
                 }
 
                 StoryReplyGatedThumbnailView(
@@ -109,7 +116,7 @@ struct StoryReplyMessageBubble: View {
                 if isCurrentUser {
                     Capsule()
                         .fill(lineColor)
-                        .frame(width: 2.5, height: StoryReplyPreviewMetrics.height)
+                        .frame(width: 2.5, height: previewSize.height)
                 }
             }
 
@@ -139,6 +146,7 @@ struct StoryTextReplyContent: View {
     let isCurrentUser: Bool
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -152,7 +160,11 @@ struct StoryTextReplyContent: View {
                 .font(.system(size: legacyPoppinsSize(15)))
                 .foregroundStyle(adaptiveColors.messageTextColor)
                 .multilineTextAlignment(isCurrentUser ? .trailing : .leading)
-                .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(
+                    maxWidth: ChatBubbleLayoutWidth.maxTextBubbleWidth(chatListWidth: chatListContainerWidth),
+                    alignment: isCurrentUser ? .trailing : .leading
+                )
         }
     }
 }
@@ -253,7 +265,7 @@ private struct StoryReplyThumbnailSkeleton: View {
     var body: some View {
         RoundedRectangle(cornerRadius: StoryReplyPreviewMetrics.cornerRadius, style: .continuous)
             .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12))
-            .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
+            .chatCappedCardSize(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
             .overlay {
                 ProgressView()
                     .tint(colorScheme == .dark ? .white.opacity(0.6) : .gray)
@@ -303,7 +315,7 @@ private struct StoryReplyUnavailableThumbnail: View {
                         .fill(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.15))
                 }
             }
-            .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
+            .chatCappedCardSize(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
 
             Color.black.opacity(0.55)
 
@@ -321,7 +333,7 @@ private struct StoryReplyUnavailableThumbnail: View {
             }
             .padding(.horizontal, 6)
         }
-        .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
+        .chatCappedCardSize(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
         .clipShape(shape)
         .overlay(shape.stroke(storyReplyChassisStroke, lineWidth: 0.5))
     }
@@ -372,7 +384,7 @@ struct StoryReplyThumbnailView: View {
                         )
                 }
             }
-            .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
+            .chatCappedCardSize(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
 
             if isVideo {
                 Circle()
@@ -386,7 +398,7 @@ struct StoryReplyThumbnailView: View {
                     )
             }
         }
-        .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
+        .chatCappedCardSize(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
         .clipShape(shape)
         .overlay(shape.stroke(storyReplyChassisStroke, lineWidth: 0.5))
     }
@@ -456,7 +468,7 @@ struct StoryReplyEphemeralTapCard: View {
                 .padding(.bottom, 10)
             }
         }
-        .frame(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
+        .chatCappedCardSize(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
         .clipShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous)
@@ -493,7 +505,7 @@ struct StoryReplyEphemeralImageCard: View {
         KFImage(imageUrl)
             .resizable()
             .scaledToFill()
-            .frame(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
+            .chatCappedCardSize(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
             .clipShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 if let expirationDate, expirationDate > Date() {
@@ -550,7 +562,7 @@ struct StoryReplyEphemeralExpiredCard: View {
             }
             .padding(.horizontal, 8)
         }
-        .frame(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
+        .chatCappedCardSize(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
         .clipShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous)
@@ -569,7 +581,7 @@ struct StoryReplyEphemeralResolvingCard: View {
             ProgressView()
                 .tint(colorScheme == .dark ? .white.opacity(0.7) : .gray)
         }
-        .frame(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
+        .chatCappedCardSize(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
         .clipShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous)
@@ -648,7 +660,7 @@ struct ClickableEphemeralImageContent: View {
         KFImage(imageUrl)
             .resizable()
             .scaledToFill()
-            .frame(maxWidth: 250, maxHeight: 300)
+            .chatCappedCardSize(width: 250, height: 300)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(alignment: .topTrailing) {
                 if let expirationDate, expirationDate > Date() {

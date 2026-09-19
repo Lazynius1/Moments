@@ -232,7 +232,7 @@ struct ChatEphemeralTapCard: View {
                 .padding(.bottom, layout == .compact ? 10 : 14)
             }
         }
-        .frame(width: layout.width, height: layout.height)
+        .chatCappedCardSize(width: layout.width, height: layout.height)
         .clipShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
         .overlay {
             ChatEphemeralLifetimeBorder(
@@ -277,7 +277,7 @@ struct ChatEphemeralImageCard: View {
         KFImage(imageUrl)
             .resizable()
             .scaledToFill()
-            .frame(width: layout.width, height: layout.height)
+            .chatCappedCardSize(width: layout.width, height: layout.height)
             .clipShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 if let expirationDate, expirationDate > Date() {
@@ -330,7 +330,7 @@ struct ChatEphemeralResolvingCard: View {
                     .foregroundStyle(.white.opacity(0.72))
             }
         }
-        .frame(width: layout.width, height: layout.height)
+        .chatCappedCardSize(width: layout.width, height: layout.height)
         .clipShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
         .overlay {
             ChatEphemeralLifetimeBorder(
@@ -363,7 +363,7 @@ struct ChatEphemeralExpiredCard: View {
                     .padding(.horizontal, 8)
             }
         }
-        .frame(width: layout.width, height: layout.height)
+        .chatCappedCardSize(width: layout.width, height: layout.height)
         .clipShape(RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
