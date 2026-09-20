@@ -167,6 +167,9 @@ struct CreatorView: View {
             }
         }
         .onAppear {
+            // El feed queda montado bajo el fullScreenCover: sin hold el vídeo
+            // activo sigue sonando (y la visibilidad puede reanudarlo).
+            GlobalVideoManager.shared.beginPlaybackHold()
             setupResponseStickerListener()
             setupContinueChainListener()
             consumeChainLaunchIntent()
@@ -200,6 +203,7 @@ struct CreatorView: View {
 
             // ✅ Limpiar video y audio cuando se cierra CreatorView
             cleanupVideoAndAudio()
+            GlobalVideoManager.shared.endPlaybackHold()
         }
     }
 
