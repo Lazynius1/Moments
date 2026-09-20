@@ -5,9 +5,12 @@ import FirebaseCore
 import Kingfisher
 import AVFoundation
 
-struct UserActivityView: View {
+struct UserActivitySidebarView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
+    @Binding var selection: ActivityInteractionCategory?
+    let onBack: (() -> Void)?
+
     var body: some View {
         ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
@@ -59,15 +62,19 @@ struct UserActivityView: View {
                         }
                     }
                     .padding(.horizontal, 12)
-                    .padding(.top, 16)
+                    .padding(.top, 8)
                     .padding(.bottom, 24)
                 }
             }
             .navigationTitle(NSLocalizedString("userActivity.title", comment: "User activity title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    SettingsToolbarBackButton(action: { dismiss() })
+                // Al empujar una categoría, este toolbar heredaría su back y
+                // duplicaría el de la subsección. El destino conserva el suyo.
+                if onBack == nil, selection == nil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        SettingsToolbarBackButton(action: { dismiss() })
+                    }
                 }
             }
         .settingsSubsectionNavigationChrome(colorScheme: colorScheme)
@@ -82,8 +89,11 @@ struct UserActivityView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
-                    NavigationLink {
-                        activityDestination(for: category)
+                    Button {
+                        #if DEBUG
+                        print("[SettingsNavigation] activity category tap: \(String(describing: category))")
+                        #endif
+                        selection = category
                     } label: {
                         ActivityInteractionCategoryRow(
                             category: category
@@ -100,10 +110,13 @@ struct UserActivityView: View {
         }
     }
 
-    // Removed custom timeSpentSection() method -> now using activitySection()
+}
+
+struct UserActivityDestinationView: View {
+    let category: ActivityInteractionCategory
 
     @ViewBuilder
-    private func activityDestination(for category: ActivityInteractionCategory) -> some View {
+    var body: some View {
         Group {
             switch category {
             case .archived:
@@ -147,7 +160,7 @@ struct RecentlyDeletedActivityView: View {
         ActivityInteractionDetailView(category: .recentlyDeleted, recentlyDeletedKind: selectedKind, suppressInlineNavigationTitle: true)
             .id(selectedKind)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .topBarLeading) {
                     SettingsToolbarBackButton(action: { dismiss() })
                 }
                 ToolbarItem(placement: .principal) {
@@ -209,7 +222,7 @@ struct ArchivedActivityView: View {
         }
         .id(selectedKind)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
+            ToolbarItem(placement: .topBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
             }
             ToolbarItem(placement: .principal) {

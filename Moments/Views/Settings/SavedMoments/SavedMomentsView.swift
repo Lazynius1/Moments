@@ -176,7 +176,7 @@ struct SavedMomentsView: View {
         .momentsFloatingTabBarHidden()
         .momentsScrollEdgeChrome()
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
+            ToolbarItem(placement: .topBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -449,7 +449,7 @@ struct SavedMomentsView: View {
             } else {
                 VStack(spacing: 0) {
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3),
+                    columns: [GridItem(.adaptive(minimum: 108, maximum: 180), spacing: 4)],
                     spacing: 4
                 ) {
                     ForEach(identifiedFilteredMoments) { identified in

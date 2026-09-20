@@ -9,8 +9,7 @@ extension View {
     }
 
     /// Oculta la floating pill de Moments (además del tab bar nativo si aplica).
-    /// En rail vertical (`momentsToolbarVerticalEdge` ≠ nil) no oculta: el espacio
-    /// lateral ya está reservado y la pill es el único salto entre tabs.
+    /// Si el sistema ofrece un rail lateral, se conserva como navegación global.
     func momentsFloatingTabBarHidden(_ hidden: Bool = true) -> some View {
         modifier(MomentsFloatingTabBarHiddenModifier(hidden: hidden))
     }
@@ -28,8 +27,8 @@ private struct MomentsFloatingTabBarHiddenModifier: ViewModifier {
     @Environment(\.momentsToolbarVerticalEdge) private var verticalBarEdge
     let hidden: Bool
 
-    /// Con rail vertical (Duo / multitasking) la pill se queda: el inset lateral
-    /// ya está reservado y sin ella no hay forma de cambiar de tab.
+    /// El rail vertical ocupa el espacio lateral que el sistema ya reserva; se
+    /// mantiene accesible incluso dentro de una ruta que ocultaría la pill inferior.
     @State private var isHoldingHide = false
 
     private var shouldHoldHide: Bool {

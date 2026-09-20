@@ -4823,3 +4823,11 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "notification.chatSummary.single" = "Nuevo mensaje";
 "notification.chatSummary.multiple" = "%@ mensajes nuevos";
 "notification.group.untitled" = "Grupo";
+"storyEditor.toolbar.text" = "Texto";
+"storyEditor.toolbar.stickers" = "Stickers";
+"storyEditor.toolbar.draw" = "Dibujar";
+"storyEditor.toolbar.filters" = "Filtros";
+"storyEditor.toolbar.mute" = "Silenciar vídeo";
+"storyEditor.toolbar.unmute" = "Activar sonido";
+"storyEditor.toolbar.chain" = "Crear cadena";
+"storyEditor.toolbar.duration" = "Duración";

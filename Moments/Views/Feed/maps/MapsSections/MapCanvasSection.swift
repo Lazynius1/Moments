@@ -371,7 +371,7 @@ struct ModernLocationGalleryView: View {
     @State private var selectedMoment: Moment?  // ✅ CAMBIO AQUÍ
     @State private var showingDetail = false
 
-    private let columns = Array(repeating: GridItem(.flexible()), count: 3)
+    private let columns = [GridItem(.adaptive(minimum: 112, maximum: 180))]
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -510,4 +510,3 @@ struct ModernLocationGalleryView: View {
         }
     }
 }
-

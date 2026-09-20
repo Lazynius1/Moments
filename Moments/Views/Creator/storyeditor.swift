@@ -53,6 +53,8 @@ struct StoryEditingView: View {
     @State private var storyExpirationHours = 24
     @State private var isLoadingUserSettings = true // NUEVO
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
     @State private var showingAudienceSelector = false
     @State private var selectedTextStyle: TextStyle = .modern
     @State private var selectedTextStroke: TextStroke = .none
@@ -156,12 +158,24 @@ struct StoryEditingView: View {
             GeometryReader { proxy in
                 let windowInsets = keyWindowSafeAreaInsets()
                 let viewportSize = stableViewportSize(for: proxy)
+                // On a vertical system bar, SwiftUI reports the hardware-side
+                // reservation in the local safe-area inset. Keep the media
+                // entirely in the remaining content rect instead of centering
+                // it beneath the bar.
+                let horizontalSafeInsets = proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing
+                let canvasViewportSize = CGSize(
+                    width: max(viewportSize.width - horizontalSafeInsets, 1),
+                    height: viewportSize.height
+                )
                 let mediaCanvasRect = creatorMomentsCaptureRect(
-                    in: viewportSize,
+                    in: canvasViewportSize,
                     topInset: windowInsets.top,
                     bottomInset: windowInsets.bottom
                 )
+                .offsetBy(dx: proxy.safeAreaInsets.leading, dy: 0)
                 let mediaCanvasSize = mediaCanvasRect.size
+                let sideRailCenterX = mediaCanvasRect.maxX
+                    + max((viewportSize.width - mediaCanvasRect.maxX) / 2, 0)
 
                 ZStack(alignment: .topLeading) {
                     (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
@@ -239,8 +253,33 @@ struct StoryEditingView: View {
                     // Controls
                     mainControlsOverlay(
                         proxy: proxy,
-                        mediaCanvasRect: mediaCanvasRect
+                        mediaCanvasRect: mediaCanvasRect,
+                        viewportSize: viewportSize
                     )
+
+                    if !isEditingReveal && !isTextMode && !isDrawingMode {
+                        topBarView(topInset: 0, contentWidth: mediaCanvasRect.width)
+                            .position(
+                                x: mediaCanvasRect.midX,
+                                y: mediaCanvasRect.minY + 32
+                            )
+                            .zIndex(34)
+                    }
+
+                    if activeEditorMode == .idle && !isEditingReveal && !isChatSendMode && !usesSystemEditorToolbar {
+                        sideToolbarView()
+                            .position(x: sideRailCenterX, y: mediaCanvasRect.midY - 16)
+                            .zIndex(34)
+                    }
+
+                    if usesSidePublishingControls {
+                        compactSidePublishingControls()
+                            .position(
+                                x: sideRailCenterX,
+                                y: mediaCanvasRect.maxY - 58
+                            )
+                            .zIndex(35)
+                    }
 
                     if showGalleryFeedback {
                         GlassmorphicSuccessMessage(
@@ -296,6 +335,7 @@ struct StoryEditingView: View {
                             selectedGradientStopIndex: $storySelectedGradientStopIndex,
                             forcesAllCaps: $storyForcesAllCaps,
                             mediaSampleImage: currentStorySampleImage(),
+                            canvasRect: mediaCanvasRect,
                             onCancel: cancelTextEditing
                         )
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -327,7 +367,12 @@ struct StoryEditingView: View {
                 UserProfileView(userId: userId)
                     .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .toolbar(usesSystemEditorToolbar ? .visible : .hidden, for: .navigationBar)
+            .toolbar {
+                if #available(iOS 27.1, *), usesSystemEditorToolbar {
+                    systemEditorToolbar
+                }
+            }
         .onAppear {
             StoryFontRegistry.registerFontsIfNeeded()
             loadUserDefaultAudienceSettings()
@@ -371,9 +416,22 @@ struct StoryEditingView: View {
             }
         }
         .ignoresSafeArea(.keyboard)
-        // ✅ Input inferior para título de cadena
-        .safeAreaInset(edge: .bottom) {
-            bottomPublishingInset()
+        // Keep the publishing controls out of the canvas layout. A safe-area
+        // inset participates in its parent's proposed size, so iOS was
+        // shrinking the story canvas as soon as the chain title summoned the
+        // keyboard. The controls are an overlay instead: the canvas keeps its
+        // full capture rect and the focused title field moves using the
+        // keyboard height handled below.
+        .overlay(alignment: .bottom) {
+            if usesSystemEditorToolbar {
+                EmptyView()
+            } else if usesSidePublishingControls {
+                EmptyView()
+            } else {
+                bottomPublishingInset()
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, isCreatingChain ? 0 : max(keyWindowSafeAreaInsets().bottom, 8))
+            }
         }
         // ✅ SHEET ACTUALIZADO para selector de audiencia mejorado
         .sheet(isPresented: $showingAudienceSelector) {
@@ -716,7 +774,7 @@ struct StoryEditingView: View {
     }
 
     @ViewBuilder
-    private func topBarView(topInset: CGFloat) -> some View {
+    private func topBarView(topInset: CGFloat, contentWidth: CGFloat? = nil) -> some View {
         if activeEditingStickerId != nil {
             ZStack {
                 HStack {
@@ -739,7 +797,7 @@ struct StoryEditingView: View {
                             .momentsChromeGlass(in: Capsule(), style: .tinted)
                     }
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: contentWidth ?? .infinity)
                 
                 if showsStickerPaletteButton {
                     Button(action: cycleSelectedStickerColor) {
@@ -763,8 +821,8 @@ struct StoryEditingView: View {
                     .offset(y: chatPaletteTopOffset)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal)
+            .frame(maxWidth: contentWidth ?? .infinity)
+            .padding(.horizontal, toolbarVerticalEdge == nil ? 16 : 0)
             .padding(.top, topBarTopPadding(topInset: topInset))
         } else {
             ZStack {
@@ -779,10 +837,20 @@ struct StoryEditingView: View {
                         }
                     }) {
                         Image(systemName: isFilterMode ? "chevron.left" : "xmark")
-                            .font(.title2)
+                            .font(.system(size: 20, weight: .regular))
                             .foregroundStyle(chromeIconColor)
-                            .padding(12)
+                            .frame(width: 48, height: 48)
                             .momentsChromeGlass(in: Circle(), style: .tinted)
+                    }
+                    if toolbarVerticalEdge != nil, !isFilterMode, !isChatSendMode {
+                        Button(action: { photosSaveGate.requestAccess { saveToGallery() } }) {
+                            Image(systemName: isSavingToGallery ? "hourglass" : "arrow.down.circle")
+                                .font(.system(size: 20, weight: .regular))
+                                .foregroundStyle(chromeIconColor)
+                                .frame(width: 48, height: 48)
+                                .momentsChromeGlass(in: Circle(), style: .tinted)
+                        }
+                        .disabled(isSavingToGallery)
                     }
                     Spacer()
                     if isFilterMode {
@@ -803,16 +871,19 @@ struct StoryEditingView: View {
                             chatTopToolbarView()
                         }
 
-                        Button(action: { photosSaveGate.requestAccess { saveToGallery() } }) {
-                            Image(systemName: isSavingToGallery ? "hourglass" : "arrow.down.circle")
-                                .font(.title2)
-                                .foregroundStyle(chromeIconColor)
-                                .padding(12)
-                                .momentsChromeGlass(in: Circle(), style: .tinted)
+                        if toolbarVerticalEdge == nil || isChatSendMode {
+                            Button(action: { photosSaveGate.requestAccess { saveToGallery() } }) {
+                                Image(systemName: isSavingToGallery ? "hourglass" : "arrow.down.circle")
+                                    .font(.title2)
+                                    .foregroundStyle(chromeIconColor)
+                                    .padding(12)
+                                    .momentsChromeGlass(in: Circle(), style: .tinted)
+                            }
+                            .disabled(isSavingToGallery)
                         }
-                        .disabled(isSavingToGallery)
                     }
                 }
+                .frame(maxWidth: contentWidth ?? .infinity)
 
                 if showsStickerPaletteButton {
                     Button(action: cycleSelectedStickerColor) {
@@ -856,7 +927,8 @@ struct StoryEditingView: View {
                     .offset(y: chatPaletteTopOffset)
                 }
             }
-            .padding(.horizontal)
+            .frame(maxWidth: contentWidth ?? .infinity)
+            .padding(.horizontal, toolbarVerticalEdge == nil ? 16 : 0)
             .padding(.top, topBarTopPadding(topInset: topInset))
         }
     }
@@ -938,7 +1010,6 @@ struct StoryEditingView: View {
                 VStack(spacing: 12) {
                     editingToolButtons()
                 }
-                .padding(.trailing, 16)
             }
         }
     }
@@ -1032,22 +1103,12 @@ struct StoryEditingView: View {
     @ViewBuilder
     private func mainControlsOverlay(
         proxy: GeometryProxy,
-        mediaCanvasRect: CGRect
+        mediaCanvasRect: CGRect,
+        viewportSize: CGSize
     ) -> some View {
         if !isTextMode && !isDrawingMode {
             VStack {
-                if !isEditingReveal {
-                    topBarView(topInset: proxy.safeAreaInsets.top)
-                }
-
                 Group {
-                    if activeEditorMode == .idle && !isEditingReveal && !isChatSendMode {
-                        HStack {
-                            Spacer()
-                            sideToolbarView()
-                        }
-                    }
-
                     Spacer()
 
                     // Video playback controls
@@ -1082,7 +1143,7 @@ struct StoryEditingView: View {
                     }
                 }
             }
-            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+            .frame(width: viewportSize.width, height: viewportSize.height, alignment: .top)
         }
     }
 
@@ -1218,6 +1279,151 @@ struct StoryEditingView: View {
         }
     }
 
+    /// On Duo when the system places status chrome on a vertical edge, the
+    /// narrow rail can carry the two publishing actions without covering the
+    /// story. Chain creation retains the full bottom field because it needs a
+    /// text input.
+    private var usesSidePublishingControls: Bool {
+        !usesSystemEditorToolbar
+            && toolbarVerticalEdge != nil
+            && activeEditorMode == .idle
+            && activeEditingStickerId == nil
+            && !isEditingReveal
+            && !isChatSendMode
+            && !isCreatingChain
+            && !isContinuingChain
+    }
+
+    /// Duo can relocate the system toolbar from the hardware side to the top
+    /// as the available arrangement changes. Let that native container own
+    /// the editorial actions instead of pinning a custom rail in content.
+    private var usesSystemEditorToolbar: Bool {
+        activeEditorMode == .idle
+            && activeEditingStickerId == nil
+            && !isEditingReveal
+            && !isChatSendMode
+            && !isCreatingChain
+            && !isContinuingChain
+            && (toolbarVerticalEdge != nil || !divisionRegions.isEmpty)
+    }
+
+    @available(iOS 27.1, *)
+    @ToolbarContentBuilder
+    private var systemEditorToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    beginCreatingTextOverlay(canvasSize: currentMediaCanvasRect().size)
+                }
+            } label: {
+                Label("storyEditor.addText", systemImage: "textformat.alt")
+            }
+
+            Button {
+                showingStickerPicker = true
+            } label: {
+                Label("storyEditor.addSticker", systemImage: "face.smiling")
+            }
+
+            Button {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    activeEditorMode = .drawing
+                }
+            } label: {
+                Label("storyEditor.draw", systemImage: "scribble")
+            }
+
+            Button {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    activeEditorMode = isFilterMode ? .idle : .filters
+                    showingIntensitySlider = selectedFilter != .normal
+                }
+            } label: {
+                Label("storyEditor.filters", systemImage: "camera.filters")
+            }
+
+            if selectedMediaItems.first?.type == .video {
+                Button {
+                    isVideoPreviewMuted.toggle()
+                } label: {
+                    Label(
+                        isVideoPreviewMuted ? "storyEditor.unmute" : "storyEditor.mute",
+                        systemImage: isVideoPreviewMuted ? "speaker.slash.fill" : "speaker.wave.2.fill"
+                    )
+                }
+            }
+
+            Button {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+                    isCreatingChain.toggle()
+                }
+            } label: {
+                Label("storyEditor.chain", systemImage: "link")
+            }
+
+            Button {
+                storyExpirationHours = storyExpirationHours == 24 ? 48 : 24
+            } label: {
+                Text(String(format: NSLocalizedString("storyEditor.expiration.option", comment: "Story expiration option"), storyExpirationHours))
+            }
+
+            Button {
+                guard !isLoadingUserSettings else { return }
+                showingAudienceSelector = true
+            } label: {
+                Label("storyEditor.audience", systemImage: "person")
+            }
+            .disabled(isLoadingUserSettings)
+
+            Button(action: publishStory) {
+                Label("storyEditor.share", systemImage: "arrow.right")
+            }
+            .disabled(isPublishing || isLoadingUserSettings)
+        }
+        .axisBehavior(.verticalPreferred)
+    }
+
+    @ViewBuilder
+    private func compactSidePublishingControls() -> some View {
+        VStack(spacing: 12) {
+            Button {
+                guard !isLoadingUserSettings else { return }
+                showingAudienceSelector = true
+            } label: {
+                Group {
+                    if isLoadingUserSettings {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                            .tint(colorScheme == .dark ? .white : .black)
+                    } else {
+                        AudienceIconView(
+                            audience: storyContentAudience,
+                            size: AudienceIconMetrics.storyCapsule,
+                            colorScheme: colorScheme
+                        )
+                        .frame(width: 22, height: 22)
+                    }
+                }
+                .frame(width: 48, height: 48)
+                .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
+            }
+            .disabled(isLoadingUserSettings)
+
+            Button(action: publishStory) {
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        (colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215"))
+                            .opacity(isLoadingUserSettings ? 0.55 : 1.0)
+                    )
+                    .clipShape(Circle())
+            }
+            .disabled(isPublishing || isLoadingUserSettings)
+        }
+    }
+
 
     @ViewBuilder
     private func bottomControlsView(bottomInset: CGFloat, canvasBottomEdge: CGFloat, viewportHeight: CGFloat) -> some View {
@@ -1314,6 +1520,11 @@ struct StoryEditingView: View {
     }
 
     private func topBarTopPadding(topInset: CGFloat) -> CGFloat {
+        if toolbarVerticalEdge != nil {
+            // The vertical system chrome occupies the hardware side, leaving
+            // the canvas top clear for contextual close/save controls.
+            return 0
+        }
         let resolvedTopInset = effectiveTopInset(topInset)
         // Ensure the top controls sit safely below the notch/dynamic island.
         // Previously this subtracted resolvedTopInset excessively, pushing it too high.

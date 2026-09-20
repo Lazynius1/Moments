@@ -21,6 +21,7 @@ struct StoryTextEditor: View {
     @Binding var selectedGradientStopIndex: Int
     @Binding var forcesAllCaps: Bool
     var mediaSampleImage: UIImage?
+    var canvasRect: CGRect? = nil
     var onCancel: (() -> Void)? = nil
 
     @State private var isTextFieldFocused = false
@@ -50,7 +51,7 @@ struct StoryTextEditor: View {
     var body: some View {
         GeometryReader { proxy in
             let canvasSize = proxy.size
-            let captureRect = creatorMomentsCaptureRect(
+            let captureRect = canvasRect ?? creatorMomentsCaptureRect(
                 in: proxy.size,
                 topInset: proxy.safeAreaInsets.top,
                 bottomInset: proxy.safeAreaInsets.bottom
@@ -124,6 +125,8 @@ struct StoryTextEditor: View {
                     Spacer(minLength: 0)
                 }
                 .padding(.bottom, chromeHeight + keyboardInset)
+                .frame(width: captureRect.width)
+                .position(x: captureRect.midX, y: canvasSize.height / 2)
 
                 // Font size slider on the left (overlay)
                 HStack(spacing: 0) {
@@ -167,8 +170,9 @@ struct StoryTextEditor: View {
                             .momentsChromeGlass(in: Capsule(), style: .tinted)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, topBarTopPadding(proxy.safeAreaInsets.top))
+                .frame(width: captureRect.width)
+                .offset(x: captureRect.midX - (canvasSize.width / 2))
+                .padding(.top, canvasRect == nil ? topBarTopPadding(proxy.safeAreaInsets.top) : captureRect.minY + 8)
             }
             .overlay(alignment: .bottom) {
                 StoryMomentsEditorChrome(
@@ -194,6 +198,8 @@ struct StoryTextEditor: View {
                         cycleTextBackgroundFill()
                     }
                 )
+                .frame(width: captureRect.width)
+                .offset(x: captureRect.midX - (canvasSize.width / 2))
                 .padding(.bottom, bottomToolbarPadding)
                 .offset(y: -bottomToolbarLift)
                 .animation(.easeOut(duration: 0.22), value: bottomToolbarLift)

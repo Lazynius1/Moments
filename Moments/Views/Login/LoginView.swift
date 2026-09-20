@@ -243,7 +243,6 @@ struct WelcomeContent: View {
 // MARK: - Login (pantalla propia para usuarios que vuelven)
 struct LoginFormScreen: View {
     @EnvironmentObject var authService: AuthService
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @State private var identifier: String = ""
     @State private var password: String = ""
@@ -260,8 +259,6 @@ struct LoginFormScreen: View {
             LiquidAuroraBackground()
 
             VStack(spacing: 0) {
-                topBar
-
                 GeometryReader { geometry in
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
@@ -300,7 +297,19 @@ struct LoginFormScreen: View {
                 }
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden()
+        .toolbar(.visible, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    dismiss()
+                } label: {
+                    Label("register.back", systemImage: "chevron.backward")
+                }
+                .labelStyle(.iconOnly)
+            }
+        }
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .onAppear {
             MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.onboarding) {
@@ -317,29 +326,6 @@ struct LoginFormScreen: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
-    }
-
-    private var topBar: some View {
-        HStack {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(AuthColors.primary(colorScheme))
-                    .frame(width: 36, height: 36)
-                    .background {
-                        Color.clear
-                            .momentsChromeGlass(in: Circle(), interactive: true)
-                    }
-            }
-            .accessibilityLabel(Text("register.back"))
-
-            Spacer()
-        }
-        .authScreenHorizontalPadding()
-        .padding(.top, 10)
-        .padding(.bottom, 2)
     }
 
     private func login() {

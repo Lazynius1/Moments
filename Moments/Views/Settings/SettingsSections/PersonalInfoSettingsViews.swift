@@ -65,7 +65,7 @@ struct PersonalInfoView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if viewState == .username {
-                    ToolbarItem(placement: .navigationBarLeading) {
+                    ToolbarItem(placement: .topBarLeading) {
                         SettingsToolbarBackButton(action: {
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                                 viewState = .main

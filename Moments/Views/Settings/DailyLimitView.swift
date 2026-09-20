@@ -125,7 +125,7 @@ struct DailyLimitView: View {
         .momentsScrollEdgeChrome()
         .momentsFloatingTabBarHidden()
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
+            ToolbarItem(placement: .topBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
             }
         }

@@ -11,6 +11,7 @@ struct StoryCameraView: View {
     @Binding var startsInTextMode: Bool
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.momentsDivisionRegions) private var momentsDivisionRegions
     private var safeAreaTintColor: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }
@@ -58,7 +59,18 @@ struct StoryCameraView: View {
 
     private var cameraContent: some View {
         GeometryReader { proxy in
-            let captureRect = creatorMomentsCaptureRect(in: proxy.size, topInset: proxy.safeAreaInsets.top, bottomInset: proxy.safeAreaInsets.bottom)
+            let adaptiveLayout = storyAdaptiveCanvasLayout(
+                in: proxy.size,
+                safeAreaInsets: UIEdgeInsets(
+                    top: proxy.safeAreaInsets.top,
+                    left: proxy.safeAreaInsets.leading,
+                    bottom: proxy.safeAreaInsets.bottom,
+                    right: proxy.safeAreaInsets.trailing
+                ),
+                divisionRegions: momentsDivisionRegions,
+                prefersSideControls: false
+            )
+            let captureRect = adaptiveLayout.canvasRect
             // Separación extra respecto al LensReel (100pt de alto, con un UICollectionView de ancho completo
             // que puede robar toques aunque esté vacío visualmente) para que la galería/cambio de cámara no queden pegados a su zona táctil.
             let controlY = min(proxy.size.height - proxy.safeAreaInsets.bottom - 20, captureRect.maxY + 104)
@@ -122,8 +134,15 @@ struct StoryCameraView: View {
                     .position(x: captureRect.midX, y: captureRect.maxY - 108)
 
                 bottomSideControls
-                    .frame(width: min(captureRect.width + 54, proxy.size.width - 72))
-                    .position(x: captureRect.midX, y: controlY)
+                    .frame(
+                        width: adaptiveLayout.usesSupplementaryControls
+                            ? max(adaptiveLayout.controlsRect.width - 24, 120)
+                            : max(min(captureRect.width + 54, proxy.size.width - 72), 120)
+                    )
+                    .position(
+                        x: adaptiveLayout.usesSupplementaryControls ? adaptiveLayout.controlsRect.midX : captureRect.midX,
+                        y: adaptiveLayout.usesSupplementaryControls ? adaptiveLayout.controlsRect.midY : controlY
+                    )
                     // Prioridad de toque sobre el UICollectionView de LensReel (ancho completo, declarado después),
                     // que puede robar toques en el margen entre ambos aunque no tenga contenido visible ahí.
                     .zIndex(1)

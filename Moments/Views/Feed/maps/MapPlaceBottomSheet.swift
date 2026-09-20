@@ -304,7 +304,7 @@ struct MapPlaceBottomSheet: View {
     private var galleryGrid: some View {
         VStack(alignment: .leading, spacing: 10) {
             LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 3),
+                columns: [GridItem(.adaptive(minimum: 112, maximum: 180), spacing: 1)],
                 spacing: 1
             ) {
                 ForEach(Array(cluster.moments.enumerated()), id: \.element.id) { index, moment in

@@ -1,17 +1,42 @@
 import SwiftUI
 
+private struct SettingsSplitBackActionKey: EnvironmentKey {
+    static let defaultValue: (() -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    var settingsSplitBackAction: (() -> Void)? {
+        get { self[SettingsSplitBackActionKey.self] }
+        set { self[SettingsSplitBackActionKey.self] = newValue }
+    }
+}
+
+private struct SettingsSidebarBackIsVisibleKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var settingsSidebarBackIsVisible: Bool {
+        get { self[SettingsSidebarBackIsVisibleKey.self] }
+        set { self[SettingsSidebarBackIsVisibleKey.self] = newValue }
+    }
+}
+
 struct SettingsToolbarBackButton: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.settingsSplitBackAction) private var splitBackAction
+    @Environment(\.settingsSidebarBackIsVisible) private var sidebarBackIsVisible
     let action: () -> Void
 
+    @ViewBuilder
     var body: some View {
-        ProfileChromeIconButton(
-            systemName: "chevron.left",
-            foregroundColor: colorScheme == .dark ? .white : .black,
-            preset: .navigationBack,
-            standaloneGlass: false,
-            action: action
-        )
+        if !sidebarBackIsVisible {
+            Button(action: splitBackAction ?? action) {
+                Image(systemName: "chevron.backward")
+            }
+            .accessibilityLabel(Text("common.back"))
+        } else {
+            EmptyView()
+        }
     }
 }
 
@@ -86,7 +111,7 @@ struct SettingsSubsectionWrapper<Content: View>: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
+            ToolbarItem(placement: .topBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
             }
         }

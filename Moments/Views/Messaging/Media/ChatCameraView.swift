@@ -13,6 +13,7 @@ struct ChatCameraView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.momentsDivisionRegions) private var momentsDivisionRegions
 
     @State private var cameraPosition: AVCaptureDevice.Position = .front
     @State private var flashMode: AVCaptureDevice.FlashMode = .off
@@ -55,13 +56,22 @@ struct ChatCameraView: View {
 
     private var cameraContent: some View {
         GeometryReader { proxy in
-            let captureRect = creatorMomentsCaptureRect(
+            let adaptiveLayout = storyAdaptiveCanvasLayout(
                 in: proxy.size,
-                topInset: proxy.safeAreaInsets.top,
-                bottomInset: proxy.safeAreaInsets.bottom
+                safeAreaInsets: UIEdgeInsets(
+                    top: proxy.safeAreaInsets.top,
+                    left: proxy.safeAreaInsets.leading,
+                    bottom: proxy.safeAreaInsets.bottom,
+                    right: proxy.safeAreaInsets.trailing
+                ),
+                divisionRegions: momentsDivisionRegions,
+                prefersSideControls: false
             )
+            let captureRect = adaptiveLayout.canvasRect
             let captureButtonY = captureRect.maxY - 10
-            let bottomControlsWidth = max(0, min(captureRect.width + 54, proxy.size.width - 72))
+            let bottomControlsWidth = adaptiveLayout.usesSupplementaryControls
+                ? max(adaptiveLayout.controlsRect.width - 24, 120)
+                : max(min(captureRect.width + 54, proxy.size.width - 72), 120)
 
             ZStack {
                 safeAreaTintColor
@@ -110,7 +120,12 @@ struct ChatCameraView: View {
 
                 bottomSideControls
                     .frame(width: bottomControlsWidth)
-                    .position(x: captureRect.midX, y: proxy.size.height - proxy.safeAreaInsets.bottom - 30)
+                    .position(
+                        x: adaptiveLayout.usesSupplementaryControls ? adaptiveLayout.controlsRect.midX : captureRect.midX,
+                        y: adaptiveLayout.usesSupplementaryControls
+                            ? adaptiveLayout.controlsRect.midY
+                            : proxy.size.height - proxy.safeAreaInsets.bottom - 30
+                    )
 
                 CaptureButton(
                     isRecording: $isRecording,

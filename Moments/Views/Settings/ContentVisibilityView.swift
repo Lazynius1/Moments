@@ -215,7 +215,7 @@ struct ContentVisibilityView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .momentsScrollEdgeChrome()
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .topBarLeading) {
                     SettingsToolbarBackButton(action: { dismiss() })
                 }
             }

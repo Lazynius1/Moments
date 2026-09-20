@@ -95,6 +95,9 @@ enum SettingsRoute: Hashable, Identifiable {
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel = SettingsViewModel()
     @State private var isPrivate: Bool = false
@@ -116,44 +119,18 @@ struct SettingsView: View {
     @State private var isShowingNovaMemory: Bool = false
     @State private var isShowingPersonalInfo: Bool = false
     @State private var blockedAccountsCount: Int = 0
+    @State private var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var activityCategory: ActivityInteractionCategory?
 
     var body: some View {
-        ZStack {
-            // ✅ Fondo moderno con glassmorphism
-            modernBackgroundView
-
-            if isLoading {
-                modernLoadingView
-            } else {
-                SettingsFormView(
-                    viewModel: viewModel,
-                    isPrivate: $isPrivate,
-                    showFollowing: $showFollowing,
-                    showFollowers: $showFollowers,
-                    isScheduleEnabled: $isScheduleEnabled,
-                    startTime: $startTime,
-                    endTime: $endTime,
-                    username: $username,
-                    email: $email,
-                    phoneNumber: $phoneNumber,
-                    isShowingPersonalInfo: $isShowingPersonalInfo,
-                    isShowingQRCode: $isShowingQRCode,
-                    route: $route,
-                    isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement,
-                    isShowingNovaMemory: $isShowingNovaMemory,
-                    showReadReceipts: $showReadReceipts,
-                    blockedAccountsCount: blockedAccountsCount
-                )
-                .frame(maxWidth: 720)
-                .frame(maxWidth: .infinity)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .top).combined(with: .opacity)
-                ))
-            }
-        }
-        .navigationTitle(NSLocalizedString("settings.title", comment: "Settings"))
-        .navigationBarTitleDisplayMode(.large)
+        settingsNavigation
+        // `NavigationStack` and `NavigationSplitView` have incompatible
+        // navigation hosts. Recreate only that host when Duo changes between
+        // compact and expanded presentation; the route/category state lives
+        // on SettingsView, so the expanded host restores the selected detail
+        // alongside its sidebar instead of retaining the compact full screen.
+        .id(usesCompactSettingsNavigation)
         .toolbarBackground(.hidden, for: .navigationBar)
         .momentsScrollEdgeChrome()
         .toolbar(.hidden, for: .tabBar)
@@ -163,10 +140,6 @@ struct SettingsView: View {
                 .presentationDetents([.medium, .large])
                 .presentationContentInteraction(.scrolls)
                 .presentationDragIndicator(.visible)
-        }
-        .navigationDestination(item: $route) { route in
-            destinationView(for: route)
-                .momentsFloatingTabBarHidden()
         }
         .sheet(isPresented: $isShowingAdvancedAccountManagement) {
             AdvancedAccountManagementView()
@@ -199,7 +172,6 @@ struct SettingsView: View {
                     } else {
                         self.isScheduleEnabled = false
                         self.startTime = Date()
-                        self.startTime = Date()
                         self.endTime = Date()
                     }
                     self.showReadReceipts = user.showReadReceipts
@@ -221,11 +193,246 @@ struct SettingsView: View {
             errorMessage = nil
             dismiss()
         }
+        .onChange(of: route) { _, newRoute in
+            navigationTrace("route changed to \(String(describing: newRoute))")
+            if newRoute == .userActivity {
+                activityCategory = nil
+                preferredCompactColumn = .detail
+            } else if newRoute != nil {
+                preferredCompactColumn = .detail
+            } else {
+                activityCategory = nil
+                preferredCompactColumn = .sidebar
+            }
+        }
+        .onChange(of: activityCategory) { _, newCategory in
+            navigationTrace("activity category changed to \(String(describing: newCategory))")
+            if newCategory != nil {
+                preferredCompactColumn = .detail
+            }
+        }
+        .onChange(of: toolbarVerticalEdge) { _, edge in
+            navigationTrace("toolbar vertical edge changed to \(String(describing: edge))")
+            if edge != nil {
+                columnVisibility = .all
+            }
+        }
+        .onChange(of: horizontalSizeClass) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            navigationTrace("horizontal size class changed to \(String(describing: newValue))")
+            // NavigationSplitView itself animates between its compact and
+            // expanded presentations. Keep the selection intact so it lands
+            // in the detail column when regular width becomes available.
+            columnVisibility = .all
+            preferredCompactColumn = route == nil ? .sidebar : .detail
+        }
         .alert("settings.error.title", isPresented: $showError) {
             Button("settings.ok") { }
         } message: {
             Text(errorMessage ?? NSLocalizedString("settings.error.unknown", comment: "Unknown settings error"))
         }
+    }
+
+    @ViewBuilder
+    private var settingsNavigation: some View {
+        if usesCompactSettingsNavigation {
+            compactSettingsNavigation
+        } else {
+            splitSettingsNavigation
+        }
+    }
+
+    private var compactSettingsNavigation: some View {
+        settingsRootPane
+            .navigationDestination(item: $route) { selectedRoute in
+                if selectedRoute == .userActivity {
+                    UserActivitySidebarView(
+                        selection: activityCategorySelection,
+                        onBack: nil
+                    )
+                    .navigationDestination(item: $activityCategory) { category in
+                        UserActivityDestinationView(category: category)
+                    }
+                } else {
+                    destinationView(for: selectedRoute)
+                }
+            }
+    }
+
+    private var splitSettingsNavigation: some View {
+        NavigationSplitView(
+            columnVisibility: $columnVisibility,
+            preferredCompactColumn: $preferredCompactColumn
+        ) {
+            settingsNavigationPrimary
+        } detail: {
+            NavigationStack {
+                settingsSplitDetail
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .toolbar {
+            if route == .userActivity, activityCategory != nil {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        activityCategory = nil
+                    } label: {
+                        Image(systemName: "chevron.backward")
+                    }
+                    .accessibilityLabel(Text("common.back"))
+                }
+            }
+        }
+        .environment(\.settingsSplitBackAction, {
+            returnFromSettingsDetail()
+        })
+    }
+
+    @ViewBuilder
+    private var settingsNavigationPrimary: some View {
+        if route == .userActivity, activityCategory != nil {
+            UserActivitySidebarView(
+                selection: activityCategorySelection,
+                onBack: returnToSettingsSidebar
+            )
+        } else {
+            settingsRootPane
+        }
+    }
+
+    private var settingsRootPane: some View {
+        ZStack {
+            modernBackgroundView
+
+            if isLoading {
+                modernLoadingView
+            } else {
+                settingsSidebar
+            }
+        }
+        .navigationTitle(NSLocalizedString("settings.title", comment: "Settings"))
+        .navigationBarTitleDisplayMode(.large)
+    }
+
+    private var settingsSidebar: some View {
+        SettingsFormView(
+            viewModel: viewModel,
+            isPrivate: $isPrivate,
+            showFollowing: $showFollowing,
+            showFollowers: $showFollowers,
+            isScheduleEnabled: $isScheduleEnabled,
+            startTime: $startTime,
+            endTime: $endTime,
+            username: $username,
+            email: $email,
+            phoneNumber: $phoneNumber,
+            isShowingPersonalInfo: $isShowingPersonalInfo,
+            isShowingQRCode: $isShowingQRCode,
+            route: settingsRouteSelection,
+            isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement,
+            isShowingNovaMemory: $isShowingNovaMemory,
+            showReadReceipts: $showReadReceipts,
+            blockedAccountsCount: blockedAccountsCount
+        )
+        .frame(maxWidth: 720)
+        .frame(maxWidth: .infinity)
+        .transition(.asymmetric(
+            insertion: .move(edge: .bottom).combined(with: .opacity),
+            removal: .move(edge: .top).combined(with: .opacity)
+        ))
+    }
+
+    @ViewBuilder
+    private var settingsSplitDetail: some View {
+        Group {
+            if route == .userActivity, let activityCategory {
+                UserActivityDestinationView(category: activityCategory)
+                    .environment(\.settingsSidebarBackIsVisible, true)
+            } else if route == .userActivity {
+                UserActivitySidebarView(
+                    selection: activityCategorySelection,
+                    onBack: nil
+                )
+            } else if let route {
+                destinationView(for: route)
+            } else {
+                ContentUnavailableView(
+                    "settings.title",
+                    systemImage: "gearshape",
+                    description: Text("settings.selectSection")
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(modernBackgroundView)
+    }
+
+    private func returnToSettingsSidebar() {
+        navigationTrace("returning to settings root")
+        activityCategory = nil
+        route = nil
+        preferredCompactColumn = .sidebar
+        columnVisibility = .all
+    }
+
+    private var settingsRouteSelection: Binding<SettingsRoute?> {
+        Binding(
+            get: { route },
+            set: { newRoute in
+                navigationTrace("settings row selected: \(String(describing: newRoute))")
+                route = newRoute
+                if newRoute != nil {
+                    preferredCompactColumn = .detail
+                    showDetailInCompactLayout()
+                }
+            }
+        )
+    }
+
+    private var activityCategorySelection: Binding<ActivityInteractionCategory?> {
+        Binding(
+            get: { activityCategory },
+            set: { newCategory in
+                navigationTrace("activity row selected: \(String(describing: newCategory))")
+                activityCategory = newCategory
+                if newCategory != nil {
+                    preferredCompactColumn = .detail
+                    showDetailInCompactLayout()
+                }
+            }
+        )
+    }
+
+    private func showDetailInCompactLayout() {
+        // Compact uses NavigationStack's native push. The split's compact
+        // column preference is only meaningful once regular width is available.
+        guard !usesCompactSettingsNavigation else { return }
+        preferredCompactColumn = .detail
+    }
+
+    private var usesCompactSettingsNavigation: Bool {
+        // `toolbarVerticalEdge` describe dónde coloca iOS el chrome, también
+        // en la pantalla exterior. La jerarquía sigue el trait local: compacto
+        // conserva la navegación de iPhone; regular expande el split.
+        horizontalSizeClass == .compact
+    }
+
+    private func returnFromSettingsDetail() {
+        navigationTrace("back tapped from split detail")
+        if route == .userActivity, activityCategory != nil {
+            activityCategory = nil
+            // En compacto, la vuelta de una categoría debe mostrar el índice de
+            // actividad; en ancho amplio el split recupera Ajustes | actividad.
+            preferredCompactColumn = .detail
+        } else {
+            returnToSettingsSidebar()
+        }
+    }
+
+    private func navigationTrace(_ event: String) {
+        #if DEBUG
+        print("[SettingsNavigation] \(event) | compact=\(usesCompactSettingsNavigation) | horizontalSizeClass=\(String(describing: horizontalSizeClass)) | toolbarVerticalEdge=\(String(describing: toolbarVerticalEdge)) | divisions=\(divisionRegions.count) | route=\(String(describing: route)) | category=\(String(describing: activityCategory))")
+        #endif
     }
 
     @ViewBuilder
@@ -261,7 +468,7 @@ struct SettingsView: View {
         case .savedMoments:
             SavedMomentsView()
         case .userActivity:
-            UserActivityView()
+            EmptyView()
         case .dataExport:
             DataExportView()
         case .moderationReviews:

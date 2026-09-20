@@ -159,8 +159,9 @@ struct StoryDrawingEditorOverlay: View {
                             .momentsChromeGlass(in: Capsule(), style: .tinted)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, topBarTopPadding(safeAreaTop))
+                .frame(width: captureRect.width)
+                .offset(x: captureRect.midX - (proxy.size.width / 2))
+                .padding(.top, captureRect.minY + 8)
             }
             .overlay(alignment: .bottom) {
                 VStack(spacing: 8) {
@@ -214,6 +215,8 @@ struct StoryDrawingEditorOverlay: View {
                     .shadow(color: .black.opacity(colorScheme == .dark ? 0.20 : 0.10), radius: 12, x: 0, y: 6)
                     .padding(.horizontal, 12)
                 }
+                .frame(width: captureRect.width)
+                .offset(x: captureRect.midX - (proxy.size.width / 2))
                 .padding(.bottom, bottomPadding)
             }
         }

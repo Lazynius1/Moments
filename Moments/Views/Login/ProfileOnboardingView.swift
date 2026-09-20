@@ -131,7 +131,21 @@ struct ProfileOnboardingView: View {
                 }
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden()
+        .toolbar(.visible, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(action: primaryNavigationAction) {
+                    Label(
+                        currentStep > 1 ? "register.back" : "register.close",
+                        systemImage: currentStep > 1 ? "chevron.backward" : "xmark"
+                    )
+                }
+                .labelStyle(.iconOnly)
+                .disabled(isCancelling)
+            }
+        }
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .onAppear {
             withAnimation(.easeOut(duration: 0.45)) {
@@ -183,18 +197,8 @@ struct ProfileOnboardingView: View {
 
     private var topBar: some View {
         HStack {
-            Button(action: primaryNavigationAction) {
-                Image(systemName: currentStep > 1 ? "chevron.left" : "xmark")
-                    .font(.system(size: currentStep > 1 ? 17 : 16, weight: .semibold))
-                    .foregroundStyle(AuthColors.primary(colorScheme))
-                    .frame(width: 36, height: 36)
-                    .background {
-                        Color.clear
-                            .momentsChromeGlass(in: Circle(), interactive: true)
-                    }
-            }
-            .accessibilityLabel(Text(currentStep > 1 ? "register.back" : "register.close"))
-            .disabled(isCancelling)
+            Color.clear
+                .frame(width: 36, height: 36)
 
             Spacer()
 

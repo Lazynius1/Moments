@@ -331,13 +331,21 @@ struct StoryViewerScreen: View {
         let revealSticker = storyStickers.first { $0.type == .reveal }
         let resolvedTopInset = max(geometry.safeAreaInsets.top, keyWindowSafeAreaInsets().top)
         let resolvedBottomInset = max(geometry.safeAreaInsets.bottom, keyWindowSafeAreaInsets().bottom)
+        // Respect an asymmetric hardware-side safe area (for example Duo's
+        // vertical status chrome) while keeping the viewer's 9:16 canvas and
+        // all of its overlays in the same local coordinate space.
+        let horizontalSafeInsets = geometry.safeAreaInsets.leading + geometry.safeAreaInsets.trailing
+        let canvasViewportSize = CGSize(
+            width: max(geometry.size.width - horizontalSafeInsets, 1),
+            height: geometry.size.height
+        )
         let baseCaptureRect = creatorMomentsCaptureRect(
-            in: geometry.size,
+            in: canvasViewportSize,
             topInset: resolvedTopInset,
             bottomInset: resolvedBottomInset
         )
         let captureRect = CGRect(
-            x: baseCaptureRect.origin.x,
+            x: baseCaptureRect.origin.x + geometry.safeAreaInsets.leading,
             y: baseCaptureRect.origin.y + resolvedTopInset,
             width: baseCaptureRect.width,
             height: baseCaptureRect.height

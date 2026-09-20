@@ -673,7 +673,7 @@ struct NovaAttachmentPhotoGridSheet: View {
     @State private var showNativePhotoPicker = false
     @StateObject private var photosGate = PermissionPrimerGate(.photos)
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
+    private let columns = [GridItem(.adaptive(minimum: 96, maximum: 160), spacing: 2)]
     private let imageManager = PHImageManager.default()
     private let thumbnailSize = CGSize(width: 300, height: 300)
 

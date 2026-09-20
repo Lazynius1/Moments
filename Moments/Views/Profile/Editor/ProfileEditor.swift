@@ -46,7 +46,7 @@ struct GridPhotoPickerView: View {
     @State private var isLoadingLibrary = true
     @State private var thumbnails: [PHAsset: UIImage] = [:]
     
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
+    private let columns = [GridItem(.adaptive(minimum: 96, maximum: 160), spacing: 2)]
     private let imageManager = PHImageManager.default()
     private let firestoreService = FirestoreService()
     private let storageService = StorageService()

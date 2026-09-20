@@ -29,7 +29,10 @@ struct StoryLiveTextOverlayView: View {
     private var overlayMaxWidth: CGFloat {
         if let maxLayoutWidth { return maxLayoutWidth }
         if animates {
-            return max(containerSize.width - 48, 120)
+            // Match the editor's text container. Using a narrower viewer-only
+            // width reflowed already-published words (for example “muerta”
+            // became “muert a”) even when the canvas itself was unchanged.
+            return StoryTextCanvasPlacement.maxLayoutWidth(in: containerSize.width)
         }
         return max(containerSize.width * (327.0 / 375.0), 1)
     }

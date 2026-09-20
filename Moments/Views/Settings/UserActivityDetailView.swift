@@ -3,8 +3,6 @@ import Kingfisher
 import AVFoundation
 
 struct ActivityInteractionDetailView: View {
-    @Environment(\.momentsViewportSize) private var momentsViewportSize
-
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     let category: ActivityInteractionCategory
@@ -46,6 +44,8 @@ struct ActivityInteractionDetailView: View {
     @State private var recentlyDeletedAutoScrollDirection: RecentlyDeletedAutoScrollDirection?
     @State private var recentlyDeletedAutoScrollTask: Task<Void, Never>?
     @State private var recentlyDeletedDragCurrentId: String?
+    @State private var activityGridSize: CGSize = .zero
+    @State private var activityScrollViewportSize: CGSize = .zero
 
     init(
         category: ActivityInteractionCategory,
@@ -285,7 +285,7 @@ struct ActivityInteractionDetailView: View {
         .momentsFloatingTabBarHidden()
         .toolbar {
             if !suppressInlineNavigationTitle {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .topBarLeading) {
                     SettingsToolbarBackButton(action: { dismiss() })
                 }
             }
@@ -480,6 +480,11 @@ struct ActivityInteractionDetailView: View {
             content: content
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onGeometryChange(for: CGSize.self) { geometry in
+            geometry.size
+        } action: { size in
+            activityScrollViewportSize = size
+        }
     }
 
     private var activityFiltersHeader: some View {
@@ -495,13 +500,13 @@ struct ActivityInteractionDetailView: View {
     }
 
     private var activityGridViewportHeight: CGFloat {
-        momentsViewportSize.height * 0.62
+        activityScrollViewportSize.height
     }
 
     private func activityGridColumnSide() -> CGFloat {
-        let containerWidth = momentsViewportSize.width
+        let containerWidth = activityGridSize.width
         let spacing = activityGridSpacing
-        return floor((containerWidth - spacing * 2) / 3)
+        return max(1, floor((containerWidth - spacing * 2) / 3))
     }
 
     @ViewBuilder
@@ -517,13 +522,16 @@ struct ActivityInteractionDetailView: View {
             VStack(spacing: 0) {
                 LazyVGrid(columns: columns, spacing: spacing) {
                     ForEach(Array(filteredReactionItems.enumerated()), id: \.element.id) { index, item in
-                        ActivityReactionMomentCard(
-                            item: item,
-                            size: side,
-                            isSelectionMode: isSelectionMode,
-                            isSelected: selectedReactionIds.contains(item.id),
-                            overlayBadge: reactionCardOverlayBadge
-                        )
+                        GeometryReader { geometry in
+                            ActivityReactionMomentCard(
+                                item: item,
+                                size: geometry.size.width,
+                                isSelectionMode: isSelectionMode,
+                                isSelected: selectedReactionIds.contains(item.id),
+                                overlayBadge: reactionCardOverlayBadge
+                            )
+                        }
+                        .aspectRatio(1, contentMode: .fit)
                         .contentShape(Rectangle())
                         .modifier(ProfileMomentZoomSourceModifier(
                             namespace: item.moment == nil ? nil : zoomNamespace,
@@ -560,6 +568,11 @@ struct ActivityInteractionDetailView: View {
                             viewModel.loadMoreArchived()
                         }
                     }
+                }
+                .onGeometryChange(for: CGSize.self) { geometry in
+                    geometry.size
+                } action: { size in
+                    activityGridSize = size
                 }
                 .padding(.top, 8)
                 .padding(.bottom, isSelectionMode ? 88 : 12)
@@ -626,6 +639,11 @@ struct ActivityInteractionDetailView: View {
                     }
                 }
             }
+            .onGeometryChange(for: CGSize.self) { geometry in
+                geometry.size
+            } action: { size in
+                activityGridSize = size
+            }
             .padding(.top, 8)
             .padding(.bottom, isSelectionMode ? 88 : 12)
             .modifier(ActivityGridDragSelectionModifier(
@@ -650,7 +668,6 @@ struct ActivityInteractionDetailView: View {
                 .frame(maxWidth: .infinity, minHeight: 420, alignment: .center)
         } else {
             let spacing = activityGridSpacing
-            let columnWidth = activityGridColumnSide()
             let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
             let isReelsCategory = category == .reels
 
@@ -663,22 +680,30 @@ struct ActivityInteractionDetailView: View {
                                 openActivityReels(moment: moment, moments: filteredMoments)
                             }
                     } else {
-                        ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
-                            ModernMomentThumbnail(
-                                moment: moment,
-                                size: columnWidth,
-                                customListNamesById: viewModel.customListNamesById,
-                                zoomNamespace: zoomNamespace,
-                                zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "activity"),
-                                onTap: {
-                                    openActivityMomentZoom(moment: moment)
-                                },
-                                usesDiscreetAudienceIcon: true
-                            )
-                            .frame(width: columnWidth, height: columnWidth)
+                        GeometryReader { geometry in
+                            ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
+                                ModernMomentThumbnail(
+                                    moment: moment,
+                                    size: geometry.size.width,
+                                    customListNamesById: viewModel.customListNamesById,
+                                    zoomNamespace: zoomNamespace,
+                                    zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "activity"),
+                                    onTap: {
+                                        openActivityMomentZoom(moment: moment)
+                                    },
+                                    usesDiscreetAudienceIcon: true
+                                )
+                                .frame(width: geometry.size.width, height: geometry.size.width)
+                            }
                         }
+                        .aspectRatio(1, contentMode: .fit)
                     }
                 }
+            }
+            .onGeometryChange(for: CGSize.self) { geometry in
+                geometry.size
+            } action: { size in
+                activityGridSize = size
             }
             .padding(.top, 8)
             .padding(.bottom, 20)

@@ -4802,3 +4802,11 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "notification.chatSummary.single" = "New message";
 "notification.chatSummary.multiple" = "%@ new messages";
 "notification.group.untitled" = "Group";
+"storyEditor.toolbar.text" = "Text";
+"storyEditor.toolbar.stickers" = "Stickers";
+"storyEditor.toolbar.draw" = "Draw";
+"storyEditor.toolbar.filters" = "Filters";
+"storyEditor.toolbar.mute" = "Mute video";
+"storyEditor.toolbar.unmute" = "Unmute video";
+"storyEditor.toolbar.chain" = "Create chain";
+"storyEditor.toolbar.duration" = "Duration";

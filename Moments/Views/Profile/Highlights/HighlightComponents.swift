@@ -12,7 +12,7 @@ struct HighlightStoryGrid: View {
     let onToggle: (Story) -> Void
     let onStoryAppear: (Story) -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 3)
+    private let columns = [GridItem(.adaptive(minimum: 108, maximum: 168), spacing: 1)]
     private let rowSpacing: CGFloat = 1
 
     var body: some View {
@@ -350,7 +350,7 @@ struct HighlightCoverPickerSheet: View {
     let onSelect: (Story) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 3)
+    private let columns = [GridItem(.adaptive(minimum: 108, maximum: 168), spacing: 1)]
 
     var body: some View {
         NavigationStack {

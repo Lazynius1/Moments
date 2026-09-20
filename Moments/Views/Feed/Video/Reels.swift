@@ -502,23 +502,6 @@ struct ReelVideoView: View {
         2.5
     }
 
-    /// GeometryReader bajo `ignoresSafeArea` suele dar insets = 0; leemos los reales del window.
-    private var keyWindowSafeAreaInsets: UIEdgeInsets {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow }?
-            .safeAreaInsets ?? .zero
-    }
-
-    private var systemSafeTopInset: CGFloat {
-        keyWindowSafeAreaInsets.top
-    }
-
-    private var systemSafeBottomInset: CGFloat {
-        keyWindowSafeAreaInsets.bottom
-    }
-
     @ViewBuilder
     private var reelCommentBar: some View {
         HStack {
@@ -562,8 +545,8 @@ struct ReelVideoView: View {
     var body: some View {
         GeometryReader { geometry in
             // Con ScrollView + ignoresSafeArea, geometry.safeAreaInsets suele ser 0.
-            let safeTop = max(geometry.safeAreaInsets.top, systemSafeTopInset)
-            let bottomInset = max(geometry.safeAreaInsets.bottom, systemSafeBottomInset)
+            let safeTop = geometry.safeAreaInsets.top
+            let bottomInset = geometry.safeAreaInsets.bottom
             // Baja el input hacia el home indicator (sigue usable).
             let chromeBottomPadding = max(2, bottomInset - 12)
             // Caption acaba justo donde empieza la línea de progreso.

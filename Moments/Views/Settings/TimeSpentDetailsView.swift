@@ -59,7 +59,7 @@ struct TimeSpentDetailsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .settingsSubsectionNavigationChrome(colorScheme: colorScheme)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
+            ToolbarItem(placement: .topBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
             }
         }

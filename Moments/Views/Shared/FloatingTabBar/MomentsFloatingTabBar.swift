@@ -258,7 +258,13 @@ private struct MomentsFloatingTabBarChrome: View {
             .frame(
                 width: usesVerticalChrome ? MomentsFloatingTabBarMetrics.barThickness : nil,
                 height: usesVerticalChrome
-                    ? MomentsFloatingTabBarMetrics.verticalStackHeight
+                    ? min(
+                        MomentsFloatingTabBarMetrics.verticalStackHeight,
+                        max(
+                            MomentsFloatingTabBarMetrics.barThickness,
+                            momentsViewportSize.height - (MomentsFloatingTabBarMetrics.physicalEdgeInset * 2)
+                        )
+                    )
                     : MomentsFloatingTabBarMetrics.barThickness
             )
             .padding(MomentsFloatingTabBarMetrics.chromePadding)
@@ -385,7 +391,7 @@ private struct MomentsFloatingTabBarChrome: View {
         guard let division = activeVerticalDivision else { return nil }
         let leadingWidth = max(0, division.minX)
         let trailingWidth = max(0, momentsViewportSize.width - division.maxX)
-        return max(leadingWidth, trailingWidth) - 20
+        return max(0, max(leadingWidth, trailingWidth) - 20)
     }
 
     private var foldSafeBarAlignment: Alignment {
