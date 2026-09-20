@@ -971,6 +971,7 @@ private struct EchoDeckCarousel: View {
                         .scrollTargetLayout()
                     }
                     .scrollTargetBehavior(.paging)
+                    .scrollDisabled(true)
                     .scrollPosition(id: $scrollPosition)
                     .onAppear { scrollPosition = currentIndex }
                     .onChange(of: currentIndex) { _, newValue in

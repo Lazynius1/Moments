@@ -2693,9 +2693,9 @@
 "banner.verb.story" = "回應了你的限時動態";
 "banner.verb.message" = "傳送訊息給你";
 /* Whats New v2.16 */
-"whatsNew.title" = "Moments 推出新功能！";
-"whatsNew.subtitle" = "現在可以在聊天室回覆，分享卡片更豐富，訊息邀請煥然一新，還有重新設計的發佈介面。";
-"whatsNew.button" = "探索 Moments 2.22";
+"whatsNew.title" = "Moments 新功能！";
+"whatsNew.subtitle" = "Groups at last — plus a more personal For You, a sharper chat, and polished Echoes & Stories.";
+"whatsNew.button" = "探索 Moments 2.30";
 /* Best Friends */
 "bestFriends.title" = "摯友";
 "bestFriends.empty.title" = "尚無摯友";
@@ -4276,7 +4276,7 @@
 "whatsNew.viewOnce.description" = "單次查看的照片現在會正確標記為已查看，讓媒體內容能正常開啟。";
 "whatsNew.note.android.title" = "Moments 登上 Android！";
 "whatsNew.note.android.description" = "經過一段充實的開發歷程後，現在也能在 Google Play 下載這款 App 了。\n\n身邊有使用 Android 的朋友或家人嗎？現在可以告訴他們：終於可以加入 Moments 了。請他們在 Google Play 搜尋這款 App，馬上加入吧！\n\n回到 iOS：這次跨平台的任務完成了，但我還是會在這裡全力以赴（其實也從未離開）。讓我們一起打造 Moments！🚀";
-"whatsNew.note.closing" = "謝謝你一路相伴！⚡🤖";
+"whatsNew.note.closing" = "Thanks for coming along on this journey! ⚡🤖";
 "messageRequests.folder.picker" = "資料夾";
 "messageRequests.folder.requests" = "請求";
 "messageRequests.folder.old" = "舊的";
@@ -4580,3 +4580,24 @@
 "notification.chatSummary.single" = "新訊息";
 "notification.chatSummary.multiple" = "%@ 則新訊息";
 "notification.group.untitled" = "群組";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "群組";
+"whatsNew.groups.description" = "Group chats in the same inbox, with photo, invites, admin roles, and mute.";
+"whatsNew.forYou.title" = "For You & Explore";
+"whatsNew.forYou.description" = "Ranked by affinity and interests, with Not interested, global search, and a cleaner Explore.";
+"whatsNew.chat230.title" = "Smarter chat";
+"whatsNew.chat230.description" = "Draft previews, automatic media cache, and a cue to translate messages that aren’t in your app language.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
+"whatsNew.stories230.title" = "Stories";
+"whatsNew.stories230.description" = "Alignment guides, a steadier text editor, long-press previews that don’t mark as seen, and group story rings.";
+"whatsNew.create230.title" = "Create Moments";
+"whatsNew.create230.description" = "Refined aspect ratios — more stable and more consistent across platforms.";
+"whatsNew.feedReels.title" = "Feed & Reels";
+"whatsNew.feedReels.description" = "Tap a feed video into Reels, Watch again to replay, and a steadier feed while you scroll.";
+"whatsNew.profile230.title" = "Profile & notifications";
+"whatsNew.profile230.description" = "More reliable followers, following, visits, and mutuals — plus profile previews anchored to where you came from.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
+"whatsNew.offline230.title" = "Offline & polish";
+"whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";

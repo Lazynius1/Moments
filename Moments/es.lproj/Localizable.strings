@@ -2861,9 +2861,8 @@
 /* Whats New v2.14 */
 /* Whats New v2.16 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Responder en el chat, compartir con fichas enriquecidas, solicitudes renovadas y compositor nuevo.";
-"whatsNew.button" = "Explorar Moments 2.22";
-
+"whatsNew.subtitle" = "Por fin grupos — y un Para Ti más personal, un chat más cuidado y Echoes e historias más pulidos.";
+"whatsNew.button" = "Explorar Moments 2.30";
 /* Best Friends */
 "bestFriends.title" = "Mejores Amigos";
 "bestFriends.empty.title" = "Sin mejores amigos";
@@ -4643,8 +4642,7 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "whatsNew.viewOnce.description" = "Las fotos de un solo visionado marcan visto correctamente para consumir la media.";
 "whatsNew.note.android.title" = "¡Moments ya está en Android!";
 "whatsNew.note.android.description" = "Tras un buen tiempo en el taller, la app ya está disponible también en Google Play.\n\n¿Tienes amigos o familiares con Android? Ya puedes avisarles: por fin pueden unirse a Moments. ¡Diles que busquen la app en Google Play y que se sumen!\n\nDe vuelta en iOS: con el salto completado, sigo dándole caña por aquí (aunque en realidad nunca me fui). ¡Construyamos Moments juntos! 🚀";
-"whatsNew.note.closing" = "¡Gracias por seguir con nosotros en este camino! ⚡🤖";
-
+"whatsNew.note.closing" = "¡Gracias por venir en este viaje! ⚡🤖";
 // Caption translation
 "caption.translatePost" = "Traducir este post";
 "caption.translating" = "Traduciendo…";
@@ -4823,3 +4821,24 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "notification.chatSummary.single" = "Nuevo mensaje";
 "notification.chatSummary.multiple" = "%@ mensajes nuevos";
 "notification.group.untitled" = "Grupo";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "Grupos";
+"whatsNew.groups.description" = "Chats de grupo en el mismo inbox, con foto, invitaciones, roles de administración y mute.";
+"whatsNew.forYou.title" = "Para Ti y Explorar";
+"whatsNew.forYou.description" = "Ordenado por afinidad e intereses, con «No me interesa», búsqueda global y un Explorar más limpio.";
+"whatsNew.chat230.title" = "Chat más listo";
+"whatsNew.chat230.description" = "Vista previa de borradores, caché automática de medios y una señal para traducir mensajes que no están en el idioma de tu app.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "Visor más limpio, un cartel claro cuando un Echo no está disponible y traducción de la descripción.";
+"whatsNew.stories230.title" = "Historias";
+"whatsNew.stories230.description" = "Guías de alineación, editor de texto más estable, preview con pulsación larga (sin marcar vista) y anillos de historias de grupo.";
+"whatsNew.create230.title" = "Crear momentos";
+"whatsNew.create230.description" = "Relaciones de aspecto afinadas: más estables y más compatibles entre plataformas.";
+"whatsNew.feedReels.title" = "Feed y Reels";
+"whatsNew.feedReels.description" = "Un toque lleva el vídeo del feed a Reels, «Ver de nuevo» para repetirlo y un feed más estable al desplazarte.";
+"whatsNew.profile230.title" = "Perfil y notificaciones";
+"whatsNew.profile230.description" = "Seguidores, siguiendo, visitas y mutuas más fiables, y vista previa del perfil anclada a desde dónde llegaste.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Chispa diaria, aspecto renovado, y adjuntar una foto ya no publica un Momento por accidente.";
+"whatsNew.offline230.title" = "Offline y pulido";
+"whatsNew.offline230.description" = "Mejor comportamiento sin conexión, estados de relación más estables y textos pulidos en todos los idiomas.";

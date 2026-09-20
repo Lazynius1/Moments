@@ -1628,6 +1628,7 @@ class ArchiveViewModel: ObservableObject {
 
     func loadAllArchivedStories() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard !isFillingAll else { return }
         isFillingAll = true
         loadTask = Task { @MainActor [weak self] in
             guard let self else { return }

@@ -5,67 +5,57 @@ struct WhatsNewView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var appearAnimation = false
 
-    private var features222: [WhatsNewFeature] {
+    private var features230: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: .system("arrowshape.turn.up.left"),
-                title: NSLocalizedString("whatsNew.replyInChat.title", comment: ""),
-                description: NSLocalizedString("whatsNew.replyInChat.description", comment: "")
+                icon: .attachment(.groups),
+                title: NSLocalizedString("whatsNew.groups.title", comment: ""),
+                description: NSLocalizedString("whatsNew.groups.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("photo.on.rectangle.angled"),
-                title: NSLocalizedString("whatsNew.quotePreviews.title", comment: ""),
-                description: NSLocalizedString("whatsNew.quotePreviews.description", comment: "")
+                icon: .system("sparkles"),
+                title: NSLocalizedString("whatsNew.forYou.title", comment: ""),
+                description: NSLocalizedString("whatsNew.forYou.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("clock"),
-                title: NSLocalizedString("whatsNew.chatTimestamps.title", comment: ""),
-                description: NSLocalizedString("whatsNew.chatTimestamps.description", comment: "")
+                icon: .system("bubble.left.and.bubble.right"),
+                title: NSLocalizedString("whatsNew.chat230.title", comment: ""),
+                description: NSLocalizedString("whatsNew.chat230.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("mic.fill"),
-                title: NSLocalizedString("whatsNew.composerVoice.title", comment: ""),
-                description: NSLocalizedString("whatsNew.composerVoice.description", comment: "")
+                icon: .system("waveform"),
+                title: NSLocalizedString("whatsNew.echoes.title", comment: ""),
+                description: NSLocalizedString("whatsNew.echoes.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("bell.badge"),
-                title: NSLocalizedString("whatsNew.notificationsAndMentions.title", comment: ""),
-                description: NSLocalizedString("whatsNew.notificationsAndMentions.description", comment: "")
+                icon: .personalAndGroupStoryRings,
+                title: NSLocalizedString("whatsNew.stories230.title", comment: ""),
+                description: NSLocalizedString("whatsNew.stories230.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("tray.full"),
-                title: NSLocalizedString("whatsNew.messageRequestThreads.title", comment: ""),
-                description: NSLocalizedString("whatsNew.messageRequestThreads.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("square.and.arrow.up"),
-                title: NSLocalizedString("whatsNew.shareInChat.title", comment: ""),
-                description: NSLocalizedString("whatsNew.shareInChat.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("checkmark.circle"),
-                title: NSLocalizedString("whatsNew.shareConfirmation.title", comment: ""),
-                description: NSLocalizedString("whatsNew.shareConfirmation.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("textformat"),
-                title: NSLocalizedString("whatsNew.richChat.title", comment: ""),
-                description: NSLocalizedString("whatsNew.richChat.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("text.alignleft"),
-                title: NSLocalizedString("whatsNew.feedCaptions.title", comment: ""),
-                description: NSLocalizedString("whatsNew.feedCaptions.description", comment: "")
+                icon: .system("crop"),
+                title: NSLocalizedString("whatsNew.create230.title", comment: ""),
+                description: NSLocalizedString("whatsNew.create230.description", comment: "")
             ),
             WhatsNewFeature(
                 icon: .system("play.rectangle.on.rectangle"),
-                title: NSLocalizedString("whatsNew.reelComments.title", comment: ""),
-                description: NSLocalizedString("whatsNew.reelComments.description", comment: "")
+                title: NSLocalizedString("whatsNew.feedReels.title", comment: ""),
+                description: NSLocalizedString("whatsNew.feedReels.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("character.bubble"),
-                title: NSLocalizedString("whatsNew.morePersonal.title", comment: ""),
-                description: NSLocalizedString("whatsNew.morePersonal.description", comment: "")
+                icon: .system("person.crop.circle"),
+                title: NSLocalizedString("whatsNew.profile230.title", comment: ""),
+                description: NSLocalizedString("whatsNew.profile230.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("sparkle"),
+                title: NSLocalizedString("whatsNew.nova230.title", comment: ""),
+                description: NSLocalizedString("whatsNew.nova230.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("icloud.slash"),
+                title: NSLocalizedString("whatsNew.offline230.title", comment: ""),
+                description: NSLocalizedString("whatsNew.offline230.description", comment: "")
             ),
         ]
     }
@@ -73,68 +63,54 @@ struct WhatsNewView: View {
     private var sections: [WhatsNewSection] {
         [
             WhatsNewSection(
-                title: NSLocalizedString("whatsNew.section222.title", comment: ""),
-                features: features222
+                title: NSLocalizedString("whatsNew.section230.title", comment: ""),
+                features: features230
             ),
         ]
     }
 
-    /// Aviso del desarrollador: no son funciones nuevas, así que va en su propio
-    /// bloque separado de la lista para que se lea como lo que es.
-    private var developerNote: [WhatsNewFeature] {
-        [
-            WhatsNewFeature(
-                icon: .system("iphone.and.arrow.forward"),
-                title: NSLocalizedString("whatsNew.note.android.title", comment: ""),
-                description: NSLocalizedString("whatsNew.note.android.description", comment: "")
-            )
-        ]
-    }
-
     var body: some View {
-        ScreenshotProtectedView(isProtected: true) {
-            ZStack {
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        header
-                            .padding(.top, 22)
+        ZStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    header
+                        .padding(.top, 22)
 
-                        VStack(spacing: 18) {
-                            ForEach(Array(sections.enumerated()), id: \.offset) { sectionIndex, section in
-                                VStack(alignment: .leading, spacing: 10) {
-                                    if !section.title.isEmpty {
-                                        Text(section.title)
-                                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                                            .foregroundStyle(.secondary)
-                                            .textCase(.uppercase)
-                                            .tracking(0.6)
-                                            .padding(.horizontal, 4)
-                                            .padding(.top, sectionIndex == 0 ? 0 : 4)
-                                    }
+                    VStack(spacing: 18) {
+                        ForEach(Array(sections.enumerated()), id: \.offset) { sectionIndex, section in
+                            VStack(alignment: .leading, spacing: 10) {
+                                if !section.title.isEmpty {
+                                    Text(section.title)
+                                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                        .textCase(.uppercase)
+                                        .tracking(0.6)
+                                        .padding(.horizontal, 4)
+                                        .padding(.top, sectionIndex == 0 ? 0 : 4)
+                                }
 
-                                    ForEach(Array(section.features.enumerated()), id: \.offset) { featureIndex, feature in
-                                        let rowIndex = sections.prefix(sectionIndex).reduce(0) { $0 + $1.features.count } + featureIndex
-                                        WhatsNewFeatureRow(feature: feature, delay: Double(rowIndex) * 0.04)
-                                    }
+                                ForEach(Array(section.features.enumerated()), id: \.offset) { featureIndex, feature in
+                                    let rowIndex = sections.prefix(sectionIndex).reduce(0) { $0 + $1.features.count } + featureIndex
+                                    WhatsNewFeatureRow(feature: feature, delay: Double(rowIndex) * 0.04)
                                 }
                             }
                         }
-
-                        noteSection
-                            .padding(.top, 10)
-
-                        footerButton
-                            .padding(.top, 6)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 28)
+
+                    footerNote
+                        .padding(.top, 10)
+
+                    footerButton
+                        .padding(.top, 6)
                 }
-                .scrollContentBackground(.hidden)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 28)
             }
-            .onAppear {
-                withAnimation(.spring(response: 0.75, dampingFraction: 0.82)) {
-                    appearAnimation = true
-                }
+            .scrollContentBackground(.hidden)
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.75, dampingFraction: 0.82)) {
+                appearAnimation = true
             }
         }
     }
@@ -167,29 +143,14 @@ struct WhatsNewView: View {
         .opacity(appearAnimation ? 1 : 0)
     }
 
-    private var noteSection: some View {
-        VStack(spacing: 12) {
-            Divider()
-                .opacity(0.4)
-                .padding(.horizontal, 4)
-
-            VStack(spacing: 10) {
-                ForEach(Array(developerNote.enumerated()), id: \.offset) { index, item in
-                    WhatsNewFeatureRow(
-                        feature: item,
-                        delay: Double(sections.reduce(0) { $0 + $1.features.count } + index) * 0.04
-                    )
-                }
-            }
-
-            Text(NSLocalizedString("whatsNew.note.closing", comment: ""))
-                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 8)
-                .padding(.top, 2)
-        }
+    private var footerNote: some View {
+        Text(NSLocalizedString("whatsNew.note.closing", comment: ""))
+            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 8)
+            .padding(.top, 2)
     }
 
     private var footerButton: some View {
@@ -229,7 +190,7 @@ private enum WhatsNewFeatureIcon {
     case system(String)
     case asset(String)
     case attachment(AttachmentIcon)
-    case storyRing
+    case personalAndGroupStoryRings
 }
 
 private struct WhatsNewFeatureRow: View {
@@ -281,20 +242,8 @@ private struct WhatsNewFeatureRow: View {
                     .frame(width: 24, height: 24)
             case .attachment(let icon):
                 AttachmentIconView(icon: icon, preset: .whatsNew, tintColor: .primary)
-            case .storyRing:
-                StorySegmentedRing(
-                    storyCount: 3,
-                    hasStory: true,
-                    hasUnseenStory: true,
-                    storyViewedStatus: [false, false, false],
-                    storyAudiences: [nil, nil, nil],
-                    isOwnStory: false,
-                    colorScheme: colorScheme,
-                    ringSize: 26,
-                    lineWidth: 2.4,
-                    hapticsEnabled: false
-                )
-                .frame(width: 26, height: 26)
+            case .personalAndGroupStoryRings:
+                WhatsNewDualStoryRingsIcon(colorScheme: colorScheme)
             }
         }
         .foregroundStyle(.primary)
@@ -303,6 +252,73 @@ private struct WhatsNewFeatureRow: View {
             Color.clear
                 .momentsChromeGlass(in: Circle())
         }
+    }
+}
+
+/// Anillo personal (atrás, 3 audiencias) + grupo delante (1 corte con shift), cutout `reversedMask`.
+private struct WhatsNewDualStoryRingsIcon: View {
+    let colorScheme: ColorScheme
+
+    private let ringSize: CGFloat = 18
+    private let lineWidth: CGFloat = 2.0
+    private let overlap: CGFloat = 6.5
+
+    /// Los 3 colores de audiencia: everyone / best friends / mutuals.
+    private let demoAudiences: [String?] = [nil, "bestfriends", "mutuals"]
+
+    var body: some View {
+        HStack(spacing: -overlap) {
+            personalRing
+                .reversedMask(alignment: .center) {
+                    Circle()
+                        .frame(width: ringSize + 3, height: ringSize + 3)
+                        .offset(x: ringSize - overlap)
+                }
+                .zIndex(0)
+
+            groupRing
+                .zIndex(1)
+        }
+        .frame(width: ringSize * 2 - overlap, height: ringSize)
+    }
+
+    private var personalRing: some View {
+        StorySegmentedRing(
+            storyCount: 3,
+            hasStory: true,
+            hasUnseenStory: true,
+            storyViewedStatus: [false, false, false],
+            storyAudiences: demoAudiences,
+            isOwnStory: false,
+            colorScheme: colorScheme,
+            ringSize: ringSize,
+            lineWidth: lineWidth,
+            hapticsEnabled: false
+        )
+        .frame(width: ringSize, height: ringSize)
+    }
+
+    private var groupRing: some View {
+        ZStack {
+            // 1 corte: el anillo completo hace el shift de las 3 audiencias.
+            StorySegmentedRing(
+                storyCount: 1,
+                hasStory: true,
+                hasUnseenStory: true,
+                storyViewedStatus: [false],
+                storyAudiences: [nil],
+                nestedStoryAudiences: [demoAudiences],
+                isOwnStory: false,
+                colorScheme: colorScheme,
+                ringSize: ringSize,
+                lineWidth: lineWidth,
+                hapticsEnabled: false
+            )
+            .mask(StoryRingLayout.ringGapMask(avatarSize: ringSize - lineWidth * 2))
+
+            GroupChatAvatar(name: "G", image: "", size: ringSize - lineWidth * 2 - 1)
+        }
+        .frame(width: ringSize, height: ringSize)
     }
 }
 

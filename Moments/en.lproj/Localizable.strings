@@ -2837,9 +2837,8 @@
 
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Reply in chat, richer share cards, renewed message requests, and a redesigned composer.";
-"whatsNew.button" = "Explore Moments 2.22";
-
+"whatsNew.subtitle" = "Groups at last — plus a more personal For You, a sharper chat, and polished Echoes & Stories.";
+"whatsNew.button" = "Explore Moments 2.30";
 /* Best Friends */
 "bestFriends.title" = "Best Friends";
 "bestFriends.empty.title" = "No best friends";
@@ -4802,3 +4801,24 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "notification.chatSummary.single" = "New message";
 "notification.chatSummary.multiple" = "%@ new messages";
 "notification.group.untitled" = "Group";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "Groups";
+"whatsNew.groups.description" = "Group chats in the same inbox, with photo, invites, admin roles, and mute.";
+"whatsNew.forYou.title" = "For You & Explore";
+"whatsNew.forYou.description" = "Ranked by affinity and interests, with Not interested, global search, and a cleaner Explore.";
+"whatsNew.chat230.title" = "Smarter chat";
+"whatsNew.chat230.description" = "Draft previews, automatic media cache, and a cue to translate messages that aren’t in your app language.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
+"whatsNew.stories230.title" = "Stories";
+"whatsNew.stories230.description" = "Alignment guides, a steadier text editor, long-press previews that don’t mark as seen, and group story rings.";
+"whatsNew.create230.title" = "Create Moments";
+"whatsNew.create230.description" = "Refined aspect ratios — more stable and more consistent across platforms.";
+"whatsNew.feedReels.title" = "Feed & Reels";
+"whatsNew.feedReels.description" = "Tap a feed video into Reels, Watch again to replay, and a steadier feed while you scroll.";
+"whatsNew.profile230.title" = "Profile & notifications";
+"whatsNew.profile230.description" = "More reliable followers, following, visits, and mutuals — plus profile previews anchored to where you came from.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
+"whatsNew.offline230.title" = "Offline & polish";
+"whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";

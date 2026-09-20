@@ -2693,9 +2693,9 @@
 "banner.verb.story" = "あなたのストーリーズにリアクションしました";
 "banner.verb.message" = "あなたにメッセージを送信しました";
 /* Whats New v2.16 */
-"whatsNew.title" = "Momentsの新機能！";
-"whatsNew.subtitle" = "チャットでの返信、より充実したシェアカード、新しくなったメッセージリクエスト、デザインを一新した投稿作成画面をお楽しみいただけます。";
-"whatsNew.button" = "Moments 2.22をチェック";
+"whatsNew.title" = "Momentsの新着！";
+"whatsNew.subtitle" = "Groups at last — plus a more personal For You, a sharper chat, and polished Echoes & Stories.";
+"whatsNew.button" = "Moments 2.30を見る";
 /* Best Friends */
 "bestFriends.title" = "親しい友達";
 "bestFriends.empty.title" = "親しい友達はいません";
@@ -4276,7 +4276,7 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "whatsNew.viewOnce.description" = "一度だけ表示する写真が正しく閲覧済みとして記録され、メディアを開けるようになりました。";
 "whatsNew.note.android.title" = "MomentsがAndroidに登場！";
 "whatsNew.note.android.description" = "開発を重ねてきたMomentsが、Google Playにも登場しました。\n\nAndroidを使っている友だちや家族がいますか？　ぜひ教えてあげてください。ついにMomentsに参加できます。Google Playでアプリを検索して、今すぐ始めてもらいましょう！\n\niOSのみなさんへ。Android対応を実現しましたが、こちらでもこれまでどおり全力で開発を続けています（離れていたわけではありません）。一緒にMomentsを作っていきましょう！ 🚀";
-"whatsNew.note.closing" = "この旅に参加してくれてありがとう！ ⚡🤖";
+"whatsNew.note.closing" = "Thanks for coming along on this journey! ⚡🤖";
 "messageRequests.folder.picker" = "フォルダ";
 "messageRequests.folder.requests" = "リクエスト";
 "messageRequests.folder.old" = "過去";
@@ -4580,3 +4580,24 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "notification.chatSummary.single" = "新しいメッセージ";
 "notification.chatSummary.multiple" = "新しいメッセージ%@件";
 "notification.group.untitled" = "グループ";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "グループ";
+"whatsNew.groups.description" = "Group chats in the same inbox, with photo, invites, admin roles, and mute.";
+"whatsNew.forYou.title" = "For You & Explore";
+"whatsNew.forYou.description" = "Ranked by affinity and interests, with Not interested, global search, and a cleaner Explore.";
+"whatsNew.chat230.title" = "Smarter chat";
+"whatsNew.chat230.description" = "Draft previews, automatic media cache, and a cue to translate messages that aren’t in your app language.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
+"whatsNew.stories230.title" = "Stories";
+"whatsNew.stories230.description" = "Alignment guides, a steadier text editor, long-press previews that don’t mark as seen, and group story rings.";
+"whatsNew.create230.title" = "Create Moments";
+"whatsNew.create230.description" = "Refined aspect ratios — more stable and more consistent across platforms.";
+"whatsNew.feedReels.title" = "Feed & Reels";
+"whatsNew.feedReels.description" = "Tap a feed video into Reels, Watch again to replay, and a steadier feed while you scroll.";
+"whatsNew.profile230.title" = "Profile & notifications";
+"whatsNew.profile230.description" = "More reliable followers, following, visits, and mutuals — plus profile previews anchored to where you came from.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
+"whatsNew.offline230.title" = "Offline & polish";
+"whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";

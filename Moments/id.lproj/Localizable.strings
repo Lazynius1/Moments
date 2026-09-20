@@ -2693,9 +2693,9 @@
 "banner.verb.story" = "bereaksi terhadap story Anda";
 "banner.verb.message" = "mengirimi Anda pesan";
 /* Whats New v2.16 */
-"whatsNew.title" = "Yang baru di Moments!";
-"whatsNew.subtitle" = "Balas di chat, nikmati kartu berbagi yang lebih menarik, permintaan pesan yang diperbarui, dan composer dengan desain baru.";
-"whatsNew.button" = "Jelajahi Moments 2.22";
+"whatsNew.title" = "Baru di Moments!";
+"whatsNew.subtitle" = "Groups at last — plus a more personal For You, a sharper chat, and polished Echoes & Stories.";
+"whatsNew.button" = "Jelajahi Moments 2.30";
 /* Best Friends */
 "bestFriends.title" = "Teman Dekat";
 "bestFriends.empty.title" = "Belum ada Teman Dekat";
@@ -4276,7 +4276,7 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "whatsNew.viewOnce.description" = "Foto sekali lihat kini ditandai sebagai sudah dilihat dengan benar, sehingga media bisa dibuka.";
 "whatsNew.note.android.title" = "Moments hadir di Android!";
 "whatsNew.note.android.description" = "Setelah cukup lama dikembangkan, aplikasi ini sekarang juga tersedia di Google Play.\n\nPunya teman atau keluarga yang memakai Android? Beri tahu mereka sekarang: akhirnya mereka bisa bergabung di Moments. Minta mereka mencari aplikasinya di Google Play dan langsung bergabung!\n\nKembali ke iOS: setelah lompatan ini selesai, aku tetap akan terus tancap gas di sini (meski sebenarnya tidak pernah benar-benar pergi). Mari kita bangun Moments bersama! 🚀";
-"whatsNew.note.closing" = "Terima kasih sudah ikut dalam perjalanan ini! ⚡🤖";
+"whatsNew.note.closing" = "Thanks for coming along on this journey! ⚡🤖";
 "messageRequests.folder.picker" = "Folder";
 "messageRequests.folder.requests" = "Permintaan";
 "messageRequests.folder.old" = "Lama";
@@ -4580,3 +4580,24 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "notification.chatSummary.single" = "Pesan baru";
 "notification.chatSummary.multiple" = "%@ pesan baru";
 "notification.group.untitled" = "Grup";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "Grup";
+"whatsNew.groups.description" = "Group chats in the same inbox, with photo, invites, admin roles, and mute.";
+"whatsNew.forYou.title" = "For You & Explore";
+"whatsNew.forYou.description" = "Ranked by affinity and interests, with Not interested, global search, and a cleaner Explore.";
+"whatsNew.chat230.title" = "Smarter chat";
+"whatsNew.chat230.description" = "Draft previews, automatic media cache, and a cue to translate messages that aren’t in your app language.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
+"whatsNew.stories230.title" = "Stories";
+"whatsNew.stories230.description" = "Alignment guides, a steadier text editor, long-press previews that don’t mark as seen, and group story rings.";
+"whatsNew.create230.title" = "Create Moments";
+"whatsNew.create230.description" = "Refined aspect ratios — more stable and more consistent across platforms.";
+"whatsNew.feedReels.title" = "Feed & Reels";
+"whatsNew.feedReels.description" = "Tap a feed video into Reels, Watch again to replay, and a steadier feed while you scroll.";
+"whatsNew.profile230.title" = "Profile & notifications";
+"whatsNew.profile230.description" = "More reliable followers, following, visits, and mutuals — plus profile previews anchored to where you came from.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
+"whatsNew.offline230.title" = "Offline & polish";
+"whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";

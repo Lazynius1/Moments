@@ -2847,10 +2847,9 @@
 "notifications.empty.mentions" = "Sense mencions encara";
 
 /* Whats New v2.14 */
-"whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Respondre al xat, compartir amb fitxes enriquides, sol·licituds renovades i compositor nou.";
-"whatsNew.button" = "Explorar Moments 2.22";
-
+"whatsNew.title" = "Novetats de Moments!";
+"whatsNew.subtitle" = "Per fi grups — i un Per a Tu més personal, un xat més cuidat i Echoes i històries més polits.";
+"whatsNew.button" = "Explora Moments 2.30";
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";
 "bestFriends.empty.title" = "Sense millors amics";
@@ -4525,7 +4524,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "whatsNew.viewOnce.description" = "Les fotos d'un sol visionat marquen vist correctament per consumir la media.";
 "whatsNew.note.android.title" = "Moments ja és a Android!";
 "whatsNew.note.android.description" = "Després d'un bon temps al taller, l'app ja està disponible també a Google Play.\n\nTens amics o familiars amb Android? Ja els pots avisar: per fi es poden unir a Moments. Digues-los que busquin l'app a Google Play i que s'hi sumin!\n\nDe tornada a iOS: amb el salt completat, segueixo a tope per aquí (encara que en realitat no em vaig moure). Construïm Moments junts! 🚀";
-"whatsNew.note.closing" = "Gràcies per continuar amb nosaltres en aquest camí! ⚡🤖";
+"whatsNew.note.closing" = "Gràcies per venir en aquest viatge! ⚡🤖";
 "messageRequests.folder.picker" = "Carpeta";
 "messageRequests.folder.requests" = "Sol·licituds";
 "messageRequests.folder.old" = "Antigues";
@@ -4829,3 +4828,24 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "notification.chatSummary.single" = "Missatge nou";
 "notification.chatSummary.multiple" = "%@ missatges nous";
 "notification.group.untitled" = "Grup";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "Grups";
+"whatsNew.groups.description" = "Xats de grup al mateix inbox, amb foto, invitacions, rols d'administració i mute.";
+"whatsNew.forYou.title" = "Per a Tu i Explorar";
+"whatsNew.forYou.description" = "Ordenat per afinitat i interessos, amb «No m'interessa», cerca global i un Explorar més net.";
+"whatsNew.chat230.title" = "Xat més llest";
+"whatsNew.chat230.description" = "Vista prèvia d'esborranys, memòria cau automàtica de mitjans i un senyal per traduir missatges que no estan en l'idioma de la teva app.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "Visor més net, un cartell clar quan un Echo no està disponible i traducció de la descripció.";
+"whatsNew.stories230.title" = "Històries";
+"whatsNew.stories230.description" = "Guies d'alineació, editor de text més estable, preview amb pulsació llarga (sense marcar vista) i anells d'històries de grup.";
+"whatsNew.create230.title" = "Crear moments";
+"whatsNew.create230.description" = "Relacions d'aspecte afinades: més estables i més compatibles entre plataformes.";
+"whatsNew.feedReels.title" = "Feed i Reels";
+"whatsNew.feedReels.description" = "Un toc porta el vídeo del feed a Reels, «Veure de nou» per repetir-lo i un feed més estable en desplaçar-te.";
+"whatsNew.profile230.title" = "Perfil i notificacions";
+"whatsNew.profile230.description" = "Seguidors, seguint, visites i mútues més fiables, i vista prèvia del perfil ancorada a des d'on hi has arribat.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Espurna diària, aspecte renovat, i adjuntar una foto ja no publica un Moment per accident.";
+"whatsNew.offline230.title" = "Offline i polit";
+"whatsNew.offline230.description" = "Millor comportament sense connexió, estats de relació més estables i textos polits en tots els idiomes.";
