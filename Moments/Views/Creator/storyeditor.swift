@@ -55,6 +55,11 @@ struct StoryEditingView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
     @Environment(\.momentsDivisionRegions) private var divisionRegions
+
+    /// Solo Duo (barra vertical / divisiones). En iPhone: chrome como Moments main.
+    private var adaptsForDuoChrome: Bool {
+        toolbarVerticalEdge != nil || !divisionRegions.isEmpty
+    }
     @State private var showingAudienceSelector = false
     @State private var selectedTextStyle: TextStyle = .modern
     @State private var selectedTextStroke: TextStroke = .none
@@ -158,11 +163,13 @@ struct StoryEditingView: View {
             GeometryReader { proxy in
                 let windowInsets = keyWindowSafeAreaInsets()
                 let viewportSize = stableViewportSize(for: proxy)
-                // On a vertical system bar, SwiftUI reports the hardware-side
-                // reservation in the local safe-area inset. Keep the media
-                // entirely in the remaining content rect instead of centering
-                // it beneath the bar.
-                let horizontalSafeInsets = proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing
+                // Solo en Duo (barra vertical / divisiones): restar el inset
+                // horizontal del hardware. En iPhone normal el canvas sigue
+                // siendo el viewport completo, como antes.
+                let adaptsForDuoChrome = self.adaptsForDuoChrome
+                let horizontalSafeInsets = adaptsForDuoChrome
+                    ? (proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing)
+                    : 0
                 let canvasViewportSize = CGSize(
                     width: max(viewportSize.width - horizontalSafeInsets, 1),
                     height: viewportSize.height
@@ -172,7 +179,7 @@ struct StoryEditingView: View {
                     topInset: windowInsets.top,
                     bottomInset: windowInsets.bottom
                 )
-                .offsetBy(dx: proxy.safeAreaInsets.leading, dy: 0)
+                .offsetBy(dx: adaptsForDuoChrome ? proxy.safeAreaInsets.leading : 0, dy: 0)
                 let mediaCanvasSize = mediaCanvasRect.size
                 let sideRailCenterX = mediaCanvasRect.maxX
                     + max((viewportSize.width - mediaCanvasRect.maxX) / 2, 0)
@@ -257,28 +264,32 @@ struct StoryEditingView: View {
                         viewportSize: viewportSize
                     )
 
-                    if !isEditingReveal && !isTextMode && !isDrawingMode {
-                        topBarView(topInset: 0, contentWidth: mediaCanvasRect.width)
-                            .position(
-                                x: mediaCanvasRect.midX,
-                                y: mediaCanvasRect.minY + 32
-                            )
-                            .zIndex(34)
-                    }
+                    // Duo: top bar / rail anclados al canvas. En iPhone van
+                    // dentro de mainControlsOverlay (layout de Moments main).
+                    if adaptsForDuoChrome {
+                        if !isEditingReveal && !isTextMode && !isDrawingMode {
+                            topBarView(topInset: 0, contentWidth: mediaCanvasRect.width)
+                                .position(
+                                    x: mediaCanvasRect.midX,
+                                    y: mediaCanvasRect.minY + 32
+                                )
+                                .zIndex(34)
+                        }
 
-                    if activeEditorMode == .idle && !isEditingReveal && !isChatSendMode && !usesSystemEditorToolbar {
-                        sideToolbarView()
-                            .position(x: sideRailCenterX, y: mediaCanvasRect.midY - 16)
-                            .zIndex(34)
-                    }
+                        if activeEditorMode == .idle && !isEditingReveal && !isChatSendMode && !usesSystemEditorToolbar {
+                            sideToolbarView()
+                                .position(x: sideRailCenterX, y: mediaCanvasRect.midY - 16)
+                                .zIndex(34)
+                        }
 
-                    if usesSidePublishingControls {
-                        compactSidePublishingControls()
-                            .position(
-                                x: sideRailCenterX,
-                                y: mediaCanvasRect.maxY - 58
-                            )
-                            .zIndex(35)
+                        if usesSidePublishingControls {
+                            compactSidePublishingControls()
+                                .position(
+                                    x: sideRailCenterX,
+                                    y: mediaCanvasRect.maxY - 58
+                                )
+                                .zIndex(35)
+                        }
                     }
 
                     if showGalleryFeedback {
@@ -304,7 +315,8 @@ struct StoryEditingView: View {
                                 }
                             ),
                             drawingImage: $drawingImage,
-                            canvasRect: mediaCanvasRect
+                            canvasRect: mediaCanvasRect,
+                            pinsChromeToCanvas: adaptsForDuoChrome
                         )
                         .zIndex(45)
                     }
@@ -335,7 +347,7 @@ struct StoryEditingView: View {
                             selectedGradientStopIndex: $storySelectedGradientStopIndex,
                             forcesAllCaps: $storyForcesAllCaps,
                             mediaSampleImage: currentStorySampleImage(),
-                            canvasRect: mediaCanvasRect,
+                            canvasRect: adaptsForDuoChrome ? mediaCanvasRect : nil,
                             onCancel: cancelTextEditing
                         )
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -416,21 +428,24 @@ struct StoryEditingView: View {
             }
         }
         .ignoresSafeArea(.keyboard)
-        // Keep the publishing controls out of the canvas layout. A safe-area
-        // inset participates in its parent's proposed size, so iOS was
-        // shrinking the story canvas as soon as the chain title summoned the
-        // keyboard. The controls are an overlay instead: the canvas keeps its
-        // full capture rect and the focused title field moves using the
-        // keyboard height handled below.
-        .overlay(alignment: .bottom) {
-            if usesSystemEditorToolbar {
-                EmptyView()
-            } else if usesSidePublishingControls {
-                EmptyView()
-            } else {
+        // iPhone: safeAreaInset como Moments main.
+        // Duo: overlay para no encoger el canvas con el teclado.
+        .safeAreaInset(edge: .bottom) {
+            if !adaptsForDuoChrome {
                 bottomPublishingInset()
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, isCreatingChain ? 0 : max(keyWindowSafeAreaInsets().bottom, 8))
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if adaptsForDuoChrome {
+                if usesSystemEditorToolbar {
+                    EmptyView()
+                } else if usesSidePublishingControls {
+                    EmptyView()
+                } else {
+                    bottomPublishingInset()
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, isCreatingChain ? 0 : max(keyWindowSafeAreaInsets().bottom, 8))
+                }
             }
         }
         // ✅ SHEET ACTUALIZADO para selector de audiencia mejorado
@@ -1010,6 +1025,7 @@ struct StoryEditingView: View {
                 VStack(spacing: 12) {
                     editingToolButtons()
                 }
+                .padding(.trailing, adaptsForDuoChrome ? 0 : 16)
             }
         }
     }
@@ -1108,7 +1124,21 @@ struct StoryEditingView: View {
     ) -> some View {
         if !isTextMode && !isDrawingMode {
             VStack {
+                if !adaptsForDuoChrome, !isEditingReveal {
+                    topBarView(topInset: proxy.safeAreaInsets.top)
+                }
+
                 Group {
+                    if !adaptsForDuoChrome,
+                       activeEditorMode == .idle,
+                       !isEditingReveal,
+                       !isChatSendMode {
+                        HStack {
+                            Spacer()
+                            sideToolbarView()
+                        }
+                    }
+
                     Spacer()
 
                     // Video playback controls

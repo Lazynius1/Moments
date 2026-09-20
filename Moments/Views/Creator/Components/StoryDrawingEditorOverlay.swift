@@ -15,6 +15,8 @@ struct StoryDrawingEditorOverlay: View {
     @Binding var isPresented: Bool
     @Binding var drawingImage: UIImage?
     let canvasRect: CGRect
+    /// Solo Duo: chrome anclado al canvas. En iPhone, padding full-bleed como main.
+    var pinsChromeToCanvas: Bool = false
 
     @State private var baseDrawing: UIImage?
     @State private var liveGlowImage: UIImage?
@@ -48,10 +50,16 @@ struct StoryDrawingEditorOverlay: View {
         MomentsChromeGlass.canvasTint(for: colorScheme)
     }
 
-    init(isPresented: Binding<Bool>, drawingImage: Binding<UIImage?>, canvasRect: CGRect) {
+    init(
+        isPresented: Binding<Bool>,
+        drawingImage: Binding<UIImage?>,
+        canvasRect: CGRect,
+        pinsChromeToCanvas: Bool = false
+    ) {
         self._isPresented = isPresented
         self._drawingImage = drawingImage
         self.canvasRect = canvasRect
+        self.pinsChromeToCanvas = pinsChromeToCanvas
         self._baseDrawing = State(initialValue: drawingImage.wrappedValue)
     }
 
@@ -67,7 +75,10 @@ struct StoryDrawingEditorOverlay: View {
             let chromeHeight: CGFloat = 92 // 40 (palette) + 8 (spacing) + 44 (toolbar)
             let bottomPadding = max(safeAreaBottom + 44, (canvasBottomGap - chromeHeight) / 2)
 
-            let topButtonsBottom = topBarTopPadding(safeAreaTop) + 52
+            let topChromeTop = pinsChromeToCanvas
+                ? captureRect.minY + 8
+                : topBarTopPadding(safeAreaTop)
+            let topButtonsBottom = topChromeTop + 52
             let localTopExclude = max(0, topButtonsBottom - canvasTopScreen)
             let localBottomExclude = (proxy.size.height - (chromeHeight + bottomPadding)) - canvasTopScreen
 
@@ -159,9 +170,12 @@ struct StoryDrawingEditorOverlay: View {
                             .momentsChromeGlass(in: Capsule(), style: .tinted)
                     }
                 }
-                .frame(width: captureRect.width)
-                .offset(x: captureRect.midX - (proxy.size.width / 2))
-                .padding(.top, captureRect.minY + 8)
+                .modifier(StoryEditorTopChromeLayout(
+                    pinsToCanvas: pinsChromeToCanvas,
+                    captureRect: captureRect,
+                    canvasWidth: proxy.size.width,
+                    phoneTopPadding: topBarTopPadding(safeAreaTop)
+                ))
             }
             .overlay(alignment: .bottom) {
                 VStack(spacing: 8) {
@@ -215,8 +229,11 @@ struct StoryDrawingEditorOverlay: View {
                     .shadow(color: .black.opacity(colorScheme == .dark ? 0.20 : 0.10), radius: 12, x: 0, y: 6)
                     .padding(.horizontal, 12)
                 }
-                .frame(width: captureRect.width)
-                .offset(x: captureRect.midX - (proxy.size.width / 2))
+                .modifier(StoryEditorBottomChromeLayout(
+                    pinsToCanvas: pinsChromeToCanvas,
+                    captureRect: captureRect,
+                    canvasWidth: proxy.size.width
+                ))
                 .padding(.bottom, bottomPadding)
             }
         }

@@ -105,6 +105,8 @@ struct StoryViewerScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.displayScale) private var displayScale
     @Environment(\.storyDeckGestureGate) private var deckGestureGate
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
     private let gestureCoordinator = StoryGestureCoordinator()
     @State private var keyboardHeight: CGFloat = 0 // Track keyboard height
     @State private var isKeyboardVisible: Bool = false // Track keyboard state
@@ -331,10 +333,12 @@ struct StoryViewerScreen: View {
         let revealSticker = storyStickers.first { $0.type == .reveal }
         let resolvedTopInset = max(geometry.safeAreaInsets.top, keyWindowSafeAreaInsets().top)
         let resolvedBottomInset = max(geometry.safeAreaInsets.bottom, keyWindowSafeAreaInsets().bottom)
-        // Respect an asymmetric hardware-side safe area (for example Duo's
-        // vertical status chrome) while keeping the viewer's 9:16 canvas and
-        // all of its overlays in the same local coordinate space.
-        let horizontalSafeInsets = geometry.safeAreaInsets.leading + geometry.safeAreaInsets.trailing
+        // Solo Duo: chrome vertical / divisiones. En iPhone el 9:16 usa el
+        // viewport completo (paridad con main).
+        let adaptsForDuoChrome = toolbarVerticalEdge != nil || !divisionRegions.isEmpty
+        let horizontalSafeInsets = adaptsForDuoChrome
+            ? (geometry.safeAreaInsets.leading + geometry.safeAreaInsets.trailing)
+            : 0
         let canvasViewportSize = CGSize(
             width: max(geometry.size.width - horizontalSafeInsets, 1),
             height: geometry.size.height
@@ -345,7 +349,7 @@ struct StoryViewerScreen: View {
             bottomInset: resolvedBottomInset
         )
         let captureRect = CGRect(
-            x: baseCaptureRect.origin.x + geometry.safeAreaInsets.leading,
+            x: baseCaptureRect.origin.x + (adaptsForDuoChrome ? geometry.safeAreaInsets.leading : 0),
             y: baseCaptureRect.origin.y + resolvedTopInset,
             width: baseCaptureRect.width,
             height: baseCaptureRect.height

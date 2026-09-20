@@ -898,8 +898,8 @@ private struct StoryViewerLoadingState: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let resolvedTopInset = proxy.safeAreaInsets.top
-            let resolvedBottomInset = proxy.safeAreaInsets.bottom
+            let resolvedTopInset = max(proxy.safeAreaInsets.top, keyWindowSafeAreaInsets().top)
+            let resolvedBottomInset = max(proxy.safeAreaInsets.bottom, keyWindowSafeAreaInsets().bottom)
             ZStack {
                 backgroundColor
                     .ignoresSafeArea()
@@ -922,6 +922,15 @@ private struct StoryViewerLoadingState: View {
                 }
             }
         }
+    }
+
+    private func keyWindowSafeAreaInsets() -> UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+        let keyWindow = scenes
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)
+        return keyWindow?.safeAreaInsets ?? .zero
     }
 
     @ViewBuilder

@@ -56,6 +56,8 @@ struct StoryTextEditor: View {
                 topInset: proxy.safeAreaInsets.top,
                 bottomInset: proxy.safeAreaInsets.bottom
             )
+            // Solo Duo: chrome anclado al canvas 9:16. En iPhone, layout de main.
+            let pinsChromeToCanvas = canvasRect != nil
             let keyboardInset = max(0, keyboardMonitor.keyboardHeight - proxy.safeAreaInsets.bottom)
             let bottomToolbarLift = keyboardInset > 0
                 ? keyboardInset + StoryTextEditorChrome.keyboardChromeGap
@@ -125,8 +127,12 @@ struct StoryTextEditor: View {
                     Spacer(minLength: 0)
                 }
                 .padding(.bottom, chromeHeight + keyboardInset)
-                .frame(width: captureRect.width)
-                .position(x: captureRect.midX, y: canvasSize.height / 2)
+                .modifier(StoryEditorCanvasChromePin(
+                    enabled: pinsChromeToCanvas,
+                    captureRect: captureRect,
+                    canvasHeight: canvasSize.height,
+                    pinsVerticallyCentered: true
+                ))
 
                 // Font size slider on the left (overlay)
                 HStack(spacing: 0) {
@@ -170,9 +176,12 @@ struct StoryTextEditor: View {
                             .momentsChromeGlass(in: Capsule(), style: .tinted)
                     }
                 }
-                .frame(width: captureRect.width)
-                .offset(x: captureRect.midX - (canvasSize.width / 2))
-                .padding(.top, canvasRect == nil ? topBarTopPadding(proxy.safeAreaInsets.top) : captureRect.minY + 8)
+                .modifier(StoryEditorTopChromeLayout(
+                    pinsToCanvas: pinsChromeToCanvas,
+                    captureRect: captureRect,
+                    canvasWidth: canvasSize.width,
+                    phoneTopPadding: topBarTopPadding(proxy.safeAreaInsets.top)
+                ))
             }
             .overlay(alignment: .bottom) {
                 StoryMomentsEditorChrome(
@@ -198,8 +207,11 @@ struct StoryTextEditor: View {
                         cycleTextBackgroundFill()
                     }
                 )
-                .frame(width: captureRect.width)
-                .offset(x: captureRect.midX - (canvasSize.width / 2))
+                .modifier(StoryEditorBottomChromeLayout(
+                    pinsToCanvas: pinsChromeToCanvas,
+                    captureRect: captureRect,
+                    canvasWidth: canvasSize.width
+                ))
                 .padding(.bottom, bottomToolbarPadding)
                 .offset(y: -bottomToolbarLift)
                 .animation(.easeOut(duration: 0.22), value: bottomToolbarLift)
@@ -689,6 +701,68 @@ class KeyboardMonitor: NSObject, ObservableObject {
             withAnimation(.easeOut(duration: 0.22)) {
                 self.keyboardHeight = 0
             }
+        }
+    }
+}
+
+// MARK: - Duo vs phone chrome pin helpers
+/// Solo Duo ancla chrome/input al canvas 9:16. En iPhone: layout de main (padding full-bleed).
+
+struct StoryEditorCanvasChromePin: ViewModifier {
+    let enabled: Bool
+    let captureRect: CGRect
+    let canvasHeight: CGFloat
+    let pinsVerticallyCentered: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .frame(width: captureRect.width)
+                .position(
+                    x: captureRect.midX,
+                    y: pinsVerticallyCentered ? canvasHeight / 2 : captureRect.midY
+                )
+        } else {
+            content
+        }
+    }
+}
+
+struct StoryEditorTopChromeLayout: ViewModifier {
+    let pinsToCanvas: Bool
+    let captureRect: CGRect
+    let canvasWidth: CGFloat
+    let phoneTopPadding: CGFloat
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if pinsToCanvas {
+            content
+                .frame(width: captureRect.width)
+                .offset(x: captureRect.midX - (canvasWidth / 2))
+                .padding(.top, captureRect.minY + 8)
+        } else {
+            content
+                .padding(.horizontal, 16)
+                .padding(.top, phoneTopPadding)
+        }
+    }
+}
+
+struct StoryEditorBottomChromeLayout: ViewModifier {
+    let pinsToCanvas: Bool
+    let captureRect: CGRect
+    let canvasWidth: CGFloat
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if pinsToCanvas {
+            content
+                .frame(width: captureRect.width)
+                .offset(x: captureRect.midX - (canvasWidth / 2))
+        } else {
+            content
         }
     }
 }
