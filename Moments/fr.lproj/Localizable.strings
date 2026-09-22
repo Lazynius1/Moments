@@ -1461,7 +1461,7 @@
 "stickerview.category.time" = "Time";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Rechercher";
-"stickerview.searchGifs.placeholder" = "Rechercher des GIFs...";
+"stickerview.searchGifs.placeholder" = "Rechercher sur Giphy";
 "stickerview.catalog.emptyTitle" = "Aucun sticker trouvé";
 "stickerview.catalog.emptySubtitle" = "Essayez une autre recherche.";
 "stickerview.catalog.gifs" = "GIFs";
@@ -2827,10 +2827,9 @@
 "banner.verb.message" = "sent you a message";
 
 /* Whats New v2.14 */
-"whatsNew.title" = "Nouveautes sur Moments!";
-"whatsNew.subtitle" = "Répondre dans le chat, cartes enrichies, demandes renouvelées et composeur repensé.";
-"whatsNew.button" = "Découvrir Moments 2.22";
-
+"whatsNew.title" = "Nouveautés Moments !";
+"whatsNew.subtitle" = "Enfin les groupes — plus un Pour toi plus personnel, un chat plus soigné, et des Echoes & stories polis.";
+"whatsNew.button" = "Explorer Moments 2.30";
 /* Best Friends */
 "bestFriends.title" = "Meilleurs amis";
 "bestFriends.empty.title" = "Aucun meilleur ami";
@@ -4507,7 +4506,7 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "whatsNew.viewOnce.description" = "Les photos à vue unique marquent correctement comme vues pour consommer le média.";
 "whatsNew.note.android.title" = "Moments est sur Android !";
 "whatsNew.note.android.description" = "Après un bon moment à l'atelier, l'app est aussi disponible sur Google Play.\n\nTu as des amis ou de la famille sur Android ? Tu peux enfin leur dire : ils peuvent rejoindre Moments. Dis-leur de chercher l'app sur Google Play et de nous rejoindre !\n\nDe retour sur iOS : le grand saut est fait, je continue à fond ici (même si en vrai je ne suis jamais parti). Construisons Moments ensemble ! 🚀";
-"whatsNew.note.closing" = "Merci de nous accompagner sur ce chemin ! ⚡🤖";
+"whatsNew.note.closing" = "Merci d'être sur cette aventure ! ⚡🤖";
 "messageRequests.folder.picker" = "Dossier";
 "messageRequests.folder.requests" = "Demandes";
 "messageRequests.folder.old" = "Anciennes";
@@ -4811,3 +4810,24 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "notification.chatSummary.single" = "Nouveau message";
 "notification.chatSummary.multiple" = "%@ nouveaux messages";
 "notification.group.untitled" = "Groupe";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "Groupes";
+"whatsNew.groups.description" = "Chats de groupe dans la même boîte de réception, avec photo, invitations, rôles d'admin et mute.";
+"whatsNew.forYou.title" = "Pour toi et Explorer";
+"whatsNew.forYou.description" = "Classé par affinité et centres d'intérêt, avec « Pas intéressé », recherche globale et un Explorer plus propre.";
+"whatsNew.chat230.title" = "Chat plus malin";
+"whatsNew.chat230.description" = "Aperçu des brouillons, cache média automatique et un signal pour traduire les messages hors langue de l'app.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
+"whatsNew.stories230.title" = "Stories";
+"whatsNew.stories230.description" = "Guides d'alignement, éditeur de texte plus stable, aperçus en appui long (sans marquer vu) et anneaux de stories de groupe.";
+"whatsNew.create230.title" = "Créer des moments";
+"whatsNew.create230.description" = "Rapports d'aspect affinés — plus stables et plus cohérents entre plateformes.";
+"whatsNew.feedReels.title" = "Fil et Reels";
+"whatsNew.feedReels.description" = "Un toucher emmène la vidéo du fil vers Reels, « Voir à nouveau » pour revoir, et un fil plus stable en scrollant.";
+"whatsNew.profile230.title" = "Profil et notifications";
+"whatsNew.profile230.description" = "Abonnés, abonnements, visites et mutuels plus fiables — et aperçus de profil ancrés à l'endroit d'où vous venez.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Étincelle quotidienne, look renouvelé, et joindre une photo ne publie plus un Moment par accident.";
+"whatsNew.offline230.title" = "Hors ligne et polish";
+"whatsNew.offline230.description" = "Meilleur comportement hors ligne, états de relation plus stables et textes polis dans chaque langue.";

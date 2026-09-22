@@ -1403,7 +1403,7 @@
 "stickerview.category.time" = "समय";
 "stickerview.category.selfie" = "सेल्फ़ी";
 "stickerview.search.placeholder" = "खोजें";
-"stickerview.searchGifs.placeholder" = "GIF खोजें...";
+"stickerview.searchGifs.placeholder" = "Giphy पर खोजें";
 "stickerview.catalog.emptyTitle" = "कोई स्टिकर नहीं मिला";
 "stickerview.catalog.emptySubtitle" = "कोई और खोज आज़माएँ।";
 "stickerview.catalog.gifs" = "GIF";
@@ -2695,8 +2695,8 @@
 "banner.verb.message" = "आपको मैसेज भेजा";
 /* Whats New v2.16 */
 "whatsNew.title" = "Moments में नया!";
-"whatsNew.subtitle" = "चैट में रिप्लाई, बेहतर शेयर कार्ड, मैसेज रिक्वेस्ट में सुधार और नया कंपोज़र।";
-"whatsNew.button" = "Moments 2.22 देखें";
+"whatsNew.subtitle" = "Groups at last — plus a more personal For You, a sharper chat, and polished Echoes & Stories.";
+"whatsNew.button" = "Moments 2.30 देखें";
 /* Best Friends */
 "bestFriends.title" = "करीबी दोस्त";
 "bestFriends.empty.title" = "कोई करीबी दोस्त नहीं";
@@ -4277,7 +4277,7 @@
 "whatsNew.viewOnce.description" = "एक बार देखने वाली फ़ोटो अब सही तरीके से देखी गई के रूप में मार्क होती हैं, ताकि मीडिया देखा जा सके।";
 "whatsNew.note.android.title" = "Moments अब Android पर है!";
 "whatsNew.note.android.description" = "वर्कशॉप में काफ़ी समय बिताने के बाद, अब यह ऐप Google Play पर भी आ गया है।\n\nAndroid इस्तेमाल करने वाले दोस्त या परिवार के लोग हैं? अब उन्हें बता सकते हैं: वे आखिरकार Moments से जुड़ सकते हैं। उनसे Google Play पर ऐप खोजने और इसमें शामिल होने के लिए कहें!\n\niOS पर वापस: यह छलांग पूरी हो गई है, लेकिन मैं यहाँ अब भी पूरी रफ़्तार से काम कर रहा हूँ (हालाँकि मैं कभी सच में गया ही नहीं था)। आइए, मिलकर Moments बनाएँ! 🚀";
-"whatsNew.note.closing" = "इस सफ़र में साथ देने के लिए धन्यवाद! ⚡🤖";
+"whatsNew.note.closing" = "Thanks for coming along on this journey! ⚡🤖";
 "messageRequests.folder.picker" = "फ़ोल्डर";
 "messageRequests.folder.requests" = "अनुरोध";
 "messageRequests.folder.old" = "पुराने";
@@ -4581,3 +4581,24 @@
 "notification.chatSummary.single" = "नया संदेश";
 "notification.chatSummary.multiple" = "%@ नए संदेश";
 "notification.group.untitled" = "समूह";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "ग्रुप्स";
+"whatsNew.groups.description" = "Group chats in the same inbox, with photo, invites, admin roles, and mute.";
+"whatsNew.forYou.title" = "For You & Explore";
+"whatsNew.forYou.description" = "Ranked by affinity and interests, with Not interested, global search, and a cleaner Explore.";
+"whatsNew.chat230.title" = "Smarter chat";
+"whatsNew.chat230.description" = "Draft previews, automatic media cache, and a cue to translate messages that aren’t in your app language.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
+"whatsNew.stories230.title" = "Stories";
+"whatsNew.stories230.description" = "Alignment guides, a steadier text editor, long-press previews that don’t mark as seen, and group story rings.";
+"whatsNew.create230.title" = "Create Moments";
+"whatsNew.create230.description" = "Refined aspect ratios — more stable and more consistent across platforms.";
+"whatsNew.feedReels.title" = "Feed & Reels";
+"whatsNew.feedReels.description" = "Tap a feed video into Reels, Watch again to replay, and a steadier feed while you scroll.";
+"whatsNew.profile230.title" = "Profile & notifications";
+"whatsNew.profile230.description" = "More reliable followers, following, visits, and mutuals — plus profile previews anchored to where you came from.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
+"whatsNew.offline230.title" = "Offline & polish";
+"whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";

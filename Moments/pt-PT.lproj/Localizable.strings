@@ -2235,7 +2235,7 @@
 "stickerview.category.time" = "Hora";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Pesquisar";
-"stickerview.searchGifs.placeholder" = "Pesquisar GIFs...";
+"stickerview.searchGifs.placeholder" = "Pesquisar no Giphy";
 "stickerview.catalog.emptyTitle" = "Nenhum sticker encontrado";
 "stickerview.catalog.emptySubtitle" = "Experimenta outra pesquisa.";
 "stickerview.catalog.gifs" = "GIFs";
@@ -3602,9 +3602,8 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "Novidades no Moments!";
-"whatsNew.subtitle" = "Responder no chat, cartões enriquecidos, pedidos renovados e compositor repensado.";
-"whatsNew.button" = "Explorar o Moments 2.22";
-
+"whatsNew.subtitle" = "Finalmente grupos — mais um Para Ti mais pessoal, um chat mais cuidado e Echoes e histórias mais polidos.";
+"whatsNew.button" = "Explorar Moments 2.30";
 /* Nova */
 /* Best Friends */
 "bestFriends.title" = "Melhores amigos";
@@ -5281,7 +5280,7 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "whatsNew.viewOnce.description" = "As fotos de visualização única marcam como visto corretamente para consumir a media.";
 "whatsNew.note.android.title" = "O Moments já está no Android!";
 "whatsNew.note.android.description" = "Depois de um bom tempo na oficina, a app já está também na Google Play.\n\nTens amigos ou familiares com Android? Já lhes podes avisar: por fim se podem juntar ao Moments. Diz-lhes para procurarem a app na Google Play e entrarem!\n\nDe volta ao iOS: com o salto concluído, continuo a dar-lhe com força por aqui (embora, na verdade, nunca me tenha ido embora). Vamos construir o Moments juntos! 🚀";
-"whatsNew.note.closing" = "Obrigado por continuares connosco nesta jornada! ⚡🤖";
+"whatsNew.note.closing" = "Obrigado por vires nesta jornada! ⚡🤖";
 "messageRequests.folder.picker" = "Pasta";
 "messageRequests.folder.requests" = "Pedidos";
 "messageRequests.folder.old" = "Antigos";
@@ -5585,3 +5584,24 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "notification.chatSummary.single" = "Nova mensagem";
 "notification.chatSummary.multiple" = "%@ novas mensagens";
 "notification.group.untitled" = "Grupo";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "Grupos";
+"whatsNew.groups.description" = "Chats de grupo na mesma inbox, com foto, convites, papéis de admin e mute.";
+"whatsNew.forYou.title" = "Para Ti e Explorar";
+"whatsNew.forYou.description" = "Ordenado por afinidade e interesses, com «Não tenho interesse», pesquisa global e um Explorar mais limpo.";
+"whatsNew.chat230.title" = "Chat mais esperto";
+"whatsNew.chat230.description" = "Prévia de rascunhos, cache automático de mídia e um sinal para traduzir mensagens fora do idioma do app.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
+"whatsNew.stories230.title" = "Histórias";
+"whatsNew.stories230.description" = "Guias de alinhamento, editor de texto mais estável, pré-visualizações com toque longo (sem marcar como vista) e anéis de histórias de grupo.";
+"whatsNew.create230.title" = "Criar momentos";
+"whatsNew.create230.description" = "Proporções afinadas — mais estáveis e mais consistentes entre plataformas.";
+"whatsNew.feedReels.title" = "Feed e Reels";
+"whatsNew.feedReels.description" = "Um toque leva o vídeo do feed aos Reels, «Ver de novo» para repetir e um feed mais estável ao rolar.";
+"whatsNew.profile230.title" = "Perfil e notificações";
+"whatsNew.profile230.description" = "Seguidores, seguindo, visitas e mútuos mais confiáveis — e prévias de perfil ancoradas de onde você chegou.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Faísca diária, visual renovado, e anexar uma foto já não publica um Momento por acidente.";
+"whatsNew.offline230.title" = "Offline e polimento";
+"whatsNew.offline230.description" = "Melhor comportamento offline, estados de relacionamento mais estáveis e textos polidos em cada idioma.";

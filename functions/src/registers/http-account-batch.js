@@ -893,7 +893,12 @@ const removeMyStickerRepliesBatch = onRequest(
 
 const rpName = 'Moments';
 const rpID = 'momentsapp.app';
-const expectedOrigin = [ `https://${rpID}`, rpID ]; // iOS uses rpID as origin or https://rpID
+const expectedOrigin = [
+  `https://${rpID}`,
+  rpID, // iOS uses rpID as origin or https://rpID
+  // Play App Signing certificate (SHA-256, base64url). Required for Android WebAuthn.
+  'android:apk-key-hash:tlVUlb9OECkdmn6nqv1KMmb1JtfkCkCnbo8R7Z-C3ao',
+];
 
 function isExpiredPasskeyChallenge(data) {
   if (!data?.expiresAt || typeof data.expiresAt.toMillis !== 'function') {
@@ -1119,6 +1124,169 @@ const passkeyLoginVerify = onRequest({ timeoutSeconds: 30 }, async (req, res) =>
   }
 });
 
+// Restore Credentials use the same WebAuthn proof as a passkey, but are kept in a
+// separate collection. That prevents a restore key from being offered as a user-facing
+// passkey and lets either mechanism be revoked independently.
+const restoreCredentialRegisterChallenge = onRequest({ timeoutSeconds: 30 }, async (req, res) => {
+  setProxyCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  const uid = await verifyFirebaseAuth(req, res);
+  if (!uid) return;
+
+  try {
+    const { generateRegistrationOptions } = require('@simplewebauthn/server');
+    const userSnap = await admin.firestore().collection('users').doc(uid).get();
+    const username = userSnap.data()?.username || uid;
+    const existing = await admin.firestore().collection('users').doc(uid).collection('restoreCredentials').get();
+    const options = await generateRegistrationOptions({
+      rpName,
+      rpID,
+      userID: Buffer.from(uid),
+      userName: username,
+      excludeCredentials: existing.docs.map((doc) => ({
+        id: doc.data().id,
+        type: 'public-key',
+      })),
+      authenticatorSelection: {
+        residentKey: 'required',
+        // Restore Credentials are device/cloud recovery credentials, not passkeys.
+        // Credential Manager may not expose WebAuthn user verification for this type.
+        userVerification: 'preferred',
+      },
+    });
+
+    await admin.firestore().collection('restoreCredentialChallenges').doc(uid).set({
+      challenge: options.challenge,
+      type: 'registration',
+      expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 5 * 60 * 1000)),
+    });
+    res.status(200).json(options);
+  } catch (error) {
+    console.error('restoreCredentialRegisterChallenge error:', error);
+    res.status(500).json({ error: 'Failed to generate restore credential challenge' });
+  }
+});
+
+const restoreCredentialRegisterVerify = onRequest({ timeoutSeconds: 30 }, async (req, res) => {
+  setProxyCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  const uid = await verifyFirebaseAuth(req, res);
+  if (!uid) return;
+
+  try {
+    const { verifyRegistrationResponse } = require('@simplewebauthn/server');
+    const challengeRef = admin.firestore().collection('restoreCredentialChallenges').doc(uid);
+    const challengeDoc = await challengeRef.get();
+    if (!challengeDoc.exists || isExpiredPasskeyChallenge(challengeDoc.data())) {
+      if (challengeDoc.exists) await challengeRef.delete();
+      return res.status(400).json({ error: 'Challenge expired or not found' });
+    }
+    const { challenge } = challengeDoc.data();
+    await challengeRef.delete();
+    const verification = await verifyRegistrationResponse({
+      response: parseJsonBody(req),
+      expectedChallenge: challenge,
+      expectedOrigin,
+      expectedRPID: rpID,
+      requireUserVerification: false,
+    });
+    if (!verification.verified || !verification.registrationInfo) {
+      return res.status(400).json({ error: 'Verification failed' });
+    }
+    const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+    await admin.firestore().collection('users').doc(uid).collection('restoreCredentials').doc(credential.id).set({
+      id: credential.id,
+      publicKey: Buffer.from(credential.publicKey).toString('base64'),
+      counter: credential.counter,
+      deviceType: credentialDeviceType,
+      backedUp: credentialBackedUp,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('restoreCredentialRegisterVerify error:', error);
+    res.status(500).json({ error: 'Failed to verify restore credential', details: error.message });
+  }
+});
+
+const restoreCredentialLoginChallenge = onRequest({ timeoutSeconds: 30 }, async (req, res) => {
+  setProxyCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  try {
+    const { generateAuthenticationOptions } = require('@simplewebauthn/server');
+    const options = await generateAuthenticationOptions({ rpID, userVerification: 'preferred' });
+    await admin.firestore().collection('restoreCredentialChallenges').doc(options.challenge).set({
+      challenge: options.challenge,
+      type: 'login',
+      expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 5 * 60 * 1000)),
+    });
+    res.status(200).json(options);
+  } catch (error) {
+    console.error('restoreCredentialLoginChallenge error:', error);
+    res.status(500).json({ error: 'Failed to generate restore login challenge' });
+  }
+});
+
+const restoreCredentialLoginVerify = onRequest({ timeoutSeconds: 30 }, async (req, res) => {
+  setProxyCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  try {
+    const { verifyAuthenticationResponse } = require('@simplewebauthn/server');
+    const body = parseJsonBody(req);
+    const clientChallenge = body.originalChallenge;
+    if (!clientChallenge) return res.status(400).json({ error: 'Missing originalChallenge in request' });
+    const challengeRef = admin.firestore().collection('restoreCredentialChallenges').doc(clientChallenge);
+    const challengeDoc = await challengeRef.get();
+    if (!challengeDoc.exists || isExpiredPasskeyChallenge(challengeDoc.data())) {
+      if (challengeDoc.exists) await challengeRef.delete();
+      return res.status(400).json({ error: 'Challenge expired or not found' });
+    }
+    const { challenge } = challengeDoc.data();
+    await challengeRef.delete();
+
+    const credentialId = body.id;
+    let credentialDoc;
+    if (body.response?.userHandle) {
+      const uid = Buffer.from(body.response.userHandle, 'base64url').toString('utf8');
+      credentialDoc = await admin.firestore().collection('users').doc(uid)
+        .collection('restoreCredentials').doc(credentialId).get();
+    }
+    if (!credentialDoc || !credentialDoc.exists) {
+      const matches = await admin.firestore().collectionGroup('restoreCredentials').where('id', '==', credentialId).get();
+      if (matches.empty) return res.status(404).json({ error: 'Restore credential not found' });
+      credentialDoc = matches.docs[0];
+    }
+    const stored = credentialDoc.data();
+    const verification = await verifyAuthenticationResponse({
+      response: body,
+      expectedChallenge: challenge,
+      expectedOrigin,
+      expectedRPID: rpID,
+      credential: {
+        id: stored.id,
+        publicKey: new Uint8Array(Buffer.from(stored.publicKey, 'base64')),
+        counter: stored.counter,
+        transports: stored.transports || [],
+      },
+      requireUserVerification: false,
+    });
+    if (!verification.verified) return res.status(400).json({ error: 'Verification failed' });
+    await credentialDoc.ref.update({
+      counter: verification.authenticationInfo.newCounter,
+      lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    const uid = credentialDoc.ref.parent.parent.id;
+    res.status(200).json({ customToken: await admin.auth().createCustomToken(uid) });
+  } catch (error) {
+    console.error('restoreCredentialLoginVerify error:', error);
+    res.status(500).json({ error: 'Failed to restore session', details: error.message });
+  }
+});
+
 // Cuentas Auth sin documento users/{uid} tras 30 días (registros abandonados).
 
 module.exports = {
@@ -1132,4 +1300,8 @@ module.exports = {
   passkeyRegisterVerify,
   passkeyLoginChallenge,
   passkeyLoginVerify,
+  restoreCredentialRegisterChallenge,
+  restoreCredentialRegisterVerify,
+  restoreCredentialLoginChallenge,
+  restoreCredentialLoginVerify,
 };

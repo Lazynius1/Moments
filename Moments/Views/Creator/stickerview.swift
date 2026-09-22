@@ -40,6 +40,7 @@ struct StickerPickerView: View {
     @State private var giphyActiveMode: ChatGiphyService.Mode = .trending
     @State private var giphyActiveQuery = ""
     @State private var giphyFetchTask: Task<Void, Never>?
+    @State private var catalogGiphyDebounceTask: Task<Void, Never>?
     @State private var mode: PickerMode = .catalog
     @StateObject private var cameraPermissionGate = CameraPermissionGate()
 
@@ -154,7 +155,6 @@ struct StickerPickerView: View {
     }
 
     private var filteredCatalogCategories: [StickerCategory] {
-        let query = catalogSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         var baseCategories = catalogCategories
 
         // ✨ Reveal limit: only one allowed per story
@@ -167,10 +167,8 @@ struct StickerPickerView: View {
             baseCategories.removeAll(where: { $0 == .audio })
         }
 
-        guard !query.isEmpty else { return baseCategories }
-        return baseCategories.filter {
-            $0.displayName.localizedCaseInsensitiveContains(query)
-        }
+        // El TextField del catálogo busca GIFs (Giphy), no filtra pills.
+        return baseCategories
     }
 
     private var shouldShowCatalogSearch: Bool {
@@ -356,11 +354,20 @@ struct StickerPickerView: View {
                 .font(.system(size: 16))
                 .foregroundStyle(searchIconColor)
 
-            TextField(NSLocalizedString("stickerview.search.placeholder", comment: "Sticker catalog search placeholder"), text: $catalogSearchText)
+            // Busca GIFs/stickers Giphy (mismo contrato que la sección GIFs del catálogo).
+            TextField(NSLocalizedString("stickerview.searchGifs.placeholder", comment: "GIF search placeholder"), text: $catalogSearchText)
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(primaryTextColor)
                 .autocorrectionDisabled()
                 .autocapitalization(.none)
+                .onSubmit {
+                    HapticManager.shared.lightImpact()
+                    catalogGiphyDebounceTask?.cancel()
+                    applyCatalogGiphySearch(immediate: true)
+                }
+                .onChange(of: catalogSearchText) { _, _ in
+                    scheduleCatalogGiphySearch()
+                }
 
             if !catalogSearchText.isEmpty {
                 Button(action: {
@@ -368,6 +375,8 @@ struct StickerPickerView: View {
                     withAnimation(.easeOut(duration: 0.2)) {
                         catalogSearchText = ""
                     }
+                    catalogGiphyDebounceTask?.cancel()
+                    loadTrendingStickers()
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
@@ -428,27 +437,30 @@ struct StickerPickerView: View {
 
     @ViewBuilder
     private func StickerCatalogMosaic() -> some View {
-        if filteredCatalogCategories.isEmpty {
-            StickerEmptyState(
-                icon: "magnifyingglass",
-                title: NSLocalizedString("stickerview.catalog.emptyTitle", comment: "No stickers found title"),
-                subtitle: NSLocalizedString("stickerview.catalog.emptySubtitle", comment: "No stickers found subtitle")
-            )
-        } else {
-            VStack(alignment: .leading, spacing: 22) {
-                StickerPillFlowLayout(spacing: 10, rowSpacing: 10) {
-                    ForEach(Array(filteredCatalogCategories.enumerated()), id: \.element.id) { index, category in
-                        StickerCatalogPill(category: category) {
-                            handleCatalogSelection(category)
-                        }
-                        .rotationEffect(catalogPillTilt(for: index))
-                        .offset(y: catalogPillVerticalOffset(for: index))
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(.top, 2)
+        let isSearchingGifs = !catalogSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let categories = filteredCatalogCategories
 
-                CatalogGifPreviewSection()
+        VStack(alignment: .leading, spacing: 22) {
+            StickerPillFlowLayout(spacing: 10, rowSpacing: 10) {
+                ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
+                    StickerCatalogPill(category: category) {
+                        handleCatalogSelection(category)
+                    }
+                    .rotationEffect(catalogPillTilt(for: index))
+                    .offset(y: catalogPillVerticalOffset(for: index))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .padding(.top, 2)
+
+            CatalogGifPreviewSection(isSearchResults: isSearchingGifs)
+
+            if isSearchingGifs && giphyResults.isEmpty && !isLoadingGiphy {
+                StickerEmptyState(
+                    icon: "magnifyingglass",
+                    title: NSLocalizedString("stickerview.catalog.emptyTitle", comment: "No stickers found title"),
+                    subtitle: NSLocalizedString("stickerview.catalog.emptySubtitle", comment: "No stickers found subtitle")
+                )
             }
         }
     }
@@ -517,7 +529,7 @@ struct StickerPickerView: View {
     }
 
     @ViewBuilder
-    private func CatalogGifPreviewSection() -> some View {
+    private func CatalogGifPreviewSection(isSearchResults: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("stickerview.catalog.gifs")
@@ -527,6 +539,8 @@ struct StickerPickerView: View {
                 Spacer()
 
                 Button(action: {
+                    // Llevar la query del catálogo al detalle trending.
+                    gifSearchText = catalogSearchText
                     handleCatalogSelection(.trending)
                 }) {
                     Text("stickerview.catalog.viewAll")
@@ -550,7 +564,7 @@ struct StickerPickerView: View {
             if isLoadingGiphy && giphyResults.isEmpty {
                 MomentsLoadingView()
             } else if !giphyResults.isEmpty {
-                CatalogTrendingPreviewGrid(stickers: Array(giphyResults.prefix(12)))
+                CatalogTrendingPreviewGrid(stickers: Array(giphyResults.prefix(isSearchResults ? 24 : 12)))
             }
         }
     }
@@ -995,7 +1009,30 @@ struct StickerPickerView: View {
     }
 
     private func searchTrendingStickers() {
-        let query = gifSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        performGiphySearch(query: gifSearchText.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private func scheduleCatalogGiphySearch() {
+        catalogGiphyDebounceTask?.cancel()
+        catalogGiphyDebounceTask = Task {
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                applyCatalogGiphySearch(immediate: true)
+            }
+        }
+    }
+
+    private func applyCatalogGiphySearch(immediate: Bool = true) {
+        let query = catalogSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.isEmpty {
+            loadTrendingStickers()
+        } else {
+            performGiphySearch(query: query)
+        }
+    }
+
+    private func performGiphySearch(query: String) {
         guard !query.isEmpty else {
             loadTrendingStickers()
             return

@@ -237,8 +237,11 @@ struct FeedView: View {
                 DispatchQueue.main.async {
                     FeedVideoPipelineWarmer.prewarmIfNeeded()
                 }
+
+                WhatsNewPresentationCoordinator.shared.feedBecameActive()
             }
         .onDisappear {
+            WhatsNewPresentationCoordinator.shared.feedBecameInactive()
             // Liberar recursos al salir del feed para evitar fugas y trabajo en background.
             timeUpdateTimer?.invalidate()
             timeUpdateTimer = nil

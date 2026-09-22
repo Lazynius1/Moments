@@ -1403,7 +1403,7 @@
 "stickerview.category.time" = "Saat";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Ara";
-"stickerview.searchGifs.placeholder" = "GIF ara...";
+"stickerview.searchGifs.placeholder" = "Giphy'de ara";
 "stickerview.catalog.emptyTitle" = "Çıkartma bulunamadı";
 "stickerview.catalog.emptySubtitle" = "Başka bir arama dene.";
 "stickerview.catalog.gifs" = "GIF'ler";
@@ -2695,8 +2695,8 @@
 "banner.verb.message" = "sana mesaj gönderdi";
 /* Whats New v2.16 */
 "whatsNew.title" = "Moments'ta yenilikler!";
-"whatsNew.subtitle" = "Sohbette yanıt verme, daha zengin paylaşım kartları, yenilenen mesaj istekleri ve yeniden tasarlanan paylaşım ekranı.";
-"whatsNew.button" = "Moments 2.22'yi keşfet";
+"whatsNew.subtitle" = "Groups at last — plus a more personal For You, a sharper chat, and polished Echoes & Stories.";
+"whatsNew.button" = "Moments 2.30'u keşfet";
 /* Best Friends */
 "bestFriends.title" = "Yakın Arkadaşlar";
 "bestFriends.empty.title" = "Yakın arkadaş yok";
@@ -4277,7 +4277,7 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "whatsNew.viewOnce.description" = "Tek seferlik fotoğraflar artık görüntülendi olarak doğru şekilde işaretleniyor ve açılabiliyor.";
 "whatsNew.note.android.title" = "Moments Android'de!";
 "whatsNew.note.android.description" = "Atölyede geçen güzel bir sürecin ardından uygulama artık Google Play'de de yerini aldı.\n\nAndroid kullanan arkadaşların veya ailenden biri mi var? Artık onlara haber verebilirsin: sonunda Moments'a katılabilirler. Google Play'de uygulamayı aratıp hemen başlayabilirler!\n\niOS'a dönersek: Bu büyük adımı tamamladık ama burada hâlâ tüm hızımla çalışıyorum (aslında hiç ayrılmadım). Moments'ı birlikte geliştirelim! 🚀";
-"whatsNew.note.closing" = "Bu yolculukta bize eşlik ettiğin için teşekkürler! ⚡🤖";
+"whatsNew.note.closing" = "Thanks for coming along on this journey! ⚡🤖";
 "messageRequests.folder.picker" = "Klasör";
 "messageRequests.folder.requests" = "İstekler";
 "messageRequests.folder.old" = "Eski";
@@ -4581,3 +4581,24 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "notification.chatSummary.single" = "Yeni mesaj";
 "notification.chatSummary.multiple" = "%@ yeni mesaj";
 "notification.group.untitled" = "Grup";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "Gruplar";
+"whatsNew.groups.description" = "Group chats in the same inbox, with photo, invites, admin roles, and mute.";
+"whatsNew.forYou.title" = "For You & Explore";
+"whatsNew.forYou.description" = "Ranked by affinity and interests, with Not interested, global search, and a cleaner Explore.";
+"whatsNew.chat230.title" = "Smarter chat";
+"whatsNew.chat230.description" = "Draft previews, automatic media cache, and a cue to translate messages that aren’t in your app language.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
+"whatsNew.stories230.title" = "Stories";
+"whatsNew.stories230.description" = "Alignment guides, a steadier text editor, long-press previews that don’t mark as seen, and group story rings.";
+"whatsNew.create230.title" = "Create Moments";
+"whatsNew.create230.description" = "Refined aspect ratios — more stable and more consistent across platforms.";
+"whatsNew.feedReels.title" = "Feed & Reels";
+"whatsNew.feedReels.description" = "Tap a feed video into Reels, Watch again to replay, and a steadier feed while you scroll.";
+"whatsNew.profile230.title" = "Profile & notifications";
+"whatsNew.profile230.description" = "More reliable followers, following, visits, and mutuals — plus profile previews anchored to where you came from.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
+"whatsNew.offline230.title" = "Offline & polish";
+"whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";

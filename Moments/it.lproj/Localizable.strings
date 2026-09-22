@@ -1461,7 +1461,7 @@
 "stickerview.category.time" = "Ora";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Cerca";
-"stickerview.searchGifs.placeholder" = "Cerca GIF...";
+"stickerview.searchGifs.placeholder" = "Cerca su Giphy";
 "stickerview.catalog.emptyTitle" = "Nessuno sticker trovato";
 "stickerview.catalog.emptySubtitle" = "Prova un'altra ricerca.";
 "stickerview.catalog.gifs" = "GIF";
@@ -2827,10 +2827,9 @@
 "banner.verb.message" = "ti ha inviato un messaggio";
 
 /* Whats New v2.14 */
-"whatsNew.title" = "Novita su Moments!";
-"whatsNew.subtitle" = "Rispondi in chat, schede arricchite, richieste rinnovate e compositore ridisegnato.";
-"whatsNew.button" = "Esplora Moments 2.22";
-
+"whatsNew.title" = "Novità in Moments!";
+"whatsNew.subtitle" = "Finalmente i gruppi — più un Per te più personale, una chat più curata ed Echoes e storie più rifiniti.";
+"whatsNew.button" = "Esplora Moments 2.30";
 /* Best Friends */
 "bestFriends.title" = "Migliori amici";
 "bestFriends.empty.title" = "Nessun migliore amico";
@@ -4507,7 +4506,7 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "whatsNew.viewOnce.description" = "Le foto monouso segnano correttamente come viste per consumare il media.";
 "whatsNew.note.android.title" = "Moments è su Android!";
 "whatsNew.note.android.description" = "Dopo un bel po' in officina, l'app è ora disponibile anche su Google Play.\n\nHai amici o familiari su Android? Puoi dirglielo finalmente: possono unirsi a Moments. Digli di cercare l'app su Google Play e di unirsi!\n\nDi ritorno su iOS: con il salto completato, continuo a spingere forte qui (anche se in realtà non me ne sono mai andato). Costruiamo Moments insieme! 🚀";
-"whatsNew.note.closing" = "Grazie per restare con noi in questo percorso! ⚡🤖";
+"whatsNew.note.closing" = "Grazie di essere in questo viaggio! ⚡🤖";
 "messageRequests.folder.picker" = "Cartella";
 "messageRequests.folder.requests" = "Richieste";
 "messageRequests.folder.old" = "Vecchie";
@@ -4811,3 +4810,24 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "notification.chatSummary.single" = "Nuovo messaggio";
 "notification.chatSummary.multiple" = "%@ nuovi messaggi";
 "notification.group.untitled" = "Gruppo";
+"whatsNew.section230.title" = "Moments 2.30";
+"whatsNew.groups.title" = "Gruppi";
+"whatsNew.groups.description" = "Chat di gruppo nella stessa inbox, con foto, inviti, ruoli admin e mute.";
+"whatsNew.forYou.title" = "Per te ed Esplora";
+"whatsNew.forYou.description" = "Ordinato per affinità e interessi, con «Non mi interessa», ricerca globale e un Esplora più pulito.";
+"whatsNew.chat230.title" = "Chat più smart";
+"whatsNew.chat230.description" = "Anteprima bozze, cache media automatica e un segnale per tradurre messaggi non nella lingua dell'app.";
+"whatsNew.echoes.title" = "Echoes";
+"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
+"whatsNew.stories230.title" = "Storie";
+"whatsNew.stories230.description" = "Guide di allineamento, editor di testo più stabile, anteprime con pressione lunga (senza segnare come viste) e anelli storie di gruppo.";
+"whatsNew.create230.title" = "Crea momenti";
+"whatsNew.create230.description" = "Rapporti d'aspetto affinati — più stabili e più coerenti tra piattaforme.";
+"whatsNew.feedReels.title" = "Feed e Reels";
+"whatsNew.feedReels.description" = "Un tocco porta il video del feed a Reels, «Guarda di nuovo» per ripetere e un feed più stabile mentre scorri.";
+"whatsNew.profile230.title" = "Profilo e notifiche";
+"whatsNew.profile230.description" = "Follower, seguiti, visite e reciproci più affidabili — e anteprime profilo ancorate a da dove sei arrivato.";
+"whatsNew.nova230.title" = "Nova";
+"whatsNew.nova230.description" = "Scintilla quotidiana, aspetto rinnovato, e allegare una foto non pubblica più un Momento per sbaglio.";
+"whatsNew.offline230.title" = "Offline e cura";
+"whatsNew.offline230.description" = "Comportamento migliore offline, stati di relazione più stabili e testi rifiniti in ogni lingua.";

@@ -20,7 +20,6 @@ struct MomentsApp: App {
     @StateObject private var messageRequestService = MessageRequestService()
     @State private var showSplash = true
     @State private var showWhatsNew = false
-    @AppStorage("lastVersionPrompted") private var lastVersionPrompted: String = "1.0.0"
     @AppStorage("lastAppOpenSyncAt") private var lastAppOpenSyncAt: Double = 0
 
     // Agregar una propiedad para almacenar el listener de autenticación
@@ -178,7 +177,7 @@ struct MomentsApp: App {
                 if showSplash {
                     SplashScreenView {
                         showSplash = false
-                        checkVersion()
+                        WhatsNewPresentationCoordinator.shared.handleSplashFinished()
                     }
                     .allowsHitTesting(false)
                 }
@@ -190,17 +189,8 @@ struct MomentsApp: App {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
-        }
-    }
-
-    private func checkVersion() {
-        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.0"
-
-        if lastVersionPrompted != currentVersion {
-            // Esperar un poco para que la transición del splash termine
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            .onReceive(NotificationCenter.default.publisher(for: .whatsNewReadyToPresent)) { _ in
                 showWhatsNew = true
-                lastVersionPrompted = currentVersion
             }
         }
     }
