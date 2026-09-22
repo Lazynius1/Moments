@@ -9,6 +9,10 @@ private struct MomentsDivisionRegionsKey: EnvironmentKey {
     static let defaultValue: [CGRect] = []
 }
 
+private struct MomentsHasHingeKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 extension EnvironmentValues {
     /// Tamaño de la escena que contiene la vista. Cambia en tiempo real cuando
     /// la ventana se redimensiona o el iPhone Duo cambia de configuración.
@@ -24,11 +28,18 @@ extension EnvironmentValues {
         get { self[MomentsDivisionRegionsKey.self] }
         set { self[MomentsDivisionRegionsKey.self] = newValue }
     }
+
+    /// Hay bisagra en esta escena. En el iPhone se queda en false.
+    var momentsHasHinge: Bool {
+        get { self[MomentsHasHingeKey.self] }
+        set { self[MomentsHasHingeKey.self] = newValue }
+    }
 }
 
 private struct MomentsViewportMetricsModifier: ViewModifier {
     @State private var viewportSize = MomentsViewportSizeKey.defaultValue
     @State private var divisionRegions: [CGRect] = []
+    @State private var hasHinge = false
 
     func body(content: Content) -> some View {
         content
@@ -48,8 +59,29 @@ private struct MomentsViewportMetricsModifier: ViewModifier {
             } action: { regions in
                 divisionRegions = regions
             }
+            .modifier(MomentsHingePresenceObserver(hasHinge: $hasHinge))
             .environment(\.momentsViewportSize, viewportSize)
             .environment(\.momentsDivisionRegions, divisionRegions)
+            .environment(\.momentsHasHinge, hasHinge)
+    }
+}
+
+private struct MomentsHingePresenceObserver: ViewModifier {
+    @Binding var hasHinge: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .closed, .partiallyOpen, .fullyOpen:
+                    hasHinge = true
+                default:
+                    hasHinge = false
+                }
+            }
+        } else {
+            content
+        }
     }
 }
 

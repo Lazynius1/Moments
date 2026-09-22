@@ -150,32 +150,53 @@ private struct FlyingCardMaskShape: Shape {
     }
 }
 
-/// La máscara sigue el frame real. No mide con un GeometryReader que ignore
-/// el área segura: ese reader se come el inset de la barra vertical.
+/// En el iPhone la máscara ignora el área segura y el vídeo llega al borde.
+/// En el Duo no: ese reader se come el inset de la barra vertical.
 private struct FlyingCardClipModifier: ViewModifier {
     let sourceRect: CGRect
     let progress: CGFloat
+    var edgeToEdge: Bool
     @State private var origin: CGPoint = .zero
 
     func body(content: Content) -> some View {
-        content
-            .onGeometryChange(for: CGPoint.self) { proxy in
-                proxy.frame(in: .global).origin
-            } action: { origin = $0 }
-            .mask(
-                FlyingCardMaskShape(
-                    sourceRect: sourceRect,
-                    containerOriginInGlobal: origin,
-                    progress: progress
+        if edgeToEdge {
+            GeometryReader { geo in
+                let origin = geo.frame(in: .global).origin
+                content
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .mask(
+                        FlyingCardMaskShape(
+                            sourceRect: sourceRect,
+                            containerOriginInGlobal: origin,
+                            progress: progress
+                        )
+                    )
+            }
+            .ignoresSafeArea()
+        } else {
+            content
+                .onGeometryChange(for: CGPoint.self) { proxy in
+                    proxy.frame(in: .global).origin
+                } action: { origin = $0 }
+                .mask(
+                    FlyingCardMaskShape(
+                        sourceRect: sourceRect,
+                        containerOriginInGlobal: origin,
+                        progress: progress
+                    )
                 )
-            )
+        }
     }
 }
 
 private extension View {
-    func flyingCardClip(sourceRect: CGRect, progress: CGFloat) -> some View {
-        modifier(FlyingCardClipModifier(sourceRect: sourceRect, progress: progress))
+    func flyingCardClip(sourceRect: CGRect, progress: CGFloat, edgeToEdge: Bool) -> some View {
+        modifier(FlyingCardClipModifier(sourceRect: sourceRect, progress: progress, edgeToEdge: edgeToEdge))
     }
+}
+
+private final class ReelsCloseGate {
+    var finished = false
 }
 
 // ✅ PRIVACIDAD: ReelsViewer solo muestra videos que ya pasaron los filtros de privacidad
@@ -227,16 +248,22 @@ struct ReelsViewer: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if showsCommentsPane {
-                    expandedReels
-                } else {
-                    reelsPager
+        Group {
+            if usesDuoReelsChrome {
+                NavigationStack {
+                    Group {
+                        if showsCommentsPane {
+                            expandedReels
+                        } else {
+                            reelsPager
+                        }
+                    }
+                    .toolbar(.visible, for: .navigationBar)
+                    .toolbarBackground(.automatic, for: .navigationBar)
                 }
+            } else {
+                reelsPager
             }
-            .toolbar(usesDuoReelsChrome ? .visible : .hidden, for: .navigationBar)
-            .toolbarBackground(usesDuoReelsChrome ? .automatic : .hidden, for: .navigationBar)
         }
         .momentsViewportMetrics()
         .onGeometryChange(for: [CGRect].self) { proxy in
@@ -322,12 +349,16 @@ struct ReelsViewer: View {
                         }
                         .scrollTargetLayout()
                     }
-                    .scrollDisabled(expandProgress < 0.98)
+                    .scrollDisabled(isDismissRequested || expandProgress < 0.98)
                     .scrollTargetBehavior(.paging)
                     .scrollPosition(id: $scrollPosition)
                     .scrollIndicators(.hidden)
                     .ignoresSafeArea(.container, edges: reelsSafeAreaEdges)
-                    .flyingCardClip(sourceRect: sourceRectInWindow, progress: expandProgress)
+                    .flyingCardClip(
+                        sourceRect: sourceRectInWindow,
+                        progress: expandProgress,
+                        edgeToEdge: !usesDuoReelsChrome
+                    )
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 30)
                             .onEnded { value in
@@ -396,10 +427,14 @@ struct ReelsViewer: View {
     private func closeViewer() {
         guard !isDismissRequested else { return }
         isDismissRequested = true
+        VideoLayerLease.shared.beginClosing()
+        let flies = canFlyFromCard
+            && expandProgress > 0.01
+            && currentIndex == startIndex
+            && !MotionPolicy.reduceMotion
         onWillDismiss?()
         let finish: () -> Void = {
-            // El layer sigue en Reels hasta que el encoger termina.
-            FlyingVideoSurface.shared.land(consumerId: handoffConsumerId)
+            FlyingVideoSurface.shared.land(consumerId: self.handoffConsumerId)
             VideoLayerLease.shared.returnToFeed()
             if let onClosed {
                 onClosed()
@@ -407,21 +442,28 @@ struct ReelsViewer: View {
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
-                    dismiss()
+                    self.dismiss()
                 }
             }
         }
-        guard canFlyFromCard,
-              expandProgress > 0.01,
-              currentIndex == startIndex,
-              !MotionPolicy.reduceMotion else {
+        guard flies else {
             finish()
             return
+        }
+        // El completion de la animación a veces no llega (la ventana sigue encima y bloquea el feed).
+        let gate = ReelsCloseGate()
+        let finishOnce: () -> Void = {
+            guard !gate.finished else { return }
+            gate.finished = true
+            finish()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            finishOnce()
         }
         withAnimation(MotionPolicy.Spring.reelsFly, completionCriteria: .logicallyComplete) {
             expandProgress = 0
         } completion: {
-            finish()
+            finishOnce()
         }
     }
     
@@ -658,9 +700,12 @@ struct ReelVideoView: View {
             let activeRailInset = commentsInPane ? 0 : railInset
             let layoutWidth = max(geometry.size.width - activeRailInset, 1)
             let railAlignment: Alignment = toolbarVerticalEdge == .leading ? .trailing : .leading
-            // Con ScrollView + ignoresSafeArea, geometry.safeAreaInsets suele ser 0.
-            let safeTop = geometry.safeAreaInsets.top
-            let bottomInset = geometry.safeAreaInsets.bottom
+            // El pager ignora el safe area para el vídeo a sangre, y entonces
+            // geometry.safeAreaInsets llega a 0. En el iPhone el chrome se ancla
+            // al inset real de la ventana, como antes del layout Duo.
+            let windowInsets = usesDuoChrome ? UIEdgeInsets.zero : keyWindowSafeAreaInsets()
+            let safeTop = max(geometry.safeAreaInsets.top, windowInsets.top)
+            let bottomInset = max(geometry.safeAreaInsets.bottom, windowInsets.bottom)
             // Baja el input hacia el home indicator (sigue usable).
             let chromeBottomPadding = max(2, bottomInset - 12)
             let showsReelCommentBar = !usesDuoChrome && !commentsInPane
@@ -716,6 +761,18 @@ struct ReelVideoView: View {
                         .frame(width: layoutWidth, height: geometry.size.height)
                         .clipped()
                     }
+
+                    if playerManager.hasLoadError {
+                        Button {
+                            playerManager.retryFailedItem(resetAttempts: true)
+                        } label: {
+                            Label("feed.video.retry", systemImage: "arrow.clockwise")
+                                .font(.system(size: 14, weight: .semibold))
+                                .padding(12)
+                                .background(.ultraThinMaterial, in: Capsule())
+                        }
+                        .foregroundStyle(.white)
+                    }
                 }
                 .frame(width: layoutWidth, height: geometry.size.height)
                 .scaleEffect(videoScale, anchor: .top)
@@ -724,6 +781,7 @@ struct ReelVideoView: View {
                 // Capa invisible para capturar gestos de reproducción y likes en el fondo,
                 // evitando que interfieran con los botones interactivos del overlay superior.
                 Color.black.opacity(0.001)
+                    .ignoresSafeArea(usesDuoChrome ? [] : .all)
                     .allowsHitTesting(!showComments && flyProgress > 0.95)
                     .onTapGesture {
                         let haptic = UIImpactFeedbackGenerator(style: .light)
@@ -992,6 +1050,7 @@ struct ReelVideoView: View {
             }
             .frame(width: layoutWidth, height: geometry.size.height)
             .animation(.smooth(duration: 0.32), value: showComments)
+            .ignoresSafeArea(.container, edges: usesDuoChrome ? [] : .all)
             .overlay(alignment: .bottom) {
                 // Contenido por encima del home indicator; fondo Moments hasta el borde.
                 // Se oculta con el context menu para que nunca quede por encima del sheet.
@@ -1082,6 +1141,7 @@ struct ReelVideoView: View {
                     .frame(width: layoutWidth)
                     .padding(.bottom, chromeBottomPadding)
                     .background(showsReelCommentBar ? bottomBarBackgroundColor : Color.clear)
+                    .ignoresSafeArea(.container, edges: usesDuoChrome ? [] : .bottom)
                     .opacity(Double(commentChromeProgress))
                     .offset(y: 8 * (1 - commentChromeProgress))
                     .allowsHitTesting(chromeInteractive)
@@ -1176,6 +1236,14 @@ struct ReelVideoView: View {
         .onDisappear {
             // Cleanup inmediato al desaparecer
             playerManager.cleanup()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            playerManager.pause()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            if isCurrentVideo {
+                playerManager.play()
+            }
         }
         .toolbar { reelDuoToolbar }
         .sheet(isPresented: Binding(
@@ -1799,12 +1867,14 @@ struct EnhancedReelActionButton: View {
 // Enhanced Video Player Manager con seek optimizado
 class ReelVideoPlayerManager: ObservableObject {
     @Published var player: AVPlayer?
+    @Published private(set) var playbackPhase: VideoPlaybackPhase = .idle
     @Published var isPlaying = false
     @Published var isMuted = true
     @Published var progress: Double = 0
     @Published var duration: Double = 0
     @Published var isBuffering = false
     @Published var isLoaded = false
+    @Published var hasLoadError = false
     
     private var timeObserver: Any?
     private var loopObserver: NSObjectProtocol?
@@ -1816,7 +1886,12 @@ class ReelVideoPlayerManager: ObservableObject {
     private var adaptiveController: VideoAdaptiveTierController?
     private var stalledObserver: NSObjectProtocol?
     private var consumerId: String?
+    private var poolGeneration: UInt64?
     private var leaseGeneration: UInt64 = 0
+    private var sourceURL: URL?
+    private var fallbackURL: URL?
+    private var failedAttempts = 0
+    private var shouldAutoplay = false
     
     func setupPlayer(with video: VideoMoment, startAtSeconds: Double = 0, consumerId handoffConsumerId: String? = nil) {
         let moment = video.moment
@@ -1842,6 +1917,11 @@ class ReelVideoPlayerManager: ObservableObject {
         let source = moment.videoPlaybackSource()
         let playbackURL = source?.playbackURL ?? video.playbackURL
         guard let url = playbackURL else { return }
+        sourceURL = url
+        fallbackURL = source?.fallbackMp4URL
+        failedAttempts = 0
+        shouldAutoplay = true
+        hasLoadError = false
 
         if let mediaItem, mediaItem.type == .video {
             adaptiveController = VideoAdaptiveTierController(
@@ -1853,24 +1933,33 @@ class ReelVideoPlayerManager: ObservableObject {
             adaptiveController = nil
         }
 
-        SharedVideoPlayerPool.shared.setEvictionHandler(for: newConsumerId) { [weak self] in
-            DispatchQueue.main.async { self?.handlePoolEviction() }
-        }
-
         let pooledPlayer = SharedVideoPlayerPool.shared.player(for: newConsumerId)
+        guard let generation = SharedVideoPlayerPool.shared.claim(
+            pooledPlayer, for: newConsumerId, owner: self
+        ) else { return }
+        poolGeneration = generation
+        SharedVideoPlayerPool.shared.setEvictionHandler(for: newConsumerId, owner: self) { [weak self] in
+            DispatchQueue.main.async {
+                guard let self, self.consumerId == newConsumerId,
+                      self.poolGeneration == generation,
+                      !SharedVideoPlayerPool.shared.isAssigned(pooledPlayer, to: newConsumerId) else { return }
+                self.handlePoolEviction()
+            }
+        }
         let reuseExistingItem = pooledPlayer.currentItem != nil && pooledPlayer.currentItem?.status != .failed
 
         if reuseExistingItem, let existingItem = pooledPlayer.currentItem {
             playerItem = existingItem
             player = pooledPlayer
             isLoaded = existingItem.status == .readyToPlay
-            pooledPlayer.automaticallyWaitsToMinimizeStalling = false
+            pooledPlayer.automaticallyWaitsToMinimizeStalling = true
             pooledPlayer.allowsExternalPlayback = false
             applySessionMuteState()
             configureAudioSession()
             observePlayerItem()
             setupLooping()
             observePlayback()
+            observePoolState(pooledPlayer, consumerId: newConsumerId)
             if isLoaded {
                 applyPendingStartAndPlayIfNeeded()
             }
@@ -1893,7 +1982,7 @@ class ReelVideoPlayerManager: ObservableObject {
         } else {
             pooledPlayer.replaceCurrentItem(with: playerItem)
         }
-        pooledPlayer.automaticallyWaitsToMinimizeStalling = false
+        pooledPlayer.automaticallyWaitsToMinimizeStalling = true
         pooledPlayer.allowsExternalPlayback = false
         player = pooledPlayer
         isLoaded = playerItem?.status == .readyToPlay
@@ -1902,6 +1991,18 @@ class ReelVideoPlayerManager: ObservableObject {
         observePlayerItem()
         setupLooping()
         observePlayback()
+        observePoolState(pooledPlayer, consumerId: newConsumerId)
+    }
+
+    private func observePoolState(_ player: AVPlayer, consumerId: String) {
+        SharedVideoPlayerPool.shared.observeState(of: player, for: consumerId, owner: self) { [weak self] phase in
+            guard let self, self.player === player, self.consumerId == consumerId,
+                  self.ownsPoolPlayer else { return }
+            self.playbackPhase = phase
+            self.isLoaded = phase == .ready || phase == .playing || phase == .waiting
+            self.isPlaying = phase == .playing || phase == .waiting
+            self.isBuffering = phase == .loading || phase == .waiting
+        }
     }
 
     private func handlePoolEviction() {
@@ -1922,18 +2023,28 @@ class ReelVideoPlayerManager: ObservableObject {
         player = nil
         playerItem = nil
         consumerId = nil
+        poolGeneration = nil
         isPlaying = false
         isLoaded = false
         isBuffering = false
+        hasLoadError = false
+        playbackPhase = .idle
         progress = 0
         duration = 0
     }
 
     private func teardownObserversOnly() {
+        if let player {
+            SharedVideoPlayerPool.shared.removeStateObserver(of: player, owner: self)
+        }
         let preserve = consumerId.map {
             GlobalVideoManager.shared.shouldPreserveSharedPlayer(consumerId: $0)
         } ?? false
-        if !preserve {
+        let returnedToFeed = consumerId.map {
+            VideoLayerLease.shared.owner == .feed
+                && VideoLayerLease.shared.exclusiveConsumerId == $0
+        } ?? false
+        if !preserve && !returnedToFeed && ownsPoolPlayer {
             player?.pause()
             isPlaying = false
         }
@@ -2003,15 +2114,20 @@ class ReelVideoPlayerManager: ObservableObject {
         playerItem.publisher(for: \.status)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] status in
+                guard let self, self.ownsPoolPlayer else { return }
                 switch status {
                 case .readyToPlay:
-                    self?.isLoaded = true
-                    self?.isBuffering = false
-                    self?.applyPendingStartAndPlayIfNeeded()
+                    self.isLoaded = true
+                    self.isBuffering = false
+                    self.applyPendingStartAndPlayIfNeeded()
                 case .failed:
-                    self?.isBuffering = false
+                    self.isBuffering = false
+                    self.isLoaded = false
+                    DispatchQueue.main.async { [weak self] in
+                        self?.retryFailedItem()
+                    }
                 case .unknown:
-                    self?.isBuffering = true
+                    self.isBuffering = true
                 @unknown default:
                     break
                 }
@@ -2022,9 +2138,10 @@ class ReelVideoPlayerManager: ObservableObject {
         playerItem.publisher(for: \.isPlaybackBufferEmpty)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isEmpty in
-                if isEmpty && self?.isPlaying == true && self?.isSeeking == false {
-                    self?.isBuffering = true
-                    self?.recoverFromPlaybackStall()
+                guard let self, self.ownsPoolPlayer else { return }
+                if isEmpty && self.isPlaying && !self.isSeeking {
+                    self.isBuffering = true
+                    self.recoverFromPlaybackStall()
                 }
             }
             .store(in: &cancellables)
@@ -2032,9 +2149,10 @@ class ReelVideoPlayerManager: ObservableObject {
         playerItem.publisher(for: \.isPlaybackLikelyToKeepUp)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] likelyToKeepUp in
+                guard let self, self.ownsPoolPlayer else { return }
                 if likelyToKeepUp {
-                    self?.isBuffering = false
-                    self?.adaptiveController?.notePlaybackHealthy()
+                    self.isBuffering = false
+                    self.adaptiveController?.notePlaybackHealthy()
                 }
             }
             .store(in: &cancellables)
@@ -2052,11 +2170,21 @@ class ReelVideoPlayerManager: ObservableObject {
     }
 
     private func recoverFromPlaybackStall() {
-        guard let player else { return }
+        guard let player, let consumerId,
+              isCurrentLeaseGeneration(),
+              ownsPoolPlayer else { return }
+        let generation = leaseGeneration
         VideoPlaybackRecovery.recoverFromStall(
             player: player,
             isPlaying: isPlaying,
             adaptive: adaptiveController,
+            shouldResume: { [weak self] in
+                guard let self, self.player === player,
+                      self.isPlaying, self.consumerId == consumerId,
+                      self.leaseGeneration == generation,
+                      self.isCurrentLeaseGeneration() else { return false }
+                return self.ownsPoolPlayer
+            },
             onTierDowngrade: { [weak self] in
                 self?.isLoaded = false
                 self?.isBuffering = true
@@ -2068,6 +2196,41 @@ class ReelVideoPlayerManager: ObservableObject {
             self.observePlayerItem()
             self.setupLooping()
         }
+    }
+
+    func retryFailedItem(resetAttempts: Bool = false) {
+        if resetAttempts {
+            failedAttempts = 0
+            shouldAutoplay = true
+        }
+        guard shouldAutoplay else {
+            hasLoadError = true
+            return
+        }
+        guard isCurrentLeaseGeneration(), ownsPoolPlayer,
+              let player else { return }
+        guard failedAttempts < 2 else {
+            hasLoadError = true
+            return
+        }
+        failedAttempts += 1
+        let retryURL = (failedAttempts == 1 ? fallbackURL : nil) ?? sourceURL
+        guard let retryURL else {
+            hasLoadError = true
+            return
+        }
+
+        hasLoadError = false
+        isLoaded = false
+        isBuffering = true
+        let newItem = VideoPreloader.shared.getPlayerItem(for: retryURL.absoluteString)
+        let tier = adaptiveController?.currentTier ?? VideoPlaybackSelector.shared.recommendedTier()
+        VideoPlaybackSelector.shared.configure(playerItem: newItem, tier: tier)
+        cancellables.removeAll()
+        playerItem = newItem
+        player.replaceCurrentItem(with: newItem)
+        observePlayerItem()
+        setupLooping()
     }
     
     private func setupLooping() {
@@ -2083,16 +2246,19 @@ class ReelVideoPlayerManager: ObservableObject {
             object: playerItem,
             queue: .main
         ) { [weak self] _ in
-            self?.player?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { completed in
-                guard completed, let self, self.isCurrentLeaseGeneration() else { return }
+            guard let self, self.ownsPoolPlayer,
+                  self.isCurrentLeaseGeneration() else { return }
+            self.player?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
+                guard completed, let self, self.shouldAutoplay, self.ownsPoolPlayer,
+                      self.isCurrentLeaseGeneration() else { return }
                 self.pendingStartAtSeconds = nil
-                self.player?.play()
+                self.play()
             }
         }
     }
 
     private func applyPendingStartAndPlayIfNeeded() {
-        guard isCurrentLeaseGeneration() else { return }
+        guard shouldAutoplay, isCurrentLeaseGeneration() else { return }
         guard let player else {
             play()
             return
@@ -2113,7 +2279,8 @@ class ReelVideoPlayerManager: ObservableObject {
         let target = CMTime(seconds: boundedStart, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         let generation = leaseGeneration
         player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-            guard let self, self.leaseGeneration == generation, self.isCurrentLeaseGeneration() else { return }
+            guard let self, self.shouldAutoplay, self.ownsPoolPlayer,
+                  self.leaseGeneration == generation, self.isCurrentLeaseGeneration() else { return }
             self.play()
         }
     }
@@ -2123,34 +2290,46 @@ class ReelVideoPlayerManager: ObservableObject {
     }
     
     func togglePlayback() {
-        guard let player = player, isLoaded else { return }
+        if hasLoadError {
+            retryFailedItem(resetAttempts: true)
+            return
+        }
+        guard let player = player, isLoaded, ownsPoolPlayer else { return }
         
         if isPlaying {
+            shouldAutoplay = false
             player.pause()
             isPlaying = false
         } else {
+            shouldAutoplay = true
             player.play()
             isPlaying = true
         }
     }
     
     func play() {
+        shouldAutoplay = true
+        if hasLoadError {
+            retryFailedItem(resetAttempts: true)
+            return
+        }
         guard isCurrentLeaseGeneration() else { return }
-        guard let player = player, isLoaded else { return }
+        guard let player = player, isLoaded, ownsPoolPlayer else { return }
         player.currentItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = true
         player.play()
         isPlaying = true
     }
     
     func pause() {
-        guard let player = player else { return }
+        shouldAutoplay = false
+        guard let player = player, ownsPoolPlayer else { return }
         player.pause()
         player.currentItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = false
         isPlaying = false
     }
 
     func toggleMute() {
-        guard let player = player else { return }
+        guard let player = player, ownsPoolPlayer else { return }
 
         let volume = AVAudioSession.sharedInstance().outputVolume
         if isMuted && volume == 0.0 {
@@ -2180,6 +2359,7 @@ class ReelVideoPlayerManager: ObservableObject {
         let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self = self,
+                  self.ownsPoolPlayer,
                   let currentItem = player.currentItem,
                   !self.isSeeking else { return } // No actualizar durante seeks
             
@@ -2200,23 +2380,43 @@ class ReelVideoPlayerManager: ObservableObject {
         let shouldPreserve = consumerId.map {
             GlobalVideoManager.shared.shouldPreserveSharedPlayer(consumerId: $0)
         } ?? false
+        let returnedToFeed = consumerId.map {
+            VideoLayerLease.shared.owner == .feed
+                && VideoLayerLease.shared.exclusiveConsumerId == $0
+        } ?? false
 
         // Mismo AVPlayer que el feed: no pausar ni soltar el slot. El feed re-enlaza el layer.
         teardownObserversOnly()
 
-        let actuallyRelease = releaseFromPool && !shouldPreserve
-        if let consumerId, actuallyRelease {
-            SharedVideoPlayerPool.shared.release(consumerId: consumerId)
+        let actuallyRelease = releaseFromPool && !shouldPreserve && !returnedToFeed && ownsPoolPlayer
+        if let consumerId {
+            SharedVideoPlayerPool.shared.removeEvictionHandler(for: consumerId, owner: self)
+        }
+        if let consumerId, let player, let poolGeneration, actuallyRelease {
+            SharedVideoPlayerPool.shared.release(
+                player, consumerId: consumerId, owner: self, generation: poolGeneration
+            )
         }
 
         player = nil
         playerItem = nil
         self.consumerId = nil
+        poolGeneration = nil
         isMuted = !GlobalVideoManager.shared.userHasEnabledSoundInSession
+        playbackPhase = .idle
+        shouldAutoplay = false
+        hasLoadError = false
     }
 
     deinit {
         cleanup(releaseFromPool: false)
+    }
+
+    private var ownsPoolPlayer: Bool {
+        guard let player, let consumerId, let poolGeneration else { return false }
+        return SharedVideoPlayerPool.shared.isOwned(
+            player, by: self, for: consumerId, generation: poolGeneration
+        )
     }
 }
 

@@ -3165,8 +3165,8 @@
 "reactions.title" = "Reactions";
 
 /* Feed Video */
-"feed.video.loading" = "Loading video...";
-"feed.video.loadError" = "We couldn't load the video";
+"feed.video.loading" = "Chargement de la vidéo…";
+"feed.video.loadError" = "Impossible de charger la vidéo";
 "feed.video.retry" = "Réessayer";
 "feed.video.watchAgain" = "Revoir";
 

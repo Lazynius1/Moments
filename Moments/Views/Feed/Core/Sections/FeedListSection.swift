@@ -161,12 +161,6 @@ struct FeedListSection: View {
                 isFeedHeaderHidden = false
                 DispatchQueue.main.async { proxy.scrollTo("feed-top", anchor: .top) }
             }
-            .onChange(of: momentColumnSize?.width) { _, _ in
-                restoreFeedScroll(using: proxy)
-            }
-            .onChange(of: momentColumnSize?.height) { _, _ in
-                restoreFeedScroll(using: proxy)
-            }
             .onDisappear { recommendations.clearVisibility() }
             .onChange(of: recommendations.revision) { _, _ in
                 if selectedFeedType == .forYou, displayedMoments.count < 3,

@@ -1017,47 +1017,80 @@ struct ModernPostCardView: View {
     let sourceRectInWindow: CGRect
 }
 
-/// Presentado en la ventana del feed. Una `UIWindow` aparte no tiene el inset
-/// de la barra vertical ni las divisiones de la escena.
+/// En el iPhone se abre en una ventana propia, como antes. En el Duo va en la
+/// ventana de la escena para heredar la barra vertical y el pliegue.
 @MainActor
 enum ReelsFeedOverlay {
+    private static var overlayWindow: UIWindow?
+    private static var previousKeyWindow: UIWindow?
     private static var overlayHost: UIHostingController<AnyView>?
     private static var onClosed: (() -> Void)?
 
     static func present(
         _ session: ReelsSessionPresentation,
+        embedInScene: Bool,
         onWillDismiss: (() -> Void)?,
         onClosed: @escaping () -> Void
     ) {
         let show = {
-            guard let presenter = topPresenter() else {
-                onClosed()
-                return
-            }
-            let viewer = ReelsViewer(
-                videos: session.videos,
-                startIndex: session.startIndex,
-                initialStartSeconds: session.startSeconds,
-                handoffConsumerId: session.resumeConsumerId,
-                sourceRectInWindow: session.sourceRectInWindow,
-                onWillDismiss: onWillDismiss,
-                onClosed: { dismiss(invokeClosed: true) }
+            let viewer = AnyView(
+                ReelsViewer(
+                    videos: session.videos,
+                    startIndex: session.startIndex,
+                    initialStartSeconds: session.startSeconds,
+                    handoffConsumerId: session.resumeConsumerId,
+                    sourceRectInWindow: session.sourceRectInWindow,
+                    onWillDismiss: onWillDismiss,
+                    onClosed: { dismiss(invokeClosed: true) }
+                )
+                .environmentObject(FirestoreService.shared)
             )
-            .environmentObject(FirestoreService.shared)
 
-            let host = UIHostingController(rootView: AnyView(viewer))
-            host.view.backgroundColor = .clear
-            host.modalPresentationStyle = .overFullScreen
             Self.onClosed = onClosed
-            overlayHost = host
-            presenter.present(host, animated: false)
+            if embedInScene {
+                presentInScene(viewer, onClosed: onClosed)
+            } else {
+                presentInWindow(viewer, onClosed: onClosed)
+            }
         }
 
-        if overlayHost != nil {
+        if overlayHost != nil || overlayWindow != nil {
             dismiss(invokeClosed: false, then: show)
         } else {
             show()
         }
+    }
+
+    private static func presentInWindow(_ viewer: AnyView, onClosed: @escaping () -> Void) {
+        guard let scene = UIApplication.shared.activeKeyWindow?.windowScene else {
+            Self.onClosed = nil
+            VideoLayerLease.shared.returnToFeed()
+            onClosed()
+            return
+        }
+        let host = UIHostingController(rootView: viewer)
+        host.view.backgroundColor = .clear
+        let window = UIWindow(windowScene: scene)
+        window.windowLevel = .statusBar + 1
+        window.backgroundColor = .clear
+        window.rootViewController = host
+        previousKeyWindow = UIApplication.shared.activeKeyWindow
+        overlayWindow = window
+        window.makeKeyAndVisible()
+    }
+
+    private static func presentInScene(_ viewer: AnyView, onClosed: @escaping () -> Void) {
+        guard let presenter = topPresenter() else {
+            Self.onClosed = nil
+            VideoLayerLease.shared.returnToFeed()
+            onClosed()
+            return
+        }
+        let host = UIHostingController(rootView: viewer)
+        host.view.backgroundColor = .clear
+        host.modalPresentationStyle = .overFullScreen
+        overlayHost = host
+        presenter.present(host, animated: false)
     }
 
     static func dismiss(invokeClosed: Bool) {
@@ -1067,16 +1100,22 @@ enum ReelsFeedOverlay {
     private static func dismiss(invokeClosed: Bool, then next: (() -> Void)?) {
         let callback = onClosed
         onClosed = nil
-        guard let host = overlayHost else {
-            if invokeClosed { callback?() }
-            next?()
+        if let host = overlayHost {
+            overlayHost = nil
+            host.dismiss(animated: false) {
+                if invokeClosed { callback?() }
+                next?()
+            }
             return
         }
-        overlayHost = nil
-        host.dismiss(animated: false) {
-            if invokeClosed { callback?() }
-            next?()
-        }
+        let previous = previousKeyWindow
+        previousKeyWindow = nil
+        overlayWindow?.isHidden = true
+        overlayWindow?.rootViewController = nil
+        overlayWindow = nil
+        previous?.makeKey()
+        if invokeClosed { callback?() }
+        next?()
     }
 
     private static func topPresenter() -> UIViewController? {
@@ -1092,6 +1131,10 @@ enum ReelsFeedOverlay {
 
 // Enhanced Carousel View — ScrollView paging (sin lazy-swap ni TabView)
 struct EnhancedCarouselView: View {
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    @Environment(\.momentsHasHinge) private var momentsHasHinge
+
     let mediaItems: [MediaItem]
     @Binding var currentIndex: Int
     @Binding var showTags: Bool
@@ -1189,6 +1232,7 @@ struct EnhancedCarouselView: View {
         )
         ReelsFeedOverlay.present(
             stamped,
+            embedInScene: momentsHasHinge || toolbarVerticalEdge != nil || !divisionRegions.isEmpty,
             onWillDismiss: prepareReelsDismiss,
             onClosed: dismissReels
         )
@@ -1215,7 +1259,6 @@ struct EnhancedCarouselView: View {
     private func prepareReelsDismiss() {
         guard !isPreparingReelsDismiss else { return }
         isPreparingReelsDismiss = true
-
         let resumeId = reelsResumeId.isEmpty
             ? GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
             : reelsResumeId

@@ -286,12 +286,22 @@ struct ExploreView: View {
                     ErrorStateView(message: errorMessage) {
                         viewModel.fetchMomentsByInterests()
                     }
-                } else if usesExpandedExplore {
-                    expandedExplore
-                } else if showsCompactDuoDetail {
-                    compactDuoDetail
                 } else {
-                    contentScrollView
+                    ZStack {
+                        MomentsStableSplit(
+                            usesDuo: usesDuoExploreChrome,
+                            expanded: usesExpandedExplore,
+                            beside: peopleAreBesideMosaic
+                        ) {
+                            contentScrollView
+                        } secondary: {
+                            expandedSecondaryPane
+                                .environment(\.exploreSecondaryClose, closeExploreSecondary)
+                        }
+                        if showsCompactDuoDetail {
+                            compactDuoDetail
+                        }
+                    }
                 }
             }
 
@@ -351,54 +361,6 @@ struct ExploreView: View {
                 paneSuggestedUsers = false
             }
         }
-    }
-
-    @ViewBuilder
-    private var expandedExplore: some View {
-        if #available(iOS 27.1, *) {
-            ArrangementView {
-                expandedMosaicPane
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .clipped()
-                    .background(exploreCanvas)
-            } secondary: {
-                expandedSecondaryPane
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .background(exploreCanvas)
-                    .environment(\.exploreSecondaryClose, closeExploreSecondary)
-            }
-            .arrangementViewStyle(.split.axes(peopleAreBesideMosaic ? .horizontal : .vertical))
-        }
-    }
-
-    private var expandedMosaicPane: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 24) {
-                if searchText.isEmpty {
-                    if !viewModel.moments.isEmpty {
-                        ExploreMomentsBentoGrid(
-                            moments: viewModel.moments,
-                            zoomNamespace: zoomNamespace,
-                            onMomentTap: handleMomentTap
-                        )
-                    }
-                    ExplorePagingFooter(
-                        isLoading: viewModel.isLoadingMoreExplore,
-                        failed: viewModel.explorePageFailed,
-                        hasMore: viewModel.hasMoreExplore,
-                        onLoadMore: viewModel.loadMoreExplore,
-                        onRetry: viewModel.loadMoreExplore
-                    )
-                } else {
-                    searchResultsSection(pane: .moments)
-                }
-            }
-        }
-        .momentRefresh {
-            if searchText.isEmpty { viewModel.refreshAllContent() } else { viewModel.retrySearch() }
-            try? await Task.sleep(nanoseconds: 900_000_000)
-        }
-        .momentsScrollEdgeChrome()
     }
 
     @ViewBuilder
@@ -477,7 +439,9 @@ struct ExploreView: View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 24) {
                 if searchText.isEmpty {
-                    suggestedUsersSection
+                    if !usesExpandedExplore {
+                        suggestedUsersSection
+                    }
 
                     if !viewModel.moments.isEmpty {
                         ExploreMomentsBentoGrid(
@@ -490,7 +454,7 @@ struct ExploreView: View {
                         hasMore: viewModel.hasMoreExplore, onLoadMore: viewModel.loadMoreExplore,
                         onRetry: viewModel.loadMoreExplore)
                 } else {
-                    searchResultsSection()
+                    searchResultsSection(pane: usesExpandedExplore ? .moments : .combined)
                 }
             }
         }

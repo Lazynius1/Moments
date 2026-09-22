@@ -67,6 +67,7 @@ final class VideoAdaptiveTierController {
     private let moment: Moment?
     private let selector = VideoPlaybackSelector.shared
     private var consecutiveStalls = 0
+    private var lastStallAt: Date?
     private let stallsBeforeDowngrade = 2
 
     var hasVariants: Bool {
@@ -89,11 +90,20 @@ final class VideoAdaptiveTierController {
     /// Llamar cuando la reproducción vuelve a ser estable.
     func notePlaybackHealthy() {
         consecutiveStalls = 0
+        lastStallAt = nil
     }
 
     /// Registra un stall. Devuelve un nuevo `AVPlayerItem` si toca bajar de calidad.
     func handleStall() -> AVPlayerItem? {
         guard hasVariants, let mediaItem else { return nil }
+
+        // Buffer KVO y AVPlayerItemPlaybackStalled pueden notificar el mismo corte.
+        // Contarlo una vez evita bajar dos tiers por un único stall.
+        let now = Date()
+        if let lastStallAt, now.timeIntervalSince(lastStallAt) < 0.75 {
+            return nil
+        }
+        lastStallAt = now
 
         consecutiveStalls += 1
         guard consecutiveStalls >= stallsBeforeDowngrade else { return nil }
@@ -121,6 +131,7 @@ enum VideoPlaybackRecovery {
         player: AVPlayer,
         isPlaying: Bool,
         adaptive: VideoAdaptiveTierController?,
+        shouldResume: @escaping () -> Bool,
         onTierDowngrade: (() -> Void)? = nil,
         onReplaceItem: (AVPlayerItem) -> Void
     ) {
@@ -132,12 +143,19 @@ enum VideoPlaybackRecovery {
             onTierDowngrade?()
             onReplaceItem(newItem)
             player.replaceCurrentItem(with: newItem)
-            player.seek(to: resumeTime, toleranceBefore: .positiveInfinity, toleranceAfter: .positiveInfinity) { _ in
-                player.play()
+            player.seek(to: resumeTime, toleranceBefore: .positiveInfinity, toleranceAfter: .positiveInfinity) { completed in
+                DispatchQueue.main.async {
+                    guard completed,
+                          player.currentItem === newItem,
+                          shouldResume() else { return }
+                    player.play()
+                }
             }
             return
         }
 
-        player.play()
+        if shouldResume() {
+            player.play()
+        }
     }
 }

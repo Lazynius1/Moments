@@ -114,10 +114,22 @@ struct FeedView: View {
             modernBackgroundView
                 .ignoresSafeArea(.all)
 
-            if usesExpandedFeed {
-                expandedFeed
-            } else {
+            MomentsStableSplit(
+                usesDuo: usesDuoFeedChrome,
+                expanded: usesExpandedFeed,
+                beside: commentsAreBesideFeed
+            ) {
                 feedStage
+                    .onGeometryChange(for: CGSize.self) { proxy in
+                        proxy.size
+                    } action: { size in
+                        guard size.width > 1, size.height > 1 else { return }
+                        guard abs(size.width - feedPaneSize.width) > 1
+                                || abs(size.height - feedPaneSize.height) > 1 else { return }
+                        feedPaneSize = size
+                    }
+            } secondary: {
+                feedCommentsPane
             }
 
             FeedOverlaysSection(
@@ -473,31 +485,6 @@ struct FeedView: View {
                     .padding(.top, 60)
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var expandedFeed: some View {
-        if #available(iOS 27.1, *) {
-            ArrangementView {
-                Color.clear
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .onGeometryChange(for: CGSize.self) { proxy in
-                        proxy.size
-                    } action: { size in
-                        guard size.width > 1, size.height > 1 else { return }
-                        guard abs(size.width - feedPaneSize.width) > 1
-                                || abs(size.height - feedPaneSize.height) > 1 else { return }
-                        feedPaneSize = size
-                    }
-                    .overlay {
-                        feedStage
-                    }
-                    .clipped()
-            } secondary: {
-                feedCommentsPane
-            }
-            .arrangementViewStyle(.split.axes(commentsAreBesideFeed ? .horizontal : .vertical))
         }
     }
 

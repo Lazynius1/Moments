@@ -133,18 +133,26 @@ struct ModernProfileContentView: View {
     }
 
     private var profileDuoContainer: some View {
-        Group {
-            if usesExpandedProfile {
-                expandedProfile
-            } else if showsCompactDuoDetail {
-                compactProfileDetail
-            } else {
+        ZStack {
+            MomentsStableSplit(
+                usesDuo: usesDuoProfileChrome,
+                expanded: usesExpandedProfile,
+                beside: detailIsBesideProfile
+            ) {
                 profileColumn
-                    .frame(maxWidth: 760)
+                    .frame(maxWidth: usesDuoProfileChrome ? .infinity : 760)
                     .frame(maxWidth: .infinity)
-                    .navigationDestination(item: $zoomDestination) { destination in
+                    .navigationDestination(item: profileZoomNavigation) { destination in
                         profilePushedDetail(destination)
                     }
+            } secondary: {
+                profileSecondaryPane
+            }
+            .opacity(showsCompactDuoDetail ? 0 : 1)
+            .allowsHitTesting(!showsCompactDuoDetail)
+
+            if showsCompactDuoDetail {
+                compactProfileDetail
             }
         }
         .modifier(ProfileHingeObserver(pose: $hingePose))
@@ -478,27 +486,18 @@ struct ModernProfileContentView: View {
         return toolbarVerticalEdge != nil
     }
 
+    /// En el Duo el detalle vive en la otra pantalla. En el iPhone sigue el push.
+    private var profileZoomNavigation: Binding<ProfileMomentZoomDestination?> {
+        if usesDuoProfileChrome {
+            return .constant(nil)
+        }
+        return $zoomDestination
+    }
+
     /// Cerrado con un detalle: esa pantalla ocupa el Duo. Abierto: vuelve al split.
     private var showsCompactDuoDetail: Bool {
         guard usesDuoProfileChrome, !usesExpandedProfile else { return false }
         return zoomDestination != nil
-    }
-
-    @ViewBuilder
-    private var expandedProfile: some View {
-        if #available(iOS 27.1, *) {
-            ArrangementView {
-                profileColumn
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .clipped()
-            } secondary: {
-                profileSecondaryPane
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            }
-            .arrangementViewStyle(.split.axes(detailIsBesideProfile ? .horizontal : .vertical))
-        } else {
-            profileColumn
-        }
     }
 
     private var compactProfileDetail: some View {

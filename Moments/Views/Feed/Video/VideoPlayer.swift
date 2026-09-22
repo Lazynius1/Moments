@@ -68,15 +68,14 @@ class GlobalVideoManager: ObservableObject {
             \.outputVolume,
             options: [.old, .new]
         ) { [weak self] _, change in
-            guard let self,
-                  let oldValue = change.oldValue,
+            guard let oldValue = change.oldValue,
                   let newValue = change.newValue,
-                  newValue > oldValue,
-                  self.activeVideoId != nil,
-                  !self.userHasEnabledSoundInSession
+                  newValue > oldValue
             else { return }
 
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.activeVideoId != nil,
+                      !self.userHasEnabledSoundInSession else { return }
                 self.enableSoundForSession()
             }
         }
@@ -329,6 +328,7 @@ class GlobalVideoManager: ObservableObject {
             consumerId = Self.profileVideoConsumerId(for: moment)
         }
         preservedPlayerConsumerIds.remove(consumerId)
+        allPlayers[consumerId]?.reclaimSharedPlayer()
     }
     
     // ✅ Verificar si el iPhone está en modo silencioso
@@ -373,7 +373,7 @@ struct ModernVideoPlayer: View {
     @State private var leaseEpoch: UInt64 = 0
     
     private let maxSetupRetries = 2
-    private let setupTimeoutSeconds: Double = 4.0
+    private let setupTimeoutSeconds: Double = 8.0
     private var globalManager: GlobalVideoManager { GlobalVideoManager.shared }
     
     init(
@@ -481,6 +481,17 @@ struct ModernVideoPlayer: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: VideoLayerLease.didChange)) { _ in
             leaseEpoch = VideoLayerLease.shared.generation
+            guard VideoLayerLease.shared.owner == .feed,
+                  VideoLayerLease.shared.exclusiveConsumerId == videoId,
+                  isVisible else { return }
+            // El slot puede haber sido desalojado mientras Reels usaba el layer.
+            // Revalidarlo después del cambio de dueño evita mostrar otro vídeo.
+            DispatchQueue.main.async {
+                guard isVisible else { return }
+                playerManager.reclaimSharedPlayer()
+                preparePlayerIfNeeded()
+                applyActivationMode(activeId: FeedVisibilityCoordinator.shared.activeVideoMomentId)
+            }
         }
         .onAppear {
             isVisible = true
@@ -523,6 +534,18 @@ struct ModernVideoPlayer: View {
         .onReceive(globalManager.$isPlaybackHeld) { held in
             if !held {
                 applyActivationMode(activeId: FeedVisibilityCoordinator.shared.activeVideoMomentId)
+            }
+        }
+        .onChange(of: playerManager.playbackPhase) { _, phase in
+            if phase == .failed {
+                hasLoadError = true
+            } else if phase == .playing || phase == .ready {
+                hasLoadError = false
+            }
+            if phase == .waiting {
+                isBuffering = true
+            } else if phase == .playing || phase == .ready {
+                isBuffering = false
             }
         }
         .onTapGesture {
@@ -729,6 +752,8 @@ struct ModernVideoPlayer: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + setupTimeoutSeconds) {
             guard isVisible else { return }
             guard generation == setupGeneration else { return }
+            guard !(VideoLayerLease.shared.owner == .reels
+                    && VideoLayerLease.shared.exclusiveConsumerId == videoId) else { return }
             guard playerManager.player != nil else { return }
             
             let status = playerManager.player?.currentItem?.status ?? .unknown
@@ -772,7 +797,13 @@ struct ModernVideoPlayer: View {
     }
 
     private func preparePlayerIfNeeded() {
-        if hasSetupPlayer, playerManager.player?.currentItem == nil {
+        guard !(VideoLayerLease.shared.owner == .reels
+                && VideoLayerLease.shared.exclusiveConsumerId == videoId) else { return }
+        let needsNewPlayer = playerManager.player.map { player in
+            player.currentItem == nil
+                || !SharedVideoPlayerPool.shared.isAssigned(player, to: videoId)
+        } ?? true
+        if hasSetupPlayer && needsNewPlayer {
             hasSetupPlayer = false
             playerManager.cleanup(releaseFromPool: false)
         }
@@ -868,6 +899,7 @@ struct ModernVideoPlayer: View {
 // ✅ MODIFICADO: VideoPlayerManager con control externo
 class VideoPlayerManager: ObservableObject {
     @Published var player: AVPlayer?
+    @Published private(set) var playbackPhase: VideoPlaybackPhase = .idle
     @Published var isPlaying = false
     @Published var isMuted = true
     @Published var isReadyToPlay = false
@@ -880,6 +912,7 @@ class VideoPlayerManager: ObservableObject {
     private var endObserver: NSObjectProtocol?
     private var statusObserver: NSKeyValueObservation?
     private var consumerId: String?
+    private var poolGeneration: UInt64?
     private var activeItem: AVPlayerItem?
     private var pendingSeekSeconds: Double?
     private var adaptiveController: VideoAdaptiveTierController?
@@ -911,13 +944,21 @@ class VideoPlayerManager: ObservableObject {
             adaptiveController = nil
         }
 
-        // Si el pool desaloja nuestro slot (reasigna el AVPlayer a otro contenido),
-        // soltamos nuestras referencias/observers para no reproducir contenido cruzado.
-        SharedVideoPlayerPool.shared.setEvictionHandler(for: consumerId) { [weak self] in
-            DispatchQueue.main.async { self?.handlePoolEviction() }
-        }
-
         let pooledPlayer = SharedVideoPlayerPool.shared.player(for: consumerId)
+        guard let generation = SharedVideoPlayerPool.shared.claim(
+            pooledPlayer, for: consumerId, owner: self
+        ) else { return }
+        poolGeneration = generation
+        // Ambos managers conservan su observer durante el handoff. Si el slot se
+        // reasigna, el callback antiguo solo afecta a su propia generación.
+        SharedVideoPlayerPool.shared.setEvictionHandler(for: consumerId, owner: self) { [weak self] in
+            DispatchQueue.main.async {
+                guard let self, self.consumerId == consumerId,
+                      self.poolGeneration == generation,
+                      !SharedVideoPlayerPool.shared.isAssigned(pooledPlayer, to: consumerId) else { return }
+                self.handlePoolEviction()
+            }
+        }
 
         if reuseExistingItem,
            let existingItem = pooledPlayer.currentItem,
@@ -931,6 +972,7 @@ class VideoPlayerManager: ObservableObject {
             setupAdaptiveObservers(for: existingItem)
             observePlayback()
             setupLooping(for: existingItem)
+            observePoolState(pooledPlayer, consumerId: consumerId)
             applyPendingSeekIfPossible(on: pooledPlayer, item: existingItem)
             return
         }
@@ -941,7 +983,7 @@ class VideoPlayerManager: ObservableObject {
 
         pooledPlayer.replaceCurrentItem(with: playerItem)
         applySessionMuteState(on: pooledPlayer)
-        pooledPlayer.automaticallyWaitsToMinimizeStalling = false
+        pooledPlayer.automaticallyWaitsToMinimizeStalling = true
 
         player = pooledPlayer
         activeItem = playerItem
@@ -952,7 +994,18 @@ class VideoPlayerManager: ObservableObject {
         setupAdaptiveObservers(for: playerItem)
         observePlayback()
         setupLooping(for: playerItem)
+        observePoolState(pooledPlayer, consumerId: consumerId)
         applyPendingSeekIfPossible(on: pooledPlayer, item: playerItem)
+    }
+
+    private func observePoolState(_ player: AVPlayer, consumerId: String) {
+        SharedVideoPlayerPool.shared.observeState(of: player, for: consumerId, owner: self) { [weak self] phase in
+            guard let self, self.player === player, self.consumerId == consumerId,
+                  self.ownsPoolPlayer else { return }
+            self.playbackPhase = phase
+            self.isReadyToPlay = phase == .ready || phase == .playing || phase == .waiting
+            self.isPlaying = phase == .playing || phase == .waiting
+        }
     }
 
     private func applySessionMuteState(on player: AVPlayer) {
@@ -962,6 +1015,7 @@ class VideoPlayerManager: ObservableObject {
     }
 
     private func applyPendingSeekIfPossible(on player: AVPlayer, item: AVPlayerItem) {
+        guard ownsPoolPlayer else { return }
         guard let seconds = pendingSeekSeconds, seconds > 0.05 else { return }
         guard item.status == .readyToPlay else { return }
         pendingSeekSeconds = nil
@@ -983,12 +1037,17 @@ class VideoPlayerManager: ObservableObject {
         adaptiveController = nil
         player = nil
         activeItem = nil
+        poolGeneration = nil
         isPlaying = false
         isReadyToPlay = false
+        playbackPhase = .idle
         lastPublishedTime = -1
     }
 
     private func removePlayerObservers() {
+        if let player {
+            SharedVideoPlayerPool.shared.removeStateObserver(of: player, owner: self)
+        }
         if let timeObserver = timeObserver {
             player?.removeTimeObserver(timeObserver)
             self.timeObserver = nil
@@ -1006,7 +1065,8 @@ class VideoPlayerManager: ObservableObject {
         statusObserver?.invalidate()
         statusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
             DispatchQueue.main.async {
-                guard let self else { return }
+                guard let self, self.ownsPoolPlayer,
+                      self.player?.currentItem === item else { return }
                 self.isReadyToPlay = item.status == .readyToPlay
                 if item.status == .readyToPlay, let player = self.player {
                     self.applyPendingSeekIfPossible(on: player, item: item)
@@ -1054,11 +1114,16 @@ class VideoPlayerManager: ObservableObject {
     }
 
     private func recoverFromPlaybackStall() {
-        guard let player else { return }
+        guard let player, let consumerId, ownsPoolPlayer else { return }
         VideoPlaybackRecovery.recoverFromStall(
             player: player,
             isPlaying: isPlaying,
             adaptive: adaptiveController,
+            shouldResume: { [weak self] in
+                guard let self, self.player === player,
+                      self.isPlaying, self.consumerId == consumerId else { return false }
+                return self.ownsPoolPlayer
+            },
             onTierDowngrade: { [weak self] in
                 self?.isReadyToPlay = false
             }
@@ -1074,6 +1139,7 @@ class VideoPlayerManager: ObservableObject {
     // ✅ NUEVO: Función para reproducir controlada externamente
     func resumeVideo() {
         guard let player = player else { return }
+        guard ownsPoolPlayer else { return }
         guard !hasFinishedPlayback else { return }
         // Solo el vídeo activo bufferiza en red mientras está pausado momentáneamente.
         player.currentItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = true
@@ -1082,10 +1148,11 @@ class VideoPlayerManager: ObservableObject {
     }
 
     func replayFromBeginning() {
+        guard ownsPoolPlayer else { return }
         hasFinishedPlayback = false
         guard let player else { return }
         player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
-            guard completed else { return }
+            guard completed, self?.ownsPoolPlayer == true else { return }
             self?.resumeVideo()
         }
     }
@@ -1093,6 +1160,7 @@ class VideoPlayerManager: ObservableObject {
     // ✅ NUEVO: Función para pausar controlada externamente
     func pauseVideo() {
         guard let player = player else { return }
+        guard ownsPoolPlayer else { return }
         player.pause()
         // Evita que un vídeo fuera de pantalla siga consumiendo red/CPU/batería.
         player.currentItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = false
@@ -1101,7 +1169,7 @@ class VideoPlayerManager: ObservableObject {
     
     // ✅ MANTENER: Toggle manual (para cuando el usuario toca play/pause)
     func togglePlayback() {
-        guard let player = player else { return }
+        guard let player = player, ownsPoolPlayer else { return }
         
         if isPlaying {
             player.pause()
@@ -1114,7 +1182,7 @@ class VideoPlayerManager: ObservableObject {
     
     // Toggle mute respetando el modo silencioso del iPhone
     func toggleMute(respectSilentMode: Bool = false) {
-        guard let player = player else { return }
+        guard let player = player, ownsPoolPlayer else { return }
         
         if respectSilentMode {
             // ✅ Verificar si el iPhone está en modo silencioso
@@ -1131,7 +1199,7 @@ class VideoPlayerManager: ObservableObject {
     
     // ✅ NUEVO: Establecer mute directamente (usado por GlobalVideoManager)
     func setMuted(_ muted: Bool, respectSilentMode: Bool = false) {
-        guard let player = player else { return }
+        guard let player = player, ownsPoolPlayer else { return }
         
         if respectSilentMode {
             let volume = AVAudioSession.sharedInstance().outputVolume
@@ -1155,7 +1223,7 @@ class VideoPlayerManager: ObservableObject {
             object: playerItem,
             queue: .main
         ) { [weak self] _ in
-            guard let self else { return }
+            guard let self, self.ownsPoolPlayer else { return }
             // Reels posee el mismo AVPlayer: allí el bucle lo hace ReelVideoPlayerManager.
             if let consumerId, GlobalVideoManager.shared.shouldPreserveSharedPlayer(consumerId: consumerId) {
                 return
@@ -1181,6 +1249,7 @@ class VideoPlayerManager: ObservableObject {
         let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self = self,
+                  self.ownsPoolPlayer,
                   let currentItem = player.currentItem else { return }
             
             let duration = currentItem.duration
@@ -1206,12 +1275,19 @@ class VideoPlayerManager: ObservableObject {
         adaptiveController = nil
         
         let isCurrent = consumerId.map { GlobalVideoManager.shared.isRegisteredPlayer($0, manager: self) } ?? true
+        let ownsPlayer = ownsPoolPlayer
         
-        if isCurrent {
+        if isCurrent && ownsPlayer {
             player?.pause()
         }
-        if let consumerId, releaseFromPool && isCurrent {
-            SharedVideoPlayerPool.shared.release(consumerId: consumerId)
+        if let consumerId {
+            SharedVideoPlayerPool.shared.removeEvictionHandler(for: consumerId, owner: self)
+        }
+        if let consumerId, let player, let poolGeneration,
+           releaseFromPool && isCurrent && ownsPlayer {
+            SharedVideoPlayerPool.shared.release(
+                player, consumerId: consumerId, owner: self, generation: poolGeneration
+            )
         }
         // Un manager desplazado no debe borrar el estado del nuevo manager que ya
         // ocupa el mismo consumerId.
@@ -1221,11 +1297,13 @@ class VideoPlayerManager: ObservableObject {
         player = nil
         activeItem = nil
         self.consumerId = nil
+        poolGeneration = nil
         
         NotificationCenter.default.removeObserver(self)
         
         isPlaying = false
         isReadyToPlay = false
+        playbackPhase = .idle
         hasFinishedPlayback = false
         lastPublishedTime = -1
     }
@@ -1235,7 +1313,31 @@ class VideoPlayerManager: ObservableObject {
         // registro global. No debe consultar ni modificar ese registro: solo libera
         // recursos que pertenecen directamente a esta instancia.
         removePlayerObservers()
+        if let consumerId {
+            SharedVideoPlayerPool.shared.removeEvictionHandler(for: consumerId, owner: self)
+        }
+        if let player, let consumerId, let poolGeneration, ownsPoolPlayer {
+            SharedVideoPlayerPool.shared.release(
+                player, consumerId: consumerId, owner: self, generation: poolGeneration
+            )
+        }
         NotificationCenter.default.removeObserver(self)
+    }
+
+    private var ownsPoolPlayer: Bool {
+        guard let player, let consumerId, let poolGeneration else { return false }
+        return SharedVideoPlayerPool.shared.isOwned(
+            player, by: self, for: consumerId, generation: poolGeneration
+        )
+    }
+
+    func reclaimSharedPlayer() {
+        guard let player, let consumerId,
+              let generation = SharedVideoPlayerPool.shared.claim(
+                  player, for: consumerId, owner: self
+              ) else { return }
+        poolGeneration = generation
+        observePoolState(player, consumerId: consumerId)
     }
 }
 
@@ -1249,13 +1351,17 @@ final class VideoLayerLease {
     static let shared = VideoLayerLease()
     static let didChange = NSNotification.Name("VideoLayerLeaseDidChange")
 
+    enum Phase: Equatable {
+        case feed
+        case opening
+        case reels
+        case closing
+    }
+
     private(set) var exclusiveConsumerId: String?
     private(set) var owner: VideoLayerRole = .feed
     private(set) var generation: UInt64 = 0
-    private var isTransitioning = false
-    private var canClaimReels = false
-    private var idleWork: DispatchWorkItem?
-    private var claimWork: DispatchWorkItem?
+    private(set) var phase: Phase = .feed
 
     private init() {}
 
@@ -1274,12 +1380,8 @@ final class VideoLayerLease {
     /// Tap del feed: Reels es dueño al instante; el card del feed se apaga.
     @discardableResult
     func beginReels(consumerId: String) -> Bool {
-        guard !isTransitioning else { return false }
-        isTransitioning = true
-        canClaimReels = true
-        idleWork?.cancel()
-        claimWork?.cancel()
-        claimWork = nil
+        guard phase == .feed else { return false }
+        phase = .opening
         exclusiveConsumerId = consumerId
         owner = .reels
         generation &+= 1
@@ -1289,32 +1391,26 @@ final class VideoLayerLease {
 
     /// El layer ya voló a Reels (misma superficie). Dueño = Reels al instante.
     func claimReels(consumerId: String) {
-        guard canClaimReels else { return }
+        guard phase == .opening else { return }
         guard exclusiveConsumerId == consumerId else { return }
-        canClaimReels = false
-        claimWork?.cancel()
-        claimWork = nil
+        phase = .reels
         owner = .reels
         NotificationCenter.default.post(name: Self.didChange, object: nil)
     }
 
+    func beginClosing() {
+        guard phase == .opening || phase == .reels else { return }
+        phase = .closing
+    }
+
     /// Cerrar Reels: Reels suelta, el feed reengancha. Siempre, no “si SwiftUI actualiza”.
     func returnToFeed() {
-        guard isTransitioning || exclusiveConsumerId != nil else { return }
-        claimWork?.cancel()
-        claimWork = nil
-        canClaimReels = false
+        guard phase != .feed else { return }
+        phase = .feed
         owner = .feed
         generation &+= 1
         NotificationCenter.default.post(name: Self.didChange, object: nil)
-        idleWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            // exclusive se queda: un Reels zombie no puede reenganchar.
-            // El próximo beginReels lo sustituye.
-            self?.isTransitioning = false
-        }
-        idleWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
+        // `generation` invalida los callbacks pendientes del Reel anterior.
     }
 }
 
