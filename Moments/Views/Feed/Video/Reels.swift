@@ -150,25 +150,25 @@ private struct FlyingCardMaskShape: Shape {
     }
 }
 
-/// Reels a tamaño real; la tarjeta crece y va revelando media + chrome (no escala todo junto).
+/// La máscara sigue el frame real. No mide con un GeometryReader que ignore
+/// el área segura: ese reader se come el inset de la barra vertical.
 private struct FlyingCardClipModifier: ViewModifier {
     let sourceRect: CGRect
     let progress: CGFloat
+    @State private var origin: CGPoint = .zero
 
     func body(content: Content) -> some View {
-        GeometryReader { geo in
-            let origin = geo.frame(in: .global).origin
-            content
-                .frame(width: geo.size.width, height: geo.size.height)
-                .mask(
-                    FlyingCardMaskShape(
-                        sourceRect: sourceRect,
-                        containerOriginInGlobal: origin,
-                        progress: progress
-                    )
+        content
+            .onGeometryChange(for: CGPoint.self) { proxy in
+                proxy.frame(in: .global).origin
+            } action: { origin = $0 }
+            .mask(
+                FlyingCardMaskShape(
+                    sourceRect: sourceRect,
+                    containerOriginInGlobal: origin,
+                    progress: progress
                 )
-        }
-        .ignoresSafeArea()
+            )
     }
 }
 
@@ -192,6 +192,12 @@ struct ReelsViewer: View {
     @State private var isDismissRequested = false
     @State private var expandProgress: CGFloat
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    /// Divisiones de esta vista. El modifier las publica hacia los hijos.
+    @State private var geometryDivisions: [CGRect] = []
+    @State private var hingePose: ReelsHingePose = .unknown
+    /// Reparto al lado mientras el pliegue existe. Abierto del todo lo conserva.
+    @State private var keptHorizontalSplit = false
 
     private var canFlyFromCard: Bool {
         sourceRectInWindow.width > 8 && sourceRectInWindow.height > 8
@@ -221,12 +227,81 @@ struct ReelsViewer: View {
     }
 
     var body: some View {
+        NavigationStack {
+            Group {
+                if showsCommentsPane {
+                    expandedReels
+                } else {
+                    reelsPager
+                }
+            }
+            .toolbar(usesDuoReelsChrome ? .visible : .hidden, for: .navigationBar)
+            .toolbarBackground(usesDuoReelsChrome ? .automatic : .hidden, for: .navigationBar)
+        }
+        .momentsViewportMetrics()
+        .onGeometryChange(for: [CGRect].self) { proxy in
+            guard #available(iOS 27.1, *) else { return [] }
+            return proxy.reservedRegions(kind: .division)
+                .filter(\.isActive)
+                .map(\.frame)
+        } action: { regions in
+            geometryDivisions = regions
+            if let division = regions.first(where: { $0.width > 1 && $0.height > 1 }) {
+                keptHorizontalSplit = division.height >= division.width
+            }
+        }
+        .modifier(ReelsHingeObserver(pose: $hingePose))
+        .onAppear {
+            guard canFlyFromCard, expandProgress < 1 else { return }
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.reelsFly) {
+                expandProgress = 1
+            }
+        }
+        // Status bar visible: el chrome top se ancla bajo el safe area.
+    }
+
+    private var sceneDivisions: [CGRect] { geometryDivisions }
+
+    /// Duo con barra vertical, pliegue o bisagra. El iPhone no entra aquí.
+    private var usesDuoReelsChrome: Bool {
+        toolbarVerticalEdge != nil || !sceneDivisions.isEmpty || hingePose != .unknown
+    }
+
+    private var usesExpandedReels: Bool {
+        guard usesDuoReelsChrome else { return false }
+        if hingePose == .closed { return false }
+        return hingePose == .partiallyOpen || hingePose == .fullyOpen || !sceneDivisions.isEmpty
+    }
+
+    /// Con pliegue: el corte dice si van al lado. Abierto del todo el pliegue
+    /// desaparece y se conserva el reparto de la bisagra, igual que el feed.
+    private var commentsAreBeside: Bool {
+        if let division = sceneDivisions.first(where: { $0.width > 1 && $0.height > 1 }) {
+            return division.height >= division.width
+        }
+        if hingePose == .fullyOpen {
+            return keptHorizontalSplit || toolbarVerticalEdge != nil
+        }
+        return toolbarVerticalEdge != nil
+    }
+
+    private var pagerRailInset: CGFloat { 0 }
+
+    private var showsCommentsPane: Bool {
+        usesExpandedReels && commentsAreBeside
+    }
+
+    /// Barra vertical: no ignorar el inset horizontal de esta vista. Arriba y abajo siguen a sangre.
+    private var reelsSafeAreaEdges: Edge.Set {
+        toolbarVerticalEdge != nil ? .vertical : .all
+    }
+
+    private var reelsPager: some View {
         ZStack {
             if !videos.isEmpty {
                 ScrollViewReader { proxy in
                     ScrollView(.vertical) {
                         LazyVStack(spacing: 0) {
-                            // id por índice de sesión (lista congelada) — evita recrear páginas al swipe
                             ForEach(Array(videos.enumerated()), id: \.offset) { index, video in
                                 ReelsPagerPage(
                                     index: index,
@@ -236,6 +311,10 @@ struct ReelsViewer: View {
                                     initialStartSeconds: initialStartSeconds,
                                     handoffConsumerId: index == startIndex ? handoffConsumerId : nil,
                                     flyProgress: expandProgress,
+                                    usesDuoChrome: usesDuoReelsChrome,
+                                    commentsInPane: showsCommentsPane,
+                                    railInset: pagerRailInset,
+                                    railOnLeading: toolbarVerticalEdge == .leading,
                                     onClose: closeViewer
                                 )
                                 .id(index)
@@ -247,7 +326,7 @@ struct ReelsViewer: View {
                     .scrollTargetBehavior(.paging)
                     .scrollPosition(id: $scrollPosition)
                     .scrollIndicators(.hidden)
-                    .ignoresSafeArea(.container, edges: .all)
+                    .ignoresSafeArea(.container, edges: reelsSafeAreaEdges)
                     .flyingCardClip(sourceRect: sourceRectInWindow, progress: expandProgress)
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 30)
@@ -264,7 +343,6 @@ struct ReelsViewer: View {
                     )
                     .onAppear {
                         scrollPosition = currentIndex
-                        // LazyVStack a veces no ancla el scrollPosition inicial → vídeo 0 en vez del tap.
                         proxy.scrollTo(currentIndex, anchor: .top)
                         preloadUpcomingVideos(from: currentIndex)
                     }
@@ -282,13 +360,37 @@ struct ReelsViewer: View {
                 }
             }
         }
-        .onAppear {
-            guard canFlyFromCard, expandProgress < 1 else { return }
-            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.reelsFly) {
-                expandProgress = 1
+    }
+
+    @ViewBuilder
+    private var expandedReels: some View {
+        if #available(iOS 27.1, *), !sceneDivisions.isEmpty {
+            ArrangementView {
+                reelsPager
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } secondary: {
+                reelsCommentsPane
+            }
+            .arrangementViewStyle(.split.axes(.horizontal))
+        } else {
+            HStack(spacing: 0) {
+                reelsPager
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                reelsCommentsPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        // Status bar visible: el chrome top se ancla bajo el safe area.
+    }
+
+    @ViewBuilder
+    private var reelsCommentsPane: some View {
+        if videos.indices.contains(currentIndex) {
+            ModernCommentsView(moment: videos[currentIndex].moment)
+                .id(videos[currentIndex].moment.id ?? videos[currentIndex].id)
+                .environmentObject(FirestoreService.shared)
+        }
     }
 
     private func closeViewer() {
@@ -352,6 +454,10 @@ private struct ReelsPagerPage: View {
     let initialStartSeconds: Double
     let handoffConsumerId: String?
     var flyProgress: CGFloat = 1
+    var usesDuoChrome: Bool = false
+    var commentsInPane: Bool = false
+    var railInset: CGFloat = 0
+    var railOnLeading: Bool = false
     let onClose: () -> Void
 
     var body: some View {
@@ -363,11 +469,15 @@ private struct ReelsPagerPage: View {
                     startAtSeconds: index == startIndex ? initialStartSeconds : 0,
                     handoffConsumerId: handoffConsumerId,
                     flyProgress: flyProgress,
+                    usesDuoChrome: usesDuoChrome,
+                    commentsInPane: commentsInPane,
+                    railInset: railInset,
                     onClose: onClose
                 )
             } else {
-                // Páginas lejanas: poster (nunca negro vacío al pasar rápido).
                 ReelsPosterPage(video: video)
+                    .padding(.leading, railOnLeading ? railInset : 0)
+                    .padding(.trailing, railOnLeading ? 0 : railInset)
             }
         }
         .containerRelativeFrame(.vertical)
@@ -396,6 +506,9 @@ struct ReelVideoView: View {
     let startAtSeconds: Double
     var handoffConsumerId: String? = nil
     var flyProgress: CGFloat = 1
+    var usesDuoChrome: Bool = false
+    var commentsInPane: Bool = false
+    var railInset: CGFloat = 0
     let onClose: () -> Void
     
     @StateObject private var playerManager = ReelVideoPlayerManager()
@@ -426,6 +539,7 @@ struct ReelVideoView: View {
     @State private var isLayerReadyForDisplay = false
     
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
     @EnvironmentObject private var firestoreService: FirestoreService
     private let privacyService = PrivacyService()
 
@@ -506,10 +620,7 @@ struct ReelVideoView: View {
     private var reelCommentBar: some View {
         HStack {
             if !video.moment.disableComments {
-                Button(action: {
-                    commentsDetent = .medium
-                    showComments = true
-                }) {
+                Button(action: openReelComments) {
                     HStack(spacing: 10) {
                         Image(systemName: "bubble.left")
                             .font(.system(size: 14, weight: .medium))
@@ -544,20 +655,26 @@ struct ReelVideoView: View {
     
     var body: some View {
         GeometryReader { geometry in
+            let activeRailInset = commentsInPane ? 0 : railInset
+            let layoutWidth = max(geometry.size.width - activeRailInset, 1)
+            let railAlignment: Alignment = toolbarVerticalEdge == .leading ? .trailing : .leading
             // Con ScrollView + ignoresSafeArea, geometry.safeAreaInsets suele ser 0.
             let safeTop = geometry.safeAreaInsets.top
             let bottomInset = geometry.safeAreaInsets.bottom
             // Baja el input hacia el home indicator (sigue usable).
             let chromeBottomPadding = max(2, bottomInset - 12)
+            let showsReelCommentBar = !usesDuoChrome && !commentsInPane
             // Caption acaba justo donde empieza la línea de progreso.
-            let bottomChromeClearance = progressLineHeight + bottomBarHeight + chromeBottomPadding
-            let sheetBottomPadding = commentsSheetOriginY.map {
+            let bottomChromeClearance = progressLineHeight
+                + (showsReelCommentBar ? bottomBarHeight : 0)
+                + chromeBottomPadding
+            let sheetBottomPadding = commentsInPane ? 0 : (commentsSheetOriginY.map {
                 max(geometry.size.height - $0, 0)
-            } ?? 0
+            } ?? 0)
             let mediumDetentHeight = max(geometry.size.height * 0.5, 1)
-            let sheetProgress = min(sheetBottomPadding / mediumDetentHeight, 1)
+            let sheetProgress = commentsInPane ? 0 : min(sheetBottomPadding / mediumDetentHeight, 1)
             let videoTopOffset = sheetProgress * safeTop
-            let videoScale = max(
+            let videoScale = commentsInPane ? 1 : max(
                 (geometry.size.height - sheetBottomPadding - videoTopOffset) / geometry.size.height,
                 0.04
             )
@@ -578,11 +695,11 @@ struct ReelVideoView: View {
                             isBuffering: $playerManager.isBuffering,
                             isReadyForDisplay: $isLayerReadyForDisplay
                         )
-                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .frame(width: layoutWidth, height: geometry.size.height)
                         .clipped()
                     } else if handoffConsumerId == nil {
                         canvasColor
-                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .frame(width: layoutWidth, height: geometry.size.height)
                     }
 
                     // El handoff desde feed ya trae el mismo AVPlayer reproduciendo:
@@ -596,18 +713,17 @@ struct ReelVideoView: View {
                                 && isLayerReadyForDisplay,
                             contentMode: videoContentMode
                         )
-                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .frame(width: layoutWidth, height: geometry.size.height)
                         .clipped()
                     }
                 }
-                .frame(width: geometry.size.width, height: geometry.size.height)
+                .frame(width: layoutWidth, height: geometry.size.height)
                 .scaleEffect(videoScale, anchor: .top)
                 .offset(y: videoTopOffset)
                 
                 // Capa invisible para capturar gestos de reproducción y likes en el fondo,
                 // evitando que interfieran con los botones interactivos del overlay superior.
                 Color.black.opacity(0.001)
-                    .ignoresSafeArea(.all)
                     .allowsHitTesting(!showComments && flyProgress > 0.95)
                     .onTapGesture {
                         let haptic = UIImpactFeedbackGenerator(style: .light)
@@ -681,6 +797,7 @@ struct ReelVideoView: View {
                     HStack {
                         Spacer()
 
+                        if !usesDuoChrome {
                         Button(action: {
                             HapticManager.shared.mediumImpact()
                             onClose()
@@ -694,6 +811,7 @@ struct ReelVideoView: View {
                                 .momentsChromeGlass(in: Circle(), interactive: true, style: .native)
                         }
                         .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
+                        }
                     }
                     .padding(.horizontal, 20)
                     // Bajo la status bar (safe area), con un pequeño respiro.
@@ -817,6 +935,7 @@ struct ReelVideoView: View {
                             .opacity(Double(metadataChromeProgress))
                             .offset(y: 10 * (1 - metadataChromeProgress))
 
+                            if !usesDuoChrome {
                             VStack(spacing: 12) {
                                 EpicReactionButton(
                                     moment: video.moment,
@@ -833,10 +952,7 @@ struct ReelVideoView: View {
                                         count: commentCount,
                                         isActive: commentCount > 0,
                                         activeColor: .blue,
-                                        action: {
-                                            commentsDetent = .medium
-                                            showComments = true
-                                        }
+                                        action: openReelComments
                                     )
                                 }
 
@@ -865,6 +981,7 @@ struct ReelVideoView: View {
                             .padding(.bottom, bottomChromeClearance + 18)
                             .opacity(Double(actionChromeProgress))
                             .offset(x: 8 * (1 - actionChromeProgress))
+                            }
                         }
                         .padding(.horizontal, 20)
                         .animation(.spring(response: 0.38, dampingFraction: 0.85), value: isReelCaptionExpanded)
@@ -873,9 +990,8 @@ struct ReelVideoView: View {
                 .opacity(showComments ? 0 : 1)
                 .allowsHitTesting(!showComments && chromeInteractive)
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
+            .frame(width: layoutWidth, height: geometry.size.height)
             .animation(.smooth(duration: 0.32), value: showComments)
-            .ignoresSafeArea(.container, edges: .all)
             .overlay(alignment: .bottom) {
                 // Contenido por encima del home indicator; fondo Moments hasta el borde.
                 // Se oculta con el context menu para que nunca quede por encima del sheet.
@@ -899,7 +1015,7 @@ struct ReelVideoView: View {
                                             endPoint: .trailing
                                         )
                                     )
-                                    .frame(width: max(0, geometry.size.width * playerManager.progress), height: barHeight)
+                                    .frame(width: max(0, layoutWidth * playerManager.progress), height: barHeight)
 
                                 if isDraggingProgress {
                                     Circle()
@@ -907,7 +1023,7 @@ struct ReelVideoView: View {
                                         .frame(width: thumbSize, height: thumbSize)
                                         .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
                                         .offset(
-                                            x: (geometry.size.width * playerManager.progress) - (thumbSize / 2),
+                                            x: (layoutWidth * playerManager.progress) - (thumbSize / 2),
                                             y: (barHeight - thumbSize) / 2
                                         )
                                         .transition(MotionPolicy.Transition.enterPop)
@@ -932,7 +1048,7 @@ struct ReelVideoView: View {
                                                     }
                                                 }
                                                 let stableTouchX = value.startLocation.x + value.translation.width
-                                                let newProgress = max(0, min(1, stableTouchX / geometry.size.width))
+                                                let newProgress = max(0, min(1, stableTouchX / layoutWidth))
                                                 playerManager.updateProgress(to: newProgress)
                                                 playerManager.seekToProgress(newProgress)
                                             }
@@ -941,7 +1057,7 @@ struct ReelVideoView: View {
                                                     isDraggingProgress = false
                                                 }
                                                 let stableTouchX = value.startLocation.x + value.translation.width
-                                                let finalProgress = max(0, min(1, stableTouchX / geometry.size.width))
+                                                let finalProgress = max(0, min(1, stableTouchX / layoutWidth))
                                                 playerManager.seekToProgress(finalProgress, precise: true)
 
                                                 if wasPlayingBeforeDrag {
@@ -951,19 +1067,21 @@ struct ReelVideoView: View {
                                     )
                             }
                             .frame(
-                                width: geometry.size.width,
+                                width: layoutWidth,
                                 height: isDraggingProgress ? 6 : progressLineHeight,
                                 alignment: .top
                             )
                             .zIndex(1)
                         }
 
-                        reelCommentBar
-                            .zIndex(0)
+                        if showsReelCommentBar {
+                            reelCommentBar
+                                .zIndex(0)
+                        }
                     }
+                    .frame(width: layoutWidth)
                     .padding(.bottom, chromeBottomPadding)
-                    .background(bottomBarBackgroundColor)
-                    .ignoresSafeArea(.container, edges: .bottom)
+                    .background(showsReelCommentBar ? bottomBarBackgroundColor : Color.clear)
                     .opacity(Double(commentChromeProgress))
                     .offset(y: 8 * (1 - commentChromeProgress))
                     .allowsHitTesting(chromeInteractive)
@@ -993,6 +1111,8 @@ struct ReelVideoView: View {
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showContextMenu)
                 }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: railAlignment)
+            .background(canvasColor)
         }
         /*.sheet(isPresented: $showReportSheet) {
             ReportBottomSheet(moment: video.moment)
@@ -1057,7 +1177,13 @@ struct ReelVideoView: View {
             // Cleanup inmediato al desaparecer
             playerManager.cleanup()
         }
-        .sheet(isPresented: $showComments) {
+        .toolbar { reelDuoToolbar }
+        .sheet(isPresented: Binding(
+            get: { showComments && !commentsInPane },
+            set: { isPresented in
+                if !isPresented { showComments = false }
+            }
+        )) {
             ModernCommentsView(moment: video.moment)
                 .environmentObject(firestoreService)
                 .onDisappear {
@@ -1075,6 +1201,61 @@ struct ReelVideoView: View {
         }
     }
     
+    private func openReelComments() {
+        guard !commentsInPane else { return }
+        commentsDetent = .medium
+        showComments = true
+    }
+
+    @ToolbarContentBuilder
+    private var reelDuoToolbar: some ToolbarContent {
+        if isCurrentVideo, usesDuoChrome, #available(iOS 27.1, *) {
+            ToolbarItemGroup(placement: .cancellationAction) {
+                Button(action: {
+                    HapticManager.shared.mediumImpact()
+                    onClose()
+                }) {
+                    Label("common.close", systemImage: "xmark")
+                }
+            }
+            .axisBehavior(.verticalPreferred)
+
+            ToolbarItemGroup(placement: .primaryAction) {
+                EpicReactionButton(
+                    moment: video.moment,
+                    showCount: false,
+                    size: 28,
+                    emojiSize: 16,
+                    pickerXOffset: -110,
+                    plainSymbol: true
+                )
+                .environmentObject(firestoreService)
+
+                if !video.moment.disableComments {
+                    Button(action: openReelComments) {
+                        Label("comments.add.placeholder", systemImage: "bubble.left")
+                    }
+                }
+
+                Button(action: toggleSave) {
+                    Label(
+                        "editMoment.save",
+                        systemImage: isSaved ? "bookmark.fill" : "bookmark"
+                    )
+                }
+
+                Button(action: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showContextMenu.toggle()
+                    }
+                }) {
+                    Label("storyContextMenu.options", systemImage: "ellipsis")
+                }
+            }
+            .axisBehavior(.verticalPreferred)
+        }
+    }
+
     private var videoContentMode: ContentMode {
         // Si el video es vertical/cuadrado → llenar pantalla
         // Si es horizontal → mostrar completo
@@ -2042,6 +2223,36 @@ class ReelVideoPlayerManager: ObservableObject {
 // MARK: - Additional Enhancements
 
 // Custom transition for smooth reel changes
+private enum ReelsHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+private struct ReelsHingeObserver: ViewModifier {
+    @Binding var pose: ReelsHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
+        }
+    }
+}
+
 struct ReelTransition: ViewModifier {
     let isVisible: Bool
     

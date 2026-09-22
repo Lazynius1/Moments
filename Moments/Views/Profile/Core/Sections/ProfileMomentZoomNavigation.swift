@@ -144,6 +144,9 @@ struct ProfileMomentZoomDetailDestination: View {
     let moments: [Moment]
     let namespace: Namespace.ID
     var onRemoveSavedMoment: ((Moment) -> Void)? = nil
+    var continuityMomentId: String? = nil
+    var onVisibleMomentId: ((String) -> Void)? = nil
+    var onClose: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -151,11 +154,18 @@ struct ProfileMomentZoomDetailDestination: View {
         ModernMomentDetailView(
             moments: moments,
             initialIndex: destination.initialIndex,
-            initialMomentId: destination.initialMomentId,
+            initialMomentId: continuityMomentId ?? destination.initialMomentId,
             topContentInset: 0,
             restrictPlaybackToInitialIndex: destination.restrictPlaybackToInitialIndex,
             openCommentsOnAppear: destination.openCommentsOnAppear,
-            onDismiss: { dismiss() }
+            onDismiss: {
+                if let onClose {
+                    onClose()
+                } else {
+                    dismiss()
+                }
+            },
+            onVisibleMomentId: onVisibleMomentId
         )
         .navigationBarBackButtonHidden(true)
         .navigationInteractivePopEnabled()
@@ -170,6 +180,8 @@ struct MomentZoomDetailDestination: View {
     let moments: [Moment]
     let namespace: Namespace.ID
     var onRemoveSavedMoment: ((Moment) -> Void)? = nil
+    var continuityMomentId: String? = nil
+    var onVisibleMomentId: ((String) -> Void)? = nil
     @Binding var mapDetailPresented: Bool
 
     @Environment(\.dismiss) private var dismiss
@@ -180,12 +192,16 @@ struct MomentZoomDetailDestination: View {
         moments: [Moment],
         namespace: Namespace.ID,
         onRemoveSavedMoment: ((Moment) -> Void)? = nil,
+        continuityMomentId: String? = nil,
+        onVisibleMomentId: ((String) -> Void)? = nil,
         mapDetailPresented: Binding<Bool> = .constant(false)
     ) {
         self.destination = destination
         self.moments = moments
         self.namespace = namespace
         self.onRemoveSavedMoment = onRemoveSavedMoment
+        self.continuityMomentId = continuityMomentId
+        self.onVisibleMomentId = onVisibleMomentId
         self._mapDetailPresented = mapDetailPresented
     }
 
@@ -196,10 +212,11 @@ struct MomentZoomDetailDestination: View {
                 ModernMomentDetailView(
                     moments: moments,
                     initialIndex: destination.initialIndex,
-                    initialMomentId: destination.initialMomentId,
+                    initialMomentId: continuityMomentId ?? destination.initialMomentId,
                     topContentInset: 0,
                     restrictPlaybackToInitialIndex: destination.restrictPlaybackToInitialIndex,
-                    onDismiss: { dismissMapIfNeeded(); dismiss() }
+                    onDismiss: { dismissMapIfNeeded(); dismiss() },
+                    onVisibleMomentId: onVisibleMomentId
                 )
             case .single:
                 if let moment = resolvedSingleMoment(from: moments, destination: destination) {
@@ -230,7 +247,8 @@ struct MomentZoomDetailDestination: View {
                 ExploreMomentDetailView(
                     moments: moments,
                     initialIndex: destination.initialIndex,
-                    initialMomentId: destination.initialMomentId
+                    initialMomentId: continuityMomentId ?? destination.initialMomentId,
+                    onVisibleMomentId: onVisibleMomentId
                 )
             }
         }

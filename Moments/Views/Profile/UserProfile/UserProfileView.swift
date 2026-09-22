@@ -294,6 +294,7 @@ struct UserProfileFloatingTabBar: View {
 struct UserProfileView: View {
     @StateObject private var viewModel: UserProfileViewModel
     @Environment(\.dismiss) var dismiss
+    @Environment(\.exploreSecondaryClose) private var exploreSecondaryClose
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
     @State private var socialConnectionsRoute: SocialConnectionsRoute?
@@ -321,6 +322,14 @@ struct UserProfileView: View {
 
     // ✅ NUEVO: Estado para mostrar imagen de perfil ampliada
     @State private var showProfileImageFullscreen: Bool = false
+
+    private func closeProfile() {
+        if let exploreSecondaryClose {
+            exploreSecondaryClose()
+        } else {
+            dismiss()
+        }
+    }
 
     init(userId: String) {
         self.userId = userId
@@ -624,17 +633,13 @@ struct UserProfileView: View {
                     onUnblock: {
                         viewModel.unblockUser(userId: userId)
                     },
-                    onDismiss: {
-                        dismiss()
-                    }
+                    onDismiss: closeProfile,
                 )
             } else if viewModel.isProfileUnavailable {
                 UserModernUnavailableProfileView(
                     safeAreaTop: safeAreaTop,
                     safeAreaBottom: safeAreaBottom,
-                    onDismiss: {
-                        dismiss()
-                    }
+                    onDismiss: closeProfile,
                 )
             } else if viewModel.isOffline && viewModel.userProfile == nil {
                 // ✅ Sin caché y sin red: honesto sobre el motivo, en vez de "privado"/"no disponible"
@@ -644,9 +649,7 @@ struct UserProfileView: View {
                     onRetry: {
                         viewModel.fetchProfile()
                     },
-                    onDismiss: {
-                        dismiss()
-                    }
+                    onDismiss: closeProfile,
                 )
             } else if !viewModel.canViewContent {
                 UserModernPrivateProfileView(
@@ -663,9 +666,7 @@ struct UserProfileView: View {
                     onFollowAction: {
                         handleFollowAction()
                     },
-                    onDismiss: {
-                        dismiss()
-                    },
+                    onDismiss: closeProfile,
                     onOpenStories: {
                         storyRoute = UserProfileStoryRoute(userId: userId)
                     },
@@ -687,9 +688,7 @@ struct UserProfileView: View {
                     onFollowAction: {
                         handleFollowAction()
                     },
-                    onDismiss: {
-                        dismiss()
-                    },
+                    onDismiss: closeProfile,
                     onOpenStories: {
                         storyRoute = UserProfileStoryRoute(userId: userId)
                     },

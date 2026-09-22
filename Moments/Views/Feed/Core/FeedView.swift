@@ -41,6 +41,12 @@ struct FeedView: View {
     @State private var currentTime = Date()
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.momentsToolbarVerticalEdge) private var momentsToolbarVerticalEdge
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    @State private var hingePose: FeedHingePose = .unknown
+    @State private var feedPaneSize: CGSize = .zero
+    @State private var duoVisibleMomentId: String?
+    @State private var feedScrollLocked = false
     @State private var selectedFeedType: FeedType = UserDefaults.standard.selectedFeedType
     @State private var showingLocationMap = false
     @State private var selectedLocationName: String = ""
@@ -107,38 +113,13 @@ struct FeedView: View {
         ZStack {
             modernBackgroundView
                 .ignoresSafeArea(.all)
-            
-            mainContent
 
-            FloatingMomentUploadOverlay(topInset: isFeedHeaderHidden ? 18 : feedHeaderHeight + 12)
-                .environmentObject(uploadService)
-                .zIndex(1200)
-            
-            FeedFloatingSelector(
-                selectedFeedType: $selectedFeedType,
-                isManualRefreshing: $isManualRefreshing,
-                viewModel: viewModel,
-                colorScheme: colorScheme,
-                floatingSelectorTopInset: floatingSelectorTopInset,
-                isFeedHeaderHidden: isFeedHeaderHidden,
-                pendingEchoesCount: pendingEchoes.count
-            )
-            
-                .overlay(
-                    VStack(spacing: 8) {
-                        if let errorMessage = viewModel.errorMessage {
-                            AppErrorBanner(message: errorMessage) {
-                                forceRefresh()
-                            }
-                            .padding(.horizontal, 16)
-                        }
-                    }
-                    .padding(.top, 60)
-                    .frame(maxWidth: .infinity, alignment: .top)
-                    .allowsHitTesting(viewModel.errorMessage != nil)
-                    , alignment: .top
-                )
-            
+            if usesExpandedFeed {
+                expandedFeed
+            } else {
+                feedStage
+            }
+
             FeedOverlaysSection(
                 isPeeking: $isPeeking,
                 peekImageURL: $peekImageURL,
@@ -202,6 +183,17 @@ struct FeedView: View {
 
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .modifier(FeedHingeObserver(pose: $hingePose))
+        .onChange(of: hingePose) { _, _ in
+            feedScrollLocked = true
+            if usesExpandedFeed, let selectedMoment {
+                duoVisibleMomentId = selectedMoment.id
+                self.selectedMoment = nil
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                feedScrollLocked = false
+            }
+        }
         .permissionPrimerGate(notificationGate)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .navigationBar)
@@ -454,6 +446,105 @@ struct FeedView: View {
             .ignoresSafeArea()
     }
     
+    /// Cabecera, lista y selector. En Duo abierto ocupan una sola pantalla.
+    private var feedStage: some View {
+        ZStack {
+            mainContent
+
+            FloatingMomentUploadOverlay(topInset: isFeedHeaderHidden ? 18 : feedHeaderHeight + 12)
+                .environmentObject(uploadService)
+                .zIndex(1200)
+
+            FeedFloatingSelector(
+                selectedFeedType: $selectedFeedType,
+                isManualRefreshing: $isManualRefreshing,
+                viewModel: viewModel,
+                colorScheme: colorScheme,
+                floatingSelectorTopInset: floatingSelectorTopInset,
+                isFeedHeaderHidden: isFeedHeaderHidden,
+                pendingEchoesCount: pendingEchoes.count
+            )
+            .overlay(alignment: .top) {
+                if let errorMessage = viewModel.errorMessage {
+                    AppErrorBanner(message: errorMessage) {
+                        forceRefresh()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 60)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var expandedFeed: some View {
+        if #available(iOS 27.1, *) {
+            ArrangementView {
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onGeometryChange(for: CGSize.self) { proxy in
+                        proxy.size
+                    } action: { size in
+                        guard size.width > 1, size.height > 1 else { return }
+                        guard abs(size.width - feedPaneSize.width) > 1
+                                || abs(size.height - feedPaneSize.height) > 1 else { return }
+                        feedPaneSize = size
+                    }
+                    .overlay {
+                        feedStage
+                    }
+                    .clipped()
+            } secondary: {
+                feedCommentsPane
+            }
+            .arrangementViewStyle(.split.axes(commentsAreBesideFeed ? .horizontal : .vertical))
+        }
+    }
+
+    private var feedCommentsPane: some View {
+        Group {
+            if let moment = duoCommentMoment {
+                ModernCommentsView(moment: moment)
+                    .id(moment.id ?? moment.feedViewIdentity)
+                    .environmentObject(firestoreService)
+            } else {
+                ContentUnavailableView(
+                    "modernComments.title",
+                    systemImage: "bubble.right",
+                    description: Text("modernComments.empty.description")
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AdaptiveColors(colorScheme: colorScheme).surfaceBackground)
+    }
+
+    private var duoCommentMoment: Moment? {
+        if let duoVisibleMomentId,
+           let match = viewModel.moments.first(where: { $0.id == duoVisibleMomentId }) {
+            return match
+        }
+        return viewModel.moments.first
+    }
+
+    private var usesDuoFeedChrome: Bool {
+        momentsToolbarVerticalEdge != nil || !divisionRegions.isEmpty || hingePose != .unknown
+    }
+
+    private var usesExpandedFeed: Bool {
+        guard usesDuoFeedChrome else { return false }
+        if hingePose == .closed { return false }
+        return hingePose == .partiallyOpen || hingePose == .fullyOpen || !divisionRegions.isEmpty
+    }
+
+    /// Bisagra vertical: comentarios al lado. Si no, en la pantalla de abajo.
+    private var commentsAreBesideFeed: Bool {
+        if let division = divisionRegions.first(where: { $0.width > 1 && $0.height > 1 }) {
+            return division.height >= division.width
+        }
+        return momentsToolbarVerticalEdge != nil
+    }
+
     private var mainContent: some View {
         ZStack(alignment: .top) {
             FeedListSection(
@@ -489,7 +580,20 @@ struct FeedView: View {
                     )
                 },
                 hiddenMomentId: hiddenPostPreviewMomentId,
-                profileZoomNamespace: profileZoomNamespace
+                profileZoomNamespace: profileZoomNamespace,
+                momentColumnSize: usesExpandedFeed && feedPaneSize.width > 1 ? feedPaneSize : nil,
+                onCommentTap: { moment in
+                    if usesExpandedFeed {
+                        duoVisibleMomentId = moment.id
+                    } else {
+                        selectedMoment = moment
+                    }
+                },
+                onMostVisibleMomentId: { momentId in
+                    guard !feedScrollLocked, momentId != duoVisibleMomentId else { return }
+                    duoVisibleMomentId = momentId
+                },
+                restoreMomentId: duoVisibleMomentId
             )
                 .ignoresSafeArea(edges: .top)
             
@@ -660,6 +764,36 @@ struct FeedView: View {
         }
         FeedVideoPipelineWarmer.prewarmIfNeeded()
         FeedFirstVideoPrewarmer.prepareFirstVideo(in: moments)
+    }
+}
+
+private enum FeedHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+private struct FeedHingeObserver: ViewModifier {
+    @Binding var pose: FeedHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
+        }
     }
 }
 

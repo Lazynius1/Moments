@@ -15,6 +15,7 @@ struct ModernMomentDetailView: View {
     let restrictPlaybackToInitialIndex: Bool
     let openCommentsOnAppear: Bool
     let onDismiss: () -> Void
+    var onVisibleMomentId: ((String) -> Void)? = nil
     private let resolvedInitialIndex: Int
     
     @StateObject private var firestoreService = FirestoreService()
@@ -29,6 +30,8 @@ struct ModernMomentDetailView: View {
     @State private var trackedMomentViewIds: Set<String> = []
     @State private var feedViewModel = FeedViewModel()
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
     
     // ✅ Estados para el menú contextual
     @State private var showContextMenu = false
@@ -55,6 +58,8 @@ struct ModernMomentDetailView: View {
     @State private var selectedLocationMoment: Moment? // ✅ Usar Item Binding para evitar race conditions en SwiftUI
     @State private var hasAppliedInitialScroll = false
     @State private var containerSize: CGSize = .zero
+    @State private var scrollLocked = true
+    @State private var reportsVisibleMoment = false
     @Environment(\.profileDetailVideoPlaybackEnabled) private var profileDetailVideoPlaybackEnabled
     @Environment(\.profileGridHeroTransitionCoordinator) private var heroCoordinator
     
@@ -68,7 +73,8 @@ struct ModernMomentDetailView: View {
         topContentInset: CGFloat = 64,
         restrictPlaybackToInitialIndex: Bool = false,
         openCommentsOnAppear: Bool = false,
-        onDismiss: @escaping () -> Void
+        onDismiss: @escaping () -> Void,
+        onVisibleMomentId: ((String) -> Void)? = nil
     ) {
         self.moments = moments
         self.initialIndex = initialIndex
@@ -77,6 +83,7 @@ struct ModernMomentDetailView: View {
         self.restrictPlaybackToInitialIndex = restrictPlaybackToInitialIndex
         self.openCommentsOnAppear = openCommentsOnAppear
         self.onDismiss = onDismiss
+        self.onVisibleMomentId = onVisibleMomentId
         
         let resolved: Int
         if let initialMomentId,
@@ -102,12 +109,18 @@ struct ModernMomentDetailView: View {
                     .ignoresSafeArea()
                     .opacity(backgroundOpacity)
 
-                modernMomentsScrollView()
+                Color.clear
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onGeometryChange(for: CGSize.self) { proxy in
                         proxy.size
-                    } action: { _, newValue in
-                        containerSize = newValue
+                    } action: { size in
+                        guard size.width > 1, size.height > 1 else { return }
+                        guard abs(size.width - containerSize.width) > 1
+                                || abs(size.height - containerSize.height) > 1 else { return }
+                        containerSize = size
+                    }
+                    .overlay {
+                        modernMomentsScrollView()
                     }
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
@@ -281,8 +294,10 @@ struct ModernMomentDetailView: View {
         }
         .onChange(of: currentIndex) { _, newIndex in
             trackMomentViewIfNeeded(for: moments[safe: newIndex])
-            // Activar el video del nuevo índice al paginar en el detalle.
             activateVideoForIndex(newIndex)
+            if reportsVisibleMoment, let id = moments[safe: newIndex]?.id {
+                onVisibleMomentId?(id)
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
@@ -292,19 +307,32 @@ struct ModernMomentDetailView: View {
 
     @ToolbarContentBuilder
     private var profileDetailToolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            ProfileChromeIconButton(
-                systemName: "chevron.left",
-                foregroundColor: adaptiveColors.primary,
-                preset: .navigationBack,
-                action: {
+        if #available(iOS 27.1, *), toolbarVerticalEdge != nil {
+            ToolbarItemGroup(placement: .cancellationAction) {
+                Button(action: {
                     withAnimation(.easeOut(duration: 0.18)) {
                         onDismiss()
                     }
+                }) {
+                    Label("common.back", systemImage: "chevron.left")
                 }
-            )
+            }
+            .axisBehavior(.verticalPreferred)
+        } else {
+            ToolbarItem(placement: .topBarLeading) {
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: adaptiveColors.primary,
+                    preset: .navigationBack,
+                    action: {
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            onDismiss()
+                        }
+                    }
+                )
+            }
+            .chatHideSharedBackgroundIfAvailable()
         }
-        .chatHideSharedBackgroundIfAvailable()
 
         ToolbarItem(placement: .principal) {
             if let moment = moments[safe: currentIndex] {
@@ -473,6 +501,7 @@ struct ModernMomentDetailView: View {
         }
         .id(index)
         .onAppear {
+            guard !scrollLocked else { return }
             currentIndex = index
             prefetchUpcomingMoments(from: index)
         }
@@ -519,16 +548,13 @@ struct ModernMomentDetailView: View {
     }
 
     // ✅ ScrollView principal MODIFICADO para conectar con el menú contextual
-    /// Altura de la ventana activa (vía window scene) como fallback antes de que el contenedor mida.
-    private func activeWindowHeight() -> CGFloat {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
-        let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first
-        return window?.bounds.height ?? 0
+    /// Tamaño del pane, no el de las dos pantallas. Igual que el detalle de Explorar.
+    private var detailLayoutSize: CGSize {
+        containerSize.width > 1 ? containerSize : momentsViewportSize
     }
 
     private func modernMomentsScrollView() -> some View {
-        let screenHeight = containerSize.height > 0 ? containerSize.height : activeWindowHeight()
+        let screenHeight = detailLayoutSize.height
         let feedCardHeight = screenHeight * 0.58
 
         return ScrollViewReader { proxy in
@@ -548,9 +574,26 @@ struct ModernMomentDetailView: View {
             .scrollClipDisabled()
             .environment(\.profileDetailDirectVideoPlayback, restrictPlaybackToInitialIndex)
             .environment(feedViewModel)
+            .environment(\.momentsViewportSize, detailLayoutSize)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
                 applyInitialScrollIfNeeded(using: proxy)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    scrollLocked = false
+                    reportsVisibleMoment = true
+                }
+            }
+            .onChange(of: containerSize) { old, new in
+                guard old.width > 1,
+                      abs(old.width - new.width) > 1 || abs(old.height - new.height) > 1,
+                      let identity = moments[safe: currentIndex]?.feedViewIdentity else { return }
+                scrollLocked = true
+                DispatchQueue.main.async {
+                    proxy.scrollTo(identity, anchor: .top)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    scrollLocked = false
+                }
             }
         }
     }

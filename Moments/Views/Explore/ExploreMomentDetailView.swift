@@ -11,9 +11,12 @@ struct ExploreMomentDetailView: View {
     @State private var moments: [Moment]
     let initialIndex: Int
     let initialMomentId: String?
+    var onVisibleMomentId: ((String) -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.exploreSecondaryClose) private var exploreSecondaryClose
 
     @StateObject private var firestoreService = FirestoreService.shared
     @State private var currentIndex: Int
@@ -44,15 +47,29 @@ struct ExploreMomentDetailView: View {
     @State private var selectedLocationCoordinate: CLLocationCoordinate2D?
     @Namespace private var profileZoomNamespace
     @State private var profileRoute: FeedProfileSheetRoute?
+    /// Ancho real del pane. En Duo abierto el viewport es las dos pantallas y la card se infla.
+    @State private var detailPaneSize: CGSize = .zero
+    @State private var scrollLocked = true
+    @State private var reportsVisibleMoment = false
+
+    private var detailLayoutSize: CGSize {
+        detailPaneSize.width > 1 ? detailPaneSize : momentsViewportSize
+    }
 
     private var chromeTitle: String {
         NSLocalizedString("explore.title", comment: "Explore")
     }
 
-    init(moments: [Moment], initialIndex: Int, initialMomentId: String? = nil) {
+    init(
+        moments: [Moment],
+        initialIndex: Int,
+        initialMomentId: String? = nil,
+        onVisibleMomentId: ((String) -> Void)? = nil
+    ) {
         self._moments = State(initialValue: moments)
         self.initialIndex = initialIndex
         self.initialMomentId = initialMomentId
+        self.onVisibleMomentId = onVisibleMomentId
 
         let resolvedIndex: Int
         if let initialMomentId,
@@ -72,8 +89,19 @@ struct ExploreMomentDetailView: View {
                     .ignoresSafeArea()
                     .opacity(backgroundOpacity)
 
-                exploreMomentsScrollView()
+                Color.clear
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onGeometryChange(for: CGSize.self) { proxy in
+                        proxy.size
+                    } action: { size in
+                        guard size.width > 1, size.height > 1 else { return }
+                        guard abs(size.width - detailPaneSize.width) > 1
+                                || abs(size.height - detailPaneSize.height) > 1 else { return }
+                        detailPaneSize = size
+                    }
+                    .overlay {
+                        exploreMomentsScrollView()
+                    }
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                     .gesture(exploreDismissDragGesture)
@@ -107,8 +135,8 @@ struct ExploreMomentDetailView: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(
-                                    width: momentsViewportSize.width - 32,
-                                    height: (momentsViewportSize.width - 32) / max(peekAspectRatio, 0.1)
+                                    width: detailLayoutSize.width - 32,
+                                    height: (detailLayoutSize.width - 32) / max(peekAspectRatio, 0.1)
                                 )
                                 .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
@@ -196,6 +224,9 @@ struct ExploreMomentDetailView: View {
         .onChange(of: currentIndex) { _, newIndex in
             trackMomentViewIfNeeded(for: moments[safe: newIndex])
             activateVideoForIndex(newIndex)
+            if reportsVisibleMoment, let id = moments[safe: newIndex]?.id {
+                onVisibleMomentId?(id)
+            }
         }
         .onChange(of: moments.count) { _, _ in
             VideoMomentsIndex.shared.rebuild(from: moments)
@@ -230,7 +261,7 @@ struct ExploreMomentDetailView: View {
 
                 if value.translation.width > dismissThreshold || velocity > 300 {
                     withAnimation(.easeOut(duration: 0.3)) {
-                        dragOffset = momentsViewportSize.width
+                        dragOffset = detailLayoutSize.width
                         backgroundOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -247,7 +278,11 @@ struct ExploreMomentDetailView: View {
     }
 
     private func dismissExploreDetail() {
-        dismiss()
+        if let exploreSecondaryClose {
+            exploreSecondaryClose()
+        } else {
+            dismiss()
+        }
     }
 
     private func activateVideoForIndex(_ index: Int) {
@@ -258,7 +293,7 @@ struct ExploreMomentDetailView: View {
     }
 
     private func exploreMomentsScrollView() -> some View {
-                    let screenHeight = momentsViewportSize.height
+                    let screenHeight = detailLayoutSize.height
                     let feedCardHeight = screenHeight * 0.58
                     let adAfterIndices = FeedAdPlacement.indicesAfterWhichToShowAd(
             momentIds: moments.map { $0.id ?? "" },
@@ -325,6 +360,7 @@ struct ExploreMomentDetailView: View {
                         }
                         .id(index)
                         .onAppear {
+                            guard !scrollLocked else { return }
                             currentIndex = index
                             prefetchUpcomingMoments(from: index)
                         }
@@ -335,12 +371,30 @@ struct ExploreMomentDetailView: View {
             }
             .scrollClipDisabled()
             .environment(feedViewModel)
+            .environment(\.momentsViewportSize, detailLayoutSize)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
                 let target = resolvedInitialIndex
-                guard target > 0 else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                if target > 0 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        proxy.scrollTo(target, anchor: .top)
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    scrollLocked = false
+                    reportsVisibleMoment = true
+                }
+            }
+            .onChange(of: detailLayoutSize) { old, new in
+                guard old.width > 1,
+                      abs(old.width - new.width) > 1 || abs(old.height - new.height) > 1 else { return }
+                let target = currentIndex
+                scrollLocked = true
+                DispatchQueue.main.async {
                     proxy.scrollTo(target, anchor: .top)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    scrollLocked = false
                 }
             }
         }
@@ -348,15 +402,24 @@ struct ExploreMomentDetailView: View {
 
     @ToolbarContentBuilder
     private var exploreDetailToolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            ProfileChromeIconButton(
-                systemName: "chevron.left",
-                foregroundColor: AdaptiveColors(colorScheme: colorScheme).primary,
-                preset: .navigationBack,
-                action: dismissExploreDetail
-            )
+        if #available(iOS 27.1, *), toolbarVerticalEdge != nil {
+            ToolbarItemGroup(placement: .cancellationAction) {
+                Button(action: dismissExploreDetail) {
+                    Label("common.back", systemImage: "chevron.left")
+                }
+            }
+            .axisBehavior(.verticalPreferred)
+        } else {
+            ToolbarItem(placement: .topBarLeading) {
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: AdaptiveColors(colorScheme: colorScheme).primary,
+                    preset: .navigationBack,
+                    action: dismissExploreDetail
+                )
+            }
+            .chatHideSharedBackgroundIfAvailable()
         }
-        .chatHideSharedBackgroundIfAvailable()
 
         ToolbarItem(placement: .principal) {
             Text(chromeTitle)

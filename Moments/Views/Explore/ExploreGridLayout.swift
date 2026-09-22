@@ -433,47 +433,58 @@ private struct ExploreBentoGridContainer<Cell: View>: View {
 // MARK: - Grid público de Explore
 
 struct ExploreMomentsBentoGrid: View {
-    @Environment(\.momentsViewportSize) private var momentsViewportSize
-
     let moments: [Moment]
     var zoomNamespace: Namespace.ID? = nil
     var zoomIDPrefix: String = "explore"
     let onMomentTap: (Moment, Int, [Moment]) -> Void
 
+    /// Ancho que propone la pantalla (o la columna del Duo), no la ventana entera.
+    @State private var availableWidth: CGFloat = 0
+
     private var descriptors: [ExploreGridTileDescriptor] {
         ExploreBentoTileAssigner.assign(moments: moments)
     }
 
-    private var gridWidth: CGFloat {
-        momentsViewportSize.width
-    }
-
     private var gridHeight: CGFloat {
-        exploreBentoGridHeight(moments: moments, availableWidth: gridWidth)
+        guard availableWidth > 1 else { return 0 }
+        return exploreBentoGridHeight(moments: moments, availableWidth: availableWidth)
     }
 
     var body: some View {
-        ExploreBentoGridContainer(
-            moments: moments,
-            availableWidth: gridWidth,
-            descriptors: descriptors
-        ) { moment, itemWidth, index, descriptor in
-            ScreenshotProtectedView(
-                isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-            ) {
-                ExploreMomentThumbnail(
-                    moment: moment,
-                    unitWidth: itemWidth,
-                    descriptor: descriptor,
-                    zoomNamespace: zoomNamespace,
-                    zoomSourceID: exploreZoomSourceID(moment: moment, index: index),
-                    onTap: {
-                        onMomentTap(moment, index, moments)
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: max(gridHeight, 1))
+            .overlay(alignment: .topLeading) {
+                if availableWidth > 1 {
+                    ExploreBentoGridContainer(
+                        moments: moments,
+                        availableWidth: availableWidth,
+                        descriptors: descriptors
+                    ) { moment, itemWidth, index, descriptor in
+                        ScreenshotProtectedView(
+                            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                        ) {
+                            ExploreMomentThumbnail(
+                                moment: moment,
+                                unitWidth: itemWidth,
+                                descriptor: descriptor,
+                                zoomNamespace: zoomNamespace,
+                                zoomSourceID: exploreZoomSourceID(moment: moment, index: index),
+                                onTap: {
+                                    onMomentTap(moment, index, moments)
+                                }
+                            )
+                        }
                     }
-                )
+                    .frame(width: availableWidth, height: gridHeight, alignment: .topLeading)
+                }
             }
-        }
-        .frame(width: gridWidth, height: gridHeight, alignment: .topLeading)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.width
+            } action: { width in
+                guard width > 1, abs(width - availableWidth) > 0.5 else { return }
+                availableWidth = width
+            }
     }
 
     private func exploreZoomSourceID(moment: Moment, index: Int) -> String {

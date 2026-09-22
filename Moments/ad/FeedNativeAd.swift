@@ -456,60 +456,10 @@ struct IntegratedNativeAdView: View {
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                if let icon = nativeAd.icon {
-                    AsyncImage(url: URL(string: icon.imageURL?.absoluteString ?? "")) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                Image(systemName: "app.fill")
-                                    .foregroundStyle(.secondary)
-                            )
-                    }
-                    .frame(width: 36, height: 36)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
-                } else {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Image(systemName: "app.fill")
-                            .foregroundStyle(.secondary)
-                        )
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(nativeAd.advertiser ?? "Anunciante")
-                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundStyle(.primary)
-                    // Ad badge handled by UIKit's adAttributionView
-                    
-                    Text("ad.common.sponsored")
-                        .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundStyle(.secondary)
-                }
-                
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
-            
-            ZStack(alignment: .bottomLeading) {
-                IntegratedAdMediaView(nativeAd: nativeAd)
-                    .frame(height: 380) // Media 300 + headline/body ~80
-                // UIKit handles headline/body display - no SwiftUI overlay needed
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            // ✅ CORREGIDO: Botón SwiftUI eliminado - solo usamos el botón nativo de AdMob
-        }
-        .background(colorScheme == .dark ? Color(hex: "121212") : Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        IntegratedAdMediaView(nativeAd: nativeAd)
+            .frame(maxWidth: .infinity)
+            .background(colorScheme == .dark ? Color(hex: "121212") : Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         // ✅ Sistema de sombras multi-nivel (Efecto de profundidad premium)
         .shadow(color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.12), radius: 15, x: 0, y: 10)
         .shadow(color: colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.08), radius: 1, x: 0, y: 1)
@@ -521,11 +471,22 @@ struct IntegratedNativeAdView: View {
 struct IntegratedAdMediaView: UIViewRepresentable {
     let nativeAd: NativeAd
     
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: NativeAdView, context: Context) -> CGSize? {
+        let width = proposal.width ?? proposal.replacingUnspecifiedDimensions().width
+        guard width > 1 else { return nil }
+        let fitted = uiView.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        return CGSize(width: width, height: max(fitted.height, 1))
+    }
+
     func makeUIView(context: Context) -> NativeAdView {
         let nativeAdView = NativeAdView()
+        nativeAdView.clipsToBounds = true
         nativeAdView.nativeAd = nativeAd
-        
-        // MediaView
+
         let mediaView = MediaView()
         mediaView.contentMode = .scaleAspectFit
         mediaView.backgroundColor = UIColor.systemGray6
@@ -534,13 +495,11 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         mediaView.mediaContent = nativeAd.mediaContent
         mediaView.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.mediaView = mediaView
-        
-        // AdChoices (REQUERIDO - maneja la atribucion automaticamente)
+
         let adChoicesView = AdChoicesView()
         adChoicesView.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.adChoicesView = adChoicesView
-        
-        // Headline
+
         let headlineLabel = UILabel()
         headlineLabel.text = nativeAd.headline
         headlineLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(16), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 16)
@@ -548,78 +507,106 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         headlineLabel.numberOfLines = 2
         headlineLabel.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.headlineView = headlineLabel
-        
-        // Body
+
         let bodyLabel = UILabel()
         bodyLabel.text = nativeAd.body
-        bodyLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(14)) ?? UIFont.systemFont(ofSize: legacyPoppinsSize(14))
+        bodyLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(14)) ?? UIFont.systemFont(ofSize: 14)
         bodyLabel.textColor = .secondaryLabel
         bodyLabel.numberOfLines = 2
         bodyLabel.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.bodyView = bodyLabel
-        
-        // ✅ QUITADO: CTA Button - No necesario, el tapping general funciona
-        // let callToActionButton = UIButton(type: .system)
-        // callToActionButton.setTitle(nativeAd.callToAction ?? "Más información", for: .normal)
-        // callToActionButton.titleLabel?.font = UIFont.systemFont(ofSize: legacyPoppinsSize(16), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 16)
-        // callToActionButton.setTitleColor(.white, for: .normal)
-        // callToActionButton.backgroundColor = UIColor(red: 0, green: 0.66, blue: 0.59, alpha: 1)
-        // callToActionButton.layer.cornerRadius = 16
-        // callToActionButton.translatesAutoresizingMaskIntoConstraints = false
-        // nativeAdView.callToActionView = callToActionButton
-        
-        
-        // ✅ QUITADO: Advertiser - Redundante con header
-        // let advertiserLabel = UILabel()
-        // advertiserLabel.text = nativeAd.advertiser ?? "Anunciante"
-        // advertiserLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(14), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 14)
-        // advertiserLabel.textColor = .white.withAlphaComponent(0.8)
-        // advertiserLabel.translatesAutoresizingMaskIntoConstraints = false
-        // nativeAdView.advertiserView = advertiserLabel
-        
+
+        let sponsoredLabel = UILabel()
+        sponsoredLabel.text = NSLocalizedString("ad.common.sponsored", comment: "")
+        sponsoredLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(11)) ?? UIFont.systemFont(ofSize: 11)
+        sponsoredLabel.textColor = .secondaryLabel
+        sponsoredLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        var iconView: UIImageView?
+        if nativeAd.icon != nil {
+            let icon = UIImageView()
+            icon.image = nativeAd.icon?.image
+            icon.contentMode = .scaleAspectFill
+            icon.layer.cornerRadius = 18
+            icon.clipsToBounds = true
+            icon.translatesAutoresizingMaskIntoConstraints = false
+            nativeAdView.iconView = icon
+            iconView = icon
+        }
+
+        var advertiserLabel: UILabel?
+        if let advertiser = nativeAd.advertiser, !advertiser.isEmpty {
+            let label = UILabel()
+            label.text = advertiser
+            label.font = UIFont.systemFont(ofSize: legacyPoppinsSize(14), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 14)
+            label.textColor = .label
+            label.translatesAutoresizingMaskIntoConstraints = false
+            nativeAdView.advertiserView = label
+            advertiserLabel = label
+        }
+
         if nativeAd.mediaContent.hasVideoContent {
             let videoController = nativeAd.mediaContent.videoController
             videoController.delegate = context.coordinator
             videoController.isMuted = true
         }
-        
-        // Agregar elementos como subvistas de nativeAdView
+
         nativeAdView.addSubview(mediaView)
         nativeAdView.addSubview(headlineLabel)
         nativeAdView.addSubview(bodyLabel)
         nativeAdView.addSubview(adChoicesView)
-        
-        // Constraints sin superposiciones - NINGUN elemento sobre otro
+        nativeAdView.addSubview(sponsoredLabel)
+        if let iconView {
+            nativeAdView.addSubview(iconView)
+        }
+        if let advertiserLabel {
+            nativeAdView.addSubview(advertiserLabel)
+        }
+
+        let names = UIStackView(arrangedSubviews: [sponsoredLabel])
+        names.axis = .vertical
+        names.spacing = 2
+        names.translatesAutoresizingMaskIntoConstraints = false
+        if let advertiserLabel {
+            names.insertArrangedSubview(advertiserLabel, at: 0)
+        }
+
+        let header = UIStackView()
+        header.axis = .horizontal
+        header.alignment = .center
+        header.spacing = 12
+        header.translatesAutoresizingMaskIntoConstraints = false
+        if let iconView {
+            header.addArrangedSubview(iconView)
+            iconView.widthAnchor.constraint(equalToConstant: 36).isActive = true
+            iconView.heightAnchor.constraint(equalToConstant: 36).isActive = true
+        }
+        header.addArrangedSubview(names)
+        nativeAdView.addSubview(header)
+
         NSLayoutConstraint.activate([
-            // MediaView - parte superior
-            mediaView.topAnchor.constraint(equalTo: nativeAdView.topAnchor),
-            mediaView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor),
-            mediaView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor),
+            header.topAnchor.constraint(equalTo: nativeAdView.topAnchor, constant: 12),
+            header.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 12),
+            header.trailingAnchor.constraint(lessThanOrEqualTo: nativeAdView.trailingAnchor, constant: -12),
+
+            mediaView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 12),
+            mediaView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 12),
+            mediaView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -12),
             mediaView.heightAnchor.constraint(equalToConstant: 300),
-            
-            // AdChoices - debajo del media, alineado a la derecha (NO superpuesto)
+
             adChoicesView.topAnchor.constraint(equalTo: mediaView.bottomAnchor, constant: 12),
             adChoicesView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -12),
-            
-            // Headline - debajo del media, al lado izquierdo
+
             headlineLabel.centerYAnchor.constraint(equalTo: adChoicesView.centerYAnchor),
             headlineLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 12),
             headlineLabel.trailingAnchor.constraint(equalTo: adChoicesView.leadingAnchor, constant: -8),
-            
-            // Body - debajo del headline
+
             bodyLabel.topAnchor.constraint(equalTo: headlineLabel.bottomAnchor, constant: 8),
             bodyLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 12),
             bodyLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -12),
             bodyLabel.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -12)
-            
-            // ✅ QUITADO: CTA Button constraints - No necesario, el tapping general funciona
-            // callToActionButton.topAnchor.constraint(equalTo: advertiserLabel.bottomAnchor, constant: 16),
-            // callToActionButton.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            // callToActionButton.heightAnchor.constraint(equalToConstant: 44),
-            // callToActionButton.widthAnchor.constraint(equalToConstant: 150),
-            // callToActionButton.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -8)
         ])
-        
+
         return nativeAdView
     }
     

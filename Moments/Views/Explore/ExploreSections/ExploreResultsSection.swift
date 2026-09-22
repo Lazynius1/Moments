@@ -20,6 +20,7 @@ struct SmartSearchResultsView: View {
     var zoomNamespace: Namespace.ID? = nil
     var profileZoomNamespace: Namespace.ID? = nil
     let onMomentTap: (Moment, Int, [Moment]) -> Void
+    var pane: ExploreSearchPane = .combined
 
     var searchType: SearchDisplayType {
         if moments.isEmpty && users.isEmpty { return .empty }
@@ -39,8 +40,48 @@ struct SmartSearchResultsView: View {
     }
 
     var body: some View {
+        switch pane {
+        case .people:
+            peoplePane
+        case .moments:
+            momentsPane
+        case .combined:
+            combinedResults
+        }
+    }
+
+    private var peoplePane: some View {
         VStack(spacing: 20) {
-            ScrollView(.horizontal, showsIndicators: false) {
+            if users.isEmpty {
+                if !isLoading && !failed && !hasMore { EmptySearchView() }
+            } else {
+                usersResultsView
+            }
+        }
+    }
+
+    private var momentsPane: some View {
+        VStack(spacing: 20) {
+            filterChips
+            if moments.isEmpty {
+                if !isLoading && !failed && !hasMore, users.isEmpty { EmptySearchView() }
+            } else {
+                switch searchType {
+                case .hashtag:
+                    hashtagResultsView
+                case .users, .empty:
+                    EmptyView()
+                case .moments, .mixed:
+                    momentsResultsView
+                }
+            }
+            ExplorePagingFooter(isLoading: isLoading, failed: failed, hasMore: hasMore,
+                onLoadMore: onLoadMore, onRetry: onRetry)
+        }
+    }
+
+    private var filterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(["mixed", "username", "hashtag", "location"], id: \.self) { value in
                         Button { onFilter(value) } label: {
@@ -53,6 +94,11 @@ struct SmartSearchResultsView: View {
                     }
                 }.padding(.horizontal, 24)
             }
+    }
+
+    private var combinedResults: some View {
+        VStack(spacing: 20) {
+            filterChips
             if !users.isEmpty || !moments.isEmpty { searchHeader }
 
             // Resultados según el tipo
@@ -271,6 +317,12 @@ struct SmartSearchResultsView: View {
 }
 
 // MARK: - 📱 Componentes auxiliares
+enum ExploreSearchPane {
+    case combined
+    case moments
+    case people
+}
+
 enum SearchDisplayType {
     case hashtag, users, moments, mixed, empty
 }

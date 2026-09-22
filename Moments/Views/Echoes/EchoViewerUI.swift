@@ -11,6 +11,10 @@ struct EchoViewerUI: View {
     let echoId: String
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    /// `onHingeChange` (iOS 27.1). En iPhone no hay bisagra y se queda en `.unknown`.
+    @State private var hingePose: EchoHingePose = .unknown
     @StateObject private var viewModel: EchoViewModel
     
     @State private var dragOffset: CGSize = .zero
@@ -41,6 +45,7 @@ struct EchoViewerUI: View {
     }
     
     var body: some View {
+        NavigationStack {
             ZStack {
             adaptiveColors.surfaceBackground.ignoresSafeArea()
                 
@@ -49,7 +54,9 @@ struct EchoViewerUI: View {
                     .tint(adaptiveColors.primary)
                 } else if let echo = viewModel.echo {
                 VStack(spacing: 0) {
-                    sessionHeader(echo: echo)
+                    if !usesExpandedEcho {
+                        sessionHeader(echo: echo, showsActions: !usesDuoSystemChrome)
+                    }
 
                     if viewModel.canBrowseMedia, viewModel.currentPost != nil {
                         adaptiveBrowsingContent
@@ -71,7 +78,18 @@ struct EchoViewerUI: View {
                     incompleteDecisionOverlay
                 }
             }
+            .navigationBarBackButtonHidden(true)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(usesExpandedEcho ? .automatic : .hidden, for: .navigationBar)
+            .toolbar(usesDuoSystemChrome ? .visible : .hidden, for: .navigationBar)
+            .toolbar {
+                if #available(iOS 27.1, *), usesDuoSystemChrome {
+                    echoSystemToolbar
+                }
+            }
+        }
         .statusBarHidden(false)
+        .modifier(EchoHingeObserver(pose: $hingePose))
         .environment(\.profileDetailDirectVideoPlayback, true)
         .onAppear {
             showIncompleteDecision = viewModel.isHistoricalIncomplete
@@ -105,17 +123,38 @@ struct EchoViewerUI: View {
         }
     }
 
+    /// Duo con barra vertical, pliegue o bisagra. El iPhone no entra aquí.
+    private var usesDuoSystemChrome: Bool {
+        toolbarVerticalEdge != nil || !divisionRegions.isEmpty || hingePose != .unknown
+    }
+
+    /// Abierto: la segunda pantalla lleva las cards. Cerrado e iPhone: la tira de círculos.
+    private var usesExpandedEcho: Bool {
+        guard usesDuoSystemChrome else { return false }
+        if hingePose == .closed { return false }
+        if hingePose == .partiallyOpen || hingePose == .fullyOpen { return true }
+        return !divisionRegions.isEmpty
+    }
+
+    /// Bisagra vertical: cards al lado. Si no, en la pantalla de abajo.
+    private var expandedCardsAreBesideEcho: Bool {
+        if let division = divisionRegions.first(where: { $0.width > 1 && $0.height > 1 }) {
+            return division.height >= division.width
+        }
+        return toolbarVerticalEdge != nil
+    }
+
     @ViewBuilder
     private var adaptiveBrowsingContent: some View {
-        if #available(iOS 27.1, *) {
+        if usesExpandedEcho, #available(iOS 27.1, *) {
             ArrangementView {
                 deckStage
             } secondary: {
                 if !viewModel.groupedPerspectives.isEmpty {
-                    perspectiveChooser
+                    perspectiveCardGrid
                 }
             }
-            .arrangementViewStyle(.split.axes([.horizontal, .vertical]))
+            .arrangementViewStyle(.split.axes(expandedCardsAreBesideEcho ? .horizontal : .vertical))
         } else {
             VStack(spacing: 0) {
                 deckStage
@@ -126,10 +165,62 @@ struct EchoViewerUI: View {
             }
         }
     }
+
+    @available(iOS 27.1, *)
+    @ToolbarContentBuilder
+    private var echoSystemToolbar: some ToolbarContent {
+        if usesExpandedEcho {
+            ToolbarItem(placement: .principal) {
+                echoToolbarLocationButton
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                echoToolbarActions
+            }
+            .axisBehavior(.horizontalOnly)
+        } else {
+            ToolbarItemGroup(placement: .primaryAction) {
+                echoToolbarActions
+            }
+            .axisBehavior(.verticalPreferred)
+        }
+    }
+
+    private var echoToolbarLocationButton: some View {
+        Button {
+            if let echo = viewModel.echo {
+                openInAppMap(for: echo)
+            }
+        } label: {
+            Text(viewModel.echo?.locationName ?? NSLocalizedString("echo.viewer.location.fallback", comment: ""))
+                .lineLimit(1)
+        }
+        .disabled(!viewModel.canOpenLocationMap)
+    }
+
+    @ViewBuilder
+    private var echoToolbarActions: some View {
+        Menu {
+            if let uid = Auth.auth().currentUser?.uid {
+                Button(role: .destructive) {
+                    leaveEchoAction(userId: uid)
+                } label: {
+                    Label(NSLocalizedString("echo.viewer.leave", comment: ""), systemImage: "rectangle.portrait.and.arrow.right")
+                }
+            }
+        } label: {
+            Label(NSLocalizedString("storyContextMenu.options", comment: ""), systemImage: "ellipsis")
+        }
+
+        Button {
+            dismiss()
+        } label: {
+            Label(NSLocalizedString("common.close", comment: ""), systemImage: "xmark")
+        }
+    }
     
     // MARK: - Session header (hecho, no story bars)
 
-    private func sessionHeader(echo: Echo) -> some View {
+    private func sessionHeader(echo: Echo, showsActions: Bool) -> some View {
         HStack(alignment: .center, spacing: 12) {
             Button {
                 openInAppMap(for: echo)
@@ -161,28 +252,30 @@ struct EchoViewerUI: View {
 
             Spacer(minLength: 8)
 
-            Menu {
-                if let uid = Auth.auth().currentUser?.uid {
-                    Button(role: .destructive) {
-                        leaveEchoAction(userId: uid)
-                    } label: {
-                        Label(NSLocalizedString("echo.viewer.leave", comment: ""), systemImage: "rectangle.portrait.and.arrow.right")
+            if showsActions {
+                Menu {
+                    if let uid = Auth.auth().currentUser?.uid {
+                        Button(role: .destructive) {
+                            leaveEchoAction(userId: uid)
+                        } label: {
+                            Label(NSLocalizedString("echo.viewer.leave", comment: ""), systemImage: "rectangle.portrait.and.arrow.right")
+                        }
                     }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(adaptiveColors.primary)
+                        .frame(width: 36, height: 36)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(adaptiveColors.primary)
-                    .frame(width: 36, height: 36)
-                    .momentsChromeGlass(in: Circle(), interactive: true)
-            }
 
-            Button { dismiss() } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(adaptiveColors.primary)
-                    .frame(width: 36, height: 36)
-                    .momentsChromeGlass(in: Circle(), interactive: true)
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(adaptiveColors.primary)
+                        .frame(width: 36, height: 36)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -731,6 +824,141 @@ struct EchoViewerUI: View {
         .background(adaptiveColors.surfaceBackground)
     }
 
+    /// Cards en filas que llenan la segunda pantalla. Sin scroll.
+    private var perspectiveCardGrid: some View {
+        GeometryReader { proxy in
+            let perspectives = viewModel.groupedPerspectives
+            let count = perspectives.count
+            let columns = echoCardColumnCount(count: count, size: proxy.size)
+            let rows = max(1, Int(ceil(Double(count) / Double(columns))))
+            let gap: CGFloat = 16
+            let cellWidth = max(1, (proxy.size.width - gap * CGFloat(columns + 1)) / CGFloat(columns))
+            let cellHeight = max(1, (proxy.size.height - gap * CGFloat(rows + 1)) / CGFloat(rows))
+
+            VStack(spacing: gap) {
+                ForEach(0..<rows, id: \.self) { row in
+                    HStack(spacing: gap) {
+                        ForEach(0..<columns, id: \.self) { column in
+                            let index = row * columns + column
+                            if perspectives.indices.contains(index) {
+                                perspectivePreviewCard(
+                                    perspective: perspectives[index],
+                                    index: index,
+                                    width: cellWidth,
+                                    height: cellHeight
+                                )
+                            } else {
+                                Color.clear
+                                    .frame(width: cellWidth, height: cellHeight)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(gap)
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .center)
+        }
+        .background(adaptiveColors.surfaceBackground)
+    }
+
+    private func echoCardColumnCount(count: Int, size: CGSize) -> Int {
+        guard count > 1, size.width > 1, size.height > 1 else { return 1 }
+        var best = 1
+        var bestDelta = CGFloat.greatestFiniteMagnitude
+        let maxColumns = min(count, 5)
+        for columns in 1...maxColumns {
+            let rows = Int(ceil(Double(count) / Double(columns)))
+            let cellWidth = size.width / CGFloat(columns)
+            let cellHeight = size.height / CGFloat(rows)
+            let previewRatio = (cellHeight - 24) / max(cellWidth, 1)
+            let delta = abs(previewRatio - 1.3)
+            if delta < bestDelta {
+                bestDelta = delta
+                best = columns
+            }
+        }
+        return best
+    }
+
+    private func perspectivePreviewCard(
+        perspective: GroupedPerspective,
+        index: Int,
+        width: CGFloat,
+        height: CGFloat
+    ) -> some View {
+        let selected = viewModel.currentPerspectiveIndex == index
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        let nameHeight: CGFloat = 22
+        let previewHeight = max(1, height - nameHeight - 6)
+        let slides = perspectivePreviewSlides(perspective)
+
+        return Button {
+            guard index != viewModel.currentPerspectiveIndex else { return }
+            HapticManager.shared.selection()
+            viewModel.switchPerspective(to: index)
+        } label: {
+            VStack(spacing: 6) {
+                ZStack(alignment: .bottomLeading) {
+                    shape
+                        .fill(adaptiveColors.primary.opacity(colorScheme == .dark ? 0.08 : 0.06))
+                    if slides.isEmpty {
+                        perspectiveUnavailablePreview
+                            .frame(width: width, height: previewHeight)
+                    } else {
+                        EchoRotatingSlidePreview(
+                            slides: slides,
+                            width: width,
+                            height: previewHeight,
+                            shape: shape
+                        )
+                    }
+                    AsyncProfileImageView(userId: perspective.authorId)
+                        .frame(width: min(72, width * 0.34), height: min(72, width * 0.34))
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(adaptiveColors.surfaceBackground, lineWidth: 2))
+                        .padding(8)
+                }
+                .frame(width: width, height: previewHeight)
+                .overlay(
+                    shape.stroke(
+                        selected ? adaptiveColors.accent : adaptiveColors.primary.opacity(0.12),
+                        lineWidth: selected ? 2 : 1
+                    )
+                )
+
+                Text(perspective.username)
+                    .font(.system(size: 13, weight: selected ? .semibold : .medium))
+                    .foregroundStyle(selected ? adaptiveColors.primary : adaptiveColors.secondary)
+                    .lineLimit(1)
+                    .frame(width: width, height: nameHeight)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Slides que sí se pueden ver, en orden del post. Fuera: momento no disponible y slides ocultas.
+    private func perspectivePreviewSlides(_ perspective: GroupedPerspective) -> [EchoMomentRef] {
+        perspective.posts.flatMap { post -> [EchoMomentRef] in
+            if viewModel.momentAvailability[post.momentId] == false { return [] }
+            return viewModel.visibleSlides(for: post)
+        }
+    }
+
+    private var perspectiveUnavailablePreview: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "eye.slash.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(adaptiveColors.secondary)
+            Text(NSLocalizedString("echo.viewer.unavailable", comment: ""))
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(adaptiveColors.primary)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .minimumScaleFactor(0.8)
+                .padding(.horizontal, 8)
+        }
+    }
+
     // MARK: - States / overlays (preserved)
 
     private var unavailablePlaceholder: some View {
@@ -1125,6 +1353,80 @@ private struct EchoDeckCarousel: View {
             if ratio.isFinite, ratio > 0 { return ratio }
         }
         return nil
+    }
+}
+
+/// Pasa la miniatura por las slides disponibles de ese autor.
+private struct EchoRotatingSlidePreview: View {
+    let slides: [EchoMomentRef]
+    let width: CGFloat
+    let height: CGFloat
+    let shape: RoundedRectangle
+
+    @State private var index = 0
+
+    var body: some View {
+        let slide = slides.isEmpty ? nil : slides[index % slides.count]
+        ZStack {
+            if let slide, let url = previewURL(for: slide) {
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: width, height: height)
+                    .clipShape(shape)
+                    .id(slide.momentId + slide.mediaUrl)
+                    .transition(.opacity)
+            }
+        }
+        .frame(width: width, height: height)
+        .clipShape(shape)
+        .animation(.easeInOut(duration: 0.35), value: index)
+        .task(id: slides.map { $0.momentId + $0.mediaUrl }.joined(separator: "|")) {
+            index = 0
+            guard slides.count > 1 else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 2_600_000_000)
+                guard !Task.isCancelled else { return }
+                index = (index + 1) % max(slides.count, 1)
+            }
+        }
+    }
+
+    private func previewURL(for slide: EchoMomentRef) -> URL? {
+        let raw = slide.thumbnailUrl ?? slide.mediaUrl
+        guard !raw.isEmpty else { return nil }
+        return URL(string: raw)
+    }
+}
+
+private enum EchoHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+/// `onHingeChange` (SDK 27.1). Cerrada o sin bisagra: el visor se queda en la pila del iPhone.
+private struct EchoHingeObserver: ViewModifier {
+    @Binding var pose: EchoHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
+        }
     }
 }
 

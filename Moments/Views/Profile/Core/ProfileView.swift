@@ -407,7 +407,6 @@ struct ProfileView: View {
                         editingMoment: $editingMoment,
                         pendingDeleteMoment: $pendingDeleteMoment
                     )
-                    .frame(maxWidth: 760)
                     .frame(maxWidth: .infinity)
                     .environmentObject(heroCoordinator)
                 }

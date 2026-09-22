@@ -39,10 +39,35 @@ struct FeedHeaderBar: View {
     let onOpenStory: (String) -> Void
     let onPreviewStory: (String, CGRect) -> Void
 
+    /// Ancho medido de los iconos. La fila pasa por debajo; el fundido los tapa.
+    @State private var chromeWidth: CGFloat = 160
+    private let storyFadeWidth: CGFloat = 32
+
     var body: some View {
-        HStack(spacing: 8) {
+        ZStack(alignment: .trailing) {
+            storyTray
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .mask { storyUnderChromeMask }
+
+            headerChrome
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.width
+                } action: { chromeWidth = $0 }
+        }
+        .padding(.top, 16)
+        .padding(.bottom, 4)
+        .background(
+            Rectangle()
+                .fill(headerCanvas)
+                .ignoresSafeArea(edges: .top)
+        )
+    }
+
+    private var storyTray: some View {
+        Group {
             if storyRingCoordinator.isLoadingStories && storyRingCoordinator.storyUsers.isEmpty {
                 StoryRingTraySkeletonRow(colorScheme: colorScheme)
+                    .padding(.trailing, chromeWidth)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
@@ -103,14 +128,33 @@ struct FeedHeaderBar: View {
                         }
                     }
                     .padding(.leading, 12)
-                    .padding(.trailing, 4)
+                    .padding(.trailing, chromeWidth + storyFadeWidth)
                     .background(FeedStoryRingScrollTouchFix())
                 }
             }
+        }
+    }
 
-            Spacer()
+    /// Opaco a la izquierda, fundido justo antes de los iconos, transparente debajo de ellos.
+    private var storyUnderChromeMask: some View {
+        GeometryReader { geo in
+            HStack(spacing: 0) {
+                Color.black
+                LinearGradient(
+                    colors: [.black, .black.opacity(0)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: storyFadeWidth)
+                Color.clear
+                    .frame(width: chromeWidth)
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .trailing)
+        }
+    }
 
-            HStack(spacing: 20) {
+    private var headerChrome: some View {
+        HStack(spacing: 20) {
                 if !pendingEchoes.isEmpty {
                     Menu {
                         Button(NSLocalizedString("feed.echo.actions.viewInvitations", comment: "View pending invitations")) {
@@ -156,16 +200,12 @@ struct FeedHeaderBar: View {
                 }
                 .buttonStyle(.momentsPressIcon)
                 .accessibilityLabel(NSLocalizedString("tabBar.nova", comment: "Nova"))
-            }
-            .padding(.trailing, 12)
         }
-        .padding(.top, 16)
-        .padding(.bottom, 4)
-        .background(
-            Rectangle()
-                .fill(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                .ignoresSafeArea(edges: .top)
-        )
+        .padding(.trailing, 12)
+    }
+
+    private var headerCanvas: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }
 
     private var echoApertureIcon: some View {

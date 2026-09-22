@@ -417,6 +417,9 @@ struct ModernPostCardView: View {
                     .onChange(of: availableHeight) { _, _ in
                         refreshCardHeight()
                     }
+                    .onChange(of: momentsViewportSize.width) { _, _ in
+                        refreshCardHeight()
+                    }
                     .carouselImmersivePeekGesture(
                         isImmersive: $isImmersive,
                         mediaItems: mediaItems,
@@ -1014,11 +1017,11 @@ struct ModernPostCardView: View {
     let sourceRectInWindow: CGRect
 }
 
-/// Overlay en la ventana (no `fullScreenCover`): el card se expande encima del feed.
+/// Presentado en la ventana del feed. Una `UIWindow` aparte no tiene el inset
+/// de la barra vertical ni las divisiones de la escena.
 @MainActor
 enum ReelsFeedOverlay {
-    private static var overlayWindow: UIWindow?
-    private static var previousKeyWindow: UIWindow?
+    private static var overlayHost: UIHostingController<AnyView>?
     private static var onClosed: (() -> Void)?
 
     static func present(
@@ -1026,49 +1029,64 @@ enum ReelsFeedOverlay {
         onWillDismiss: (() -> Void)?,
         onClosed: @escaping () -> Void
     ) {
-        dismiss(invokeClosed: false)
-        Self.onClosed = onClosed
-        guard let scene = UIApplication.shared.activeKeyWindow?.windowScene else {
-            onClosed()
-            return
+        let show = {
+            guard let presenter = topPresenter() else {
+                onClosed()
+                return
+            }
+            let viewer = ReelsViewer(
+                videos: session.videos,
+                startIndex: session.startIndex,
+                initialStartSeconds: session.startSeconds,
+                handoffConsumerId: session.resumeConsumerId,
+                sourceRectInWindow: session.sourceRectInWindow,
+                onWillDismiss: onWillDismiss,
+                onClosed: { dismiss(invokeClosed: true) }
+            )
+            .environmentObject(FirestoreService.shared)
+
+            let host = UIHostingController(rootView: AnyView(viewer))
+            host.view.backgroundColor = .clear
+            host.modalPresentationStyle = .overFullScreen
+            Self.onClosed = onClosed
+            overlayHost = host
+            presenter.present(host, animated: false)
         }
 
-        let viewer = ReelsViewer(
-            videos: session.videos,
-            startIndex: session.startIndex,
-            initialStartSeconds: session.startSeconds,
-            handoffConsumerId: session.resumeConsumerId,
-            sourceRectInWindow: session.sourceRectInWindow,
-            onWillDismiss: onWillDismiss,
-            onClosed: { dismiss(invokeClosed: true) }
-        )
-        .environmentObject(FirestoreService.shared)
-
-        let host = UIHostingController(rootView: viewer)
-        host.view.backgroundColor = .clear
-        host.modalPresentationStyle = .overFullScreen
-
-        let window = UIWindow(windowScene: scene)
-        window.windowLevel = .statusBar + 1
-        window.backgroundColor = .clear
-        window.rootViewController = host
-        previousKeyWindow = UIApplication.shared.activeKeyWindow
-        overlayWindow = window
-        window.makeKeyAndVisible()
+        if overlayHost != nil {
+            dismiss(invokeClosed: false, then: show)
+        } else {
+            show()
+        }
     }
 
     static func dismiss(invokeClosed: Bool) {
+        dismiss(invokeClosed: invokeClosed, then: nil)
+    }
+
+    private static func dismiss(invokeClosed: Bool, then next: (() -> Void)?) {
         let callback = onClosed
         onClosed = nil
-        let previous = previousKeyWindow
-        previousKeyWindow = nil
-        overlayWindow?.isHidden = true
-        overlayWindow?.rootViewController = nil
-        overlayWindow = nil
-        previous?.makeKey()
-        if invokeClosed {
-            callback?()
+        guard let host = overlayHost else {
+            if invokeClosed { callback?() }
+            next?()
+            return
         }
+        overlayHost = nil
+        host.dismiss(animated: false) {
+            if invokeClosed { callback?() }
+            next?()
+        }
+    }
+
+    private static func topPresenter() -> UIViewController? {
+        guard var presenter = UIApplication.shared.activeKeyWindow?.rootViewController else {
+            return nil
+        }
+        while let presented = presenter.presentedViewController, presented !== overlayHost {
+            presenter = presented
+        }
+        return presenter
     }
 }
 

@@ -6,8 +6,15 @@ struct SuggestedUsersView: View {
     @StateObject private var viewModel = SuggestedUsersViewModel()
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.exploreSecondaryClose) private var exploreSecondaryClose
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    /// En la segunda pantalla el perfil lo abre Explorar. En el push, la propia lista.
+    var onUserTap: ((String) -> Void)? = nil
+    var initialProfile: FeedProfileSheetRoute? = nil
+    var onProfileChange: ((FeedProfileSheetRoute?) -> Void)? = nil
     @State private var selectedProfileRoute: FeedProfileSheetRoute?
     @State private var hasLoadedInitialUsers = false
+    @State private var didApplyInitialProfile = false
     @Namespace private var profileZoomNamespace
     
     var body: some View {
@@ -16,16 +23,45 @@ struct SuggestedUsersView: View {
             .navigationTitle(NSLocalizedString("explore.suggestedUsers.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .tabBar)
+            .toolbar { suggestedUsersBackToolbar }
             .momentsFloatingTabBarHidden()
             .task {
                 guard !hasLoadedInitialUsers else { return }
                 hasLoadedInitialUsers = true
                 viewModel.loadInitialUsers()
             }
+            .onAppear {
+                guard !didApplyInitialProfile, let initialProfile else { return }
+                didApplyInitialProfile = true
+                selectedProfileRoute = initialProfile
+            }
+            .onChange(of: selectedProfileRoute) { _, newRoute in
+                onProfileChange?(newRoute)
+            }
             .userProfileNavigationDestination(
                 item: $selectedProfileRoute,
                 namespace: profileZoomNamespace
             )
+    }
+
+    @ToolbarContentBuilder
+    private var suggestedUsersBackToolbar: some ToolbarContent {
+        if let exploreSecondaryClose {
+            if #available(iOS 27.1, *), toolbarVerticalEdge != nil {
+                ToolbarItemGroup(placement: .cancellationAction) {
+                    Button(action: exploreSecondaryClose) {
+                        Label("common.back", systemImage: "chevron.left")
+                    }
+                }
+                .axisBehavior(.verticalPreferred)
+            } else {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: exploreSecondaryClose) {
+                        Label("common.back", systemImage: "chevron.left")
+                    }
+                }
+            }
+        }
     }
 
     private var momentsCanvasBackground: Color {
@@ -72,7 +108,11 @@ struct SuggestedUsersView: View {
                                 onTap: {
                                     let trimmedUserId = user.id.trimmingCharacters(in: .whitespacesAndNewlines)
                                     guard !trimmedUserId.isEmpty else { return }
-                                    selectedProfileRoute = FeedProfileSheetRoute(userId: trimmedUserId)
+                                    if let onUserTap {
+                                        onUserTap(trimmedUserId)
+                                    } else {
+                                        selectedProfileRoute = FeedProfileSheetRoute(userId: trimmedUserId)
+                                    }
                                 }
                             )
                             .onAppear {

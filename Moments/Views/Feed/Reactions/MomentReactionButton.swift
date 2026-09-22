@@ -11,13 +11,23 @@ struct EpicReactionButton: View {
     let size: CGFloat
     let emojiSize: CGFloat
     let pickerXOffset: CGFloat
+    /// En la barra nativa: mismo símbolo que el resto, sin círculo ni escala.
+    var plainSymbol: Bool = false
     
-    init(moment: Moment, showCount: Bool = true, size: CGFloat = 44, emojiSize: CGFloat = 24, pickerXOffset: CGFloat = 0) {
+    init(
+        moment: Moment,
+        showCount: Bool = true,
+        size: CGFloat = 44,
+        emojiSize: CGFloat = 24,
+        pickerXOffset: CGFloat = 0,
+        plainSymbol: Bool = false
+    ) {
         self.moment = moment
         self.showCount = showCount
         self.size = size
         self.emojiSize = emojiSize
         self.pickerXOffset = pickerXOffset
+        self.plainSymbol = plainSymbol
     }
     @State private var showReactionPicker = false
     @State private var currentReaction: ReactionType?
@@ -50,6 +60,7 @@ struct EpicReactionButton: View {
             
             ZStack(alignment: .topTrailing) {
                 ZStack {
+                    if !plainSymbol {
                     // ✨ Ripple effect de fondo
                     if showRipple {
                         Circle()
@@ -73,10 +84,14 @@ struct EpicReactionButton: View {
                             radius: hasReacted ? 8 : 4,
                             x: 0, y: hasReacted ? 4 : 2
                         )
+                    }
                     
                     // Vacío: SF Symbol. Reaccionado: emoji con gradiente.
                     Group {
-                        if hasReacted, let icon = currentReaction?.filledIcon {
+                        if plainSymbol {
+                            Image(systemName: hasReacted ? "heart.fill" : "heart")
+                                .symbolRenderingMode(.monochrome)
+                        } else if hasReacted, let icon = currentReaction?.filledIcon {
                             Text(icon)
                                 .font(.system(size: emojiSize, weight: .heavy))
                                 .foregroundStyle(
@@ -104,11 +119,11 @@ struct EpicReactionButton: View {
                                 )
                         }
                     }
-                    .scaleEffect(pulseScale)
-                    .rotationEffect(.degrees(rotationAngle))
+                    .scaleEffect(plainSymbol ? 1 : pulseScale)
+                    .rotationEffect(.degrees(plainSymbol ? 0 : rotationAngle))
                 }
                 .contentShape(Circle())
-                .scaleEffect(isPressed ? 0.85 : (hasReacted ? 1.15 : 1.0))
+                .scaleEffect(plainSymbol ? 1 : (isPressed ? 0.85 : (hasReacted ? 1.15 : 1.0)))
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isPressed), value: isPressed)
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: hasReacted), value: hasReacted)
                 .onTapGesture {
@@ -160,7 +175,7 @@ struct EpicReactionButton: View {
                 }
             }
         }
-        .frame(width: size, height: size)
+        .frame(width: plainSymbol ? nil : size, height: plainSymbol ? nil : size)
         // Por encima de comentarios/guardar mientras el picker está abierto.
         .zIndex(showReactionPicker ? 50 : 0)
         .accessibilityElement(children: .ignore)

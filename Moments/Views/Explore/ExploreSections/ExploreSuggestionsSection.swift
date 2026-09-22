@@ -188,18 +188,89 @@ struct SuggestedUsersSection: View {
                         .buttonStyle(.plain)
                         .foregroundStyle(Color.accentColor)
                 }
-                .padding(.horizontal, 20)
+                .padding(.leading, 20)
+                .padding(.trailing, 20)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 8) {
-                        ForEach(users) { user in
-                            SuggestedUserAvatar(user: user, profileZoomNamespace: profileZoomNamespace) {
-                                onUserTap(user)
+                Color.clear
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 76)
+                    .overlay(alignment: .leading) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: 8) {
+                                ForEach(users) { user in
+                                    SuggestedUserAvatar(user: user, profileZoomNamespace: profileZoomNamespace) {
+                                        onUserTap(user)
+                                    }
+                                }
                             }
                         }
                     }
+                    .clipped()
+            }
+        }
+    }
+}
+
+/// Personas de Explorar repartidas en filas en la segunda pantalla. Sin scroll horizontal.
+struct SuggestedUsersPane: View {
+    let users: [AppUser]
+    let onUserTap: (AppUser) -> Void
+    let onShowMore: () -> Void
+    var profileZoomNamespace: Namespace.ID? = nil
+
+    var body: some View {
+        if users.isEmpty {
+            Color.clear
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Text("explore.suggestedUsers.title")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: 8)
+                    Button("explore.suggestedUsers.seeMore", action: onShowMore)
+                        .font(.subheadline)
+                        .frame(minHeight: 44)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
+                }
+                .padding(.horizontal, 20)
+
+                GeometryReader { proxy in
+                    let count = users.count
+                    let columns = max(2, min(4, Int((proxy.size.width / 120).rounded(.down))))
+                    let rows = max(1, Int(ceil(Double(count) / Double(columns))))
+                    let gap: CGFloat = 16
+                    let cellWidth = max(1, (proxy.size.width - gap * CGFloat(columns + 1)) / CGFloat(columns))
+                    let cellHeight = max(1, (proxy.size.height - gap * CGFloat(rows + 1)) / CGFloat(rows))
+
+                    VStack(spacing: gap) {
+                        ForEach(0..<rows, id: \.self) { row in
+                            HStack(spacing: gap) {
+                                ForEach(0..<columns, id: \.self) { column in
+                                    let index = row * columns + column
+                                    if users.indices.contains(index) {
+                                        SuggestedUserAvatar(
+                                            user: users[index],
+                                            profileZoomNamespace: profileZoomNamespace
+                                        ) {
+                                            onUserTap(users[index])
+                                        }
+                                        .frame(width: cellWidth, height: cellHeight)
+                                    } else {
+                                        Color.clear.frame(width: cellWidth, height: cellHeight)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(gap)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.top, 8)
         }
     }
 }

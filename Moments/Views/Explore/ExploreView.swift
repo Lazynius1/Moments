@@ -8,6 +8,10 @@ import AVFoundation
 struct ExploreView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    /// `onHingeChange` (iOS 27.1). En iPhone no hay bisagra y se queda en `.unknown`.
+    @State private var hingePose: ExploreHingePose = .unknown
     @StateObject private var viewModel = ExploreViewModel()
     @State private var searchText: String = ""
     @FocusState private var isSearchFieldFocused: Bool
@@ -18,8 +22,18 @@ struct ExploreView: View {
     @State private var zoomDestination: MomentZoomDestination?
     @State private var selectedProfileRoute: FeedProfileSheetRoute?
     @State private var showDiscoverMap = false
+    /// Perfil abierto en la segunda pantalla. No empuja la navegación del mosaico.
+    @State private var paneProfileRoute: FeedProfileSheetRoute?
+    /// Momento abierto en la pantalla del mosaico.
+    @State private var paneZoomDestination: MomentZoomDestination?
+    /// Post visible en el detalle. Sobrevive a abrir y cerrar, cuando esa vista se vuelve a crear.
+    @State private var paneDetailMomentId: String?
 
     @State private var showSuggestedUsersView = false
+    /// Lista de «Ver más» en la segunda pantalla, debajo del perfil si hay uno abierto.
+    @State private var paneSuggestedUsers = false
+    /// Perfil que la lista empujada tenía abierto al cerrar el Duo.
+    @State private var compactSuggestedProfile: FeedProfileSheetRoute?
     let initialSearchQuery: String?
     let isDismissable: Bool
     let isTabActive: Bool
@@ -79,24 +93,42 @@ struct ExploreView: View {
                 DiscoverMapView(isPresented: $showDiscoverMap)
             }
             .navigationDestination(isPresented: $showSuggestedUsersView) {
-                SuggestedUsersView()
+                SuggestedUsersView(
+                    initialProfile: compactSuggestedProfile,
+                    onProfileChange: { compactSuggestedProfile = $0 }
+                )
+            }
+            .onChange(of: searchText) { _, _ in
+                paneProfileRoute = nil
+                paneZoomDestination = nil
+                paneSuggestedUsers = false
             }
     }
 
     private var exploreSearchableContent: some View {
+        exploreChrome
+            .modifier(ExploreSearchModifier(
+                isEnabled: !showsCompactDuoDetail,
+                searchText: $searchText,
+                isSearchFieldFocused: $isSearchFieldFocused,
+                suggestions: exploreRecentSearchSuggestions
+            ))
+    }
+
+    private var exploreChrome: some View {
         mainContent
             .background(backgroundGradient.ignoresSafeArea())
-            .navigationTitle(NSLocalizedString("explore.title", comment: ""))
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar { exploreToolbarContent }
-            .searchable(
-                text: $searchText,
-                placement: .navigationBarDrawer(displayMode: .automatic),
-                prompt: NSLocalizedString("explore.search.placeholder", comment: "")
-            )
-            .searchFocused($isSearchFieldFocused)
-            .searchSuggestions {
-                exploreRecentSearchSuggestions
+            .navigationTitle(showsCompactDuoDetail ? "" : NSLocalizedString("explore.title", comment: ""))
+            .navigationBarTitleDisplayMode(showsCompactDuoDetail ? .inline : .large)
+            .toolbar(.visible, for: .navigationBar)
+            .toolbar {
+                if !showsCompactDuoDetail {
+                    if #available(iOS 27.1, *), usesDuoExploreChrome {
+                        duoExploreToolbar
+                    } else {
+                        exploreToolbarContent
+                    }
+                }
             }
     }
 
@@ -118,14 +150,42 @@ struct ExploreView: View {
         }
 
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Button {
-                ExploreHapticFeedback.impact(.medium)
-                showDiscoverMap = true
-            } label: {
-                Image(systemName: "map.fill")
-                    .foregroundStyle(Color(hex: "0A84FF"))
+            exploreMapButton
+        }
+    }
+
+    @available(iOS 27.1, *)
+    @ToolbarContentBuilder
+    private var duoExploreToolbar: some ToolbarContent {
+        if isDismissable {
+            ToolbarItem(placement: .topBarLeading) {
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: .primary,
+                    preset: .navigationBack,
+                    action: {
+                        ExploreHapticFeedback.impact(.light)
+                        clearSearchSession()
+                        dismiss()
+                    }
+                )
             }
         }
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            exploreMapButton
+        }
+        .axisBehavior(.verticalPreferred)
+    }
+
+    private var exploreMapButton: some View {
+        Button {
+            ExploreHapticFeedback.impact(.medium)
+            showDiscoverMap = true
+        } label: {
+            Label(NSLocalizedString("maps.discover.title", comment: ""), systemImage: "map.fill")
+        }
+        .tint(Color(hex: "0A84FF"))
     }
 
     @ViewBuilder
@@ -200,6 +260,10 @@ struct ExploreView: View {
 
     // MARK: - Componentes de la Vista
 
+    private var exploreCanvas: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
     private var backgroundGradient: some View {
         ZStack {
             if colorScheme == .dark {
@@ -222,6 +286,10 @@ struct ExploreView: View {
                     ErrorStateView(message: errorMessage) {
                         viewModel.fetchMomentsByInterests()
                     }
+                } else if usesExpandedExplore {
+                    expandedExplore
+                } else if showsCompactDuoDetail {
+                    compactDuoDetail
                 } else {
                     contentScrollView
                 }
@@ -236,6 +304,173 @@ struct ExploreView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .modifier(ExploreHingeObserver(pose: $hingePose))
+    }
+
+    /// Duo con barra vertical, pliegue o bisagra. El iPhone no entra aquí.
+    private var usesDuoExploreChrome: Bool {
+        toolbarVerticalEdge != nil || !divisionRegions.isEmpty || hingePose != .unknown
+    }
+
+    /// Abierto: mosaico y personas en pantallas distintas. Cerrado e iPhone: el scroll de siempre.
+    private var usesExpandedExplore: Bool {
+        guard usesDuoExploreChrome else { return false }
+        if hingePose == .closed { return false }
+        if hingePose == .partiallyOpen || hingePose == .fullyOpen { return true }
+        return !divisionRegions.isEmpty
+    }
+
+    /// Bisagra vertical: personas al lado. Si no, en la pantalla de abajo.
+    private var peopleAreBesideMosaic: Bool {
+        if let division = divisionRegions.first(where: { $0.width > 1 && $0.height > 1 }) {
+            return division.height >= division.width
+        }
+        return toolbarVerticalEdge != nil
+    }
+
+    /// Cerrado con un detalle: esa pantalla ocupa el Duo. Abierto: vuelve al split con el mismo estado.
+    private var showsCompactDuoDetail: Bool {
+        guard usesDuoExploreChrome, !usesExpandedExplore else { return false }
+        return paneZoomDestination != nil || paneProfileRoute != nil || paneSuggestedUsers
+    }
+
+    private var compactDuoDetail: some View {
+        expandedSecondaryPane
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(exploreCanvas)
+            .environment(\.exploreSecondaryClose, closeExploreSecondary)
+    }
+
+    private var closeExploreSecondary: () -> Void {
+        {
+            if paneZoomDestination != nil {
+                paneZoomDestination = nil
+            } else if paneProfileRoute != nil {
+                paneProfileRoute = nil
+            } else {
+                paneSuggestedUsers = false
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var expandedExplore: some View {
+        if #available(iOS 27.1, *) {
+            ArrangementView {
+                expandedMosaicPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .clipped()
+                    .background(exploreCanvas)
+            } secondary: {
+                expandedSecondaryPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .background(exploreCanvas)
+                    .environment(\.exploreSecondaryClose, closeExploreSecondary)
+            }
+            .arrangementViewStyle(.split.axes(peopleAreBesideMosaic ? .horizontal : .vertical))
+        }
+    }
+
+    private var expandedMosaicPane: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 24) {
+                if searchText.isEmpty {
+                    if !viewModel.moments.isEmpty {
+                        ExploreMomentsBentoGrid(
+                            moments: viewModel.moments,
+                            zoomNamespace: zoomNamespace,
+                            onMomentTap: handleMomentTap
+                        )
+                    }
+                    ExplorePagingFooter(
+                        isLoading: viewModel.isLoadingMoreExplore,
+                        failed: viewModel.explorePageFailed,
+                        hasMore: viewModel.hasMoreExplore,
+                        onLoadMore: viewModel.loadMoreExplore,
+                        onRetry: viewModel.loadMoreExplore
+                    )
+                } else {
+                    searchResultsSection(pane: .moments)
+                }
+            }
+        }
+        .momentRefresh {
+            if searchText.isEmpty { viewModel.refreshAllContent() } else { viewModel.retrySearch() }
+            try? await Task.sleep(nanoseconds: 900_000_000)
+        }
+        .momentsScrollEdgeChrome()
+    }
+
+    @ViewBuilder
+    private var expandedSecondaryPane: some View {
+        if let destination = paneZoomDestination {
+            NavigationStack {
+                MomentZoomDetailDestination(
+                    destination: destination,
+                    moments: momentsForZoomDestination(destination),
+                    namespace: zoomNamespace,
+                    continuityMomentId: paneDetailMomentId,
+                    onVisibleMomentId: { paneDetailMomentId = $0 }
+                )
+                .id(destination.zoomSourceID)
+                .toolbar(.visible, for: .navigationBar)
+            }
+        } else if let route = paneProfileRoute {
+            NavigationStack {
+                UserProfileView(userId: route.userId)
+                    .id(route.userId)
+            }
+        } else if paneSuggestedUsers {
+            NavigationStack {
+                SuggestedUsersView(onUserTap: { userId in
+                    paneZoomDestination = nil
+                    paneProfileRoute = FeedProfileSheetRoute(userId: userId)
+                })
+            }
+        } else {
+            expandedPeoplePane
+        }
+    }
+
+    @ViewBuilder
+    private var expandedPeoplePane: some View {
+        if searchText.isEmpty {
+            SuggestedUsersPane(
+                users: viewModel.suggestedUsers,
+                onUserTap: { user in
+                    openProfile(user.id)
+                    viewModel.checkCanViewContent(for: user.id) { _ in }
+                },
+                onShowMore: openSuggestedUsers,
+                profileZoomNamespace: profileZoomNamespace
+            )
+        } else {
+            ScrollView(.vertical, showsIndicators: false) {
+                searchResultsSection(pane: .people)
+            }
+            .momentsScrollEdgeChrome()
+        }
+    }
+
+    private func openSuggestedUsers() {
+        if usesDuoExploreChrome {
+            paneZoomDestination = nil
+            paneProfileRoute = nil
+            paneSuggestedUsers = true
+        } else {
+            compactSuggestedProfile = nil
+            showSuggestedUsersView = true
+        }
+    }
+
+    private func openProfile(_ userId: String) {
+        let route = FeedProfileSheetRoute(userId: userId)
+        if usesDuoExploreChrome {
+            paneZoomDestination = nil
+            paneProfileRoute = route
+        } else {
+            selectedProfileRoute = route
+        }
     }
 
     private var contentScrollView: some View {
@@ -255,7 +490,7 @@ struct ExploreView: View {
                         hasMore: viewModel.hasMoreExplore, onLoadMore: viewModel.loadMoreExplore,
                         onRetry: viewModel.loadMoreExplore)
                 } else {
-                    searchResultsSection
+                    searchResultsSection()
                 }
             }
         }
@@ -271,12 +506,10 @@ struct ExploreView: View {
             SuggestedUsersSection(
                 users: viewModel.suggestedUsers,
                 onUserTap: { user in
-                    selectedProfileRoute = FeedProfileSheetRoute(userId: user.id)
+                    openProfile(user.id)
                     viewModel.checkCanViewContent(for: user.id) { _ in }
                 },
-                onShowMore: {
-                    showSuggestedUsersView = true
-                },
+                onShowMore: openSuggestedUsers,
                 profileZoomNamespace: profileZoomNamespace
             )
             .onAppear {
@@ -315,7 +548,7 @@ struct ExploreView: View {
             preserveSearchSessionForNavigation()
             ForYouPreferences.shared.recordOpenedMoment(moment)
             let resolvedIndex = moments.firstIndex(where: { $0.id == moment.id }) ?? index
-            zoomDestination = MomentZoomDestination(
+            let destination = MomentZoomDestination(
                 zoomSourceID: ProfileMomentZoomNavigation.sourceID(
                     moment: moment,
                     index: resolvedIndex,
@@ -325,6 +558,13 @@ struct ExploreView: View {
                 initialMomentId: moment.id,
                 presentation: presentation
             )
+            paneDetailMomentId = moment.id
+            if usesDuoExploreChrome {
+                paneProfileRoute = nil
+                paneZoomDestination = destination
+            } else {
+                zoomDestination = destination
+            }
             HapticManager.shared.lightImpact()
         }
 
@@ -342,7 +582,7 @@ struct ExploreView: View {
 
         // Removed redundant momentsSection property
 
-        private var searchResultsSection: some View {
+        private func searchResultsSection(pane: ExploreSearchPane = .combined) -> some View {
             SmartSearchResultsView(
                 searchQuery: searchText,
                 isLoading: viewModel.isSearching,
@@ -362,7 +602,7 @@ struct ExploreView: View {
                 onFollowUser: viewModel.followUser,
                 onUserTap: { user in
                     preserveSearchSessionForNavigation()
-                    selectedProfileRoute = FeedProfileSheetRoute(userId: user.id)
+                    openProfile(user.id)
                     viewModel.checkCanViewContent(for: user.id) { _ in }
                     // ✅ Guardar en historial
                     viewModel.saveSearchRecord(query: user.username, type: "user", targetId: user.id)
@@ -383,7 +623,7 @@ struct ExploreView: View {
                             showPrivateProfileAlert = true
                         }
                     }
-                }
+                }, pane: pane
             )
             .onAppear {
                 // Cargar estados de botones para usuarios encontrados
@@ -462,6 +702,28 @@ private struct ExploreRecentSearchRow: View {
     }
 }
 
+private struct ExploreSearchModifier<Suggestions: View>: ViewModifier {
+    let isEnabled: Bool
+    @Binding var searchText: String
+    var isSearchFieldFocused: FocusState<Bool>.Binding
+    let suggestions: Suggestions
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content
+                .searchable(
+                    text: $searchText,
+                    placement: .navigationBarDrawer(displayMode: .automatic),
+                    prompt: NSLocalizedString("explore.search.placeholder", comment: "")
+                )
+                .searchFocused(isSearchFieldFocused)
+                .searchSuggestions { suggestions }
+        } else {
+            content
+        }
+    }
+}
+
 /// En iOS 26 el toolbar nativo ya aplica Liquid Glass; añadir glass manual duplica capas.
 private struct ExploreToolbarIconGlassModifier: ViewModifier {
     func body(content: Content) -> some View {
@@ -469,6 +731,49 @@ private struct ExploreToolbarIconGlassModifier: ViewModifier {
             content
         } else {
             content.background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
+        }
+    }
+}
+
+private struct ExploreSecondaryCloseKey: EnvironmentKey {
+    static let defaultValue: (() -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// Cierra el momento o el perfil incrustado en la segunda pantalla de Explorar.
+    var exploreSecondaryClose: (() -> Void)? {
+        get { self[ExploreSecondaryCloseKey.self] }
+        set { self[ExploreSecondaryCloseKey.self] = newValue }
+    }
+}
+
+private enum ExploreHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+/// `onHingeChange` (SDK 27.1). Cerrada o sin bisagra: Explorar se queda en el scroll del iPhone.
+private struct ExploreHingeObserver: ViewModifier {
+    @Binding var pose: ExploreHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
         }
     }
 }

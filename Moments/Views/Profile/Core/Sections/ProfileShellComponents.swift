@@ -98,6 +98,11 @@ struct ModernProfileContentView: View {
     @State private var tabsMinY: CGFloat = .greatestFiniteMagnitude
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    @State private var hingePose: ProfileHingePose = .unknown
+    @State private var profileColumnWidth: CGFloat = 0
+    /// Post visible en el detalle. Sobrevive a abrir y cerrar.
+    @State private var paneDetailMomentId: String?
 
     private var usernameCollapseProgress: CGFloat {
         ProfileHeaderCollapseMetrics.progress(forTabsMinY: tabsMinY)
@@ -123,6 +128,29 @@ struct ModernProfileContentView: View {
                 }
             })
         } else {
+            profileDuoContainer
+        }
+    }
+
+    private var profileDuoContainer: some View {
+        Group {
+            if usesExpandedProfile {
+                expandedProfile
+            } else if showsCompactDuoDetail {
+                compactProfileDetail
+            } else {
+                profileColumn
+                    .frame(maxWidth: 760)
+                    .frame(maxWidth: .infinity)
+                    .navigationDestination(item: $zoomDestination) { destination in
+                        profilePushedDetail(destination)
+                    }
+            }
+        }
+        .modifier(ProfileHingeObserver(pose: $hingePose))
+    }
+
+    private var profileColumn: some View {
             ZStack(alignment: .top) {
                 ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
                     .ignoresSafeArea(edges: .top)
@@ -380,22 +408,19 @@ struct ModernProfileContentView: View {
                 .zIndex(10)
             }
             .coordinateSpace(name: "profileGridOverlay")
-                .navigationDestination(item: $zoomDestination) { destination in
-                    ProfileMomentZoomDetailDestination(
-                        destination: destination,
-                        moments: momentsForZoomDestination(destination),
-                        namespace: profileZoomNamespace,
-                        onRemoveSavedMoment: destination.feedKind == .savedMoments ? { moment in
-                            if let momentId = moment.id {
-                                savedMomentsViewModel.removeMoment(momentId: momentId)
-                            }
-                        } : nil
-                    )
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.width
+                } action: { width in
+                    guard width > 1, abs(width - profileColumnWidth) > 1 else { return }
+                    profileColumnWidth = width
                 }
                 .toolbar(toolbarVerticalEdge == nil ? .hidden : .visible, for: .navigationBar)
             .profileNavigationSurface(colorScheme: colorScheme)
                 .onAppear {
-                    heroCoordinator.openZoomDetail = { zoomDestination = $0 }
+                    heroCoordinator.openZoomDetail = { destination in
+                        paneDetailMomentId = destination.initialMomentId
+                        zoomDestination = destination
+                    }
                     heroCoordinator.clearZoomNavigation = { zoomDestination = nil }
                     heroCoordinator.onEdit = { moment in
                         editingMoment = moment
@@ -431,7 +456,83 @@ struct ModernProfileContentView: View {
                     .presentationDragIndicator(.visible)
                 }
             }
+    }
+
+    /// Duo con barra vertical, pliegue o bisagra. El iPhone no entra aquí.
+    private var usesDuoProfileChrome: Bool {
+        toolbarVerticalEdge != nil || !divisionRegions.isEmpty || hingePose != .unknown
+    }
+
+    /// Abierto: perfil y detalle en pantallas distintas. Cerrado e iPhone: el perfil de siempre.
+    private var usesExpandedProfile: Bool {
+        guard usesDuoProfileChrome else { return false }
+        if hingePose == .closed { return false }
+        return hingePose == .partiallyOpen || hingePose == .fullyOpen || !divisionRegions.isEmpty
+    }
+
+    /// Bisagra vertical: el detalle al lado. Si no, en la pantalla de abajo.
+    private var detailIsBesideProfile: Bool {
+        if let division = divisionRegions.first(where: { $0.width > 1 && $0.height > 1 }) {
+            return division.height >= division.width
         }
+        return toolbarVerticalEdge != nil
+    }
+
+    /// Cerrado con un detalle: esa pantalla ocupa el Duo. Abierto: vuelve al split.
+    private var showsCompactDuoDetail: Bool {
+        guard usesDuoProfileChrome, !usesExpandedProfile else { return false }
+        return zoomDestination != nil
+    }
+
+    @ViewBuilder
+    private var expandedProfile: some View {
+        if #available(iOS 27.1, *) {
+            ArrangementView {
+                profileColumn
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .clipped()
+            } secondary: {
+                profileSecondaryPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .arrangementViewStyle(.split.axes(detailIsBesideProfile ? .horizontal : .vertical))
+        } else {
+            profileColumn
+        }
+    }
+
+    private var compactProfileDetail: some View {
+        profileSecondaryPane
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    private var profileSecondaryPane: some View {
+        if let destination = zoomDestination {
+            NavigationStack {
+                profilePushedDetail(destination)
+                    .id(destination.zoomSourceID)
+            }
+        } else {
+            ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                .ignoresSafeArea()
+        }
+    }
+
+    private func profilePushedDetail(_ destination: ProfileMomentZoomDestination) -> some View {
+        ProfileMomentZoomDetailDestination(
+            destination: destination,
+            moments: momentsForZoomDestination(destination),
+            namespace: profileZoomNamespace,
+            onRemoveSavedMoment: destination.feedKind == .savedMoments ? { moment in
+                if let momentId = moment.id {
+                    savedMomentsViewModel.removeMoment(momentId: momentId)
+                }
+            } : nil,
+            continuityMomentId: paneDetailMomentId,
+            onVisibleMomentId: { paneDetailMomentId = $0 },
+            onClose: usesDuoProfileChrome ? { zoomDestination = nil } : nil
+        )
     }
 
     private func profileGridPreviewImageURL(from path: String) -> URL? {
@@ -530,14 +631,54 @@ struct ModernProfileContentView: View {
         }
     }
 
+    private var gridMeasureWidth: CGFloat {
+        profileColumnWidth > 1 ? profileColumnWidth : ProfileMomentsGridMetrics.defaultAvailableWidth
+    }
+
     private func calculateBentoGridHeight(moments: [Moment]) -> CGFloat {
         let descriptors = ProfileBentoTileAssigner.assign(moments: moments)
-        return ProfileMomentsGridMetrics.bentoHeight(tileKinds: descriptors.map(\.layoutKind))
+        return ProfileMomentsGridMetrics.bentoHeight(
+            tileKinds: descriptors.map(\.layoutKind),
+            availableWidth: gridMeasureWidth
+        )
     }
 
     private func calculateTaggedGridHeight(moments: [Moment]) -> CGFloat {
         let descriptors = ProfileBentoTileAssigner.simple(moments: moments)
-        return ProfileMomentsGridMetrics.bentoHeight(tileKinds: descriptors.map(\.layoutKind))
+        return ProfileMomentsGridMetrics.bentoHeight(
+            tileKinds: descriptors.map(\.layoutKind),
+            availableWidth: gridMeasureWidth
+        )
+    }
+}
+
+private enum ProfileHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+private struct ProfileHingeObserver: ViewModifier {
+    @Binding var pose: ProfileHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
+        }
     }
 }
 

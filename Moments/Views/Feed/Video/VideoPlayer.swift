@@ -87,12 +87,18 @@ class GlobalVideoManager: ObservableObject {
     }
     
     func registerPlayer(_ playerId: String, manager: VideoPlayerManager) {
-        allPlayers[playerId] = manager
+        // `allPlayers` owns its managers. A plain subscript assignment may release the
+        // displaced manager while Dictionary is still mutating. Its deinit used to call
+        // back into this dictionary through `cleanup`, causing a reentrant access crash.
+        // Keep the previous value alive until `updateValue` has completed.
+        let displacedManager = allPlayers.updateValue(manager, forKey: playerId)
         
         // Si el usuario ya activó el sonido en esta sesión, aplicar a este video también
         if userHasEnabledSoundInSession {
             manager.setMuted(false, respectSilentMode: true)
         }
+
+        withExtendedLifetime(displacedManager) {}
     }
     
     func unregisterPlayer(_ playerId: String, manager: VideoPlayerManager) {
@@ -973,6 +979,16 @@ class VideoPlayerManager: ObservableObject {
     /// Llamado por el pool cuando nuestro slot fue reasignado a otro consumer.
     /// Limpia observers y suelta el player SIN devolverlo al pool (ya no es nuestro).
     private func handlePoolEviction() {
+        removePlayerObservers()
+        adaptiveController = nil
+        player = nil
+        activeItem = nil
+        isPlaying = false
+        isReadyToPlay = false
+        lastPublishedTime = -1
+    }
+
+    private func removePlayerObservers() {
         if let timeObserver = timeObserver {
             player?.removeTimeObserver(timeObserver)
             self.timeObserver = nil
@@ -984,12 +1000,6 @@ class VideoPlayerManager: ObservableObject {
         statusObserver?.invalidate()
         statusObserver = nil
         teardownAdaptiveObservers()
-        adaptiveController = nil
-        player = nil
-        activeItem = nil
-        isPlaying = false
-        isReadyToPlay = false
-        lastPublishedTime = -1
     }
 
     private func observeItemStatus(_ playerItem: AVPlayerItem) {
@@ -1192,19 +1202,7 @@ class VideoPlayerManager: ObservableObject {
     }
     
     func cleanup(releaseFromPool: Bool = true) {
-        if let timeObserver = timeObserver {
-            player?.removeTimeObserver(timeObserver)
-            self.timeObserver = nil
-        }
-        
-        if let endObserver {
-            NotificationCenter.default.removeObserver(endObserver)
-            self.endObserver = nil
-        }
-
-        statusObserver?.invalidate()
-        statusObserver = nil
-        teardownAdaptiveObservers()
+        removePlayerObservers()
         adaptiveController = nil
         
         let isCurrent = consumerId.map { GlobalVideoManager.shared.isRegisteredPlayer($0, manager: self) } ?? true
@@ -1215,7 +1213,9 @@ class VideoPlayerManager: ObservableObject {
         if let consumerId, releaseFromPool && isCurrent {
             SharedVideoPlayerPool.shared.release(consumerId: consumerId)
         }
-        if let consumerId {
+        // Un manager desplazado no debe borrar el estado del nuevo manager que ya
+        // ocupa el mismo consumerId.
+        if let consumerId, isCurrent {
             GlobalVideoManager.shared.clearPlaybackFinished(consumerId)
         }
         player = nil
@@ -1231,7 +1231,11 @@ class VideoPlayerManager: ObservableObject {
     }
     
     deinit {
-        cleanup()
+        // `deinit` puede ejecutarse como efecto de sustituir una referencia en el
+        // registro global. No debe consultar ni modificar ese registro: solo libera
+        // recursos que pertenecen directamente a esta instancia.
+        removePlayerObservers()
+        NotificationCenter.default.removeObserver(self)
     }
 }
 

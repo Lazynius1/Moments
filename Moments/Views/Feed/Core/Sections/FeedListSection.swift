@@ -44,6 +44,12 @@ struct FeedListSection: View {
     let onAuthorAvatarLongPress: (String, String, CGRect, CGRect) -> Void
     var hiddenMomentId: String? = nil
     let profileZoomNamespace: Namespace.ID
+    /// Ancho de la pantalla del feed en Duo abierto. Nil mantiene el feed de siempre.
+    var momentColumnSize: CGSize? = nil
+    var onCommentTap: ((Moment) -> Void)? = nil
+    var onMostVisibleMomentId: ((String) -> Void)? = nil
+    /// Momento visible antes de abrir o cerrar. El scroll se recrea; esto lo devuelve.
+    var restoreMomentId: String? = nil
 
     private var displayedMoments: [Moment] {
         guard selectedFeedType == .forYou else { return viewModel.moments }
@@ -97,16 +103,19 @@ struct FeedListSection: View {
                     .environment(
                         \.momentsViewportSize,
                         CGSize(
-                            width: min(momentsViewportSize.width, 700),
-                            height: momentsViewportSize.height
+                            width: min(momentColumnSize?.width ?? momentsViewportSize.width, 700),
+                            height: momentColumnSize?.height ?? momentsViewportSize.height
                         )
                     )
-                    .frame(maxWidth: 700)
+                    .frame(maxWidth: momentColumnSize?.width ?? 700)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 15)
                     .feedScrollVisibilityAnchor { values in
                         viewModel.syncMomentListeners(visibilityByMomentId: values)
                         recommendations.updateVisibility(moments: displayedMoments, fractions: values, enabled: selectedFeedType == .forYou)
+                        if let winner = values.max(by: { $0.value < $1.value })?.key, winner.isEmpty == false {
+                            onMostVisibleMomentId?(winner)
+                        }
                     }
                 }
                 .adoptForFloatingTabBar()
@@ -132,9 +141,7 @@ struct FeedListSection: View {
                 }
             }
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    proxy.scrollTo("feed-top", anchor: .top)
-                }
+                restoreFeedScroll(using: proxy)
             }
             .momentRefresh {
                 if let userId = Auth.auth().currentUser?.uid {
@@ -154,6 +161,12 @@ struct FeedListSection: View {
                 isFeedHeaderHidden = false
                 DispatchQueue.main.async { proxy.scrollTo("feed-top", anchor: .top) }
             }
+            .onChange(of: momentColumnSize?.width) { _, _ in
+                restoreFeedScroll(using: proxy)
+            }
+            .onChange(of: momentColumnSize?.height) { _, _ in
+                restoreFeedScroll(using: proxy)
+            }
             .onDisappear { recommendations.clearVisibility() }
             .onChange(of: recommendations.revision) { _, _ in
                 if selectedFeedType == .forYou, displayedMoments.count < 3,
@@ -171,6 +184,15 @@ struct FeedListSection: View {
         .onAppear {
             VideoMomentsIndex.shared.rebuild(from: displayedMoments)
             FeedFirstVideoPrewarmer.prepareFirstVideo(in: displayedMoments)
+        }
+    }
+
+    private func restoreFeedScroll(using proxy: ScrollViewProxy) {
+        guard let restoreMomentId,
+              let identity = displayedMoments.first(where: { $0.id == restoreMomentId })?.feedViewIdentity
+        else { return }
+        DispatchQueue.main.async {
+            proxy.scrollTo(identity, anchor: .top)
         }
     }
 
@@ -211,7 +233,13 @@ struct FeedListSection: View {
                 moment: moment,
                 availableHeight: availableHeight,
                 colorScheme: colorScheme,
-                onComment: { selectedMoment = moment },
+                onComment: {
+                    if let onCommentTap {
+                        onCommentTap(moment)
+                    } else {
+                        selectedMoment = moment
+                    }
+                },
                 onNearEnd: { handleFeedNearEnd(for: moment) },
                 onHashtagTap: handleFeedHashtagTap,
                 onLocationTap: handleFeedLocationTap,

@@ -13,6 +13,7 @@ struct ProfileSavedContent: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var showingRestrictedRemoveAlert = false
     @State private var restrictedMomentToRemove: Moment?
+    @State private var offeredWidth: CGFloat = 0
 
     enum SavedQuickFilter: CaseIterable {
         case all
@@ -66,7 +67,8 @@ struct ProfileSavedContent: View {
 
     private var gridItemSize: CGFloat {
         // 20 + 20 outer padding, then 8 + 8 inner grid padding.
-        let availableWidth = momentsViewportSize.width - 56
+        let width = offeredWidth > 1 ? offeredWidth : momentsViewportSize.width
+        let availableWidth = width - 56
         return max(88, (availableWidth - (gridSpacing * 2)) / 3)
     }
 
@@ -217,6 +219,12 @@ struct ProfileSavedContent: View {
                         }
                     }
                 }
+            }
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.width
+            } action: { width in
+                guard width > 1, abs(width - offeredWidth) > 1 else { return }
+                offeredWidth = width
             }
             .navigationDestination(isPresented: $showingSavedManager) {
                 SavedMomentsView()

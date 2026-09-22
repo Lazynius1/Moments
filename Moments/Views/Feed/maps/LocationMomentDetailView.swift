@@ -20,6 +20,7 @@ struct LocationMomentDetailView: View {
 
     @StateObject private var firestoreService = FirestoreService.shared
     @State private var currentIndex: Int
+    @State private var scrollLocked = true
     @State private var selectedMoment: Moment?
     @State private var trackedMomentViewIds: Set<String> = []
 
@@ -443,6 +444,7 @@ struct LocationMomentDetailView: View {
                         }
                         .id(index)
                         .onAppear {
+                            guard !scrollLocked else { return }
                             currentIndex = index
                             prefetchUpcomingMoments(from: index)
                         }
@@ -458,9 +460,25 @@ struct LocationMomentDetailView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
                 let target = min(max(initialIndex, 0), max(0, moments.count - 1))
-                guard target > 0 else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    proxy.scrollTo(target, anchor: .top)
+                if target > 0 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        proxy.scrollTo(target, anchor: .top)
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    scrollLocked = false
+                }
+            }
+            .onChange(of: momentsViewportSize) { old, new in
+                guard old.width > 1,
+                      abs(old.width - new.width) > 1 || abs(old.height - new.height) > 1,
+                      moments.indices.contains(currentIndex) else { return }
+                scrollLocked = true
+                DispatchQueue.main.async {
+                    proxy.scrollTo(currentIndex, anchor: .top)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    scrollLocked = false
                 }
             }
         }
