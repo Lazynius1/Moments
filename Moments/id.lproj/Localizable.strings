@@ -1402,7 +1402,7 @@
 "stickerview.category.time" = "Waktu";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Cari";
-"stickerview.searchGifs.placeholder" = "Cari GIF...";
+"stickerview.searchGifs.placeholder" = "Cari di Giphy";
 "stickerview.catalog.emptyTitle" = "Stiker tidak ditemukan";
 "stickerview.catalog.emptySubtitle" = "Coba cari yang lain.";
 "stickerview.catalog.gifs" = "GIF";

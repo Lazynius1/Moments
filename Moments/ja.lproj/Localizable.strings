@@ -1402,7 +1402,7 @@
 "stickerview.category.time" = "時刻";
 "stickerview.category.selfie" = "自撮り";
 "stickerview.search.placeholder" = "検索";
-"stickerview.searchGifs.placeholder" = "GIFを検索…";
+"stickerview.searchGifs.placeholder" = "Giphyで検索";
 "stickerview.catalog.emptyTitle" = "スタンプが見つかりません";
 "stickerview.catalog.emptySubtitle" = "別のキーワードで検索してください。";
 "stickerview.catalog.gifs" = "GIF";

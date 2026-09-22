@@ -1402,7 +1402,7 @@
 "stickerview.category.time" = "Czas";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Szukaj";
-"stickerview.searchGifs.placeholder" = "Szukaj GIF-ów...";
+"stickerview.searchGifs.placeholder" = "Szukaj w Giphy";
 "stickerview.catalog.emptyTitle" = "Nie znaleziono naklejek";
 "stickerview.catalog.emptySubtitle" = "Spróbuj wyszukać coś innego.";
 "stickerview.catalog.gifs" = "GIF-y";

@@ -699,7 +699,7 @@ private enum StoryExportArtwork {
     static func textLayer(_ metadata: StoryTextOverlayMetadata, canvas: CGSize, scale: CGFloat,
                           maxWidth: CGFloat?, colorScheme: ColorScheme) -> CALayer? {
         guard let configuration = metadata.scaledRenderConfiguration(containerWidth: canvas.width) else { return nil }
-        let width = maxWidth ?? max(canvas.width - 48, 120)
+        let width = maxWidth ?? metadata.resolvedMaxLayoutWidth(for: canvas.width)
         let view = StoryTextOverlayContainerView()
         let origin = CACurrentMediaTime()
         var independentLayer: CALayer?

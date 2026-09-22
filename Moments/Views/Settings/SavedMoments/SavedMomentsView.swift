@@ -791,10 +791,13 @@ private struct SavedMomentGridCard: View {
         ZStack(alignment: .topTrailing) {
             Button(action: onTap) {
                 ZStack(alignment: .bottomLeading) {
-                    preview
-                        .blur(radius: isRestricted ? 16 : 0)
-                        .frame(maxWidth: .infinity)
+                    Color.clear
                         .aspectRatio(1, contentMode: .fit)
+                        .overlay {
+                            preview
+                                .scaledToFill()
+                                .blur(radius: isRestricted ? 16 : 0)
+                        }
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 
                     if isRestricted {

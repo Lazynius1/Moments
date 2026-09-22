@@ -227,7 +227,10 @@ struct StoryOwnStoryBottomBar: View {
                         .scaledToFit()
                         .foregroundStyle(chromeColors.messageTextColor)
                         .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
-                        .frame(width:36, height: 36)
+                        .frame(
+                            width: AudienceIconMetrics.storyBottomBar,
+                            height: AudienceIconMetrics.storyBottomBar
+                        )
                 }
 
                 Text(NSLocalizedString("stories.ownBottom.activity", comment: "Activity label under avatars"))
@@ -249,7 +252,10 @@ struct StoryOwnStoryBottomBar: View {
                 size: AudienceIconMetrics.storyBottomBar,
                 tintColor: chromeColors.messageTextColor
             )
-            .frame(width: 36, height: 36)
+            .frame(
+                width: AudienceIconMetrics.storyBottomBar,
+                height: AudienceIconMetrics.storyBottomBar
+            )
             .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
 
             Text(audienceTitle)

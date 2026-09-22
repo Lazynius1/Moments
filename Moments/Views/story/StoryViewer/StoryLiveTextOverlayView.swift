@@ -28,9 +28,6 @@ struct StoryLiveTextOverlayView: View {
 
     private var overlayMaxWidth: CGFloat {
         if let maxLayoutWidth { return maxLayoutWidth }
-        if animates {
-            return max(containerSize.width - 48, 120)
-        }
-        return max(containerSize.width * (327.0 / 375.0), 1)
+        return metadata.resolvedMaxLayoutWidth(for: containerSize.width)
     }
 }

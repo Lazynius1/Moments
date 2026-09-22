@@ -1402,7 +1402,7 @@
 "stickerview.category.time" = "समय";
 "stickerview.category.selfie" = "सेल्फ़ी";
 "stickerview.search.placeholder" = "खोजें";
-"stickerview.searchGifs.placeholder" = "GIF खोजें...";
+"stickerview.searchGifs.placeholder" = "Giphy पर खोजें";
 "stickerview.catalog.emptyTitle" = "कोई स्टिकर नहीं मिला";
 "stickerview.catalog.emptySubtitle" = "कोई और खोज आज़माएँ।";
 "stickerview.catalog.gifs" = "GIF";

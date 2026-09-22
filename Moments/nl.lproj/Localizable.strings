@@ -1402,7 +1402,7 @@
 "stickerview.category.time" = "Tijd";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Zoeken";
-"stickerview.searchGifs.placeholder" = "GIF's zoeken...";
+"stickerview.searchGifs.placeholder" = "Zoeken op Giphy";
 "stickerview.catalog.emptyTitle" = "Geen stickers gevonden";
 "stickerview.catalog.emptySubtitle" = "Probeer een andere zoekopdracht.";
 "stickerview.catalog.gifs" = "GIF's";

@@ -2234,7 +2234,7 @@
 "stickerview.category.time" = "Hora";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Pesquisar";
-"stickerview.searchGifs.placeholder" = "Pesquisar GIFs...";
+"stickerview.searchGifs.placeholder" = "Pesquisar no Giphy";
 "stickerview.catalog.emptyTitle" = "Nenhum sticker encontrado";
 "stickerview.catalog.emptySubtitle" = "Experimenta outra pesquisa.";
 "stickerview.catalog.gifs" = "GIFs";

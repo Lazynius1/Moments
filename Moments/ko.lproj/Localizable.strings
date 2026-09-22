@@ -1402,7 +1402,7 @@
 "stickerview.category.time" = "시간";
 "stickerview.category.selfie" = "셀카";
 "stickerview.search.placeholder" = "검색";
-"stickerview.searchGifs.placeholder" = "GIF 검색...";
+"stickerview.searchGifs.placeholder" = "Giphy에서 검색";
 "stickerview.catalog.emptyTitle" = "스티커를 찾을 수 없어요";
 "stickerview.catalog.emptySubtitle" = "다른 검색어로 시도해 보세요.";
 "stickerview.catalog.gifs" = "GIF";

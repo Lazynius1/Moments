@@ -1402,7 +1402,7 @@
 "stickerview.category.time" = "Saat";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Ara";
-"stickerview.searchGifs.placeholder" = "GIF ara...";
+"stickerview.searchGifs.placeholder" = "Giphy'de ara";
 "stickerview.catalog.emptyTitle" = "Çıkartma bulunamadı";
 "stickerview.catalog.emptySubtitle" = "Başka bir arama dene.";
 "stickerview.catalog.gifs" = "GIF'ler";

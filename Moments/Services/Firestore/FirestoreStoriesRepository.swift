@@ -340,7 +340,7 @@ extension FirestoreService {
         }
         if let textOverlays = story.textOverlays {
             storyData["textOverlays"] = textOverlays.map { overlay in
-                [
+                var data: [String: Any] = [
                     "id": overlay.id,
                     "text": overlay.text,
                     "normalizedPosition": [
@@ -358,8 +358,16 @@ extension FirestoreService {
                     "motionRaw": overlay.motionRaw,
                     "forcesAllCaps": overlay.forcesAllCaps,
                     "isLiveOverlay": overlay.isLiveOverlay,
-                    "rotationRadians": overlay.rotationRadians
+                    "rotationRadians": overlay.rotationRadians,
+                    "canvasVersion": overlay.canvasVersion
                 ]
+                if let normalizedFontSize = overlay.normalizedFontSize {
+                    data["normalizedFontSize"] = normalizedFontSize
+                }
+                if let normalizedMaxWidth = overlay.normalizedMaxWidth {
+                    data["normalizedMaxWidth"] = normalizedMaxWidth
+                }
+                return data
             }
         }
 

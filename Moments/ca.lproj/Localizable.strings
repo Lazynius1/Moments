@@ -1444,7 +1444,7 @@
 "stickerview.category.time" = "Temps";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Cercar";
-"stickerview.searchGifs.placeholder" = "Cercar GIFs...";
+"stickerview.searchGifs.placeholder" = "Cerca a Giphy";
 "stickerview.catalog.emptyTitle" = "No s'han trobat stickers";
 "stickerview.catalog.emptySubtitle" = "Prova una altra cerca.";
 "stickerview.catalog.gifs" = "GIFs";

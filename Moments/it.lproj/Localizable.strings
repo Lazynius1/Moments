@@ -1460,7 +1460,7 @@
 "stickerview.category.time" = "Ora";
 "stickerview.category.selfie" = "Selfie";
 "stickerview.search.placeholder" = "Cerca";
-"stickerview.searchGifs.placeholder" = "Cerca GIF...";
+"stickerview.searchGifs.placeholder" = "Cerca su Giphy";
 "stickerview.catalog.emptyTitle" = "Nessuno sticker trovato";
 "stickerview.catalog.emptySubtitle" = "Prova un'altra ricerca.";
 "stickerview.catalog.gifs" = "GIF";

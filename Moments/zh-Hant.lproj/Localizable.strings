@@ -1402,7 +1402,7 @@
 "stickerview.category.time" = "時間";
 "stickerview.category.selfie" = "自拍";
 "stickerview.search.placeholder" = "搜尋";
-"stickerview.searchGifs.placeholder" = "搜尋 GIF...";
+"stickerview.searchGifs.placeholder" = "在 Giphy 搜尋";
 "stickerview.catalog.emptyTitle" = "找不到貼圖";
 "stickerview.catalog.emptySubtitle" = "試試其他搜尋內容。";
 "stickerview.catalog.gifs" = "GIF";
