@@ -200,6 +200,7 @@
 "userListView.person.plural" = "orang";
 /* SettingsView */
 "settings.title" = "Pengaturan";
+"settings.selectSection" = "Pilih bagian";
 "settings.loading" = "Memuat pengaturan...";
 "settings.account.title" = "Akun Kamu";
 "settings.account.personalInfo.title" = "Informasi Pribadi";

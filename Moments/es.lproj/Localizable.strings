@@ -221,6 +221,7 @@
 
 /* SettingsView */
 "settings.title" = "Configuración";
+"settings.selectSection" = "Elige una sección";
 "settings.loading" = "Cargando configuración...";
 "settings.account.title" = "Tu Cuenta";
 "settings.account.personalInfo.title" = "Información Personal";

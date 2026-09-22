@@ -295,6 +295,7 @@ struct UserProfileView: View {
     @StateObject private var viewModel: UserProfileViewModel
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
     @State private var socialConnectionsRoute: SocialConnectionsRoute?
     private let userId: String
     @StateObject private var messagingViewModel = MessagingViewModel()
@@ -412,7 +413,7 @@ struct UserProfileView: View {
         }
         .environmentObject(heroCoordinator)
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
-        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(toolbarVerticalEdge == nil ? .hidden : .visible, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .momentsFloatingTabBarHidden()
         .navigationDestination(item: $socialConnectionsRoute) { route in

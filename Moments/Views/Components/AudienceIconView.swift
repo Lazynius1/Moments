@@ -17,8 +17,10 @@ enum AudienceIconMetrics {
     static let gridCardEmphasis: CGFloat = 34
     /// Cápsula en editor de historia.
     static let storyCapsule: CGFloat = 20
-    /// Barra inferior de historia propia (alineado con StoryActivityEmptyIcon 36×36).
+    /// Barra inferior de historia propia (actividad vacía + audiencia, mismo tamaño).
     static let storyBottomBar: CGFloat = 34
+    /// Carril Duo cerrado / toolbar compacto.
+    static let storyBottomBarCompact: CGFloat = 28
     /// Resumen en actividad de historia.
     static let storyActivity: CGFloat = 17
     /// Miniatura en grids de actividad / perfil (solo icono, sin cápsula).

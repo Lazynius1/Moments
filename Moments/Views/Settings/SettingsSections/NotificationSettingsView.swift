@@ -214,6 +214,7 @@ struct NotificationSettingsView: View {
                     .allowsHitTesting(false)
                 }
             }
+            .settingsSwitchTint()
             .navigationTitle(NSLocalizedString("settings.notifications", comment: "Notifications"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
@@ -230,7 +231,6 @@ struct NotificationSettingsView: View {
             } message: {
                 Text(scheduleErrorMessage)
             }
-            .settingsSwitchTint()
     }
 
     private func notificationToggleRow(title: String, isOn: Binding<Bool>) -> some View {

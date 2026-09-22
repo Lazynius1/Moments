@@ -36,6 +36,7 @@ struct UserModernPublicProfileView: View {
     @State private var highlightsRefreshToken: Int = 0
     @State private var storyRingRefreshToken: Int = 0
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
 
     private var usernameCollapseProgress: CGFloat {
         ProfileHeaderCollapseMetrics.progress(forTabsMinY: tabsMinY)
@@ -315,7 +316,7 @@ struct UserModernPublicProfileView: View {
                     username: viewModel.userProfile?.username
                 )
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .toolbar(toolbarVerticalEdge == nil ? .hidden : .visible, for: .navigationBar)
         .profileNavigationSurface(colorScheme: colorScheme)
     }
 

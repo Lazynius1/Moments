@@ -25,17 +25,63 @@ extension EnvironmentValues {
 struct SettingsToolbarBackButton: View {
     @Environment(\.settingsSplitBackAction) private var splitBackAction
     @Environment(\.settingsSidebarBackIsVisible) private var sidebarBackIsVisible
+    @Environment(\.colorScheme) private var colorScheme
     let action: () -> Void
+
+    private var chromeTint: Color {
+        colorScheme == .dark ? .white : .black
+    }
 
     @ViewBuilder
     var body: some View {
         if !sidebarBackIsVisible {
             Button(action: splitBackAction ?? action) {
-                Image(systemName: "chevron.backward")
+                Label("common.back", systemImage: "chevron.backward")
             }
-            .accessibilityLabel(Text("common.back"))
+            .tint(chromeTint)
         } else {
             EmptyView()
+        }
+    }
+}
+
+/// Atrás en `.cancellationAction` con forma estrecha, para que el sistema lo ponga
+/// en la barra lateral del Duo y arriba en el iPhone.
+struct SettingsBackToolbarContent: ToolbarContent {
+    let action: () -> Void
+
+    var body: some ToolbarContent {
+        if #available(iOS 27.1, *) {
+            ToolbarItemGroup(placement: .cancellationAction) {
+                SettingsToolbarBackButton(action: action)
+            }
+            .axisBehavior(.verticalPreferred)
+        } else {
+            ToolbarItemGroup(placement: .cancellationAction) {
+                SettingsToolbarBackButton(action: action)
+            }
+        }
+    }
+}
+
+/// Igual que `SettingsBackToolbarContent`, pero siempre visible (la barra de Tu actividad).
+struct SettingsExplicitBackToolbarContent: ToolbarContent {
+    let action: () -> Void
+
+    var body: some ToolbarContent {
+        if #available(iOS 27.1, *) {
+            ToolbarItemGroup(placement: .cancellationAction) {
+                Button(action: action) {
+                    Label("common.back", systemImage: "chevron.backward")
+                }
+            }
+            .axisBehavior(.verticalPreferred)
+        } else {
+            ToolbarItemGroup(placement: .cancellationAction) {
+                Button(action: action) {
+                    Label("common.back", systemImage: "chevron.backward")
+                }
+            }
         }
     }
 }
@@ -111,9 +157,7 @@ struct SettingsSubsectionWrapper<Content: View>: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                SettingsToolbarBackButton(action: { dismiss() })
-            }
+            SettingsBackToolbarContent(action: { dismiss() })
         }
     }
 }

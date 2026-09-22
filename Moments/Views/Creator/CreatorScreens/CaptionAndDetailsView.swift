@@ -43,6 +43,9 @@ struct CaptionAndDetailsView: View {
     }
 
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    /// Margen de la barra lateral. En iPhone y cerrado es 0.
+    @State private var lateralSafeInset: CGFloat = 0
     @StateObject private var uploadService = BackgroundMomentUploadService.shared
 
     @State private var isPublishing = false
@@ -89,6 +92,24 @@ struct CaptionAndDetailsView: View {
     private var inkMuted: Color {
         ink.opacity(colorScheme == .dark ? 0.7 : 0.55)
     }
+    /// En horizontal la barra vive en un lateral. El separador no debe entrar ahí.
+    private var categoryLeadingInset: CGFloat {
+        guard toolbarVerticalEdge == .leading else { return 0 }
+        return lateralSafeInset
+    }
+
+    private var categoryTrailingInset: CGFloat {
+        guard toolbarVerticalEdge == .trailing else { return 0 }
+        return lateralSafeInset
+    }
+
+    private var categoryDivider: some View {
+        Divider()
+            .background(ink.opacity(0.12))
+            .padding(.leading, 50 + categoryLeadingInset)
+            .padding(.trailing, categoryTrailingInset)
+    }
+
     private var canKeepOriginalDimensions: Bool {
         selectedMediaItems.contains { $0.immersiveImage != nil }
     }
@@ -249,7 +270,7 @@ struct CaptionAndDetailsView: View {
                                     showingTagSelector = true
                                 }
 
-                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
+                                categoryDivider
 
                                 // Add location
                                 MinimalOptionRow(
@@ -260,7 +281,7 @@ struct CaptionAndDetailsView: View {
                                     showingLocationPicker = true
                                 }
 
-                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
+                                categoryDivider
 
                                 MinimalOptionRow(
                                     icon: AttachmentIcon.hiddenLayer.rawValue,
@@ -274,7 +295,7 @@ struct CaptionAndDetailsView: View {
                                 .opacity(canUseHiddenLayers ? 1 : 0.45)
                                 .disabled(!canUseHiddenLayers)
 
-                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
+                                categoryDivider
 
                                 // Audience
                                 MinimalOptionRow(
@@ -285,7 +306,7 @@ struct CaptionAndDetailsView: View {
                                     showingAudience = true
                                 }
 
-                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
+                                categoryDivider
 
                                 if canKeepOriginalDimensions {
                                     HStack(spacing: 12) {
@@ -299,7 +320,7 @@ struct CaptionAndDetailsView: View {
                                                 .font(.system(size: 16, weight: .medium))
                                                 .foregroundStyle(ink)
                                         }
-                                        .tint(.pink)
+                                        .tint(.green)
 
                                         Button {
                                             showingKeepOriginalInfo = true
@@ -325,7 +346,8 @@ struct CaptionAndDetailsView: View {
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundStyle(inkMuted)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.leading, 16)
+                                    .padding(.leading, 16 + categoryLeadingInset)
+                                    .padding(.trailing, categoryTrailingInset)
                                     .padding(.bottom, 8)
 
                                 MinimalToggleRow(
@@ -334,7 +356,7 @@ struct CaptionAndDetailsView: View {
                                     isOn: $disableComments
                                 )
 
-                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
+                                categoryDivider
 
                                 MinimalToggleRow(
                                     icon: "heart.slash",
@@ -342,7 +364,7 @@ struct CaptionAndDetailsView: View {
                                     isOn: $hideLikeCounts
                                 )
 
-                                Divider().background(ink.opacity(0.12)).padding(.leading, 50)
+                                categoryDivider
 
                                 MinimalToggleRow(
                                     icon: AttachmentIcon.bookmark.rawValue,
@@ -358,7 +380,8 @@ struct CaptionAndDetailsView: View {
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundStyle(inkMuted)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.leading, 16)
+                                    .padding(.leading, 16 + categoryLeadingInset)
+                                    .padding(.trailing, categoryTrailingInset)
                                     .padding(.bottom, 8)
 
                                 MinimalToggleRow(
@@ -368,7 +391,7 @@ struct CaptionAndDetailsView: View {
                                 )
 
                                 if isSchedulingEnabled {
-                                    Divider().background(ink.opacity(0.12)).padding(.leading, 50)
+                                    categoryDivider
 
                                     HStack {
                                         Image(systemName: "clock")
@@ -381,7 +404,7 @@ struct CaptionAndDetailsView: View {
                                             in: Date()...,
                                             displayedComponents: [.date, .hourAndMinute]
                                         )
-                                        .tint(.pink)
+                                        .tint(.green)
                                         .labelsHidden()
 
                                         Spacer()
@@ -472,6 +495,10 @@ struct CaptionAndDetailsView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                guard let edge = toolbarVerticalEdge else { return 0 }
+                return edge == .leading ? proxy.safeAreaInsets.leading : proxy.safeAreaInsets.trailing
+            } action: { lateralSafeInset = $0 }
         }
         .sheet(isPresented: $showingUserSearch) {
             UserSearchView(selectedUsers: $taggedUsers)
@@ -838,7 +865,7 @@ struct CaptionAndDetailsView: View {
 
                 Toggle("", isOn: $isOn)
                     .labelsHidden()
-                    .tint(.pink)
+                    .tint(.green)
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 12)

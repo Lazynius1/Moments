@@ -208,6 +208,7 @@ struct ContentVisibilityView: View {
                     }
                 } // end else
             } // end ZStack
+            .settingsSwitchTint()
             .navigationTitle(NSLocalizedString("contentVisibility.title", comment: "Content Privacy"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
@@ -219,7 +220,6 @@ struct ContentVisibilityView: View {
                     SettingsToolbarBackButton(action: { dismiss() })
                 }
             }
-            .settingsSwitchTint()
             .onAppear {
                 viewModel.loadSettings {
                     isLoading = false

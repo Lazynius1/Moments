@@ -247,9 +247,7 @@ struct PasswordChangeView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .momentsScrollEdgeChrome()
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    SettingsToolbarBackButton(action: { dismiss() })
-                }
+                SettingsBackToolbarContent(action: { dismiss() })
             }
             .alert("common.error", isPresented: $viewModel.showError) {
                 Button("common.ok") { }

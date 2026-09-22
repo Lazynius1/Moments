@@ -212,6 +212,7 @@
 
 /* SettingsView */
 "settings.title" = "Settings";
+"settings.selectSection" = "Choose a section";
 "settings.loading" = "Loading settings...";
 "settings.account.title" = "Your Account";
 "settings.account.personalInfo.title" = "Personal Information";

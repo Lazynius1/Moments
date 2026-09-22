@@ -1945,17 +1945,7 @@ struct StoryEditingView: View {
         )
         let texts = textOverlays
             .sorted { $0.layerOrder < $1.layerOrder }
-            .compactMap { draft -> StoryTextOverlayMetadata? in
-                guard var metadata = draft.metadata(in: contentRect) else { return nil }
-                // The viewer scales metadata from a 375pt reference. The editor
-                // uses literal point sizes, so undo that scaling for this export.
-                metadata.fontSize *= 375 / Double(max(editorCanvasSize.width, 1))
-                metadata.normalizedPosition = CGPoint(
-                    x: draft.position.x / max(editorCanvasSize.width, 1),
-                    y: draft.position.y / max(editorCanvasSize.height, 1)
-                )
-                return metadata
-            }
+            .compactMap { $0.metadata(in: contentRect) }
         let firstMedia = selectedMediaItems.first
         let videoURL = firstMedia?.type == .video ? firstMedia?.videoURL : nil
         let drawingOverlay = videoURL == nil ? nil : renderStoryOverlayImage(targetSize: targetSize, screenSize: editorCanvasSize)

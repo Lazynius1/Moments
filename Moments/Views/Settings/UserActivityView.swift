@@ -69,12 +69,10 @@ struct UserActivitySidebarView: View {
             .navigationTitle(NSLocalizedString("userActivity.title", comment: "User activity title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // Al empujar una categoría, este toolbar heredaría su back y
-                // duplicaría el de la subsección. El destino conserva el suyo.
-                if onBack == nil, selection == nil {
-                    ToolbarItem(placement: .topBarLeading) {
-                        SettingsToolbarBackButton(action: { dismiss() })
-                    }
+                if let onBack {
+                    SettingsExplicitBackToolbarContent(action: onBack)
+                } else if selection == nil {
+                    SettingsBackToolbarContent(action: { dismiss() })
                 }
             }
         .settingsSubsectionNavigationChrome(colorScheme: colorScheme)
@@ -90,9 +88,6 @@ struct UserActivitySidebarView: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
                     Button {
-                        #if DEBUG
-                        print("[SettingsNavigation] activity category tap: \(String(describing: category))")
-                        #endif
                         selection = category
                     } label: {
                         ActivityInteractionCategoryRow(
@@ -160,9 +155,7 @@ struct RecentlyDeletedActivityView: View {
         ActivityInteractionDetailView(category: .recentlyDeleted, recentlyDeletedKind: selectedKind, suppressInlineNavigationTitle: true)
             .id(selectedKind)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    SettingsToolbarBackButton(action: { dismiss() })
-                }
+                SettingsBackToolbarContent(action: { dismiss() })
                 ToolbarItem(placement: .principal) {
                     Menu {
                         Button {
@@ -222,9 +215,7 @@ struct ArchivedActivityView: View {
         }
         .id(selectedKind)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                SettingsToolbarBackButton(action: { dismiss() })
-            }
+            SettingsBackToolbarContent(action: { dismiss() })
             ToolbarItem(placement: .principal) {
                 Menu {
                     Button {

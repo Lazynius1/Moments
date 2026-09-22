@@ -80,6 +80,9 @@ struct StoryViewerScreen: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showQuickActions: Bool = false
     @State private var isSavingStoryToDevice = false
+    /// En el carril vertical de Duo una respuesta empieza como un acceso
+    /// compacto. Al tocarlo mostramos el compositor habitual y su teclado.
+    @State private var isDuoReplyComposerPresented = false
     @State private var showViewers: Bool = false
     @State private var showStoryShareSheet = false
     @State private var activitySheetInitialTab: Int = 0
@@ -107,6 +110,8 @@ struct StoryViewerScreen: View {
     @Environment(\.storyDeckGestureGate) private var deckGestureGate
     @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
     @Environment(\.momentsDivisionRegions) private var divisionRegions
+    @Environment(\.momentsViewportSize) private var momentsViewportSize
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     private let gestureCoordinator = StoryGestureCoordinator()
     @State private var keyboardHeight: CGFloat = 0 // Track keyboard height
     @State private var isKeyboardVisible: Bool = false // Track keyboard state
@@ -150,6 +155,25 @@ struct StoryViewerScreen: View {
 
     private var isOwnStory: Bool {
         story.authorId == Auth.auth().currentUser?.uid
+    }
+
+    /// El sistema comunica que el chrome se ha desplazado a un borde vertical.
+    /// No usamos este dato para identificar un modelo de dispositivo o una pose.
+    private var usesDuoVerticalViewerChrome: Bool {
+        toolbarVerticalEdge != nil
+    }
+
+    /// Inner vertical sin carril lateral: libro (division) o abierto completo (regular width).
+    /// HIG: no inferir pose por aspect ratio / umbrales fijos — size class + reserved regions.
+    private var usesDuoOpenVerticalViewerChrome: Bool {
+        guard !usesDuoVerticalViewerChrome else { return false }
+        if !divisionRegions.isEmpty { return true }
+        return horizontalSizeClass == .regular
+    }
+
+    /// Cerrado, abierto horizontal o abierto vertical: X / ellipsis / acciones en toolbar.
+    private var usesDuoSystemViewerChrome: Bool {
+        usesDuoVerticalViewerChrome || usesDuoOpenVerticalViewerChrome
     }
 
     private var isEveryoneStoryAudience: Bool {
@@ -331,8 +355,13 @@ struct StoryViewerScreen: View {
     @ViewBuilder
     private func geometryStackView(for geometry: GeometryProxy) -> some View {
         let revealSticker = storyStickers.first { $0.type == .reveal }
-        let resolvedTopInset = max(geometry.safeAreaInsets.top, keyWindowSafeAreaInsets().top)
-        let resolvedBottomInset = max(geometry.safeAreaInsets.bottom, keyWindowSafeAreaInsets().bottom)
+        // Igual que el editor: el GeometryReader puede recibir el ancho que
+        // queda tras el carril vertical. El canvas se calcula contra el
+        // viewport estable de la ventana y luego aplica los insets locales.
+        let windowInsets = keyWindowSafeAreaInsets()
+        let viewportSize = stableViewportSize(for: geometry)
+        let resolvedTopInset = windowInsets.top
+        let resolvedBottomInset = windowInsets.bottom
         // Solo Duo: chrome vertical / divisiones. En iPhone el 9:16 usa el
         // viewport completo (paridad con main).
         let adaptsForDuoChrome = toolbarVerticalEdge != nil || !divisionRegions.isEmpty
@@ -340,23 +369,43 @@ struct StoryViewerScreen: View {
             ? (geometry.safeAreaInsets.leading + geometry.safeAreaInsets.trailing)
             : 0
         let canvasViewportSize = CGSize(
-            width: max(geometry.size.width - horizontalSafeInsets, 1),
-            height: geometry.size.height
+            width: max(viewportSize.width - horizontalSafeInsets, 1),
+            height: viewportSize.height
         )
         let baseCaptureRect = creatorMomentsCaptureRect(
             in: canvasViewportSize,
             topInset: resolvedTopInset,
             bottomInset: resolvedBottomInset
         )
-        let captureRect = CGRect(
-            x: baseCaptureRect.origin.x + (adaptsForDuoChrome ? geometry.safeAreaInsets.leading : 0),
-            y: baseCaptureRect.origin.y + resolvedTopInset,
-            width: baseCaptureRect.width,
-            height: baseCaptureRect.height
-        )
-        let progressY = max(resolvedTopInset + 1, captureRect.minY - 26)
+        // Solo abierto vertical: canvas justo bajo el progress.
+        // El chrome (X/…/reply) vive en la toolbar del sistema — no reservar
+        // un letterbox enorme entre progress y canvas.
+        let captureRect: CGRect = {
+            let originX = baseCaptureRect.origin.x
+                + (adaptsForDuoChrome ? geometry.safeAreaInsets.leading : 0)
+            if usesDuoOpenVerticalViewerChrome {
+                // Progress ~12pt; canvas pegado debajo. Insights propios van abajo.
+                let topY = creatorMomentsCaptureTopOffset + 14
+                let maxHeight = max(viewportSize.height - resolvedBottomInset - 20 - topY, 1)
+                var height = min(baseCaptureRect.height, maxHeight)
+                var width = height * creatorMomentsCaptureAspectRatio
+                if width > canvasViewportSize.width {
+                    width = canvasViewportSize.width
+                    height = width / creatorMomentsCaptureAspectRatio
+                }
+                return CGRect(x: originX, y: topY, width: width, height: height)
+            }
+            return CGRect(
+                x: originX,
+                y: baseCaptureRect.origin.y + (adaptsForDuoChrome ? 0 : resolvedTopInset),
+                width: baseCaptureRect.width,
+                height: baseCaptureRect.height
+            )
+        }()
+        let progressY = usesDuoOpenVerticalViewerChrome
+            ? creatorMomentsCaptureTopOffset + 4
+            : max(resolvedTopInset + 1, captureRect.minY - 26)
         let bottomChromeMidY = captureRect.maxY + (geometry.size.height - captureRect.maxY) / 2
-
         ZStack {
             // MARK: - 1. CONTENIDO MULTIMEDIA (Fijo en el centro - NUNCA SE MUEVE)
             contentView(canvasRect: captureRect)
@@ -425,7 +474,7 @@ struct StoryViewerScreen: View {
 
             // MARK: - 4. HEADER - DENTRO DEL MEDIA
             if !isUIHidden {
-                glassmorphicHeader
+                glassmorphicHeader(showsViewerActions: !usesDuoSystemViewerChrome)
                     .padding(.horizontal, 16)
                     .frame(width: captureRect.width)
                     .position(
@@ -453,8 +502,22 @@ struct StoryViewerScreen: View {
 
             // MARK: - 5. INPUT AREA
             if !isUIHidden {
-                if isOwnStory && !isKeyboardVisible {
-                    // Historia propia: centrar acciones en el hueco bajo el marco.
+                if usesDuoSystemViewerChrome {
+                    // Duo: insights / reply van en systemViewerToolbar (rail/pill nativo).
+                    // Composer solo si está abierto (historia ajena).
+                    if !isOwnStory && (isDuoReplyComposerPresented || isKeyboardVisible) {
+                        VStack {
+                            Spacer()
+                            glassmorphicBottomArea
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, isKeyboardVisible ? keyboardHeight + 6 : max(8, resolvedBottomInset - 18))
+                        }
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                        .animation(.easeInOut(duration: 0.25), value: keyboardHeight)
+                    }
+                } else if isOwnStory && !isKeyboardVisible {
+                    // iPhone: hueco inferior completo (barra de siempre).
                     glassmorphicBottomArea
                         .padding(.horizontal, 16)
                         .frame(width: geometry.size.width)
@@ -543,14 +606,22 @@ struct StoryViewerScreen: View {
             }
         }
         .frame(width: geometry.size.width, height: geometry.size.height)
-        .ignoresSafeArea(.all)
     }
 
     private var interactiveRootView: AnyView {
-        let base = GeometryReader { geometry in
-            geometryStackView(for: geometry)
+        let base = Group {
+            if usesDuoSystemViewerChrome {
+                // Carril o barra de sistema: respetar safe area (como storyeditor).
+                GeometryReader { geometry in
+                    geometryStackView(for: geometry)
+                }
+            } else {
+                GeometryReader { geometry in
+                    geometryStackView(for: geometry)
+                }
+                .ignoresSafeArea(.all)
+            }
         }
-        .ignoresSafeArea(.all)
         .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
         .scaleEffect(zoomScale)
 
@@ -785,6 +856,12 @@ struct StoryViewerScreen: View {
                             }
                         }
                     }
+                    .toolbar(usesDuoSystemViewerChrome ? .visible : .hidden, for: .navigationBar)
+                    .toolbar {
+                        if #available(iOS 27.1, *), usesDuoSystemViewerChrome {
+                            systemViewerToolbar
+                        }
+                    }
             }
         )
     }
@@ -799,7 +876,7 @@ struct StoryViewerScreen: View {
         return storiesForAuthor[index].audience
     }
 
-    private var glassmorphicHeader: some View {
+    private func glassmorphicHeader(showsViewerActions: Bool) -> some View {
         HStack(spacing: 12) {
             Button(action: openAuthorProfileFromHeader) {
                 HStack(spacing: 10) {
@@ -890,26 +967,194 @@ struct StoryViewerScreen: View {
                     }
                 }
 
-                Button(action: toggleQuickActions) {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(.white)
-                        .font(.system(size: 16, weight: .medium))
-                        .frame(width: 40, height: 40)
-                        .background(Color.white.opacity(0.001))
-                        .momentsChromeGlass(in: Circle(), interactive: true)
-                }
-                .buttonStyle(PlainButtonStyle())
+                if showsViewerActions {
+                    Button(action: toggleQuickActions) {
+                        Image(systemName: "ellipsis")
+                            .foregroundStyle(.white)
+                            .font(.system(size: 16, weight: .medium))
+                            .frame(width: 40, height: 40)
+                            .background(Color.white.opacity(0.001))
+                            .momentsChromeGlass(in: Circle(), interactive: true)
+                    }
+                    .buttonStyle(PlainButtonStyle())
 
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .foregroundStyle(.white)
-                        .font(.system(size: 16, weight: .medium))
-                        .frame(width: 40, height: 40)
-                        .background(Color.white.opacity(0.001))
-                        .momentsChromeGlass(in: Circle(), interactive: true)
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .foregroundStyle(.white)
+                            .font(.system(size: 16, weight: .medium))
+                            .frame(width: 40, height: 40)
+                            .background(Color.white.opacity(0.001))
+                            .momentsChromeGlass(in: Circle(), interactive: true)
+                    }
                 }
             }
         }
+    }
+
+    /// Abierto (regular / open vertical): toolbar rica. Cerrado compact: menos texto.
+    private var ownStoryToolbarIsRich: Bool {
+        if usesDuoVerticalViewerChrome {
+            return horizontalSizeClass == .regular
+        }
+        return usesDuoOpenVerticalViewerChrome
+    }
+
+    private var ownStoryToolbarAudience: ContentAudience {
+        ContentAudience.fromAudienceValue(story.audience)
+    }
+
+    private var ownStoryToolbarDurationHours: Int {
+        story.expirationHours == 48 ? 48 : 24
+    }
+
+    private var ownStoryToolbarReactionCount: Int {
+        currentStoryReactions.latestPerUser().count
+    }
+
+    @available(iOS 27.1, *)
+    @ToolbarContentBuilder
+    private var systemViewerToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button(action: toggleQuickActions) {
+                Label("storyContextMenu.more", systemImage: "ellipsis")
+            }
+
+            Button(action: onClose) {
+                Label("stories.close", systemImage: "xmark")
+            }
+        }
+        .axisBehavior(.verticalPreferred)
+
+        // Mantiene la navegación contextual arriba y las acciones de la
+        // historia en su propio tramo del carril.
+        ToolbarSpacer(.flexible, placement: .primaryAction)
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            if isOwnStory {
+                Button {
+                    fetchViewersAndShow(tab: 0)
+                } label: {
+                    // No usar Label { } icon: — el slot de icono del toolbar
+                    // escala assets custom y deja StoryActivityEmptyIcon enorme.
+                    HStack(spacing: 4) {
+                        StoryOwnToolbarActivityIcon(
+                            viewers: currentStoryViewers,
+                            isRich: ownStoryToolbarIsRich
+                        )
+                        if ownStoryToolbarIsRich {
+                            Text(MomentsFormat.count(currentStoryViewers.count, style: .socialMetric))
+                        }
+                    }
+                }
+                .accessibilityLabel(
+                    currentStoryViewers.isEmpty
+                        ? NSLocalizedString("stories.ownBottom.noViews", comment: "")
+                        : String(
+                            format: NSLocalizedString("stories.ownBottom.viewsMany", comment: ""),
+                            currentStoryViewers.count
+                        )
+                )
+
+                if ownStoryToolbarIsRich {
+                    Label {
+                        Text("\(ownStoryToolbarDurationHours)h")
+                    } icon: {
+                        AudienceIconView(
+                            audience: ownStoryToolbarAudience,
+                            size: AudienceIconMetrics.storyBottomBarCompact,
+                            tintColor: storyViewerChromeColors.messageTextColor
+                        )
+                    }
+                    .accessibilityLabel(
+                        String(
+                            format: NSLocalizedString(
+                                "stories.ownBottom.audienceDurationAccessibility",
+                                comment: ""
+                            ),
+                            StoryAudienceBottomInfo.title(for: story.audience, listName: nil),
+                            "\(ownStoryToolbarDurationHours)h"
+                        )
+                    )
+                } else {
+                    AudienceIconView(
+                        audience: ownStoryToolbarAudience,
+                        size: AudienceIconMetrics.storyBottomBarCompact,
+                        tintColor: storyViewerChromeColors.messageTextColor
+                    )
+                    .accessibilityLabel(
+                        StoryAudienceBottomInfo.title(for: story.audience, listName: nil)
+                    )
+                }
+
+                if isEveryoneStoryAudience {
+                    Button {
+                        pauseStory()
+                        showStoryShareSheet = true
+                    } label: {
+                        Label("stories.ownBottom.share", systemImage: "paperplane")
+                    }
+                }
+
+                if ownStoryToolbarReactionCount > 0 {
+                    Button {
+                        fetchViewersAndShow(tab: 1)
+                    } label: {
+                        Label {
+                            Text(MomentsFormat.count(ownStoryToolbarReactionCount, style: .socialMetric))
+                        } icon: {
+                            Image(systemName: "heart.fill")
+                        }
+                    }
+                    .accessibilityLabel(
+                        String(
+                            format: NSLocalizedString("stories.ownBottom.reactionsCount", comment: ""),
+                            ownStoryToolbarReactionCount
+                        )
+                    )
+                }
+            } else {
+                if authorAllowsMessages {
+                    Button {
+                        isDuoReplyComposerPresented = true
+                        DispatchQueue.main.async {
+                            isTextFieldFocused = true
+                        }
+                    } label: {
+                        Label("stories.sendMessagePlaceholder", systemImage: "message")
+                    }
+                }
+
+                if authorAllowsReactions {
+                    Button {
+                        isDuoReplyComposerPresented = true
+                        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+                            showReactions.toggle()
+                        }
+                    } label: {
+                        Label("stories.reactions", systemImage: "face.smiling")
+                    }
+                }
+
+                if authorAllowsEphemeralPhotos {
+                    PhotosPicker(
+                        selection: $selectedPhoto,
+                        matching: .images
+                    ) {
+                        Label("chat.ephemeral.title", systemImage: "camera")
+                    }
+                }
+
+                if isEveryoneStoryAudience {
+                    Button {
+                        pauseStory()
+                        showStoryShareSheet = true
+                    } label: {
+                        Label("stories.ownBottom.share", systemImage: "paperplane")
+                    }
+                }
+            }
+        }
+        .axisBehavior(.verticalPreferred)
     }
 
     @ViewBuilder
@@ -1145,6 +1390,9 @@ struct StoryViewerScreen: View {
                                             if focused {
                                                 pauseStory()
                                             } else {
+                                                if messageText.isEmpty {
+                                                    isDuoReplyComposerPresented = false
+                                                }
                                                 resumeStory()
                                             }
                                         }
@@ -1271,6 +1519,65 @@ struct StoryViewerScreen: View {
         .padding(.horizontal, 16)
         .padding(.bottom, isKeyboardVisible ? 0 : (isOwnStory ? 0 : 25))
         .frame(maxWidth: .infinity)
+    }
+
+    /// Acciones de una historia ajena en el carril Duo compacto.
+    /// Vertical = cerrado / horizontal; horizontal = abierto vertical (hueco top).
+    @ViewBuilder
+    private func duoCompactReplyRail(layout: StoryOwnStoryBottomBar.Layout = .vertical) -> some View {
+        let buttons = Group {
+            if authorAllowsMessages {
+                storyViewerReplyActionButton(
+                    systemImage: "message",
+                    accessibilityLabel: NSLocalizedString("stories.sendMessagePlaceholder", comment: "")
+                ) {
+                    isDuoReplyComposerPresented = true
+                    DispatchQueue.main.async {
+                        isTextFieldFocused = true
+                    }
+                }
+            }
+
+            if authorAllowsReactions {
+                storyViewerReplyActionButton(
+                    systemImage: showReactions ? "face.smiling.fill" : "face.smiling",
+                    accessibilityLabel: NSLocalizedString("stories.reactions", comment: "")
+                ) {
+                    isDuoReplyComposerPresented = true
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
+                        showReactions.toggle()
+                    }
+                }
+            }
+
+            if authorAllowsEphemeralPhotos {
+                storyViewerReplyActionButton(
+                    attachmentIcon: .camera,
+                    accessibilityLabel: NSLocalizedString("chat.ephemeral.title", comment: "")
+                ) {
+                    showEphemeralPicker = true
+                }
+                .photosPicker(isPresented: $showEphemeralPicker, selection: $selectedPhoto, matching: .images)
+            }
+
+            if isEveryoneStoryAudience {
+                storyViewerShareActionButton
+            }
+        }
+
+        Group {
+            if layout == .horizontal {
+                HStack(spacing: 12) { buttons }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .frame(height: 48)
+            } else {
+                VStack(spacing: 12) { buttons }
+                    .padding(.vertical, 8)
+                    .frame(width: 48)
+            }
+        }
+        .momentsChromeGlass(in: Capsule(), interactive: true)
     }
 
     private var storyViewerShareActionButton: some View {
@@ -1451,6 +1758,22 @@ struct StoryViewerScreen: View {
         let windowScene = scenes.first { $0.activationState == .foregroundActive } as? UIWindowScene
         let keyWindow = windowScene?.windows.first(where: \.isKeyWindow)
         return keyWindow?.safeAreaInsets ?? .zero
+    }
+
+    private func keyWindowBounds() -> CGRect? {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+        let activeScene = scenes.first { $0.activationState == .foregroundActive }
+        let scene = activeScene ?? scenes.first
+        return scene?.windows.first(where: { $0.isKeyWindow })?.bounds
+    }
+
+    private func stableViewportSize(for proxy: GeometryProxy) -> CGSize {
+        guard let windowBounds = keyWindowBounds() else { return proxy.size }
+        return CGSize(
+            width: max(proxy.size.width, windowBounds.width),
+            height: max(proxy.size.height, windowBounds.height)
+        )
     }
 
     // MARK: - ✅ PRELOADING

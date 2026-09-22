@@ -200,6 +200,7 @@
 "userListView.person.plural" = "명";
 /* SettingsView */
 "settings.title" = "설정";
+"settings.selectSection" = "섹션을 선택하세요";
 "settings.loading" = "설정을 불러오는 중...";
 "settings.account.title" = "내 계정";
 "settings.account.personalInfo.title" = "개인 정보";

@@ -176,9 +176,7 @@ struct SavedMomentsView: View {
         .momentsFloatingTabBarHidden()
         .momentsScrollEdgeChrome()
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                SettingsToolbarBackButton(action: { dismiss() })
-            }
+            SettingsBackToolbarContent(action: { dismiss() })
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(isSelectionMode ? NSLocalizedString("savedMoments.cancel", comment: "Cancel") : NSLocalizedString("savedMoments.select", comment: "Select")) {
                     MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
@@ -449,7 +447,7 @@ struct SavedMomentsView: View {
             } else {
                 VStack(spacing: 0) {
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 108, maximum: 180), spacing: 4)],
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3),
                     spacing: 4
                 ) {
                     ForEach(identifiedFilteredMoments) { identified in
@@ -791,10 +789,13 @@ private struct SavedMomentGridCard: View {
         ZStack(alignment: .topTrailing) {
             Button(action: onTap) {
                 ZStack(alignment: .bottomLeading) {
-                    preview
-                        .blur(radius: isRestricted ? 16 : 0)
-                        .frame(maxWidth: .infinity)
+                    Color.clear
                         .aspectRatio(1, contentMode: .fit)
+                        .overlay {
+                            preview
+                                .scaledToFill()
+                                .blur(radius: isRestricted ? 16 : 0)
+                        }
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 
                     if isRestricted {

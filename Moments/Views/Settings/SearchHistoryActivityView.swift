@@ -78,9 +78,7 @@ struct SearchHistoryActivityView: View {
         .navigationBarTitleDisplayMode(.inline)
         .settingsSubsectionNavigationChrome(colorScheme: colorScheme)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                SettingsToolbarBackButton(action: { dismiss() })
-            }
+            SettingsBackToolbarContent(action: { dismiss() })
             
             ToolbarItem(placement: .navigationBarTrailing) {
                 if !searches.isEmpty {

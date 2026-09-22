@@ -94,9 +94,7 @@ struct LoginActivityView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .momentsScrollEdgeChrome()
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                SettingsToolbarBackButton(action: { dismiss() })
-            }
+            SettingsBackToolbarContent(action: { dismiss() })
         }
         .onAppear {
             viewModel.loadLoginActivity {

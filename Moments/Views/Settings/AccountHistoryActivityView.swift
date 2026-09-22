@@ -70,9 +70,7 @@ struct AccountHistoryActivityView: View {
         .momentsScrollEdgeChrome()
         .momentsFloatingTabBarHidden()
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                SettingsToolbarBackButton(action: { dismiss() })
-            }
+            SettingsBackToolbarContent(action: { dismiss() })
         }
         .onAppear {
             fetchHistory()

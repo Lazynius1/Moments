@@ -9,6 +9,13 @@ struct MediaEditingView: View {
     @Binding var showCreatorView: Bool
 
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    /// `onHingeChange` (iOS 27.1). En iPhone no hay bisagra y se queda en `.unknown`.
+    @State private var hingePose: EditorHingePose = .unknown
+    /// Margen del borde con la barra lateral. En el iPhone es 0.
+    @State private var lateralSafeInset: CGFloat = 0
 
     private var canvasColor: Color {
         ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
@@ -48,10 +55,13 @@ struct MediaEditingView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .bottom) {
-            if let tab = bottomTab, currentItemIsImage {
+            if !usesExpandedEditor, let tab = bottomTab, currentItemIsImage {
                 editSheet(tab)
+                    .padding(.leading, compactLeadingInset)
+                    .padding(.trailing, compactTrailingInset)
             }
         }
+        .modifier(EditorHingeObserver(pose: $hingePose))
         .toolbar(.hidden, for: .navigationBar)
         .background(canvasColor.ignoresSafeArea())
         .onAppear {
@@ -67,24 +77,126 @@ struct MediaEditingView: View {
         .onChange(of: currentEdits) { _, _ in
             updatePreviewTask()
         }
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            guard let edge = toolbarVerticalEdge else { return 0 }
+            return edge == .leading ? proxy.safeAreaInsets.leading : proxy.safeAreaInsets.trailing
+        } action: { lateralSafeInset = $0 }
+    }
+
+    /// Compacto (iPhone y Duo cerrado): la pila de siempre.
+    /// Ancho regular y bisagra no cerrada: `ArrangementView` pone la foto y las herramientas.
+    private var usesExpandedEditor: Bool {
+        guard horizontalSizeClass == .regular else { return false }
+        return hingePose != .closed
+    }
+
+    /// Bisagra vertical: herramientas al lado. Si no, debajo. El sistema coloca el hueco.
+    private var expandedToolsAreBesidePhoto: Bool {
+        if let division = divisionRegions.first(where: { $0.width > 1 && $0.height > 1 }) {
+            return division.height >= division.width
+        }
+        return toolbarVerticalEdge != nil
     }
 
     @ViewBuilder
     private var adaptiveEditorContent: some View {
-        if #available(iOS 27.1, *) {
+        if usesExpandedEditor, #available(iOS 27.1, *) {
             ArrangementView {
                 mediaStage
+                    .padding(.leading, photoLeadingInset)
+                    .padding(.trailing, photoTrailingInset)
             } secondary: {
-                bottomChrome
+                expandedToolPane
+                    .padding(.leading, toolsLeadingInset)
+                    .padding(.trailing, toolsTrailingInset)
             }
-            .arrangementViewStyle(.split.axes([.horizontal, .vertical]))
+            .arrangementViewStyle(.split.axes(expandedToolsAreBesidePhoto ? .horizontal : .vertical))
         } else {
             VStack(spacing: 0) {
                 mediaStage
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 bottomChrome
+                    .padding(.leading, compactLeadingInset)
+                    .padding(.trailing, compactTrailingInset)
             }
         }
+    }
+
+    private var expandedToolPane: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                if isCarousel {
+                    HStack(spacing: 6) {
+                        ForEach(selectedMediaItems.indices, id: \.self) { index in
+                            Circle()
+                                .fill(index == currentMediaIndex ? ink : ink.opacity(0.22))
+                                .frame(width: 6, height: 6)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 6)
+                }
+
+                if currentItemIsImage {
+                    expandedEditDismissBar
+
+                    Text(NSLocalizedString("creator.tools.filter", comment: ""))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(inkMuted)
+                        .padding(.horizontal, 16)
+                    filterPanel
+
+                    Text(NSLocalizedString("creator.tools.edit", comment: ""))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(inkMuted)
+                        .padding(.horizontal, 16)
+                    editPanel(wrapsTools: true)
+                } else {
+                    bottomChrome
+                }
+            }
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(canvasColor)
+    }
+
+    private var expandedEditDismissBar: some View {
+        HStack {
+            if currentEdits.canReset(tab: expandedResetTab, tool: selectedTool, axis: adjustAxis) {
+                Button {
+                    HapticManager.shared.lightImpact()
+                    currentEdits.reset(tab: expandedResetTab, tool: selectedTool, axis: adjustAxis)
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(ink)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("savedMoments.filters.reset"))
+            }
+            Spacer()
+            Button {
+                HapticManager.shared.lightImpact()
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    selectedTool = nil
+                }
+            } label: {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(ink)
+                    .frame(width: 32, height: 32)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("common.done"))
+        }
+        .padding(.horizontal, 12)
+    }
+
+    /// Con un ajuste elegido, el reset es de ese ajuste. Si no, del filtro.
+    private var expandedResetTab: PhotoEditTab {
+        selectedTool == nil ? .filter : .edit
     }
 
     private var header: some View {
@@ -446,7 +558,7 @@ struct MediaEditingView: View {
             if tab == .filter {
                 filterPanel
             } else {
-                editPanel
+                editPanel()
             }
         }
         .padding(.top, 10)
@@ -517,11 +629,68 @@ struct MediaEditingView: View {
         }
     }
 
-    private var editPanel: some View {
-        VStack(spacing: 12) {
-            if selectedTool == .adjust {
-                adjustChrome
-            } else if let tool = selectedTool {
+    /// En horizontal el borde exterior es el de la barra (reloj). El del pliegue no se rellena.
+    private var photoLeadingInset: CGFloat {
+        guard toolbarVerticalEdge == .leading else { return 0 }
+        return lateralSafeInset
+    }
+
+    private var photoTrailingInset: CGFloat {
+        guard !expandedToolsAreBesidePhoto, toolbarVerticalEdge == .trailing else { return 0 }
+        return lateralSafeInset
+    }
+
+    private var toolsLeadingInset: CGFloat {
+        guard !expandedToolsAreBesidePhoto, toolbarVerticalEdge == .leading else { return 0 }
+        return lateralSafeInset
+    }
+
+    private var toolsTrailingInset: CGFloat {
+        guard toolbarVerticalEdge == .trailing else { return 0 }
+        return lateralSafeInset
+    }
+
+    /// Cerrado: la hoja y la barra inferior no deben entrar en la barra lateral.
+    private var compactLeadingInset: CGFloat {
+        guard toolbarVerticalEdge == .leading else { return 0 }
+        return lateralSafeInset
+    }
+
+    private var compactTrailingInset: CGFloat {
+        guard toolbarVerticalEdge == .trailing else { return 0 }
+        return lateralSafeInset
+    }
+
+    private func editPanel(wrapsTools: Bool = false) -> some View {
+        Group {
+            if wrapsTools {
+                VStack(spacing: 12) {
+                    selectedToolControls
+                        .frame(maxWidth: .infinity)
+                    wrappedEditTools
+                }
+            } else {
+                VStack(spacing: 12) {
+                    selectedToolControls
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 4) {
+                            ForEach(PhotoEditTool.allCases) { tool in
+                                editToolButton(tool)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var selectedToolControls: some View {
+        if selectedTool == .adjust {
+            adjustChrome
+        } else if let tool = selectedTool {
+            VStack(spacing: 12) {
                 if tool == .color {
                     colorToolChrome
                 }
@@ -536,16 +705,33 @@ struct MediaEditingView: View {
                     )
                 }
             }
+        }
+    }
 
-            ScrollView(.horizontal, showsIndicators: false) {
+    /// Cuatro columnas fijas. `LazyVGrid` adaptativo se descuadra al aparecer el slider.
+    private var wrappedEditTools: some View {
+        let tools = Array(PhotoEditTool.allCases)
+        let columnCount = 4
+        let rows = stride(from: 0, to: tools.count, by: columnCount).map { start in
+            Array(tools[start..<min(start + columnCount, tools.count)])
+        }
+        return VStack(spacing: 12) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 HStack(spacing: 4) {
-                    ForEach(PhotoEditTool.allCases) { tool in
+                    ForEach(row) { tool in
                         editToolButton(tool)
+                            .frame(maxWidth: .infinity)
+                    }
+                    if row.count < columnCount {
+                        ForEach(0..<(columnCount - row.count), id: \.self) { _ in
+                            Color.clear
+                                .frame(maxWidth: .infinity)
+                        }
                     }
                 }
-                .padding(.horizontal, 12)
             }
         }
+        .padding(.horizontal, 12)
     }
 
     private var adjustChrome: some View {
@@ -591,23 +777,32 @@ struct MediaEditingView: View {
                 tintTargetButton(.shadows)
                 tintTargetButton(.highlights)
             }
-            HStack(spacing: 10) {
-                ForEach(PhotoTintColor.allCases) { tint in
-                    let selected = currentTint(for: currentEdits.tintTarget) == tint
-                    Button {
-                        HapticManager.shared.lightImpact()
-                        setCurrentTint(tint)
-                    } label: {
-                        Circle()
-                            .fill(Color(uiColor: tint.uiColor))
-                            .frame(width: 28, height: 28)
-                            .overlay {
-                                Circle()
-                                    .stroke(ink, lineWidth: selected ? 2 : 0)
-                            }
-                    }
-                    .buttonStyle(.plain)
+            ViewThatFits(in: .horizontal) {
+                tintColorRow
+                ScrollView(.horizontal, showsIndicators: false) {
+                    tintColorRow
                 }
+            }
+        }
+    }
+
+    private var tintColorRow: some View {
+        HStack(spacing: 10) {
+            ForEach(PhotoTintColor.allCases) { tint in
+                let selected = currentTint(for: currentEdits.tintTarget) == tint
+                Button {
+                    HapticManager.shared.lightImpact()
+                    setCurrentTint(tint)
+                } label: {
+                    Circle()
+                        .fill(Color(uiColor: tint.uiColor))
+                        .frame(width: 28, height: 28)
+                        .overlay {
+                            Circle()
+                                .stroke(ink, lineWidth: selected ? 2 : 0)
+                        }
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -686,7 +881,12 @@ struct MediaEditingView: View {
         .buttonStyle(.plain)
     }
 
-    private func editorSlider(value: Binding<Double>, range: ClosedRange<Double>, bipolar: Bool) -> some View {
+    private func editorSlider(
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        bipolar: Bool,
+        horizontalPadding: CGFloat = 22
+    ) -> some View {
         HStack(spacing: 12) {
             Slider(value: value, in: range)
                 .tint(ink)
@@ -698,7 +898,7 @@ struct MediaEditingView: View {
                     value.wrappedValue = bipolar ? 0 : (range.lowerBound == 0 && range.upperBound == 1 ? 0 : 0)
                 }
         }
-        .padding(.horizontal, 22)
+        .padding(.horizontal, horizontalPadding)
     }
 
     private func sliderLabel(_ value: Double, bipolar: Bool) -> String {
@@ -960,6 +1160,37 @@ struct MediaEditingView: View {
                     self.previewImage = rendered
                 }
             }
+        }
+    }
+}
+
+private enum EditorHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+/// `onHingeChange` (SDK 27.1). Cerrada o sin bisagra: no cambia el editor compacto.
+private struct EditorHingeObserver: ViewModifier {
+    @Binding var pose: EditorHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
         }
     }
 }

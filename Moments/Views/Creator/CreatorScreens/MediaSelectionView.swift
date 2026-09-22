@@ -11,6 +11,9 @@ struct MediaSelectionView: View {
     var animation: Namespace.ID // ✅ Accept Namespace
 
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var mediaAssets: [PHAsset] = []
     @State private var thumbnails: [String: UIImage] = [:]
@@ -29,18 +32,68 @@ struct MediaSelectionView: View {
     @State private var cropWindowSizes: [String: CGSize] = [:]
     @State private var previewImages: [String: UIImage] = [:]
     @State private var isMultiSelect = false
+    /// `onHingeChange` (iOS 27.1): `.partiallyOpen` es el libro.
+    @State private var hingePose: MomentHingePose = .unknown
 
     private let imageManager = PHImageManager.default()
     private let thumbnailSize = CGSize(width: 300, height: 300)
-    private let columns = [GridItem(.adaptive(minimum: 86, maximum: 150), spacing: 1)]
+
+    /// iPhone y abierto vertical completo: preview cuadrado + grid debajo.
+    /// Cerrado (barra vertical + compact): preview más bajo para que quepa el grid.
+    /// Abierto horizontal (barra vertical + regular, bisagra abierta): preview | grid.
+    /// Libro (`DeviceHinge.partiallyOpen`): el eje sigue la bisagra.
+    private enum PickerLayout {
+        case stacked
+        case closed
+        case sideBySide
+        case book
+    }
+
+    private var isBookPose: Bool {
+        switch hingePose {
+        case .partiallyOpen:
+            return true
+        case .fullyOpen, .closed:
+            return false
+        case .unknown:
+            return !divisionRegions.isEmpty
+        }
+    }
+
+    /// Bisagra en vertical (libro horizontal): los paneles quedan a cada lado.
+    private var bookHingeIsVertical: Bool {
+        if let division = divisionRegions.first(where: { $0.width > 1 && $0.height > 1 }) {
+            return division.height >= division.width
+        }
+        return toolbarVerticalEdge != nil
+    }
+
+    private var pickerLayout: PickerLayout {
+        if isBookPose { return .book }
+        if toolbarVerticalEdge != nil {
+            return horizontalSizeClass == .regular ? .sideBySide : .closed
+        }
+        return .stacked
+    }
+
+    private var columns: [GridItem] {
+        switch pickerLayout {
+        case .sideBySide:
+            return [GridItem(.adaptive(minimum: 72, maximum: 120), spacing: 1)]
+        case .book where bookHingeIsVertical:
+            return [GridItem(.adaptive(minimum: 72, maximum: 120), spacing: 1)]
+        case .closed:
+            return [GridItem(.adaptive(minimum: 78, maximum: 120), spacing: 1)]
+        case .stacked, .book:
+            return [GridItem(.adaptive(minimum: 86, maximum: 150), spacing: 1)]
+        }
+    }
 
     var body: some View {
         GeometryReader { geo in
             VStack(spacing: 0) {
                 headerView
-                mainPreviewSection
-                    .frame(width: geo.size.width, height: previewHeight(in: geo.size))
-                mediaGridSection
+                pickerBody(in: geo.size)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -59,6 +112,7 @@ struct MediaSelectionView: View {
             loadPreviewImage(for: asset)
         }
         .permissionPrimerGate(photosGate)
+        .modifier(MomentPickerHingeObserver(pose: $hingePose))
         .alert("momentVideo.tooLong.title", isPresented: $showingVideoTooLongAlert) {
             Button("common.understood") {
                 showingVideoTooLongAlert = false
@@ -82,6 +136,7 @@ struct MediaSelectionView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(width: 40, height: 40)
+                    .momentsChromeGlass(in: Circle())
             }
 
             Spacer()
@@ -96,7 +151,10 @@ struct MediaSelectionView: View {
                 Button(action: processSelectedAssets) {
                     Text(NSLocalizedString("creator.next", comment: ""))
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Color(hex: "0095F6"))
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .momentsChromeGlass(in: Capsule())
                 }
             } else {
                 Color.clear.frame(width: 40, height: 40)
@@ -110,6 +168,77 @@ struct MediaSelectionView: View {
                 .ignoresSafeArea(edges: .top)
         )
         .zIndex(10)
+    }
+
+    @ViewBuilder
+    private func pickerBody(in size: CGSize) -> some View {
+        switch pickerLayout {
+        case .sideBySide:
+            if #available(iOS 27.1, *) {
+                ArrangementView {
+                    mainPreviewSection
+                } secondary: {
+                    mediaGridSection
+                }
+                .arrangementViewStyle(.split.axes(.horizontal))
+            } else {
+                HStack(spacing: 0) {
+                    mainPreviewSection
+                        .frame(maxWidth: size.width * 0.42, maxHeight: .infinity)
+                    mediaGridSection
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        case .book:
+            bookSplit(in: size)
+        case .closed:
+            VStack(spacing: 0) {
+                mainPreviewSection
+                    .frame(width: size.width, height: min(size.width * 0.72, size.height * 0.36))
+                mediaGridSection
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        case .stacked:
+            VStack(spacing: 0) {
+                mainPreviewSection
+                    .frame(width: size.width, height: previewHeight(in: size))
+                mediaGridSection
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    /// Libro: los dos paneles quedan a cada lado de la bisagra.
+    /// Horizontal (bisagra vertical) → preview | grid. Vertical → preview arriba.
+    @ViewBuilder
+    private func bookSplit(in size: CGSize) -> some View {
+        let division = divisionRegions.first(where: { $0.width > 1 && $0.height > 1 })
+        if bookHingeIsVertical {
+            let leading = division.map { max($0.minX, 1) } ?? size.width * 0.5
+            let hingeGap = division?.width ?? 0
+            let trailing = division.map { max(size.width - $0.maxX, 1) } ?? size.width * 0.5
+            HStack(spacing: 0) {
+                mainPreviewSection
+                    .frame(width: leading, height: size.height)
+                Color.clear.frame(width: hingeGap, height: size.height)
+                mediaGridSection
+                    .frame(width: trailing, height: size.height)
+            }
+        } else if #available(iOS 27.1, *) {
+            ArrangementView {
+                mainPreviewSection
+            } secondary: {
+                mediaGridSection
+            }
+            .arrangementViewStyle(.split.axes(.vertical))
+        } else {
+            VStack(spacing: 0) {
+                mainPreviewSection
+                    .frame(height: size.height * 0.42)
+                mediaGridSection
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
     }
 
     // MARK: - Preview principal
@@ -893,5 +1022,36 @@ struct MediaSelectionView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ProfileMomentZoomNavigation.canvasBackground(for: colorScheme))
+    }
+}
+
+private enum MomentHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+/// Observa `onHingeChange` (SDK 27.1) sin acoplar el layout a un umbral de tamaño.
+private struct MomentPickerHingeObserver: ViewModifier {
+    @Binding var pose: MomentHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
+        }
     }
 }

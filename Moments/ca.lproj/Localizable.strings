@@ -206,6 +206,7 @@
 
 /* SettingsView */
 "settings.title" = "Configuració";
+"settings.selectSection" = "Tria una secció";
 "settings.loading" = "Carregant configuració...";
 "settings.account.title" = "El Teu Compte";
 "settings.account.personalInfo.title" = "Informació Personal";

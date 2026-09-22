@@ -200,6 +200,7 @@
 "userListView.person.plural" = "人";
 /* SettingsView */
 "settings.title" = "設定";
+"settings.selectSection" = "選擇一個區段";
 "settings.loading" = "正在載入設定……";
 "settings.account.title" = "你的帳號";
 "settings.account.personalInfo.title" = "個人資料";

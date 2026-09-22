@@ -96,8 +96,6 @@ struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
-    @Environment(\.momentsDivisionRegions) private var divisionRegions
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel = SettingsViewModel()
     @State private var isPrivate: Bool = false
@@ -122,15 +120,11 @@ struct SettingsView: View {
     @State private var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var activityCategory: ActivityInteractionCategory?
+    /// `onHingeChange` (iOS 27.1). `.unknown` en iPhone, donde no hay bisagra.
+    @State private var hingePose: SettingsHingePose = .unknown
 
     var body: some View {
         settingsNavigation
-        // `NavigationStack` and `NavigationSplitView` have incompatible
-        // navigation hosts. Recreate only that host when Duo changes between
-        // compact and expanded presentation; the route/category state lives
-        // on SettingsView, so the expanded host restores the selected detail
-        // alongside its sidebar instead of retaining the compact full screen.
-        .id(usesCompactSettingsNavigation)
         .toolbarBackground(.hidden, for: .navigationBar)
         .momentsScrollEdgeChrome()
         .toolbar(.hidden, for: .tabBar)
@@ -194,7 +188,6 @@ struct SettingsView: View {
             dismiss()
         }
         .onChange(of: route) { _, newRoute in
-            navigationTrace("route changed to \(String(describing: newRoute))")
             if newRoute == .userActivity {
                 activityCategory = nil
                 preferredCompactColumn = .detail
@@ -206,26 +199,23 @@ struct SettingsView: View {
             }
         }
         .onChange(of: activityCategory) { _, newCategory in
-            navigationTrace("activity category changed to \(String(describing: newCategory))")
             if newCategory != nil {
                 preferredCompactColumn = .detail
             }
         }
-        .onChange(of: toolbarVerticalEdge) { _, edge in
-            navigationTrace("toolbar vertical edge changed to \(String(describing: edge))")
-            if edge != nil {
+        .onChange(of: horizontalSizeClass) { _, newValue in
+            if newValue == .regular {
                 columnVisibility = .all
+            } else if route != nil {
+                preferredCompactColumn = .detail
             }
         }
-        .onChange(of: horizontalSizeClass) { oldValue, newValue in
-            guard oldValue != newValue else { return }
-            navigationTrace("horizontal size class changed to \(String(describing: newValue))")
-            // NavigationSplitView itself animates between its compact and
-            // expanded presentations. Keep the selection intact so it lands
-            // in the detail column when regular width becomes available.
-            columnVisibility = .all
-            preferredCompactColumn = route == nil ? .sidebar : .detail
-        }
+        .modifier(SettingsHingeColumnRestorer(
+            columnVisibility: $columnVisibility,
+            preferredCompactColumn: $preferredCompactColumn,
+            pose: $hingePose,
+            route: $route
+        ))
         .alert("settings.error.title", isPresented: $showError) {
             Button("settings.ok") { }
         } message: {
@@ -233,33 +223,10 @@ struct SettingsView: View {
         }
     }
 
-    @ViewBuilder
+    /// Presentado fuera del stack del perfil, así el split es la raíz:
+    /// compacto (iPhone y Duo cerrado) empuja la categoría, y al abrir
+    /// `columnVisibility = .all` vuelve a mostrar la barra.
     private var settingsNavigation: some View {
-        if usesCompactSettingsNavigation {
-            compactSettingsNavigation
-        } else {
-            splitSettingsNavigation
-        }
-    }
-
-    private var compactSettingsNavigation: some View {
-        settingsRootPane
-            .navigationDestination(item: $route) { selectedRoute in
-                if selectedRoute == .userActivity {
-                    UserActivitySidebarView(
-                        selection: activityCategorySelection,
-                        onBack: nil
-                    )
-                    .navigationDestination(item: $activityCategory) { category in
-                        UserActivityDestinationView(category: category)
-                    }
-                } else {
-                    destinationView(for: selectedRoute)
-                }
-            }
-    }
-
-    private var splitSettingsNavigation: some View {
         NavigationSplitView(
             columnVisibility: $columnVisibility,
             preferredCompactColumn: $preferredCompactColumn
@@ -271,21 +238,10 @@ struct SettingsView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .toolbar {
-            if route == .userActivity, activityCategory != nil {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        activityCategory = nil
-                    } label: {
-                        Image(systemName: "chevron.backward")
-                    }
-                    .accessibilityLabel(Text("common.back"))
-                }
-            }
-        }
         .environment(\.settingsSplitBackAction, {
             returnFromSettingsDetail()
         })
+        .environment(\.settingsSidebarBackIsVisible, horizontalSizeClass == .regular)
     }
 
     @ViewBuilder
@@ -312,6 +268,9 @@ struct SettingsView: View {
         }
         .navigationTitle(NSLocalizedString("settings.title", comment: "Settings"))
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            SettingsExplicitBackToolbarContent(action: { dismiss() })
+        }
     }
 
     private var settingsSidebar: some View {
@@ -347,7 +306,6 @@ struct SettingsView: View {
         Group {
             if route == .userActivity, let activityCategory {
                 UserActivityDestinationView(category: activityCategory)
-                    .environment(\.settingsSidebarBackIsVisible, true)
             } else if route == .userActivity {
                 UserActivitySidebarView(
                     selection: activityCategorySelection,
@@ -368,7 +326,6 @@ struct SettingsView: View {
     }
 
     private func returnToSettingsSidebar() {
-        navigationTrace("returning to settings root")
         activityCategory = nil
         route = nil
         preferredCompactColumn = .sidebar
@@ -379,7 +336,6 @@ struct SettingsView: View {
         Binding(
             get: { route },
             set: { newRoute in
-                navigationTrace("settings row selected: \(String(describing: newRoute))")
                 route = newRoute
                 if newRoute != nil {
                     preferredCompactColumn = .detail
@@ -393,7 +349,6 @@ struct SettingsView: View {
         Binding(
             get: { activityCategory },
             set: { newCategory in
-                navigationTrace("activity row selected: \(String(describing: newCategory))")
                 activityCategory = newCategory
                 if newCategory != nil {
                     preferredCompactColumn = .detail
@@ -404,35 +359,16 @@ struct SettingsView: View {
     }
 
     private func showDetailInCompactLayout() {
-        // Compact uses NavigationStack's native push. The split's compact
-        // column preference is only meaningful once regular width is available.
-        guard !usesCompactSettingsNavigation else { return }
         preferredCompactColumn = .detail
     }
 
-    private var usesCompactSettingsNavigation: Bool {
-        // `toolbarVerticalEdge` describe dónde coloca iOS el chrome, también
-        // en la pantalla exterior. La jerarquía sigue el trait local: compacto
-        // conserva la navegación de iPhone; regular expande el split.
-        horizontalSizeClass == .compact
-    }
-
     private func returnFromSettingsDetail() {
-        navigationTrace("back tapped from split detail")
         if route == .userActivity, activityCategory != nil {
             activityCategory = nil
-            // En compacto, la vuelta de una categoría debe mostrar el índice de
-            // actividad; en ancho amplio el split recupera Ajustes | actividad.
             preferredCompactColumn = .detail
         } else {
             returnToSettingsSidebar()
         }
-    }
-
-    private func navigationTrace(_ event: String) {
-        #if DEBUG
-        print("[SettingsNavigation] \(event) | compact=\(usesCompactSettingsNavigation) | horizontalSizeClass=\(String(describing: horizontalSizeClass)) | toolbarVerticalEdge=\(String(describing: toolbarVerticalEdge)) | divisions=\(divisionRegions.count) | route=\(String(describing: route)) | category=\(String(describing: activityCategory))")
-        #endif
     }
 
     @ViewBuilder
@@ -520,6 +456,46 @@ struct SettingsView: View {
                 .foregroundStyle(colorScheme == .dark ? .white : .black)
         }
         .transition(MotionPolicy.Transition.enterPop)
+    }
+}
+
+private enum SettingsHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+/// `onHingeChange` (SDK 27.1). Abierta: las dos columnas. Cerrada: solo la categoría.
+private struct SettingsHingeColumnRestorer: ViewModifier {
+    @Binding var columnVisibility: NavigationSplitViewVisibility
+    @Binding var preferredCompactColumn: NavigationSplitViewColumn
+    @Binding var pose: SettingsHingePose
+    @Binding var route: SettingsRoute?
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                    columnVisibility = .all
+                case .fullyOpen:
+                    pose = .fullyOpen
+                    columnVisibility = .all
+                case .closed:
+                    pose = .closed
+                    if route != nil {
+                        preferredCompactColumn = .detail
+                        columnVisibility = .detailOnly
+                    }
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
+        }
     }
 }
 

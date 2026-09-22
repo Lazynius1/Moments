@@ -285,9 +285,7 @@ struct ActivityInteractionDetailView: View {
         .momentsFloatingTabBarHidden()
         .toolbar {
             if !suppressInlineNavigationTitle {
-                ToolbarItem(placement: .topBarLeading) {
-                    SettingsToolbarBackButton(action: { dismiss() })
-                }
+                SettingsBackToolbarContent(action: { dismiss() })
             }
             navigationToolbar
         }

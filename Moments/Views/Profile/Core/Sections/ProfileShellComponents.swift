@@ -97,6 +97,7 @@ struct ModernProfileContentView: View {
     @State private var identityMinY: CGFloat = .greatestFiniteMagnitude
     @State private var tabsMinY: CGFloat = .greatestFiniteMagnitude
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
 
     private var usernameCollapseProgress: CGFloat {
         ProfileHeaderCollapseMetrics.progress(forTabsMinY: tabsMinY)
@@ -391,7 +392,7 @@ struct ModernProfileContentView: View {
                         } : nil
                     )
                 }
-                .toolbar(.hidden, for: .navigationBar)
+                .toolbar(toolbarVerticalEdge == nil ? .hidden : .visible, for: .navigationBar)
             .profileNavigationSurface(colorScheme: colorScheme)
                 .onAppear {
                     heroCoordinator.openZoomDetail = { zoomDestination = $0 }

@@ -183,9 +183,7 @@ struct MuteSettingsView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .momentsScrollEdgeChrome()
         .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    SettingsToolbarBackButton(action: { dismiss() })
-                }
+                SettingsBackToolbarContent(action: { dismiss() })
         }
         .onAppear {
             viewModel.loadSettings {

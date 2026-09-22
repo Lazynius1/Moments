@@ -200,6 +200,7 @@
 "userListView.person.plural" = "personen";
 /* SettingsView */
 "settings.title" = "Instellingen";
+"settings.selectSection" = "Kies een onderdeel";
 "settings.loading" = "Instellingen laden...";
 "settings.account.title" = "Je account";
 "settings.account.personalInfo.title" = "Persoonlijke gegevens";

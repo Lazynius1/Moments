@@ -311,6 +311,7 @@ private extension CGFloat {
 
 struct ProfileView: View {
     @Environment(\.momentsViewportSize) private var momentsViewportSize
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
 
     @EnvironmentObject var authService: AuthService
     @State private var authListener: AuthStateDidChangeListenerHandle?
@@ -411,8 +412,9 @@ struct ProfileView: View {
                     .environmentObject(heroCoordinator)
                 }
                 .ignoresSafeArea(edges: .top)
-                .navigationDestination(isPresented: $isShowingSettings) {
+                .fullScreenCover(isPresented: $isShowingSettings) {
                     SettingsView()
+                        .environmentObject(authService)
                         .navigationTransition(.zoom(sourceID: "settings-view", in: profileZoomNamespace))
                 }
                 .navigationDestination(isPresented: $isShowingNotifications) {
@@ -608,8 +610,7 @@ struct ProfileView: View {
         }
         .environmentObject(heroCoordinator)
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
-        .toolbar(.hidden, for: .navigationBar)
-        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(toolbarVerticalEdge == nil ? .hidden : .visible, for: .navigationBar)
     }
 
     private func updateMoment(payload: EditMomentPayload, for moment: Moment) {

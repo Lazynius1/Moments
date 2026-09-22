@@ -2,6 +2,10 @@ import SwiftUI
 import UIKit
 
 enum StoryTextCanvasPlacement {
+    static let contractVersion = 2
+    static let referenceWidth: CGFloat = 375
+    static let maxLayoutWidthFraction: CGFloat = 327.0 / 375.0
+
     static func defaultPosition(in canvasSize: CGSize) -> CGPoint {
         CGPoint(
             x: canvasSize.width / 2,
@@ -10,7 +14,7 @@ enum StoryTextCanvasPlacement {
     }
 
     static func maxLayoutWidth(in canvasWidth: CGFloat) -> CGFloat {
-        max(canvasWidth * StoryMediaTransformLimits.maxScale, 120)
+        max(canvasWidth * maxLayoutWidthFraction, 1)
     }
 
     static func needsSeed(position: CGPoint, canvasSize: CGSize) -> Bool {
@@ -78,7 +82,7 @@ struct StoryTextOverlayDraft: Identifiable, Equatable {
             textColor: color,
             textAlignment: StoryTextOverlayMetadata.decodeAlignment(metadata.alignmentRaw),
             textBackgroundFill: StoryEditingView.TextBackgroundFill(rawValue: metadata.backgroundFillRaw) ?? .none,
-            fontSize: CGFloat(metadata.fontSize),
+            fontSize: metadata.resolvedFontSize(for: canvasSize.width),
             textStroke: StoryEditingView.TextStroke(rawValue: metadata.strokeRaw) ?? .none,
             textMotion: metadata.motion,
             forcesAllCaps: metadata.forcesAllCaps,
@@ -110,6 +114,9 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
     var gradientStopHexes: [String]?
     var gradientAngle: Int?
     var rotationRadians: Double
+    var canvasVersion: Int
+    var normalizedFontSize: Double?
+    var normalizedMaxWidth: Double?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -129,6 +136,9 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         case gradientStopHexes
         case gradientAngle
         case rotationRadians
+        case canvasVersion
+        case normalizedFontSize
+        case normalizedMaxWidth
     }
 
     private enum PointCodingKeys: String, CodingKey {
@@ -153,7 +163,10 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         isLiveOverlay: Bool = true,
         gradientStopHexes: [String]? = nil,
         gradientAngle: Int? = nil,
-        rotationRadians: Double = 0
+        rotationRadians: Double = 0,
+        canvasVersion: Int = 1,
+        normalizedFontSize: Double? = nil,
+        normalizedMaxWidth: Double? = nil
     ) {
         self.id = id
         self.text = text
@@ -172,6 +185,9 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         self.gradientStopHexes = gradientStopHexes
         self.gradientAngle = gradientAngle
         self.rotationRadians = rotationRadians
+        self.canvasVersion = canvasVersion
+        self.normalizedFontSize = normalizedFontSize
+        self.normalizedMaxWidth = normalizedMaxWidth
     }
 
     static func build(
@@ -210,7 +226,7 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
             layerOrder: layerOrder,
             styleRaw: style.rawValue,
             colorHex: textColor.toHex(),
-            fontSize: Double(fontSize),
+            fontSize: Double(fontSize * StoryTextCanvasPlacement.referenceWidth / safeWidth),
             alignmentRaw: Self.encodeAlignment(alignment),
             backgroundFillRaw: backgroundFill.rawValue,
             strokeRaw: stroke.rawValue,
@@ -220,7 +236,10 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
             isLiveOverlay: true,
             gradientStopHexes: visualEffect == .gradient && !gradientStopHexes.isEmpty ? gradientStopHexes : nil,
             gradientAngle: visualEffect == .gradient ? gradientAngle : nil,
-            rotationRadians: rotationRadians
+            rotationRadians: rotationRadians,
+            canvasVersion: StoryTextCanvasPlacement.contractVersion,
+            normalizedFontSize: Double(fontSize / safeWidth),
+            normalizedMaxWidth: Double(StoryTextCanvasPlacement.maxLayoutWidthFraction)
         )
     }
 
@@ -298,8 +317,29 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
     }
 
     func scaledFontSize(for containerWidth: CGFloat) -> CGFloat {
-        let scaleFactor = max(containerWidth, 1) / 375.0
-        return CGFloat(fontSize) * scaleFactor
+        resolvedFontSize(for: containerWidth)
+    }
+
+    func resolvedFontSize(for containerWidth: CGFloat) -> CGFloat {
+        let width = max(containerWidth, 1)
+        if canvasVersion >= StoryTextCanvasPlacement.contractVersion,
+           let normalizedFontSize,
+           normalizedFontSize.isFinite,
+           normalizedFontSize > 0 {
+            return CGFloat(normalizedFontSize) * width
+        }
+        return CGFloat(fontSize) * width / StoryTextCanvasPlacement.referenceWidth
+    }
+
+    func resolvedMaxLayoutWidth(for containerWidth: CGFloat) -> CGFloat {
+        let width = max(containerWidth, 1)
+        if canvasVersion >= StoryTextCanvasPlacement.contractVersion,
+           let normalizedMaxWidth,
+           normalizedMaxWidth.isFinite,
+           normalizedMaxWidth > 0 {
+            return CGFloat(normalizedMaxWidth) * width
+        }
+        return StoryTextCanvasPlacement.maxLayoutWidth(in: width)
     }
 
     init(from decoder: Decoder) throws {
@@ -321,6 +361,9 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         gradientStopHexes = try container.decodeIfPresent([String].self, forKey: .gradientStopHexes)
         gradientAngle = try container.decodeIfPresent(Int.self, forKey: .gradientAngle)
         rotationRadians = try container.decodeIfPresent(Double.self, forKey: .rotationRadians) ?? 0
+        canvasVersion = try container.decodeIfPresent(Int.self, forKey: .canvasVersion) ?? 1
+        normalizedFontSize = try container.decodeIfPresent(Double.self, forKey: .normalizedFontSize)
+        normalizedMaxWidth = try container.decodeIfPresent(Double.self, forKey: .normalizedMaxWidth)
 
         if let point = try? container.decode(CGPoint.self, forKey: .normalizedPosition) {
             normalizedPosition = point
@@ -350,6 +393,9 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         try container.encodeIfPresent(gradientStopHexes, forKey: .gradientStopHexes)
         try container.encodeIfPresent(gradientAngle, forKey: .gradientAngle)
         try container.encode(rotationRadians, forKey: .rotationRadians)
+        try container.encode(canvasVersion, forKey: .canvasVersion)
+        try container.encodeIfPresent(normalizedFontSize, forKey: .normalizedFontSize)
+        try container.encodeIfPresent(normalizedMaxWidth, forKey: .normalizedMaxWidth)
 
         var pointContainer = container.nestedContainer(keyedBy: PointCodingKeys.self, forKey: .normalizedPosition)
         try pointContainer.encode(normalizedPosition.x, forKey: .x)

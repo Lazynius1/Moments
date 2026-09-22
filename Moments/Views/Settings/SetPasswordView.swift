@@ -129,9 +129,7 @@ struct SetPasswordView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .momentsScrollEdgeChrome()
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    SettingsToolbarBackButton(action: { dismiss() })
-                }
+                SettingsBackToolbarContent(action: { dismiss() })
             }
             .onAppear {
                 switch authService.backupEmailStatus {

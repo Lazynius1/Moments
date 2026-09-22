@@ -16,6 +16,11 @@ struct ProfileOwnPinnedTopChrome: View {
     let profileZoomNamespace: Namespace.ID
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+
+    private var usesVerticalToolbar: Bool {
+        toolbarVerticalEdge != nil
+    }
 
     var body: some View {
         StickyChromeBarLayout {
@@ -37,7 +42,8 @@ struct ProfileOwnPinnedTopChrome: View {
             .animation(.easeOut(duration: 0.18), value: collapseProgress)
             .allowsHitTesting(false)
         } trailing: {
-            ProfileChromeControlsCluster {
+            if !usesVerticalToolbar {
+                ProfileChromeControlsCluster {
                 ProfileChromeIconButton(
                     systemName: "bell",
                     foregroundColor: ProfileColors.textPrimary,
@@ -56,6 +62,21 @@ struct ProfileOwnPinnedTopChrome: View {
                 } destination: { close in
                     IncognitoModeSheet(service: incognitoModeService, onClose: close)
                 }
+                }
+            }
+        }
+        .toolbar {
+            if #available(iOS 27.1, *), usesVerticalToolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        isShowingNotifications = true
+                    } label: {
+                        Label("notifications.title", systemImage: "bell")
+                    }
+
+                    ownHeaderMenu
+                }
+                .axisBehavior(.verticalPreferred)
             }
         }
     }

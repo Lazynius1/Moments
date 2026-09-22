@@ -982,6 +982,7 @@
 
 /* SettingsView */
 "settings.title" = "Definições";
+"settings.selectSection" = "Escolhe uma secção";
 "settings.loading" = "A carregar definições...";
 "settings.account.title" = "A tua conta";
 "settings.account.personalInfo.title" = "Informações pessoais";

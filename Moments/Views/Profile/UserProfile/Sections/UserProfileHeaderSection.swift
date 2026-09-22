@@ -14,16 +14,29 @@ struct ProfileVisitorPinnedTopChrome: View {
     @Binding var showingReportSheet: Bool
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
     @State private var profileShareItem: ProfileShareSheetItem?
+
+    private var usesVerticalToolbar: Bool {
+        toolbarVerticalEdge != nil
+    }
 
     var body: some View {
         StickyChromeBarLayout {
-            ProfileChromeIconButton(
-                systemName: "chevron.left",
-                foregroundColor: UserProfileColors.textPrimary,
-                preset: .navigationBack,
-                action: onDismiss
-            )
+            if !usesVerticalToolbar {
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: UserProfileColors.textPrimary,
+                    preset: .navigationBack,
+                    action: onDismiss
+                )
+            } else {
+                Color.clear
+                    .frame(
+                        width: MomentsGlassButtonPreset.toolbarAction.controlSize,
+                        height: MomentsGlassButtonPreset.toolbarAction.controlSize
+                    )
+            }
         } center: {
             HStack(spacing: 5) {
                 Text(viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
@@ -39,7 +52,24 @@ struct ProfileVisitorPinnedTopChrome: View {
             .offset(x: -6 * (1 - collapseProgress))
             .animation(.easeOut(duration: 0.18), value: collapseProgress)
         } trailing: {
-            visitorHeaderMenu
+            if !usesVerticalToolbar {
+                visitorHeaderMenu
+            }
+        }
+        .toolbar {
+            if #available(iOS 27.1, *), usesVerticalToolbar {
+                ToolbarItemGroup(placement: .cancellationAction) {
+                    Button(action: onDismiss) {
+                        Label("common.back", systemImage: "chevron.left")
+                    }
+                }
+                .axisBehavior(.verticalPreferred)
+
+                ToolbarItemGroup(placement: .primaryAction) {
+                    visitorHeaderMenu
+                }
+                .axisBehavior(.verticalPreferred)
+            }
         }
         // `item:` evita race del Menu: sheet(isPresented) a veces abre con payload vacío.
         .sheet(item: $profileShareItem) { item in

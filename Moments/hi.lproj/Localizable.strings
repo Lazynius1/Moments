@@ -200,6 +200,7 @@
 "userListView.person.plural" = "लोग";
 /* SettingsView */
 "settings.title" = "सेटिंग्स";
+"settings.selectSection" = "कोई अनुभाग चुनें";
 "settings.loading" = "सेटिंग्स लोड हो रही हैं...";
 "settings.account.title" = "आपका अकाउंट";
 "settings.account.personalInfo.title" = "व्यक्तिगत जानकारी";

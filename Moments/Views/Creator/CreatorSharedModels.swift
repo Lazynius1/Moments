@@ -264,17 +264,19 @@ struct CreatorMedia: Identifiable {
 // MARK: - Shared UI Components
 
 struct GlowSharePill: View {
+    @Environment(\.colorScheme) private var colorScheme
     let title: String
     var icon: String = "paperplane.fill"
     var isLoading: Bool = false
     var isSmall: Bool = false
     let action: () -> Void
 
+    private var ink: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
     var body: some View {
         Button(action: {
-            // Haptic feedback should be handled by a global helper if available,
-            // otherwise we can omit it or use UIImpactFeedbackGenerator directly here if needed.
-            // Assuming hapticFeedback is a View extension or global func available in the module.
             let generator = UIImpactFeedbackGenerator(style: .medium)
             generator.impactOccurred()
             action()
@@ -282,14 +284,14 @@ struct GlowSharePill: View {
             ZStack {
                 if isLoading {
                     ProgressView()
-                        .tint(.white)
+                        .tint(ink)
                         .scaleEffect(0.8)
                 } else {
                     HStack(spacing: 6) {
                         Text(NSLocalizedString(title, comment: ""))
                             .font(.system(size: isSmall ? 13 : 15, weight: .bold, design: .rounded))
                         if let customIcon = AttachmentIcon(rawValue: icon) {
-                            AttachmentIconView(icon: customIcon, size: isSmall ? 10 : 12, tintColor: .white)
+                            AttachmentIconView(icon: customIcon, size: isSmall ? 10 : 12, tintColor: ink)
                         } else {
                             Image(systemName: icon)
                                 .font(.system(size: isSmall ? 10 : 12))
@@ -297,31 +299,14 @@ struct GlowSharePill: View {
                     }
                 }
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(ink)
             .padding(.horizontal, isSmall ? 14 : 20)
             .padding(.vertical, isSmall ? 8 : 10)
-            .background(
-                ZStack {
-                    // Glow background
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [.purple, .pink, .orange],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .shadow(color: Color.pink.opacity(0.4), radius: 8, x: 0, y: 4)
-
-                    // Glass shine
-                    Capsule()
-                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                }
-            )
+            .momentsChromeGlass(in: Capsule())
             .contentShape(Capsule())
         }
         .disabled(isLoading)
-        .buttonStyle(CreatorScaleButtonStyle()) // Using a custom button style instead of .pressAnimation() extension to be safe
+        .buttonStyle(CreatorScaleButtonStyle())
     }
 }
 

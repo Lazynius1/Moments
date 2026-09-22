@@ -200,6 +200,7 @@
 "userListView.person.plural" = "osoby";
 /* SettingsView */
 "settings.title" = "Ustawienia";
+"settings.selectSection" = "Wybierz sekcję";
 "settings.loading" = "Wczytywanie ustawień...";
 "settings.account.title" = "Twoje konto";
 "settings.account.personalInfo.title" = "Dane osobowe";

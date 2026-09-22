@@ -116,13 +116,18 @@ struct StoryTextEditor: View {
                         isFocused: $isTextFieldFocused,
                         configuration: renderConfiguration,
                         motion: textMotion,
-                        maxWidth: max(canvasSize.width - 100, 140),
+                        maxWidth: StoryTextCanvasPlacement.maxLayoutWidth(in: canvasSize.width),
                         replayToken: motionPreviewToken
                     )
                     .frame(minHeight: 120, maxHeight: 340)
                     .frame(maxWidth: .infinity, alignment: alignmentForText(textAlignment))
-                    .padding(.leading, 56)
-                    .padding(.trailing, 56) // Symmetrical padding to center the text nicely
+                    .padding(
+                        .horizontal,
+                        max(
+                            (canvasSize.width - StoryTextCanvasPlacement.maxLayoutWidth(in: canvasSize.width)) / 2,
+                            0
+                        )
+                    )
 
                     Spacer(minLength: 0)
                 }

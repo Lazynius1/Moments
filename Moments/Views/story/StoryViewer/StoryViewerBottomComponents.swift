@@ -1,7 +1,7 @@
 import SwiftUI
 import Kingfisher
 
-private enum StoryAudienceBottomInfo {
+enum StoryAudienceBottomInfo {
     static func normalizedAudience(_ audience: String?) -> String {
         audience?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -32,6 +32,17 @@ private enum StoryAudienceBottomInfo {
 
 // Barra inferior para historias propias (Actividad + audiencia + acciones).
 struct StoryOwnStoryBottomBar: View {
+    enum Layout: Equatable {
+        case horizontal
+        case vertical
+    }
+
+    /// Compacto = cerrado (menos texto). Rico = abierto H/V (labels + duración).
+    enum Density: Equatable {
+        case compact
+        case rich
+    }
+
     let viewers: [StoryViewer]
     let reactions: [StoryReaction]
     let audience: String?
@@ -42,9 +53,13 @@ struct StoryOwnStoryBottomBar: View {
     let onReactionsActivity: () -> Void
     var showsShare: Bool = false
     let onShare: () -> Void
+    var layout: Layout = .horizontal
+    var density: Density = .rich
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var audienceListName: String?
+
+    private var isCompact: Bool { density == .compact }
 
     private var chromeColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -77,6 +92,10 @@ struct StoryOwnStoryBottomBar: View {
             format: NSLocalizedString("storyEditor.expiration.option", comment: "Story duration option"),
             storyDurationHours
         )
+    }
+
+    private var storyDurationShortLabel: String {
+        "\(storyDurationHours)h"
     }
 
     private var displayAudience: ContentAudience {
@@ -119,22 +138,42 @@ struct StoryOwnStoryBottomBar: View {
         )
     }
 
+    private var columnSpacing: CGFloat { isCompact ? 4 : 6 }
+    private var railSpacing: CGFloat { isCompact ? 14 : 18 }
+
     var body: some View {
-        HStack(alignment: .bottom, spacing: 0) {
-            activityColumn
-                .frame(maxWidth: .infinity)
+        Group {
+            if layout == .horizontal {
+                HStack(alignment: .bottom, spacing: 0) {
+                    activityColumn
+                        .frame(maxWidth: .infinity)
 
-            audienceColumn
-                .frame(maxWidth: .infinity)
+                    audienceColumn
+                        .frame(maxWidth: .infinity)
 
-            if showsShare && isEveryoneAudience {
-                shareColumn
-                    .frame(maxWidth: .infinity)
-            }
+                    if showsShare && isEveryoneAudience {
+                        shareColumn
+                            .frame(maxWidth: .infinity)
+                    }
 
-            if reactionCount > 0 {
-                reactionsColumn
-                    .frame(maxWidth: .infinity)
+                    if reactionCount > 0 {
+                        reactionsColumn
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            } else {
+                VStack(spacing: railSpacing) {
+                    activityColumn
+                    audienceColumn
+
+                    if showsShare && isEveryoneAudience {
+                        shareColumn
+                    }
+
+                    if reactionCount > 0 {
+                        reactionsColumn
+                    }
+                }
             }
         }
         .padding(.horizontal, 2)
@@ -146,16 +185,18 @@ struct StoryOwnStoryBottomBar: View {
 
     private var shareColumn: some View {
         Button(action: onShare) {
-            VStack(spacing: 6) {
+            VStack(spacing: columnSpacing) {
                 Image(systemName: "paperplane.fill")
-                    .font(.system(size: 22, weight: .medium))
+                    .font(.system(size: isCompact ? 20 : 22, weight: .medium))
                     .foregroundStyle(chromeColors.messageTextColor)
-                    .frame(height: 32)
-                Text(NSLocalizedString("stories.ownBottom.share", comment: "Share story"))
-                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundStyle(chromeColors.messageTextColor)
-                    .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
-                    .lineLimit(1)
+                    .frame(height: isCompact ? 28 : 32)
+                if !isCompact {
+                    Text(NSLocalizedString("stories.ownBottom.share", comment: "Share story"))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                        .foregroundStyle(chromeColors.messageTextColor)
+                        .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
+                        .lineLimit(1)
+                }
             }
         }
         .buttonStyle(PlainButtonStyle())
@@ -164,12 +205,12 @@ struct StoryOwnStoryBottomBar: View {
 
     private var reactionsColumn: some View {
         Button(action: onReactionsActivity) {
-            VStack(spacing: 6) {
+            VStack(spacing: columnSpacing) {
                 reactionEmojisStack
-                    .frame(height: 32)
+                    .frame(height: isCompact ? 28 : 32)
 
                 Text(MomentsFormat.count(reactionCount, style: .socialMetric))
-                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                    .font(.system(size: legacyPoppinsSize(isCompact ? 11 : 12), weight: .medium))
                     .foregroundStyle(chromeColors.messageTextColor)
                     .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
             }
@@ -188,15 +229,15 @@ struct StoryOwnStoryBottomBar: View {
         let emojis = distinctReactionEmojis
         if emojis.isEmpty {
             Text("❤️")
-                .font(.system(size: 22))
+                .font(.system(size: isCompact ? 20 : 22))
         } else if emojis.count == 1 {
             Text(emojis[0])
-                .font(.system(size: 22))
+                .font(.system(size: isCompact ? 20 : 22))
         } else {
             HStack(spacing: -6) {
                 ForEach(Array(emojis.enumerated()), id: \.offset) { index, emoji in
                     Text(emoji)
-                        .font(.system(size: index == 0 ? 22 : 18))
+                        .font(.system(size: index == 0 ? (isCompact ? 20 : 22) : 18))
                         .shadow(color: labelShadowColor, radius: 3, x: 0, y: 1)
                 }
             }
@@ -205,7 +246,7 @@ struct StoryOwnStoryBottomBar: View {
 
     private var activityColumn: some View {
         Button(action: onViewActivity) {
-            VStack(spacing: 6) {
+            VStack(spacing: columnSpacing) {
                 if !recentViewers.isEmpty {
                      HStack(spacing: -8) {
                          ForEach(Array(recentViewers.enumerated()), id: \.element.id) { index, viewer in
@@ -213,60 +254,82 @@ struct StoryOwnStoryBottomBar: View {
                                  .reversedMask(alignment: .center) {
                                      if index < recentViewers.count - 1 {
                                          Circle()
-                                             .frame(width: 31, height: 31)
-                                             .offset(x: 20)
+                                             .frame(width: isCompact ? 28 : 31, height: isCompact ? 28 : 31)
+                                             .offset(x: isCompact ? 18 : 20)
                                      }
                                  }
                          }
                      }
-                     .frame(height: 32)
+                     .frame(height: isCompact ? 28 : 32)
                 } else {
+                    let iconSide = isCompact
+                        ? AudienceIconMetrics.storyBottomBarCompact
+                        : AudienceIconMetrics.storyBottomBar
                     Image("StoryActivityEmptyIcon")
                         .renderingMode(.template)
                         .resizable()
                         .scaledToFit()
                         .foregroundStyle(chromeColors.messageTextColor)
                         .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
-                        .frame(width:36, height: 36)
+                        .frame(width: iconSide, height: iconSide)
                 }
 
-                Text(NSLocalizedString("stories.ownBottom.activity", comment: "Activity label under avatars"))
-                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                    .foregroundStyle(chromeColors.messageTextColor)
-                    .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
+                if isCompact {
+                    Text(MomentsFormat.count(max(viewers.count, 0), style: .socialMetric))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .medium))
+                        .foregroundStyle(chromeColors.messageTextColor)
+                        .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
+                } else {
+                    Text(NSLocalizedString("stories.ownBottom.activity", comment: "Activity label under avatars"))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                        .foregroundStyle(chromeColors.messageTextColor)
+                        .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
+                }
             }
-            .frame(minWidth: 56)
+            .frame(minWidth: isCompact ? 48 : 56)
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
         .accessibilityLabel(activityAccessibilityLabel)
     }
 
+    @ViewBuilder
     private var audienceColumn: some View {
-        VStack(spacing: 6) {
+        let iconSide = isCompact
+            ? AudienceIconMetrics.storyBottomBarCompact
+            : AudienceIconMetrics.storyBottomBar
+        VStack(spacing: columnSpacing) {
             AudienceIconView(
                 audience: displayAudience,
-                size: AudienceIconMetrics.storyBottomBar,
+                size: iconSide,
                 tintColor: chromeColors.messageTextColor
             )
-            .frame(width: 36, height: 36)
+            .frame(width: iconSide, height: iconSide)
             .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
 
-            Text(audienceTitle)
-                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
-                .foregroundStyle(chromeColors.messageTextColor)
-                .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .frame(maxWidth: 88)
+            if isCompact {
+                Text(storyDurationShortLabel)
+                    .font(.system(size: legacyPoppinsSize(11), weight: .medium))
+                    .foregroundStyle(chromeColors.messageTextColor)
+                    .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
+                    .lineLimit(1)
+            } else {
+                Text(audienceTitle)
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
+                    .foregroundStyle(chromeColors.messageTextColor)
+                    .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .frame(maxWidth: 88)
 
-            Text(storyDurationLabel)
-                .font(.system(size: legacyPoppinsSize(11)))
-                .foregroundStyle(chromeColors.messageTextColor.opacity(0.92))
-                .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
-                .lineLimit(1)
+                Text(storyDurationLabel)
+                    .font(.system(size: legacyPoppinsSize(11)))
+                    .foregroundStyle(chromeColors.messageTextColor.opacity(0.92))
+                    .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
+                    .lineLimit(1)
+            }
         }
-        .frame(minWidth: 56)
+        .frame(minWidth: isCompact ? 48 : 56)
         .accessibilityLabel(
             String(
                 format: NSLocalizedString("stories.ownBottom.audienceDurationAccessibility", comment: "Story audience and duration"),
@@ -315,12 +378,95 @@ struct StoryOwnStoryBottomBar: View {
                     .background(chromeColors.messageBubbleBackground)
             }
         }
-        .frame(width: 28, height: 28)
+        .frame(width: isCompact ? 24 : 28, height: isCompact ? 24 : 28)
         .clipShape(Circle())
         .overlay(
             Circle().stroke(
                 colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(0.12),
                 lineWidth: 1.5
+            )
+        )
+    }
+}
+
+/// Icono de actividad para `systemViewerToolbar` (rail/pill nativo Duo).
+struct StoryOwnToolbarActivityIcon: View {
+    let viewers: [StoryViewer]
+    var isRich: Bool = true
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var recentViewers: [StoryViewer] {
+        Array(viewers.sorted { $0.timestamp > $1.timestamp }.prefix(isRich ? 3 : 2))
+    }
+
+    private var chromeColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    var body: some View {
+        Group {
+            if recentViewers.isEmpty {
+                Image("StoryActivityEmptyIcon")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(chromeColors.messageTextColor)
+                    .frame(width: emptyIconSide, height: emptyIconSide)
+            } else {
+                HStack(spacing: -5) {
+                    ForEach(Array(recentViewers.enumerated()), id: \.element.id) { index, viewer in
+                        toolbarAvatar(viewer)
+                            .reversedMask(alignment: .center) {
+                                if index < recentViewers.count - 1 {
+                                    Circle()
+                                        .frame(width: avatarSide + 2, height: avatarSide + 2)
+                                        .offset(x: avatarSide * 0.7)
+                                }
+                            }
+                    }
+                }
+            }
+        }
+        .frame(width: slotWidth, height: slotHeight)
+        .clipped()
+        .fixedSize()
+    }
+
+    /// Mismo tamaño que audiencia en el rail (`storyBottomBarCompact`).
+    private var emptyIconSide: CGFloat { AudienceIconMetrics.storyBottomBarCompact }
+    private var avatarSide: CGFloat { isRich ? 18 : 16 }
+    private var slotWidth: CGFloat {
+        if recentViewers.isEmpty { return emptyIconSide }
+        let count = CGFloat(min(recentViewers.count, isRich ? 3 : 2))
+        return avatarSide + (count - 1) * (avatarSide * 0.55)
+    }
+    private var slotHeight: CGFloat { emptyIconSide }
+
+    @ViewBuilder
+    private func toolbarAvatar(_ viewer: StoryViewer) -> some View {
+        let side = avatarSide
+        Group {
+            if let path = viewer.profileImagePath,
+               let url = URL(string: path) {
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "person.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(2)
+                    .foregroundStyle(chromeColors.replyBarSecondaryText)
+                    .background(chromeColors.messageBubbleBackground)
+            }
+        }
+        .frame(width: side, height: side)
+        .clipShape(Circle())
+        .overlay(
+            Circle().stroke(
+                colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(0.12),
+                lineWidth: 0.8
             )
         )
     }

@@ -200,6 +200,7 @@
 "userListView.person.plural" = "kişi";
 /* SettingsView */
 "settings.title" = "Ayarlar";
+"settings.selectSection" = "Bir bölüm seç";
 "settings.loading" = "Ayarlar yükleniyor...";
 "settings.account.title" = "Hesabın";
 "settings.account.personalInfo.title" = "Kişisel bilgiler";
