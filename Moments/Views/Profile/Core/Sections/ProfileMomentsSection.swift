@@ -5,6 +5,7 @@ import FirebaseAuth
 enum ProfileMomentsGridMetrics {
     static let spacing: CGFloat = 1
     static let columns = 3
+    static let portraitAspectRatio: CGFloat = 4.0 / 5.0
 
     /// Ancho de la ventana activa (vía window scene) como fallback cuando el caller no aporta uno.
     static var defaultAvailableWidth: CGFloat {
@@ -22,12 +23,14 @@ enum ProfileMomentsGridMetrics {
     static func tileSize(kind: BentoTileKind, unitWidth: CGFloat, spacing: CGFloat = spacing) -> CGSize {
         switch kind {
         case .unit:
-            return CGSize(width: unitWidth, height: unitWidth)
+            return CGSize(width: unitWidth, height: unitWidth / portraitAspectRatio)
         case .tall:
-            return CGSize(width: unitWidth, height: unitWidth * 2 + spacing)
+            return CGSize(width: unitWidth, height: unitWidth / portraitAspectRatio * 2 + spacing)
         case .hero:
-            let side = unitWidth * 2 + spacing
-            return CGSize(width: side, height: side)
+            return CGSize(
+                width: unitWidth * 2 + spacing,
+                height: unitWidth / portraitAspectRatio * 2 + spacing
+            )
         }
     }
 
@@ -168,7 +171,7 @@ struct ModernMomentThumbnail: View {
                 imageView(imageURL: mediaItem.url, feedCrop: mediaItem.feedCrop)
             }
         } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
-            GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+            GridPreviewThumbnailFrame(width: cellWidth, height: cellHeight, settings: moment.gridPreviewSettings) {
                 KFImage(url)
                     .placeholder {
                         Rectangle()
@@ -180,7 +183,7 @@ struct ModernMomentThumbnail: View {
                             )
                             .overlay(ProgressView().tint(Color(hex: "007AFF")))
                     }
-                    .downsampling(size: CGSize(width: size, height: size))
+                    .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
                     .scaleFactor(displayScale)
                     .cancelOnDisappear(true)
                     .resizable()
@@ -334,7 +337,7 @@ struct ModernMomentThumbnail: View {
                         .frame(width: cellWidth, height: cellHeight)
                         .clipped()
                 } else {
-                    GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                    GridPreviewThumbnailFrame(width: cellWidth, height: cellHeight, settings: moment.gridPreviewSettings) {
                         Image(uiImage: thumbnail)
                             .resizable()
                     }
@@ -377,7 +380,7 @@ struct ModernMomentThumbnail: View {
     @ViewBuilder
     private func imageView(imageURL: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
         if let url = getImageURL(from: imageURL) {
-            GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+            GridPreviewThumbnailFrame(width: cellWidth, height: cellHeight, settings: moment.gridPreviewSettings) {
                 KFImage(url)
                     .placeholder {
                         Rectangle()
@@ -394,7 +397,7 @@ struct ModernMomentThumbnail: View {
                             )
                     }
                     .applyingFeedCrop(feedCrop)
-                    .downsampling(size: CGSize(width: size, height: size))
+                    .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
                     .scaleFactor(displayScale)
                     .cancelOnDisappear(true)
                     .resizable()

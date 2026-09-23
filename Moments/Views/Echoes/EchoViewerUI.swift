@@ -122,7 +122,7 @@ struct EchoViewerUI: View {
             )
         }
     }
-
+    
     /// Duo con barra vertical, pliegue o bisagra. El iPhone no entra aquí.
     private var usesDuoSystemChrome: Bool {
         toolbarVerticalEdge != nil || !divisionRegions.isEmpty || hingePose != .unknown
@@ -256,7 +256,7 @@ struct EchoViewerUI: View {
                 Menu {
                     if let uid = Auth.auth().currentUser?.uid {
                         Button(role: .destructive) {
-                            leaveEchoAction(userId: uid)
+                        leaveEchoAction(userId: uid)
                         } label: {
                             Label(NSLocalizedString("echo.viewer.leave", comment: ""), systemImage: "rectangle.portrait.and.arrow.right")
                         }

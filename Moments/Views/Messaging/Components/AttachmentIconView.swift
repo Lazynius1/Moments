@@ -9,6 +9,7 @@ enum AttachmentIcon: String {
     case liveLocation = "AttachmentLiveLocationIcon"
     case voice = "AttachmentVoiceIcon"
     case ephemeral = "AttachmentEphemeralIcon"
+    case storyEphemeral = "AttachmentStoryEphemeralIcon"
     case bookmark = "AttachmentBookmarkIcon"
     case tagged = "AttachmentTaggedIcon"
     case comments = "AttachmentCommentsIcon"

@@ -171,7 +171,7 @@ struct ProfileMomentZoomDetailDestination: View {
         .navigationInteractivePopEnabled()
         .toolbar(.hidden, for: .tabBar)
         .momentsFloatingTabBarHidden()
-        .navigationTransition(.zoom(sourceID: destination.zoomSourceID, in: namespace))
+        .modifier(PaneBoundedZoomTransition(sourceID: destination.zoomSourceID, namespace: namespace))
     }
 }
 
@@ -259,7 +259,7 @@ struct MomentZoomDetailDestination: View {
         ))
         .toolbar(.hidden, for: .tabBar)
         .momentsFloatingTabBarHidden()
-        .navigationTransition(.zoom(sourceID: destination.zoomSourceID, in: namespace))
+        .modifier(PaneBoundedZoomTransition(sourceID: destination.zoomSourceID, namespace: namespace))
     }
 
     private func dismissMapIfNeeded() {
@@ -289,6 +289,20 @@ struct MomentZoomDetailDestination: View {
             return moments[destination.initialIndex]
         }
         return moments.first
+    }
+}
+
+private struct PaneBoundedZoomTransition: ViewModifier {
+    let sourceID: String
+    let namespace: Namespace.ID
+    @Environment(\.momentsSplitPane) private var momentsSplitPane
+
+    func body(content: Content) -> some View {
+        if momentsSplitPane {
+            content
+        } else {
+            content.navigationTransition(.zoom(sourceID: sourceID, in: namespace))
+        }
     }
 }
 

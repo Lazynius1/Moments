@@ -50,9 +50,30 @@ extension Moment {
 }
 
 struct GridPreviewThumbnailFrame<Content: View>: View {
-    let size: CGFloat
+    let width: CGFloat
+    let height: CGFloat
     let settings: MomentGridPreviewSettings
     @ViewBuilder let content: () -> Content
+
+    init(
+        size: CGFloat,
+        settings: MomentGridPreviewSettings,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(width: size, height: size, settings: settings, content: content)
+    }
+
+    init(
+        width: CGFloat,
+        height: CGFloat,
+        settings: MomentGridPreviewSettings,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.width = width
+        self.height = height
+        self.settings = settings
+        self.content = content
+    }
 
     private var backgroundColor: Color {
         settings.background == .black ? .black : .white
@@ -68,11 +89,13 @@ struct GridPreviewThumbnailFrame<Content: View>: View {
                 .aspectRatio(contentMode: settings.fitMode == .fit ? .fit : .fill)
                 .scaleEffect(settings.scale)
                 .offset(
-                    x: settings.offsetX * size,
-                    y: settings.offsetY * size
+                    x: settings.offsetX * width,
+                    // Mantiene la escala histórica de los offsets guardados,
+                    // que se definieron respecto al ancho del grid 1:1.
+                    y: settings.offsetY * width
                 )
         }
-        .frame(width: size, height: size)
+        .frame(width: width, height: height)
         .clipped()
     }
 }

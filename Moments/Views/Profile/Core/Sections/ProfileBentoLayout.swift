@@ -69,52 +69,11 @@ struct ProfileGridTileDescriptor: Equatable {
 
 enum ProfileBentoTileAssigner {
     static func assign(moments: [Moment]) -> [ProfileGridTileDescriptor] {
-        guard !moments.isEmpty else { return [] }
-
-        // Hero/tall se decide en orden cronológico (ignorando pines) y se aplica por id.
-        // Así pinear solo reordena + badge, sin promover a hero ni cambiar tamaños.
-        let chronological = moments.sorted { lhs, rhs in
-            if lhs.timestamp != rhs.timestamp {
-                return lhs.timestamp > rhs.timestamp
-            }
-            return (lhs.id ?? "") < (rhs.id ?? "")
-        }
-
-        var chronoKinds = Array(repeating: BentoTileKind.unit, count: chronological.count)
-        if let heroIndex = heroCandidateIndex(in: chronological) {
-            chronoKinds[heroIndex] = .hero
-        }
-
-        var tallCount = 0
-        for index in chronological.indices {
-            guard index < 12 else { break }
-            guard chronoKinds[index] == .unit else { continue }
-            guard tallCount < 2 else { break }
-            guard chronological[index].isReelCandidate else { continue }
-            chronoKinds[index] = .tall
-            tallCount += 1
-        }
-
-        var kindsByMomentId: [String: BentoTileKind] = [:]
-        for (moment, kind) in zip(chronological, chronoKinds) {
-            if let id = moment.id {
-                kindsByMomentId[id] = kind
-            }
-        }
-
-        return moments.map { moment in
-            let kind = moment.id.flatMap { kindsByMomentId[$0] } ?? .unit
-            return ProfileGridTileDescriptor.standard(for: moment, layoutKind: kind)
-        }
+        simple(moments: moments)
     }
 
     static func simple(moments: [Moment]) -> [ProfileGridTileDescriptor] {
         moments.map { ProfileGridTileDescriptor.standard(for: $0) }
-    }
-
-    private static func heroCandidateIndex(in moments: [Moment]) -> Int? {
-        let candidates = Array(moments.indices.prefix(min(moments.count, 9)))
-        return candidates.first(where: { moments[$0].isReelCandidate })
     }
 }
 

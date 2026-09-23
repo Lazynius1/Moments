@@ -500,6 +500,35 @@ struct StoryViewerScreen: View {
                     .zIndex(20)
             }
 
+            if !isUIHidden && isKeyboardVisible && !isOwnStory && authorAllowsReactions {
+                Color.black.opacity(0.32)
+                    .frame(
+                        width: geometry.size.width + geometry.safeAreaInsets.leading + geometry.safeAreaInsets.trailing,
+                        height: geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
+                    )
+                    .position(
+                        x: geometry.size.width / 2 + (geometry.safeAreaInsets.trailing - geometry.safeAreaInsets.leading) / 2,
+                        y: geometry.size.height / 2 + (geometry.safeAreaInsets.bottom - geometry.safeAreaInsets.top) / 2
+                    )
+                    .allowsHitTesting(false)
+                    .zIndex(3)
+
+                StoryQuickReactionsGrid(
+                    reactions: Array(EmojiReactionDefaults.story.prefix(8))
+                ) { reaction in
+                    isTextFieldFocused = false
+                    sendReaction(
+                        reaction,
+                        sourcePoint: CGPoint(x: captureRect.midX, y: captureRect.midY)
+                    )
+                }
+                .position(
+                    x: captureRect.midX,
+                    y: captureRect.minY + max(140, (captureRect.height - keyboardHeight) * 0.62)
+                )
+                .zIndex(4)
+            }
+
             // MARK: - 5. INPUT AREA
             if !isUIHidden {
                 if usesDuoSystemViewerChrome {
@@ -970,21 +999,21 @@ struct StoryViewerScreen: View {
                 if showsViewerActions {
                     Button(action: toggleQuickActions) {
                         Image(systemName: "ellipsis")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(MomentsChromeGlass.contentColor(for: colorScheme))
                             .font(.system(size: 16, weight: .medium))
                             .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.001))
-                            .momentsChromeGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true, style: .nativeTinted)
                     }
                     .buttonStyle(PlainButtonStyle())
 
                     Button(action: onClose) {
                         Image(systemName: "xmark")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(MomentsChromeGlass.contentColor(for: colorScheme))
                             .font(.system(size: 16, weight: .medium))
                             .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.001))
-                            .momentsChromeGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true, style: .nativeTinted)
                     }
                 }
             }
@@ -1131,7 +1160,7 @@ struct StoryViewerScreen: View {
                             showReactions.toggle()
                         }
                     } label: {
-                        Label("stories.reactions", systemImage: "face.smiling")
+                        Label("stories.reactions", systemImage: "heart")
                     }
                 }
 
@@ -1140,7 +1169,15 @@ struct StoryViewerScreen: View {
                         selection: $selectedPhoto,
                         matching: .images
                     ) {
-                        Label("chat.ephemeral.title", systemImage: "camera")
+                        Label {
+                            Text("chat.ephemeral.title")
+                        } icon: {
+                            AttachmentIconView(
+                                icon: .storyEphemeral,
+                                size: 22,
+                                tintColor: storyViewerChromeColors.messageTextColor
+                            )
+                        }
                     }
                 }
 
@@ -1332,7 +1369,7 @@ struct StoryViewerScreen: View {
     private var glassmorphicBottomArea: some View {
         return VStack(spacing: 12) {
             // ✅ REACCIONES: Solo mostrar si el autor las permite
-            if showReactions && authorAllowsReactions {
+            if showReactions && authorAllowsReactions && !isKeyboardVisible {
                 StoryReactionsStrip(
                     reactions: reactions,
                     showReactions: showReactions,
@@ -1413,6 +1450,7 @@ struct StoryViewerScreen: View {
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
+                            .frame(maxWidth: .infinity)
                             .background(Color.white.opacity(0.001))
                             .momentsChromeGlass(in: Capsule(), interactive: !isVanishActiveWithAuthor)
                             .overlay {
@@ -1442,9 +1480,9 @@ struct StoryViewerScreen: View {
 
                         // Iconos agrupados pegados a la derecha del input
                         HStack(spacing: 2) {
-                            if authorAllowsReactions && (messageText.isEmpty || !authorAllowsMessages) {
+                            if !isKeyboardVisible && authorAllowsReactions && (messageText.isEmpty || !authorAllowsMessages) {
                                 storyViewerReplyActionButton(
-                                    systemImage: showReactions ? "face.smiling.fill" : "face.smiling",
+                                    systemImage: showReactions ? "heart.fill" : "heart",
                                     accessibilityLabel: NSLocalizedString("stories.reactions", comment: "")
                                 ) {
                                     MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
@@ -1474,9 +1512,9 @@ struct StoryViewerScreen: View {
                                 }
                             }
 
-                            if authorAllowsEphemeralPhotos {
+                            if !isKeyboardVisible && authorAllowsEphemeralPhotos {
                                 storyViewerReplyActionButton(
-                                    attachmentIcon: .camera,
+                                    attachmentIcon: .storyEphemeral,
                                     accessibilityLabel: NSLocalizedString("chat.ephemeral.title", comment: "")
                                 ) {
                                     showEphemeralPicker = true
@@ -1540,7 +1578,7 @@ struct StoryViewerScreen: View {
 
             if authorAllowsReactions {
                 storyViewerReplyActionButton(
-                    systemImage: showReactions ? "face.smiling.fill" : "face.smiling",
+                    systemImage: showReactions ? "heart.fill" : "heart",
                     accessibilityLabel: NSLocalizedString("stories.reactions", comment: "")
                 ) {
                     isDuoReplyComposerPresented = true
@@ -1552,7 +1590,7 @@ struct StoryViewerScreen: View {
 
             if authorAllowsEphemeralPhotos {
                 storyViewerReplyActionButton(
-                    attachmentIcon: .camera,
+                    attachmentIcon: .storyEphemeral,
                     accessibilityLabel: NSLocalizedString("chat.ephemeral.title", comment: "")
                 ) {
                     showEphemeralPicker = true

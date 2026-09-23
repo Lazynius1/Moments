@@ -297,6 +297,10 @@ struct UserProfileView: View {
     @Environment(\.exploreSecondaryClose) private var exploreSecondaryClose
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    @Environment(\.momentsSplitPane) private var momentsSplitPane
+    @State private var hingePose: UserProfileHingePose = .unknown
+    @State private var paneDetailMomentId: String?
     @State private var socialConnectionsRoute: SocialConnectionsRoute?
     private let userId: String
     @StateObject private var messagingViewModel = MessagingViewModel()
@@ -362,7 +366,110 @@ struct UserProfileView: View {
     }
 
     var body: some View {
-        profileContent
+        userProfileDuoContainer
+    }
+
+    private var userProfileDuoContainer: some View {
+        ZStack {
+            MomentsStableSplit(
+                usesDuo: usesDuoUserProfileChrome,
+                expanded: usesExpandedUserProfile,
+                beside: detailIsBesideProfile
+            ) {
+                profileContent
+            } secondary: {
+                userProfileSecondaryPane
+            }
+            .opacity(showsCompactDuoDetail ? 0 : 1)
+            .allowsHitTesting(!showsCompactDuoDetail)
+
+            if showsCompactDuoDetail {
+                userProfileSecondaryPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+        }
+        .modifier(UserProfileHingeObserver(pose: $hingePose))
+        .onChange(of: selectedTab) { _, _ in
+            momentZoomDestination = nil
+            paneDetailMomentId = nil
+        }
+    }
+
+    private var usesDuoUserProfileChrome: Bool {
+        guard !momentsSplitPane else { return false }
+        return toolbarVerticalEdge != nil || !divisionRegions.isEmpty || hingePose != .unknown
+    }
+
+    private var usesExpandedUserProfile: Bool {
+        guard usesDuoUserProfileChrome else { return false }
+        if hingePose == .closed { return false }
+        return hingePose == .partiallyOpen || hingePose == .fullyOpen || !divisionRegions.isEmpty
+    }
+
+    private var detailIsBesideProfile: Bool {
+        if let division = divisionRegions.first(where: { $0.width > 1 && $0.height > 1 }) {
+            return division.height >= division.width
+        }
+        return toolbarVerticalEdge != nil
+    }
+
+    private var showsCompactDuoDetail: Bool {
+        guard usesDuoUserProfileChrome, !usesExpandedUserProfile else { return false }
+        return momentZoomDestination != nil
+    }
+
+    private var userProfileZoomNavigation: Binding<ProfileMomentZoomDestination?> {
+        if usesDuoUserProfileChrome {
+            return .constant(nil)
+        }
+        return $momentZoomDestination
+    }
+
+    @ViewBuilder
+    private var userProfileSecondaryPane: some View {
+        if let destination = userProfilePaneDestination {
+            NavigationStack {
+                ProfileMomentZoomDetailDestination(
+                    destination: destination,
+                    moments: momentsForZoomDestination(destination),
+                    namespace: profileZoomNamespace,
+                    continuityMomentId: paneDetailMomentId,
+                    onVisibleMomentId: { paneDetailMomentId = $0 },
+                    onClose: {
+                        momentZoomDestination = nil
+                        paneDetailMomentId = userProfileGridMoments(for: selectedTab).first?.id
+                    }
+                )
+                .id(destination.zoomSourceID)
+            }
+        } else {
+            ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var userProfilePaneDestination: ProfileMomentZoomDestination? {
+        if let momentZoomDestination { return momentZoomDestination }
+        guard usesExpandedUserProfile else { return nil }
+        let moments = userProfileGridMoments(for: selectedTab)
+        guard !moments.isEmpty else { return nil }
+        let matched = paneDetailMomentId.flatMap { id in
+            moments.firstIndex(where: { $0.id == id })
+        }
+        let index = matched ?? 0
+        return ProfileMomentZoomDestination(
+            zoomSourceID: "user-profile-split-\(selectedTab.rawValue)",
+            initialIndex: index,
+            initialMomentId: moments[index].id,
+            feedKind: selectedTab == .tagged ? .userProfileTagged : .userProfileMoments
+        )
+    }
+
+    private func userProfileGridMoments(for tab: UserProfileTabType) -> [Moment] {
+        switch tab {
+        case .moments: return viewModel.moments
+        case .tagged: return viewModel.taggedMoments
+        }
     }
 
     private var profileContent: some View {
@@ -371,17 +478,18 @@ struct UserProfileView: View {
             let safeAreaBottom = geometry.safeAreaInsets.bottom
 
             ZStack {
-                EnhancedProfileBackground(
-                    profileImagePath: viewModel.userProfile?.profileImagePath,
-                    scrollOffset: scrollOffset,
-                    profileTheme: viewModel.userProfile?.currentProfileTheme ?? .default,
-                    user: viewModel.userProfile
-                )
-                .ignoresSafeArea(.all, edges: .all)
-
                 contentView(safeAreaTop: safeAreaTop, safeAreaBottom: safeAreaBottom)
                     .frame(maxWidth: 760)
                     .frame(maxWidth: .infinity)
+                    .background {
+                        EnhancedProfileBackground(
+                            profileImagePath: viewModel.userProfile?.profileImagePath,
+                            scrollOffset: scrollOffset,
+                            profileTheme: viewModel.userProfile?.currentProfileTheme ?? .default,
+                            user: viewModel.userProfile
+                        )
+                        .ignoresSafeArea()
+                    }
 
                 ProfileGridHeroDetailLayer(
                     coordinator: heroCoordinator,
@@ -417,6 +525,7 @@ struct UserProfileView: View {
                 .ignoresSafeArea()
                 .zIndex(200)
             }
+            .modifier(SplitPaneClipModifier())
             .offlineBannerOverlay()
             .coordinateSpace(name: "profileHeroStage")
         }
@@ -448,7 +557,7 @@ struct UserProfileView: View {
                 profileZoomNamespace: profileZoomNamespace
             )
         }
-        .navigationDestination(item: $momentZoomDestination) { destination in
+        .navigationDestination(item: userProfileZoomNavigation) { destination in
             ProfileMomentZoomDetailDestination(
                 destination: destination,
                 moments: momentsForZoomDestination(destination),
@@ -739,6 +848,36 @@ struct UserProfileView: View {
         }
     }
 
+}
+
+private enum UserProfileHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+private struct UserProfileHingeObserver: ViewModifier {
+    @Binding var pose: UserProfileHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
+        }
+    }
 }
 
 struct UserProfileView_Previews: PreviewProvider {

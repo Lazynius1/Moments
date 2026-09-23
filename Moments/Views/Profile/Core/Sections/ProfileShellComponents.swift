@@ -156,6 +156,10 @@ struct ModernProfileContentView: View {
             }
         }
         .modifier(ProfileHingeObserver(pose: $hingePose))
+        .onChange(of: selectedProfileTab) { _, _ in
+            zoomDestination = nil
+            paneDetailMomentId = nil
+        }
     }
 
     private var profileColumn: some View {
@@ -507,14 +511,52 @@ struct ModernProfileContentView: View {
 
     @ViewBuilder
     private var profileSecondaryPane: some View {
-        if let destination = zoomDestination {
+        if let destination = paneDetailDestination {
             NavigationStack {
                 profilePushedDetail(destination)
                     .id(destination.zoomSourceID)
             }
         } else {
             ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
-                .ignoresSafeArea()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// Con el split abierto el detalle ya muestra un momento. Si no hay uno elegido, el primero del grid.
+    private var paneDetailDestination: ProfileMomentZoomDestination? {
+        if let zoomDestination { return zoomDestination }
+        guard usesExpandedProfile else { return nil }
+        return defaultSplitDestination
+    }
+
+    private var defaultSplitDestination: ProfileMomentZoomDestination? {
+        let moments = gridMoments(for: selectedProfileTab)
+        guard !moments.isEmpty else { return nil }
+        let matched = paneDetailMomentId.flatMap { id in
+            moments.firstIndex(where: { $0.id == id })
+        }
+        let index = matched ?? 0
+        return ProfileMomentZoomDestination(
+            zoomSourceID: "profile-split-\(selectedProfileTab.rawValue)",
+            initialIndex: index,
+            initialMomentId: moments[index].id,
+            feedKind: feedKind(for: selectedProfileTab)
+        )
+    }
+
+    private func gridMoments(for tab: ProfileTabType) -> [Moment] {
+        switch tab {
+        case .moments: return viewModel.moments
+        case .saved: return savedMomentsViewModel.moments
+        case .tagged: return viewModel.taggedMoments
+        }
+    }
+
+    private func feedKind(for tab: ProfileTabType) -> ProfileMomentZoomFeedKind {
+        switch tab {
+        case .moments: return .ownMoments
+        case .saved: return .savedMoments
+        case .tagged: return .taggedMoments
         }
     }
 
@@ -530,7 +572,10 @@ struct ModernProfileContentView: View {
             } : nil,
             continuityMomentId: paneDetailMomentId,
             onVisibleMomentId: { paneDetailMomentId = $0 },
-            onClose: usesDuoProfileChrome ? { zoomDestination = nil } : nil
+            onClose: usesDuoProfileChrome ? {
+                zoomDestination = nil
+                paneDetailMomentId = gridMoments(for: selectedProfileTab).first?.id
+            } : nil
         )
     }
 
@@ -574,7 +619,9 @@ struct ModernProfileContentView: View {
         case .userProfileMoments, .userProfileTagged:
             return []
         case .savedMoments:
-            return heroCoordinator.zoomMomentsSnapshot
+            return heroCoordinator.zoomMomentsSnapshot.isEmpty
+                ? savedMomentsViewModel.moments
+                : heroCoordinator.zoomMomentsSnapshot
         }
     }
 

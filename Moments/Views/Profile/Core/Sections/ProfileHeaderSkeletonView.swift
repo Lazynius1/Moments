@@ -62,9 +62,7 @@ struct ProfileHeaderSkeletonView: View {
 struct ProfileMomentsGridSkeletonView: View {
     @Environment(\.colorScheme) private var colorScheme
 
-    // Misma mezcla hero/tall/unit que un grid real con contenido variado,
-    // en vez de una cuadrícula uniforme que no anticipa el layout final.
-    private let tileKinds: [BentoTileKind] = [.hero, .unit, .unit, .unit, .tall, .unit, .unit, .unit, .unit]
+    private let tileKinds = Array(repeating: BentoTileKind.unit, count: 9)
 
     private func surfaceColor(for index: Int) -> Color {
         let base = colorScheme == .dark ? Color.white : Color.black

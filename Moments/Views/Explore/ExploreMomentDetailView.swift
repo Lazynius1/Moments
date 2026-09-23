@@ -17,6 +17,7 @@ struct ExploreMomentDetailView: View {
     @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
     @Environment(\.dismiss) private var dismiss
     @Environment(\.exploreSecondaryClose) private var exploreSecondaryClose
+    @Environment(\.momentsSplitPane) private var momentsSplitPane
 
     @StateObject private var firestoreService = FirestoreService.shared
     @State private var currentIndex: Int
@@ -85,12 +86,13 @@ struct ExploreMomentDetailView: View {
     var body: some View {
         ZStack {
             ZStack {
-                ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
-                    .ignoresSafeArea()
-                    .opacity(backgroundOpacity)
-
                 Color.clear
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background {
+                        ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                            .ignoresSafeArea()
+                            .opacity(backgroundOpacity)
+                    }
                     .onGeometryChange(for: CGSize.self) { proxy in
                         proxy.size
                     } action: { size in
@@ -102,6 +104,7 @@ struct ExploreMomentDetailView: View {
                     .overlay {
                         exploreMomentsScrollView()
                     }
+                    .clipped()
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                     .gesture(exploreDismissDragGesture)
@@ -369,7 +372,7 @@ struct ExploreMomentDetailView: View {
                 .padding(.bottom, 24)
                 .feedScrollVisibilityAnchor()
             }
-            .scrollClipDisabled()
+            .scrollClipDisabled(!momentsSplitPane)
             .environment(feedViewModel)
             .environment(\.momentsViewportSize, detailLayoutSize)
             .frame(maxWidth: .infinity, maxHeight: .infinity)

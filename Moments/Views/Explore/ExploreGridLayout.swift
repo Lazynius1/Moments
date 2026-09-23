@@ -47,7 +47,7 @@ struct ExploreGridTileDescriptor: Equatable {
 
         if moment.isReelCandidate, layoutKind == .hero {
             visualRole = .reelHero
-        } else if moment.isReelCandidate, layoutKind == .tall {
+        } else if moment.isReelCandidate {
             visualRole = .reelTall
         } else if isVideo {
             visualRole = .video
@@ -59,45 +59,21 @@ struct ExploreGridTileDescriptor: Equatable {
             layoutKind: layoutKind,
             visualRole: visualRole,
             showsPlayCue: isVideo,
-            showsDuration: isVideo && (layoutKind == .hero || layoutKind == .tall)
+            showsDuration: isVideo && moment.isReelCandidate
         )
     }
 }
 
 enum ExploreBentoTileAssigner {
-    /// Patrón mosaic fijo de Explore (cada 12 ítems).
-    ///
-    /// El masonry coloca en orden de array, así que los héroes van en posiciones
-    /// 0 y 11 del ciclo — no en 3/11 como el quilt por filas antiguo.
-    /// - 0: héroe 2×2 arriba-izquierda
-    /// - 1…10: unidades que rellenan alrededor
-    /// - 11: héroe 2×2 abajo-derecha
-    ///
-    /// Además, hasta 2 verticales (1×2) en slots 4 y 7 si el momento es vídeo/reel.
     static func assign(moments: [Moment]) -> [ExploreGridTileDescriptor] {
-        moments.enumerated().map { index, moment in
-            let layoutKind = layoutKind(for: moment, at: index)
-            return ExploreGridTileDescriptor.standard(for: moment, layoutKind: layoutKind)
-        }
-    }
-
-    private static func layoutKind(for moment: Moment, at index: Int) -> ExploreBentoTileKind {
-        let slot = index % 12
-
-        switch slot {
-        case 0, 11:
-            return .hero
-        case 4, 7 where moment.hasVideoMedia || moment.isReelCandidate:
-            return .tall
-        default:
-            return .unit
-        }
+        moments.map { ExploreGridTileDescriptor.standard(for: $0) }
     }
 }
 
 enum ExploreMomentsGridMetrics {
     static let spacing: CGFloat = 1
-    static let columns = 3
+    static let columns = 2
+    static let portraitAspectRatio: CGFloat = 4.0 / 5.0
 
     static func columnWidth(for availableWidth: CGFloat) -> CGFloat {
         let totalSpacing = spacing * CGFloat(columns - 1)
@@ -107,12 +83,14 @@ enum ExploreMomentsGridMetrics {
     static func tileSize(kind: ExploreBentoTileKind, unitWidth: CGFloat, spacing: CGFloat = spacing) -> CGSize {
         switch kind {
         case .unit:
-            return CGSize(width: unitWidth, height: unitWidth)
+            return CGSize(width: unitWidth, height: unitWidth / portraitAspectRatio)
         case .tall:
-            return CGSize(width: unitWidth, height: unitWidth * 2 + spacing)
+            return CGSize(width: unitWidth, height: unitWidth / portraitAspectRatio * 2 + spacing)
         case .hero:
-            let side = unitWidth * 2 + spacing
-            return CGSize(width: side, height: side)
+            return CGSize(
+                width: unitWidth * 2 + spacing,
+                height: unitWidth / portraitAspectRatio * 2 + spacing
+            )
         }
     }
 

@@ -1081,8 +1081,14 @@ struct ChatMessageContextMenuOverlay: View {
 
         return ChatMessageMenuLayout(
             messageOffsetY: messageOffsetY,
-            reactionsCenter: CGPoint(x: centerX, y: reactionsCenterY),
-            menuCenter: CGPoint(x: clampedCenterX(scaled.midX, itemWidth: menuEstimatedWidth), y: menuCenterY),
+            reactionsCenter: CGPoint(
+                x: centerX,
+                y: clampedCenterY(reactionsCenterY, itemHeight: reactionPanelHeight)
+            ),
+            menuCenter: CGPoint(
+                x: clampedCenterX(scaled.midX, itemWidth: menuEstimatedWidth),
+                y: clampedCenterY(menuCenterY, itemHeight: menuHeight)
+            ),
             reactionsAreAbove: true
         )
     }
@@ -1093,6 +1099,14 @@ struct ChatMessageContextMenuOverlay: View {
         let maxCenterX = containerSize.width - horizontalInset - half
         guard maxCenterX >= minCenterX else { return containerSize.width / 2 }
         return min(max(centerX, minCenterX), maxCenterX)
+    }
+
+    private func clampedCenterY(_ centerY: CGFloat, itemHeight: CGFloat) -> CGFloat {
+        let half = itemHeight / 2
+        let minCenterY = layoutTopMargin + half
+        let maxCenterY = containerSize.height - layoutBottomMargin - half
+        guard maxCenterY >= minCenterY else { return containerSize.height / 2 }
+        return min(max(centerY, minCenterY), maxCenterY)
     }
 
     private func menuPanelHeight(

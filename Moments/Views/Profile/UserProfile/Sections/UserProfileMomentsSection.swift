@@ -89,7 +89,7 @@ struct UserModernMomentThumbnail: View {
                 imageView(imageURL: mediaItem.url, feedCrop: mediaItem.feedCrop)
             }
         } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
-            GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+            GridPreviewThumbnailFrame(width: cellWidth, height: cellHeight, settings: moment.gridPreviewSettings) {
                 KFImage(url)
                     .placeholder {
                         Rectangle()
@@ -101,7 +101,7 @@ struct UserModernMomentThumbnail: View {
                             )
                             .overlay(ProgressView().tint(UserProfileColors.accent))
                     }
-                    .downsampling(size: CGSize(width: size, height: size))
+                    .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
                     .scaleFactor(displayScale)
                     .cancelOnDisappear(true)
                     .resizable()
@@ -250,7 +250,7 @@ struct UserModernMomentThumbnail: View {
                         .frame(width: cellWidth, height: cellHeight)
                         .clipped()
                 } else {
-                    GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                    GridPreviewThumbnailFrame(width: cellWidth, height: cellHeight, settings: moment.gridPreviewSettings) {
                         Image(uiImage: thumbnail)
                             .resizable()
                     }
@@ -293,7 +293,7 @@ struct UserModernMomentThumbnail: View {
     @ViewBuilder
     private func imageView(imageURL: String, feedCrop: MediaItemFeedCrop? = nil) -> some View {
         if let url = getImageURL(from: imageURL) {
-            GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+            GridPreviewThumbnailFrame(width: cellWidth, height: cellHeight, settings: moment.gridPreviewSettings) {
                 KFImage(url)
                     .placeholder {
                         Rectangle()
@@ -310,7 +310,7 @@ struct UserModernMomentThumbnail: View {
                             )
                     }
                     .applyingFeedCrop(feedCrop)
-                    .downsampling(size: CGSize(width: size, height: size))
+                    .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
                     .scaleFactor(displayScale)
                     .cancelOnDisappear(true)
                     .resizable()

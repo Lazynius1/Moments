@@ -32,6 +32,7 @@ struct ModernMomentDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
     @Environment(\.momentsViewportSize) private var momentsViewportSize
+    @Environment(\.momentsSplitPane) private var momentsSplitPane
     
     // ✅ Estados para el menú contextual
     @State private var showContextMenu = false
@@ -105,12 +106,13 @@ struct ModernMomentDetailView: View {
     var body: some View {
         ZStack {
             ZStack {
-                ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
-                    .ignoresSafeArea()
-                    .opacity(backgroundOpacity)
-
                 Color.clear
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background {
+                        ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                            .ignoresSafeArea()
+                            .opacity(backgroundOpacity)
+                    }
                     .onGeometryChange(for: CGSize.self) { proxy in
                         proxy.size
                     } action: { size in
@@ -122,6 +124,7 @@ struct ModernMomentDetailView: View {
                     .overlay {
                         modernMomentsScrollView()
                     }
+                    .clipped()
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                     .gesture(profileDetailDismissDragGesture)
@@ -571,7 +574,7 @@ struct ModernMomentDetailView: View {
                 .padding(.bottom, 24)
                 .feedScrollVisibilityAnchor(transform: { mergedVisibilityValues($0) })
             }
-            .scrollClipDisabled()
+            .scrollClipDisabled(!momentsSplitPane)
             .environment(\.profileDetailDirectVideoPlayback, restrictPlaybackToInitialIndex)
             .environment(feedViewModel)
             .environment(\.momentsViewportSize, detailLayoutSize)

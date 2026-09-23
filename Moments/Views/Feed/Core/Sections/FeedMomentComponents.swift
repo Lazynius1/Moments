@@ -378,7 +378,11 @@ struct ModernPostCardView: View {
         guard maxWidth > 0 else { return 300 }
 
         let ratio = MomentFeedCrop.feedCardAspect(from: detectedAspectRatio)
-        return maxWidth / ratio
+        let ideal = maxWidth / max(ratio, 0.01)
+        // En vertical el pane es ancho y bajo: sin este tope el post sale enorme.
+        // En horizontal el ancho del pane ya deja el alto por debajo del tope.
+        guard containerSize.height > 1 else { return ideal }
+        return min(ideal, containerSize.height)
     }
 
     var body: some View {

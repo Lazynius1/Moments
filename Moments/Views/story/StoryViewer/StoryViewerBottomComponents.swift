@@ -472,6 +472,38 @@ struct StoryOwnToolbarActivityIcon: View {
     }
 }
 
+/// Ocho reacciones sueltas sobre la historia, en dos filas, con el teclado abierto.
+struct StoryQuickReactionsGrid: View {
+    let reactions: [String]
+    let onReaction: (String) -> Void
+
+    private var rows: [[String]] {
+        let items = Array(reactions.prefix(8))
+        guard !items.isEmpty else { return [] }
+        let split = (items.count + 1) / 2
+        return [Array(items.prefix(split)), Array(items.dropFirst(split))].filter { !$0.isEmpty }
+    }
+
+    var body: some View {
+        VStack(spacing: 18) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: 22) {
+                    ForEach(Array(row.enumerated()), id: \.offset) { _, reaction in
+                        Button {
+                            onReaction(reaction)
+                        } label: {
+                            Text(reaction)
+                                .font(.system(size: 46))
+                                .frame(width: 56, height: 56)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct StoryReactionsStrip: View {
     let reactions: [String]
     let showReactions: Bool

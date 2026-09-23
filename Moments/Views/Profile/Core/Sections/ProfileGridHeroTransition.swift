@@ -185,6 +185,42 @@ struct ProfileGridHeroPresentation {
     let shadowOpacity: CGFloat
 }
 
+struct ProfileGridPeekLayout {
+    let heroFrame: CGRect
+    let menuFrame: CGRect
+    let placesMenuBesideHero: Bool
+}
+
+private enum ProfileGridHeroHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+private struct ProfileGridHeroHingeObserver: ViewModifier {
+    @Binding var pose: ProfileGridHeroHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .closed:
+                    pose = .closed
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
+        }
+    }
+}
+
 enum ProfileGridHeroLayout {
     static let maxCardWidth: CGFloat = 350
     static let peekCornerRadius: CGFloat = FeedMomentCardLayout.mediaCornerRadius
@@ -194,6 +230,8 @@ enum ProfileGridHeroLayout {
     static let detailHeaderBlockHeight: CGFloat = 80
     static let menuSpacing: CGFloat = 14
     static let peekFooterHeight: CGFloat = 56
+    static let peekVerticalInset: CGFloat = 12
+    static let peekMinimumCardHeight: CGFloat = 120
     /// Mínimo width/height → retrato más alto (3:4 → altura = width × 4/3)
     static let peekMinWidthOverHeight: CGFloat = 3.0 / 4.0
     /// Máximo width/height → landscape (16:9)
@@ -273,46 +311,163 @@ enum ProfileGridHeroLayout {
     }
 
     static func cardWidth(for containerWidth: CGFloat) -> CGFloat {
-        min(containerWidth - 32, maxCardWidth)
+        max(0, min(containerWidth - 32, maxCardWidth))
     }
 
-    static func peekCardFrame(
+    static func maximumVisibleMenuHeight(
+        containerSize: CGSize,
+        safeAreaInsets: EdgeInsets
+    ) -> CGFloat {
+        let availableHeight = max(
+            0,
+            containerSize.height - safeAreaInsets.top - safeAreaInsets.bottom - peekVerticalInset * 2
+        )
+        let reservedCardHeight = min(peekMinimumCardHeight, availableHeight)
+        return max(0, availableHeight - reservedCardHeight - menuSpacing)
+    }
+
+    static func peekLayout(
         containerSize: CGSize,
         safeAreaInsets: EdgeInsets,
         moment: Moment,
         showPinConfirm: Bool,
-        menuBlockHeight: CGFloat
-    ) -> CGRect {
-        let width = cardWidth(for: containerSize.width)
+        menuBlockHeight: CGFloat,
+        menuPanelWidth: CGFloat,
+        usesDuoClosedLandscape: Bool
+    ) -> ProfileGridPeekLayout {
+        let contentWidth = max(
+            0,
+            containerSize.width - safeAreaInsets.leading - safeAreaInsets.trailing - peekVerticalInset * 2
+        )
+        let availableHeight = max(
+            0,
+            containerSize.height - safeAreaInsets.top - safeAreaInsets.bottom - peekVerticalInset * 2
+        )
+        let requestedMenuHeight: CGFloat = showPinConfirm ? 220 : menuBlockHeight
+        let menuHeight = min(
+            requestedMenuHeight,
+            maximumVisibleMenuHeight(containerSize: containerSize, safeAreaInsets: safeAreaInsets)
+        )
+        let boundedMenuWidth = min(max(0, menuPanelWidth), contentWidth)
+        let ratio = clampedPeekWidthOverHeight(moment.aspectRatio)
+        let cardWidthLimit = min(maxCardWidth, contentWidth)
+        if !usesDuoClosedLandscape {
+            let width = cardWidth(for: containerSize.width)
+            let height = peekCardHeight(width: width, aspectRatio: moment.aspectRatio)
+            let stackHeight = height + menuSpacing + menuHeight
+            let minCenter = safeAreaInsets.top + 20 + stackHeight / 2
+            let maxCenter = containerSize.height - safeAreaInsets.bottom - 20 - stackHeight / 2
+            let centerY = minCenter > maxCenter
+                ? containerSize.height / 2
+                : min(maxCenter, max(minCenter, containerSize.height / 2))
+            let heroFrame = CGRect(
+                x: (containerSize.width - width) / 2,
+                y: centerY - stackHeight / 2,
+                width: width,
+                height: height
+            )
+            let menuY = min(
+                max(heroFrame.maxY + menuSpacing, safeAreaInsets.top + peekVerticalInset),
+                max(safeAreaInsets.top + peekVerticalInset, containerSize.height - safeAreaInsets.bottom - peekVerticalInset - menuHeight)
+            )
+            return ProfileGridPeekLayout(
+                heroFrame: heroFrame,
+                menuFrame: CGRect(
+                    x: (containerSize.width - boundedMenuWidth) / 2,
+                    y: menuY,
+                    width: boundedMenuWidth,
+                    height: menuHeight
+                ),
+                placesMenuBesideHero: false
+            )
+        }
+
+        let canPlaceBesideHero = contentWidth >= boundedMenuWidth + menuSpacing + 150
+        let desiredVerticalHeight = peekCardHeight(
+            width: cardWidthLimit,
+            aspectRatio: moment.aspectRatio
+        ) + menuSpacing + menuHeight
+        let placesMenuBesideHero = canPlaceBesideHero && desiredVerticalHeight > availableHeight
+        let maxCardHeight = placesMenuBesideHero
+            ? availableHeight
+            : max(0, availableHeight - menuSpacing - menuHeight)
+        let horizontalCardWidthLimit = placesMenuBesideHero
+            ? max(0, contentWidth - boundedMenuWidth - menuSpacing)
+            : cardWidthLimit
+        let maxCardWidthByHeight = max(0, (maxCardHeight - peekFooterHeight) * ratio)
+        let width = min(horizontalCardWidthLimit, maxCardWidthByHeight)
         let height = peekCardHeight(width: width, aspectRatio: moment.aspectRatio)
-        let x = (containerSize.width - width) / 2
-
-        let menuHeight: CGFloat = showPinConfirm ? 220 : menuBlockHeight
         let stackHeight = height + menuSpacing + menuHeight
-        let minCenter = safeAreaInsets.top + 20 + (stackHeight / 2)
-        let maxCenter = containerSize.height - safeAreaInsets.bottom - 20 - (stackHeight / 2)
-        let preferred = containerSize.height / 2
-        let centerY: CGFloat = {
-            if minCenter > maxCenter { return containerSize.height / 2 }
-            return max(minCenter, min(preferred, maxCenter))
-        }()
+        let minimumTop = safeAreaInsets.top + peekVerticalInset
+        let maximumTop = containerSize.height - safeAreaInsets.bottom - peekVerticalInset - stackHeight
+        let preferredTop = (containerSize.height - stackHeight + safeAreaInsets.top - safeAreaInsets.bottom) / 2
+        let verticallyStackedTop = maximumTop >= minimumTop
+            ? min(max(preferredTop, minimumTop), maximumTop)
+            : minimumTop
+        let cardX: CGFloat
+        let cardTopY: CGFloat
+        let menuX: CGFloat
+        let menuY: CGFloat
+        if placesMenuBesideHero {
+            let groupWidth = width + menuSpacing + boundedMenuWidth
+            let groupLeft = safeAreaInsets.leading + peekVerticalInset + (contentWidth - groupWidth) / 2
+            cardX = groupLeft
+            menuX = cardX + width + menuSpacing
+            cardTopY = safeAreaInsets.top + peekVerticalInset + (availableHeight - height) / 2
+            menuY = safeAreaInsets.top + peekVerticalInset + (availableHeight - menuHeight) / 2
+        } else {
+            cardX = safeAreaInsets.leading + (containerSize.width - safeAreaInsets.leading - safeAreaInsets.trailing - width) / 2
+            menuX = safeAreaInsets.leading + (containerSize.width - safeAreaInsets.leading - safeAreaInsets.trailing - boundedMenuWidth) / 2
+            cardTopY = verticallyStackedTop
+            menuY = cardTopY + height + menuSpacing
+        }
 
-        let cardTopY = centerY - (stackHeight / 2)
-        return CGRect(x: x, y: cardTopY, width: width, height: height)
+        return ProfileGridPeekLayout(
+            heroFrame: CGRect(x: cardX, y: cardTopY, width: width, height: height),
+            menuFrame: CGRect(x: menuX, y: menuY, width: boundedMenuWidth, height: menuHeight),
+            placesMenuBesideHero: placesMenuBesideHero
+        )
+    }
+
+    static func detailAvailableHeight(containerSize: CGSize, safeAreaInsets: EdgeInsets) -> CGFloat {
+        max(
+            0,
+            containerSize.height
+                - safeAreaInsets.top
+                - safeAreaInsets.bottom
+                - detailHeaderBlockHeight
+                - peekVerticalInset * 2
+        )
     }
 
     static func detailMediaFrame(
         screenSize: CGSize,
         safeAreaInsets: EdgeInsets,
         moment: Moment,
-        availableHeight: CGFloat
+        availableHeight: CGFloat,
+        usesDuoClosedLandscape: Bool
     ) -> CGRect {
-        let width = screenSize.width - (horizontalPadding * 2)
-        let ratio = parsedAspectRatio(moment.aspectRatio)
-        let calculatedHeight = width / max(ratio, 0.55)
+        if !usesDuoClosedLandscape {
+            let width = screenSize.width - horizontalPadding * 2
+            let ratio = parsedAspectRatio(moment.aspectRatio)
+            let calculatedHeight = width / max(ratio, 0.55)
+            let maxHeight: CGFloat = ratio < 0.85 ? 550 : (ratio > 1.2 ? 300 : 450)
+            let height = min(calculatedHeight, maxHeight)
+            return CGRect(
+                x: horizontalPadding,
+                y: safeAreaInsets.top + detailHeaderBlockHeight,
+                width: width,
+                height: height
+            )
+        }
+
+        let availableWidth = max(0, screenSize.width - horizontalPadding * 2 - safeAreaInsets.leading - safeAreaInsets.trailing)
+        let ratio = max(parsedAspectRatio(moment.aspectRatio), 0.55)
+        let calculatedHeight = availableWidth / ratio
         let maxHeight: CGFloat = ratio < 0.85 ? 550 : (ratio > 1.2 ? 300 : 450)
-        let height = min(calculatedHeight, maxHeight)
-        let x = horizontalPadding
+        let height = min(calculatedHeight, min(maxHeight, max(0, availableHeight)))
+        let width = min(availableWidth, height * ratio)
+        let x = safeAreaInsets.leading + (screenSize.width - safeAreaInsets.leading - safeAreaInsets.trailing - width) / 2
         let y = safeAreaInsets.top + detailHeaderBlockHeight
         return CGRect(x: x, y: y, width: width, height: height)
     }
@@ -729,20 +884,26 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
         containerSize: CGSize,
         safeAreaInsets: EdgeInsets,
         moment: Moment,
-        availableHeight: CGFloat
+        availableHeight: CGFloat,
+        menuPanelWidth: CGFloat = 240,
+        usesDuoClosedLandscape: Bool = false
     ) -> ProfileGridHeroPresentation {
-        let peekFrame = ProfileGridHeroLayout.peekCardFrame(
+        let peekLayout = ProfileGridHeroLayout.peekLayout(
             containerSize: containerSize,
             safeAreaInsets: safeAreaInsets,
             moment: moment,
             showPinConfirm: showPinConfirm,
-            menuBlockHeight: menuBlockHeight(for: moment)
+            menuBlockHeight: menuBlockHeight(for: moment),
+            menuPanelWidth: menuPanelWidth,
+            usesDuoClosedLandscape: usesDuoClosedLandscape
         )
+        let peekFrame = peekLayout.heroFrame
         let detailFrame = ProfileGridHeroLayout.detailMediaFrame(
             screenSize: containerSize,
             safeAreaInsets: safeAreaInsets,
             moment: moment,
-            availableHeight: availableHeight
+            availableHeight: availableHeight,
+            usesDuoClosedLandscape: usesDuoClosedLandscape
         )
 
         let origin = sourceFrame.width > 1
@@ -878,9 +1039,58 @@ struct ProfileGridHeroDetailLayer: View {
     private let pinnedMomentsLimit = 3
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var hingePose: ProfileGridHeroHingePose = .unknown
+
+    private var usesDuoClosedLandscape: Bool {
+        hingePose == .closed && containerSize.width > containerSize.height
+    }
 
     private let menuWidth: CGFloat = 240
     private let horizontalMargin: CGFloat = 16
+
+    private var maximumVisibleMenuHeight: CGFloat {
+        ProfileGridHeroLayout.maximumVisibleMenuHeight(
+            containerSize: containerSize,
+            safeAreaInsets: safeAreaInsets
+        )
+    }
+
+    private func panelWidth(for moment: Moment) -> CGFloat {
+        let availableWidth = max(0, containerSize.width - safeAreaInsets.leading - safeAreaInsets.trailing - horizontalMargin * 2)
+        if coordinator.showPinConfirm {
+            return min(availableWidth, 320)
+        }
+        if coordinator.menuKind == .visitor {
+            return min(ProfileGridHeroLayout.cardWidth(for: availableWidth), 320)
+        }
+        return min(menuWidth, availableWidth)
+    }
+
+    private func peekLayout(for moment: Moment) -> ProfileGridPeekLayout {
+        ProfileGridHeroLayout.peekLayout(
+            containerSize: containerSize,
+            safeAreaInsets: safeAreaInsets,
+            moment: moment,
+            showPinConfirm: coordinator.showPinConfirm,
+            menuBlockHeight: coordinator.menuBlockHeight(for: moment),
+            menuPanelWidth: panelWidth(for: moment),
+            usesDuoClosedLandscape: usesDuoClosedLandscape
+        )
+    }
+
+    private func heroPresentation(for moment: Moment) -> ProfileGridHeroPresentation {
+        coordinator.heroPresentation(
+            containerSize: containerSize,
+            safeAreaInsets: safeAreaInsets,
+            moment: moment,
+            availableHeight: ProfileGridHeroLayout.detailAvailableHeight(
+                containerSize: containerSize,
+                safeAreaInsets: safeAreaInsets
+            ),
+            menuPanelWidth: panelWidth(for: moment),
+            usesDuoClosedLandscape: usesDuoClosedLandscape
+        )
+    }
 
     @State private var showShareSheet = false
     @State private var shareMoment: Moment?
@@ -902,12 +1112,7 @@ struct ProfileGridHeroDetailLayer: View {
 
             // 2. Flying hero (solo menú contextual / peek)
             if coordinator.shouldRenderFlyingHero, let moment = coordinator.activeMoment {
-                let presentation = coordinator.heroPresentation(
-                    containerSize: containerSize,
-                    safeAreaInsets: safeAreaInsets,
-                    moment: moment,
-                    availableHeight: containerSize.height - 200
-                )
+                let presentation = heroPresentation(for: moment)
 
                 ProfileGridFlyingHeroShell(presentation: presentation) {
                     ProfileGridHeroCard(
@@ -974,6 +1179,7 @@ struct ProfileGridHeroDetailLayer: View {
                     .zIndex(200)
             }
         }
+        .modifier(ProfileGridHeroHingeObserver(pose: $hingePose))
     }
 
     private var detailBackdrop: some View {
@@ -985,13 +1191,7 @@ struct ProfileGridHeroDetailLayer: View {
     private func menuStack(for selection: ProfileGridMomentMenuSelection) -> some View {
         let column = selection.index % 3
         let menuAlignment: HorizontalAlignment = column == 2 ? .leading : .trailing
-        let cardWidth = ProfileGridHeroLayout.cardWidth(for: containerSize.width)
-        let heroFrame = coordinator.heroPresentation(
-            containerSize: containerSize,
-            safeAreaInsets: safeAreaInsets,
-            moment: selection.moment,
-            availableHeight: containerSize.height - 200
-        ).frame
+        let layout = peekLayout(for: selection.moment)
 
         VStack(alignment: menuAlignment, spacing: ProfileGridHeroLayout.menuSpacing) {
             if coordinator.showPinConfirm {
@@ -1002,11 +1202,8 @@ struct ProfileGridHeroDetailLayer: View {
                 actionsMenu(for: selection.moment)
             }
         }
-        .frame(width: cardWidth)
-        .position(
-            x: containerSize.width / 2,
-            y: heroFrame.maxY + ProfileGridHeroLayout.menuSpacing + coordinator.menuBlockHeight(for: selection.moment) / 2
-        )
+        .frame(width: layout.menuFrame.width, height: layout.menuFrame.height)
+        .position(x: layout.menuFrame.midX, y: layout.menuFrame.midY)
     }
 
     private func visitorActionBar(for selection: ProfileGridMomentMenuSelection) -> some View {
@@ -1096,72 +1293,76 @@ struct ProfileGridHeroDetailLayer: View {
     @ViewBuilder
     private func actionsMenu(for moment: Moment) -> some View {
         let rows = menuRowDefinitions(for: moment)
+        let menuHeight = min(CGFloat(rows.count) * 46, maximumVisibleMenuHeight)
 
-        VStack(spacing: 0) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                ProfileGridMenuRow(
-                    icon: row.icon,
-                    title: row.title,
-                    isDestructive: row.isDestructive,
-                    action: row.action
-                )
-                .opacity(coordinator.menuRowRevealProgress(index: index))
-                .offset(y: (1 - coordinator.menuRowRevealProgress(index: index)) * 10)
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    ProfileGridMenuRow(
+                        icon: row.icon,
+                        title: row.title,
+                        isDestructive: row.isDestructive,
+                        action: row.action
+                    )
+                    .opacity(coordinator.menuRowRevealProgress(index: index))
+                    .offset(y: (1 - coordinator.menuRowRevealProgress(index: index)) * 10)
+                }
             }
         }
-        .frame(width: menuWidth)
-        .fixedSize(horizontal: true, vertical: true)
+        .frame(width: min(menuWidth, max(0, containerSize.width - safeAreaInsets.leading - safeAreaInsets.trailing - horizontalMargin * 2)), height: menuHeight)
         .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var pinConfirmPanel: some View {
-        let panelWidth = min(containerSize.width - horizontalMargin * 2, 320)
+        let panelWidth = min(max(0, containerSize.width - safeAreaInsets.leading - safeAreaInsets.trailing - horizontalMargin * 2), 320)
+        let panelHeight = min(CGFloat(220), maximumVisibleMenuHeight)
 
-        return VStack(spacing: 0) {
-            VStack(spacing: 10) {
-                Text(NSLocalizedString("contextMenu.pinLimit.confirm.title", comment: "Pinned limit confirm title"))
-                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    .multilineTextAlignment(.center)
+        return ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 0) {
+                VStack(spacing: 10) {
+                    Text(NSLocalizedString("contextMenu.pinLimit.confirm.title", comment: "Pinned limit confirm title"))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                        .multilineTextAlignment(.center)
 
-                Text(NSLocalizedString("contextMenu.pinLimit.confirm.message", comment: "Pinned limit confirm message"))
-                    .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.68))
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 18)
-            .padding(.bottom, 14)
+                    Text(NSLocalizedString("contextMenu.pinLimit.confirm.message", comment: "Pinned limit confirm message"))
+                        .font(.system(size: legacyPoppinsSize(14)))
+                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.68))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+                .padding(.bottom, 14)
 
-            menuDivider
+                menuDivider
 
-            MomentRowButton(action: {
-                guard let moment = coordinator.menuSelection?.moment else { return }
-                coordinator.onPin?(moment, true, true)
-                coordinator.toastMessage = NSLocalizedString("contextMenu.pinMoment.toast.pinned", comment: "Pinned toast")
-                coordinator.dismissMenu()
-            }) {
-                Text(NSLocalizedString("contextMenu.pinLimit.confirm", comment: "Confirm pin replacement"))
-                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundStyle(Color(hex: "007AFF"))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-            }
+                MomentRowButton(action: {
+                    guard let moment = coordinator.menuSelection?.moment else { return }
+                    coordinator.onPin?(moment, true, true)
+                    coordinator.toastMessage = NSLocalizedString("contextMenu.pinMoment.toast.pinned", comment: "Pinned toast")
+                    coordinator.dismissMenu()
+                }) {
+                    Text(NSLocalizedString("contextMenu.pinLimit.confirm", comment: "Confirm pin replacement"))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                        .foregroundStyle(Color(hex: "007AFF"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
 
-            menuDivider
+                menuDivider
 
-            MomentRowButton(action: {
-                coordinator.showPinConfirm = false
-            }) {
-                Text(NSLocalizedString("contextMenu.pinLimit.cancel", comment: "Cancel pin replacement"))
-                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                MomentRowButton(action: {
+                    coordinator.showPinConfirm = false
+                }) {
+                    Text(NSLocalizedString("contextMenu.pinLimit.cancel", comment: "Cancel pin replacement"))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
             }
         }
-        .frame(width: panelWidth)
-        .fixedSize(horizontal: true, vertical: true)
+        .frame(width: panelWidth, height: panelHeight)
         .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 

@@ -2,6 +2,8 @@ import SwiftUI
 import Kingfisher
 
 struct ProfileGridPreviewEditorView: View {
+    private static let cropAspectRatio = ProfileMomentsGridMetrics.portraitAspectRatio
+
     let imageURL: URL
     let feedCrop: MediaItemFeedCrop?
     let initialSettings: MomentGridPreviewSettings
@@ -97,7 +99,11 @@ struct ProfileGridPreviewEditorView: View {
             - verticalSpacing
             - bottomInset
 
-        return max(220, min(widthLimit, heightLimit))
+        return max(220, min(widthLimit, heightLimit * Self.cropAspectRatio))
+    }
+
+    private func cropHeight(for cropSide: CGFloat) -> CGFloat {
+        cropSide / Self.cropAspectRatio
     }
 
     private func headerView(cropSide: CGFloat) -> some View {
@@ -252,17 +258,19 @@ struct ProfileGridPreviewEditorView: View {
 
     @ViewBuilder
     private func cropArea(with image: UIImage, cropSide: CGFloat) -> some View {
+        let cropHeight = cropHeight(for: cropSide)
+
         ZStack {
             Image(uiImage: image.withBlur(radius: 36))
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .frame(width: cropSide, height: cropSide)
+                .frame(width: cropSide, height: cropHeight)
                 .clipped()
                 .overlay((colorScheme == .dark ? Color.black : Color.white).opacity(0.12))
 
             if fitMode == .fit {
                 (background == .black ? Color.black : Color.white)
-                    .frame(width: cropSide, height: cropSide)
+                    .frame(width: cropSide, height: cropHeight)
             }
 
             Image(uiImage: image)
@@ -285,7 +293,7 @@ struct ProfileGridPreviewEditorView: View {
                     .transition(.opacity)
             }
         }
-        .frame(width: cropSide, height: cropSide)
+        .frame(width: cropSide, height: cropHeight)
         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -302,26 +310,30 @@ struct ProfileGridPreviewEditorView: View {
     }
 
     private func gridOverlay(cropSide: CGFloat) -> some View {
-        ZStack {
+        let cropHeight = cropHeight(for: cropSide)
+
+        return ZStack {
             HStack(spacing: cropSide / 3 - 1) {
-                Rectangle().fill(Color.white.opacity(0.18)).frame(width: 0.5, height: cropSide)
-                Rectangle().fill(Color.white.opacity(0.18)).frame(width: 0.5, height: cropSide)
+                Rectangle().fill(Color.white.opacity(0.18)).frame(width: 0.5, height: cropHeight)
+                Rectangle().fill(Color.white.opacity(0.18)).frame(width: 0.5, height: cropHeight)
             }
-            VStack(spacing: cropSide / 3 - 1) {
+            VStack(spacing: cropHeight / 3 - 1) {
                 Rectangle().fill(Color.white.opacity(0.18)).frame(width: cropSide, height: 0.5)
                 Rectangle().fill(Color.white.opacity(0.18)).frame(width: cropSide, height: 0.5)
             }
         }
-        .frame(width: cropSide, height: cropSide)
+        .frame(width: cropSide, height: cropHeight)
     }
 
     private func squareMaskOverlay(cropSide: CGFloat) -> some View {
-        ZStack {
+        let cropHeight = cropHeight(for: cropSide)
+
+        return ZStack {
             (colorScheme == .dark ? Color.black : Color.white)
                 .opacity(colorScheme == .dark ? 0.55 : 0.42)
 
             Rectangle()
-                .frame(width: cropSide, height: cropSide)
+                .frame(width: cropSide, height: cropHeight)
                 .blendMode(.destinationOut)
         }
         .compositingGroup()
@@ -406,7 +418,7 @@ struct ProfileGridPreviewEditorView: View {
                 switch result {
                 case .success(let value):
                     let source = value.image.normalized().momentsOrientedUp()
-                    // El editor ajusta la grid 1:1 sobre el encuadre de card,
+                    // El editor ajusta la grid 4:5 sobre el encuadre de card,
                     // no sobre el aspect ratio del archivo completo.
                     let cardImage: UIImage = {
                         guard let feedCrop, !feedCrop.isFullBounds else { return source }
@@ -447,8 +459,9 @@ struct ProfileGridPreviewEditorView: View {
     }
 
     private func displaySize(for imageSize: CGSize, cropSide: CGFloat) -> CGSize {
+        let cropHeight = cropHeight(for: cropSide)
         let widthScale = cropSide / imageSize.width
-        let heightScale = cropSide / imageSize.height
+        let heightScale = cropHeight / imageSize.height
         let appliedScale = fitMode == .fill ? max(widthScale, heightScale) : min(widthScale, heightScale)
         return CGSize(width: imageSize.width * appliedScale, height: imageSize.height * appliedScale)
     }
@@ -463,12 +476,13 @@ struct ProfileGridPreviewEditorView: View {
         scale: CGFloat,
         cropSide: CGFloat
     ) -> CGSize {
+        let cropHeight = cropHeight(for: cropSide)
         let baseSize = displaySize(for: imageSize, cropSide: cropSide)
         let scaledWidth = baseSize.width * scale
         let scaledHeight = baseSize.height * scale
 
         let maxOffsetX = max(0, (scaledWidth - cropSide) / 2)
-        let maxOffsetY = max(0, (scaledHeight - cropSide) / 2)
+        let maxOffsetY = max(0, (scaledHeight - cropHeight) / 2)
 
         return CGSize(
             width: max(-maxOffsetX, min(maxOffsetX, proposedOffset.width)),
