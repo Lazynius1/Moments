@@ -2,6 +2,7 @@ import SwiftUI
 import AVFoundation
 import Photos
 import PhotosUI
+import UIKit
 
 // Cámara del chat estilo story: captura full-bleed 9:16 con la
 // misma base de cámara que las historias, y compose posterior con edición
@@ -14,6 +15,9 @@ struct ChatCameraView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.momentsDivisionRegions) private var momentsDivisionRegions
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    /// `.unknown` es iPhone. El chrome del Duo no se aplica ahí.
+    @State private var hingePose: ChatCameraHingePose = .unknown
 
     @State private var cameraPosition: AVCaptureDevice.Position = .front
     @State private var flashMode: AVCaptureDevice.FlashMode = .off
@@ -48,9 +52,75 @@ struct ChatCameraView: View {
         colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
     }
 
+    /// Duo con bisagra. `.unknown` es iPhone y no entra aquí.
+    private var usesDuoSystemChrome: Bool {
+        hingePose != .unknown
+    }
+
+    /// Libro horizontal: cámara | galería. En vertical, pantalla completa.
+    private var openHingeIsSideBySide: Bool {
+        guard hingePose == .partiallyOpen || hingePose == .fullyOpen else { return false }
+        if let division = momentsDivisionRegions.first(where: { $0.width > 1 && $0.height > 1 }) {
+            return division.height >= division.width
+        }
+        return toolbarVerticalEdge != nil
+    }
+
     var body: some View {
+        cameraShell
+            .overlay {
+                if isEditorActive {
+                    StoryEditingView(
+                        selectedMediaItems: $editorMediaItems,
+                        currentFlow: $editorFlow,
+                        showCreatorView: $editorHostVisible,
+                        startInTextMode: $editorStartsInTextMode,
+                        initialSticker: nil,
+                        initialChainId: nil,
+                        initialChainTitle: nil,
+                        initialChainPosition: nil,
+                        chatRecipientUserId: otherUserId,
+                        onChatSend: { data, mediaType, mode, overlayPayload in
+                            onSend(data, mediaType, mode, overlayPayload)
+                        }
+                    )
+                    .transition(.opacity)
+                }
+            }
+            .modifier(ChatCameraHingeObserver(pose: $hingePose))
+    }
+
+    @ViewBuilder
+    private var cameraShell: some View {
+        if usesDuoSystemChrome {
+            NavigationStack {
+                cameraAccess
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar(isEditorActive ? .hidden : .visible, for: .navigationBar)
+                    .toolbar { duoCameraToolbar }
+            }
+        } else {
+            cameraAccess
+        }
+    }
+
+    @ViewBuilder
+    private var cameraAccess: some View {
         CameraAccessBoundary(requiresMicrophone: true, onCancel: { dismiss() }) {
-            cameraContent
+            if openHingeIsSideBySide, #available(iOS 27.1, *) {
+                ArrangementView {
+                    cameraContent
+                } secondary: {
+                    StoryGalleryPicker(onSelect: { media in
+                        editorStartsInTextMode = false
+                        editorMediaItems = [media]
+                        editorFlow = .storyEditing
+                    }, inline: true)
+                }
+                .arrangementViewStyle(.split.axes(.horizontal))
+            } else {
+                cameraContent
+            }
         }
     }
 
@@ -67,11 +137,27 @@ struct ChatCameraView: View {
                 divisionRegions: momentsDivisionRegions,
                 prefersSideControls: false
             )
-            let captureRect = adaptiveLayout.canvasRect
-            let captureButtonY = captureRect.maxY - 10
-            let bottomControlsWidth = adaptiveLayout.usesSupplementaryControls
-                ? max(adaptiveLayout.controlsRect.width - 24, 120)
-                : max(min(captureRect.width + 54, proxy.size.width - 72), 120)
+            let captureRect: CGRect = {
+                if hingePose == .unknown {
+                    return adaptiveLayout.canvasRect
+                }
+                if hingePose == .closed {
+                    return closedDuoCaptureRect(in: proxy)
+                }
+                return duoPaneCaptureRect(in: proxy)
+            }()
+            let placesControlsOnCanvas = usesDuoSystemChrome
+            let captureButtonY = placesControlsOnCanvas
+                ? captureRect.maxY - 72
+                : captureRect.maxY - 10
+            let controlY = placesControlsOnCanvas
+                ? captureButtonY
+                : proxy.size.height - proxy.safeAreaInsets.bottom - 30
+            let bottomControlsWidth = placesControlsOnCanvas
+                ? max(captureRect.width - 28, 120)
+                : (adaptiveLayout.usesSupplementaryControls
+                    ? max(adaptiveLayout.controlsRect.width - 24, 120)
+                    : max(min(captureRect.width + 54, proxy.size.width - 72), 120))
 
             ZStack {
                 safeAreaTintColor
@@ -108,12 +194,22 @@ struct ChatCameraView: View {
                     switchCamera()
                 }
 
-                topControlsOverlay
+                if usesDuoSystemChrome {
+                    VStack {
+                        headerBadge
+                            .padding(.top, 14)
+                        Spacer()
+                    }
                     .frame(width: captureRect.width, height: captureRect.height, alignment: .top)
                     .position(x: captureRect.midX, y: captureRect.midY)
+                } else {
+                    topControlsOverlay
+                        .frame(width: captureRect.width, height: captureRect.height, alignment: .top)
+                        .position(x: captureRect.midX, y: captureRect.midY)
 
-                textModeButton
-                    .position(x: captureRect.maxX - 26, y: captureRect.midY)
+                    textModeButton
+                        .position(x: captureRect.maxX - 26, y: captureRect.midY)
+                }
 
                 recordingStatusView
                     .position(x: captureRect.midX, y: captureRect.maxY - 108)
@@ -121,10 +217,12 @@ struct ChatCameraView: View {
                 bottomSideControls
                     .frame(width: bottomControlsWidth)
                     .position(
-                        x: adaptiveLayout.usesSupplementaryControls ? adaptiveLayout.controlsRect.midX : captureRect.midX,
-                        y: adaptiveLayout.usesSupplementaryControls
-                            ? adaptiveLayout.controlsRect.midY
-                            : proxy.size.height - proxy.safeAreaInsets.bottom - 30
+                        x: placesControlsOnCanvas
+                            ? captureRect.midX
+                            : (adaptiveLayout.usesSupplementaryControls ? adaptiveLayout.controlsRect.midX : captureRect.midX),
+                        y: placesControlsOnCanvas
+                            ? controlY
+                            : (adaptiveLayout.usesSupplementaryControls ? adaptiveLayout.controlsRect.midY : controlY)
                     )
 
                 CaptureButton(
@@ -135,25 +233,6 @@ struct ChatCameraView: View {
                 )
                 .momentsAvoidsActiveDivision(padding: 14)
                 .position(x: captureRect.midX, y: captureButtonY)
-
-                if isEditorActive {
-                    StoryEditingView(
-                        selectedMediaItems: $editorMediaItems,
-                        currentFlow: $editorFlow,
-                        showCreatorView: $editorHostVisible,
-                        startInTextMode: $editorStartsInTextMode,
-                        initialSticker: nil,
-                        initialChainId: nil,
-                        initialChainTitle: nil,
-                        initialChainPosition: nil,
-                        chatRecipientUserId: otherUserId,
-                        onChatSend: { data, mediaType, mode, overlayPayload in
-                            onSend(data, mediaType, mode, overlayPayload)
-                        }
-                    )
-                    .transition(.opacity)
-                    .zIndex(10)
-                }
             }
         }
         .photosPicker(
@@ -189,6 +268,75 @@ struct ChatCameraView: View {
                 isRecording,
                 duration: duration
             )
+        }
+    }
+
+    /// Abierto: el 9:16 cabe en la pantalla (o en la mitad) sin restar el safe area otra vez.
+    private func duoPaneCaptureRect(in proxy: GeometryProxy) -> CGRect {
+        let inset: CGFloat = 8
+        return creatorMomentsAspectRect(
+            aspectRatio: creatorMomentsCaptureAspectRatio,
+            in: CGRect(
+                x: inset,
+                y: inset,
+                width: max(proxy.size.width - inset * 2, 1),
+                height: max(proxy.size.height - inset * 2, 1)
+            )
+        )
+    }
+
+    private func closedDuoCaptureRect(in proxy: GeometryProxy) -> CGRect {
+        let windowInsets = chatCameraWindowInsets()
+        let viewport = chatCameraViewportSize(for: proxy)
+        let horizontalInsets = proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing
+        let canvasSize = CGSize(
+            width: max(viewport.width - horizontalInsets, 1),
+            height: viewport.height
+        )
+        return creatorMomentsCaptureRect(
+            in: canvasSize,
+            topInset: windowInsets.top,
+            bottomInset: windowInsets.bottom
+        ).offsetBy(dx: proxy.safeAreaInsets.leading, dy: 0)
+    }
+
+    private func chatCameraWindowInsets() -> UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        return scene?.windows.first { $0.isKeyWindow }?.safeAreaInsets ?? .zero
+    }
+
+    private func chatCameraViewportSize(for proxy: GeometryProxy) -> CGSize {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        guard let bounds = scene?.windows.first(where: { $0.isKeyWindow })?.bounds else {
+            return proxy.size
+        }
+        return CGSize(
+            width: max(proxy.size.width, bounds.width),
+            height: max(proxy.size.height, bounds.height)
+        )
+    }
+
+    @ToolbarContentBuilder
+    private var duoCameraToolbar: some ToolbarContent {
+        if #available(iOS 27.1, *) {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    dismiss()
+                } label: {
+                    Label("common.close", systemImage: "xmark")
+                }
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button(action: toggleFlash) {
+                    Label("Flash", systemImage: flashIcon)
+                }
+                Button(action: openTextMode) {
+                    Label("Aa", systemImage: "textformat")
+                }
+            }
+            .axisBehavior(.verticalPreferred)
         }
     }
 
@@ -293,7 +441,9 @@ struct ChatCameraView: View {
 
     private var bottomSideControls: some View {
         HStack {
-            galleryButton
+            if !openHingeIsSideBySide {
+                galleryButton
+            }
 
             Spacer()
 
@@ -473,6 +623,37 @@ struct ChatCameraView: View {
             DispatchQueue.main.async {
                 lastGalleryImage = image
             }
+        }
+    }
+}
+
+private enum ChatCameraHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+/// `.unknown` (sin bisagra) es iPhone y no cambia el chrome.
+private struct ChatCameraHingeObserver: ViewModifier {
+    @Binding var pose: ChatCameraHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
         }
     }
 }

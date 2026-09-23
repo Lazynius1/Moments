@@ -55,10 +55,37 @@ struct StoryEditingView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
     @Environment(\.momentsDivisionRegions) private var divisionRegions
+    /// `.unknown` es iPhone. El editor de chat solo cambia el chrome en Duo cerrado.
+    @State private var hingePose: StoryEditorHingePose = .unknown
 
     /// Solo Duo (barra vertical / divisiones). En iPhone: chrome como Moments main.
     private var adaptsForDuoChrome: Bool {
         toolbarVerticalEdge != nil || !divisionRegions.isEmpty
+    }
+
+    /// Chat en Duo: mismas herramientas en la barra nativa que el editor de historias.
+    /// iOS la pone al lateral o arriba según la postura. En iPhone no hay barra ni divisiones.
+    private var usesChatDuoSystemToolbar: Bool {
+        isChatSendMode
+            && activeEditorMode == .idle
+            && activeEditingStickerId == nil
+            && !isEditingReveal
+            && (toolbarVerticalEdge != nil || !divisionRegions.isEmpty)
+    }
+
+    /// Duo cerrado (barra al lateral, una sola pantalla): bajar ver una vez y enviar.
+    private var lowersClosedChatSendBar: Bool {
+        guard usesChatDuoSystemToolbar, toolbarVerticalEdge != nil, divisionRegions.isEmpty else { return false }
+        switch hingePose {
+        case .partiallyOpen, .fullyOpen:
+            return false
+        case .closed, .unknown:
+            return true
+        }
+    }
+
+    private var showsEditorSystemToolbar: Bool {
+        usesSystemEditorToolbar || usesChatDuoSystemToolbar
     }
     @State private var showingAudienceSelector = false
     @State private var selectedTextStyle: TextStyle = .modern
@@ -379,10 +406,14 @@ struct StoryEditingView: View {
                 UserProfileView(userId: userId)
                     .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
             }
-            .toolbar(usesSystemEditorToolbar ? .visible : .hidden, for: .navigationBar)
+            .toolbar(showsEditorSystemToolbar ? .visible : .hidden, for: .navigationBar)
             .toolbar {
-                if #available(iOS 27.1, *), usesSystemEditorToolbar {
-                    systemEditorToolbar
+                if #available(iOS 27.1, *) {
+                    if usesSystemEditorToolbar {
+                        systemEditorToolbar
+                    } else if usesChatDuoSystemToolbar {
+                        chatClosedSystemToolbar
+                    }
                 }
             }
         .onAppear {
@@ -444,7 +475,7 @@ struct StoryEditingView: View {
                 } else {
                     bottomPublishingInset()
                         .frame(maxWidth: .infinity)
-                        .padding(.bottom, isCreatingChain ? 0 : max(keyWindowSafeAreaInsets().bottom, 8))
+                        .padding(.bottom, closedChatSendBottomPadding)
                 }
             }
         }
@@ -549,6 +580,7 @@ struct StoryEditingView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             keyboardHeight = 0
         }
+        .modifier(StoryEditorHingeObserver(pose: $hingePose))
     }
 
     // ✅ FUNCIÓN PARA LIMPIAR VIDEO Y AUDIO
@@ -857,7 +889,7 @@ struct StoryEditingView: View {
                             .frame(width: 48, height: 48)
                             .momentsChromeGlass(in: Circle(), style: .tinted)
                     }
-                    if toolbarVerticalEdge != nil, !isFilterMode, !isChatSendMode {
+                    if groupsCloseAndDownload {
                         Button(action: { photosSaveGate.requestAccess { saveToGallery() } }) {
                             Image(systemName: isSavingToGallery ? "hourglass" : "arrow.down.circle")
                                 .font(.system(size: 20, weight: .regular))
@@ -882,11 +914,11 @@ struct StoryEditingView: View {
                                 .momentsChromeGlass(in: Capsule(), style: .tinted)
                         }
                     } else {
-                        if isChatSendMode && activeEditorMode == .idle && !isEditingReveal {
+                        if isChatSendMode && activeEditorMode == .idle && !isEditingReveal && !usesChatDuoSystemToolbar {
                             chatTopToolbarView()
                         }
 
-                        if toolbarVerticalEdge == nil || isChatSendMode {
+                        if showsTrailingDownload {
                             Button(action: { photosSaveGate.requestAccess { saveToGallery() } }) {
                                 Image(systemName: isSavingToGallery ? "hourglass" : "arrow.down.circle")
                                     .font(.title2)
@@ -1213,7 +1245,7 @@ struct StoryEditingView: View {
             } else if isChatSendMode {
                 chatSendBottomBar()
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, lowersClosedChatSendBar ? 0 : 8)
             } else {
                 HStack(spacing: 12) {
                     Group {
@@ -1327,6 +1359,28 @@ struct StoryEditingView: View {
     /// Duo can relocate the system toolbar from the hardware side to the top
     /// as the available arrangement changes. Let that native container own
     /// the editorial actions instead of pinning a custom rail in content.
+    /// Historias: X y descarga juntos en la barra vertical. Chat: solo Duo cerrado.
+    private var groupsCloseAndDownload: Bool {
+        guard !isFilterMode else { return false }
+        if isChatSendMode {
+            return usesChatDuoSystemToolbar && toolbarVerticalEdge != nil
+        }
+        return toolbarVerticalEdge != nil
+    }
+
+    /// La descarga suelta de la derecha se queda en iPhone y cuando la barra nativa está arriba.
+    private var showsTrailingDownload: Bool {
+        guard !(usesChatDuoSystemToolbar && toolbarVerticalEdge != nil) else { return false }
+        return toolbarVerticalEdge == nil || isChatSendMode
+    }
+
+    /// Duo cerrado: los botones de envío bajan al borde. El resto conserva el inset.
+    private var closedChatSendBottomPadding: CGFloat {
+        if lowersClosedChatSendBar { return 0 }
+        if isCreatingChain { return 0 }
+        return max(keyWindowSafeAreaInsets().bottom, 8)
+    }
+
     private var usesSystemEditorToolbar: Bool {
         activeEditorMode == .idle
             && activeEditingStickerId == nil
@@ -1409,6 +1463,61 @@ struct StoryEditingView: View {
                 Label("storyEditor.share", systemImage: "arrow.right")
             }
             .disabled(isPublishing || isLoadingUserSettings)
+        }
+        .axisBehavior(.verticalPreferred)
+    }
+
+    /// Herramientas del envío a chat, en la barra nativa. Solo Duo cerrado.
+    @available(iOS 27.1, *)
+    @ToolbarContentBuilder
+    private var chatClosedSystemToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    beginCreatingTextOverlay(canvasSize: currentMediaCanvasRect().size)
+                }
+            } label: {
+                Label("storyEditor.addText", systemImage: "textformat.alt")
+            }
+
+            Button {
+                showingStickerPicker = true
+            } label: {
+                Label {
+                    Text("storyEditor.addSticker")
+                } icon: {
+                    Image("MomentsStickerTool")
+                        .renderingMode(.template)
+                }
+            }
+
+            Button {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    activeEditorMode = .drawing
+                }
+            } label: {
+                Label("storyEditor.draw", systemImage: "scribble")
+            }
+
+            Button {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    activeEditorMode = isFilterMode ? .idle : .filters
+                    showingIntensitySlider = selectedFilter != .normal
+                }
+            } label: {
+                Label("storyEditor.filters", systemImage: "camera.filters")
+            }
+
+            if selectedMediaItems.first?.type == .video {
+                Button {
+                    isVideoPreviewMuted.toggle()
+                } label: {
+                    Label(
+                        isVideoPreviewMuted ? "storyEditor.unmute" : "storyEditor.mute",
+                        systemImage: isVideoPreviewMuted ? "speaker.slash.fill" : "speaker.wave.2.fill"
+                    )
+                }
+            }
         }
         .axisBehavior(.verticalPreferred)
     }
@@ -3609,5 +3718,36 @@ struct MomentEmojiScaleButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
             .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: configuration.isPressed), value: configuration.isPressed)
+    }
+}
+
+private enum StoryEditorHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+/// `.unknown` (sin bisagra) es iPhone y no cambia el chrome del editor.
+private struct StoryEditorHingeObserver: ViewModifier {
+    @Binding var pose: StoryEditorHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
+        }
     }
 }

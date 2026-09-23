@@ -4,8 +4,15 @@ import SwiftUI
 
 struct StoryGalleryPicker: View {
     let onSelect: (CreatorMedia) -> Void
+    /// En el Duo abierto en horizontal la galería vive en la otra pantalla, no en un sheet.
+    var inline: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
+
+    init(onSelect: @escaping (CreatorMedia) -> Void, inline: Bool = false) {
+        self.onSelect = onSelect
+        self.inline = inline
+    }
 
     @State private var selectedImage: UIImage?
     @State private var selectedVideoURL: URL?
@@ -19,11 +26,18 @@ struct StoryGalleryPicker: View {
     @StateObject private var photosGate = PermissionPrimerGate(.photos)
 
     var body: some View {
-        Color.clear
+        Group {
+            if inline {
+                inlinePicker
+            } else {
+                Color.clear
+            }
+        }
             .onAppear {
                 resolvePhotoLibraryAccess()
             }
             .onChange(of: authorizationStatus) { _, newStatus in
+                guard !inline else { return }
                 if (newStatus == .authorized || newStatus == .limited) && !showingMediaPicker {
                     presentMediaPickerSoon()
                 }
@@ -32,7 +46,7 @@ struct StoryGalleryPicker: View {
                 guard !presenting else { return }
                 authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
                 if authorizationStatus != .authorized && authorizationStatus != .limited {
-                    dismiss()
+                    closeIfSheet()
                 }
             }
             .permissionPrimerGate(photosGate)
@@ -51,7 +65,7 @@ struct StoryGalleryPicker: View {
                                 recommendedAspectRatio: .nineBySixteen
                             )
                             onSelect(media)
-                            dismiss()
+                            closeIfSheet()
                         } else if let videoURL = videoURL {
                             Task {
                                 await handleSelectedVideo(videoURL)
@@ -72,7 +86,7 @@ struct StoryGalleryPicker: View {
                         onComplete: { trimmedMedia in
                             showingTrimEditor = false
                             onSelect(trimmedMedia)
-                            dismiss()
+                            closeIfSheet()
                         }
                     )
                 }
@@ -108,7 +122,7 @@ struct StoryGalleryPicker: View {
                                 showingLongVideoDecision = false
                             }
                             onSelect(media.with(storyVideoMode: .autoSplit, videoDuration: videoDuration))
-                            dismiss()
+                            closeIfSheet()
                         },
                         onEdit: {
                             withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
@@ -153,7 +167,7 @@ struct StoryGalleryPicker: View {
                     showingVideoTooLongAlert = true
                 } else if duration <= StoryVideoProcessingService.maxStorySegmentDuration {
                     onSelect(media)
-                    dismiss()
+                    closeIfSheet()
                 } else {
                     pendingLongVideoMedia = media
                     showingMediaPicker = false
@@ -176,7 +190,7 @@ struct StoryGalleryPicker: View {
 
         switch authorizationStatus {
         case .authorized, .limited:
-            presentMediaPickerSoon()
+            if !inline { presentMediaPickerSoon() }
         case .notDetermined:
             photosGate.requestAccess {
                 authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -190,9 +204,44 @@ struct StoryGalleryPicker: View {
     }
 
     private func presentMediaPickerSoon() {
+        guard !inline else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             showingMediaPicker = true
         }
+    }
+
+    @ViewBuilder
+    private var inlinePicker: some View {
+        if authorizationStatus == .authorized || authorizationStatus == .limited {
+            StoryMediaPicker(
+                selectedImage: $selectedImage,
+                selectedVideoURL: $selectedVideoURL,
+                onSelect: { image, videoURL in
+                    if let image = image {
+                        let media = CreatorMedia(
+                            id: UUID().uuidString,
+                            image: image,
+                            videoURL: nil,
+                            type: .image,
+                            aspectRatio: .nineBySixteen,
+                            recommendedAspectRatio: .nineBySixteen
+                        )
+                        onSelect(media)
+                    } else if let videoURL = videoURL {
+                        Task {
+                            await handleSelectedVideo(videoURL)
+                        }
+                    }
+                }
+            )
+        } else {
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+        }
+    }
+
+    private func closeIfSheet() {
+        guard !inline else { return }
+        dismiss()
     }
 
     private var permissionDeniedOverlay: some View {
@@ -243,7 +292,7 @@ struct StoryGalleryPicker: View {
                 }
 
                 Button("common.close") {
-                    dismiss()
+                    closeIfSheet()
                 }
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .foregroundStyle(colorScheme == .dark ? .gray : .gray.opacity(0.7))

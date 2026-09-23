@@ -16,6 +16,10 @@ struct ViewOnceImmersiveViewer: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.momentsDivisionRegions) private var divisionRegions
+    /// `.unknown` es iPhone. En el Duo la toolbar nativa decide si el carril es vertical.
+    @State private var hingePose: ViewOnceHingePose = .unknown
 
     @State private var progress: Double = 0.0
     @State private var duration: Double = 5.0
@@ -26,6 +30,7 @@ struct ViewOnceImmersiveViewer: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isClosing = false
     @State private var replyText = ""
+    @State private var showReplyComposer = false
     @State private var showReactions = false
     @State private var showReactionEmojiPicker = false
     @State private var showSentConfirmation = false
@@ -82,21 +87,81 @@ struct ViewOnceImmersiveViewer: View {
     }
 
     var body: some View {
+        viewOnceRoot
+            .modifier(ViewOnceHingeObserver(pose: $hingePose))
+    }
+
+    /// Duo. En iPhone (`.unknown` y sin carril) se queda la barra de abajo.
+    private var usesViewOnceSystemToolbar: Bool {
+        hingePose != .unknown || toolbarVerticalEdge != nil || !divisionRegions.isEmpty
+    }
+
+    /// Igual que `StoryViewerScreen`: el carril o una división reservan el canvas.
+    private var adaptsForDuoChrome: Bool {
+        toolbarVerticalEdge != nil || !divisionRegions.isEmpty
+    }
+
+    /// Libro vertical: la barra nativa queda arriba, no al lateral.
+    private var usesDuoOpenVerticalChrome: Bool {
+        toolbarVerticalEdge == nil && !divisionRegions.isEmpty
+    }
+
+    @ViewBuilder
+    private var viewOnceRoot: some View {
+        if usesViewOnceSystemToolbar {
+            NavigationStack {
+                viewerBody
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar(.visible, for: .navigationBar)
+                    .toolbar { viewOnceSystemToolbar }
+            }
+        } else {
+            viewerBody
+        }
+    }
+
+    private var viewerBody: some View {
         GeometryReader { proxy in
-            let resolvedTopInset = max(proxy.safeAreaInsets.top, keyWindowSafeAreaInsets().top)
-            let resolvedBottomInset = max(proxy.safeAreaInsets.bottom, keyWindowSafeAreaInsets().bottom)
+            let windowInsets = keyWindowSafeAreaInsets()
+            let viewportSize = stableViewportSize(for: proxy)
+            let resolvedTopInset = windowInsets.top
+            let resolvedBottomInset = windowInsets.bottom
+            let horizontalSafeInsets = adaptsForDuoChrome
+                ? (proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing)
+                : 0
+            let canvasViewportSize = CGSize(
+                width: max(viewportSize.width - horizontalSafeInsets, 1),
+                height: viewportSize.height
+            )
             let baseCanvasRect = creatorMomentsCaptureRect(
-                in: proxy.size,
+                in: canvasViewportSize,
                 topInset: resolvedTopInset,
                 bottomInset: resolvedBottomInset
             )
-            let canvasRect = CGRect(
-                x: baseCanvasRect.origin.x,
-                y: baseCanvasRect.origin.y + resolvedTopInset,
-                width: baseCanvasRect.width,
-                height: baseCanvasRect.height
-            )
-            let progressY = max(resolvedTopInset + 1, canvasRect.minY - 26)
+            let canvasRect: CGRect = {
+                let originX = baseCanvasRect.origin.x
+                    + (adaptsForDuoChrome ? proxy.safeAreaInsets.leading : 0)
+                if usesDuoOpenVerticalChrome {
+                    let topY = creatorMomentsCaptureTopOffset + 14
+                    let maxHeight = max(viewportSize.height - resolvedBottomInset - 20 - topY, 1)
+                    var height = min(baseCanvasRect.height, maxHeight)
+                    var width = height * creatorMomentsCaptureAspectRatio
+                    if width > canvasViewportSize.width {
+                        width = canvasViewportSize.width
+                        height = width / creatorMomentsCaptureAspectRatio
+                    }
+                    return CGRect(x: originX, y: topY, width: width, height: height)
+                }
+                return CGRect(
+                    x: originX,
+                    y: baseCanvasRect.origin.y + (adaptsForDuoChrome ? 0 : resolvedTopInset),
+                    width: baseCanvasRect.width,
+                    height: baseCanvasRect.height
+                )
+            }()
+            let progressY = usesDuoOpenVerticalChrome
+                ? creatorMomentsCaptureTopOffset + 4
+                : max(resolvedTopInset + 1, canvasRect.minY - 26)
 
             ZStack {
                 Color(hex: "0B1215").ignoresSafeArea()
@@ -115,6 +180,38 @@ struct ViewOnceImmersiveViewer: View {
                         perform: {}
                     )
 
+                StoryMediaOverlayRendererView(
+                    containerSize: canvasRect.size,
+                    textOverlays: overlayTextOverlays,
+                    stickerItems: overlayStickerItems,
+                    drawingData: overlayDrawingData,
+                    storyId: message.id,
+                    userId: message.senderId,
+                    replayToken: 0,
+                    reportsDeckInteractionExclusion: false,
+                    allowsStickerHitTesting: true,
+                    onPauseStory: { isPaused = true },
+                    onResumeStory: { isPaused = false }
+                )
+                .frame(width: canvasRect.width, height: canvasRect.height)
+                .position(x: canvasRect.midX, y: canvasRect.midY)
+
+                if let revealSticker = overlayStickerItems.first(where: { $0.type == .reveal }) {
+                    InteractiveRevealSticker(
+                        storyId: message.id,
+                        onPauseStory: { isPaused = true },
+                        onResumeStory: { isPaused = false },
+                        reportsDeckInteractionExclusion: false,
+                        revealType: revealSticker.interactionData?.revealType,
+                        revealPattern: revealSticker.interactionData?.revealPattern,
+                        revealPrimaryColor: revealSticker.interactionData?.revealPrimaryColor,
+                        revealSecondaryColor: revealSticker.interactionData?.revealSecondaryColor,
+                        revealEffectColor: revealSticker.interactionData?.revealEffectColor
+                    )
+                    .frame(width: canvasRect.width, height: canvasRect.height)
+                    .position(x: canvasRect.midX, y: canvasRect.midY)
+                }
+
                 viewerChrome(
                     canvasRect: canvasRect,
                     progressY: progressY,
@@ -131,7 +228,7 @@ struct ViewOnceImmersiveViewer: View {
         }
         .statusBarHidden(false)
         .preferredColorScheme(.dark)
-        .ignoresSafeArea(.container, edges: .all)
+        .ignoresSafeArea(.container, edges: adaptsForDuoChrome ? [] : .all)
         .ignoresSafeArea(.keyboard, edges: .all)
         .offset(y: dragOffset)
         .animation(.interactiveSpring(), value: dragOffset)
@@ -172,6 +269,15 @@ struct ViewOnceImmersiveViewer: View {
         }
     }
 
+    private var shouldMuteVideoForReveal: Bool {
+        guard message.type == .viewOnceVideo,
+              overlayStickerItems.contains(where: { $0.type == .reveal }),
+              !message.id.isEmpty else {
+            return false
+        }
+        return !UserDefaults.standard.bool(forKey: "reveal_revealed_\(message.id)")
+    }
+
     @ViewBuilder
     private func mediaCanvas(size: CGSize) -> some View {
         let presentationMode = StoryMediaLayoutRules.presentationMode(
@@ -194,22 +300,12 @@ struct ViewOnceImmersiveViewer: View {
                     viewOnceImage(contentMode: presentationMode.swiftUIContentMode)
                         .frame(width: size.width, height: size.height)
                 } else if message.type == .viewOnceVideo {
-                    viewOnceVideo(videoGravity: presentationMode.videoGravity)
+                    viewOnceVideo(
+                        videoGravity: presentationMode.videoGravity,
+                        isMuted: shouldMuteVideoForReveal
+                    )
                         .frame(width: size.width, height: size.height)
                 }
-
-                StoryMediaOverlayRendererView(
-                    containerSize: size,
-                    textOverlays: overlayTextOverlays,
-                    stickerItems: overlayStickerItems,
-                    drawingData: overlayDrawingData,
-                    storyId: message.id,
-                    userId: message.senderId,
-                    replayToken: 0,
-                    reportsDeckInteractionExclusion: false,
-                    allowsStickerHitTesting: false
-                )
-                .allowsHitTesting(false)
             }
             .frame(width: size.width, height: size.height)
             .background(Color.black)
@@ -282,12 +378,65 @@ struct ViewOnceImmersiveViewer: View {
         }
     }
 
+    @ToolbarContentBuilder
+    private var viewOnceSystemToolbar: some ToolbarContent {
+        if #available(iOS 27.1, *) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button(action: closeViewer) {
+                    Label("stories.close", systemImage: "xmark")
+                }
+            }
+            .axisBehavior(.verticalPreferred)
+
+            ToolbarSpacer(.flexible, placement: .primaryAction)
+
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
+                        showReplyComposer.toggle()
+                    }
+                    isReplyFieldFocused = showReplyComposer
+                    isPaused = showReplyComposer || showReactions
+                } label: {
+                    Label(
+                        "chat.viewOnce.replyPlaceholder",
+                        systemImage: showReplyComposer ? "text.bubble.fill" : "text.bubble"
+                    )
+                }
+
+                Button {
+                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
+                        showReactions.toggle()
+                    }
+                    isPaused = showReactions || showReplyComposer
+                } label: {
+                    Label("Reacción", systemImage: showReactions ? "heart.fill" : "heart")
+                }
+
+                if replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button {
+                        onOpenCameraReply?()
+                        closeViewer()
+                    } label: {
+                        Label("Cámara", systemImage: "camera.fill")
+                    }
+                } else {
+                    Button(action: sendReplyText) {
+                        Label("Enviar", systemImage: "paperplane.fill")
+                    }
+                }
+            }
+            .axisBehavior(.verticalPreferred)
+        }
+    }
+
     @ViewBuilder
     private func viewerChrome(canvasRect: CGRect, progressY: CGFloat, screenWidth: CGFloat) -> some View {
         ZStack {
             StoryProgressBar(progress: progressFraction)
                 .padding(.horizontal, 12)
-                .position(x: screenWidth / 2, y: progressY)
+                .frame(width: canvasRect.width)
+                .position(x: canvasRect.midX, y: progressY)
 
             headerView
                 .padding(.horizontal, 16)
@@ -308,7 +457,11 @@ struct ViewOnceImmersiveViewer: View {
                         .transition(.scale(scale: 0.85).combined(with: .opacity))
                     }
 
-                    replyBar
+                    if !usesViewOnceSystemToolbar {
+                        replyBar()
+                    } else if showReplyComposer {
+                        replyBar(showsActions: false)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, bottomBarPadding)
@@ -318,6 +471,18 @@ struct ViewOnceImmersiveViewer: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(true)
+    }
+
+    private func stableViewportSize(for proxy: GeometryProxy) -> CGSize {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        guard let bounds = scene?.windows.first(where: { $0.isKeyWindow })?.bounds else {
+            return proxy.size
+        }
+        return CGSize(
+            width: max(proxy.size.width, bounds.width),
+            height: max(proxy.size.height, bounds.height)
+        )
     }
 
     private var bottomBarPadding: CGFloat {
@@ -330,7 +495,7 @@ struct ViewOnceImmersiveViewer: View {
 
     // Mismo patrón que la barra de respuesta de historias: texto + reacción rápida
     // + cámara, con el botón de enviar sustituyendo a la cámara en cuanto escribes.
-    private var replyBar: some View {
+    private func replyBar(showsActions: Bool = true) -> some View {
         HStack(spacing: 8) {
             TextField(
                 NSLocalizedString("chat.viewOnce.replyPlaceholder", comment: "Reply to view-once placeholder"),
@@ -352,7 +517,7 @@ struct ViewOnceImmersiveViewer: View {
             .background(Color.white.opacity(0.001))
             .momentsChromeGlass(in: Capsule(), interactive: true)
 
-            if replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if showsActions, replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 replyBarActionButton(systemImage: showReactions ? "face.smiling.fill" : "face.smiling") {
                     MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                         showReactions.toggle()
@@ -364,7 +529,7 @@ struct ViewOnceImmersiveViewer: View {
                     onOpenCameraReply?()
                     closeViewer()
                 }
-            } else {
+            } else if showsActions {
                 replyBarActionButton(systemImage: "paperplane.fill", action: sendReplyText)
                     .transition(MotionPolicy.Transition.enterPop)
             }
@@ -485,16 +650,18 @@ struct ViewOnceImmersiveViewer: View {
 
             Spacer()
 
-            Button(action: { closeViewer() }) {
-                Image(systemName: "xmark")
-                    .foregroundStyle(.white)
-                    .font(.system(size: 16, weight: .medium))
-                    .frame(width: 40, height: 40)
-                    .background(Color.white.opacity(0.001))
-                    .momentsChromeGlass(in: Circle(), interactive: true)
+            if !usesViewOnceSystemToolbar {
+                Button(action: { closeViewer() }) {
+                    Image(systemName: "xmark")
+                        .foregroundStyle(.white)
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(width: 40, height: 40)
+                        .background(Color.white.opacity(0.001))
+                        .momentsChromeGlass(in: Circle(), interactive: true)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .accessibilityLabel(Text("Close"))
             }
-            .buttonStyle(PlainButtonStyle())
-            .accessibilityLabel(Text("Close"))
         }
     }
 
@@ -608,6 +775,36 @@ struct ViewOnceImmersiveViewer: View {
             if let error = error {
                 LogConfig.log("View-once consume failed: \(error.localizedDescription)", category: "Chat")
             }
+        }
+    }
+}
+
+private enum ViewOnceHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+private struct ViewOnceHingeObserver: ViewModifier {
+    @Binding var pose: ViewOnceHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
         }
     }
 }

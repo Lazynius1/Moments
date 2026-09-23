@@ -162,6 +162,9 @@ class CameraPreviewView: UIView {
     private var currentDeviceOrientation: UIDeviceOrientation = .portrait
     private var isObservingCenterStageEnabled = false
     private let centerStageEnabledKeyPath = "centerStageEnabled"
+    #if DEBUG
+    private var debugPlaceholderView: UIImageView?
+    #endif
 
     var isCurrentlyRecording: Bool {
         return movieOutput?.isRecording ?? false
@@ -194,6 +197,9 @@ class CameraPreviewView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         videoPreviewLayer?.frame = bounds
+        #if DEBUG
+        debugPlaceholderView?.frame = bounds
+        #endif
     }
 
     private func configureHardwareCaptureInteraction() {
@@ -225,6 +231,11 @@ class CameraPreviewView: UIView {
 
         guard let camera = captureDevice(for: currentPosition),
               let input = try? AVCaptureDeviceInput(device: camera) else {
+            #if DEBUG
+            DispatchQueue.main.async { [weak self] in
+                self?.showDebugCameraPlaceholder()
+            }
+            #endif
             return
         }
 
@@ -280,6 +291,19 @@ class CameraPreviewView: UIView {
             }
         }
     }
+
+    #if DEBUG
+    private func showDebugCameraPlaceholder() {
+        guard debugPlaceholderView == nil,
+              let image = UIImage(named: "DebugStoryCamera") else { return }
+        let imageView = UIImageView(image: image)
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.frame = bounds
+        insertSubview(imageView, at: 0)
+        debugPlaceholderView = imageView
+    }
+    #endif
 
     /// iPhone 17+ Center Stage frontal = `.builtInUltraWideCamera`, no la wide normal.
     private func captureDevice(for position: AVCaptureDevice.Position) -> AVCaptureDevice? {
@@ -595,6 +619,12 @@ class CameraPreviewView: UIView {
     }
 
     func capturePhoto() {
+        #if DEBUG
+        if photoOutput == nil, let image = debugPlaceholderView?.image {
+            delegate?.parent.onImageCaptured(image)
+            return
+        }
+        #endif
         guard let photoOutput = photoOutput else { return }
 
         let settings = AVCapturePhotoSettings()

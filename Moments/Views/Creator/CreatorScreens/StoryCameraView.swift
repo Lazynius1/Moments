@@ -12,6 +12,9 @@ struct StoryCameraView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.momentsDivisionRegions) private var momentsDivisionRegions
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
+    /// `onHingeChange`: `.unknown` es iPhone. El cerrado del Duo es `.closed`.
+    @State private var hingePose: StoryCameraHingePose = .unknown
     private var safeAreaTintColor: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }
@@ -51,9 +54,55 @@ struct StoryCameraView: View {
         }
     }
 
+    /// Duo con bisagra. `.unknown` es iPhone y no entra aquí.
+    private var usesDuoSystemChrome: Bool {
+        hingePose != .unknown
+    }
+
+    /// Libro horizontal (bisagra vertical): cámara | galería. Parcial y del todo abierto.
+    /// En vertical los dos modos van a pantalla completa.
+    private var openHingeIsSideBySide: Bool {
+        guard hingePose == .partiallyOpen || hingePose == .fullyOpen else { return false }
+        if let division = momentsDivisionRegions.first(where: { $0.width > 1 && $0.height > 1 }) {
+            return division.height >= division.width
+        }
+        return toolbarVerticalEdge != nil
+    }
+
     var body: some View {
+        closedAwareCamera
+            .modifier(StoryCameraHingeObserver(pose: $hingePose))
+    }
+
+    @ViewBuilder
+    private var closedAwareCamera: some View {
+        if usesDuoSystemChrome {
+            NavigationStack {
+                cameraShell
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar(.visible, for: .navigationBar)
+                    .toolbar { closedDuoCameraToolbar }
+            }
+        } else {
+            cameraShell
+        }
+    }
+
+    private var cameraShell: some View {
         CameraAccessBoundary(requiresMicrophone: true, onCancel: { currentFlow = .typeSelection }) {
-            cameraContent
+            if openHingeIsSideBySide, #available(iOS 27.1, *) {
+                ArrangementView {
+                    cameraContent
+                } secondary: {
+                    StoryGalleryPicker(onSelect: { media in
+                        selectedMediaItems = [media]
+                        currentFlow = .storyEditing
+                    }, inline: true)
+                }
+                .arrangementViewStyle(.split.axes(.horizontal))
+            } else {
+                cameraContent
+            }
         }
     }
 
@@ -70,11 +119,22 @@ struct StoryCameraView: View {
                 divisionRegions: momentsDivisionRegions,
                 prefersSideControls: false
             )
-            let captureRect = adaptiveLayout.canvasRect
-            // Separación extra respecto al LensReel (100pt de alto, con un UICollectionView de ancho completo
-            // que puede robar toques aunque esté vacío visualmente) para que la galería/cambio de cámara no queden pegados a su zona táctil.
-            let controlY = min(proxy.size.height - proxy.safeAreaInsets.bottom - 20, captureRect.maxY + 104)
-            let captureButtonY = captureRect.maxY - 10
+            let captureRect: CGRect = {
+                if hingePose == .unknown {
+                    return adaptiveLayout.canvasRect
+                }
+                if hingePose == .closed {
+                    return closedDuoCaptureRect(in: proxy)
+                }
+                return duoPaneCaptureRect(in: proxy)
+            }()
+            let placesControlsOnCanvas = usesDuoSystemChrome
+            let captureButtonY = placesControlsOnCanvas
+                ? captureRect.maxY - 72
+                : captureRect.maxY - 10
+            let controlY = placesControlsOnCanvas
+                ? captureButtonY
+                : min(proxy.size.height - proxy.safeAreaInsets.bottom - 20, captureRect.maxY + 104)
 
             ZStack {
                 safeAreaTintColor
@@ -122,12 +182,14 @@ struct StoryCameraView: View {
                         }
                 )
 
-                topControlsOverlay
-                    .frame(width: captureRect.width, height: captureRect.height, alignment: .top)
-                    .position(x: captureRect.midX, y: captureRect.midY)
+                if !usesDuoSystemChrome {
+                    topControlsOverlay
+                        .frame(width: captureRect.width, height: captureRect.height, alignment: .top)
+                        .position(x: captureRect.midX, y: captureRect.midY)
 
-                textModeButtonOverlay
-                    .position(x: captureRect.maxX - 26, y: captureRect.midY)
+                    textModeButtonOverlay
+                        .position(x: captureRect.maxX - 26, y: captureRect.midY)
+                }
 
                 // Bottom controls
                 recordingStatusView
@@ -135,13 +197,19 @@ struct StoryCameraView: View {
 
                 bottomSideControls
                     .frame(
-                        width: adaptiveLayout.usesSupplementaryControls
-                            ? max(adaptiveLayout.controlsRect.width - 24, 120)
-                            : max(min(captureRect.width + 54, proxy.size.width - 72), 120)
+                        width: placesControlsOnCanvas
+                            ? max(captureRect.width - 28, 120)
+                            : ((!openHingeIsSideBySide && adaptiveLayout.usesSupplementaryControls)
+                                ? max(adaptiveLayout.controlsRect.width - 24, 120)
+                                : max(min(captureRect.width + 54, proxy.size.width - 72), 120))
                     )
                     .position(
-                        x: adaptiveLayout.usesSupplementaryControls ? adaptiveLayout.controlsRect.midX : captureRect.midX,
-                        y: adaptiveLayout.usesSupplementaryControls ? adaptiveLayout.controlsRect.midY : controlY
+                        x: placesControlsOnCanvas
+                            ? captureRect.midX
+                            : ((!openHingeIsSideBySide && adaptiveLayout.usesSupplementaryControls) ? adaptiveLayout.controlsRect.midX : captureRect.midX),
+                        y: placesControlsOnCanvas
+                            ? controlY
+                            : ((!openHingeIsSideBySide && adaptiveLayout.usesSupplementaryControls) ? adaptiveLayout.controlsRect.midY : controlY)
                     )
                     // Prioridad de toque sobre el UICollectionView de LensReel (ancho completo, declarado después),
                     // que puede robar toques en el margen entre ambos aunque no tenga contenido visible ahí.
@@ -210,6 +278,75 @@ struct StoryCameraView: View {
                 isRecording,
                 duration: duration
             )
+        }
+    }
+
+    /// Abierto: el 9:16 usa la pantalla (o la mitad, en horizontal) sin restar
+    /// otra vez el safe area. Así el obturador cabe dentro.
+    private func duoPaneCaptureRect(in proxy: GeometryProxy) -> CGRect {
+        let inset: CGFloat = 8
+        return creatorMomentsAspectRect(
+            aspectRatio: creatorMomentsCaptureAspectRatio,
+            in: CGRect(
+                x: inset,
+                y: inset,
+                width: max(proxy.size.width - inset * 2, 1),
+                height: max(proxy.size.height - inset * 2, 1)
+            )
+        )
+    }
+    private func closedDuoCaptureRect(in proxy: GeometryProxy) -> CGRect {
+        let windowInsets = storyCameraWindowInsets()
+        let viewport = storyCameraViewportSize(for: proxy)
+        let horizontalInsets = proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing
+        let canvasSize = CGSize(
+            width: max(viewport.width - horizontalInsets, 1),
+            height: viewport.height
+        )
+        return creatorMomentsCaptureRect(
+            in: canvasSize,
+            topInset: windowInsets.top,
+            bottomInset: windowInsets.bottom
+        ).offsetBy(dx: proxy.safeAreaInsets.leading, dy: 0)
+    }
+
+    private func storyCameraWindowInsets() -> UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        return scene?.windows.first { $0.isKeyWindow }?.safeAreaInsets ?? .zero
+    }
+
+    private func storyCameraViewportSize(for proxy: GeometryProxy) -> CGSize {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        guard let bounds = scene?.windows.first(where: { $0.isKeyWindow })?.bounds else {
+            return proxy.size
+        }
+        return CGSize(
+            width: max(proxy.size.width, bounds.width),
+            height: max(proxy.size.height, bounds.height)
+        )
+    }
+
+    @ToolbarContentBuilder
+    private var closedDuoCameraToolbar: some ToolbarContent {
+        if #available(iOS 27.1, *) {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    showCreatorView = false
+                } label: {
+                    Label("common.close", systemImage: "xmark")
+                }
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button(action: toggleFlash) {
+                    Label("Flash", systemImage: flashIcon)
+                }
+                Button(action: openTextStoryMode) {
+                    Label("Aa", systemImage: "textformat")
+                }
+            }
+            .axisBehavior(.verticalPreferred)
         }
     }
 
@@ -292,9 +429,11 @@ struct StoryCameraView: View {
 
     private var bottomSideControls: some View {
         HStack {
-            galleryButton
-                .rotationEffect(.degrees(rotationAngle))
-                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: rotationAngle), value: rotationAngle)
+            if !openHingeIsSideBySide {
+                galleryButton
+                    .rotationEffect(.degrees(rotationAngle))
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: rotationAngle), value: rotationAngle)
+            }
 
             Spacer()
 
@@ -561,6 +700,37 @@ struct StoryCameraView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+private enum StoryCameraHingePose {
+    case unknown
+    case closed
+    case partiallyOpen
+    case fullyOpen
+}
+
+/// `.unknown` (sin bisagra) es iPhone y no cambia el chrome.
+private struct StoryCameraHingeObserver: ViewModifier {
+    @Binding var pose: StoryCameraHingePose
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.onHingeChange { _, context in
+                switch context.hinge?.status {
+                case .partiallyOpen:
+                    pose = .partiallyOpen
+                case .fullyOpen:
+                    pose = .fullyOpen
+                case .closed:
+                    pose = .closed
+                default:
+                    pose = .unknown
+                }
+            }
+        } else {
+            content
         }
     }
 }
