@@ -34,6 +34,8 @@ struct ViewOnceImmersiveViewer: View {
     @State private var showReactions = false
     @State private var showReactionEmojiPicker = false
     @State private var showSentConfirmation = false
+    @State private var floatingHearts: [FloatingHeart] = []
+    @State private var reactionViewport: CGSize = .zero
     @State private var keyboardHeight: CGFloat = 0
     @State private var isKeyboardVisible = false
     @State private var overlayTextOverlays: [StoryTextOverlayMetadata] = []
@@ -164,7 +166,12 @@ struct ViewOnceImmersiveViewer: View {
                 : max(resolvedTopInset + 1, canvasRect.minY - 26)
 
             ZStack {
-                Color(hex: "0B1215").ignoresSafeArea()
+                Color(hex: "0B1215")
+                    .ignoresSafeArea()
+                    .onAppear { reactionViewport = viewportSize }
+                    .onChange(of: viewportSize) { _, size in
+                        reactionViewport = size
+                    }
 
                 mediaCanvas(size: canvasRect.size)
                     .frame(width: canvasRect.width, height: canvasRect.height)
@@ -212,11 +219,20 @@ struct ViewOnceImmersiveViewer: View {
                     .position(x: canvasRect.midX, y: canvasRect.midY)
                 }
 
+                StoryFloatingReactionLayer(
+                    hearts: floatingHearts,
+                    frameSize: viewportSize,
+                    midX: viewportSize.width / 2,
+                    midY: viewportSize.height / 2
+                )
+                .allowsHitTesting(false)
+
                 viewerChrome(
                     canvasRect: canvasRect,
                     progressY: progressY,
                     screenWidth: proxy.size.width
                 )
+                .zIndex(1)
 
                 if showSentConfirmation {
                     sentConfirmationToast
@@ -225,6 +241,15 @@ struct ViewOnceImmersiveViewer: View {
                 }
             }
             .simultaneousGesture(viewerDismissDrag(screenHeight: proxy.size.height))
+            .simultaneousGesture(viewerSwipeUpGesture())
+            .simultaneousGesture(
+                TapGesture()
+                    .onEnded { _ in
+                        if isReplyFieldFocused {
+                            isReplyFieldFocused = false
+                        }
+                    }
+            )
         }
         .statusBarHidden(false)
         .preferredColorScheme(.dark)
@@ -443,11 +468,28 @@ struct ViewOnceImmersiveViewer: View {
                 .frame(width: canvasRect.width)
                 .position(x: canvasRect.midX, y: canvasRect.minY + 26)
 
+            if !usesViewOnceSystemToolbar && isKeyboardVisible {
+                Color.black.opacity(0.32)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .allowsHitTesting(false)
+
+                StoryQuickReactionsGrid(
+                    reactions: Array(EmojiReactionDefaults.story.prefix(8))
+                ) { reaction in
+                    isReplyFieldFocused = false
+                    sendReaction(reaction)
+                }
+                .position(
+                    x: canvasRect.midX,
+                    y: canvasRect.minY + max(140, (canvasRect.height - keyboardHeight) * 0.62)
+                )
+            }
+
             VStack {
                 Spacer()
 
                 VStack(spacing: 12) {
-                    if showReactions {
+                    if showReactions && !isKeyboardVisible {
                         StoryReactionsStrip(
                             reactions: reactionEmojis,
                             showReactions: showReactions,
@@ -513,28 +555,58 @@ struct ViewOnceImmersiveViewer: View {
                 isPaused = focused
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, showsActions ? 14 : 10)
+            .frame(maxWidth: showsActions ? .infinity : nil)
             .background(Color.white.opacity(0.001))
             .momentsChromeGlass(in: Capsule(), interactive: true)
 
-            if showsActions, replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                replyBarActionButton(systemImage: showReactions ? "face.smiling.fill" : "face.smiling") {
-                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
-                        showReactions.toggle()
+            if showsActions {
+                let replyIsEmpty = replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                let keepsReplyActions = !isKeyboardVisible && !isReplyFieldFocused
+                HStack(spacing: 2) {
+                    if keepsReplyActions && replyIsEmpty {
+                        replyChromeIcon(systemImage: showReactions ? "heart.fill" : "heart") {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
+                                showReactions.toggle()
+                            }
+                            isPaused = showReactions
+                        }
+                        replyChromeIcon(systemImage: "camera.fill") {
+                            onOpenCameraReply?()
+                            closeViewer()
+                        }
+                    } else if !replyIsEmpty {
+                        replyChromeIcon(systemImage: "paperplane.fill", action: sendReplyText)
+                            .transition(MotionPolicy.Transition.enterPop)
                     }
-                    isPaused = showReactions
                 }
-
-                replyBarActionButton(systemImage: "camera.fill") {
-                    onOpenCameraReply?()
-                    closeViewer()
-                }
-            } else if showsActions {
-                replyBarActionButton(systemImage: "paperplane.fill", action: sendReplyText)
-                    .transition(MotionPolicy.Transition.enterPop)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: replyText.isEmpty)
+        .animation(.easeInOut(duration: 0.2), value: isKeyboardVisible)
+        .animation(.easeInOut(duration: 0.2), value: isReplyFieldFocused)
+    }
+
+    private func replyChromeIcon(systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 22, weight: .regular))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 40)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func viewerSwipeUpGesture() -> some Gesture {
+        DragGesture(minimumDistance: 18)
+            .onChanged { value in
+                guard !usesViewOnceSystemToolbar else { return }
+                guard !isReplyFieldFocused, !isKeyboardVisible, !showReactions else { return }
+                guard value.translation.height < -60, abs(value.translation.width) < 50 else { return }
+                isReplyFieldFocused = true
+                isPaused = true
+            }
     }
 
     private func viewerDismissDrag(screenHeight: CGFloat) -> some Gesture {
@@ -562,6 +634,7 @@ struct ViewOnceImmersiveViewer: View {
     }
 
     private func shouldHandleDismissDrag(_ value: DragGesture.Value, screenHeight: CGFloat) -> Bool {
+        guard usesViewOnceSystemToolbar else { return false }
         guard !isReplyFieldFocused, !isKeyboardVisible, !showReactions else { return false }
         guard value.translation.height > 0 else { return false }
 
@@ -569,18 +642,6 @@ struct ViewOnceImmersiveViewer: View {
         // composer owns this area, so viewer dismiss drag must not start there.
         let bottomChromeHeight: CGFloat = 170
         return value.startLocation.y < screenHeight - bottomChromeHeight
-    }
-
-    private func replyBarActionButton(systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 40, height: 40)
-                .background(Color.white.opacity(0.001))
-                .momentsChromeGlass(in: Circle(), interactive: true)
-        }
-        .buttonStyle(PlainButtonStyle())
     }
 
     // El texto y la reacción no cierran el visor (como en historias): se envían en
@@ -598,10 +659,22 @@ struct ViewOnceImmersiveViewer: View {
     private func sendReaction(_ emoji: String) {
         emojiUsageTracker.increment(emoji)
         onSendReaction?(emoji)
+        isReplyFieldFocused = false
         withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
             showReactions = false
         }
-        flashSentConfirmation()
+        StoryReactionBurst.emit(
+            &floatingHearts,
+            emoji: emoji,
+            in: reactionViewport
+        ) { heartId in
+            floatingHearts.removeAll { $0.id == heartId }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if !showReactions && !isReplyFieldFocused {
+                isPaused = false
+            }
+        }
     }
 
     private func flashSentConfirmation() {
