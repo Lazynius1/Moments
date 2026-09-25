@@ -39,8 +39,6 @@ struct ActivityInteractionDetailView: View {
     @State private var pendingActivitySelectionConfirmation: ActivitySelectionConfirmationAction?
     @State private var recentlyDeletedInFlightAction: RecentlyDeletedConfirmationAction?
     @State private var isRestoringArchivedSelection = false
-    @State private var activitySelectionSuccessBannerKey: String?
-    @State private var recentlyDeletedSuccessBannerKey: String?
     @State private var recentlyDeletedAutoScrollDirection: RecentlyDeletedAutoScrollDirection?
     @State private var recentlyDeletedAutoScrollTask: Task<Void, Never>?
     @State private var recentlyDeletedDragCurrentId: String?
@@ -228,42 +226,9 @@ struct ActivityInteractionDetailView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 selectionBars
             }
-            .overlay(alignment: .top) {
-                activityDetailBannerOverlay
-            }
             .onDisappear {
                 stopRecentlyDeletedAutoScroll()
             }
-    }
-
-    @ViewBuilder
-    private var activityDetailBannerOverlay: some View {
-        if let successKey = activitySelectionSuccessBannerKey {
-            selectionSuccessBanner(textKey: successKey)
-                .padding(.top, 12)
-                .transition(.move(edge: .top).combined(with: .opacity))
-        }
-        if let successKey = recentlyDeletedSuccessBannerKey {
-            selectionSuccessBanner(textKey: successKey)
-                .padding(.top, 12)
-                .transition(.move(edge: .top).combined(with: .opacity))
-        }
-        if let action = recentlyDeletedInFlightAction {
-            processingBanner(
-                titleKey: recentlyDeletedProcessingTitleKey(for: action),
-                subtitleKey: "userActivity.simple.recentlyDeleted.processing.subtitle"
-            )
-            .padding(.top, 12)
-            .transition(.move(edge: .top).combined(with: .opacity))
-        }
-        if isRestoringArchivedSelection {
-            processingBanner(
-                titleKey: "userActivity.event.archived.processing.restore",
-                subtitleKey: "userActivity.simple.recentlyDeleted.processing.subtitle"
-            )
-            .padding(.top, 12)
-            .transition(.move(edge: .top).combined(with: .opacity))
-        }
     }
 
     private var activityDetailChromeView: some View {
@@ -502,8 +467,14 @@ struct ActivityInteractionDetailView: View {
     }
 
     private func activityGridColumnSide() -> CGFloat {
-        let containerWidth = activityGridSize.width
         let spacing = activityGridSpacing
+        let containerWidth: CGFloat = {
+            if activityGridSize.width > 1 { return activityGridSize.width }
+            if activityScrollViewportSize.width > 1 { return activityScrollViewportSize.width }
+            return 0
+        }()
+        // Ancho estable antes del primer layout (evita celdas de 1pt).
+        guard containerWidth > 10 else { return 120 }
         return max(1, floor((containerWidth - spacing * 2) / 3))
     }
 
@@ -666,38 +637,39 @@ struct ActivityInteractionDetailView: View {
                 .frame(maxWidth: .infinity, minHeight: 420, alignment: .center)
         } else {
             let spacing = activityGridSpacing
-            let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
+            let side = activityGridColumnSide()
+            // `.fixed` como ProfileSavedSection — evita el thrash de GeometryReader + flexible.
+            let columns = Array(repeating: GridItem(.fixed(side), spacing: spacing), count: 3)
             let isReelsCategory = category == .reels
 
             LazyVGrid(columns: columns, spacing: spacing) {
                 ForEach(Array(filteredMoments.enumerated()), id: \.element.id) { index, moment in
                     if isReelsCategory {
                         ActivityPortraitMomentCard(moment: moment)
+                            .frame(width: side)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 openActivityReels(moment: moment, moments: filteredMoments)
                             }
                     } else {
-                        GeometryReader { geometry in
-                            ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
-                                ModernMomentThumbnail(
-                                    moment: moment,
-                                    size: geometry.size.width,
-                                    customListNamesById: viewModel.customListNamesById,
-                                    zoomNamespace: zoomNamespace,
-                                    zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "activity"),
-                                    onTap: {
-                                        openActivityMomentZoom(moment: moment)
-                                    },
-                                    usesDiscreetAudienceIcon: true
-                                )
-                                .frame(width: geometry.size.width, height: geometry.size.width)
-                            }
+                        ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
+                            ModernMomentThumbnail(
+                                moment: moment,
+                                size: side,
+                                customListNamesById: viewModel.customListNamesById,
+                                zoomNamespace: zoomNamespace,
+                                zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "activity"),
+                                onTap: {
+                                    openActivityMomentZoom(moment: moment)
+                                },
+                                usesDiscreetAudienceIcon: true
+                            )
+                            .frame(width: side, height: side)
                         }
-                        .aspectRatio(1, contentMode: .fit)
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .center)
             .onGeometryChange(for: CGSize.self) { geometry in
                 geometry.size
             } action: { size in
@@ -1995,56 +1967,6 @@ struct ActivityInteractionDetailView: View {
         }
     }
 
-    private func selectionSuccessBanner(textKey: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color(hex: "22C55E"))
-
-            Text(NSLocalizedString(textKey, comment: "Selection success banner"))
-                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                .foregroundStyle(colorScheme == .dark ? .white : .black)
-                .multilineTextAlignment(.leading)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(colorScheme == .dark ? 0.10 : 0.35), lineWidth: 0.8)
-        )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 16, y: 6)
-    }
-
-    private func processingBanner(titleKey: String, subtitleKey: String) -> some View {
-        HStack(spacing: 12) {
-            ProgressView()
-                .tint(colorScheme == .dark ? .white : .black)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(NSLocalizedString(titleKey, comment: "Processing title"))
-                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-
-                Text(NSLocalizedString(subtitleKey, comment: "Processing subtitle"))
-                    .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundStyle(.gray)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(colorScheme == .dark ? 0.10 : 0.35), lineWidth: 0.8)
-        )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 16, y: 6)
-    }
-
     private func recentlyDeletedProcessingTitleKey(for action: RecentlyDeletedConfirmationAction) -> String {
         switch action {
         case .restore:
@@ -2140,6 +2062,9 @@ struct ActivityInteractionDetailView: View {
 
         await MainActor.run {
             isRestoringArchivedSelection = true
+            InAppNotificationService.shared.showActionToast(
+                .activityProgress(titleKey: "userActivity.event.archived.processing.restore")
+            )
         }
 
         let result = await viewModel.unarchiveSelection(withIds: ids)
@@ -2151,8 +2076,9 @@ struct ActivityInteractionDetailView: View {
                 if selectedReactionIds.isEmpty {
                     isSelectionMode = false
                 }
-                showActivitySelectionSuccessBanner("userActivity.event.archived.success.restore")
+                InAppNotificationService.shared.showActionToast(.activityDone("userActivity.event.archived.success.restore"))
             case .failure(let error):
+                InAppNotificationService.shared.dismissHeldActionToast()
                 viewModel.errorMessage = error.localizedDescription
             }
         }
@@ -2161,6 +2087,9 @@ struct ActivityInteractionDetailView: View {
     private func performRecentlyDeletedRestore() async {
         await MainActor.run {
             recentlyDeletedInFlightAction = .restore
+            InAppNotificationService.shared.showActionToast(
+                .activityProgress(titleKey: recentlyDeletedProcessingTitleKey(for: .restore))
+            )
         }
         let result = await viewModel.restoreSelection(withIds: selectedReactionIds)
         await MainActor.run {
@@ -2169,8 +2098,9 @@ struct ActivityInteractionDetailView: View {
             case .success:
                 selectedReactionIds.removeAll()
                 isSelectionMode = false
-                showRecentlyDeletedSuccessBanner("userActivity.simple.recentlyDeleted.success.restore")
+                InAppNotificationService.shared.showActionToast(.activityDone("userActivity.simple.recentlyDeleted.success.restore"))
             case .failure(let error):
+                InAppNotificationService.shared.dismissHeldActionToast()
                 viewModel.errorMessage = error.localizedDescription
             }
         }
@@ -2179,6 +2109,9 @@ struct ActivityInteractionDetailView: View {
     private func performRecentlyDeletedPermanentDelete() async {
         await MainActor.run {
             recentlyDeletedInFlightAction = .permanentlyDelete
+            InAppNotificationService.shared.showActionToast(
+                .activityProgress(titleKey: recentlyDeletedProcessingTitleKey(for: .permanentlyDelete))
+            )
         }
         let result = await viewModel.permanentlyDeleteSelection(withIds: selectedReactionIds)
         await MainActor.run {
@@ -2187,41 +2120,10 @@ struct ActivityInteractionDetailView: View {
             case .success:
                 selectedReactionIds.removeAll()
                 isSelectionMode = false
-                showRecentlyDeletedSuccessBanner("userActivity.simple.recentlyDeleted.success.delete")
+                InAppNotificationService.shared.showActionToast(.activityDone("userActivity.simple.recentlyDeleted.success.delete"))
             case .failure(let error):
+                InAppNotificationService.shared.dismissHeldActionToast()
                 viewModel.errorMessage = error.localizedDescription
-            }
-        }
-    }
-
-    private func showRecentlyDeletedSuccessBanner(_ textKey: String) {
-        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
-            recentlyDeletedSuccessBannerKey = textKey
-        }
-
-        Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            await MainActor.run {
-                guard recentlyDeletedSuccessBannerKey == textKey else { return }
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    recentlyDeletedSuccessBannerKey = nil
-                }
-            }
-        }
-    }
-
-    private func showActivitySelectionSuccessBanner(_ textKey: String) {
-        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
-            activitySelectionSuccessBannerKey = textKey
-        }
-
-        Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            await MainActor.run {
-                guard activitySelectionSuccessBannerKey == textKey else { return }
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    activitySelectionSuccessBannerKey = nil
-                }
             }
         }
     }
@@ -2238,6 +2140,9 @@ struct ActivityInteractionDetailView: View {
     private func deleteSelectedReactions() async {
         guard !selectedReactionIds.isEmpty else { return }
         isDeletingSelectedReactions = true
+        InAppNotificationService.shared.showActionToast(
+            .activityProgress(titleKey: "userActivity.simple.reactions.delete.multiple")
+        )
         let idsToDelete = selectedReactionIds
 
         let result = await viewModel.removeReactions(withIds: idsToDelete)
@@ -2248,8 +2153,9 @@ struct ActivityInteractionDetailView: View {
             case .success:
                 selectedReactionIds.removeAll()
                 isSelectionMode = false
-                showActivitySelectionSuccessBanner("userActivity.simple.reactions.success.delete")
+                InAppNotificationService.shared.showActionToast(.activityDone("userActivity.simple.reactions.success.delete"))
             case .failure(let error):
+                InAppNotificationService.shared.dismissHeldActionToast()
                 viewModel.errorMessage = error.localizedDescription
             }
         }
@@ -2258,6 +2164,9 @@ struct ActivityInteractionDetailView: View {
     private func removeSelectedTags() async {
         guard !selectedReactionIds.isEmpty else { return }
         isRemovingSelectedTags = true
+        InAppNotificationService.shared.showActionToast(
+            .activityProgress(titleKey: "userActivity.simple.tags.remove.multiple")
+        )
         let idsToRemove = selectedReactionIds
 
         let result = await viewModel.removeTags(withIds: idsToRemove)
@@ -2268,8 +2177,9 @@ struct ActivityInteractionDetailView: View {
             case .success:
                 selectedReactionIds.removeAll()
                 isSelectionMode = false
-                showActivitySelectionSuccessBanner("userActivity.simple.tags.success.remove")
+                InAppNotificationService.shared.showActionToast(.activityDone("userActivity.simple.tags.success.remove"))
             case .failure(let error):
+                InAppNotificationService.shared.dismissHeldActionToast()
                 viewModel.errorMessage = error.localizedDescription
             }
         }
@@ -2278,6 +2188,9 @@ struct ActivityInteractionDetailView: View {
     private func deleteSelectedComments() async {
         guard !selectedCommentIds.isEmpty else { return }
         isDeletingSelectedComments = true
+        InAppNotificationService.shared.showActionToast(
+            .activityProgress(titleKey: "userActivity.simple.comments.delete.multiple")
+        )
         let idsToDelete = selectedCommentIds
 
         let result = await viewModel.removeComments(withIds: idsToDelete)
@@ -2288,8 +2201,9 @@ struct ActivityInteractionDetailView: View {
             case .success:
                 selectedCommentIds.removeAll()
                 isSelectionMode = false
-                showActivitySelectionSuccessBanner("userActivity.simple.comments.success.delete")
+                InAppNotificationService.shared.showActionToast(.activityDone("userActivity.simple.comments.success.delete"))
             case .failure(let error):
+                InAppNotificationService.shared.dismissHeldActionToast()
                 viewModel.errorMessage = error.localizedDescription
             }
         }
@@ -2298,6 +2212,9 @@ struct ActivityInteractionDetailView: View {
     private func deleteSelectedEvents() async {
         guard !selectedEventIds.isEmpty else { return }
         isDeletingSelectedEvents = true
+        InAppNotificationService.shared.showActionToast(
+            .activityProgress(titleKey: "userActivity.simple.stickers.delete.multiple")
+        )
         let idsToDelete = selectedEventIds
 
         let result = await viewModel.removeStickerReplies(withIds: idsToDelete)
@@ -2308,8 +2225,9 @@ struct ActivityInteractionDetailView: View {
             case .success:
                 selectedEventIds.removeAll()
                 isSelectionMode = false
-                showActivitySelectionSuccessBanner("userActivity.simple.stickers.success.delete")
+                InAppNotificationService.shared.showActionToast(.activityDone("userActivity.simple.stickers.success.delete"))
             case .failure(let error):
+                InAppNotificationService.shared.dismissHeldActionToast()
                 viewModel.errorMessage = error.localizedDescription
             }
         }

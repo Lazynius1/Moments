@@ -529,6 +529,8 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
     var onArchive: ((Moment) -> Void)? = nil
     var onAdjustPreview: ((Moment) -> Void)? = nil
     var onPin: ((Moment, Bool, Bool) -> Void)? = nil
+    /// Commit Firestore del pin (tras expirar el toast de deshacer).
+    var onPinCommit: ((Moment, Bool, Bool) -> Void)? = nil
 
     /// Navegación zoom iOS 18 → detalle (NavigationStack).
     var openZoomDetail: ((ProfileMomentZoomDestination) -> Void)? = nil
@@ -1339,7 +1341,12 @@ struct ProfileGridHeroDetailLayer: View {
                 MomentRowButton(action: {
                     guard let moment = coordinator.menuSelection?.moment else { return }
                     coordinator.onPin?(moment, true, true)
-                    coordinator.toastMessage = NSLocalizedString("contextMenu.pinMoment.toast.pinned", comment: "Pinned toast")
+                    InAppNotificationService.shared.showActionToast(
+                        .pinnedMoment(
+                            undo: { coordinator.onPin?(moment, false, false) },
+                            onExpire: { coordinator.onPinCommit?(moment, true, true) }
+                        )
+                    )
                     coordinator.dismissMenu()
                 }) {
                     Text(NSLocalizedString("contextMenu.pinLimit.confirm", comment: "Confirm pin replacement"))
@@ -1384,7 +1391,12 @@ struct ProfileGridHeroDetailLayer: View {
     private func handlePin(_ moment: Moment) {
         if moment.isPinned == true {
             coordinator.onPin?(moment, false, false)
-            coordinator.toastMessage = NSLocalizedString("contextMenu.pinMoment.toast.unpinned", comment: "Unpinned toast")
+            InAppNotificationService.shared.showActionToast(
+                .unpinnedMoment(
+                    undo: { coordinator.onPin?(moment, true, false) },
+                    onExpire: { coordinator.onPinCommit?(moment, false, false) }
+                )
+            )
             coordinator.dismissMenu()
             return
         }
@@ -1395,7 +1407,12 @@ struct ProfileGridHeroDetailLayer: View {
         }
 
         coordinator.onPin?(moment, true, false)
-        coordinator.toastMessage = NSLocalizedString("contextMenu.pinMoment.toast.pinned", comment: "Pinned toast")
+        InAppNotificationService.shared.showActionToast(
+            .pinnedMoment(
+                undo: { coordinator.onPin?(moment, false, false) },
+                onExpire: { coordinator.onPinCommit?(moment, true, false) }
+            )
+        )
         coordinator.dismissMenu()
     }
 }

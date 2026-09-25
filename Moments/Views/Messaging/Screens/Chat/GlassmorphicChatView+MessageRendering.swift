@@ -215,7 +215,11 @@ extension GlassmorphicChatView {
                         activateReply(to: message)
                     },
                     onCopy: { message in
-                        UIPasteboard.general.string = message.content
+                        let text = message.content ?? ""
+                        UIPasteboard.general.string = text
+                        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            InAppNotificationService.shared.showActionToast(.messageCopied(text: text))
+                        }
                     },
                     onForward: { message in
                         forwardingMessage = message

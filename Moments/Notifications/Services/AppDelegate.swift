@@ -180,10 +180,21 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
                 NotificationPresentationCoordinator.shared.applyPushSideEffects(from: userInfo)
                 let conversationId = ChatNotificationThread.conversationId(from: userInfo)
                 let isOpen = conversationId == ChatSessionEngine.shared.activeConversationId
-                if isOpen || NotificationPresentationCoordinator.isSilentPush(userInfo) {
-                    completionHandler(isOpen ? [] : [.badge])
+                let isSilent = NotificationPresentationCoordinator.isSilentPush(userInfo)
+                if !isOpen && !isSilent {
+                    NotificationPresentationCoordinator.shared.present(
+                        from: userInfo,
+                        source: .push,
+                        applyEffects: false
+                    )
+                }
+                if isOpen {
+                    completionHandler([])
+                } else if isSilent {
+                    completionHandler([.badge])
                 } else {
-                    completionHandler([.banner, .list, .sound, .badge])
+                    // En primer plano el aviso visible es el in-app. .list lo deja en el centro, sin banner del sistema.
+                    completionHandler([.list, .badge])
                 }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -199,7 +210,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         if NotificationPresentationCoordinator.isSilentPush(userInfo) {
             completionHandler([.badge])
         } else {
-            completionHandler([.banner, .list, .sound, .badge])
+            completionHandler([.list, .badge])
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

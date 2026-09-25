@@ -25,7 +25,7 @@ class NotificationService: ObservableObject {
     private var profileCache: [String: User] = [:]
     private var pendingDeletionTask: Task<Void, Never>?
     private var hiddenPendingDeletionIds: Set<String> = []
-    private let deletionUndoWindow: TimeInterval = 3
+    private let deletionUndoWindow = InAppActionToast.undoDuration
 
     struct PendingNotificationDeletion: Equatable {
         let id = UUID()
@@ -516,6 +516,18 @@ class NotificationService: ObservableObject {
         removeFromLocalState(valid)
         pendingDeletion = PendingNotificationDeletion(notifications: valid)
         schedulePendingDeletionCommit()
+        let count = valid.count
+        InAppNotificationService.shared.showActionToast(
+            .notificationDeleted(
+                count: count,
+                undo: { [weak self] in
+                    self?.undoPendingDeletion()
+                },
+                onExpire: { [weak self] in
+                    self?.commitPendingDeletion()
+                }
+            )
+        )
     }
 
     func undoPendingDeletion() {

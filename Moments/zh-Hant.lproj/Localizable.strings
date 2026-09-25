@@ -494,8 +494,8 @@
 "notifications.message.follow.multiple" = "%@ 和另外 %d 人開始追蹤你。";
 "notifications.message.request.two" = "%@ 和 %@ 想追蹤你。";
 "notifications.message.request.multiple" = "%@ 和另外 %d 人想追蹤你。";
-"notifications.message.mutual.two" = "你和 %@ 及 %@ 現在已建立雙向連結。";
-"notifications.message.mutual.multiple" = "你和 %@ 及另外 %d 人現在已建立雙向連結。";
+"notifications.message.mutual.two" = "現在你和 %@、%@ 互相追蹤。";
+"notifications.message.mutual.multiple" = "%@ 和另外 %d 人與你互相追蹤了";
 "notifications.message.comment.two" = "%@ 和 %@ 在你的動態留言。";
 "notifications.message.comment.multiple" = "%@ 和另外 %d 人在你的動態留言。";
 "notifications.message.story.two" = "%@ 和 %@ 對你的限時動態按讚。";
@@ -508,7 +508,7 @@
 "notifications.message.mention.single" = "%@ 提到了你。";
 "notifications.message.follow.single" = "%@ 開始追蹤你。";
 "notifications.message.request.single" = "%@ 想追蹤你。";
-"notifications.message.mutual.single" = "你和 %@ 現在已建立雙向連結。";
+"notifications.message.mutual.single" = "現在你和 %@ 互相追蹤。";
 "notifications.message.comment.single" = "%@ 在你的動態留言。";
 "notifications.message.story.single" = "%@ 對你的限時動態做出反應。";
 "notifications.message.storyChain.single" = "%@ 延續了「%@」串連。";
@@ -527,7 +527,7 @@
 "notifications.message.reaction.threePlus.withType" = "%@ 對你的動態做出了 %@ 反應，%@ 和另外 %d 人也做出了反應。";
 "notifications.message.follow.threePlus" = "%@、%@ 和另外 %d 人開始追蹤你。";
 "notifications.message.request.threePlus" = "%@、%@ 和另外 %d 人想追蹤你。";
-"notifications.message.mutual.threePlus" = "你現在和 %@、%@ 以及另外 %d 人互相關注。";
+"notifications.message.mutual.threePlus" = "%@、%@ 和另外 %d 人互相追蹤了";
 "notifications.message.comment.threePlus" = "%@、%@ 和另外 %d 人留言回覆了你的動態。";
 "notifications.message.story.threePlus" = "%@、%@ 和另外 %d 人對你的限時動態按了讚。";
 "notifications.message.requestAccepted.threePlus" = "%@、%@ 和另外 %d 人接受了你的追蹤邀請。";
@@ -1096,7 +1096,7 @@
 "chat.status.read" = "已讀";
 "chat.seen" = "已讀";
 "chat.status.failed" = "失敗";
-"chat.notification.viewOncePrompt" = "📸 傳送給你一則閱後即焚的訊息";
+"chat.notification.viewOncePrompt" = "傳送了一則訊息給你";
 "chat.preview.newConversation" = "新對話";
 "chat.preview.ephemeral_long" = "限時訊息";
 "chat.preview.image" = "圖片";
@@ -2766,6 +2766,8 @@
 "profile.moments.scheduled.in" = "%@後";
 /* Echoes Viewer & UI */
 "echo.viewer.leave" = "放棄 Echo";
+"toast.action.echoLeft" = "已離開 Echo";
+"toast.action.echoDeleted" = "Echo 已刪除";
 "echo.viewer.location.fallback" = "你附近";
 "echo.viewer.location.header" = "於 %@ 點擊";
 "echo.viewer.location.viewMaps" = "在地圖中查看";
@@ -2799,8 +2801,8 @@
 "echo.invitation.unavailable" = "此 Echo 已無法使用";
 "echo.invitation.error.decoding" = "Echo 解碼錯誤";
 /* Echoes Notifications */
-"notifications.message.echo" = "就在你附近！建立 Echo";
-"banner.verb.echoSuggestion" = "就在你附近！建立 Echo";
+"notifications.message.echo" = "%@就在附近。要在 Echo 裡把觀點湊在一起嗎？";
+"banner.verb.echoSuggestion" = "%@就在附近。要在 Echo 裡把觀點湊在一起嗎？";
 "echo.viewer.unavailable" = "此動態已無法使用";
 /* Interests */
 "interest.photography" = "攝影";
@@ -2902,7 +2904,7 @@
 "notification.message.single.photo" = "傳送了一張照片給你 📷";
 "notification.message.single.video" = "傳送了一部影片給你 🎥";
 "notification.message.single.audio" = "傳送了一段音訊給你 🎵";
-"notification.message.single.viewOnce" = "傳送了一則閱後即焚訊息給你 👀";
+"notification.message.single.viewOnce" = "傳送了一則訊息給你";
 "notification.message.single.moment" = "傳送了一則動態給你 📸";
 "notification.message.single.default" = "傳送了一則訊息給你";
 "notification.message.single.storyMention" = "在限時動態中提及你";
@@ -2976,10 +2978,10 @@
 "notification.echo.title" = "附近有新的連結！✨";
 "notification.echo.body" = "%@ 就在附近。一起建立 Echo 吧！";
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "新的互相關注！🎉";
-"notification.mutualConnection.body" = "你和 %@ 現在已互相追蹤";
-"notification.mutualConnection.multiple.title" = "新的互相關注！🎉";
-"notification.mutualConnection.multiple.body" = "%@ 和另外 %@ 人現在已互相追蹤";
+"notification.mutualConnection.title" = "你和 %@ 互相追蹤了";
+"notification.mutualConnection.body" = "點一下查看對方個人檔案";
+"notification.mutualConnection.multiple.title" = "你、%@ 和另外 %@ 人互相追蹤了";
+"notification.mutualConnection.multiple.body" = "點一下查看是誰";
 "explore.search.placeholder" = "搜尋…";
 /* Explore Search */
 "explore.search.cancel" = "取消";
@@ -3431,6 +3433,11 @@
 "messaging.section.archivedWithUnread" = "已封存（%d 則未讀）";
 "messaging.toast.archived" = "聊天已封存";
 "messaging.toast.unarchived" = "聊天已取消封存";
+"messaging.toast.muted" = "已將聊天靜音";
+"messaging.toast.unmuted" = "已重新開啟通知";
+"messaging.toast.pinned" = "已將聊天置頂";
+"messaging.toast.unpinned" = "已取消置頂";
+"messaging.toast.deleted" = "已刪除對話";
 "feed.refreshing" = "正在重新整理";
 "profile.ui.posts" = "貼文";
 /* Social Connections */
@@ -4602,3 +4609,35 @@
 "whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
 "whatsNew.offline230.title" = "Offline & polish";
 "whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";
+/* In-app action toasts */
+"toast.action.commentPosted" = "留言已發布";
+"toast.action.momentSaved" = "已儲存時刻";
+"toast.action.momentDeleted" = "已刪除時刻";
+"toast.action.momentArchived" = "已封存時刻";
+"toast.action.incognito.activated" = "無痕模式已啟用";
+"toast.action.incognito.activated.subtitle" = "點一下即可暫停";
+"toast.action.incognito.paused" = "無痕模式已暫停";
+"toast.action.storyDeleted" = "已刪除限時動態";
+"toast.action.followed" = "你正在追蹤 ";
+"toast.action.followRequested" = "已把追蹤請求傳給 ";
+"toast.action.requestAccepted" = "你接受了 ";
+"toast.action.requestRejected" = "你拒絕了 ";
+"toast.action.unfollowed" = "你已取消追蹤 ";
+"toast.action.blocked" = "你已封鎖 ";
+"toast.action.muted" = "你已將 ";
+"toast.action.momentUnsaved" = "已從收藏移除";
+"toast.action.commentDeleted" = "已刪除留言";
+"toast.action.commentDeleted.prefix" = "你刪除了 ";
+"toast.action.messageCopied" = "訊息已複製";
+"toast.action.linkCopied" = "連結已複製";
+"toast.action.momentUpdated" = "時刻已更新";
+"toast.action.leftGroup.prefix" = "你已退出群組 ";
+"toast.action.followed.suffix" = "";
+"toast.action.followRequested.suffix" = "";
+"toast.action.unfollowed.suffix" = "";
+"toast.action.blocked.suffix" = "";
+"toast.action.leftGroup.suffix" = "";
+"toast.action.requestAccepted.suffix" = " 的追蹤請求";
+"toast.action.requestRejected.suffix" = " 的追蹤請求";
+"toast.action.muted.suffix" = " 靜音";
+"toast.action.commentDeleted.prefix.suffix" = " 的留言";

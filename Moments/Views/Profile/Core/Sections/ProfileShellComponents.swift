@@ -442,8 +442,23 @@ struct ModernProfileContentView: View {
                     }
                     heroCoordinator.onArchive = { moment in
                         guard let momentId = moment.id else { return }
-                        FirestoreService.shared.archiveMoment(userId: moment.authorId, momentId: momentId) { _ in
-                            viewModel.moments.removeAll { $0.id == momentId }
+                        viewModel.moments.removeAll { $0.id == momentId }
+                        Task { @MainActor in
+                            InAppNotificationService.shared.showActionToast(
+                                .momentArchived(
+                                    undo: {
+                                        if !viewModel.moments.contains(where: { $0.id == momentId }) {
+                                            viewModel.moments.insert(moment, at: 0)
+                                        }
+                                    },
+                                    onExpire: {
+                                        FirestoreService.shared.archiveMoment(
+                                            userId: moment.authorId,
+                                            momentId: momentId
+                                        ) { _ in }
+                                    }
+                                )
+                            )
                         }
                     }
                     heroCoordinator.onAdjustPreview = { moment in
@@ -451,6 +466,9 @@ struct ModernProfileContentView: View {
                     }
                     heroCoordinator.onPin = { moment, shouldPin, replaceOldest in
                         handleGridPin(moment: moment, shouldPin: shouldPin, replaceOldest: replaceOldest)
+                    }
+                    heroCoordinator.onPinCommit = { moment, shouldPin, replaceOldest in
+                        commitGridPin(moment: moment, shouldPin: shouldPin, replaceOldest: replaceOldest)
                     }
                 }
             .sheet(item: $gridPreviewMoment) { moment in
@@ -629,51 +647,55 @@ struct ModernProfileContentView: View {
         guard let momentId = moment.id else { return }
         let pinnedAt = Date()
 
-        if shouldPin {
-            let completion: (Error?) -> Void = { error in
-                guard error == nil else { return }
-                DispatchQueue.main.async {
-                    if replaceOldest, let oldestId = viewModel.oldestPinnedMomentId(excluding: momentId) {
-                        viewModel.applyPinReplacement(
-                            unpinningMomentId: oldestId,
-                            pinningMomentId: momentId,
-                            pinnedAt: pinnedAt
-                        )
-                    } else {
-                        viewModel.applyMomentPinState(
-                            momentId: momentId,
-                            isPinned: true,
-                            pinnedAt: pinnedAt
-                        )
-                    }
+        // Solo UI local; el commit a Firestore va en el onExpire del toast.
+        DispatchQueue.main.async {
+            if shouldPin {
+                if replaceOldest, let oldestId = viewModel.oldestPinnedMomentId(excluding: momentId) {
+                    viewModel.applyPinReplacement(
+                        unpinningMomentId: oldestId,
+                        pinningMomentId: momentId,
+                        pinnedAt: pinnedAt
+                    )
+                } else {
+                    viewModel.applyMomentPinState(
+                        momentId: momentId,
+                        isPinned: true,
+                        pinnedAt: pinnedAt
+                    )
                 }
+            } else {
+                viewModel.applyMomentPinState(
+                    momentId: momentId,
+                    isPinned: false,
+                    pinnedAt: pinnedAt
+                )
             }
+        }
+    }
 
+    private func commitGridPin(moment: Moment, shouldPin: Bool, replaceOldest: Bool) {
+        guard let momentId = moment.id else { return }
+        if shouldPin {
             if replaceOldest {
                 FirestoreService.shared.pinMomentReplacingOldestIfNeeded(
                     userId: moment.authorId,
                     momentId: momentId,
                     pinnedMoments: viewModel.moments,
-                    completion: completion
+                    completion: { _ in }
                 )
             } else {
                 FirestoreService.shared.pinMoment(
                     userId: moment.authorId,
                     momentId: momentId,
-                    completion: completion
+                    completion: { _ in }
                 )
             }
         } else {
-            FirestoreService.shared.unpinMoment(userId: moment.authorId, momentId: momentId) { error in
-                guard error == nil else { return }
-                DispatchQueue.main.async {
-                    viewModel.applyMomentPinState(
-                        momentId: momentId,
-                        isPinned: false,
-                        pinnedAt: pinnedAt
-                    )
-                }
-            }
+            FirestoreService.shared.unpinMoment(
+                userId: moment.authorId,
+                momentId: momentId,
+                completion: { _ in }
+            )
         }
     }
 

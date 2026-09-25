@@ -572,7 +572,19 @@ class MuteSettingsViewModel: ObservableObject {
     func muteUser(_ user: AppUser) {
         if !mutedUsers.contains(where: { $0.id == user.id }) {
             mutedUsers.append(user)
-            saveSettings()
+            Task { @MainActor in
+                InAppNotificationService.shared.showActionToast(
+                    .muted(
+                        user.username,
+                        undo: {
+                            self.mutedUsers.removeAll { $0.id == user.id }
+                        },
+                        onExpire: {
+                            self.saveSettings()
+                        }
+                    )
+                )
+            }
         }
     }
     

@@ -789,6 +789,59 @@ async function purgeSocialNotifications(recipientId, { type, senderId }) {
   }
 }
 
+/**
+ * Tras romper un mutual: si `followerId` sigue siguiendo a `recipientId` (unidireccional),
+ * recrea la row `newFollower` en el inbox del recipient **sin push**.
+ */
+async function restoreUnidirectionalFollowNotificationIfNeeded(recipientId, followerId) {
+  if (!recipientId || !followerId || recipientId === followerId) return;
+
+  const followerEdge = await admin.firestore()
+    .doc(`users/${recipientId}/followers/${followerId}`)
+    .get();
+  if (!followerEdge.exists) return;
+
+  // Sigue siendo mutual → no degradar a follow (otro flujo puede estar reconciliando).
+  const reverseEdge = await admin.firestore()
+    .doc(`users/${followerId}/followers/${recipientId}`)
+    .get();
+  if (reverseEdge.exists) return;
+
+  const [recipientSnap, followerSnap] = await Promise.all([
+    admin.firestore().doc(`users/${recipientId}`).get(),
+    admin.firestore().doc(`users/${followerId}`).get()
+  ]);
+  if (!recipientSnap.exists || !followerSnap.exists) return;
+
+  const recipientData = recipientSnap.data() || {};
+  const followerData = followerSnap.data() || {};
+
+  if (shouldSilenceNotificationForUser(recipientData, {
+    senderId: followerId,
+    candidateTexts: [followerData.username]
+  })) {
+    return;
+  }
+
+  const docId = socialNotificationDocId('newFollower', followerId);
+  if (!docId) return;
+
+  await upsertSocialNotification(recipientId, docId, {
+    type: 'newFollower',
+    senderId: followerId,
+    senderUsername: followerData.username || 'Moments',
+    senderProfileImage: followerData.profileImagePath || ''
+  });
+}
+
+/** Tras unfollow: restaura `newFollower` en el lado que aún tiene follow unidireccional. */
+async function restoreFollowNotificationsAfterUnfollow(userA, userB) {
+  await Promise.all([
+    restoreUnidirectionalFollowNotificationIfNeeded(userA, userB),
+    restoreUnidirectionalFollowNotificationIfNeeded(userB, userA)
+  ]);
+}
+
 async function upsertMutualDocuments(userId, otherUserId, timestamp = null) {
   const ts = timestamp || admin.firestore.FieldValue.serverTimestamp();
   const batch = admin.firestore().batch();
@@ -848,17 +901,19 @@ async function sendMutualConnectionNotification(receiverData, senderData, receiv
         },
         payload: {
           aps: {
+            // Título lleva el %@: hay que pasar title-loc-args (el body es CTA sin placeholders).
             alert: count > 1
               ? {
                   'title-loc-key': 'notification.mutualConnection.multiple.title',
-                  'title-loc-args': [],
+                  'title-loc-args': [senderData.username, String(count - 1)],
                   'loc-key': 'notification.mutualConnection.multiple.body',
-                  'loc-args': [senderData.username, String(count - 1)]
+                  'loc-args': []
                 }
               : {
                   'title-loc-key': 'notification.mutualConnection.title',
+                  'title-loc-args': [senderData.username],
                   'loc-key': 'notification.mutualConnection.body',
-                  'loc-args': [senderData.username]
+                  'loc-args': []
                 },
             badge: 1,
             sound: 'default',
@@ -1228,6 +1283,8 @@ module.exports = {
   socialNotificationDocId,
   upsertSocialNotification,
   purgeSocialNotifications,
+  restoreUnidirectionalFollowNotificationIfNeeded,
+  restoreFollowNotificationsAfterUnfollow,
   upsertMutualDocuments,
   deleteMutualDocuments,
   reconcileMutualConnection,

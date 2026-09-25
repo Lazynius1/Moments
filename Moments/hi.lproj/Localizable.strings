@@ -494,8 +494,8 @@
 "notifications.message.follow.multiple" = "%@ और %d अन्य लोगों ने आपको फ़ॉलो करना शुरू किया।";
 "notifications.message.request.two" = "%@ और %@ आपको फ़ॉलो करना चाहते हैं।";
 "notifications.message.request.multiple" = "%@ और %d अन्य लोग आपको फ़ॉलो करना चाहते हैं।";
-"notifications.message.mutual.two" = "अब %@ और %@ के साथ आपका म्यूचुअल कनेक्शन है।";
-"notifications.message.mutual.multiple" = "अब %@ और %d अन्य लोगों के साथ आपका म्यूचुअल कनेक्शन है।";
+"notifications.message.mutual.two" = "अब %@, %@ और आप एक-दूसरे को फ़ॉलो करते हैं।";
+"notifications.message.mutual.multiple" = "%@ और %d अन्य आपके साथ एक-दूसरे को फ़ॉलो करते हैं";
 "notifications.message.comment.two" = "%@ और %@ ने आपके मोमेंट पर कमेंट किया।";
 "notifications.message.comment.multiple" = "%@ और %d अन्य लोगों ने आपके मोमेंट पर कमेंट किया।";
 "notifications.message.story.two" = "%@ और %@ ने आपकी स्टोरी पसंद की।";
@@ -508,7 +508,7 @@
 "notifications.message.mention.single" = "%@ ने आपका ज़िक्र किया।";
 "notifications.message.follow.single" = "%@ ने आपको फ़ॉलो करना शुरू किया।";
 "notifications.message.request.single" = "%@ आपको फ़ॉलो करना चाहता है।";
-"notifications.message.mutual.single" = "अब %@ के साथ आपका म्यूचुअल कनेक्शन है।";
+"notifications.message.mutual.single" = "अब %@ और आप एक-दूसरे को फ़ॉलो करते हैं।";
 "notifications.message.comment.single" = "%@ ने आपके मोमेंट पर कमेंट किया।";
 "notifications.message.story.single" = "%@ ने आपकी स्टोरी पर रिएक्शन दिया।";
 "notifications.message.storyChain.single" = "%@ ने \"%@\" चेन जारी रखी।";
@@ -527,7 +527,7 @@
 "notifications.message.reaction.threePlus.withType" = "%@ ने %@ पर प्रतिक्रिया दी, जबकि %@ और %d अन्य लोगों ने आपके मोमेंट पर प्रतिक्रिया दी।";
 "notifications.message.follow.threePlus" = "%@, %@ और %d अन्य लोगों ने आपको फ़ॉलो करना शुरू किया।";
 "notifications.message.request.threePlus" = "%@, %@ और %d अन्य लोग आपको फ़ॉलो करना चाहते हैं।";
-"notifications.message.mutual.threePlus" = "अब %@, %@ और %d अन्य लोगों से आपका भी कनेक्शन हो गया है।";
+"notifications.message.mutual.threePlus" = "%@, %@ और %d अन्य एक-दूसरे को फ़ॉलो करते हैं";
 "notifications.message.comment.threePlus" = "%@, %@ और %d अन्य लोगों ने आपके मोमेंट पर कमेंट किया।";
 "notifications.message.story.threePlus" = "%@, %@ और %d अन्य लोगों ने आपकी स्टोरी को लाइक किया।";
 "notifications.message.requestAccepted.threePlus" = "%@, %@ और %d अन्य लोगों ने आपका फ़ॉलो अनुरोध स्वीकार कर लिया।";
@@ -1096,7 +1096,7 @@
 "chat.status.read" = "पढ़ लिया गया";
 "chat.seen" = "देख लिया";
 "chat.status.failed" = "विफल";
-"chat.notification.viewOncePrompt" = "📸 ने आपको ऐसा संदेश भेजा है, जिसे देखने के बाद हटा दिया जाएगा";
+"chat.notification.viewOncePrompt" = "आपको एक संदेश भेजा";
 "chat.preview.newConversation" = "नई बातचीत";
 "chat.preview.ephemeral_long" = "अस्थायी संदेश";
 "chat.preview.image" = "इमेज";
@@ -2766,6 +2766,8 @@
 "profile.moments.scheduled.in" = "%@ में";
 /* Echoes Viewer & UI */
 "echo.viewer.leave" = "Echo छोड़ें";
+"toast.action.echoLeft" = "आप Echo से बाहर निकल गए";
+"toast.action.echoDeleted" = "Echo मिटा दिया गया";
 "echo.viewer.location.fallback" = "आपके आस-पास";
 "echo.viewer.location.header" = "%@ पर टैप किया गया";
 "echo.viewer.location.viewMaps" = "मैप्स में देखें";
@@ -2799,8 +2801,8 @@
 "echo.invitation.unavailable" = "यह Echo अब उपलब्ध नहीं है";
 "echo.invitation.error.decoding" = "Echo को डिकोड करने में गड़बड़ी हुई";
 /* Echoes Notifications */
-"notifications.message.echo" = "आपके पास है! एक Echo बनाएँ";
-"banner.verb.echoSuggestion" = "आपके पास है! एक Echo बनाएँ";
+"notifications.message.echo" = "%@ पास में है। क्या आप एक Echo में नज़रिए जोड़ेंगे?";
+"banner.verb.echoSuggestion" = "%@ पास में है। क्या आप एक Echo में नज़रिए जोड़ेंगे?";
 "echo.viewer.unavailable" = "यह पल अब उपलब्ध नहीं है";
 /* Interests */
 "interest.photography" = "फ़ोटोग्राफ़ी";
@@ -2902,7 +2904,7 @@
 "notification.message.single.photo" = "आपको एक फ़ोटो भेजी 📷";
 "notification.message.single.video" = "आपको एक वीडियो भेजा 🎥";
 "notification.message.single.audio" = "आपको एक ऑडियो भेजा 🎵";
-"notification.message.single.viewOnce" = "आपको अपने-आप गायब होने वाला संदेश भेजा 👀";
+"notification.message.single.viewOnce" = "आपको एक संदेश भेजा";
 "notification.message.single.moment" = "आपको एक मोमेंट भेजा 📸";
 "notification.message.single.default" = "आपको एक संदेश भेजा";
 "notification.message.single.storyMention" = "आपका ज़िक्र अपनी स्टोरी में किया";
@@ -2976,10 +2978,10 @@
 "notification.echo.title" = "आपके पास एक कनेक्शन है! ✨";
 "notification.echo.body" = "%@ पास में है। साथ में एक Echo बनाएँ!";
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "नया म्यूचुअल कनेक्शन! 🎉";
-"notification.mutualConnection.body" = "अब आप और %@ एक-दूसरे को फ़ॉलो करते हैं";
-"notification.mutualConnection.multiple.title" = "नए म्यूचुअल कनेक्शन! 🎉";
-"notification.mutualConnection.multiple.body" = "अब %@ और %d अन्य लोग आपके म्यूचुअल कनेक्शन हैं";
+"notification.mutualConnection.title" = "आप और %@ एक-दूसरे को फ़ॉलो करते हैं";
+"notification.mutualConnection.body" = "प्रोफ़ाइल देखने के लिए टैप करें";
+"notification.mutualConnection.multiple.title" = "आप, %@ और %@ अन्य एक-दूसरे को फ़ॉलो करते हैं";
+"notification.mutualConnection.multiple.body" = "देखने के लिए टैप करें";
 "explore.search.placeholder" = "सर्च करें...";
 /* Explore Search */
 "explore.search.cancel" = "रद्द करें";
@@ -3431,6 +3433,11 @@
 "messaging.section.archivedWithUnread" = "आर्काइव किया गया (%d अपठित)";
 "messaging.toast.archived" = "चैट आर्काइव की गई";
 "messaging.toast.unarchived" = "चैट आर्काइव से निकाल दी गई";
+"messaging.toast.muted" = "चैट म्यूट की गई";
+"messaging.toast.unmuted" = "सूचनाएँ फिर से चालू";
+"messaging.toast.pinned" = "चैट पिन की गई";
+"messaging.toast.unpinned" = "चैट अनपिन की गई";
+"messaging.toast.deleted" = "बातचीत हटाई गई";
 "feed.refreshing" = "रिफ़्रेश हो रहा है";
 "profile.ui.posts" = "पोस्ट";
 /* Social Connections */
@@ -4602,3 +4609,35 @@
 "whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
 "whatsNew.offline230.title" = "Offline & polish";
 "whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";
+/* In-app action toasts */
+"toast.action.commentPosted" = "टिप्पणी पोस्ट हो गई";
+"toast.action.momentSaved" = "मोमेंट सेव हो गया";
+"toast.action.momentDeleted" = "मोमेंट हटा दिया";
+"toast.action.momentArchived" = "मोमेंट आर्काइव हो गया";
+"toast.action.incognito.activated" = "इनकॉग्निटो सक्रिय";
+"toast.action.incognito.activated.subtitle" = "रोकने के लिए टैप करें";
+"toast.action.incognito.paused" = "इनकॉग्निटो रोका गया";
+"toast.action.storyDeleted" = "स्टोरी हटा दी";
+"toast.action.followed" = "आप ";
+"toast.action.followRequested" = "आपने ";
+"toast.action.requestAccepted" = "आपने ";
+"toast.action.requestRejected" = "आपने ";
+"toast.action.unfollowed" = "आपने ";
+"toast.action.blocked" = "आपने ";
+"toast.action.muted" = "आपने ";
+"toast.action.momentUnsaved" = "सेव से हटा दिया";
+"toast.action.commentDeleted" = "टिप्पणी हटा दी";
+"toast.action.commentDeleted.prefix" = "आपने ";
+"toast.action.messageCopied" = "मैसेज कॉपी हो गया";
+"toast.action.linkCopied" = "लिंक कॉपी हो गया";
+"toast.action.momentUpdated" = "मोमेंट अपडेट हो गया";
+"toast.action.leftGroup.prefix" = "आप समूह ";
+"toast.action.followed.suffix" = " को फ़ॉलो कर रहे हैं";
+"toast.action.followRequested.suffix" = " को फ़ॉलो अनुरोध भेजा";
+"toast.action.requestAccepted.suffix" = " का फ़ॉलो अनुरोध स्वीकार किया";
+"toast.action.requestRejected.suffix" = " का फ़ॉलो अनुरोध अस्वीकार किया";
+"toast.action.unfollowed.suffix" = " को अनफ़ॉलो किया";
+"toast.action.blocked.suffix" = " को ब्लॉक किया";
+"toast.action.muted.suffix" = " को म्यूट किया";
+"toast.action.commentDeleted.prefix.suffix" = " की टिप्पणी हटाई";
+"toast.action.leftGroup.suffix" = " से निकल गए";

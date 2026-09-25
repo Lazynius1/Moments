@@ -144,7 +144,12 @@ extension EnhancedNotificationRow {
             case .photoTag:
                 return photoTagMessage(for: firstNotification, actors: actors, nameToUserId: nameToUserId, baseColor: messageColor)
             case .echoSuggestion:
-                return AttributedString(NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"))
+                return styledNotificationMessage(
+                    String(format: NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"), effectiveSenderUsername),
+                    boldNames: [effectiveSenderUsername],
+                    nameToUserId: nameToUserId,
+                    baseColor: messageColor
+                )
             case .dataExportReady:
                 let exportMessage = firstNotification.message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 if exportMessage.isEmpty {
@@ -246,7 +251,12 @@ extension EnhancedNotificationRow {
             case .photoTag:
                 return photoTagMessage(for: firstNotification, actors: groupedActorsForMessage(), nameToUserId: nameToUserId, baseColor: messageColor)
             case .echoSuggestion:
-                return AttributedString(NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"))
+                return styledNotificationMessage(
+                    String(format: NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"), effectiveSenderUsername),
+                    boldNames: [effectiveSenderUsername],
+                    nameToUserId: nameToUserId,
+                    baseColor: messageColor
+                )
             case .dataExportReady:
                 let exportMessage = firstNotification.message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 if exportMessage.isEmpty {

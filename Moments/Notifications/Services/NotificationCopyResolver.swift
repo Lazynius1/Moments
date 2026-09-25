@@ -66,7 +66,10 @@ enum NotificationCopyResolver {
         case .echoSuggestion:
             return NotificationBannerCopy(
                 title: notification.senderUsername,
-                body: NSLocalizedString("banner.verb.echoSuggestion", value: "is near you! Create an Echo", comment: ""),
+                body: String(
+                    format: NSLocalizedString("banner.verb.echoSuggestion", value: "%@ is nearby. Bring your perspectives together in an Echo?", comment: ""),
+                    notification.senderUsername
+                ),
                 preview: nil
             )
         default:
@@ -391,21 +394,25 @@ enum NotificationCopyResolver {
     private static func mutualConnectionCopy(for notification: Notification) -> NotificationBannerCopy {
         let username = notification.senderUsername
         let count = notification.reactionCount ?? 1
+        // Título = frase de inbox; subtitle = body de push (`Toca para ver…`).
         if count > 1 {
             return NotificationBannerCopy(
-                title: NSLocalizedString("notification.mutualConnection.multiple.title", comment: ""),
-                body: String(
-                    format: NSLocalizedString("notification.mutualConnection.multiple.body", comment: ""),
+                title: String(
+                    format: NSLocalizedString("notifications.message.mutual.multiple", comment: ""),
                     username,
-                    String(count - 1)
+                    count - 1
                 ),
+                body: NSLocalizedString("notification.mutualConnection.multiple.body", comment: ""),
                 preview: nil
             )
         }
 
         return NotificationBannerCopy(
-            title: NSLocalizedString("notification.mutualConnection.title", comment: ""),
-            body: String(format: NSLocalizedString("notification.mutualConnection.body", comment: ""), username),
+            title: String(
+                format: NSLocalizedString("notifications.message.mutual.single", comment: ""),
+                username
+            ),
+            body: NSLocalizedString("notification.mutualConnection.body", comment: ""),
             preview: nil
         )
     }

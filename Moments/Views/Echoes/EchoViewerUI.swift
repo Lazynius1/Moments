@@ -1092,6 +1092,7 @@ struct EchoViewerUI: View {
             dismiss()
             return
         }
+        let deletesIncompleteEcho = viewModel.isHistoricalIncomplete
         
         EchoService.shared.leaveEcho(echoId: echoId, userId: userId) { error in
             if let error = error {
@@ -1106,6 +1107,11 @@ struct EchoViewerUI: View {
             }
             
             DispatchQueue.main.async {
+                if error == nil {
+                    InAppNotificationService.shared.showActionToast(
+                        deletesIncompleteEcho ? .echoDeleted : .echoLeft
+                    )
+                }
                 dismiss()
             }
         }

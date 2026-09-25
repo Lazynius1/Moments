@@ -1,52 +1,19 @@
 import SwiftUI
 
+/// Solo el aura de borde. Todo el chrome interactivo vive en `InAppBannerView`.
 struct IncognitoGlobalOverlay: View {
-    @ObservedObject var service: IncognitoModeService
     @Environment(\.colorScheme) private var colorScheme
-
-    @State private var isExpanded = false
     @State private var edgePulse = false
-
-    private var auraPrimary: Color {
-        colorScheme == .dark ? Color(hex: "A7F3FF") : Color(hex: "0F8EAD")
-    }
-
-    private var auraSecondary: Color {
-        colorScheme == .dark ? Color(hex: "6E8BFF") : Color(hex: "275DCC")
-    }
-
-    private var pillTitleColor: Color {
-        colorScheme == .dark ? .white : .black
-    }
 
     var body: some View {
         GeometryReader { proxy in
-            ZStack {
-                edgeAura(in: proxy)
-                    .allowsHitTesting(false)
-
-                VStack(spacing: 0) {
-                    pill
-                        .padding(.top, max(proxy.safeAreaInsets.top + 38, 52))
-                        .padding(.horizontal, 16)
-
-                    Spacer(minLength: 0)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            edgeAura(in: proxy)
+                .allowsHitTesting(false)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .ignoresSafeArea()
-        .onAppear {
-            edgePulse = true
-        }
-        .onChange(of: service.isActive) { _, isActive in
-            if !isActive {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                    isExpanded = false
-                }
-            }
-        }
-        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isExpanded), value: isExpanded)
+        .allowsHitTesting(false)
+        .onAppear { edgePulse = true }
     }
 
     private func edgeAura(in proxy: GeometryProxy) -> some View {
@@ -71,144 +38,156 @@ struct IncognitoGlobalOverlay: View {
         }
         .compositingGroup()
         .padding(1)
-        .allowsHitTesting(false)
         .animation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true), value: edgePulse)
     }
+}
 
-    private var pill: some View {
-        ZStack(alignment: .top) {
-            if isExpanded {
-                expandedPanel
-                    .padding(.top, 48)
-                    .transition(.incognitoPillDrop)
+/// Estado Incognito del único InAppBanner. El timer y su panel participan en
+/// el mismo `GlassEffectContainer`; no existe un toast o una pill paralela.
+struct InAppIncognitoChrome<Compact: View>: View {
+    @ObservedObject var service: IncognitoModeService
+    /// Mensaje de activar/pausar: sin panel Pausar ni tap-expand.
+    var showsCompactOnly: Bool = false
+    let glassNamespace: Namespace.ID
+    @ViewBuilder var compact: () -> Compact
+
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            compact()
+                .overlay {
+                    if !showsCompactOnly {
+                        Color.clear
+                            .contentShape(Capsule())
+                            .onTapGesture {
+                                HapticManager.shared.selection()
+                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
+                                    isExpanded.toggle()
+                                }
+                            }
+                            .accessibilityAddTraits(.isButton)
+                    }
+                }
+
+            if isExpanded, !showsCompactOnly {
+                IncognitoPausePanel(
+                    service: service,
+                    glassNamespace: glassNamespace
+                )
+                .transition(.opacity.combined(with: .offset(y: -8)))
             }
-
-            compactPill
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: isExpanded ? 164 : 40, alignment: .top)
-        .frame(maxWidth: .infinity)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isExpanded), value: isExpanded)
+        .onChange(of: service.isActive) { _, isActive in
+            if !isActive {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                    isExpanded = false
+                }
+            }
+        }
+        .onChange(of: showsCompactOnly) { _, only in
+            if only { isExpanded = false }
+        }
     }
 
-    private var compactPill: some View {
-        Button {
-            HapticManager.shared.selection()
-            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
-                isExpanded.toggle()
-            }
+}
+
+/// El contenido y el efecto pertenecen a la misma vista. Esto evita que una
+/// capa de glass vacía refracte por encima del texto y del botón.
+private struct IncognitoPausePanel: View {
+    @ObservedObject var service: IncognitoModeService
+    let glassNamespace: Namespace.ID
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("incognito.liveHint.active")
+                .font(.system(size: legacyPoppinsSize(13)))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 10)
+
+            Divider()
+                .opacity(colorScheme == .dark ? 0.35 : 0.22)
+
+            pauseButton
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 14)
+        .padding(.bottom, 6)
+        // Conserva la geometría original del expandedPanel (230 × 106).
+        // El alto fijo también estabiliza el cuello con la pill del timer.
+        .frame(width: 230, height: 106, alignment: .leading)
+        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .momentsChromeGlass(
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous),
+            interactive: true,
+            style: .tinted
+        )
+        .modifier(IncognitoPausePanelIdentity(namespace: glassNamespace))
+    }
+
+    @ViewBuilder
+    private var pauseButton: some View {
+        let button = Button {
+            HapticManager.shared.mediumImpact()
+            service.pause()
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: "eye.slash.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(pillTitleColor)
-                    .frame(width: 18, height: 18)
+                if service.isSyncing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "pause.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                }
 
-                Text(service.formattedTime)
+                Text("incognito.cta.pause")
                     .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(pillTitleColor)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
             .frame(maxWidth: .infinity)
-            .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
-        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
-        .shadow(
-            color: .black.opacity(colorScheme == .dark ? 0.26 : 0.12),
-            radius: 10,
-            x: 0,
-            y: 6
-        )
-        .frame(width: 108, height: 40)
+        .disabled(service.isSyncing)
+
+        if #available(iOS 26.0, *) {
+            button
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.capsule)
+                .tint(pauseButtonTint)
+                .foregroundStyle(pauseButtonForeground)
+        } else {
+            button
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .tint(pauseButtonTint)
+                .foregroundStyle(pauseButtonForeground)
+        }
     }
 
-    private var expandedPanel: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.clear)
-                .frame(width: 230, height: 106)
-                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous), interactive: true)
+    private var pauseButtonTint: Color {
+        colorScheme == .dark ? Color(white: 0.38) : Color(white: 0.72)
+    }
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("incognito.liveHint.active")
-                    .font(.system(size: legacyPoppinsSize(13)))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Button {
-                    HapticManager.shared.mediumImpact()
-                    service.pause()
-                } label: {
-                    HStack(spacing: 10) {
-                        if service.isSyncing {
-                            ProgressView()
-                                .tint(pillTitleColor)
-                        } else {
-                            Image(systemName: "pause.fill")
-                                .font(.system(size: 13, weight: .semibold))
-                        }
-
-                        Text("incognito.cta.pause")
-                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                    }
-                    .foregroundStyle(pillTitleColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 13)
-                    .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: !service.isSyncing))
-                }
-                .buttonStyle(.plain)
-                .disabled(service.isSyncing)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(width: 230, height: 106)
-        }
-        .frame(width: 230, height: 106, alignment: .leading)
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(
-                    .white.opacity(colorScheme == .dark ? 0.10 : 0.08),
-                    lineWidth: 0.75
-                )
-        )
-        .shadow(
-            color: .black.opacity(colorScheme == .dark ? 0.22 : 0.10),
-            radius: 16,
-            x: 0,
-            y: 8
-        )
+    private var pauseButtonForeground: Color {
+        colorScheme == .dark ? .white : .black
     }
 }
 
-private struct IncognitoDropTransitionModifier: AnimatableModifier {
-    var progress: Double
-
-    var animatableData: Double {
-        get { progress }
-        set { progress = newValue }
-    }
+private struct IncognitoPausePanelIdentity: ViewModifier {
+    let namespace: Namespace.ID
 
     func body(content: Content) -> some View {
-        let clamped = max(0, min(progress, 1))
-        let stretch = clamped + (sin(clamped * .pi) * 0.08)
-        let translate = (1 - clamped) * -18
-
-        return content
-            .scaleEffect(x: 1, y: max(0.001, stretch), anchor: .top)
-            .offset(y: translate)
-            .opacity(clamped)
-            .blur(radius: (1 - clamped) * 6)
-    }
-}
-
-private extension AnyTransition {
-    static var incognitoPillDrop: AnyTransition {
-        .modifier(
-            active: IncognitoDropTransitionModifier(progress: 0),
-            identity: IncognitoDropTransitionModifier(progress: 1)
-        )
+        if #available(iOS 26.0, *) {
+            content
+                .glassEffectID("incognitoPausePanel", in: namespace)
+                // Ya nace en su geometría final para que el container lo pinte
+                // conectado al timer desde el primer frame.
+                .glassEffectTransition(.identity)
+        } else {
+            content
+        }
     }
 }

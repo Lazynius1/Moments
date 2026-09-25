@@ -1888,7 +1888,9 @@ service cloud.firestore {
           'wrappedKeys', 'readReceiptPreferences', 'forwardingPreferences', 'buzzPreferences',
           'vanishModeActive', 'vanishModeEnabledBy', 'vanishModeEnabledAt', 'vanishMessageTimer',
           'vanishSettingsNoticeMessageId', 'vanishDisabledNoticeMessageId',
-          'mutedByUserIds', 'mutedByTimestamps', 'mutedUntil'
+          'mutedByUserIds', 'mutedByTimestamps', 'mutedUntil',
+          'pinnedByUserIds', 'pinnedByTimestamps',
+          'archivedByUserIds', 'archivedByTimestamps'
         ]) &&
         (
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deletedFor']) || onlyConversationDeletedForMeUpdated())
@@ -2008,6 +2010,60 @@ service cloud.firestore {
                )
                && (!(request.auth.uid in request.resource.data.mutedUntil)
                    || request.resource.data.mutedUntil[request.auth.uid] is timestamp)))
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['pinnedByUserIds'])
+           || (request.resource.data.pinnedByUserIds is list
+               && (
+                 (!(request.auth.uid in resource.data.get('pinnedByUserIds', []))
+                  && request.auth.uid in request.resource.data.pinnedByUserIds
+                  && request.resource.data.pinnedByUserIds.size() == resource.data.get('pinnedByUserIds', []).size() + 1
+                  && request.resource.data.pinnedByUserIds.hasAll(resource.data.get('pinnedByUserIds', [])))
+                 ||
+                 ((request.auth.uid in resource.data.get('pinnedByUserIds', []))
+                  && !(request.auth.uid in request.resource.data.pinnedByUserIds)
+                  && request.resource.data.pinnedByUserIds.size() + 1 == resource.data.get('pinnedByUserIds', []).size()
+                  && resource.data.get('pinnedByUserIds', []).hasAll(request.resource.data.pinnedByUserIds))
+               )
+           ))
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['pinnedByTimestamps'])
+           || (request.resource.data.pinnedByTimestamps is map
+               && (
+                 (!('pinnedByTimestamps' in resource.data)
+                  && request.resource.data.pinnedByTimestamps.keys().hasOnly([request.auth.uid]))
+                 ||
+                 (('pinnedByTimestamps' in resource.data)
+                  && request.resource.data.pinnedByTimestamps.diff(resource.data.pinnedByTimestamps).affectedKeys().hasOnly([request.auth.uid]))
+               )
+               && (!(request.auth.uid in request.resource.data.pinnedByTimestamps)
+                   || request.resource.data.pinnedByTimestamps[request.auth.uid] is timestamp)))
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['archivedByUserIds'])
+           || (request.resource.data.archivedByUserIds is list
+               && (
+                 (!(request.auth.uid in resource.data.get('archivedByUserIds', []))
+                  && request.auth.uid in request.resource.data.archivedByUserIds
+                  && request.resource.data.archivedByUserIds.size() == resource.data.get('archivedByUserIds', []).size() + 1
+                  && request.resource.data.archivedByUserIds.hasAll(resource.data.get('archivedByUserIds', [])))
+                 ||
+                 ((request.auth.uid in resource.data.get('archivedByUserIds', []))
+                  && !(request.auth.uid in request.resource.data.archivedByUserIds)
+                  && request.resource.data.archivedByUserIds.size() + 1 == resource.data.get('archivedByUserIds', []).size()
+                  && resource.data.get('archivedByUserIds', []).hasAll(request.resource.data.archivedByUserIds))
+               )
+           ))
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['archivedByTimestamps'])
+           || (request.resource.data.archivedByTimestamps is map
+               && (
+                 (!('archivedByTimestamps' in resource.data)
+                  && request.resource.data.archivedByTimestamps.keys().hasOnly([request.auth.uid]))
+                 ||
+                 (('archivedByTimestamps' in resource.data)
+                  && request.resource.data.archivedByTimestamps.diff(resource.data.archivedByTimestamps).affectedKeys().hasOnly([request.auth.uid]))
+               )
+               && (!(request.auth.uid in request.resource.data.archivedByTimestamps)
+                   || request.resource.data.archivedByTimestamps[request.auth.uid] is timestamp)))
         );
 
       // Conversations are shared records; clients may hide them per user via

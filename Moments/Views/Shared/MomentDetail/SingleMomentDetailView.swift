@@ -6,6 +6,7 @@ import CoreLocation
 /// Detalle de un solo momento con card estilo feed (actividad, notificaciones, chat…).
 struct SingleMomentDetailView: View {
     @Environment(\.momentsViewportSize) private var momentsViewportSize
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
 
     let chromeTitle: String?
 
@@ -21,8 +22,6 @@ struct SingleMomentDetailView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
     @State private var backgroundOpacity: Double = 1.0
-    @State private var contentMinY: CGFloat = .greatestFiniteMagnitude
-    @State private var initialContentMinY: CGFloat = .greatestFiniteMagnitude
 
     @State private var showContextMenu = false
     @State private var showEditSheet = false
@@ -47,6 +46,10 @@ struct SingleMomentDetailView: View {
         self.chromeTitle = chromeTitle
     }
 
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
     private var resolvedChromeTitle: String {
         if let chromeTitle {
             let trimmed = chromeTitle.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -57,39 +60,17 @@ struct SingleMomentDetailView: View {
         return NSLocalizedString("explore.title", comment: "Explore")
     }
 
-    private var chromeBlurProgress: CGFloat {
-        ProfileHeaderCollapseMetrics.detailScrollChromeBlurProgress(
-            contentMinY: contentMinY,
-            initialContentMinY: initialContentMinY
-        )
-    }
-
     var body: some View {
         ZStack {
-            ZStack(alignment: .top) {
-                ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
-                    .ignoresSafeArea()
-                    .opacity(backgroundOpacity)
+            ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                .ignoresSafeArea()
+                .opacity(backgroundOpacity)
 
-                singleMomentScrollView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .offset(x: dragOffset)
-                    .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
-                    .gesture(singleDismissDragGesture)
-
-                ProfileStickyChromeContainer(
-                    blurProgress: chromeBlurProgress,
-                    blurFadeTail: ProfileHeaderCollapseMetrics.feedDetailChromeBlurFadeTail,
-                    tabsArePinned: false
-                ) {
-                    FeedPinnedTopChrome(
-                        title: resolvedChromeTitle,
-                        onDismiss: dismissDetail
-                    )
-                }
-                .zIndex(10)
-                .allowsHitTesting(true)
-            }
+            singleMomentScrollView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .offset(x: dragOffset)
+                .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
+                .gesture(singleDismissDragGesture)
 
             if showContextMenu {
                 ModernContextMenuOverlay(
@@ -135,24 +116,15 @@ struct SingleMomentDetailView: View {
                 .zIndex(999)
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
-        .sheet(
-            isPresented: Binding(
-                get: { selectedMoment != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        selectedMoment = nil
-                    }
-                }
-            )
-        ) {
-            if let selectedMoment {
-                ModernCommentsView(moment: selectedMoment)
-                    .environmentObject(firestoreService)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
-        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar { singleDetailToolbarContent }
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
+        .chatBottomScrollEdgeHidden()
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
+        .momentsCommentsOverlay(moment: $selectedMoment, firestoreService: firestoreService)
         .sheet(isPresented: $showEditSheet) {
             EditMomentView(
                 moment: moment,
@@ -204,15 +176,41 @@ struct SingleMomentDetailView: View {
         .momentZoomNavigationSurface(colorScheme: colorScheme)
     }
 
+    @ToolbarContentBuilder
+    private var singleDetailToolbarContent: some ToolbarContent {
+        if #available(iOS 27.1, *), toolbarVerticalEdge != nil {
+            ToolbarItemGroup(placement: .cancellationAction) {
+                Button(action: dismissDetail) {
+                    Label("common.back", systemImage: "chevron.left")
+                }
+            }
+            .axisBehavior(.verticalPreferred)
+        } else {
+            ToolbarItem(placement: .topBarLeading) {
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: adaptiveColors.primary,
+                    preset: .navigationBack,
+                    action: dismissDetail
+                )
+            }
+            .chatHideSharedBackgroundIfAvailable()
+        }
+
+        ToolbarItem(placement: .principal) {
+            Text(resolvedChromeTitle)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(adaptiveColors.primary)
+                .lineLimit(1)
+        }
+    }
+
     private func singleMomentScrollView() -> some View {
         let screenHeight = momentsViewportSize.height
         let feedCardHeight = screenHeight * 0.58
 
         return ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: max(15, screenHeight * 0.02)) {
-                Color.clear
-                    .frame(height: ProfileHeaderCollapseMetrics.feedStyleDetailTopInset)
-
                 ScreenshotProtectedView(
                     isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
                 ) {
@@ -258,8 +256,8 @@ struct SingleMomentDetailView: View {
             .feedScrollVisibilityAnchor()
         }
         .profileGridNavigationChrome(colorScheme: colorScheme)
+        .chatBottomScrollEdgeHidden()
         .scrollClipDisabled()
-        .feedDetailChromeScrollOffset(contentMinY: $contentMinY, initialContentMinY: $initialContentMinY)
         .environment(feedViewModel)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

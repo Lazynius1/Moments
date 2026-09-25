@@ -6,6 +6,12 @@ enum EmojiReactionDefaults {
     static let chat: [String] = ["❤️", "😂", "😮", "😢", "😡", "👍"]
     static let story: [String] = ReactionType.allCases.map(\.icon)
     static let emojiSlider: [String] = ["😍", "🔥", "😂", "🥹", "❤️", "👏", "🙌", "💯"]
+    /// Barra rápida de comentarios: bastante para scroll horizontal; orden vía EmojiUsageTracker.
+    static let comments: [String] = [
+        "❤️", "😂", "🔥", "👏", "😍", "😮", "😢", "🙌",
+        "👍", "💯", "🥹", "✨", "💕", "🎉", "🙏🏻", "✌🏻",
+        "⚡", "😊", "😡", "🥰"
+    ]
 }
 
 enum EmojiUsageStore {

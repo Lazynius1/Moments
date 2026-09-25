@@ -391,7 +391,6 @@ struct SharedActivityDetailView: View {
     @State private var isDeletingSelectedReactions = false
     @State private var isDeletingSelectedComments = false
     @State private var isRemovingSelectedTags = false
-    @State private var selectionSuccessBannerKey: String?
     @State private var pendingSelectionConfirmation: SharedActivitySelectionConfirmationAction?
 
     init(category: SharedActivityCategory, currentUser: AppUser?, otherUser: AppUser) {
@@ -457,9 +456,6 @@ struct SharedActivityDetailView: View {
         }
         .safeAreaInset(edge: .bottom) {
             selectionBottomInset
-        }
-        .overlay(alignment: .bottom) {
-            selectionToastOverlay
         }
         .navigationDestination(item: $zoomDestination) { destination in
             MomentZoomDetailDestination(
@@ -739,23 +735,6 @@ struct SharedActivityDetailView: View {
                 }
             }
         }
-    }
-
-    private var selectionToastOverlay: some View {
-        VStack(spacing: 10) {
-            if let bannerKey = selectionSuccessBannerKey {
-                selectionSuccessBanner(textKey: bannerKey)
-            } else if isProcessingSelectionAction {
-                processingBanner(
-                    titleKey: processingTitleKey,
-                    subtitleKey: "userActivity.simple.recentlyDeleted.processing.subtitle"
-                )
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.bottom, isSelectionMode ? 84 : 20)
-        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: selectionSuccessBannerKey), value: selectionSuccessBannerKey)
-        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isProcessingSelectionAction), value: isProcessingSelectionAction)
     }
 
     private var sharedFiltersBar: some View {
@@ -1137,10 +1116,6 @@ struct SharedActivityDetailView: View {
         profileRoute = FeedProfileSheetRoute(userId: userId)
     }
 
-    private var isProcessingSelectionAction: Bool {
-        isDeletingSelectedReactions || isDeletingSelectedComments || isRemovingSelectedTags
-    }
-
     private var processingTitleKey: String {
         switch viewModel.category {
         case .reactions:
@@ -1207,72 +1182,6 @@ struct SharedActivityDetailView: View {
         return NSLocalizedString("sharedActivity.selection.comments.delete.base", comment: "Delete comments")
     }
 
-    private func selectionSuccessBanner(textKey: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color(hex: "22C55E"))
-
-            Text(NSLocalizedString(textKey, comment: "Selection success banner"))
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(primaryTextColor)
-                .multilineTextAlignment(.leading)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(colorScheme == .dark ? 0.10 : 0.35), lineWidth: 0.8)
-        )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 16, y: 6)
-    }
-
-    private func processingBanner(titleKey: String, subtitleKey: String) -> some View {
-        HStack(spacing: 12) {
-            ProgressView()
-                .tint(primaryTextColor)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(NSLocalizedString(titleKey, comment: "Processing title"))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(primaryTextColor)
-
-                Text(NSLocalizedString(subtitleKey, comment: "Processing subtitle"))
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(.gray)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(colorScheme == .dark ? 0.10 : 0.35), lineWidth: 0.8)
-        )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 16, y: 6)
-    }
-
-    private func showSelectionSuccessBanner(_ textKey: String) {
-        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
-            selectionSuccessBannerKey = textKey
-        }
-
-        Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            await MainActor.run {
-                guard selectionSuccessBannerKey == textKey else { return }
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    selectionSuccessBannerKey = nil
-                }
-            }
-        }
-    }
-
     private var selectionConfirmationTitle: String {
         guard let action = pendingSelectionConfirmation else { return "" }
         switch action {
@@ -1321,6 +1230,7 @@ struct SharedActivityDetailView: View {
     private func deleteSelectedReactions() async {
         guard !selectedReactionIds.isEmpty else { return }
         isDeletingSelectedReactions = true
+        InAppNotificationService.shared.showActionToast(.activityProgress(titleKey: processingTitleKey))
         let idsToDelete = selectedReactionIds
         let result = await viewModel.removeReactions(withIds: idsToDelete)
 
@@ -1330,8 +1240,9 @@ struct SharedActivityDetailView: View {
             case .success:
                 selectedReactionIds.removeAll()
                 isSelectionMode = false
-                showSelectionSuccessBanner("userActivity.simple.reactions.success.delete")
+                InAppNotificationService.shared.showActionToast(.activityDone("userActivity.simple.reactions.success.delete"))
             case .failure(let error):
+                InAppNotificationService.shared.dismissHeldActionToast()
                 viewModel.errorMessage = error.localizedDescription
             }
         }
@@ -1340,6 +1251,7 @@ struct SharedActivityDetailView: View {
     private func deleteSelectedComments() async {
         guard !selectedCommentIds.isEmpty else { return }
         isDeletingSelectedComments = true
+        InAppNotificationService.shared.showActionToast(.activityProgress(titleKey: processingTitleKey))
         let idsToDelete = selectedCommentIds
         let result = await viewModel.removeComments(withIds: idsToDelete)
 
@@ -1349,8 +1261,9 @@ struct SharedActivityDetailView: View {
             case .success:
                 selectedCommentIds.removeAll()
                 isSelectionMode = false
-                showSelectionSuccessBanner("userActivity.simple.comments.success.delete")
+                InAppNotificationService.shared.showActionToast(.activityDone("userActivity.simple.comments.success.delete"))
             case .failure(let error):
+                InAppNotificationService.shared.dismissHeldActionToast()
                 viewModel.errorMessage = error.localizedDescription
             }
         }
@@ -1359,6 +1272,7 @@ struct SharedActivityDetailView: View {
     private func removeSelectedTags() async {
         guard !selectedReactionIds.isEmpty else { return }
         isRemovingSelectedTags = true
+        InAppNotificationService.shared.showActionToast(.activityProgress(titleKey: processingTitleKey))
         let idsToDelete = selectedReactionIds
         let result = await viewModel.removeTags(withIds: idsToDelete)
 
@@ -1368,8 +1282,9 @@ struct SharedActivityDetailView: View {
             case .success:
                 selectedReactionIds.removeAll()
                 isSelectionMode = false
-                showSelectionSuccessBanner("userActivity.simple.tags.success.remove")
+                InAppNotificationService.shared.showActionToast(.activityDone("userActivity.simple.tags.success.remove"))
             case .failure(let error):
+                InAppNotificationService.shared.dismissHeldActionToast()
                 viewModel.errorMessage = error.localizedDescription
             }
         }

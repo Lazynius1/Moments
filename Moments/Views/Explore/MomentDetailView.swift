@@ -61,12 +61,13 @@ struct MomentDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingCommentsSheet) {
-            ModernCommentsView(moment: moment)
-                .environmentObject(firestoreService)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
+        .momentsCommentsOverlay(
+            moment: Binding(
+                get: { showingCommentsSheet ? moment : nil },
+                set: { if $0 == nil { showingCommentsSheet = false } }
+            ),
+            firestoreService: firestoreService
+        )
         .sheet(isPresented: $showEditSheet) {
             EditMomentView(
                 moment: moment,
@@ -1422,11 +1423,13 @@ class MomentDetailViewModel: ObservableObject {
         }
     }
 
-    func deleteComment(comment: Comment) {
+    @MainActor func deleteComment(comment: Comment) {
         guard let momentId = moment.id, let currentUserId = currentUserId, let commentId = comment.id else {
             errorMessage = "No se pudo eliminar el comentario."
             return
         }
+
+        InAppNotificationService.shared.showActionToast(.commentDeleted(username: comment.username))
 
         let momentOwnerId = moment.authorId
         firestoreService.deleteComment(
@@ -1440,7 +1443,6 @@ class MomentDetailViewModel: ObservableObject {
                 case .success:
                     // ✅ Optimistic update for offline support
                     self?.comments.removeAll { $0.id == commentId }
-                    
                     // Still fetch to be safe (no-op if offline)
                     self?.fetchComments()
                 case .failure(let error):

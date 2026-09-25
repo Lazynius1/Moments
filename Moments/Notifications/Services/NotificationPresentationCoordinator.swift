@@ -23,17 +23,28 @@ final class NotificationPresentationCoordinator {
         applySideEffects(for: notification, userInfo: userInfo)
     }
 
-    func present(from userInfo: [AnyHashable: Any], source: NotificationPresentationSource) {
+    func present(
+        from userInfo: [AnyHashable: Any],
+        source: NotificationPresentationSource,
+        applyEffects: Bool = true
+    ) {
         guard let notification = mapPushPayload(userInfo) else { return }
-        present(notification, source: source, userInfo: userInfo)
+        present(notification, source: source, userInfo: userInfo, applyEffects: applyEffects)
     }
 
-    func present(_ notification: Notification, source: NotificationPresentationSource, userInfo: [AnyHashable: Any]? = nil) {
+    func present(
+        _ notification: Notification,
+        source: NotificationPresentationSource,
+        userInfo: [AnyHashable: Any]? = nil,
+        applyEffects: Bool = true
+    ) {
         if notification.senderId == Auth.auth().currentUser?.uid { return }
         guard shouldShowBanner(for: notification) else { return }
         guard registerDedup(for: notification) else { return }
 
-        applySideEffects(for: notification, userInfo: userInfo)
+        if applyEffects {
+            applySideEffects(for: notification, userInfo: userInfo)
+        }
 
         Task { @MainActor in
             let resolved = await InAppNotificationPreviewResolver.resolve(notification, userInfo: userInfo)
@@ -171,8 +182,12 @@ final class NotificationPresentationCoordinator {
         guard let rawType = userInfo["type"] as? String else { return nil }
         guard let notificationType = mapPushType(rawType) else { return nil }
 
-        let senderId = firstString(in: userInfo, keys: ["senderId", "userId", "followerId"])
-            ?? (notificationType == .gentleReminder ? "gentle_reminder" : "")
+        // `userId` en pushes sociales suele ser el destinatario; en reacciones/comentarios
+        // a veces es el actor. Va al final para que new_follower use `followerId`.
+        let senderId = firstString(
+            in: userInfo,
+            keys: ["senderId", "followerId", "requesterId", "fromUserId", "userId"]
+        ) ?? (notificationType == .gentleReminder ? "gentle_reminder" : "")
         let senderUsername = firstString(in: userInfo, keys: ["senderUsername", "username"]) ?? "Moments"
         let conversationId = firstString(in: userInfo, keys: ["conversationId", "groupId", "targetId"])
         let messageId = firstString(in: userInfo, keys: ["messageId", "targetMessageId"])

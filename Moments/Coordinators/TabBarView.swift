@@ -81,9 +81,6 @@ struct TabBarView: View {
                         .environmentObject(tabBarMinimize)
                         .environmentObject(messagingViewModel)
                         .environmentObject(firestoreService)
-                        .overlay(alignment: .top) {
-                            InAppBannerView()
-                        }
                         .overlay {
                             // Pill: abajo, o rail vertical si toolbarVerticalEdge ≠ nil.
                             MomentsFloatingTabBar(

@@ -168,10 +168,12 @@ struct MomentsApp: App {
                         }
                     }
 
+                // Aura de borde; la pill vive en InAppBannerView (mismo host que toasts).
                 if incognitoModeService.isActive {
-                    IncognitoGlobalOverlay(service: incognitoModeService)
+                    IncognitoGlobalOverlay()
                         .transition(.opacity)
                         .zIndex(1600)
+                        .allowsHitTesting(false)
                 }
 
                 if showSplash {
@@ -192,6 +194,7 @@ struct MomentsApp: App {
             .onReceive(NotificationCenter.default.publisher(for: .whatsNewReadyToPresent)) { _ in
                 showWhatsNew = true
             }
+            .background(InAppBannerWindowAnchor())
         }
     }
 

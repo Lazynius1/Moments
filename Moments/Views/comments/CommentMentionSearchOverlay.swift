@@ -33,9 +33,9 @@ struct CommentMentionSearchOverlay: View {
     }
 
     private var resultsPanelHeight: CGFloat {
+        // Altura fija (3 filas) para no empujar el input al cargar resultados.
         let rowHeight: CGFloat = 67
-        let visibleRows = min(max(searchResults.count, 1), 3)
-        return CGFloat(visibleRows) * rowHeight
+        return 3 * rowHeight
     }
 
     var body: some View {
@@ -105,12 +105,12 @@ struct CommentMentionSearchOverlay: View {
             if isSearching {
                 ProgressView()
                     .tint(.primary)
-                    .frame(maxWidth: .infinity, minHeight: 88)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if searchResults.isEmpty {
                 Text(NSLocalizedString("common.noResults", value: "No users found", comment: ""))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 88)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -126,9 +126,9 @@ struct CommentMentionSearchOverlay: View {
                         }
                     }
                 }
-                .frame(height: resultsPanelHeight)
             }
         }
+        .frame(height: resultsPanelHeight)
         .padding(.vertical, 8)
         .momentsChromeGlass(
             in: RoundedRectangle(cornerRadius: 24, style: .continuous),

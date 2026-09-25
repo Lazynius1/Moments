@@ -710,6 +710,7 @@ class StoryViewModel: ObservableObject {
                 LocalPersistenceService.shared.deleteStory(storyId: storyId)
                 self.firestoreService.rebuildStorySummary(for: userId) { _ in }
                 self.checkActiveStories(userId: userId)
+                InAppNotificationService.shared.showActionToast(.storyDeleted)
                 completion(nil)
             }
         }

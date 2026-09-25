@@ -77,20 +77,6 @@ struct NotificationsView: View {
             .toolbar(.hidden, for: .tabBar)
             .momentsFloatingTabBarHidden()
 
-
-            if let pendingDeletion = viewModel.pendingDeletion {
-                NotificationDeletionUndoToast(
-                    deletedCount: pendingDeletion.notifications.count,
-                    colorScheme: colorScheme,
-                    onUndo: {
-                        HapticManager.shared.lightImpact()
-                        viewModel.undoPendingDeletion()
-                    }
-                )
-                .padding(.bottom, 16)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-
             if let overlayGroup = groupedFollowersOverlayGroup {
                 NotificationGroupedFollowersOverlay(
                     group: overlayGroup,

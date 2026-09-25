@@ -266,6 +266,9 @@ class NotificationsViewModel: ObservableObject {
                     self.groupNotifications() // Reagrupar para actualizar UI
                     self.updatePendingCounts()
                 }
+                InAppNotificationService.shared.showActionToast(
+                    .requestAccepted(notification.senderUsername)
+                )
             }
         }
     }
@@ -289,6 +292,9 @@ class NotificationsViewModel: ObservableObject {
                     self.notifications.removeAll { $0.id == notificationId }
                     self.groupNotifications() // Reagrupar para actualizar UI
                     self.updatePendingCounts()
+                    InAppNotificationService.shared.showActionToast(
+                        .requestRejected(notification.senderUsername)
+                    )
                 }
             }
         }

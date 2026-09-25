@@ -127,6 +127,7 @@ const {
   processForYouFeedPage,
   purgeSocialNotifications,
   reconcileMutualConnection,
+  restoreFollowNotificationsAfterUnfollow,
   removeInvalidToken,
   resolveIncognitoState,
   resolveStorageObjectNameFromClientMediaReference,
@@ -353,6 +354,8 @@ const onFollowerRemoved = onDocumentDeleted('users/{userId}/followers/{followerI
       purgeSocialNotifications(userId, { type: 'mutualConnection', senderId: followerId }),
       purgeSocialNotifications(followerId, { type: 'mutualConnection', senderId: userId })
     ]);
+    // Si queda follow unidireccional, restaurar row `newFollower` (sin push).
+    await restoreFollowNotificationsAfterUnfollow(userId, followerId);
     console.log(`🧹 Follow relationship reconciled after follower removal: ${followerId} -> ${userId}`);
   } catch (error) {
     console.error('❌ Error purging follow notifications on unfollow:', error);
@@ -373,6 +376,8 @@ const onFollowingRemoved = onDocumentDeleted('users/{userId}/following/{followin
       purgeSocialNotifications(userId, { type: 'mutualConnection', senderId: followingId }),
       purgeSocialNotifications(followingId, { type: 'mutualConnection', senderId: userId })
     ]);
+    // Si queda follow unidireccional, restaurar row `newFollower` (sin push).
+    await restoreFollowNotificationsAfterUnfollow(userId, followingId);
     console.log(`🧹 Follow relationship reconciled after following removal: ${userId} -> ${followingId}`);
   } catch (error) {
     console.error('❌ Error purging follow notifications on following removal:', error);

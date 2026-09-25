@@ -85,6 +85,9 @@ extension FirestoreService {
                         LocalPersistenceService.shared.updateCommentCountLocally(momentId: momentId, increment: 1)
                     }
                     print("💾 FirestoreService: Comentario guardado en outbox (offline)")
+                    Task { @MainActor in
+                        InAppNotificationService.shared.showActionToast(.commentPosted)
+                    }
                     completion(.success(()))
                 }
                 return
@@ -135,6 +138,9 @@ extension FirestoreService {
                     if let error = error {
                         completion(.failure(error))
                     } else {
+                        Task { @MainActor in
+                            InAppNotificationService.shared.showActionToast(.commentPosted)
+                        }
                         completion(.success(()))
 
                         let sendMentions: (String?, Set<String>) -> Void = { momentAuthorUsername, excludedUserIds in

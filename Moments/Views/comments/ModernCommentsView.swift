@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import FirebaseAuth
 import FirebaseFirestore
 import Kingfisher
@@ -50,6 +51,8 @@ struct ModernCommentsView: View {
     @EnvironmentObject private var authService: AuthService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.commentsKeyboardBottomInset) private var commentsKeyboardBottomInset
+    @StateObject private var emojiUsageTracker = EmojiUsageTracker()
     
     // ✅ NUEVO: Init personalizado para asegurar estado inicial correcto
     init(moment: Moment) {
@@ -118,15 +121,21 @@ struct ModernCommentsView: View {
                     .momentsSheetScrollHeader { modernHeaderView }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         VStack(spacing: 0) {
+                            // Separador lista ↔ emojis/input (visible, estilo IG).
+                            Rectangle()
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.14))
+                                .frame(height: 1)
+                                .frame(maxWidth: .infinity)
                             if let replyComment = replyToComment {
                                 replyIndicatorView(replyComment)
-                                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                                    .transition(.opacity)
                             }
                             commentInputView
                         }
                     }
             }
         }
+        .ignoresSafeArea(.keyboard)
         .task(id: commentsListenerRefreshID) {
             initializeCommentsView(clearExistingComments: loadedMomentID != moment.id)
             loadedMomentID = moment.id
@@ -147,6 +156,7 @@ struct ModernCommentsView: View {
             Button(NSLocalizedString("modernComments.cancel", comment: "Cancel"), role: .cancel) { }
             Button(NSLocalizedString("modernComments.delete.confirm", comment: "Delete"), role: .destructive) {
                 if let comment = commentToDelete {
+                    InAppNotificationService.shared.showActionToast(.commentDeleted(username: comment.username))
                     deleteComment(comment)
                 }
             }
@@ -175,11 +185,13 @@ struct ModernCommentsView: View {
                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
 
-                    if isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
-                            .scaleEffect(0.7)
-                    }
+                    // Reserva fija: no reflow del header (ni del inset del input) al cargar.
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
+                        .scaleEffect(0.7)
+                        .opacity(isLoading ? 1 : 0)
+                        .frame(width: 14, height: 14)
+                        .accessibilityHidden(!isLoading)
                 }
 
                 HStack(spacing: 4) {
@@ -369,11 +381,15 @@ struct ModernCommentsView: View {
     private var commentInputView: some View {
         VStack(spacing: 0) {
             mentionSearchOverlay
+
+            if editingCommentId == nil {
+                quickEmojiReactionsRow
+            }
             
-            HStack(spacing: 12) {
+            HStack(alignment: .bottom, spacing: 12) {
                 if editingCommentId != nil {
                     // Modo edición mejorado
-                    HStack(spacing: 8) {
+                    HStack(alignment: .bottom, spacing: 8) {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Image(systemName: "pencil")
@@ -393,6 +409,7 @@ struct ModernCommentsView: View {
                                 .textFieldStyle(.plain)
                                 .lineLimit(1...4)
                                 .lineSpacing(0)
+                                .frame(height: commentComposerTextHeight(for: editingCommentContent), alignment: .topLeading)
                                 .disabled(isLoading)
                                 .onChange(of: editingCommentContent) { _, newValue in
                                     activeEditingCommentMention = detectMentionToken(in: newValue)
@@ -487,9 +504,10 @@ struct ModernCommentsView: View {
                             .textFieldStyle(.plain)
                             .lineLimit(1...4)
                             .lineSpacing(0)
+                            // Altura del texto fijada por contenido (rompe thrash TextField ↔ safeAreaInset).
+                            .frame(height: commentComposerTextHeight(for: newComment), alignment: .topLeading)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
-                            // ≡ ChatInputViews: misma “gordura” en una línea.
                             .frame(minHeight: 44)
                             .background(
                                 RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -523,7 +541,7 @@ struct ModernCommentsView: View {
                                         LinearGradient(
                                             colors: newComment.isEmpty || isLoading ?
                                             [Color.gray.opacity(0.3), Color.gray.opacity(0.3)] :
-                                            [Color.blue, Color.purple, Color.pink], // ✅ Degradado correcto
+                                            [Color.blue, Color.purple, Color.pink],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
@@ -539,20 +557,82 @@ struct ModernCommentsView: View {
                                     Image(systemName: "paperplane.fill")
                                         .font(.system(size: 18, weight: .semibold))
                                         .foregroundStyle(.white)
-                                        .offset(x: -1, y: 1) // Ajuste visual
+                                        .offset(x: -1, y: 1)
                                 }
                             }
+                            .scaleEffect(newComment.isEmpty || isLoading ? 0.95 : 1.0)
+                            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: newComment.isEmpty), value: newComment.isEmpty)
                         }
                         .disabled(newComment.isEmpty || isLoading)
-                        .scaleEffect(newComment.isEmpty || isLoading ? 0.95 : 1.0)
-                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: newComment.isEmpty), value: newComment.isEmpty)
+                        .frame(width: 44, height: 44)
                     }
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .padding(.bottom, 8) // Espacio extra abajo
+            .padding(.top, editingCommentId == nil ? 8 : 12)
+            .padding(.bottom, composerHomeIndicatorPadding)
         }
+        .background(AdaptiveColors(colorScheme: colorScheme).surfaceBackground)
+    }
+
+    /// Con teclado: solo el composer sube (padding interno). Sin teclado: home indicator.
+    private var composerHomeIndicatorPadding: CGFloat {
+        if commentsKeyboardBottomInset > 0 {
+            // 2pt de aire entre input y teclado.
+            return commentsKeyboardBottomInset + 2
+        }
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let inset = scenes
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .safeAreaInsets.bottom ?? 0
+        return max(inset, 8)
+    }
+
+    private var quickEmojiReactionsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                ForEach(emojiUsageTracker.orderedEmojis(from: EmojiReactionDefaults.comments), id: \.self) { emoji in
+                    Button {
+                        HapticManager.shared.lightImpact()
+                        emojiUsageTracker.increment(emoji)
+                        newComment.append(emoji)
+                        activeNewCommentMention = detectMentionToken(in: newComment)
+                        newCommentMentions = sanitizedMentionEntities(newCommentMentions, in: newComment)
+                    } label: {
+                        Text(emoji)
+                            .font(.system(size: 30))
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(.plain)
+                    // Imprescindible: sin fixedSize el HStack comprime los 20 al ancho y no hay scroll.
+                    .fixedSize()
+                    .disabled(isLoading)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+        }
+        .frame(height: 54)
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+    }
+
+    /// Altura del área de texto (sin padding). Cambia solo con el contenido, no con el layout del sheet.
+    private func commentComposerTextHeight(for text: String) -> CGFloat {
+        let font = UIFont.systemFont(ofSize: legacyPoppinsSize(15))
+        let lineHeight = ceil(font.lineHeight)
+        let maxLines = 4
+        let horizontalChrome: CGFloat = 16 + 16 + 36 + 8 + 44 + 8 + 28
+        let fieldWidth = max(120, UIScreen.main.bounds.width - horizontalChrome)
+        let measured = (text as NSString).boundingRect(
+            with: CGSize(width: fieldWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font],
+            context: nil
+        ).height
+        let lines = min(max(Int(ceil(measured / max(lineHeight, 1))), 1), maxLines)
+        return CGFloat(lines) * lineHeight
     }
 
     @ViewBuilder
@@ -570,7 +650,7 @@ struct ModernCommentsView: View {
             )
             .padding(.horizontal, 16)
             .padding(.bottom, 6)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .transition(.opacity)
         } else if let newMention = activeNewCommentMention {
             CommentMentionSearchOverlay(
                 query: newMention.query,
@@ -584,7 +664,7 @@ struct ModernCommentsView: View {
             )
             .padding(.horizontal, 16)
             .padding(.bottom, 6)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .transition(.opacity)
         }
     }
 
@@ -856,8 +936,12 @@ struct ModernCommentsView: View {
         }
 
         let listenerRefreshID = commentsListenerRefreshID
-        isLoading = true
-        scheduleCommentsLoadingTimeout()
+        // Solo skeleton en la primera carga; no resetear el composer al refrescar.
+        let isInitialLoad = comments.isEmpty
+        if isInitialLoad {
+            isLoading = true
+            scheduleCommentsLoadingTimeout()
+        }
         commentsListener?.remove()
         
         commentsListener = firestoreService.db
@@ -988,13 +1072,8 @@ struct ModernCommentsView: View {
                 Task { @MainActor in
                     AffinityTracker.shared.trackInteraction(type: .momentComment, with: self.moment.authorId)
                 }
-                // Si estamos online, el listener actualizará la lista.
-                // Si estamos offline, el comentario se queda como "pending" hasta que se sincronice.
-                if NetworkMonitor.shared.isConnected {
-                    DispatchQueue.main.async {
-                        self.fetchComments()
-                    }
-                }
+                // Online: el snapshot listener ya actualiza. No llamar fetchComments()
+                // (rearmaba isLoading y hacía saltar el input / skeleton).
                 
                 // 🔥 Moderación silenciosa en segundo plano
                 self.moderateCommentInBackground(

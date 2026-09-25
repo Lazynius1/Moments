@@ -494,8 +494,8 @@
 "notifications.message.follow.multiple" = "%@ i %d innych osób zaczęło Cię obserwować.";
 "notifications.message.request.two" = "%@ i %@ chcą Cię obserwować.";
 "notifications.message.request.multiple" = "%@ i %d innych osób chce Cię obserwować.";
-"notifications.message.mutual.two" = "Połączyliście się z %@ i %@.";
-"notifications.message.mutual.multiple" = "Połączyliście się z %@ i %d innymi osobami.";
+"notifications.message.mutual.two" = "Teraz %@, %@ i ty obserwujecie się nawzajem.";
+"notifications.message.mutual.multiple" = "%@ i %d innych obserwujecie się nawzajem";
 "notifications.message.comment.two" = "%@ i %@ skomentowali Twój moment.";
 "notifications.message.comment.multiple" = "%@ i %d innych osób skomentowało Twój moment.";
 "notifications.message.story.two" = "%@ i %@ polubili Twoją relację.";
@@ -508,7 +508,7 @@
 "notifications.message.mention.single" = "%@ wspomniał(a) o Tobie.";
 "notifications.message.follow.single" = "%@ zaczął/zaczęła Cię obserwować.";
 "notifications.message.request.single" = "%@ chce Cię obserwować.";
-"notifications.message.mutual.single" = "Połączyliście się z %@.";
+"notifications.message.mutual.single" = "Teraz %@ i ty obserwujecie się nawzajem.";
 "notifications.message.comment.single" = "%@ skomentował(a) Twój moment.";
 "notifications.message.story.single" = "%@ zareagował(a) na Twoją relację.";
 "notifications.message.storyChain.single" = "%@ kontynuuje łańcuch \"%@\".";
@@ -527,7 +527,7 @@
 "notifications.message.reaction.threePlus.withType" = "%@ zareagował(a) %@, a %@ i %d innych osób zareagowało na Twój moment.";
 "notifications.message.follow.threePlus" = "%@, %@ i %d innych osób zaczęło Cię obserwować.";
 "notifications.message.request.threePlus" = "%@, %@ i %d innych osób chce Cię obserwować.";
-"notifications.message.mutual.threePlus" = "Macie teraz wzajemne połączenie: %@, %@ i %d innych osób.";
+"notifications.message.mutual.threePlus" = "%@, %@ i %d innych obserwujecie się nawzajem";
 "notifications.message.comment.threePlus" = "Twój moment skomentowali: %@, %@ i %d innych osób.";
 "notifications.message.story.threePlus" = "Twoją relację polubili: %@, %@ i %d innych osób.";
 "notifications.message.requestAccepted.threePlus" = "%@, %@ i %d innych osób zaakceptowało Twoją prośbę o obserwowanie.";
@@ -1096,7 +1096,7 @@
 "chat.status.read" = "Odczytano";
 "chat.seen" = "Wyświetlono";
 "chat.status.failed" = "Nie udało się";
-"chat.notification.viewOncePrompt" = "📸 Wysłano Ci wiadomość, która usunie się po wyświetleniu";
+"chat.notification.viewOncePrompt" = "Wysłano Ci wiadomość";
 "chat.preview.newConversation" = "Nowa rozmowa";
 "chat.preview.ephemeral_long" = "Wiadomość tymczasowa";
 "chat.preview.image" = "Obraz";
@@ -2766,6 +2766,8 @@
 "profile.moments.scheduled.in" = "Za %@";
 /* Echoes Viewer & UI */
 "echo.viewer.leave" = "Porzuć Echo";
+"toast.action.echoLeft" = "Opuszczono Echo";
+"toast.action.echoDeleted" = "Echo usunięte";
 "echo.viewer.location.fallback" = "W pobliżu";
 "echo.viewer.location.header" = "Naciśnięto o %@";
 "echo.viewer.location.viewMaps" = "Wyświetl w Mapach";
@@ -2799,8 +2801,8 @@
 "echo.invitation.unavailable" = "To Echo nie jest już dostępne";
 "echo.invitation.error.decoding" = "Nie udało się odczytać Echo";
 /* Echoes Notifications */
-"notifications.message.echo" = "jest w pobliżu! Utwórz Echo";
-"banner.verb.echoSuggestion" = "jest w pobliżu! Utwórz Echo";
+"notifications.message.echo" = "%@ jest blisko. Połączycie spojrzenia w Echo?";
+"banner.verb.echoSuggestion" = "%@ jest blisko. Połączycie spojrzenia w Echo?";
 "echo.viewer.unavailable" = "Ta chwila nie jest już dostępna";
 /* Interests */
 "interest.photography" = "Fotografia";
@@ -2902,7 +2904,7 @@
 "notification.message.single.photo" = "Wysłano Ci zdjęcie 📷";
 "notification.message.single.video" = "Wysłano Ci film 🎥";
 "notification.message.single.audio" = "Wysłano Ci nagranie audio 🎵";
-"notification.message.single.viewOnce" = "Wysłano Ci znikającą wiadomość 👀";
+"notification.message.single.viewOnce" = "Wysłano Ci wiadomość";
 "notification.message.single.moment" = "Wysłano Ci moment 📸";
 "notification.message.single.default" = "Wysłał(a) Ci wiadomość";
 "notification.message.single.storyMention" = "Wspomniał(a) o Tobie w swojej relacji";
@@ -2976,10 +2978,10 @@
 "notification.echo.title" = "Ktoś z Twoich połączeń jest w pobliżu! ✨";
 "notification.echo.body" = "%@ jest w pobliżu. Stwórzcie razem Echo!";
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "Nowe wzajemne połączenie! 🎉";
-"notification.mutualConnection.body" = "Ty i %@ obserwujecie się teraz nawzajem";
-"notification.mutualConnection.multiple.title" = "Nowe wzajemne połączenia! 🎉";
-"notification.mutualConnection.multiple.body" = "Ty, %@ i jeszcze %@ osób obserwujecie się nawzajem";
+"notification.mutualConnection.title" = "Ty i %@ obserwujecie się nawzajem";
+"notification.mutualConnection.body" = "Dotknij, aby zobaczyć profil";
+"notification.mutualConnection.multiple.title" = "Ty, %@ i %@ innych obserwujecie się nawzajem";
+"notification.mutualConnection.multiple.body" = "Dotknij, aby zobaczyć kogo";
 "explore.search.placeholder" = "Szukaj...";
 /* Explore Search */
 "explore.search.cancel" = "Anuluj";
@@ -3431,6 +3433,11 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "messaging.section.archivedWithUnread" = "Zarchiwizowane (%d nieprzeczytanych)";
 "messaging.toast.archived" = "Czat zarchiwizowano";
 "messaging.toast.unarchived" = "Czat przywrócono z archiwum";
+"messaging.toast.muted" = "Czat wyciszony";
+"messaging.toast.unmuted" = "Powiadomienia włączone ponownie";
+"messaging.toast.pinned" = "Czat przypięty";
+"messaging.toast.unpinned" = "Czat odpięty";
+"messaging.toast.deleted" = "Rozmowa usunięta";
 "feed.refreshing" = "Odświeżanie";
 "profile.ui.posts" = "Posty";
 /* Social Connections */
@@ -4602,3 +4609,35 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
 "whatsNew.offline230.title" = "Offline & polish";
 "whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";
+/* In-app action toasts */
+"toast.action.commentPosted" = "Komentarz opublikowany";
+"toast.action.momentSaved" = "Moment zapisany";
+"toast.action.momentDeleted" = "Moment usunięty";
+"toast.action.momentArchived" = "Moment zarchiwizowany";
+"toast.action.incognito.activated" = "Incognito włączony";
+"toast.action.incognito.activated.subtitle" = "Dotknij, aby wstrzymać";
+"toast.action.incognito.paused" = "Incognito wstrzymany";
+"toast.action.storyDeleted" = "Relacja usunięta";
+"toast.action.followed" = "Obserwujesz ";
+"toast.action.followRequested" = "Prośba o obserwowanie wysłana do ";
+"toast.action.requestAccepted" = "Prośba o obserwowanie od ";
+"toast.action.requestRejected" = "Prośba o obserwowanie od ";
+"toast.action.unfollowed" = "Nie obserwujesz już ";
+"toast.action.blocked" = "Zablokowano użytkownika ";
+"toast.action.muted" = "Wyciszono użytkownika ";
+"toast.action.momentUnsaved" = "Usunięto z zapisanych";
+"toast.action.commentDeleted" = "Komentarz usunięty";
+"toast.action.commentDeleted.prefix" = "Usunięto komentarz użytkownika ";
+"toast.action.messageCopied" = "Wiadomość skopiowana";
+"toast.action.linkCopied" = "Link skopiowany";
+"toast.action.momentUpdated" = "Moment zaktualizowany";
+"toast.action.leftGroup.prefix" = "Opuszczono grupę ";
+"toast.action.followed.suffix" = "";
+"toast.action.followRequested.suffix" = "";
+"toast.action.unfollowed.suffix" = "";
+"toast.action.blocked.suffix" = "";
+"toast.action.muted.suffix" = "";
+"toast.action.commentDeleted.prefix.suffix" = "";
+"toast.action.leftGroup.suffix" = "";
+"toast.action.requestAccepted.suffix" = " przyjęta";
+"toast.action.requestRejected.suffix" = " odrzucona";

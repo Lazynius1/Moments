@@ -95,9 +95,17 @@ class FirestoreService: ObservableObject {
                     authorId: userId,
                     allowedUsers: customViewers
                 ) { audienceError in
+                    if audienceError == nil {
+                        Task { @MainActor in
+                            InAppNotificationService.shared.showActionToast(.momentUpdated)
+                        }
+                    }
                     completion(audienceError)
                 }
             } else {
+                Task { @MainActor in
+                    InAppNotificationService.shared.showActionToast(.momentUpdated)
+                }
                 completion(nil)
             }
         }
@@ -300,7 +308,14 @@ class FirestoreService: ObservableObject {
                         switch result {
                         case .success(let targetUser):
                             if !targetUser.isPrivate {
-                                self.performFollow(currentUserId: currentUserId, targetUserId: targetUserId, completion: completion)
+                                self.performFollow(currentUserId: currentUserId, targetUserId: targetUserId) { error in
+                                    if error == nil {
+                                        Task { @MainActor in
+                                            InAppNotificationService.shared.showActionToast(.followed(targetUser.username))
+                                        }
+                                    }
+                                    completion(error)
+                                }
                                 return
                             }
 
@@ -310,9 +325,15 @@ class FirestoreService: ObservableObject {
                                     self.createFollowRequest(
                                         senderId: currentUserId,
                                         senderUsername: currentUser.username,
-                                        recipientId: targetUserId,
-                                        completion: completion
-                                    )
+                                        recipientId: targetUserId
+                                    ) { error in
+                                        if error == nil {
+                                            Task { @MainActor in
+                                                InAppNotificationService.shared.showActionToast(.followRequested(targetUser.username))
+                                            }
+                                        }
+                                        completion(error)
+                                    }
                                 case .failure(let error):
                                     completion(error)
                                 }
@@ -550,7 +571,7 @@ class FirestoreService: ObservableObject {
     }
 
     // MARK: - FUNCIÓN FOLLOWUSER ACTUALIZADA CON CACHE MANAGEMENT
-    func followUser(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
+    func followUser(currentUserId: String, targetUserId: String, announce: Bool = true, completion: @escaping (Error?) -> Void) {
         // ✅ Optimistic UI: Actualizar conexiones localmente (Low priority background)
         Task(priority: .background) { @MainActor in
             LocalPersistenceService.shared.toggleFollowLocally(currentUserId: currentUserId, targetUserId: targetUserId, isFollow: true)
@@ -580,6 +601,15 @@ class FirestoreService: ObservableObject {
                 Task {
                     await LocalPersistenceService.shared.saveAction(action)
                     print("💾 FirestoreService: Follow guardado en outbox (offline)")
+                    if announce {
+                        let username = UserCacheService.shared.getCachedUser(userId: targetUserId)?.username ?? ""
+                        let privateAccount = UserCacheService.shared.getCachedUser(userId: targetUserId)?.isPrivate == true
+                        Task { @MainActor in
+                            InAppNotificationService.shared.showActionToast(
+                                privateAccount ? .followRequested(username) : .followed(username)
+                            )
+                        }
+                    }
                     completion(nil) // Éxito optimista
                 }
                 return
@@ -614,6 +644,11 @@ class FirestoreService: ObservableObject {
                             // Limpiar cache después de follow exitoso
                             if error == nil {
                                 self.invalidateFollowingCache(currentUserId: currentUserId, targetUserId: targetUserId)
+                                if announce {
+                                    Task { @MainActor in
+                                        InAppNotificationService.shared.showActionToast(.followed(targetUser.username))
+                                    }
+                                }
                             }
                             completion(error)
                         }
@@ -683,7 +718,7 @@ class FirestoreService: ObservableObject {
     }
 
     // MARK: - FUNCIÓN UNFOLLOWUSER CORREGIDA CON CACHE MANAGEMENT
-    func unfollowUser(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
+    func unfollowUser(currentUserId: String, targetUserId: String, announce: Bool = true, completion: @escaping (Error?) -> Void) {
         // ✅ Optimistic UI: Actualizar conexiones localmente (Low priority background)
         Task(priority: .background) { @MainActor in
             LocalPersistenceService.shared.toggleFollowLocally(currentUserId: currentUserId, targetUserId: targetUserId, isFollow: false)
@@ -695,6 +730,90 @@ class FirestoreService: ObservableObject {
             return
         }
 
+        // Con toast de deshacer: no tocar Firestore aún; el commit va en onExpire.
+        if announce {
+            beginDeferredUnfollowIfPossible(currentUserId: currentUserId, targetUserId: targetUserId) { deferred in
+                if deferred {
+                    completion(nil)
+                } else {
+                    // Sin nombre → unfollow inmediato (+ toast sin undo si aplica).
+                    self.commitUnfollowUser(
+                        currentUserId: currentUserId,
+                        targetUserId: targetUserId,
+                        announceAfter: true,
+                        completion: completion
+                    )
+                }
+            }
+            return
+        }
+
+        commitUnfollowUser(
+            currentUserId: currentUserId,
+            targetUserId: targetUserId,
+            announceAfter: false,
+            completion: completion
+        )
+    }
+
+    /// Toast con deshacer (pública o privada); Firestore solo al expirar.
+    private func beginDeferredUnfollowIfPossible(
+        currentUserId: String,
+        targetUserId: String,
+        completion: @escaping (Bool) -> Void
+    ) {
+        let presentDeferred: (String) -> Void = { username in
+            let undo: @MainActor () -> Void = {
+                LocalPersistenceService.shared.toggleFollowLocally(
+                    currentUserId: currentUserId,
+                    targetUserId: targetUserId,
+                    isFollow: true
+                )
+                self.followingCache["\(currentUserId)_\(targetUserId)"] = true
+            }
+            let onExpire: @MainActor () -> Void = {
+                self.commitUnfollowUser(
+                    currentUserId: currentUserId,
+                    targetUserId: targetUserId,
+                    announceAfter: false,
+                    completion: { _ in }
+                )
+            }
+            Task { @MainActor in
+                InAppNotificationService.shared.showActionToast(
+                    .unfollowed(username, undo: undo, onExpire: onExpire)
+                )
+            }
+            completion(true)
+        }
+
+        if let cached = UserCacheService.shared.getCachedUser(userId: targetUserId),
+           !cached.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            presentDeferred(cached.username)
+            return
+        }
+
+        fetchUserProfile(userId: targetUserId) { result in
+            switch result {
+            case .success(let user):
+                if user.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    completion(false)
+                } else {
+                    presentDeferred(user.username)
+                }
+            case .failure:
+                completion(false)
+            }
+        }
+    }
+
+    /// Unfollow real en Firestore (+ toast sin undo si `announceAfter` y sin defer).
+    private func commitUnfollowUser(
+        currentUserId: String,
+        targetUserId: String,
+        announceAfter: Bool,
+        completion: @escaping (Error?) -> Void
+    ) {
         // ✅ OFFLINE SUPPORT: Si no hay conexión, persistir acción y retornar éxito optimista
         if !NetworkMonitor.shared.isConnected {
             let payload = FollowActionPayload(
@@ -714,17 +833,18 @@ class FirestoreService: ObservableObject {
                 Task {
                     await LocalPersistenceService.shared.saveAction(action)
                     print("💾 FirestoreService: Unfollow guardado en outbox (offline)")
-                    completion(nil) // Éxito optimista
+                    if announceAfter {
+                        self.announceUnfollowIfNeeded(targetUserId: targetUserId, announce: true)
+                    }
+                    completion(nil)
                 }
                 return
             }
         }
 
-        // LIMPIAR CACHE ANTES DE VERIFICAR
         let cacheKey = "\(currentUserId)_\(targetUserId)"
         followingCache.removeValue(forKey: cacheKey)
 
-        // Verificar primero si realmente está siguiendo (SIN CACHE)
         db.collection("users").document(currentUserId).collection("following").document(targetUserId).getDocument { [weak self] snapshot, error in
             guard let self = self else { return }
 
@@ -740,31 +860,22 @@ class FirestoreService: ObservableObject {
                 return
             }
 
-            // Crear batch para operación atómica
             let batch = self.db.batch()
-
-            // Referencias a los documentos
             let followingRef = self.db.collection("users").document(currentUserId).collection("following").document(targetUserId)
             let followerRef = self.db.collection("users").document(targetUserId).collection("followers").document(currentUserId)
             let currentUserMutualRef = self.db.collection("users").document(currentUserId).collection("mutuals").document(targetUserId)
             let targetUserMutualRef = self.db.collection("users").document(targetUserId).collection("mutuals").document(currentUserId)
 
-
-            // Añadir operaciones de borrado al batch
             batch.deleteDocument(followingRef)
             batch.deleteDocument(followerRef)
             batch.deleteDocument(currentUserMutualRef)
             batch.deleteDocument(targetUserMutualRef)
 
-            // Ejecutar batch
             batch.commit { error in
                 if let error = error {
                     completion(error)
                 } else {
-
-                    // LIMPIAR CACHE DESPUÉS DEL UNFOLLOW EXITOSO
                     self.followingCache.removeValue(forKey: cacheKey)
-                    // ✅ LIMPIEZA DE NOTIFICACIÓN (Unfollow) — defensa en profundidad; servidor también limpia vía onFollowerRemoved
                     Task { @MainActor in
                         let notificationService = NotificationService.shared
                         notificationService.removeNotification(
@@ -784,28 +895,60 @@ class FirestoreService: ObservableObject {
                         )
                     }
 
-                    // VERIFICACIÓN POST-UNFOLLOW CON DELAY (sin cache)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         self.db.collection("users").document(currentUserId).collection("following").document(targetUserId).getDocument { snapshot, error in
                             if error == nil {
                                 let stillFollowing = snapshot?.exists == true
 
                                 if stillFollowing {
-                                    // Intentar force unfollow
                                     self.forceUnfollow(currentUserId: currentUserId, targetUserId: targetUserId) { forceError in
                                         if let forceError = forceError {
                                             completion(forceError)
                                         } else {
+                                            if announceAfter {
+                                                self.announceUnfollowIfNeeded(targetUserId: targetUserId, announce: true)
+                                            }
                                             completion(nil)
                                         }
                                     }
                                 } else {
+                                    if announceAfter {
+                                        self.announceUnfollowIfNeeded(targetUserId: targetUserId, announce: true)
+                                    }
                                     completion(nil)
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /// Toast post-commit sin undo (p. ej. sin username para defer).
+    private func announceUnfollowIfNeeded(targetUserId: String, announce: Bool) {
+        guard announce else { return }
+
+        let present: (String) -> Void = { username in
+            Task { @MainActor in
+                InAppNotificationService.shared.showActionToast(.unfollowed(username, undo: nil))
+            }
+        }
+
+        if let cached = UserCacheService.shared.getCachedUser(userId: targetUserId),
+           !cached.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            present(cached.username)
+            return
+        }
+
+        fetchUserProfile(userId: targetUserId) { result in
+            switch result {
+            case .success(let user):
+                let name = user.username.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty else { return }
+                present(user.username)
+            case .failure:
+                break
             }
         }
     }
@@ -1253,12 +1396,16 @@ class FirestoreService: ObservableObject {
             self.invalidateFollowingCache(currentUserId: currentUserId, targetUserId: targetUserId)
             self.invalidateFollowingCache(currentUserId: targetUserId, targetUserId: currentUserId)
 
-            self.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
-                self.unfollowUser(currentUserId: targetUserId, targetUserId: currentUserId) { error in
+            self.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId, announce: false) { error in
+                self.unfollowUser(currentUserId: targetUserId, targetUserId: currentUserId, announce: false) { error in
                     self.deleteNotificationsBetweenUsers(recipientId: currentUserId, senderId: targetUserId) { error in
                         self.deleteNotificationsBetweenUsers(recipientId: targetUserId, senderId: currentUserId) { error in
                             self.deleteVisitsBetweenUsers(userId: currentUserId, visitorId: targetUserId) { error in
                                 self.deleteVisitsBetweenUsers(userId: targetUserId, visitorId: currentUserId) { error in
+                                    let username = UserCacheService.shared.getCachedUser(userId: targetUserId)?.username ?? ""
+                                    Task { @MainActor in
+                                        InAppNotificationService.shared.showActionToast(.blocked(username))
+                                    }
                                     completion(nil)
                                 }
                             }

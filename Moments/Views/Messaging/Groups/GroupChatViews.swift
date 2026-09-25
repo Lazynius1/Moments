@@ -776,6 +776,7 @@ struct GroupInviteLinkManageView: View {
                         Button {
                             UIPasteboard.general.url = shareURL
                             copied = true
+                            InAppNotificationService.shared.showActionToast(.linkCopied)
                         } label: {
                             Label(copied ? groupText("linkCopied") : groupText("copyLink"), systemImage: copied ? "checkmark" : "doc.on.doc")
                         }

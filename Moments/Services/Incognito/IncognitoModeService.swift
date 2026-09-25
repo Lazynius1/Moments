@@ -203,8 +203,12 @@ final class IncognitoModeService: ObservableObject {
             switch action {
             case .activate, .resume:
                 HapticManager.shared.mediumImpact()
+                if response.state.isActive {
+                    InAppNotificationService.shared.showActionToast(.incognitoActivated())
+                }
             case .pause:
                 HapticManager.shared.selection()
+                InAppNotificationService.shared.showActionToast(.incognitoPaused())
             case .get:
                 break
             }

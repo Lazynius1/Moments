@@ -494,8 +494,8 @@
 "notifications.message.follow.multiple" = "%@님 외 %d명이 회원님을 팔로우하기 시작했어요.";
 "notifications.message.request.two" = "%@님과 %@님이 회원님을 팔로우하고 싶어 해요.";
 "notifications.message.request.multiple" = "%@님 외 %d명이 회원님을 팔로우하고 싶어 해요.";
-"notifications.message.mutual.two" = "%@님과 맞팔로우 관계가 되었어요.";
-"notifications.message.mutual.multiple" = "%@님 외 %d명과 맞팔로우 관계가 되었어요.";
+"notifications.message.mutual.two" = "이제 %@님, %@님과 서로 팔로우해요.";
+"notifications.message.mutual.multiple" = "%@님 외 %d명과 서로 팔로우해요";
 "notifications.message.comment.two" = "%@님과 %@님이 회원님의 모먼트에 댓글을 남겼어요.";
 "notifications.message.comment.multiple" = "%@님 외 %d명이 회원님의 모먼트에 댓글을 남겼어요.";
 "notifications.message.story.two" = "%@님과 %@님이 회원님의 스토리를 좋아했어요.";
@@ -508,7 +508,7 @@
 "notifications.message.mention.single" = "%@님이 회원님을 멘션했어요.";
 "notifications.message.follow.single" = "%@님이 회원님을 팔로우하기 시작했어요.";
 "notifications.message.request.single" = "%@님이 회원님을 팔로우하고 싶어 해요.";
-"notifications.message.mutual.single" = "%@님과 맞팔로우 관계가 되었어요.";
+"notifications.message.mutual.single" = "이제 %@님과 서로 팔로우해요.";
 "notifications.message.comment.single" = "%@님이 회원님의 모먼트에 댓글을 남겼어요.";
 "notifications.message.story.single" = "%@님이 회원님의 스토리에 반응했어요.";
 "notifications.message.storyChain.single" = "%@님이 \"%@\" 연속 기록을 이어 갔어요.";
@@ -527,7 +527,7 @@
 "notifications.message.reaction.threePlus.withType" = "%@님이 %@ 반응을 남겼고, %@님 외 %d명이 회원님의 모먼트에 반응했어요.";
 "notifications.message.follow.threePlus" = "%@님, %@님 외 %d명이 회원님을 팔로우하기 시작했어요.";
 "notifications.message.request.threePlus" = "%@님, %@님 외 %d명이 회원님을 팔로우하고 싶어 해요.";
-"notifications.message.mutual.threePlus" = "이제 %@님, %@님 외 %d명과 서로 팔로우하게 됐어요.";
+"notifications.message.mutual.threePlus" = "%@님, %@님 외 %d명과 서로 팔로우해요";
 "notifications.message.comment.threePlus" = "%@님, %@님 외 %d명이 회원님의 모먼트에 댓글을 남겼어요.";
 "notifications.message.story.threePlus" = "%@님, %@님 외 %d명이 회원님의 스토리를 좋아해요.";
 "notifications.message.requestAccepted.threePlus" = "%@님, %@님 외 %d명이 회원님의 팔로우 요청을 수락했어요.";
@@ -1096,7 +1096,7 @@
 "chat.status.read" = "읽음";
 "chat.seen" = "읽음";
 "chat.status.failed" = "전송 실패";
-"chat.notification.viewOncePrompt" = "📸 확인하면 삭제되는 메시지를 보냈어요";
+"chat.notification.viewOncePrompt" = "메시지를 보냈어요";
 "chat.preview.newConversation" = "새 대화";
 "chat.preview.ephemeral_long" = "임시 메시지";
 "chat.preview.image" = "이미지";
@@ -2766,6 +2766,8 @@
 "profile.moments.scheduled.in" = "%@ 후";
 /* Echoes Viewer & UI */
 "echo.viewer.leave" = "Echo 나가기";
+"toast.action.echoLeft" = "Echo에서 나갔어요";
+"toast.action.echoDeleted" = "Echo를 삭제했어요";
 "echo.viewer.location.fallback" = "내 주변";
 "echo.viewer.location.header" = "탭한 시간: %@";
 "echo.viewer.location.viewMaps" = "지도에서 보기";
@@ -2799,8 +2801,8 @@
 "echo.invitation.unavailable" = "이 Echo는 더 이상 이용할 수 없어요";
 "echo.invitation.error.decoding" = "Echo를 디코딩하는 중 오류가 발생했어요";
 /* Echoes Notifications */
-"notifications.message.echo" = "근처에 있어요! Echo 만들기";
-"banner.verb.echoSuggestion" = "근처에 있어요! Echo 만들기";
+"notifications.message.echo" = "%@님이 가까이에 있어요. Echo에서 시선을 모아볼까요?";
+"banner.verb.echoSuggestion" = "%@님이 가까이에 있어요. Echo에서 시선을 모아볼까요?";
 "echo.viewer.unavailable" = "이 모먼트는 더 이상 이용할 수 없어요";
 /* Interests */
 "interest.photography" = "사진";
@@ -2902,7 +2904,7 @@
 "notification.message.single.photo" = "사진을 보냈어요 📷";
 "notification.message.single.video" = "동영상을 보냈어요 🎥";
 "notification.message.single.audio" = "오디오를 보냈어요 🎵";
-"notification.message.single.viewOnce" = "사라지는 메시지를 보냈어요 👀";
+"notification.message.single.viewOnce" = "메시지를 보냈어요";
 "notification.message.single.moment" = "Moment를 보냈어요 📸";
 "notification.message.single.default" = "메시지를 보냈어요";
 "notification.message.single.storyMention" = "스토리에서 회원님을 언급했어요";
@@ -2976,10 +2978,10 @@
 "notification.echo.title" = "근처에 연결할 수 있는 사람이 있어요! ✨";
 "notification.echo.body" = "%@님이 근처에 있어요. 함께 Echo를 만들어 보세요!";
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "새로운 맞팔로우가 생겼어요! 🎉";
-"notification.mutualConnection.body" = "이제 %@님과 서로 팔로우해요";
-"notification.mutualConnection.multiple.title" = "새로운 맞팔로우가 생겼어요! 🎉";
-"notification.mutualConnection.multiple.body" = "%@님과 다른 %@명이 이제 서로 팔로우해요";
+"notification.mutualConnection.title" = "%@님과 서로 팔로우해요";
+"notification.mutualConnection.body" = "프로필 보기";
+"notification.mutualConnection.multiple.title" = "%@님 외 %@명과 서로 팔로우해요";
+"notification.mutualConnection.multiple.body" = "확인하기";
 "explore.search.placeholder" = "검색...";
 /* Explore Search */
 "explore.search.cancel" = "취소";
@@ -3431,6 +3433,11 @@
 "messaging.section.archivedWithUnread" = "보관됨 (%d개 읽지 않음)";
 "messaging.toast.archived" = "채팅을 보관했어요";
 "messaging.toast.unarchived" = "채팅 보관을 해제했어요";
+"messaging.toast.muted" = "채팅을 뮤트했어요";
+"messaging.toast.unmuted" = "알림을 다시 켰어요";
+"messaging.toast.pinned" = "채팅을 고정했어요";
+"messaging.toast.unpinned" = "채팅 고정을 해제했어요";
+"messaging.toast.deleted" = "대화를 삭제했어요";
 "feed.refreshing" = "새로 고치는 중";
 "profile.ui.posts" = "게시물";
 /* Social Connections */
@@ -4602,3 +4609,35 @@
 "whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
 "whatsNew.offline230.title" = "Offline & polish";
 "whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";
+/* In-app action toasts */
+"toast.action.commentPosted" = "댓글을 남겼어요";
+"toast.action.momentSaved" = "모멘트를 저장했어요";
+"toast.action.momentDeleted" = "모멘트를 삭제했어요";
+"toast.action.momentArchived" = "모멘트를 보관했어요";
+"toast.action.incognito.activated" = "시크릿 활성화됨";
+"toast.action.incognito.activated.subtitle" = "탭하여 일시정지";
+"toast.action.incognito.paused" = "시크릿 일시정지됨";
+"toast.action.storyDeleted" = "스토리를 삭제했어요";
+"toast.action.followed" = "";
+"toast.action.followRequested" = "";
+"toast.action.requestAccepted" = "";
+"toast.action.requestRejected" = "";
+"toast.action.unfollowed" = "";
+"toast.action.blocked" = "";
+"toast.action.muted" = "";
+"toast.action.momentUnsaved" = "저장을 해제했어요";
+"toast.action.commentDeleted" = "댓글을 삭제했어요";
+"toast.action.commentDeleted.prefix" = "";
+"toast.action.messageCopied" = "메시지를 복사했어요";
+"toast.action.linkCopied" = "링크를 복사했어요";
+"toast.action.momentUpdated" = "모멘트를 수정했어요";
+"toast.action.leftGroup.prefix" = "";
+"toast.action.followed.suffix" = "님을 팔로우하고 있어요";
+"toast.action.followRequested.suffix" = "님에게 팔로우 요청을 보냈어요";
+"toast.action.requestAccepted.suffix" = "님의 팔로우 요청을 수락했어요";
+"toast.action.requestRejected.suffix" = "님의 팔로우 요청을 거절했어요";
+"toast.action.unfollowed.suffix" = "님을 언팔로우했어요";
+"toast.action.blocked.suffix" = "님을 차단했어요";
+"toast.action.muted.suffix" = "님을 뮤트했어요";
+"toast.action.commentDeleted.prefix.suffix" = "님의 댓글을 삭제했어요";
+"toast.action.leftGroup.suffix" = " 그룹에서 나왔어요";

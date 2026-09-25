@@ -8,60 +8,6 @@ private struct ReelsStoryRoute: Identifiable {
     let id: String
 }
 
-/// Lee la posición animada real del sheet para que el Reel siga el gesto.
-private struct ReelCommentsSheetObserver: UIViewRepresentable {
-    let onOriginYChanged: (CGFloat) -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onOriginYChanged: onOriginYChanged)
-    }
-
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        view.backgroundColor = .clear
-        DispatchQueue.main.async {
-            context.coordinator.startObserving(view.superview?.superview ?? view)
-        }
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.onOriginYChanged = onOriginYChanged
-    }
-
-    final class Coordinator {
-        var onOriginYChanged: (CGFloat) -> Void
-        private weak var observedView: UIView?
-        private var displayLink: CADisplayLink?
-        private var lastOriginY: CGFloat?
-
-        init(onOriginYChanged: @escaping (CGFloat) -> Void) {
-            self.onOriginYChanged = onOriginYChanged
-        }
-
-        deinit {
-            displayLink?.invalidate()
-        }
-
-        func startObserving(_ view: UIView) {
-            observedView = view
-            displayLink?.invalidate()
-            let displayLink = CADisplayLink(target: self, selector: #selector(readPresentationFrame))
-            displayLink.add(to: .main, forMode: .common)
-            self.displayLink = displayLink
-        }
-
-        @objc private func readPresentationFrame() {
-            guard let observedView,
-                  let presentationLayer = observedView.layer.presentation() else { return }
-            let originY = presentationLayer.convert(presentationLayer.frame, to: nil).origin.y
-            guard lastOriginY.map({ abs($0 - originY) > 0.25 }) ?? true else { return }
-            lastOriginY = originY
-            onOriginYChanged(originY)
-        }
-    }
-}
-
 private func flyingLerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat {
     a + (b - a) * t
 }
@@ -556,8 +502,7 @@ struct ReelVideoView: View {
     @StateObject private var playerManager = ReelVideoPlayerManager()
     @State private var showUserActions = false
     @State private var showComments = false
-    @State private var commentsDetent: PresentationDetent = .medium
-    @State private var commentsSheetOriginY: CGFloat?
+    @State private var commentsCoveredHeight: CGFloat = 0
     @State private var commentCount: Int = 0
     @State private var isDoubleTapAnimating = false
     @State private var showContextMenu = false
@@ -713,9 +658,7 @@ struct ReelVideoView: View {
             let bottomChromeClearance = progressLineHeight
                 + (showsReelCommentBar ? bottomBarHeight : 0)
                 + chromeBottomPadding
-            let sheetBottomPadding = commentsInPane ? 0 : (commentsSheetOriginY.map {
-                max(geometry.size.height - $0, 0)
-            } ?? 0)
+            let sheetBottomPadding = commentsInPane ? 0 : commentsCoveredHeight
             let mediumDetentHeight = max(geometry.size.height * 0.5, 1)
             let sheetProgress = commentsInPane ? 0 : min(sheetBottomPadding / mediumDetentHeight, 1)
             let videoTopOffset = sheetProgress * safeTop
@@ -1246,32 +1189,27 @@ struct ReelVideoView: View {
             }
         }
         .toolbar { reelDuoToolbar }
-        .sheet(isPresented: Binding(
-            get: { showComments && !commentsInPane },
-            set: { isPresented in
-                if !isPresented { showComments = false }
-            }
-        )) {
-            ModernCommentsView(moment: video.moment)
-                .environmentObject(firestoreService)
-                .onDisappear {
-                    commentsSheetOriginY = nil
-                    loadCommentCount()
-                }
-                .presentationDetents([.medium, .large], selection: $commentsDetent)
-                .presentationDragIndicator(.visible)
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-                .background {
-                    ReelCommentsSheetObserver { originY in
-                        commentsSheetOriginY = originY
+        .momentsCommentsOverlay(
+            moment: Binding(
+                get: { showComments && !commentsInPane ? video.moment : nil },
+                set: { newValue in
+                    if newValue == nil {
+                        showComments = false
+                        commentsCoveredHeight = 0
+                        loadCommentCount()
                     }
                 }
-        }
+            ),
+            firestoreService: firestoreService,
+            locksToMedium: true,
+            onCoveredHeightChange: { covered in
+                commentsCoveredHeight = covered
+            }
+        )
     }
     
     private func openReelComments() {
         guard !commentsInPane else { return }
-        commentsDetent = .medium
         showComments = true
     }
 

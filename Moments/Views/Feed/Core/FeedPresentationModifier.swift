@@ -33,6 +33,7 @@ struct FeedPresentationModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .momentsCommentsOverlay(moment: $selectedMoment, firestoreService: firestoreService)
             .navigationDestination(isPresented: $showNotifications) {
                 NotificationsView(onNotificationsCleared: {
                     NotificationCenter.default.post(
@@ -61,23 +62,6 @@ struct FeedPresentationModifier: ViewModifier {
                 StoriesView(ringNavigationUserIds: storyRingNavigationUserIds)
                     .environmentObject(firestoreService)
                     .ignoresSafeArea(.keyboard)
-            }
-            .sheet(
-                isPresented: Binding(
-                    get: { selectedMoment != nil },
-                    set: { isPresented in
-                        if !isPresented {
-                            selectedMoment = nil
-                        }
-                    }
-                )
-            ) {
-                if let moment = selectedMoment {
-                    ModernCommentsView(moment: moment)
-                        .environmentObject(firestoreService)
-                        .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
-                }
             }
             .sheet(isPresented: $showExploreWithHashtag) {
                 ExploreView(initialSearchQuery: selectedHashtag)

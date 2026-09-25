@@ -494,8 +494,8 @@
 "notifications.message.follow.multiple" = "%@さんと他%d人があなたをフォローしました。";
 "notifications.message.request.two" = "%@さんと%@さんがあなたのフォローを希望しています。";
 "notifications.message.request.multiple" = "%@さんと他%d人があなたのフォローを希望しています。";
-"notifications.message.mutual.two" = "%@さんと相互フォローになりました。";
-"notifications.message.mutual.multiple" = "%@さんと他%d人と相互フォローになりました。";
+"notifications.message.mutual.two" = "今、%@さん、%@さんと相互フォローです。";
+"notifications.message.mutual.multiple" = "%@さんほか%d人と相互フォローです";
 "notifications.message.comment.two" = "%@さんと%@さんがあなたのモーメントにコメントしました。";
 "notifications.message.comment.multiple" = "%@さんと他%d人があなたのモーメントにコメントしました。";
 "notifications.message.story.two" = "%@さんと%@さんがあなたのストーリーに「いいね」しました。";
@@ -508,7 +508,7 @@
 "notifications.message.mention.single" = "%@さんがあなたをメンションしました。";
 "notifications.message.follow.single" = "%@さんがあなたをフォローしました。";
 "notifications.message.request.single" = "%@さんがあなたのフォローを希望しています。";
-"notifications.message.mutual.single" = "%@さんと相互フォローになりました。";
+"notifications.message.mutual.single" = "今、%@さんと相互フォローです。";
 "notifications.message.comment.single" = "%@さんがあなたのモーメントにコメントしました。";
 "notifications.message.story.single" = "%@さんがあなたのストーリーにリアクションしました。";
 "notifications.message.storyChain.single" = "%@さんがチェーン「%@」を続けました。";
@@ -527,7 +527,7 @@
 "notifications.message.reaction.threePlus.withType" = "%@さんが%@でリアクションし、%@さんとほか%d人があなたのモーメントにリアクションしました。";
 "notifications.message.follow.threePlus" = "%@さん、%@さん、ほか%d人があなたをフォローし始めました。";
 "notifications.message.request.threePlus" = "%@さん、%@さん、ほか%d人があなたをフォローしたがっています。";
-"notifications.message.mutual.threePlus" = "%@さん、%@さん、ほか%d人と相互フォローになりました。";
+"notifications.message.mutual.threePlus" = "%@さん、%@さん、ほか%d人と相互フォローです";
 "notifications.message.comment.threePlus" = "%@さん、%@さん、ほか%d人があなたのモーメントにコメントしました。";
 "notifications.message.story.threePlus" = "%@さん、%@さん、ほか%d人があなたのストーリーズに「いいね！」しました。";
 "notifications.message.requestAccepted.threePlus" = "%@さん、%@さん、ほか%d人がフォローリクエストを承認しました。";
@@ -1096,7 +1096,7 @@
 "chat.status.read" = "既読";
 "chat.seen" = "既読";
 "chat.status.failed" = "送信失敗";
-"chat.notification.viewOncePrompt" = "📸 閲覧後に削除されるメッセージが届きました";
+"chat.notification.viewOncePrompt" = "メッセージが届きました";
 "chat.preview.newConversation" = "新しい会話";
 "chat.preview.ephemeral_long" = "一時メッセージ";
 "chat.preview.image" = "画像";
@@ -2766,6 +2766,8 @@
 "profile.moments.scheduled.in" = "%@後";
 /* Echoes Viewer & UI */
 "echo.viewer.leave" = "Echoを離れる";
+"toast.action.echoLeft" = "Echoから退出しました";
+"toast.action.echoDeleted" = "Echoを削除しました";
 "echo.viewer.location.fallback" = "近く";
 "echo.viewer.location.header" = "%@にタップ";
 "echo.viewer.location.viewMaps" = "マップで見る";
@@ -2799,8 +2801,8 @@
 "echo.invitation.unavailable" = "このEchoは利用できなくなりました";
 "echo.invitation.error.decoding" = "Echoの読み込み中にエラーが発生しました";
 /* Echoes Notifications */
-"notifications.message.echo" = "近くにいます！Echoを作成";
-"banner.verb.echoSuggestion" = "近くにいます！Echoを作成";
+"notifications.message.echo" = "%@さんが近くにいます。Echoで視点を合わせますか？";
+"banner.verb.echoSuggestion" = "%@さんが近くにいます。Echoで視点を合わせますか？";
 "echo.viewer.unavailable" = "このモーメントは利用できなくなりました";
 /* Interests */
 "interest.photography" = "写真";
@@ -2902,7 +2904,7 @@
 "notification.message.single.photo" = "写真が届きました 📷";
 "notification.message.single.video" = "動画が届きました 🎥";
 "notification.message.single.audio" = "音声が届きました 🎵";
-"notification.message.single.viewOnce" = "消えるメッセージが届きました 👀";
+"notification.message.single.viewOnce" = "メッセージが届きました";
 "notification.message.single.moment" = "モーメントが届きました 📸";
 "notification.message.single.default" = "メッセージが届きました";
 "notification.message.single.storyMention" = "ストーリーであなたをメンションしました";
@@ -2976,10 +2978,10 @@
 "notification.echo.title" = "近くにコネクションがいます！ ✨";
 "notification.echo.body" = "%@さんが近くにいます。一緒にEchoを作成しましょう！";
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "新しい相互コネクション！ 🎉";
-"notification.mutualConnection.body" = "あなたと%@さんは相互フォローになりました";
-"notification.mutualConnection.multiple.title" = "新しい相互コネクション！ 🎉";
-"notification.mutualConnection.multiple.body" = "%@さんと他%@人が相互コネクションになりました";
+"notification.mutualConnection.title" = "%@さんと相互フォローになりました";
+"notification.mutualConnection.body" = "プロフィールを見る";
+"notification.mutualConnection.multiple.title" = "%@さんほか%@人と相互フォローになりました";
+"notification.mutualConnection.multiple.body" = "確認する";
 "explore.search.placeholder" = "検索…";
 /* Explore Search */
 "explore.search.cancel" = "キャンセル";
@@ -3431,6 +3433,11 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "messaging.section.archivedWithUnread" = "アーカイブ済み（未読%d件）";
 "messaging.toast.archived" = "チャットをアーカイブしました";
 "messaging.toast.unarchived" = "チャットのアーカイブを解除しました";
+"messaging.toast.muted" = "チャットをミュートしました";
+"messaging.toast.unmuted" = "通知を再開しました";
+"messaging.toast.pinned" = "チャットをピン留めしました";
+"messaging.toast.unpinned" = "ピン留めを外しました";
+"messaging.toast.deleted" = "トークを削除しました";
 "feed.refreshing" = "更新中";
 "profile.ui.posts" = "投稿";
 /* Social Connections */
@@ -4602,3 +4609,35 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
 "whatsNew.offline230.title" = "Offline & polish";
 "whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";
+/* In-app action toasts */
+"toast.action.commentPosted" = "コメントを投稿しました";
+"toast.action.momentSaved" = "モーメントを保存しました";
+"toast.action.momentDeleted" = "モーメントを削除しました";
+"toast.action.momentArchived" = "モーメントをアーカイブしました";
+"toast.action.incognito.activated" = "シークレットをオンにしました";
+"toast.action.incognito.activated.subtitle" = "タップして一時停止";
+"toast.action.incognito.paused" = "シークレットを一時停止しました";
+"toast.action.storyDeleted" = "ストーリーを削除しました";
+"toast.action.followed" = "";
+"toast.action.followRequested" = "";
+"toast.action.requestAccepted" = "";
+"toast.action.requestRejected" = "";
+"toast.action.unfollowed" = "";
+"toast.action.blocked" = "";
+"toast.action.muted" = "";
+"toast.action.momentUnsaved" = "保存を解除しました";
+"toast.action.commentDeleted" = "コメントを削除しました";
+"toast.action.commentDeleted.prefix" = "";
+"toast.action.messageCopied" = "メッセージをコピーしました";
+"toast.action.linkCopied" = "リンクをコピーしました";
+"toast.action.momentUpdated" = "モーメントを更新しました";
+"toast.action.leftGroup.prefix" = "グループ「";
+"toast.action.followed.suffix" = "さんをフォローしました";
+"toast.action.followRequested.suffix" = "さんにフォローリクエストを送りました";
+"toast.action.requestAccepted.suffix" = "さんのフォローリクエストを承認しました";
+"toast.action.requestRejected.suffix" = "さんのフォローリクエストを拒否しました";
+"toast.action.unfollowed.suffix" = "さんのフォローを解除しました";
+"toast.action.blocked.suffix" = "さんをブロックしました";
+"toast.action.muted.suffix" = "さんをミュートしました";
+"toast.action.commentDeleted.prefix.suffix" = "さんのコメントを削除しました";
+"toast.action.leftGroup.suffix" = "」から退出しました";

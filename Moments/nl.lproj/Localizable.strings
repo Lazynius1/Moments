@@ -494,8 +494,8 @@
 "notifications.message.follow.multiple" = "%@ en %d anderen zijn je gaan volgen.";
 "notifications.message.request.two" = "%@ en %@ willen je volgen.";
 "notifications.message.request.multiple" = "%@ en %d anderen willen je volgen.";
-"notifications.message.mutual.two" = "Je bent nu verbonden met %@ en %@.";
-"notifications.message.mutual.multiple" = "Je bent nu verbonden met %@ en %d anderen.";
+"notifications.message.mutual.two" = "Nu volgen %@, %@ en jij elkaar.";
+"notifications.message.mutual.multiple" = "%@ en %d anderen volgen elkaar met jou";
 "notifications.message.comment.two" = "%@ en %@ reageerden op je moment.";
 "notifications.message.comment.multiple" = "%@ en %d anderen reageerden op je moment.";
 "notifications.message.story.two" = "%@ en %@ vonden je verhaal leuk.";
@@ -508,7 +508,7 @@
 "notifications.message.mention.single" = "%@ vermeldde je.";
 "notifications.message.follow.single" = "%@ is je gaan volgen.";
 "notifications.message.request.single" = "%@ wil je volgen.";
-"notifications.message.mutual.single" = "Je bent nu verbonden met %@.";
+"notifications.message.mutual.single" = "Nu volgen %@ en jij elkaar.";
 "notifications.message.comment.single" = "%@ reageerde op je moment.";
 "notifications.message.story.single" = "%@ reageerde op je verhaal.";
 "notifications.message.storyChain.single" = "%@ ging door met de keten \"%@\".";
@@ -527,7 +527,7 @@
 "notifications.message.reaction.threePlus.withType" = "%@ reageerde %@; %@ en %d anderen reageerden op je moment.";
 "notifications.message.follow.threePlus" = "%@, %@ en %d anderen zijn je gaan volgen.";
 "notifications.message.request.threePlus" = "%@, %@ en %d anderen willen je volgen.";
-"notifications.message.mutual.threePlus" = "Je bent nu verbonden met %@, %@ en %d anderen.";
+"notifications.message.mutual.threePlus" = "%@, %@ en %d anderen volgen elkaar met jou";
 "notifications.message.comment.threePlus" = "%@, %@ en %d anderen reageerden op je moment.";
 "notifications.message.story.threePlus" = "%@, %@ en %d anderen vonden je verhaal leuk.";
 "notifications.message.requestAccepted.threePlus" = "%@, %@ en %d anderen hebben je volgverzoek geaccepteerd.";
@@ -1096,7 +1096,7 @@
 "chat.status.read" = "Gelezen";
 "chat.seen" = "Gezien";
 "chat.status.failed" = "Mislukt";
-"chat.notification.viewOncePrompt" = "📸 Je hebt een bericht gekregen dat na het bekijken wordt verwijderd";
+"chat.notification.viewOncePrompt" = "Heeft je een bericht gestuurd";
 "chat.preview.newConversation" = "Nieuw gesprek";
 "chat.preview.ephemeral_long" = "Tijdelijk bericht";
 "chat.preview.image" = "Afbeelding";
@@ -2766,6 +2766,8 @@
 "profile.moments.scheduled.in" = "Over %@";
 /* Echoes Viewer & UI */
 "echo.viewer.leave" = "Echo verlaten";
+"toast.action.echoLeft" = "Je hebt de Echo verlaten";
+"toast.action.echoDeleted" = "Echo verwijderd";
 "echo.viewer.location.fallback" = "Bij jou in de buurt";
 "echo.viewer.location.header" = "Aangetikt om %@";
 "echo.viewer.location.viewMaps" = "Bekijken in Kaarten";
@@ -2799,8 +2801,8 @@
 "echo.invitation.unavailable" = "Deze Echo is niet meer beschikbaar";
 "echo.invitation.error.decoding" = "Fout bij het decoderen van de Echo";
 /* Echoes Notifications */
-"notifications.message.echo" = "is bij jou in de buurt! Maak een Echo";
-"banner.verb.echoSuggestion" = "is bij jou in de buurt! Maak een Echo";
+"notifications.message.echo" = "%@ is dichtbij. Brengen jullie jullie blikken samen in een Echo?";
+"banner.verb.echoSuggestion" = "%@ is dichtbij. Brengen jullie jullie blikken samen in een Echo?";
 "echo.viewer.unavailable" = "Dit moment is niet meer beschikbaar";
 /* Interests */
 "interest.photography" = "Fotografie";
@@ -2902,7 +2904,7 @@
 "notification.message.single.photo" = "Heeft je een foto gestuurd 📷";
 "notification.message.single.video" = "Heeft je een video gestuurd 🎥";
 "notification.message.single.audio" = "Heeft je een audiobericht gestuurd 🎵";
-"notification.message.single.viewOnce" = "Heeft je een verdwijnend bericht gestuurd 👀";
+"notification.message.single.viewOnce" = "Heeft je een bericht gestuurd";
 "notification.message.single.moment" = "Heeft je een moment gestuurd 📸";
 "notification.message.single.default" = "Stuurde je een bericht";
 "notification.message.single.storyMention" = "Noemde je in hun verhaal";
@@ -2976,10 +2978,10 @@
 "notification.echo.title" = "Er is iemand met wie je verbonden bent in de buurt! ✨";
 "notification.echo.body" = "%@ is in de buurt. Maak samen een Echo!";
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "Nieuwe wederzijdse connectie! 🎉";
-"notification.mutualConnection.body" = "Jullie volgen elkaar nu";
-"notification.mutualConnection.multiple.title" = "Nieuwe wederzijdse connecties! 🎉";
-"notification.mutualConnection.multiple.body" = "%@ en %d anderen zijn nu wederzijdse connecties";
+"notification.mutualConnection.title" = "Jij en %@ volgen elkaar";
+"notification.mutualConnection.body" = "Tik om het profiel te zien";
+"notification.mutualConnection.multiple.title" = "Jij, %@ en %@ anderen volgen elkaar";
+"notification.mutualConnection.multiple.body" = "Tik om te zien wie";
 "explore.search.placeholder" = "Zoeken...";
 /* Explore Search */
 "explore.search.cancel" = "Annuleren";
@@ -3431,6 +3433,11 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "messaging.section.archivedWithUnread" = "Gearchiveerd (%d ongelezen)";
 "messaging.toast.archived" = "Chat gearchiveerd";
 "messaging.toast.unarchived" = "Chat uit archief gehaald";
+"messaging.toast.muted" = "Chat gedempt";
+"messaging.toast.unmuted" = "Meldingen weer aan";
+"messaging.toast.pinned" = "Chat vastgezet";
+"messaging.toast.unpinned" = "Chat losgemaakt";
+"messaging.toast.deleted" = "Gesprek verwijderd";
 "feed.refreshing" = "Bezig met vernieuwen";
 "profile.ui.posts" = "Posts";
 /* Social Connections */
@@ -4602,3 +4609,35 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
 "whatsNew.offline230.title" = "Offline & polish";
 "whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";
+/* In-app action toasts */
+"toast.action.commentPosted" = "Reactie geplaatst";
+"toast.action.momentSaved" = "Moment bewaard";
+"toast.action.momentDeleted" = "Moment verwijderd";
+"toast.action.momentArchived" = "Moment gearchiveerd";
+"toast.action.incognito.activated" = "Incognito geactiveerd";
+"toast.action.incognito.activated.subtitle" = "Tik om te pauzeren";
+"toast.action.incognito.paused" = "Incognito gepauzeerd";
+"toast.action.storyDeleted" = "Story verwijderd";
+"toast.action.followed" = "Je volgt nu ";
+"toast.action.followRequested" = "Volgverzoek gestuurd naar ";
+"toast.action.requestAccepted" = "Je hebt het volgverzoek van ";
+"toast.action.requestRejected" = "Je hebt het volgverzoek van ";
+"toast.action.unfollowed" = "Je volgt niet meer ";
+"toast.action.blocked" = "Je hebt ";
+"toast.action.muted" = "Je hebt ";
+"toast.action.momentUnsaved" = "Uit opgeslagen gehaald";
+"toast.action.commentDeleted" = "Reactie verwijderd";
+"toast.action.commentDeleted.prefix" = "Je hebt de reactie van ";
+"toast.action.messageCopied" = "Bericht gekopieerd";
+"toast.action.linkCopied" = "Link gekopieerd";
+"toast.action.momentUpdated" = "Moment bijgewerkt";
+"toast.action.leftGroup.prefix" = "Je hebt de groep ";
+"toast.action.followed.suffix" = "";
+"toast.action.followRequested.suffix" = "";
+"toast.action.unfollowed.suffix" = "";
+"toast.action.requestAccepted.suffix" = " geaccepteerd";
+"toast.action.requestRejected.suffix" = " geweigerd";
+"toast.action.blocked.suffix" = " geblokkeerd";
+"toast.action.muted.suffix" = " gedempt";
+"toast.action.commentDeleted.prefix.suffix" = " verwijderd";
+"toast.action.leftGroup.suffix" = " verlaten";

@@ -408,6 +408,11 @@ class CommentsViewModel: ObservableObject {
             return
         }
 
+        let username = comments.first(where: { $0.id == commentId })?.username
+        Task { @MainActor in
+            InAppNotificationService.shared.showActionToast(.commentDeleted(username: username))
+        }
+
         let authorId = Auth.auth().currentUser?.uid ?? ""
         firestoreService.deleteComment(
             to: momentId,

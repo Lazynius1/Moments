@@ -102,8 +102,6 @@ struct MessagingView: View {
     @State private var conversationMenuSelection: ConversationMenuSelection?
     @State private var conversationRowFrames: [String: CGRect] = [:]
     @State private var showingArchivedConversations = false
-    @State private var actionToastMessage: String?
-    @State private var actionToastDismissTask: Task<Void, Never>? = nil
     @Namespace private var profileZoomNamespace
     @State private var profileRoute: MessagingProfileRoute?
     @ObservedObject private var groupDirectory = GroupDirectory.shared
@@ -241,7 +239,6 @@ struct MessagingView: View {
 
     private func applyMessagingChrome<V: View>(to content: V) -> some View {
         content
-            .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: actionToastMessage), value: actionToastMessage)
             .coordinateSpace(name: "messagingRoot")
             .navigationTitle("messaging.title")
             .toolbarRole(.browser)
@@ -329,19 +326,6 @@ struct MessagingView: View {
             }
             .ignoresSafeArea()
             .allowsHitTesting(conversationMenuSelection != nil)
-
-            if let actionToastMessage {
-                VStack {
-                    Spacer()
-                    MessagingActionToast(text: actionToastMessage, colorScheme: colorScheme)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 16)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .allowsHitTesting(false)
-                .zIndex(3)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
         }
     }
 
@@ -514,9 +498,6 @@ struct MessagingView: View {
     }
 
     private func handleMessagingDisappear() {
-        actionToastDismissTask?.cancel()
-        actionToastDismissTask = nil
-        actionToastMessage = nil
     }
 
     private func triggerCatchUpIfNeeded() {
@@ -1000,9 +981,10 @@ struct MessagingView: View {
         .padding(.horizontal, 16)
     }
 
-    // ✅ NUEVAS FUNCIONES: Acciones de swipe
+    // Acciones de swipe / menú → banner in-app global
     private func deleteConversation(_ conversation: Conversation) {
         viewModel.deleteConversation(conversation)
+        InAppNotificationService.shared.showActionToast(.chatDeleted)
     }
 
     private func pinConversation(_ conversation: Conversation) {
@@ -1012,14 +994,20 @@ struct MessagingView: View {
         let chatService = ChatService.shared
         if conversation.isPinned == true {
             viewModel.applyLocalConversationState(conversationId: conversationId, isPinned: false)
-            // Si ya está pinnada, despinnarla
-            chatService.unpinConversation(conversationId, for: currentUserId) { _ in
-            }
+            chatService.unpinConversation(conversationId, for: currentUserId) { _ in }
+            InAppNotificationService.shared.showActionToast(.chatUnpinned)
         } else {
             viewModel.applyLocalConversationState(conversationId: conversationId, isPinned: true)
-            // Si no está pinnada, pinnarla
-            chatService.pinConversation(conversationId, for: currentUserId) { _ in
-            }
+            InAppNotificationService.shared.showActionToast(
+                .chatPinned(
+                    undo: {
+                        viewModel.applyLocalConversationState(conversationId: conversationId, isPinned: false)
+                    },
+                    onExpire: {
+                        chatService.pinConversation(conversationId, for: currentUserId) { _ in }
+                    }
+                )
+            )
         }
     }
 
@@ -1035,40 +1023,44 @@ struct MessagingView: View {
         let chatService = ChatService.shared
         if conversation.isMuted(for: Auth.auth().currentUser?.uid) {
             viewModel.applyLocalConversationState(conversationId: conversationId, isMuted: false)
-            // Si ya está silenciada, desilenciarla
-            chatService.unmuteConversation(conversationId, for: currentUserId) { _ in
-            }
+            chatService.unmuteConversation(conversationId, for: currentUserId) { _ in }
+            InAppNotificationService.shared.showActionToast(.chatUnmuted)
         } else {
             viewModel.applyLocalConversationState(conversationId: conversationId, isMuted: true)
-            // Si no está silenciada, silenciarla
-            chatService.muteConversation(conversationId, for: currentUserId) { _ in
-            }
+            InAppNotificationService.shared.showActionToast(
+                .chatMuted(
+                    undo: {
+                        viewModel.applyLocalConversationState(conversationId: conversationId, isMuted: false)
+                    },
+                    onExpire: {
+                        chatService.muteConversation(conversationId, for: currentUserId) { _ in }
+                    }
+                )
+            )
         }
     }
 
     private func archiveConversation(_ conversation: Conversation) {
         HapticManager.shared.lightImpact()
-        viewModel.archiveConversation(conversation)
-        showActionToast(NSLocalizedString("messaging.toast.archived", comment: "Conversation archived toast"))
+        guard let conversationId = conversation.id,
+              let currentUserId = Auth.auth().currentUser?.uid else { return }
+        viewModel.applyLocalConversationState(conversationId: conversationId, isArchived: true)
+        InAppNotificationService.shared.showActionToast(
+            .chatArchived(
+                undo: {
+                    viewModel.applyLocalConversationState(conversationId: conversationId, isArchived: false)
+                },
+                onExpire: {
+                    ChatService.shared.archiveConversation(conversationId, for: currentUserId) { _ in }
+                }
+            )
+        )
     }
 
     private func unarchiveConversation(_ conversation: Conversation) {
         HapticManager.shared.lightImpact()
         viewModel.unarchiveConversation(conversation)
-        showActionToast(NSLocalizedString("messaging.toast.unarchived", comment: "Conversation unarchived toast"))
-    }
-
-    private func showActionToast(_ message: String) {
-        actionToastDismissTask?.cancel()
-        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
-            actionToastMessage = message
-        }
-        actionToastDismissTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            withAnimation(.easeOut(duration: 0.2)) {
-                actionToastMessage = nil
-            }
-        }
+        InAppNotificationService.shared.showActionToast(.chatUnarchived)
     }
 
     private enum MergedListRow: Identifiable {

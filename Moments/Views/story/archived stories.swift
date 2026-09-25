@@ -125,7 +125,7 @@ struct ArchiveView: View {
                         } else {
                             ScrollView {
                                 LazyVGrid(
-                                    columns: [GridItem(.adaptive(minimum: 108, maximum: 168), spacing: 1)],
+                                    columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 3),
                                     spacing: 1
                                 ) {
                                     ForEach(storiesForGrid) { story in
@@ -803,7 +803,7 @@ struct ArchiveDateSectionGrid: View {
             .padding(.top, 14)
             
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 108, maximum: 168), spacing: 1)],
+                columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 3),
                 spacing: 1
             ) {
                 ForEach(stories) { story in

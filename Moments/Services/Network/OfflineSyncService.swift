@@ -303,14 +303,14 @@ class OfflineSyncService: ObservableObject {
                 if let payload = try? JSONDecoder().decode(FollowActionPayload.self, from: action.payloadData) {
                     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                         if payload.isFollow {
-                            FirestoreService.shared.followUser(currentUserId: payload.followerId, targetUserId: payload.followedId) { error in
+                            FirestoreService.shared.followUser(currentUserId: payload.followerId, targetUserId: payload.followedId, announce: false) { error in
                                 if error == nil {
                                     LocalPersistenceService.shared.deleteAction(id: action.id)
                                 }
                                 continuation.resume()
                             }
                         } else {
-                            FirestoreService.shared.unfollowUser(currentUserId: payload.followerId, targetUserId: payload.followedId) { error in
+                            FirestoreService.shared.unfollowUser(currentUserId: payload.followerId, targetUserId: payload.followedId, announce: false) { error in
                                 if error == nil {
                                     LocalPersistenceService.shared.deleteAction(id: action.id)
                                 }
@@ -331,7 +331,7 @@ class OfflineSyncService: ObservableObject {
                             LocalPersistenceService.shared.updateActionPayload(id: action.id, payloadData: data)
                         }
                         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                            FirestoreService.shared.toggleSaveMoment(userId: resolved.userId, momentId: resolved.momentId, authorId: resolved.authorId, desiredSaved: desiredSaved) { error in
+                            FirestoreService.shared.toggleSaveMoment(userId: resolved.userId, momentId: resolved.momentId, authorId: resolved.authorId, desiredSaved: desiredSaved, announce: false) { error in
                             if error == nil {
                                 LocalPersistenceService.shared.deleteAction(id: action.id)
                             }

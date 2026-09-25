@@ -511,8 +511,8 @@
 "notifications.message.follow.multiple" = "%@ i %d més han començat a seguir-te.";
 "notifications.message.request.two" = "%@ i %@ volen seguir-te.";
 "notifications.message.request.multiple" = "%@ i %d més volen seguir-te.";
-"notifications.message.mutual.two" = "Ara tens connexió mútua amb %@ i %@.";
-"notifications.message.mutual.multiple" = "Ara tens una connexió mútua amb %@ i %d més.";
+"notifications.message.mutual.two" = "%@, %@ i tu us seguiu mútuament";
+"notifications.message.mutual.multiple" = "%@, %d més i tu us seguiu mútuament";
 "notifications.message.comment.two" = "%@ i %@ han comentat al teu moment.";
 "notifications.message.comment.multiple" = "%@ i %d més han comentat al teu moment.";
 "notifications.message.story.two" = "%@ i %@ els agrada la teva història.";
@@ -525,7 +525,7 @@
 "notifications.message.mention.single" = "%@ t'ha mencionat.";
 "notifications.message.follow.single" = "%@ ha començat a seguir-te.";
 "notifications.message.request.single" = "%@ vol seguir-te.";
-"notifications.message.mutual.single" = "Ara tens una connexió mútua amb %@.";
+"notifications.message.mutual.single" = "Tu i %@ us seguiu mútuament";
 "notifications.message.comment.single" = "%@ ha comentat al teu moment.";
 "notifications.message.story.single" = "%@ ha reaccionat a la teva història.";
 "notifications.message.storyChain.single" = "%@ ha continuat la cadena \"%@\".";
@@ -544,7 +544,7 @@
 "notifications.message.reaction.threePlus.withType" = "%@ ha reaccionat %@, %@ i %d més van reaccionar al teu moment.";
 "notifications.message.follow.threePlus" = "%@, %@ i %d més han començat a seguir-te.";
 "notifications.message.request.threePlus" = "%@, %@ i %d més volen seguir-te.";
-"notifications.message.mutual.threePlus" = "Ara tens connexió mútua amb %@, %@ i %d més.";
+"notifications.message.mutual.threePlus" = "%@, %@ i %d més us seguiu mútuament";
 "notifications.message.comment.threePlus" = "%@, %@ i %d més han comentat al teu moment.";
 "notifications.message.story.threePlus" = "%@, %@ i %d més els agrada la teva història.";
 "notifications.message.requestAccepted.threePlus" = "%@, %@ i %d més han acceptat la teva sol·licitud de seguiment.";
@@ -1138,7 +1138,7 @@
 "chat.status.read" = "Llegit";
 "chat.seen" = "Vist";
 "chat.status.failed" = "Ha fallat";
-"chat.notification.viewOncePrompt" = "📸 T'ha enviat un missatge que s'esborrarà en veure'l";
+"chat.notification.viewOncePrompt" = "T'ha enviat un missatge";
 "chat.preview.newConversation" = "Nova conversa";
 "chat.preview.ephemeral_long" = "Missatge temporal";
 "chat.preview.image" = "Imatge";
@@ -2924,6 +2924,8 @@
 "profile.moments.scheduled.in" = "En %@";
 /* Echoes Viewer & UI */
 "echo.viewer.leave" = "Abandonar Echo";
+"toast.action.echoLeft" = "Has sortit de l’Echo";
+"toast.action.echoDeleted" = "Echo eliminat";
 "echo.viewer.location.fallback" = "A prop teu";
 "echo.viewer.location.header" = "Tocat en %@";
 "echo.viewer.location.viewMaps" = "Veure Mapa";
@@ -2960,8 +2962,8 @@
 "echo.invitation.error.decoding" = "Error decodificant Echo";
 
 /* Echoes Notifications */
-"notifications.message.echo" = "està a prop teu! Creeu un Echo";
-"banner.verb.echoSuggestion" = "està a prop teu! Creeu un Echo";
+"notifications.message.echo" = "%@ és a prop! Voleu ajuntar les perspectives en un Echo?";
+"banner.verb.echoSuggestion" = "%@ és a prop! Voleu ajuntar les perspectives en un Echo?";
 "echo.viewer.unavailable" = "Aquest moment ja no està disponible";
 
 /* Interessos */
@@ -3071,7 +3073,7 @@
 "notification.message.single.photo" = "T'ha enviat una foto 📷";
 "notification.message.single.video" = "T'ha enviat un vídeo 🎥";
 "notification.message.single.audio" = "T'ha enviat un àudio 🎵";
-"notification.message.single.viewOnce" = "T'ha enviat un missatge que desapareix 👀";
+"notification.message.single.viewOnce" = "T'ha enviat un missatge";
 "notification.message.single.moment" = "T'ha enviat un moment 📸";
 "notification.message.single.default" = "T'ha enviat un missatge";
 "notification.message.single.storyMention" = "T'ha mencionat a la seva història";
@@ -3156,10 +3158,10 @@
 "notification.echo.body" = "%@ és a prop teu. Creeu un Echo junts!";
 
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "Nova connexió mútua! 🎉";
-"notification.mutualConnection.body" = "Tu i %@ ara us seguiu mútuament";
-"notification.mutualConnection.multiple.title" = "Noves connexions mútues! 🎉";
-"notification.mutualConnection.multiple.body" = "%@ i %@ més ara són connexions mútues";
+"notification.mutualConnection.title" = "Tu i %@ us seguiu mútuament";
+"notification.mutualConnection.body" = "Toca per veure el seu perfil";
+"notification.mutualConnection.multiple.title" = "Tu, %@ i %@ més us seguiu mútuament";
+"notification.mutualConnection.multiple.body" = "Toca per veure qui";
 "explore.search.placeholder" = "Cercar...";
 
 /* Explore Search */
@@ -3655,6 +3657,11 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "messaging.section.archivedWithUnread" = "Arxivades (%d no llegits)";
 "messaging.toast.archived" = "Xat arxivat";
 "messaging.toast.unarchived" = "Xat desarxivat";
+"messaging.toast.muted" = "Xat silenciat";
+"messaging.toast.unmuted" = "Notificacions reactivades";
+"messaging.toast.pinned" = "Xat fixat";
+"messaging.toast.unpinned" = "Xat desfixat";
+"messaging.toast.deleted" = "Conversa eliminada";
 "feed.refreshing" = "Actualitzant";
 "profile.ui.posts" = "Posts";
 
@@ -4850,3 +4857,35 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "whatsNew.nova230.description" = "Espurna diària, aspecte renovat, i adjuntar una foto ja no publica un Moment per accident.";
 "whatsNew.offline230.title" = "Offline i polit";
 "whatsNew.offline230.description" = "Millor comportament sense connexió, estats de relació més estables i textos polits en tots els idiomes.";
+/* In-app action toasts */
+"toast.action.commentPosted" = "Comentari publicat";
+"toast.action.momentSaved" = "Moment desat";
+"toast.action.momentDeleted" = "Moment eliminat";
+"toast.action.momentArchived" = "Moment arxivat";
+"toast.action.incognito.activated" = "Incògnit activat";
+"toast.action.incognito.activated.subtitle" = "Toca per pausar";
+"toast.action.incognito.paused" = "Incògnit en pausa";
+"toast.action.storyDeleted" = "Història eliminada";
+"toast.action.followed" = "Ara segueixes ";
+"toast.action.followRequested" = "Has enviat una sol·licitud de seguiment a ";
+"toast.action.requestAccepted" = "Has acceptat la sol·licitud de seguiment de ";
+"toast.action.requestRejected" = "Has rebutjat la sol·licitud de seguiment de ";
+"toast.action.unfollowed" = "Has deixat de seguir ";
+"toast.action.blocked" = "Has blocat ";
+"toast.action.muted" = "Has silenciat ";
+"toast.action.momentUnsaved" = "Eliminat dels desats";
+"toast.action.commentDeleted" = "Comentari eliminat";
+"toast.action.commentDeleted.prefix" = "Has eliminat el comentari de ";
+"toast.action.messageCopied" = "Missatge copiat al porta-retalls";
+"toast.action.linkCopied" = "Enllaç copiat";
+"toast.action.momentUpdated" = "Moment actualitzat";
+"toast.action.leftGroup.prefix" = "Has sortit del grup ";
+"toast.action.followed.suffix" = "";
+"toast.action.followRequested.suffix" = "";
+"toast.action.requestAccepted.suffix" = "";
+"toast.action.requestRejected.suffix" = "";
+"toast.action.unfollowed.suffix" = "";
+"toast.action.blocked.suffix" = "";
+"toast.action.muted.suffix" = "";
+"toast.action.commentDeleted.prefix.suffix" = "";
+"toast.action.leftGroup.suffix" = "";

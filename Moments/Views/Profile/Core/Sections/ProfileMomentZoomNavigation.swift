@@ -270,10 +270,8 @@ struct MomentZoomDetailDestination: View {
 
     private func showsNativeFeedDetailChrome(for presentation: MomentZoomPresentationKind) -> Bool {
         switch presentation {
-        case .explorer, .carousel, .saved:
+        case .explorer, .carousel, .saved, .single, .map:
             return true
-        case .single, .map:
-            return false
         }
     }
 

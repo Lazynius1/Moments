@@ -1055,12 +1055,13 @@ struct ModernSavedMomentsDetailView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(item: $commentsRoute) { route in
-            ModernCommentsView(moment: route.moment)
-                .environmentObject(firestoreService)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
+        .momentsCommentsOverlay(
+            moment: Binding(
+                get: { commentsRoute?.moment },
+                set: { if $0 == nil { commentsRoute = nil } }
+            ),
+            firestoreService: firestoreService
+        )
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }

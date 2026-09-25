@@ -494,8 +494,8 @@
 "notifications.message.follow.multiple" = "%@ ve %d kişi daha seni takip etmeye başladı.";
 "notifications.message.request.two" = "%@ ve %@ seni takip etmek istiyor.";
 "notifications.message.request.multiple" = "%@ ve %d kişi daha seni takip etmek istiyor.";
-"notifications.message.mutual.two" = "Artık %@ ve %@ ile karşılıklı bağlantınız var.";
-"notifications.message.mutual.multiple" = "Artık %@ ve %d kişiyle karşılıklı bağlantınız var.";
+"notifications.message.mutual.two" = "Artık %@, %@ ve sen birbirinizi takip ediyorsunuz.";
+"notifications.message.mutual.multiple" = "%@ ve %d kişi daha birbirinizi takip ediyorsunuz";
 "notifications.message.comment.two" = "%@ ve %@ anına yorum yaptı.";
 "notifications.message.comment.multiple" = "%@ ve %d kişi daha anına yorum yaptı.";
 "notifications.message.story.two" = "%@ ve %@ hikâyeni beğendi.";
@@ -508,7 +508,7 @@
 "notifications.message.mention.single" = "%@ senden bahsetti.";
 "notifications.message.follow.single" = "%@ seni takip etmeye başladı.";
 "notifications.message.request.single" = "%@ seni takip etmek istiyor.";
-"notifications.message.mutual.single" = "Artık %@ ile karşılıklı bağlantınız var.";
+"notifications.message.mutual.single" = "Artık %@ ve sen birbirinizi takip ediyorsunuz.";
 "notifications.message.comment.single" = "%@ anına yorum yaptı.";
 "notifications.message.story.single" = "%@ hikâyene tepki verdi.";
 "notifications.message.storyChain.single" = "%@, \"%@\" zincirini sürdürdü.";
@@ -527,7 +527,7 @@
 "notifications.message.reaction.threePlus.withType" = "%@, %@ ile tepki verdi; %@ ve %d kişi daha anına tepki verdi.";
 "notifications.message.follow.threePlus" = "%@, %@ ve %d kişi daha seni takip etmeye başladı.";
 "notifications.message.request.threePlus" = "%@, %@ ve %d kişi daha seni takip etmek istiyor.";
-"notifications.message.mutual.threePlus" = "Artık %@, %@ ve %d kişiyle karşılıklı bağlantın var.";
+"notifications.message.mutual.threePlus" = "%@, %@ ve %d kişi daha birbirinizi takip ediyorsunuz";
 "notifications.message.comment.threePlus" = "%@, %@ ve %d kişi daha anına yorum yaptı.";
 "notifications.message.story.threePlus" = "%@, %@ ve %d kişi daha hikâyeni beğendi.";
 "notifications.message.requestAccepted.threePlus" = "%@, %@ ve %d kişi daha takip isteğini kabul etti.";
@@ -1096,7 +1096,7 @@
 "chat.status.read" = "Okundu";
 "chat.seen" = "Görüldü";
 "chat.status.failed" = "Gönderilemedi";
-"chat.notification.viewOncePrompt" = "📸 Görüntüledikten sonra silinecek bir mesaj gönderdi";
+"chat.notification.viewOncePrompt" = "Sana bir mesaj gönderdi";
 "chat.preview.newConversation" = "Yeni sohbet";
 "chat.preview.ephemeral_long" = "Geçici mesaj";
 "chat.preview.image" = "Görsel";
@@ -2766,6 +2766,8 @@
 "profile.moments.scheduled.in" = "%@ içinde";
 /* Echoes Viewer & UI */
 "echo.viewer.leave" = "Echo'dan çık";
+"toast.action.echoLeft" = "Echo’dan ayrıldın";
+"toast.action.echoDeleted" = "Echo silindi";
 "echo.viewer.location.fallback" = "Yakınında";
 "echo.viewer.location.header" = "%@ tarihinde dokunuldu";
 "echo.viewer.location.viewMaps" = "Haritalar'da görüntüle";
@@ -2799,8 +2801,8 @@
 "echo.invitation.unavailable" = "Bu Echo artık kullanılamıyor";
 "echo.invitation.error.decoding" = "Echo çözümlenemedi";
 /* Echoes Notifications */
-"notifications.message.echo" = "yakınında! Bir Echo oluştur";
-"banner.verb.echoSuggestion" = "yakınında! Bir Echo oluştur";
+"notifications.message.echo" = "%@ yakında. Bakış açılarınızı bir Echo'da birleştirir misiniz?";
+"banner.verb.echoSuggestion" = "%@ yakında. Bakış açılarınızı bir Echo'da birleştirir misiniz?";
 "echo.viewer.unavailable" = "Bu an artık kullanılamıyor";
 /* Interests */
 "interest.photography" = "Fotoğrafçılık";
@@ -2902,7 +2904,7 @@
 "notification.message.single.photo" = "Sana bir fotoğraf gönderdi 📷";
 "notification.message.single.video" = "Sana bir video gönderdi 🎥";
 "notification.message.single.audio" = "Sana bir ses gönderdi 🎵";
-"notification.message.single.viewOnce" = "Sana kaybolan bir mesaj gönderdi 👀";
+"notification.message.single.viewOnce" = "Sana bir mesaj gönderdi";
 "notification.message.single.moment" = "Sana bir an gönderdi 📸";
 "notification.message.single.default" = "Sana bir mesaj gönderdi";
 "notification.message.single.storyMention" = "Hikâyesinde senden bahsetti";
@@ -2976,10 +2978,10 @@
 "notification.echo.title" = "Yakınında bir bağlantın var! ✨";
 "notification.echo.body" = "%@ yakında. Birlikte Echo oluştur!";
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "Yeni karşılıklı bağlantı! 🎉";
-"notification.mutualConnection.body" = "%@ ile artık karşılıklı takiptesiniz";
-"notification.mutualConnection.multiple.title" = "Yeni karşılıklı bağlantılar! 🎉";
-"notification.mutualConnection.multiple.body" = "%@ ve %d kişiyle daha artık karşılıklı bağlantınız var";
+"notification.mutualConnection.title" = "Sen ve %@ birbirinizi takip ediyorsunuz";
+"notification.mutualConnection.body" = "Profili görmek için dokun";
+"notification.mutualConnection.multiple.title" = "Sen, %@ ve %@ kişi daha birbirinizi takip ediyorsunuz";
+"notification.mutualConnection.multiple.body" = "Kim olduğunu görmek için dokun";
 "explore.search.placeholder" = "Ara...";
 /* Explore Search */
 "explore.search.cancel" = "İptal";
@@ -3431,6 +3433,11 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "messaging.section.archivedWithUnread" = "Arşivlendi (%d okunmamış)";
 "messaging.toast.archived" = "Sohbet arşivlendi";
 "messaging.toast.unarchived" = "Sohbet arşivden çıkarıldı";
+"messaging.toast.muted" = "Sohbet sessize alındı";
+"messaging.toast.unmuted" = "Bildirimler yeniden açıldı";
+"messaging.toast.pinned" = "Sohbet sabitlendi";
+"messaging.toast.unpinned" = "Sohbet sabitlemesi kaldırıldı";
+"messaging.toast.deleted" = "Sohbet silindi";
 "feed.refreshing" = "Yenileniyor";
 "profile.ui.posts" = "Gönderiler";
 /* Social Connections */
@@ -4602,3 +4609,35 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
 "whatsNew.offline230.title" = "Offline & polish";
 "whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";
+/* In-app action toasts */
+"toast.action.commentPosted" = "Yorum yayınlandı";
+"toast.action.momentSaved" = "Moment kaydedildi";
+"toast.action.momentDeleted" = "Moment silindi";
+"toast.action.momentArchived" = "Moment arşivlendi";
+"toast.action.incognito.activated" = "Gizli etkinleştirildi";
+"toast.action.incognito.activated.subtitle" = "Duraklatmak için dokun";
+"toast.action.incognito.paused" = "Gizli duraklatıldı";
+"toast.action.storyDeleted" = "Hikaye silindi";
+"toast.action.followed" = "";
+"toast.action.followRequested" = "";
+"toast.action.requestAccepted" = "";
+"toast.action.requestRejected" = "";
+"toast.action.unfollowed" = "";
+"toast.action.blocked" = "";
+"toast.action.muted" = "";
+"toast.action.momentUnsaved" = "Kaydedilenlerden çıkarıldı";
+"toast.action.commentDeleted" = "Yorum silindi";
+"toast.action.commentDeleted.prefix" = "";
+"toast.action.messageCopied" = "Mesaj kopyalandı";
+"toast.action.linkCopied" = "Bağlantı kopyalandı";
+"toast.action.momentUpdated" = "Moment güncellendi";
+"toast.action.leftGroup.prefix" = "";
+"toast.action.followed.suffix" = " kullanıcısını takip ediyorsun";
+"toast.action.followRequested.suffix" = " kullanıcısına takip isteği gönderdin";
+"toast.action.requestAccepted.suffix" = " kullanıcısının takip isteğini kabul ettin";
+"toast.action.requestRejected.suffix" = " kullanıcısının takip isteğini reddettin";
+"toast.action.unfollowed.suffix" = " kullanıcısını takip etmeyi bıraktın";
+"toast.action.blocked.suffix" = " kullanıcısını engelledin";
+"toast.action.muted.suffix" = " kullanıcısını sessize aldın";
+"toast.action.commentDeleted.prefix.suffix" = " kullanıcısının yorumunu sildin";
+"toast.action.leftGroup.suffix" = " grubundan ayrıldın";

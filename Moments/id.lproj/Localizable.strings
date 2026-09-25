@@ -494,8 +494,8 @@
 "notifications.message.follow.multiple" = "%@ dan %d lainnya mulai mengikutimu.";
 "notifications.message.request.two" = "%@ dan %@ ingin mengikutimu.";
 "notifications.message.request.multiple" = "%@ dan %d lainnya ingin mengikutimu.";
-"notifications.message.mutual.two" = "Kamu kini saling terhubung dengan %@ dan %@.";
-"notifications.message.mutual.multiple" = "Kamu kini saling terhubung dengan %@ dan %d lainnya.";
+"notifications.message.mutual.two" = "Sekarang %@, %@ dan kamu saling mengikuti.";
+"notifications.message.mutual.multiple" = "%@ dan %d lainnya saling mengikuti denganmu";
 "notifications.message.comment.two" = "%@ dan %@ mengomentari momenmu.";
 "notifications.message.comment.multiple" = "%@ dan %d lainnya mengomentari momenmu.";
 "notifications.message.story.two" = "%@ dan %@ menyukai ceritamu.";
@@ -508,7 +508,7 @@
 "notifications.message.mention.single" = "%@ menyebutmu.";
 "notifications.message.follow.single" = "%@ mulai mengikutimu.";
 "notifications.message.request.single" = "%@ ingin mengikutimu.";
-"notifications.message.mutual.single" = "Kamu kini saling terhubung dengan %@.";
+"notifications.message.mutual.single" = "Sekarang %@ dan kamu saling mengikuti.";
 "notifications.message.comment.single" = "%@ mengomentari momenmu.";
 "notifications.message.story.single" = "%@ bereaksi pada ceritamu.";
 "notifications.message.storyChain.single" = "%@ melanjutkan rantai \"%@\".";
@@ -527,7 +527,7 @@
 "notifications.message.reaction.threePlus.withType" = "%@ memberikan reaksi %@, sementara %@ dan %d lainnya juga bereaksi pada momenmu.";
 "notifications.message.follow.threePlus" = "%@, %@ dan %d lainnya mulai mengikuti kamu.";
 "notifications.message.request.threePlus" = "%@, %@ dan %d lainnya ingin mengikuti kamu.";
-"notifications.message.mutual.threePlus" = "Sekarang kamu dan %@, %@ serta %d lainnya saling terhubung.";
+"notifications.message.mutual.threePlus" = "%@, %@, dan %d lainnya saling mengikuti";
 "notifications.message.comment.threePlus" = "%@, %@ dan %d lainnya mengomentari momenmu.";
 "notifications.message.story.threePlus" = "%@, %@ dan %d lainnya menyukai story-mu.";
 "notifications.message.requestAccepted.threePlus" = "%@, %@ dan %d lainnya menyetujui permintaan follow-mu.";
@@ -1096,7 +1096,7 @@
 "chat.status.read" = "Dibaca";
 "chat.seen" = "Dilihat";
 "chat.status.failed" = "Gagal";
-"chat.notification.viewOncePrompt" = "📸 Mengirimi kamu pesan yang akan terhapus setelah dilihat";
+"chat.notification.viewOncePrompt" = "Mengirimimu pesan";
 "chat.preview.newConversation" = "Percakapan baru";
 "chat.preview.ephemeral_long" = "Pesan sementara";
 "chat.preview.image" = "Gambar";
@@ -2766,6 +2766,8 @@
 "profile.moments.scheduled.in" = "Dalam %@";
 /* Echoes Viewer & UI */
 "echo.viewer.leave" = "Tinggalkan Echo";
+"toast.action.echoLeft" = "Kamu keluar dari Echo";
+"toast.action.echoDeleted" = "Echo dihapus";
 "echo.viewer.location.fallback" = "Di dekatmu";
 "echo.viewer.location.header" = "Diketuk pada %@";
 "echo.viewer.location.viewMaps" = "Lihat di Maps";
@@ -2799,8 +2801,8 @@
 "echo.invitation.unavailable" = "Echo ini sudah tidak tersedia";
 "echo.invitation.error.decoding" = "Terjadi kesalahan saat memproses Echo";
 /* Echoes Notifications */
-"notifications.message.echo" = "ada di dekatmu! Buat Echo";
-"banner.verb.echoSuggestion" = "ada di dekatmu! Buat Echo";
+"notifications.message.echo" = "%@ ada di dekatmu. Mau menggabungkan sudut pandang di Echo?";
+"banner.verb.echoSuggestion" = "%@ ada di dekatmu. Mau menggabungkan sudut pandang di Echo?";
 "echo.viewer.unavailable" = "Momen ini sudah tidak tersedia";
 /* Interests */
 "interest.photography" = "Fotografi";
@@ -2902,7 +2904,7 @@
 "notification.message.single.photo" = "Mengirimimu foto 📷";
 "notification.message.single.video" = "Mengirimimu video 🎥";
 "notification.message.single.audio" = "Mengirimimu audio 🎵";
-"notification.message.single.viewOnce" = "Mengirimimu pesan yang menghilang 👀";
+"notification.message.single.viewOnce" = "Mengirimimu pesan";
 "notification.message.single.moment" = "Mengirimimu momen 📸";
 "notification.message.single.default" = "Mengirimi kamu pesan";
 "notification.message.single.storyMention" = "Menyebut kamu di story mereka";
@@ -2976,10 +2978,10 @@
 "notification.echo.title" = "Ada koneksi di dekatmu! ✨";
 "notification.echo.body" = "%@ ada di dekatmu. Buat Echo bersama!";
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "Koneksi baru yang sama-sama mengikuti! 🎉";
-"notification.mutualConnection.body" = "Kamu dan %@ sekarang saling mengikuti";
-"notification.mutualConnection.multiple.title" = "Koneksi baru yang sama-sama mengikuti! 🎉";
-"notification.mutualConnection.multiple.body" = "%@ dan %@ lainnya sekarang saling mengikuti";
+"notification.mutualConnection.title" = "Kamu dan %@ saling mengikuti";
+"notification.mutualConnection.body" = "Ketuk untuk melihat profil";
+"notification.mutualConnection.multiple.title" = "Kamu, %@, dan %@ lainnya saling mengikuti";
+"notification.mutualConnection.multiple.body" = "Ketuk untuk melihat siapa";
 "explore.search.placeholder" = "Cari...";
 /* Explore Search */
 "explore.search.cancel" = "Batal";
@@ -3431,6 +3433,11 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "messaging.section.archivedWithUnread" = "Diarsipkan (%d belum dibaca)";
 "messaging.toast.archived" = "Obrolan diarsipkan";
 "messaging.toast.unarchived" = "Obrolan dikeluarkan dari arsip";
+"messaging.toast.muted" = "Chat dibisukan";
+"messaging.toast.unmuted" = "Notifikasi diaktifkan lagi";
+"messaging.toast.pinned" = "Chat disematkan";
+"messaging.toast.unpinned" = "Sematan chat dilepas";
+"messaging.toast.deleted" = "Percakapan dihapus";
 "feed.refreshing" = "Memuat ulang";
 "profile.ui.posts" = "Postingan";
 /* Social Connections */
@@ -4602,3 +4609,35 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
 "whatsNew.offline230.title" = "Offline & polish";
 "whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";
+/* In-app action toasts */
+"toast.action.commentPosted" = "Komentar terkirim";
+"toast.action.momentSaved" = "Momen disimpan";
+"toast.action.momentDeleted" = "Momen dihapus";
+"toast.action.momentArchived" = "Momen diarsipkan";
+"toast.action.incognito.activated" = "Penyamaran diaktifkan";
+"toast.action.incognito.activated.subtitle" = "Ketuk untuk menjeda";
+"toast.action.incognito.paused" = "Penyamaran dijeda";
+"toast.action.storyDeleted" = "Cerita dihapus";
+"toast.action.followed" = "Kamu sekarang mengikuti ";
+"toast.action.followRequested" = "Permintaan mengikuti dikirim ke ";
+"toast.action.requestAccepted" = "Kamu menerima permintaan mengikuti dari ";
+"toast.action.requestRejected" = "Kamu menolak permintaan mengikuti dari ";
+"toast.action.unfollowed" = "Kamu berhenti mengikuti ";
+"toast.action.blocked" = "Kamu memblokir ";
+"toast.action.muted" = "Kamu membisukan ";
+"toast.action.momentUnsaved" = "Dihapus dari tersimpan";
+"toast.action.commentDeleted" = "Komentar dihapus";
+"toast.action.commentDeleted.prefix" = "Kamu menghapus komentar dari ";
+"toast.action.messageCopied" = "Pesan disalin";
+"toast.action.linkCopied" = "Tautan disalin";
+"toast.action.momentUpdated" = "Momen diperbarui";
+"toast.action.leftGroup.prefix" = "Kamu keluar dari grup ";
+"toast.action.followed.suffix" = "";
+"toast.action.followRequested.suffix" = "";
+"toast.action.requestAccepted.suffix" = "";
+"toast.action.requestRejected.suffix" = "";
+"toast.action.unfollowed.suffix" = "";
+"toast.action.blocked.suffix" = "";
+"toast.action.muted.suffix" = "";
+"toast.action.commentDeleted.prefix.suffix" = "";
+"toast.action.leftGroup.suffix" = "";

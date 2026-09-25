@@ -353,6 +353,10 @@ struct ConversationSettingsView: View {
                 Task {
                     guard let id = conversation.id, let group = GroupDirectory.shared.groups[id] else { return }
                     if await GroupChatStore().command("leave", group: group) {
+                        let name = group.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !name.isEmpty {
+                            InAppNotificationService.shared.showActionToast(.leftGroup(name))
+                        }
                         dismiss()
                     }
                 }

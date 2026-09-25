@@ -104,7 +104,8 @@ struct ExploreMomentDetailView: View {
                     .overlay {
                         exploreMomentsScrollView()
                     }
-                    .clipped()
+                    // Clip solo en Duo abierto (pane); iPhone / Duo cerrado mantienen soft edge.
+                    .modifier(SplitPaneClipModifier())
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                     .gesture(exploreDismissDragGesture)
@@ -156,24 +157,12 @@ struct ExploreMomentDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { exploreDetailToolbarContent }
+        .toolbarBackground(.hidden, for: .navigationBar)
         .momentsScrollEdgeChrome()
-        .sheet(
-            isPresented: Binding(
-                get: { selectedMoment != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        selectedMoment = nil
-                    }
-                }
-            )
-        ) {
-            if let moment = selectedMoment {
-                ModernCommentsView(moment: moment)
-                    .environmentObject(firestoreService)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
-        }
+        .chatBottomScrollEdgeHidden()
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
+        .momentsCommentsOverlay(moment: $selectedMoment, firestoreService: firestoreService)
         .sheet(isPresented: $showEditSheet) {
             if let moment = contextMenuMoment {
                 EditMomentView(
@@ -373,6 +362,8 @@ struct ExploreMomentDetailView: View {
                 .feedScrollVisibilityAnchor()
             }
             .scrollClipDisabled(!momentsSplitPane)
+            .momentsScrollEdgeChrome()
+            .chatBottomScrollEdgeHidden()
             .environment(feedViewModel)
             .environment(\.momentsViewportSize, detailLayoutSize)
             .frame(maxWidth: .infinity, maxHeight: .infinity)

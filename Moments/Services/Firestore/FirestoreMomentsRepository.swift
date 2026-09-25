@@ -48,6 +48,11 @@ extension FirestoreService {
                 }
 
                 momentRef.delete { error in
+                    if error == nil {
+                        Task { @MainActor in
+                            InAppNotificationService.shared.showActionToast(.momentDeleted)
+                        }
+                    }
                     completion(error)
                 }
             }
@@ -380,7 +385,32 @@ extension FirestoreService {
         }
     }
 
-    func toggleSaveMoment(userId: String, momentId: String, authorId: String? = nil, desiredSaved: Bool, completion: @escaping (Error?) -> Void) {
+    func toggleSaveMoment(userId: String, momentId: String, authorId: String? = nil, desiredSaved: Bool, announce: Bool = true, completion: @escaping (Error?) -> Void) {
+        // Unsave con toast: UI/cache ya; Firestore solo al expirar el deshacer.
+        if !desiredSaved && announce {
+            applySavedMomentCache(momentId: momentId, saved: false)
+            Task { @MainActor in
+                InAppNotificationService.shared.showActionToast(
+                    .momentUnsaved(
+                        undo: {
+                            self.applySavedMomentCache(momentId: momentId, saved: true)
+                        },
+                        onExpire: {
+                            FirestoreService.shared.toggleSaveMoment(
+                                userId: userId,
+                                momentId: momentId,
+                                authorId: authorId,
+                                desiredSaved: false,
+                                announce: false
+                            ) { _ in }
+                        }
+                    )
+                )
+            }
+            completion(nil)
+            return
+        }
+
         if !NetworkMonitor.shared.isConnected {
             let payload = SavePayload(userId: userId, momentId: momentId, authorId: authorId, desiredSaved: desiredSaved)
             if let data = try? JSONEncoder().encode(payload) {
@@ -394,6 +424,7 @@ extension FirestoreService {
                     await LocalPersistenceService.shared.saveAction(action)
                     self.applySavedMomentCache(momentId: momentId, saved: desiredSaved)
                     print("💾 FirestoreService: Guardado (save) en outbox (offline)")
+                    self.announceSaveChange(userId: userId, momentId: momentId, authorId: authorId, desiredSaved: desiredSaved, announce: announce)
                     completion(nil)
                 }
                 return
@@ -419,8 +450,21 @@ extension FirestoreService {
                 return nil
             }
         }) { _, error in
-            if error == nil { self.applySavedMomentCache(momentId: momentId, saved: desiredSaved) }
+            if error == nil {
+                self.applySavedMomentCache(momentId: momentId, saved: desiredSaved)
+                self.announceSaveChange(userId: userId, momentId: momentId, authorId: authorId, desiredSaved: desiredSaved, announce: announce)
+            }
             completion(error)
+        }
+    }
+
+    private func announceSaveChange(userId: String, momentId: String, authorId: String?, desiredSaved: Bool, announce: Bool) {
+        guard announce else { return }
+        Task { @MainActor in
+            if desiredSaved {
+                InAppNotificationService.shared.showActionToast(.momentSaved)
+            }
+            // Unsave con undo se anuncia en el path diferido de `toggleSaveMoment`.
         }
     }
 

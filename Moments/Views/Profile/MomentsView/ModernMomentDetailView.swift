@@ -124,7 +124,8 @@ struct ModernMomentDetailView: View {
                     .overlay {
                         modernMomentsScrollView()
                     }
-                    .clipped()
+                    // Clip solo en Duo abierto (pane); iPhone / Duo cerrado mantienen soft edge.
+                    .modifier(SplitPaneClipModifier())
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                     .gesture(profileDetailDismissDragGesture)
@@ -189,23 +190,7 @@ struct ModernMomentDetailView: View {
             .zIndex(999)
         }
     }
-        .sheet(
-            isPresented: Binding(
-                get: { selectedMoment != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        selectedMoment = nil
-                    }
-                }
-            )
-        ) {
-            if let moment = selectedMoment {
-                ModernCommentsView(moment: moment)
-                    .environmentObject(firestoreService)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
-        }
+        .momentsCommentsOverlay(moment: $selectedMoment, firestoreService: firestoreService)
         .sheet(isPresented: $showEditSheet) {
             if let moment = contextMenuMoment {
                 EditMomentView(
@@ -305,7 +290,11 @@ struct ModernMomentDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar { profileDetailToolbarContent }
+        .toolbarBackground(.hidden, for: .navigationBar)
         .momentsScrollEdgeChrome()
+        .chatBottomScrollEdgeHidden()
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
     }
 
     @ToolbarContentBuilder
@@ -575,6 +564,8 @@ struct ModernMomentDetailView: View {
                 .feedScrollVisibilityAnchor(transform: { mergedVisibilityValues($0) })
             }
             .scrollClipDisabled(!momentsSplitPane)
+            .momentsScrollEdgeChrome()
+            .chatBottomScrollEdgeHidden()
             .environment(\.profileDetailDirectVideoPlayback, restrictPlaybackToInitialIndex)
             .environment(feedViewModel)
             .environment(\.momentsViewportSize, detailLayoutSize)

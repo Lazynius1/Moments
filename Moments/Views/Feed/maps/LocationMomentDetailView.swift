@@ -9,6 +9,7 @@ import AVFoundation
 // MARK: - ✅ Vista detallada para momentos de ubicación con diseño moderno
 struct LocationMomentDetailView: View {
     @Environment(\.momentsViewportSize) private var momentsViewportSize
+    @Environment(\.momentsToolbarVerticalEdge) private var toolbarVerticalEdge
 
     @State private var moments: [Moment]
     let initialIndex: Int
@@ -28,8 +29,6 @@ struct LocationMomentDetailView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging: Bool = false
     @State private var backgroundOpacity: Double = 1.0
-    @State private var contentMinY: CGFloat = .greatestFiniteMagnitude
-    @State private var initialContentMinY: CGFloat = .greatestFiniteMagnitude
 
     // ✅ Estados para interacciones (ModernPostCardView gestiona save/comments internamente)
 
@@ -56,13 +55,6 @@ struct LocationMomentDetailView: View {
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
-    }
-
-    private var chromeBlurProgress: CGFloat {
-        ProfileHeaderCollapseMetrics.detailScrollChromeBlurProgress(
-            contentMinY: contentMinY,
-            initialContentMinY: initialContentMinY
-        )
     }
 
     private var basePlaceName: String {
@@ -94,31 +86,15 @@ struct LocationMomentDetailView: View {
 
     var body: some View {
         ZStack {
-            ZStack(alignment: .top) {
-                ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
-                    .ignoresSafeArea()
-                    .opacity(backgroundOpacity)
+            ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                .ignoresSafeArea()
+                .opacity(backgroundOpacity)
 
-                locationMomentsScrollView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .offset(x: dragOffset)
-                    .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
-                    .gesture(locationDismissDragGesture)
-
-                ProfileStickyChromeContainer(
-                    blurProgress: chromeBlurProgress,
-                    blurFadeTail: ProfileHeaderCollapseMetrics.locationChromeBlurFadeTail,
-                    tabsArePinned: false
-                ) {
-                    FeedPinnedTopChrome(
-                        title: locationDisplayTitle,
-                        onDismiss: dismissLocationDetail
-                    )
-                }
-                .zIndex(10)
-                .allowsHitTesting(true)
-            }
-            .coordinateSpace(name: "locationDetailOverlay")
+            locationMomentsScrollView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .offset(x: dragOffset)
+                .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
+                .gesture(locationDismissDragGesture)
 
             if showContextMenu, let moment = contextMenuMoment {
                 ModernContextMenuOverlay(
@@ -166,24 +142,16 @@ struct LocationMomentDetailView: View {
                 .zIndex(999)
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
-        .sheet(
-            isPresented: Binding(
-                get: { selectedMoment != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        selectedMoment = nil
-                    }
-                }
-            )
-        ) {
-            if let moment = selectedMoment {
-                ModernCommentsView(moment: moment)
-                    .environmentObject(firestoreService)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
-        }
+        .coordinateSpace(name: "locationDetailOverlay")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar { locationDetailToolbarContent }
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .momentsScrollEdgeChrome()
+        .chatBottomScrollEdgeHidden()
+        .toolbar(.hidden, for: .tabBar)
+        .momentsFloatingTabBarHidden()
+        .momentsCommentsOverlay(moment: $selectedMoment, firestoreService: firestoreService)
         .sheet(isPresented: $showEditSheet) {
             if let moment = contextMenuMoment {
                 EditMomentView(
@@ -246,6 +214,35 @@ struct LocationMomentDetailView: View {
             refreshLocationDisplayTitle()
         }
         .momentZoomNavigationSurface(colorScheme: colorScheme)
+    }
+
+    @ToolbarContentBuilder
+    private var locationDetailToolbarContent: some ToolbarContent {
+        if #available(iOS 27.1, *), toolbarVerticalEdge != nil {
+            ToolbarItemGroup(placement: .cancellationAction) {
+                Button(action: dismissLocationDetail) {
+                    Label("common.back", systemImage: "chevron.left")
+                }
+            }
+            .axisBehavior(.verticalPreferred)
+        } else {
+            ToolbarItem(placement: .topBarLeading) {
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: adaptiveColors.primary,
+                    preset: .navigationBack,
+                    action: dismissLocationDetail
+                )
+            }
+            .chatHideSharedBackgroundIfAvailable()
+        }
+
+        ToolbarItem(placement: .principal) {
+            Text(locationDisplayTitle)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(adaptiveColors.primary)
+                .lineLimit(1)
+        }
     }
 
     private var locationDismissDragGesture: some Gesture {
@@ -386,9 +383,6 @@ struct LocationMomentDetailView: View {
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: max(15, screenHeight * 0.02)) {
-                    Color.clear
-                        .frame(height: ProfileHeaderCollapseMetrics.feedStyleDetailTopInset)
-
                     ForEach(Array(moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
                         let isAvailable = momentAvailability[moment.mapAvailabilityKey] ?? true
 
@@ -454,8 +448,8 @@ struct LocationMomentDetailView: View {
                 .feedScrollVisibilityAnchor()
             }
             .profileGridNavigationChrome(colorScheme: colorScheme)
+            .chatBottomScrollEdgeHidden()
             .scrollClipDisabled()
-            .feedDetailChromeScrollOffset(contentMinY: $contentMinY, initialContentMinY: $initialContentMinY)
             .environment(feedViewModel)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {

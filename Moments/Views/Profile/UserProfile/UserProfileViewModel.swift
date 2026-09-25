@@ -931,17 +931,45 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         isUpdatingMute = true
         let shouldMute = !isMutedByCurrentUser
 
+        // Mute con toast: UI ya; Firestore solo al expirar.
+        if shouldMute {
+            isMutedByCurrentUser = true
+            let username = userProfile?.username ?? ""
+            firestoreService.db.collection("users").document(currentUserId).getDocument { [weak self] snapshot, _ in
+                guard let self else { return }
+                var muteSettings = snapshot?.data()?["muteSettings"] as? [String: Any] ?? [:]
+                var mutedUsers = Set((muteSettings["mutedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
+                mutedUsers.insert(self.userId)
+                muteSettings["mutedUsers"] = Array(mutedUsers)
+
+                Task { @MainActor in
+                    self.isUpdatingMute = false
+                    InAppNotificationService.shared.showActionToast(
+                        .muted(
+                            username,
+                            undo: {
+                                self.isMutedByCurrentUser = false
+                            },
+                            onExpire: {
+                                Task {
+                                    try? await self.firestoreService.db
+                                        .collection("users")
+                                        .document(currentUserId)
+                                        .updateData(["muteSettings": muteSettings])
+                                }
+                            }
+                        )
+                    )
+                }
+            }
+            return
+        }
+
         firestoreService.db.collection("users").document(currentUserId).getDocument { [weak self] snapshot, _ in
             guard let self else { return }
             var muteSettings = snapshot?.data()?["muteSettings"] as? [String: Any] ?? [:]
             var mutedUsers = Set((muteSettings["mutedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
-
-            if shouldMute {
-                mutedUsers.insert(self.userId)
-            } else {
-                mutedUsers.remove(self.userId)
-            }
-
+            mutedUsers.remove(self.userId)
             muteSettings["mutedUsers"] = Array(mutedUsers)
 
             Task { @MainActor in
@@ -951,7 +979,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                         .document(currentUserId)
                         .updateData(["muteSettings": muteSettings])
                     self.isUpdatingMute = false
-                    self.isMutedByCurrentUser = shouldMute
+                    self.isMutedByCurrentUser = false
                 } catch {
                     self.isUpdatingMute = false
                 }
