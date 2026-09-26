@@ -1916,8 +1916,8 @@
 "modernComments.edited" = "(수정됨)";
 "modernComments.mutedWord.placeholder" = "숨긴 단어가 포함되어 댓글이 숨겨졌어요";
 "modernComments.mutedWord.reveal" = "잠시 보기";
-"modernComments.empty.title" = "아직 댓글이 없어요";
-"modernComments.empty.description" = "이 모먼트에 첫 댓글을 남겨 보세요";
+"modernComments.empty.title" = "대화를 시작해 보세요";
+"modernComments.empty.description" = "첫 댓글을 남겨 보세요.";
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "최신순";
 "modernComments.sort.oldest" = "오래된 순";

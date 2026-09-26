@@ -1916,8 +1916,8 @@
 "modernComments.edited" = "(edytowano)";
 "modernComments.mutedWord.placeholder" = "Komentarz ukryty ze względu na wyciszone słowo";
 "modernComments.mutedWord.reveal" = "Pokaż tymczasowo";
-"modernComments.empty.title" = "Brak komentarzy";
-"modernComments.empty.description" = "Skomentuj ten moment jako pierwszy";
+"modernComments.empty.title" = "Rozpocznij rozmowę";
+"modernComments.empty.description" = "Dodaj pierwszy komentarz.";
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "Najnowsze";
 "modernComments.sort.oldest" = "Najstarsze";

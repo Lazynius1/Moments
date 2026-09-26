@@ -2028,8 +2028,8 @@
 "modernComments.edited" = "(edited)";
 "modernComments.mutedWord.placeholder" = "Comment hidden due to muted word";
 "modernComments.mutedWord.reveal" = "Show temporarily";
-"modernComments.empty.title" = "No comments yet";
-"modernComments.empty.description" = "Be the first to comment on this moment";
+"modernComments.empty.title" = "Start the conversation";
+"modernComments.empty.description" = "Be the first to leave a comment.";
 
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "Most recent";

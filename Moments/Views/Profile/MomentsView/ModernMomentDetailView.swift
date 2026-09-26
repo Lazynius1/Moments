@@ -14,6 +14,7 @@ struct ModernMomentDetailView: View {
     let topContentInset: CGFloat
     let restrictPlaybackToInitialIndex: Bool
     let openCommentsOnAppear: Bool
+    let chromeTitle: LocalizedStringKey?
     let onDismiss: () -> Void
     var onVisibleMomentId: ((String) -> Void)? = nil
     private let resolvedInitialIndex: Int
@@ -74,6 +75,7 @@ struct ModernMomentDetailView: View {
         topContentInset: CGFloat = 64,
         restrictPlaybackToInitialIndex: Bool = false,
         openCommentsOnAppear: Bool = false,
+        chromeTitle: LocalizedStringKey? = nil,
         onDismiss: @escaping () -> Void,
         onVisibleMomentId: ((String) -> Void)? = nil
     ) {
@@ -83,6 +85,7 @@ struct ModernMomentDetailView: View {
         self.topContentInset = topContentInset
         self.restrictPlaybackToInitialIndex = restrictPlaybackToInitialIndex
         self.openCommentsOnAppear = openCommentsOnAppear
+        self.chromeTitle = chromeTitle
         self.onDismiss = onDismiss
         self.onVisibleMomentId = onVisibleMomentId
         
@@ -327,7 +330,13 @@ struct ModernMomentDetailView: View {
         }
 
         ToolbarItem(placement: .principal) {
-            if let moment = moments[safe: currentIndex] {
+            if let chromeTitle {
+                Text(chromeTitle)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(adaptiveColors.primary)
+                    .lineLimit(1)
+                    .frame(maxWidth: 200)
+            } else if let moment = moments[safe: currentIndex] {
                 LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
                     VStack(spacing: 1) {
                         Text(username)

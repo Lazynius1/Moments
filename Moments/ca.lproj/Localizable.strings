@@ -1986,8 +1986,8 @@
 "modernComments.edited" = "(editat)";
 "modernComments.mutedWord.placeholder" = "Comentari ocult per paraula silenciada";
 "modernComments.mutedWord.reveal" = "Mostrar temporalment";
-"modernComments.empty.title" = "No hi ha comentaris encara";
-"modernComments.empty.description" = "Sigues el primer a comentar aquest moment";
+"modernComments.empty.title" = "Comença la conversa";
+"modernComments.empty.description" = "Sigues la primera persona a deixar un comentari.";
 
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "Més recents";

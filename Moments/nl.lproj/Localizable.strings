@@ -1916,8 +1916,8 @@
 "modernComments.edited" = "(bewerkt)";
 "modernComments.mutedWord.placeholder" = "Reactie verborgen omdat deze een gedempt woord bevat";
 "modernComments.mutedWord.reveal" = "Tijdelijk tonen";
-"modernComments.empty.title" = "Nog geen reacties";
-"modernComments.empty.description" = "Plaats als eerste een reactie op dit moment";
+"modernComments.empty.title" = "Start het gesprek";
+"modernComments.empty.description" = "Plaats de eerste reactie.";
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "Recentste";
 "modernComments.sort.oldest" = "Oudste";

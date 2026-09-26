@@ -1916,8 +1916,8 @@
 "modernComments.edited" = "(एडिट किया गया)";
 "modernComments.mutedWord.placeholder" = "म्यूट किए गए शब्द की वजह से कमेंट छिपा हुआ है";
 "modernComments.mutedWord.reveal" = "कुछ समय के लिए दिखाएँ";
-"modernComments.empty.title" = "अभी तक कोई कमेंट नहीं";
-"modernComments.empty.description" = "इस मोमेंट पर कमेंट करने वाले पहले व्यक्ति बनें";
+"modernComments.empty.title" = "बातचीत शुरू करें";
+"modernComments.empty.description" = "सबसे पहले टिप्पणी करें।";
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "नवीनतम";
 "modernComments.sort.oldest" = "सबसे पुराने";

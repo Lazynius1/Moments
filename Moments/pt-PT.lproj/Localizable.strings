@@ -2768,8 +2768,8 @@
 "modernComments.edited" = "(editado)";
 "modernComments.mutedWord.placeholder" = "Comentário ocultado devido a palavra silenciada";
 "modernComments.mutedWord.reveal" = "Mostrar temporariamente";
-"modernComments.empty.title" = "Ainda não há comentários";
-"modernComments.empty.description" = "Sê a primeira pessoa a comentar este moment";
+"modernComments.empty.title" = "Começa a conversa";
+"modernComments.empty.description" = "Sê a primeira pessoa a comentar.";
 
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "Mais recentes";

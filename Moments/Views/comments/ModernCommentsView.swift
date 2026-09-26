@@ -96,7 +96,10 @@ struct ModernCommentsView: View {
             // ✅ VERIFICAR SI LOS COMENTARIOS ESTÁN DESHABILITADOS
             if moment.disableComments {
                 VStack(spacing: 20) {
-                    modernHeaderView
+                    VStack(spacing: 0) {
+                        CommentsSheetGrabber()
+                        modernHeaderView
+                    }
                     
                     Spacer()
                     
@@ -118,7 +121,12 @@ struct ModernCommentsView: View {
                 }
             } else {
                 enhancedCommentsListView
-                    .momentsSheetScrollHeader { modernHeaderView }
+                    .momentsSheetScrollHeader {
+                        VStack(spacing: 0) {
+                            CommentsSheetGrabber()
+                            modernHeaderView
+                        }
+                    }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         VStack(spacing: 0) {
                             // Separador lista ↔ emojis/input (visible, estilo IG).
@@ -237,7 +245,8 @@ struct ModernCommentsView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.top, 0)
+        .padding(.bottom, 14)
     }
     
     // ✅ Lista de comentarios mejorada con nueva estructura anidada
@@ -249,6 +258,13 @@ struct ModernCommentsView: View {
                     CommentRowSkeletonList(rows: 4)
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
+                } else if rootComments.isEmpty {
+                    ModernEmptyCommentsView()
+                        // El alto relativo centra el contenido en el espacio real entre
+                        // cabecera y compositor, también en el detent medio de Reels.
+                        .containerRelativeFrame(.vertical, alignment: .center) { length, _ in
+                            max(150, length - 40)
+                        }
                 } else {
                     ForEach(rootComments) { comment in
                         EnhancedModernCommentRow(
@@ -327,11 +343,6 @@ struct ModernCommentsView: View {
                             maxNestingLevel: maxCommentNestingLevel
                         )
                         .environmentObject(firestoreService)
-                    }
-                    
-                    if rootComments.isEmpty {
-                        ModernEmptyCommentsView()
-                            .padding(.vertical, 60)
                     }
                 }
             }
@@ -1831,68 +1842,30 @@ private struct CommentLikeRail: View {
 }
 
 
-// ✅ ESTADO VACÍO DE COMENTARIOS MEJORADO
 struct ModernEmptyCommentsView: View {
-    @Environment(\.colorScheme) var colorScheme
-    
     var body: some View {
-        VStack(spacing: 20) {
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.4), Color.white.opacity(0.2)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 2
-                            )
-                    )
-                
-                Image(systemName: "bubble.left")
-                    .font(.system(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.white, Color.white.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-            .scaleEffect(1.0)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                    // Animación sutil de respiración
-                }
-            }
-            
-            VStack(spacing: 8) {
-                Text("modernComments.empty.title")
-                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-                
-                Text("modernComments.empty.description")
-                    .font(.system(size: legacyPoppinsSize(14)))
-                    .foregroundStyle(.gray.opacity(0.7))
-                    .multilineTextAlignment(.center)
-                
-                Text("💭")
-                    .font(.system(size: 24))
-                    .opacity(0.6)
-                    .scaleEffect(1.0)
-                    .onAppear {
-                        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                            // Animación sutil del emoji
-                        }
-                    }
-            }
+        VStack(spacing: 10) {
+            Image(systemName: "bubble.left.and.bubble.right")
+                .font(.system(size: 29, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.secondary)
+                .frame(width: 54, height: 54)
+                .background(Color.primary.opacity(0.055), in: Circle())
+
+            Text("modernComments.empty.title")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            Text("modernComments.empty.description")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        .padding(.horizontal, 32)
+        .padding(.vertical, 16)
+        .accessibilityElement(children: .combine)
     }
 }
 

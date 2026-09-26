@@ -1916,8 +1916,8 @@
 "modernComments.edited" = "(düzenlendi)";
 "modernComments.mutedWord.placeholder" = "Sessize alınmış bir kelime nedeniyle yorum gizlendi";
 "modernComments.mutedWord.reveal" = "Geçici olarak göster";
-"modernComments.empty.title" = "Henüz yorum yok";
-"modernComments.empty.description" = "Bu paylaşım hakkında ilk yorumu sen yap";
+"modernComments.empty.title" = "Sohbeti başlat";
+"modernComments.empty.description" = "İlk yorumu sen yap.";
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "En yeni";
 "modernComments.sort.oldest" = "En eski";

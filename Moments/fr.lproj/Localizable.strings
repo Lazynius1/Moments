@@ -1994,8 +1994,8 @@
 "modernComments.edited" = "(modifié)";
 "modernComments.mutedWord.placeholder" = "Commentaire masqué à cause d’un mot en sourdine";
 "modernComments.mutedWord.reveal" = "Afficher temporairement";
-"modernComments.empty.title" = "Pas encore de commentaires";
-"modernComments.empty.description" = "Soyez le premier à commenter ce moment";
+"modernComments.empty.title" = "Lancez la conversation";
+"modernComments.empty.description" = "Laissez le premier commentaire.";
 
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "Plus récents";

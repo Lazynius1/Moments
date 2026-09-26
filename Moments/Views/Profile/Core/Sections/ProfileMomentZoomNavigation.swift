@@ -208,13 +208,24 @@ struct MomentZoomDetailDestination: View {
     var body: some View {
         Group {
             switch destination.presentation {
-            case .carousel, .saved:
+            case .carousel:
                 ModernMomentDetailView(
                     moments: moments,
                     initialIndex: destination.initialIndex,
                     initialMomentId: continuityMomentId ?? destination.initialMomentId,
                     topContentInset: 0,
                     restrictPlaybackToInitialIndex: destination.restrictPlaybackToInitialIndex,
+                    onDismiss: { dismissMapIfNeeded(); dismiss() },
+                    onVisibleMomentId: onVisibleMomentId
+                )
+            case .saved:
+                ModernMomentDetailView(
+                    moments: moments,
+                    initialIndex: destination.initialIndex,
+                    initialMomentId: continuityMomentId ?? destination.initialMomentId,
+                    topContentInset: 0,
+                    restrictPlaybackToInitialIndex: destination.restrictPlaybackToInitialIndex,
+                    chromeTitle: "profile.tab.saved",
                     onDismiss: { dismissMapIfNeeded(); dismiss() },
                     onVisibleMomentId: onVisibleMomentId
                 )

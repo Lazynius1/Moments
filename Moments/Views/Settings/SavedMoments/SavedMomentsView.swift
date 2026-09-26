@@ -670,7 +670,7 @@ struct SavedMomentsView: View {
             moment: moment,
             moments: accessibleMoments,
             initialIndex: resolvedIndex,
-            presentation: .carousel,
+            presentation: .saved,
             destination: &zoomDestination,
             zoomIDPrefix: "saved"
         )
@@ -1012,7 +1012,6 @@ struct ModernSavedMomentsDetailView: View {
 
                 // ✅ Header flotante, igual que el detalle de perfil/tagged
                 ModernSavedDetailHeader(
-                    moment: moments[safe: currentIndex],
                     safeAreaTop: safeAreaTop,
                     onDismiss: onDismiss,
                     onRemove: {
@@ -1189,7 +1188,6 @@ struct ModernSavedMomentsDetailView: View {
 
 // MARK: - ✅ Header específico para momentos guardados
 struct ModernSavedDetailHeader: View {
-    let moment: Moment?
     let safeAreaTop: CGFloat
     let onDismiss: () -> Void
     let onRemove: () -> Void
@@ -1197,10 +1195,6 @@ struct ModernSavedDetailHeader: View {
 
     private var primaryTextColor: Color {
         colorScheme == .dark ? .white : .black.opacity(0.9)
-    }
-
-    private var secondaryTextColor: Color {
-        colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55)
     }
 
     private var iconColor: Color {
@@ -1220,30 +1214,10 @@ struct ModernSavedDetailHeader: View {
                     action: onDismiss
                 )
 
-                if let moment = moment {
-                    HStack(spacing: 10) {
-                        AsyncSavedProfileImageView(userId: moment.authorId)
-                            .frame(width: 38, height: 38)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle().stroke(
-                                    colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.16),
-                                    lineWidth: 1
-                                )
-                            )
-
-                        VStack(alignment: .leading, spacing: 0) {
-                            LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
-                                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                                .foregroundStyle(primaryTextColor)
-                                .lineLimit(1)
-
-                            Text(timeAgo(from: moment.timestamp))
-                                .font(.system(size: legacyPoppinsSize(10)))
-                                .foregroundStyle(secondaryTextColor)
-                        }
-                    }
-                }
+                Text(NSLocalizedString("profile.tab.saved", comment: "Saved moments detail header title"))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                    .foregroundStyle(primaryTextColor)
+                    .lineLimit(1)
 
                 Spacer(minLength: 0)
 
@@ -1264,9 +1238,6 @@ struct ModernSavedDetailHeader: View {
         }
     }
 
-    private func timeAgo(from date: Date) -> String {
-        MomentsFormat.relativeTime(from: date)
-    }
 }
 
 // MARK: - ✅ Tarjeta de momento guardado con funcionalidad completa

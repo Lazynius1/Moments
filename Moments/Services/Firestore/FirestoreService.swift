@@ -719,6 +719,11 @@ class FirestoreService: ObservableObject {
 
     // MARK: - FUNCIÓN UNFOLLOWUSER CORREGIDA CON CACHE MANAGEMENT
     func unfollowUser(currentUserId: String, targetUserId: String, announce: Bool = true, completion: @escaping (Error?) -> Void) {
+        let previousFollowState = FollowStateStore.shared.state(
+            viewerId: currentUserId,
+            targetUserId: targetUserId
+        ) ?? .following
+
         // ✅ Optimistic UI: Actualizar conexiones localmente (Low priority background)
         Task(priority: .background) { @MainActor in
             LocalPersistenceService.shared.toggleFollowLocally(currentUserId: currentUserId, targetUserId: targetUserId, isFollow: false)
@@ -732,7 +737,11 @@ class FirestoreService: ObservableObject {
 
         // Con toast de deshacer: no tocar Firestore aún; el commit va en onExpire.
         if announce {
-            beginDeferredUnfollowIfPossible(currentUserId: currentUserId, targetUserId: targetUserId) { deferred in
+            beginDeferredUnfollowIfPossible(
+                currentUserId: currentUserId,
+                targetUserId: targetUserId,
+                previousFollowState: previousFollowState
+            ) { deferred in
                 if deferred {
                     completion(nil)
                 } else {
@@ -760,6 +769,7 @@ class FirestoreService: ObservableObject {
     private func beginDeferredUnfollowIfPossible(
         currentUserId: String,
         targetUserId: String,
+        previousFollowState: FollowButtonState,
         completion: @escaping (Bool) -> Void
     ) {
         let presentDeferred: (String) -> Void = { username in
@@ -770,6 +780,11 @@ class FirestoreService: ObservableObject {
                     isFollow: true
                 )
                 self.followingCache["\(currentUserId)_\(targetUserId)"] = true
+                FollowStateStore.shared.setState(
+                    previousFollowState,
+                    viewerId: currentUserId,
+                    targetUserId: targetUserId
+                )
             }
             let onExpire: @MainActor () -> Void = {
                 self.commitUnfollowUser(

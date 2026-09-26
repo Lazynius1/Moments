@@ -1994,8 +1994,8 @@
 "modernComments.edited" = "(edited)";
 "modernComments.mutedWord.placeholder" = "Kommentar wegen eines stummgeschalteten Wortes ausgeblendet";
 "modernComments.mutedWord.reveal" = "Vorübergehend anzeigen";
-"modernComments.empty.title" = "Noch keine Kommentare";
-"modernComments.empty.description" = "Sei die erste Person, die diesen Moment kommentiert";
+"modernComments.empty.title" = "Starte die Unterhaltung";
+"modernComments.empty.description" = "Schreibe den ersten Kommentar.";
 
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "Neueste";

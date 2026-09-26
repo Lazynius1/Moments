@@ -53,8 +53,11 @@ private struct MomentsFloatingTabBarHiddenModifier: ViewModifier {
     private func syncHideHold() {
         let wantHold = shouldHoldHide
         if wantHold, !isHoldingHide {
-            minimize.requestHidden(true)
+            // Marcar primero el estado local. `requestHidden` publica `isHidden` y puede
+            // invalidar esta misma jerarquía de forma síncrona; si publicamos antes,
+            // una reentrada todavía ve `isHoldingHide == false` y vuelve a adquirir.
             isHoldingHide = true
+            minimize.requestHidden(true)
         } else if !wantHold, isHoldingHide {
             isHoldingHide = false
             DispatchQueue.main.async {

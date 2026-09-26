@@ -15,6 +15,19 @@ extension EnvironmentValues {
     }
 }
 
+struct CommentsSheetGrabber: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Capsule()
+            .fill(Color.primary.opacity(colorScheme == .dark ? 0.34 : 0.25))
+            .frame(width: 36, height: 5)
+        .frame(maxWidth: .infinity, minHeight: 25, alignment: .center)
+        .contentShape(Rectangle())
+        .accessibilityHidden(true)
+    }
+}
+
 struct ModernCommentsSheetOverlay: View {
     @Binding var moment: Moment?
     var firestoreService: FirestoreService
@@ -24,12 +37,14 @@ struct ModernCommentsSheetOverlay: View {
     var onCoveredHeightChange: ((CGFloat) -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Altura interactiva (1:1 con el dedo; al soltar hace snap).
     @State private var sheetHeight: CGFloat = 0
     @State private var containerHeight: CGFloat = 0
     @State private var gestureStartHeight: CGFloat = 0
     @State private var isDragging = false
+    @State private var isSheetDragEligible = false
     @State private var didDismissKeyboardThisDrag = false
     @State private var keyboardHeight: CGFloat = 0
     @State private var isPresented = false
@@ -43,7 +58,15 @@ struct ModernCommentsSheetOverlay: View {
         max(containerHeight * (locksToMedium ? 0.5 : 0.62), 1)
     }
     private var largeHeight: CGFloat { max(containerHeight * 0.92, 1) }
+    private var keyboardRaisedHeight: CGFloat {
+        max(mediumHeight, min(containerHeight * 0.72, largeHeight))
+    }
     private var maxHeight: CGFloat { locksToMedium ? mediumHeight : largeHeight }
+
+    private var presentationProgress: CGFloat {
+        guard mediumHeight > 1 else { return 0 }
+        return min(max(sheetHeight / mediumHeight, 0), 1)
+    }
 
     private func composerKeyboardInset(safeBottom: CGFloat) -> CGFloat {
         guard keyboardHeight > 0 else { return 0 }
@@ -61,14 +84,11 @@ struct ModernCommentsSheetOverlay: View {
                 // Dim a pantalla completa detrás del sheet (si solo va arriba, la línea del composer se ve rara).
                 Color.black.opacity(colorScheme == .dark ? 0.45 : 0.28)
                     .ignoresSafeArea()
-                    .opacity(isPresented || isDragging ? 1 : 0)
+                    .opacity((isPresented || isDragging) ? presentationProgress : 0)
                     .onTapGesture { dismiss() }
                     .accessibilityHidden(true)
 
                 VStack(spacing: 0) {
-                    sheetHandle
-                        .gesture(sheetDragGesture)
-
                     if let moment {
                         ModernCommentsView(moment: moment)
                             .environmentObject(firestoreService)
@@ -82,14 +102,40 @@ struct ModernCommentsSheetOverlay: View {
                 .background(canvas)
                 .clipShape(
                     UnevenRoundedRectangle(
-                        topLeadingRadius: 22,
+                        topLeadingRadius: 26,
                         bottomLeadingRadius: 0,
                         bottomTrailingRadius: 0,
-                        topTrailingRadius: 22,
+                        topTrailingRadius: 26,
                         style: .continuous
                     )
                 )
+                .overlay(alignment: .top) {
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 26,
+                        bottomLeadingRadius: 0,
+                        bottomTrailingRadius: 0,
+                        topTrailingRadius: 26,
+                        style: .continuous
+                    )
+                    .strokeBorder(
+                        colorScheme == .dark ? Color.white.opacity(0.13) : Color.black.opacity(0.08),
+                        lineWidth: 0.5
+                    )
+                    .mask(alignment: .top) {
+                        Rectangle().frame(height: 80)
+                    }
+                    .allowsHitTesting(false)
+                }
+                .shadow(
+                    color: .black.opacity(colorScheme == .dark ? 0.34 : 0.18),
+                    radius: 24,
+                    x: 0,
+                    y: -5
+                )
                 .offset(y: isPresented ? 0 : max(sheetHeight, mediumHeight) + 40)
+                // Como en un sheet del sistema, el grabber y la cabecera forman una única zona de arrastre.
+                // La lista queda fuera para que su scroll mantenga prioridad.
+                .simultaneousGesture(sheetDragGesture)
             }
             .ignoresSafeArea(.keyboard)
             .ignoresSafeArea(edges: .bottom)
@@ -112,7 +158,14 @@ struct ModernCommentsSheetOverlay: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
             let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect) ?? .zero
             let animation = Self.keyboardAnimation(from: note)
-            let targetHeight = (!locksToMedium && containerHeight > 1) ? largeHeight : sheetHeight
+            let targetHeight: CGFloat
+            if containerHeight <= 1 {
+                targetHeight = sheetHeight
+            } else if locksToMedium {
+                targetHeight = keyboardRaisedHeight
+            } else {
+                targetHeight = largeHeight
+            }
             // Una sola animación: estira altura + inset (sin reconstruir / recentrar).
             withAnimation(animation) {
                 keyboardHeight = frame.height
@@ -124,6 +177,9 @@ struct ModernCommentsSheetOverlay: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
             withAnimation(Self.keyboardAnimation(from: note)) {
                 keyboardHeight = 0
+                if locksToMedium, containerHeight > 1 {
+                    sheetHeight = mediumHeight
+                }
             }
         }
         .onDisappear {
@@ -133,27 +189,21 @@ struct ModernCommentsSheetOverlay: View {
         .zIndex(80)
     }
 
-    private var sheetHandle: some View {
-        VStack(spacing: 0) {
-            Capsule()
-                .fill(Color.primary.opacity(0.28))
-                .frame(width: 36, height: 5)
-                .padding(.top, 10)
-                .padding(.bottom, 10)
-        }
-        .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
-    }
-
     private var sheetDragGesture: some Gesture {
         DragGesture(minimumDistance: 2, coordinateSpace: .global)
             .onChanged { value in
                 guard containerHeight > 1 else { return }
                 if !isDragging {
+                    let panelTop = containerHeight - sheetHeight
+                    // Grabber (25 pt) + cabecera (~70 pt). Los gestos que empiezan en la lista
+                    // pertenecen al ScrollView y nunca mueven el panel.
+                    isSheetDragEligible = value.startLocation.y <= panelTop + 104
+                    guard isSheetDragEligible else { return }
                     isDragging = true
                     gestureStartHeight = sheetHeight
                     didDismissKeyboardThisDrag = false
                 }
+                guard isSheetDragEligible else { return }
 
                 // IG: al bajar con teclado, primero se oculta el teclado.
                 if keyboardHeight > 0, !didDismissKeyboardThisDrag, value.translation.height > 4 {
@@ -166,21 +216,26 @@ struct ModernCommentsSheetOverlay: View {
 
                 let proposed = gestureStartHeight - value.translation.height
                 let floor = mediumHeight * 0.32
-                let ceiling = maxHeight + (locksToMedium ? 0 : 20)
+                let ceiling = maxHeight
                 // Sin animación durante el drag: acompaña el dedo frame a frame.
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
-                    sheetHeight = min(max(proposed, floor), ceiling)
+                    sheetHeight = rubberBandedHeight(proposed, lowerBound: floor, upperBound: ceiling)
                 }
             }
             .onEnded { value in
+                guard isSheetDragEligible, isDragging else {
+                    isSheetDragEligible = false
+                    return
+                }
                 isDragging = false
+                isSheetDragEligible = false
                 didDismissKeyboardThisDrag = false
                 guard containerHeight > 1 else { return }
 
                 let velocity = value.velocity.height
-                let projected = sheetHeight - velocity * 0.12
+                let projected = gestureStartHeight - value.predictedEndTranslation.height
 
                 if locksToMedium {
                     if projected < mediumHeight * 0.62 || velocity > 900 {
@@ -214,9 +269,37 @@ struct ModernCommentsSheetOverlay: View {
     }
 
     private func snap(to height: CGFloat) {
-        withAnimation(.interpolatingSpring(duration: 0.34, bounce: 0.08)) {
+        withAnimation(sheetAnimation(duration: 0.34, bounce: 0.08)) {
             sheetHeight = height
         }
+    }
+
+    /// Resistencia de goma parecida a UISheetPresentationController: el panel puede ceder,
+    /// pero cada punto extra mueve cada vez menos la hoja.
+    private func rubberBandedHeight(
+        _ proposed: CGFloat,
+        lowerBound: CGFloat,
+        upperBound: CGFloat
+    ) -> CGFloat {
+        if proposed < lowerBound {
+            return lowerBound - rubberBandDistance(lowerBound - proposed)
+        }
+        if proposed > upperBound {
+            return upperBound + rubberBandDistance(proposed - upperBound)
+        }
+        return proposed
+    }
+
+    private func rubberBandDistance(_ distance: CGFloat) -> CGFloat {
+        let dimension = max(containerHeight, 1)
+        let coefficient: CGFloat = 0.34
+        return (distance * coefficient * dimension) / (dimension + coefficient * distance)
+    }
+
+    private func sheetAnimation(duration: Double, bounce: Double) -> Animation {
+        reduceMotion
+            ? .easeOut(duration: min(duration, 0.2))
+            : .interpolatingSpring(duration: duration, bounce: bounce)
     }
 
     private func syncContainerHeight(_ height: CGFloat, presentIfNeeded: Bool) {
@@ -226,7 +309,7 @@ struct ModernCommentsSheetOverlay: View {
         if sheetHeight < 1 {
             sheetHeight = mediumHeight
             if presentIfNeeded {
-                withAnimation(.interpolatingSpring(duration: 0.38, bounce: 0.06)) {
+                withAnimation(sheetAnimation(duration: 0.38, bounce: 0.06)) {
                     isPresented = true
                 }
             } else {
@@ -252,7 +335,7 @@ struct ModernCommentsSheetOverlay: View {
 
     private func dismiss() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-        withAnimation(.interpolatingSpring(duration: 0.32, bounce: 0.02)) {
+        withAnimation(sheetAnimation(duration: 0.32, bounce: 0.02)) {
             isPresented = false
             sheetHeight = 0
         }
@@ -293,7 +376,6 @@ extension View {
     ) -> some View {
         self
             .ignoresSafeArea(.keyboard)
-            .momentsFloatingTabBarHidden(moment.wrappedValue != nil)
             .overlay {
                 if moment.wrappedValue != nil {
                     ModernCommentsSheetOverlay(
@@ -302,6 +384,9 @@ extension View {
                         locksToMedium: locksToMedium,
                         onCoveredHeightChange: onCoveredHeightChange
                     )
+                    // El hold pertenece al ciclo de vida del panel. Reels usa el panel
+                    // medium y no tiene floating tab bar, así que allí no se solicita.
+                    .momentsFloatingTabBarHidden(!locksToMedium)
                 }
             }
     }

@@ -2020,8 +2020,8 @@
 "modernComments.edited" = "(editado)";
 "modernComments.mutedWord.placeholder" = "Comentario oculto por palabra silenciada";
 "modernComments.mutedWord.reveal" = "Mostrar temporalmente";
-"modernComments.empty.title" = "No hay comentarios aún";
-"modernComments.empty.description" = "Sé el primero en comentar este momento";
+"modernComments.empty.title" = "Empieza la conversación";
+"modernComments.empty.description" = "Sé la primera persona en dejar un comentario.";
 
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "Más recientes";

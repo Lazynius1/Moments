@@ -1916,8 +1916,8 @@
 "modernComments.edited" = "（已編輯）";
 "modernComments.mutedWord.placeholder" = "因包含已封鎖的字詞而隱藏留言";
 "modernComments.mutedWord.reveal" = "暫時顯示";
-"modernComments.empty.title" = "目前還沒有留言";
-"modernComments.empty.description" = "成為第一個在這則動態留言的人";
+"modernComments.empty.title" = "開始對話";
+"modernComments.empty.description" = "搶先留下第一則留言。";
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "最新";
 "modernComments.sort.oldest" = "最早";

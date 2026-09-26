@@ -1916,8 +1916,8 @@
 "modernComments.edited" = "（編集済み）";
 "modernComments.mutedWord.placeholder" = "ミュートした単語によりコメントを非表示にしています";
 "modernComments.mutedWord.reveal" = "一時的に表示";
-"modernComments.empty.title" = "まだコメントはありません";
-"modernComments.empty.description" = "このモーメントに最初のコメントを投稿しましょう";
+"modernComments.empty.title" = "会話を始めよう";
+"modernComments.empty.description" = "最初のコメントを投稿しましょう。";
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "新しい順";
 "modernComments.sort.oldest" = "古い順";

@@ -1916,8 +1916,8 @@
 "modernComments.edited" = "(diedit)";
 "modernComments.mutedWord.placeholder" = "Komentar disembunyikan karena mengandung kata yang dibisukan";
 "modernComments.mutedWord.reveal" = "Tampilkan sementara";
-"modernComments.empty.title" = "Belum ada komentar";
-"modernComments.empty.description" = "Jadilah yang pertama mengomentari momen ini";
+"modernComments.empty.title" = "Mulai percakapan";
+"modernComments.empty.description" = "Jadilah yang pertama berkomentar.";
 /* Modern Comments - Sort Options */
 "modernComments.sort.newest" = "Terbaru";
 "modernComments.sort.oldest" = "Terlama";
