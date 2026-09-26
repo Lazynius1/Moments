@@ -6,9 +6,14 @@ struct MessageRequestsView: View {
     @EnvironmentObject private var messageRequestService: MessageRequestService
     @Environment(\.colorScheme) private var colorScheme
 
-    @State private var selectedFolder: MessageRequestFolder = .normal
     @State private var actionRequest: MessageRequest?
     @State private var showingActions = false
+    @State private var showingOlderRequests = false
+    @State private var visibleOlderRequestCount = 10
+    @State private var showingDeleteAllConfirmation = false
+    @State private var showingDeleteSelectedConfirmation = false
+    @State private var isEditing = false
+    @State private var selectedRequestIDs = Set<String>()
 
     let onOpenRequest: (MessageRequest) -> Void
 
@@ -16,43 +21,81 @@ struct MessageRequestsView: View {
         self.onOpenRequest = onOpenRequest
     }
 
-    private var displayedRequests: [MessageRequest] {
-        switch selectedFolder {
-        case .normal: messageRequestService.pendingRequests
-        case .old: messageRequestService.oldRequests
-        case .hidden: messageRequestService.hiddenRequests
+    private var allRequests: [MessageRequest] {
+        (messageRequestService.pendingRequests
+            + messageRequestService.oldRequests)
+            .sorted { $0.lastActivityAt > $1.lastActivityAt }
+    }
+
+    private var recentRequests: [MessageRequest] {
+        guard let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) else {
+            return allRequests
         }
+        return allRequests.filter { $0.lastActivityAt >= cutoff }
+    }
+
+    private var olderRequests: [MessageRequest] {
+        guard let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) else {
+            return []
+        }
+        return allRequests.filter { $0.lastActivityAt < cutoff }
+    }
+
+    private var selectedRequests: [MessageRequest] {
+        allRequests.filter { selectedRequestIDs.contains(Self.requestID($0)) }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            MessageRequestFolderPicker(selection: $selectedFolder)
-            MessageRequestFolderContent(
-                folder: selectedFolder,
-                requests: displayedRequests,
-                visibleRequestCount: messageRequestService.pendingRequests.count,
-                onOpen: onOpenRequest,
-                onAction: presentActions
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        }
+        MessageRequestsInboxContent(
+            recentRequests: recentRequests,
+            olderRequests: olderRequests,
+            hiddenRequests: messageRequestService.hiddenRequests,
+            showingOlderRequests: showingOlderRequests,
+            visibleOlderRequestCount: visibleOlderRequestCount,
+            isEditing: isEditing,
+            selectedRequestIDs: selectedRequestIDs,
+            onOpen: handleOpen,
+            onAction: presentActions,
+            onToggleSelection: toggleSelection,
+            onShowAll: showOlderRequests,
+            onLoadMore: loadMoreOlderRequests,
+            onDeleteAll: { showingDeleteAllConfirmation = true }
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(backgroundColor.ignoresSafeArea())
         .navigationTitle("messageRequests.title")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(backgroundColor, for: .navigationBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if isEditing {
+                    Button("messageRequests.delete", role: .destructive) {
+                        showingDeleteSelectedConfirmation = true
+                    }
+                    .disabled(selectedRequestIDs.isEmpty)
+                }
+                Button(isEditing ? "common.done" : "common.edit") {
+                    if isEditing {
+                        selectedRequestIDs.removeAll()
+                    }
+                    isEditing.toggle()
+                }
+                .disabled(allRequests.isEmpty && !isEditing)
+            }
+        }
         .momentsFloatingTabBarHidden()
         .task {
             guard let userId = Auth.auth().currentUser?.uid else { return }
             messageRequestService.listenToPendingRequests(for: userId)
         }
+        .onChange(of: allRequests.map(Self.requestID)) { _, ids in
+            selectedRequestIDs = selectedRequestIDs.intersection(Set(ids))
+            if allRequests.isEmpty {
+                isEditing = false
+            }
+        }
         .confirmationDialog("messageRequests.request.title", isPresented: $showingActions, presenting: actionRequest) { request in
             Button("messageRequests.accept") { accept(request) }
-            if selectedFolder == .hidden {
-                Button("messageRequests.moveToRequests") { move(request, to: .normal) }
-            } else {
-                Button("messageRequests.moveToHidden") { move(request, to: .hidden) }
-            }
             Button("messageRequests.report", role: .destructive) { report(request) }
             Button("messageRequests.delete", role: .destructive) { reject(request) }
             Button("messageRequests.blockUser", role: .destructive) { block(request) }
@@ -60,135 +103,442 @@ struct MessageRequestsView: View {
         } message: { _ in
             Text("messageRequests.request.message")
         }
+        .confirmationDialog("messageRequests.deleteAll.confirmation.title", isPresented: $showingDeleteAllConfirmation) {
+            Button("messageRequests.deleteAll", role: .destructive, action: deleteAllRequests)
+            Button("common.cancel", role: .cancel) { }
+        } message: {
+            Text("messageRequests.deleteAll.confirmation.message")
+        }
+        .confirmationDialog("messageRequests.deleteAll.confirmation.title", isPresented: $showingDeleteSelectedConfirmation) {
+            Button("messageRequests.delete", role: .destructive, action: deleteSelectedRequests)
+            Button("common.cancel", role: .cancel) { }
+        } message: {
+            Text("messageRequests.deleteAll.confirmation.message")
+        }
     }
 
     private var backgroundColor: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }
 
+    private func handleOpen(_ request: MessageRequest) {
+        if isEditing {
+            toggleSelection(request)
+        } else {
+            onOpenRequest(request)
+        }
+    }
+
     private func presentActions(_ request: MessageRequest) {
+        guard !isEditing else { return }
         actionRequest = request
         showingActions = true
     }
 
+    private func toggleSelection(_ request: MessageRequest) {
+        let id = Self.requestID(request)
+        if selectedRequestIDs.contains(id) {
+            selectedRequestIDs.remove(id)
+        } else {
+            selectedRequestIDs.insert(id)
+        }
+    }
+
     private func accept(_ request: MessageRequest) {
-        messageRequestService.acceptRequest(request) { _ in }
+        messageRequestService.acceptRequest(request) { result in
+            if case .success = result {
+                InAppNotificationService.shared.showActionToast(.messageRequestAccepted)
+            }
+        }
     }
 
     private func reject(_ request: MessageRequest) {
-        messageRequestService.rejectRequest(request) { _ in }
+        messageRequestService.rejectRequest(request) { result in
+            if case .success = result {
+                InAppNotificationService.shared.showActionToast(.messageRequestDeleted)
+            }
+        }
     }
 
     private func block(_ request: MessageRequest) {
-        messageRequestService.blockUser(request) { _ in }
+        let username = request.senderUsername
+            ?? NSLocalizedString("messaging.user.default", comment: "")
+        messageRequestService.blockUser(request) { result in
+            if case .success = result {
+                InAppNotificationService.shared.showActionToast(.blocked(username))
+            }
+        }
     }
 
     private func report(_ request: MessageRequest) {
-        messageRequestService.reportRequest(request) { _ in }
-    }
-
-    private func move(_ request: MessageRequest, to folder: MessageRequestFolder) {
-        messageRequestService.moveRequest(request, to: folder) { _ in }
-    }
-}
-
-private struct MessageRequestFolderPicker: View {
-    @Binding var selection: MessageRequestFolder
-
-    var body: some View {
-        Picker("messageRequests.folder.picker", selection: $selection) {
-            Text("messageRequests.folder.requests").tag(MessageRequestFolder.normal)
-            Text("messageRequests.folder.old").tag(MessageRequestFolder.old)
-            Text("messageRequests.folder.hidden").tag(MessageRequestFolder.hidden)
+        messageRequestService.reportRequest(request) { result in
+            if case .success = result {
+                InAppNotificationService.shared.showActionToast(.messageRequestReported)
+            }
         }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+    }
+
+    private func showOlderRequests() {
+        visibleOlderRequestCount = min(10, olderRequests.count)
+        showingOlderRequests = true
+    }
+
+    private func loadMoreOlderRequests() {
+        visibleOlderRequestCount = min(visibleOlderRequestCount + 10, olderRequests.count)
+    }
+
+    private func deleteAllRequests() {
+        let targets = allRequests
+        guard !targets.isEmpty else { return }
+        targets.forEach { request in
+            messageRequestService.rejectRequest(request) { _ in }
+        }
+        selectedRequestIDs.removeAll()
+        isEditing = false
+        InAppNotificationService.shared.showActionToast(.messageRequestsDeleted)
+    }
+
+    private func deleteSelectedRequests() {
+        let targets = selectedRequests
+        guard !targets.isEmpty else { return }
+        targets.forEach { request in
+            messageRequestService.rejectRequest(request) { _ in }
+        }
+        selectedRequestIDs.removeAll()
+        isEditing = false
+        InAppNotificationService.shared.showActionToast(
+            targets.count == 1 ? .messageRequestDeleted : .messageRequestsDeleted
+        )
+    }
+
+    static func requestID(_ request: MessageRequest) -> String {
+        request.id ?? "\(request.senderId)_\(request.timestamp.timeIntervalSince1970)"
     }
 }
 
-private struct MessageRequestFolderContent: View {
-    let folder: MessageRequestFolder
+private struct MessageRequestsInboxContent: View {
+    let recentRequests: [MessageRequest]
+    let olderRequests: [MessageRequest]
+    let hiddenRequests: [MessageRequest]
+    let showingOlderRequests: Bool
+    let visibleOlderRequestCount: Int
+    let isEditing: Bool
+    let selectedRequestIDs: Set<String>
+    let onOpen: (MessageRequest) -> Void
+    let onAction: (MessageRequest) -> Void
+    let onToggleSelection: (MessageRequest) -> Void
+    let onShowAll: () -> Void
+    let onLoadMore: () -> Void
+    let onDeleteAll: () -> Void
+
+    private var visibleOlderRequests: [MessageRequest] {
+        Array(olderRequests.prefix(visibleOlderRequestCount))
+    }
+
+    private var canLoadMore: Bool {
+        visibleOlderRequests.count < olderRequests.count
+    }
+
+    private var hasVisibleRequests: Bool {
+        !recentRequests.isEmpty || (showingOlderRequests && !visibleOlderRequests.isEmpty)
+    }
+
+    @ViewBuilder
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            inboxList
+                .safeAreaBar(edge: .bottom) {
+                    deleteAllBar
+                }
+        } else {
+            inboxList
+                .safeAreaInset(edge: .bottom) {
+                    deleteAllFallback
+                }
+        }
+    }
+
+    private var inboxList: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                if hasVisibleRequests {
+                    MessageRequestPrivacyNotice()
+                } else {
+                    MessageRequestHiddenNavigationLink(
+                        requests: hiddenRequests,
+                        count: hiddenRequests.count,
+                        onOpen: onOpen,
+                        onAction: onAction
+                    )
+                    MessageRequestRecentEmptyState()
+                }
+
+                if !recentRequests.isEmpty {
+                    MessageRequestList(
+                        requests: recentRequests,
+                        isEditing: isEditing,
+                        selectedRequestIDs: selectedRequestIDs,
+                        onOpen: onOpen,
+                        onAction: onAction,
+                        onToggleSelection: onToggleSelection
+                    )
+                }
+
+                if showingOlderRequests {
+                    MessageRequestList(
+                        requests: visibleOlderRequests,
+                        isEditing: isEditing,
+                        selectedRequestIDs: selectedRequestIDs,
+                        onOpen: onOpen,
+                        onAction: onAction,
+                        onToggleSelection: onToggleSelection
+                    )
+                    if canLoadMore {
+                        Button("messageRequests.loadMore", action: onLoadMore)
+                            .buttonStyle(.plain)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .padding(.vertical, 18)
+                    }
+                } else {
+                    Button("common.viewAll", action: onShowAll)
+                        .buttonStyle(.plain)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .padding(.vertical, 18)
+                }
+
+                if hasVisibleRequests {
+                    MessageRequestHiddenNavigationLink(
+                        requests: hiddenRequests,
+                        count: hiddenRequests.count,
+                        onOpen: onOpen,
+                        onAction: onAction
+                    )
+                }
+
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 24)
+        }
+        .scrollContentBackground(.hidden)
+        .momentsScrollEdgeChrome()
+    }
+
+    @available(iOS 26.0, *)
+    @ViewBuilder
+    private var deleteAllBar: some View {
+        if showingOlderRequests && !visibleOlderRequests.isEmpty && !isEditing {
+            Button("messageRequests.deleteAll", role: .destructive, action: onDeleteAll)
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.capsule)
+                .tint(.red)
+                .padding(.vertical, 6)
+        }
+    }
+
+    @ViewBuilder
+    private var deleteAllFallback: some View {
+        if showingOlderRequests && !visibleOlderRequests.isEmpty && !isEditing {
+            Button("messageRequests.deleteAll", role: .destructive, action: onDeleteAll)
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .tint(.red)
+                .padding(.vertical, 6)
+        }
+    }
+}
+
+private struct MessageRequestPrivacyNotice: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("messageRequests.privacy.description")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            NavigationLink {
+                SettingsView()
+            } label: {
+                Text("messageRequests.privacy.settings")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
+    }
+}
+
+private struct MessageRequestHiddenNavigationLink: View {
     let requests: [MessageRequest]
-    let visibleRequestCount: Int
+    let count: Int
     let onOpen: (MessageRequest) -> Void
     let onAction: (MessageRequest) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            MessageRequestCountHeader(folder: folder, count: visibleRequestCount)
-            if requests.isEmpty {
-                MessageRequestEmptyState(folder: folder)
-            } else {
-                MessageRequestList(
-                    requests: requests,
+        NavigationLink {
+            MessageRequestHiddenDestination(
+                requests: requests,
+                onOpen: onOpen,
+                onAction: onAction
+            )
+        } label: {
+            MessageRequestHiddenLink(count: count)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct MessageRequestHiddenLink: View {
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "eye.slash")
+                .font(.title3.weight(.medium))
+                .frame(width: 28)
+            Text("messageRequests.hidden.title")
+                .font(.body.weight(.semibold))
+            Spacer()
+            if count > 0 {
+                Text(count, format: .number)
+                    .foregroundStyle(.secondary)
+            }
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 16)
+    }
+}
+
+private struct MessageRequestHiddenDestination: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var showingOlderRequests = false
+    @State private var visibleOlderRequestCount = 10
+
+    let requests: [MessageRequest]
+    let onOpen: (MessageRequest) -> Void
+    let onAction: (MessageRequest) -> Void
+
+    private var recentRequests: [MessageRequest] {
+        requests.filter { $0.lastActivityAt >= thirtyDaysAgo }
+    }
+
+    private var olderRequests: [MessageRequest] {
+        requests.filter { $0.lastActivityAt < thirtyDaysAgo }
+    }
+
+    private var visibleOlderRequests: [MessageRequest] {
+        Array(olderRequests.prefix(visibleOlderRequestCount))
+    }
+
+    private var canLoadMore: Bool {
+        visibleOlderRequests.count < olderRequests.count
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                if recentRequests.isEmpty {
+                    MessageRequestHiddenEmptyState()
+                } else {
+                    MessageRequestList(
+                        requests: recentRequests,
+                        isEditing: false,
+                        selectedRequestIDs: [],
+                        onOpen: onOpen,
+                        onAction: onAction,
+                        onToggleSelection: { _ in }
+                    )
+                }
+
+                MessageRequestOlderRequestsControl(
+                    olderRequests: visibleOlderRequests,
+                    hasMore: canLoadMore,
+                    isShowingOlderRequests: showingOlderRequests,
                     onOpen: onOpen,
-                    onAction: onAction
+                    onAction: onAction,
+                    onShowAll: showOlderRequests,
+                    onLoadMore: loadMoreOlderRequests
+                )
+
+                NavigationLink {
+                    MuteSettingsView()
+                } label: {
+                    Text("messageRequests.hidden.preferences")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 22)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.bottom, 24)
+        }
+        .momentsScrollEdgeChrome()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(backgroundColor.ignoresSafeArea())
+        .navigationTitle("messageRequests.hidden.title")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(backgroundColor, for: .navigationBar)
+        .momentsFloatingTabBarHidden()
+    }
+
+    private var backgroundColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    private var thirtyDaysAgo: Date {
+        Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? .distantPast
+    }
+
+    private func showOlderRequests() {
+        visibleOlderRequestCount = min(10, olderRequests.count)
+        showingOlderRequests = true
+    }
+
+    private func loadMoreOlderRequests() {
+        visibleOlderRequestCount = min(visibleOlderRequestCount + 10, olderRequests.count)
+    }
+}
+
+private struct MessageRequestList: View {
+    let requests: [MessageRequest]
+    let isEditing: Bool
+    let selectedRequestIDs: Set<String>
+    let onOpen: (MessageRequest) -> Void
+    let onAction: (MessageRequest) -> Void
+    let onToggleSelection: (MessageRequest) -> Void
+
+    var body: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(requests) { request in
+                MessageRequestListRow(
+                    request: request,
+                    isEditing: isEditing,
+                    isSelected: selectedRequestIDs.contains(MessageRequestsView.requestID(request)),
+                    onTap: { onOpen(request) },
+                    onAction: { onAction(request) },
+                    onToggleSelection: { onToggleSelection(request) }
                 )
             }
         }
     }
 }
 
-private struct MessageRequestCountHeader: View {
-    let folder: MessageRequestFolder
-    let count: Int
-
-    var body: some View {
-        VStack {
-            if folder == .normal, count > 0 {
-                Text(String(
-                    format: NSLocalizedString(
-                        count == 1 ? "messageRequests.count" : "messageRequests.count.plural",
-                        comment: ""
-                    ),
-                    count
-                ))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.clear.momentsChromeGlass(in: Capsule()))
-                    .padding(.bottom, 8)
-            }
-        }
-    }
-}
-
-private struct MessageRequestList: View {
-    let requests: [MessageRequest]
-    let onOpen: (MessageRequest) -> Void
-    let onAction: (MessageRequest) -> Void
-
-    var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(requests) { request in
-                    MessageRequestListRow(
-                        request: request,
-                        onTap: { onOpen(request) },
-                        onAction: { onAction(request) }
-                    )
-                }
-            }
-            .padding(.bottom, 24)
-        }
-        .scrollContentBackground(.hidden)
-        .momentsScrollEdgeChrome()
-    }
-}
-
-private struct MessageRequestEmptyState: View {
-    let folder: MessageRequestFolder
-
+private struct MessageRequestRecentEmptyState: View {
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: folder == .hidden ? "eye.slash" : folder == .old ? "archivebox" : "message")
+            Image(systemName: "paperplane")
                 .font(.title2.weight(.medium))
-                .foregroundStyle(.secondary.opacity(0.72))
-            Text(title)
+                .frame(width: 88, height: 88)
+                .overlay(Circle().stroke(.secondary, lineWidth: 2))
+                .foregroundStyle(.primary)
+            Text("messageRequests.recent.empty.title")
                 .font(.headline)
-            Text(description)
+            Text("messageRequests.recent.empty.description")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -198,31 +548,95 @@ private struct MessageRequestEmptyState: View {
         .padding(.top, 96)
         .momentsEmptyStateAppear()
     }
+}
 
-    private var title: LocalizedStringKey {
-        switch folder {
-        case .normal: "messageRequests.empty.title"
-        case .old: "messageRequests.old.empty.title"
-        case .hidden: "messageRequests.hidden.empty.title"
+private struct MessageRequestHiddenEmptyState: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "paperplane")
+                .font(.title2.weight(.medium))
+                .frame(width: 88, height: 88)
+                .overlay(Circle().stroke(.secondary, lineWidth: 2))
+                .foregroundStyle(.primary)
+            Text("messageRequests.hidden.empty.title")
+                .font(.headline)
+            Text("messageRequests.hidden.empty.description")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 28)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 96)
+        .momentsEmptyStateAppear()
     }
+}
 
-    private var description: LocalizedStringKey {
-        switch folder {
-        case .normal: "messageRequests.empty.description"
-        case .old: "messageRequests.old.empty.description"
-        case .hidden: "messageRequests.hidden.empty.description"
+private struct MessageRequestOlderRequestsControl: View {
+    let olderRequests: [MessageRequest]
+    let hasMore: Bool
+    let isShowingOlderRequests: Bool
+    let onOpen: (MessageRequest) -> Void
+    let onAction: (MessageRequest) -> Void
+    let onShowAll: () -> Void
+    let onLoadMore: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if isShowingOlderRequests {
+                MessageRequestList(
+                    requests: olderRequests,
+                    isEditing: false,
+                    selectedRequestIDs: [],
+                    onOpen: onOpen,
+                    onAction: onAction,
+                    onToggleSelection: { _ in }
+                )
+                if hasMore {
+                    Button("messageRequests.loadMore", action: onLoadMore)
+                        .buttonStyle(.plain)
+                        .font(.body.weight(.semibold))
+                        .padding(.vertical, 18)
+                }
+            } else {
+                VStack(spacing: 6) {
+                    Text("messageRequests.recent.empty.description")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button("common.viewAll", action: onShowAll)
+                        .buttonStyle(.plain)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 28)
+                .padding(.top, 22)
+            }
         }
     }
 }
 
 private struct MessageRequestListRow: View {
     let request: MessageRequest
+    let isEditing: Bool
+    let isSelected: Bool
     let onTap: () -> Void
     let onAction: () -> Void
+    let onToggleSelection: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
+            if isEditing {
+                Button(action: onToggleSelection) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+            }
+
             Button(action: onTap) {
                 MessageRequestAvatar(path: request.senderProfileImagePath)
             }
@@ -238,14 +652,16 @@ private struct MessageRequestListRow: View {
             }
             .buttonStyle(.plain)
 
-            Button(action: onAction) {
-                Image(systemName: "ellipsis")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 34, height: 34)
-                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
+            if !isEditing {
+                Button(action: onAction) {
+                    Image(systemName: "ellipsis")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 34, height: 34)
+                        .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)

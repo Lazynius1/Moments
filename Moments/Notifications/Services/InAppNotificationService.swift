@@ -123,6 +123,34 @@ struct InAppActionToast: Identifiable {
         )
     }
 
+    static var messageRequestDeleted: InAppActionToast {
+        InAppActionToast(
+            systemImage: "trash.fill",
+            prefix: NSLocalizedString("toast.action.messageRequestDeleted", value: "Message request deleted", comment: "")
+        )
+    }
+
+    static var messageRequestsDeleted: InAppActionToast {
+        InAppActionToast(
+            systemImage: "trash.fill",
+            prefix: NSLocalizedString("toast.action.messageRequestsDeleted", value: "Message requests deleted", comment: "")
+        )
+    }
+
+    static var messageRequestReported: InAppActionToast {
+        InAppActionToast(
+            systemImage: "exclamationmark.bubble.fill",
+            prefix: NSLocalizedString("toast.action.messageRequestReported", value: "Message request reported", comment: "")
+        )
+    }
+
+    static var messageRequestAccepted: InAppActionToast {
+        InAppActionToast(
+            systemImage: "checkmark.circle.fill",
+            prefix: NSLocalizedString("toast.action.messageRequestAccepted", value: "Message request accepted", comment: "")
+        )
+    }
+
     static func followed(_ username: String) -> InAppActionToast {
         personToast(icon: "person.fill.checkmark", prefixKey: "toast.action.followed", fallback: "Sigues a ", username: username)
     }

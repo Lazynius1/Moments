@@ -262,24 +262,46 @@ struct ModernProfileHeader: View {
 
     private var ownProfileActionRow: some View {
         HStack(spacing: 10) {
+            editProfileButton
+            .matchedTransitionSource(id: "edit-profile-view", in: profileZoomNamespace)
+        }
+    }
+
+    @ViewBuilder
+    private var editProfileButton: some View {
+        if #available(iOS 26.0, *) {
             Button {
                 newBio = viewModel.userProfile?.bio ?? ""
                 isShowingEditProfile = true
             } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(NSLocalizedString("profile.editButton", comment: "Edit profile"))
-                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                }
-                .foregroundStyle(colorScheme == .dark ? .white : .black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .momentsChromeGlass(in: Capsule(), interactive: true)
+                editProfileLabel
             }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
+            .frame(minHeight: 44)
+        } else {
+            Button {
+                newBio = viewModel.userProfile?.bio ?? ""
+                isShowingEditProfile = true
+            } label: {
+                editProfileLabel
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
+            }
+            .frame(minHeight: 44)
             .buttonStyle(.momentsPressSubtle)
-            .matchedTransitionSource(id: "edit-profile-view", in: profileZoomNamespace)
         }
+    }
+
+    private var editProfileLabel: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "pencil")
+                .font(.system(size: 13, weight: .semibold))
+            Text(NSLocalizedString("profile.editButton", comment: "Edit profile"))
+                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+        }
+        .foregroundStyle(colorScheme == .dark ? .white : .black)
     }
 
     private var compactAvatar: some View {

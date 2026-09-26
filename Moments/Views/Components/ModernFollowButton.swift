@@ -42,6 +42,24 @@ struct ModernFollowButton: View {
     private var renderState: FollowButtonState { displayedState ?? state }
     private var hasResolvedRelationship: Bool { targetUserId == nil || displayedState != nil }
     private var showsFollowingChevron: Bool { isProfileHeader && renderState.isFollowingOrMutual }
+    /// "Seguir" y "Solicitar" son la llamada a la acción de este control.
+    /// Los estados ya establecidos conservan una jerarquía visual secundaria.
+    private var usesProminentGlass: Bool {
+        switch renderState {
+        case .canFollow, .canRequestFollow:
+            true
+        default:
+            false
+        }
+    }
+    /// La acción principal invierte el canvas de Moments en vez de introducir
+    /// un color de marca ajeno a la interfaz.
+    private var prominentGlassTint: Color {
+        colorScheme == .dark ? MomentsGlassButtonTint.light : MomentsGlassButtonTint.dark
+    }
+    private var prominentContentColor: Color {
+        colorScheme == .dark ? MomentsGlassButtonTint.dark : MomentsGlassButtonTint.light
+    }
     private var relationshipTaskId: String {
         "\(Auth.auth().currentUser?.uid ?? "")|\(targetUserId ?? "")"
     }
@@ -87,40 +105,7 @@ struct ModernFollowButton: View {
     }
 
     var body: some View {
-        Button(action: handleTap) {
-            HStack(spacing: contentSpacing) {
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(0.8)
-                        .tint(adaptiveColors.primary)
-                } else if renderState == .mutuals {
-                    AudienceIconView(
-                        audience: .mutuals,
-                        size: isCompact ? 11 : 13,
-                        tintColor: adaptiveColors.primary
-                    )
-                } else if showsLeadIcon {
-                    Image(systemName: iconName)
-                        .font(.system(size: iconFontSize, weight: .semibold))
-                }
-
-                Text(title)
-                    .font(.system(size: titleFontSize, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(isCompact ? 0.82 : 0.85)
-                    .allowsTightening(isCompact || isProfileHeader)
-
-                if showsFollowingChevron {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
-                }
-            }
-            .foregroundStyle(adaptiveColors.primary)
-            .padding(.horizontal, horizontalPadding)
-            .padding(.vertical, verticalPadding)
-            .momentsChromeGlass(in: Capsule(), interactive: renderState.isActionable)
-        }
+        glassStyledButton
         .disabled(isLoading || !renderState.isActionable || !hasResolvedRelationship)
         .opacity(hasResolvedRelationship ? (renderState == .requestPending ? 0.78 : 1) : 0)
         .accessibilityHidden(!hasResolvedRelationship)
@@ -164,6 +149,69 @@ struct ModernFollowButton: View {
         } message: {
             Text(NSLocalizedString("userProfile.cancelRequest.confirm.message", comment: ""))
         }
+    }
+
+    @ViewBuilder
+    private var glassStyledButton: some View {
+        if #available(iOS 26.0, *) {
+            if usesProminentGlass {
+                followButton
+                    .buttonStyle(.glassProminent)
+                    .buttonBorderShape(.capsule)
+                    .tint(prominentGlassTint)
+            } else {
+                followButton
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.capsule)
+            }
+        } else {
+            // Conserva la apariencia y la respuesta táctil en sistemas sin Liquid Glass.
+            followButton
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, verticalPadding)
+                .momentsChromeGlass(
+                    in: Capsule(),
+                    interactive: renderState.isActionable && !isLoading,
+                    style: usesProminentGlass ? .tinted : .native,
+                    tint: usesProminentGlass ? prominentGlassTint : nil
+                )
+                .buttonStyle(.momentsPressSubtle)
+        }
+    }
+
+    private var followButton: some View {
+        Button(action: handleTap) {
+            HStack(spacing: contentSpacing) {
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .scaleEffect(0.8)
+                        .tint(adaptiveColors.primary)
+                } else if renderState == .mutuals {
+                    AudienceIconView(
+                        audience: .mutuals,
+                        size: isCompact ? 11 : 13,
+                        tintColor: adaptiveColors.primary
+                    )
+                } else if showsLeadIcon {
+                    Image(systemName: iconName)
+                        .font(.system(size: iconFontSize, weight: .semibold))
+                }
+
+                Text(title)
+                    .font(.system(size: titleFontSize, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(isCompact ? 0.82 : 0.85)
+                    .allowsTightening(isCompact || isProfileHeader)
+
+                if showsFollowingChevron {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                }
+            }
+            .foregroundStyle(usesProminentGlass ? prominentContentColor : adaptiveColors.primary)
+        }
+        .frame(minHeight: 44)
     }
 
     private func handleTap() {
