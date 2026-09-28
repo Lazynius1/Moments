@@ -1191,7 +1191,7 @@
 "messageRequests.recent.header" = "Recent requests";
 "messageRequests.recent.empty.title" = "No recent message requests";
 "messageRequests.recent.empty.description" = "Requests older than 30 days aren't shown here.";
-"messageRequests.loadMore" = "Load 10 more";
+"messageRequests.loadMore" = "Show more message requests";
 "messageRequests.deleteAll" = "Delete all";
 "messageRequests.deleteAll.confirmation.title" = "Delete all requests?";
 "messageRequests.deleteAll.confirmation.message" = "This action can't be undone.";
@@ -1347,6 +1347,13 @@
 "audience.more" = "More";
 "audience.list.deleteMember.title" = "Remove member";
 "audience.list.deleteMember.message" = "Remove %@ from this list?";
+"audience.manageMembers" = "Manage members";
+"audience.list.updated" = "List updated";
+"audience.list.membersRemoved.single" = "You removed %@ from %@";
+"audience.list.membersRemoved.plural" = "You removed %@ and %d more from %@";
+"audience.manageMembers.remove.title" = "Remove members from the list?";
+"audience.manageMembers.remove.single" = "You’re about to remove %@ from “%@”. This change will be saved immediately.";
+"audience.manageMembers.remove.plural" = "You’re about to remove %@ and %d more people from “%@”. This change will be saved immediately.";
 "audience.picker.title" = "Add Members";
 "audience.picker.searchPlaceholder" = "Search people...";
 "audience.picker.initialTitle" = "Search people";
@@ -4028,6 +4035,17 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "hiddenLayers.metrics.status.pending" = "Pending";
 "hiddenLayers.metrics.status.scheduled" = "Opens %@";
 "hiddenLayers.metrics.status.available" = "Live";
+"hiddenLayers.hint.appearance.title" = "Appearance on discovery";
+"hiddenLayers.hint.appearance.a11y" = "Hidden layer appearance";
+"hiddenLayers.hint.style.blackAndWhite" = "B&W";
+"hiddenLayers.hint.style.actual" = "Gold";
+"hiddenLayers.hint.style.polar" = "Polar";
+"hiddenLayers.hint.style.ember" = "Ember";
+"hiddenLayers.hint.style.ultraviolet" = "Ultra";
+"hiddenLayers.hint.style.aurora" = "Aurora";
+"hiddenLayers.hint.style.rose" = "Rose";
+"hiddenLayers.hint.style.plasma" = "Plasma";
+"hiddenLayers.hint.style.daylight" = "Sky";
 "explore.error.notAuthenticated" = "User not authenticated. Please sign in.";
 "explore.error.loadProfile" = "Could not load your profile: %@";
 "explore.error.loadMoments" = "Could not load moments: %@";
@@ -4656,9 +4674,10 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "Not interested";
-"forYou.feedback.subtitle" = "Show fewer similar posts";
+"forYou.feedback.subtitle" = "We'll show fewer similar posts";
 "forYou.feedback.saving" = "Saving preference…";
-"forYou.feedback.hidden" = "Post hidden. We’ll show fewer similar posts.";
+"forYou.feedback.hidden" = "Post hidden";
+"forYou.feedback.saved" = "Preference saved";
 "forYou.feedback.restored" = "Preference undone.";
 "forYou.feedback.failed" = "Couldn’t save your preference. Please try again.";
 "forYou.feedback.undo" = "Undo";
@@ -4883,5 +4902,13 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "toast.action.unfollowed.suffix" = "";
 "toast.action.blocked.suffix" = "";
 "toast.action.muted.suffix" = "";
+"toast.action.profileUpdated" = "Profile updated";
+"toast.action.profilePhotoUpdated" = "Profile photo updated";
+"toast.action.profilePhotoRemoved" = "Profile photo removed";
+"toast.action.highlightCreated" = "Highlight created";
+"toast.action.highlightUpdated" = "Highlight updated";
+"toast.action.highlightDeleted" = "Highlight deleted";
+"toast.action.bestFriendsLeft.prefix" = "You left ";
+"toast.action.bestFriendsLeft.suffix" = "'s close friends";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";

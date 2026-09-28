@@ -1263,6 +1263,13 @@
 "audience.more" = "더 보기";
 "audience.list.deleteMember.title" = "멤버 삭제";
 "audience.list.deleteMember.message" = "%@님을 이 리스트에서 삭제할까요?";
+"audience.manageMembers" = "멤버 관리";
+"audience.list.updated" = "리스트 업데이트됨";
+"audience.list.membersRemoved.single" = "%@님을 %@ 리스트에서 삭제했습니다";
+"audience.list.membersRemoved.plural" = "%@님과 추가 %d명을 %@ 리스트에서 삭제했습니다";
+"audience.manageMembers.remove.title" = "리스트에서 멤버를 삭제할까요?";
+"audience.manageMembers.remove.single" = "%@님을 “%@”에서 삭제합니다. 변경 사항은 즉시 저장됩니다.";
+"audience.manageMembers.remove.plural" = "%@님과 추가 %d명을 “%@”에서 삭제합니다. 변경 사항은 즉시 저장됩니다.";
 "audience.picker.title" = "멤버 추가";
 "audience.picker.searchPlaceholder" = "사람 검색...";
 "audience.picker.initialTitle" = "사람 검색";
@@ -3748,6 +3755,17 @@
 "hiddenLayers.metrics.status.pending" = "검토 중";
 "hiddenLayers.metrics.status.scheduled" = "%@에 열림";
 "hiddenLayers.metrics.status.available" = "라이브";
+"hiddenLayers.hint.appearance.title" = "발견 시 모양";
+"hiddenLayers.hint.appearance.a11y" = "숨겨진 레이어 모양";
+"hiddenLayers.hint.style.blackAndWhite" = "흑백";
+"hiddenLayers.hint.style.actual" = "골드";
+"hiddenLayers.hint.style.polar" = "폴라";
+"hiddenLayers.hint.style.ember" = "엠버";
+"hiddenLayers.hint.style.ultraviolet" = "울트라";
+"hiddenLayers.hint.style.aurora" = "오로라";
+"hiddenLayers.hint.style.rose" = "로즈";
+"hiddenLayers.hint.style.plasma" = "플라즈마";
+"hiddenLayers.hint.style.daylight" = "스카이";
 "explore.error.notAuthenticated" = "로그인되지 않았어요. 로그인해 주세요.";
 "explore.error.loadProfile" = "회원님의 프로필을 불러올 수 없어요: %@";
 "explore.error.loadMoments" = "모먼트를 불러올 수 없어요: %@";
@@ -4300,7 +4318,7 @@
 "messageRequests.recent.header" = "최근 요청";
 "messageRequests.recent.empty.title" = "최근 메시지 요청이 없습니다";
 "messageRequests.recent.empty.description" = "30일이 지난 요청은 여기에 표시되지 않습니다.";
-"messageRequests.loadMore" = "10개 더 불러오기";
+"messageRequests.loadMore" = "메시지 요청 더 보기";
 "messageRequests.deleteAll" = "모두 삭제";
 "messageRequests.deleteAll.confirmation.title" = "모든 요청을 삭제할까요?";
 "messageRequests.deleteAll.confirmation.message" = "이 작업은 되돌릴 수 없습니다.";
@@ -4435,9 +4453,10 @@
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "관심 없음";
-"forYou.feedback.subtitle" = "비슷한 게시물 줄이기";
+"forYou.feedback.subtitle" = "비슷한 게시물을 더 적게 표시할게요";
 "forYou.feedback.saving" = "설정 저장 중…";
-"forYou.feedback.hidden" = "게시물을 숨겼어요. 비슷한 콘텐츠가 줄어들어요.";
+"forYou.feedback.hidden" = "게시물을 숨겼어요";
+"forYou.feedback.saved" = "설정을 저장했어요";
 "forYou.feedback.restored" = "설정을 되돌렸어요.";
 "forYou.feedback.failed" = "설정을 저장하지 못했어요. 다시 시도해 주세요.";
 "forYou.feedback.undo" = "실행 취소";
@@ -4654,5 +4673,13 @@
 "toast.action.unfollowed.suffix" = "님을 언팔로우했어요";
 "toast.action.blocked.suffix" = "님을 차단했어요";
 "toast.action.muted.suffix" = "님을 뮤트했어요";
+"toast.action.profileUpdated" = "프로필을 업데이트했어요";
+"toast.action.profilePhotoUpdated" = "프로필 사진을 업데이트했어요";
+"toast.action.profilePhotoRemoved" = "프로필 사진을 삭제했어요";
+"toast.action.highlightCreated" = "하이라이트를 만들었어요";
+"toast.action.highlightUpdated" = "하이라이트를 업데이트했어요";
+"toast.action.highlightDeleted" = "하이라이트를 삭제했어요";
+"toast.action.bestFriendsLeft.prefix" = "";
+"toast.action.bestFriendsLeft.suffix" = "님의 친한 친구 목록에서 나왔어요";
 "toast.action.commentDeleted.prefix.suffix" = "님의 댓글을 삭제했어요";
 "toast.action.leftGroup.suffix" = " 그룹에서 나왔어요";

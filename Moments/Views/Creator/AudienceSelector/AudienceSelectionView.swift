@@ -26,7 +26,6 @@ struct AudienceSelectionView: View {
     @State private var selectedUsersForCustom: [AppUser] = []
     @State private var listToDelete: CustomAudienceList? // Add for deletion
     @State private var showingDeleteAlert = false // Add for deletion alert
-    @State private var showingSaveFeedback = false // Para mostrar feedback de guardado
     
     var body: some View {
         NavigationStack {
@@ -46,33 +45,6 @@ struct AudienceSelectionView: View {
                 loadSelectedUsersInfo()
             }
 
-            .overlay(
-                // ✅ Feedback de guardado
-                Group {
-                    if showingSaveFeedback {
-                        VStack {
-                            Spacer()
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("audience.saved")
-                                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                                        .foregroundStyle(.white)
-                                }
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 25)
-                                    .fill(Color(hex: "007AFF"))
-                                    .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
-                            )
-                            .padding(.bottom, 100)
-                        }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                        .animation(.spring(response: 0.5, dampingFraction: 0.7), value: showingSaveFeedback)
-                    }
-                }
-            )
         }
     }
     
@@ -91,32 +63,37 @@ struct AudienceSelectionView: View {
     }
     
     private var mainContent: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 0) {
-                    VStack(spacing: 8) {
-                        Text("audience.selection.title")
-                            .font(.system(size: legacyPoppinsSize(24), weight: .bold))
-                            .foregroundStyle(colorScheme == .dark ? .white : .black)
-                        
-                        Text("audience.selection.subtitle")
-                            .font(.system(size: legacyPoppinsSize(16)))
-                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 32)
-                    
-                    VStack(spacing: 16) {
-                        predefinedAudienceSection
-                        customListsSection
-                        manualSelectionSection
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
-                }
+        ScrollView {
+            VStack(spacing: 16) {
+                predefinedAudienceSection
+                customListsSection
+                manualSelectionSection
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 32)
+        }
+        .momentsSheetScrollHeader {
+            AudienceSelectionHeader()
+        }
+    }
+
+    private struct AudienceSelectionHeader: View {
+        @Environment(\.colorScheme) private var colorScheme
+
+        var body: some View {
+            VStack(spacing: 8) {
+                Text("audience.selection.title")
+                    .font(.system(size: legacyPoppinsSize(24), weight: .bold))
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+
+                Text("audience.selection.subtitle")
+                    .font(.system(size: legacyPoppinsSize(16)))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 20)
         }
     }
     
@@ -133,6 +110,17 @@ struct AudienceSelectionView: View {
                     navigate(to: .main, forward: false)
                 },
                 onBack: {
+                    let updatedUserIDs = selectedUsersForCustom.map(\.id)
+                    let didChange = Set(updatedUserIDs) != Set(customSelectedUsers)
+                    customSelectedUsers = updatedUserIDs
+                    selectedAudience = .custom
+                    selectedListId = nil
+                    selectedListName = nil
+                    if didChange {
+                        InAppNotificationService.shared.showActionToast(
+                            .plain("audience.saved", fallback: "Audience saved", icon: "checkmark.circle.fill")
+                        )
+                    }
                     navigate(to: .main, forward: false)
                 },
                 embeddedInFlow: true
@@ -240,6 +228,12 @@ struct AudienceSelectionView: View {
         selectedListName = nil
         customSelectedUsers = []
     }
+
+    private func showSaveFeedback() {
+        InAppNotificationService.shared.showActionToast(
+            .plain("audience.saved", fallback: "Audience saved", icon: "checkmark.circle.fill")
+        )
+    }
     
     private var customListsSection: some View {
         VStack(spacing: 12) {
@@ -252,7 +246,7 @@ struct AudienceSelectionView: View {
                 Button(action: { navigate(to: .manageLists) }) {
                     Text("audience.manage")
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundStyle(Color(hex: "007AFF"))
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
             .padding(.horizontal, 4)
@@ -276,18 +270,14 @@ struct AudienceSelectionView: View {
                             VStack(spacing: 12) {
                                 Image(systemName: "plus")
                                     .font(.system(size: 20, weight: .semibold))
-                                    .foregroundStyle(Color(hex: "007AFF"))
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .frame(width: 48, height: 48)
                                     .momentsChromeGlass(in: Circle(), interactive: true)
                                 Text("audience.create")
                                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                    .foregroundStyle(Color(hex: "007AFF"))
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                             }
                             .frame(width: 100, height: 140)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color(hex: "007AFF").opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4]))
-                            )
                         }
                         
                         ForEach(customLists) { list in
@@ -456,20 +446,6 @@ struct AudienceSelectionView: View {
         }
     }
     
-    // ✅ Función para mostrar feedback de guardado
-    private func showSaveFeedback() {
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-            showingSaveFeedback = true
-        }
-        
-        // Auto-dismiss después de 2 segundos
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
-                showingSaveFeedback = false
-            }
-        }
-    }
-    
     private func navigate(to destination: FlowDestination, forward: Bool = true) {
         navigatingForward = forward
         flowDestination = destination
@@ -491,6 +467,9 @@ struct CreateCustomListView: View {
     @State private var selectedIcon = CustomAudienceList.predefinedIcons.first!
     @State private var selectedMembers: Set<String> = []
     @State private var showingMemberPicker = false
+    @State private var showingEmojiPicker = false
+    @State private var selectedImage: UIImage?
+    @State private var showingImageCrop = false
     
     var body: some View {
         content
@@ -501,6 +480,20 @@ struct CreateCustomListView: View {
             MemberPickerView(selectedMembers: $selectedMembers)
                 .presentationBackground(.clear)
         }
+        .sheet(isPresented: $showingEmojiPicker) {
+            EmojiPickerView(isPresented: $showingEmojiPicker) { emoji in
+                selectedIcon = emoji
+                selectedImage = nil
+                hapticFeedback()
+            }
+            .presentationBackground(.clear)
+        }
+        .fullScreenCover(isPresented: $showingImageCrop) {
+            ProfileLibraryCropEntryView { croppedImage in
+                selectedImage = croppedImage
+                hapticFeedback()
+            }
+        }
     }
     
     private var content: some View {
@@ -510,9 +503,6 @@ struct CreateCustomListView: View {
                     selectedMembers: $selectedMembers,
                     embeddedInFlow: true,
                     onBack: {
-                        showingMemberPicker = false
-                    },
-                    onConfirm: {
                         showingMemberPicker = false
                     }
                 )
@@ -553,9 +543,14 @@ struct CreateCustomListView: View {
             
             ScrollView {
                 VStack(spacing: 32) {
-                    if embeddedInFlow {
-                        HStack(spacing: 12) {
-                            Button(action: { onBack?() }) {
+                    HStack(spacing: 12) {
+                        Button(action: {
+                            if embeddedInFlow {
+                                onBack?()
+                            } else {
+                                dismiss()
+                            }
+                        }) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundStyle(.primary)
@@ -582,12 +577,6 @@ struct CreateCustomListView: View {
                                 .frame(width: 40, height: 40)
                         }
                         .padding(.top, 20)
-                    } else {
-                        RoundedRectangle(cornerRadius: 2.5)
-                            .fill(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1))
-                            .frame(width: 40, height: 5)
-                            .padding(.top, 12)
-                    }
                     
                     VStack(spacing: 20) {
                         ZStack {
@@ -616,10 +605,23 @@ struct CreateCustomListView: View {
                                     .fill(Color(hex: selectedColor).opacity(0.1))
                                     .frame(width: 60, height: 60)
                                 
-                                Image(systemName: selectedIcon)
-                                    .font(.system(size: 36, weight: .bold))
+                                CustomAudienceListIcon(
+                                    icon: selectedIcon,
+                                    size: 36,
+                                    weight: .bold,
+                                    localImage: selectedImage,
+                                    imageSize: 60
+                                )
                                     .foregroundStyle(Color(hex: selectedColor))
                                     .shadow(color: Color(hex: selectedColor).opacity(0.3), radius: 5, x: 0, y: 3)
+
+                                if viewModel.isLoading && selectedImage != nil {
+                                    Circle()
+                                        .fill(.black.opacity(0.38))
+                                        .frame(width: 86, height: 86)
+                                    ProgressView()
+                                        .tint(.white)
+                                }
                             }
                         }
                         
@@ -717,6 +719,28 @@ struct CreateCustomListView: View {
                                                 hapticFeedback()
                                             }
                                     }
+
+                                    ColorPicker(
+                                        NSLocalizedString("common.color", comment: ""),
+                                        selection: Binding(
+                                            get: { Color(hex: selectedColor) },
+                                            set: { selectedColor = $0.toHex().uppercased() }
+                                        ),
+                                        supportsOpacity: false
+                                    )
+                                    .labelsHidden()
+                                    .frame(width: 42, height: 42)
+                                    .overlay {
+                                        Circle()
+                                            .stroke(
+                                                colorScheme == .dark ? .white : .black,
+                                                lineWidth: CustomAudienceList.predefinedColors.contains(selectedColor) ? 0 : 3
+                                            )
+                                            .padding(2)
+                                            .allowsHitTesting(false)
+                                    }
+                                    .scaleEffect(CustomAudienceList.predefinedColors.contains(selectedColor) ? 1 : 1.15)
+                                    .accessibilityLabel(Text(NSLocalizedString("common.color", comment: "")))
                                 }
                                 .padding(.vertical, 4)
                                 .padding(.horizontal, 4)
@@ -745,9 +769,82 @@ struct CreateCustomListView: View {
                                         .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: selectedIcon), value: selectedIcon)
                                         .onTapGesture {
                                             selectedIcon = icon
+                                            selectedImage = nil
                                             hapticFeedback()
                                         }
                                     }
+
+                                    Button {
+                                        showingEmojiPicker = true
+                                    } label: {
+                                        let isCustomEmoji = !CustomAudienceList.predefinedIcons.contains(selectedIcon)
+                                        ZStack {
+                                            Circle()
+                                                .fill(
+                                                    isCustomEmoji
+                                                        ? Color(hex: selectedColor).opacity(0.15)
+                                                        : (colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.03))
+                                                )
+                                                .frame(width: 52, height: 52)
+
+                                            CustomAudienceListIcon(
+                                                icon: isCustomEmoji ? selectedIcon : "face.smiling",
+                                                size: 22
+                                            )
+                                            .foregroundStyle(
+                                                isCustomEmoji
+                                                    ? Color(hex: selectedColor)
+                                                    : (colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3))
+                                            )
+                                        }
+                                        .background {
+                                            Circle()
+                                                .stroke(
+                                                    isCustomEmoji ? Color(hex: selectedColor).opacity(0.3) : .clear,
+                                                    lineWidth: 2
+                                                )
+                                        }
+                                        .scaleEffect(isCustomEmoji ? 1.1 : 1)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel(Text(NSLocalizedString("storyEditor.emojiPicker.title", comment: "")))
+
+                                    Button {
+                                        showingImageCrop = true
+                                    } label: {
+                                        let isPhotoSelected = selectedImage != nil
+                                        ZStack {
+                                            Circle()
+                                                .fill(
+                                                    isPhotoSelected
+                                                        ? Color(hex: selectedColor).opacity(0.15)
+                                                        : (colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.03))
+                                                )
+                                                .frame(width: 52, height: 52)
+
+                                            CustomAudienceListIcon(
+                                                icon: "photo.fill",
+                                                size: 21,
+                                                localImage: selectedImage,
+                                                imageSize: 52
+                                            )
+                                            .foregroundStyle(
+                                                isPhotoSelected
+                                                    ? Color(hex: selectedColor)
+                                                    : (colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3))
+                                            )
+                                        }
+                                        .background {
+                                            Circle()
+                                                .stroke(
+                                                    isPhotoSelected ? Color(hex: selectedColor).opacity(0.3) : .clear,
+                                                    lineWidth: 2
+                                                )
+                                        }
+                                        .scaleEffect(isPhotoSelected ? 1.1 : 1)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel(Text(NSLocalizedString("common.photo", comment: "")))
                                 }
                                 .padding(.vertical, 4)
                                 .padding(.horizontal, 4)
@@ -791,12 +888,23 @@ struct CreateCustomListView: View {
                                 description: listDescription,
                                 members: Array(selectedMembers),
                                 color: selectedColor,
-                                icon: selectedIcon
-                            ) {
-                                if embeddedInFlow {
-                                    onCompleted?()
-                                } else {
-                                    dismiss()
+                                icon: selectedIcon,
+                                image: selectedImage
+                            ) { result in
+                                switch result {
+                                case .success:
+                                    InAppNotificationService.shared.showActionToast(
+                                        .plain("audience.saved", fallback: "Audience saved", icon: "checkmark.circle.fill")
+                                    )
+                                    if embeddedInFlow {
+                                        onCompleted?()
+                                    } else {
+                                        dismiss()
+                                    }
+                                case .failure(let error):
+                                    InAppNotificationService.shared.showActionToast(
+                                        InAppActionToast(systemImage: "exclamationmark.triangle.fill", prefix: error.localizedDescription)
+                                    )
                                 }
                             }
                         }) {
@@ -978,13 +1086,17 @@ struct EditCustomListView: View {
     @State private var selectedColor: String
     @State private var selectedIcon: String
     @State private var selectedMembers: Set<String>
+    @State private var persistedListName: String
+    @State private var persistedListDescription: String
+    @State private var persistedColor: String
+    @State private var persistedIcon: String
+    @State private var persistedMembers: Set<String>
     @State private var showingMemberPicker = false
-    @State private var currentMembers: [AppUser] = []
-    @State private var isLoadingMembers = false
-    @State private var searchText = ""
-    @State private var filteredMembers: [AppUser] = []
-    @State private var visibleMembersLimit = 12
-    private let membersPageSize = 12
+    @State private var showingEmojiPicker = false
+    @State private var selectedImage: UIImage?
+    @State private var selectedImagePath: String?
+    @State private var persistedImagePath: String?
+    @State private var showingImageCrop = false
     
     init(
         list: CustomAudienceList,
@@ -1001,6 +1113,13 @@ struct EditCustomListView: View {
         _selectedColor = State(initialValue: list.color ?? CustomAudienceList.predefinedColors.first!)
         _selectedIcon = State(initialValue: list.icon ?? CustomAudienceList.predefinedIcons.first!)
         _selectedMembers = State(initialValue: Set(list.members))
+        _persistedListName = State(initialValue: list.name)
+        _persistedListDescription = State(initialValue: list.description ?? "")
+        _persistedColor = State(initialValue: list.color ?? CustomAudienceList.predefinedColors.first!)
+        _persistedIcon = State(initialValue: list.icon ?? CustomAudienceList.predefinedIcons.first!)
+        _persistedMembers = State(initialValue: Set(list.members))
+        _selectedImagePath = State(initialValue: list.imagePath)
+        _persistedImagePath = State(initialValue: list.imagePath)
     }
     
     var body: some View {
@@ -1009,19 +1128,30 @@ struct EditCustomListView: View {
             get: { !embeddedInFlow && showingMemberPicker },
             set: { showingMemberPicker = $0 }
         )) {
-            MemberPickerView(selectedMembers: $selectedMembers)
+            MemberPickerView(
+                selectedMembers: $selectedMembers,
+                existingMemberIDs: persistedMembers,
+                listName: listName,
+                onBack: closeMemberPickerSavingIfNeeded,
+                onRemoveMembers: persistMemberRemoval
+            )
                 .presentationBackground(.clear)
         }
-        .onAppear {
-            loadCurrentMembers()
-        }
-        .onChange(of: showingMemberPicker) { _, isPresented in
-            if !isPresented {
-                loadCurrentMembers()
+        .sheet(isPresented: $showingEmojiPicker) {
+            EmojiPickerView(isPresented: $showingEmojiPicker) { emoji in
+                selectedIcon = emoji
+                selectedImage = nil
+                selectedImagePath = nil
+                hapticFeedback()
             }
+            .presentationBackground(.clear)
         }
-        .onChange(of: searchText) { _, _ in
-            filterMembers()
+        .fullScreenCover(isPresented: $showingImageCrop) {
+            ProfileLibraryCropEntryView { croppedImage in
+                selectedImage = croppedImage
+                selectedImagePath = nil
+                hapticFeedback()
+            }
         }
     }
     
@@ -1030,13 +1160,11 @@ struct EditCustomListView: View {
             return AnyView(
                 MemberPickerView(
                     selectedMembers: $selectedMembers,
+                    existingMemberIDs: persistedMembers,
+                    listName: listName,
                     embeddedInFlow: true,
-                    onBack: {
-                        showingMemberPicker = false
-                    },
-                    onConfirm: {
-                        showingMemberPicker = false
-                    }
+                    onBack: closeMemberPickerSavingIfNeeded,
+                    onRemoveMembers: persistMemberRemoval
                 )
             )
         }
@@ -1075,42 +1203,6 @@ struct EditCustomListView: View {
             
             ScrollView {
                 VStack(spacing: 32) {
-                    if embeddedInFlow {
-                        HStack(spacing: 12) {
-                            Button(action: { onBack?() }) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundStyle(.primary)
-                                    .frame(width: 40, height: 40)
-                                    .momentsChromeGlass(in: Circle(), interactive: true)
-                            }
-                            .buttonStyle(.plain)
-                            
-                            Spacer()
-                            
-                            VStack(spacing: 2) {
-                                Text(NSLocalizedString("common.edit", comment: ""))
-                                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                Text(list.name)
-                                    .font(.system(size: legacyPoppinsSize(13)))
-                                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
-                            }
-                            .multilineTextAlignment(.center)
-                            
-                            Spacer()
-                            
-                            Color.clear
-                                .frame(width: 40, height: 40)
-                        }
-                        .padding(.top, 20)
-                    } else {
-                        RoundedRectangle(cornerRadius: 2.5)
-                            .fill(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1))
-                            .frame(width: 40, height: 5)
-                            .padding(.top, 12)
-                    }
-                    
                     VStack(spacing: 20) {
                         ZStack {
                             Circle()
@@ -1134,9 +1226,23 @@ struct EditCustomListView: View {
                                             )
                                     )
                                 
-                                Image(systemName: selectedIcon)
-                                    .font(.system(size: 32, weight: .bold))
+                                CustomAudienceListIcon(
+                                    icon: selectedIcon,
+                                    size: 32,
+                                    weight: .bold,
+                                    imagePath: selectedImagePath,
+                                    localImage: selectedImage,
+                                    imageSize: 76
+                                )
                                     .foregroundStyle(Color(hex: selectedColor))
+
+                                if viewModel.isLoading && selectedImage != nil {
+                                    Circle()
+                                        .fill(.black.opacity(0.38))
+                                        .frame(width: 76, height: 76)
+                                    ProgressView()
+                                        .tint(.white)
+                                }
                             }
                         }
                         
@@ -1160,61 +1266,122 @@ struct EditCustomListView: View {
                         customizationSection
                         membersManagementSection
                         
-                        Button(action: {
-                            viewModel.updateList(
-                                listId: list.id!,
-                                name: listName,
-                                description: listDescription,
-                                members: Array(selectedMembers),
-                                color: selectedColor,
-                                icon: selectedIcon
-                            ) {
-                                if embeddedInFlow {
-                                    onCompleted?()
-                                } else {
-                                    dismiss()
-                                }
-                            }
-                        }) {
-                            HStack(spacing: 10) {
-                                if viewModel.isLoading {
-                                    ProgressView().tint(.white)
-                                } else {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 20))
-                                    Text(NSLocalizedString("common.save", comment: ""))
-                                        .font(.system(size: legacyPoppinsSize(16), weight: .bold))
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(
-                                LinearGradient(
-                                    colors: [Color(hex: selectedColor), Color(hex: selectedColor).opacity(0.8)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                            .shadow(color: Color(hex: selectedColor).opacity(0.3), radius: 15, x: 0, y: 8)
-                        }
-                        .disabled(listName.isEmpty || viewModel.isLoading)
-                        .padding(.top, 8)
                     }
                     .padding(.horizontal, 4)
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 34)
             }
+            .momentsSheetScrollHeader {
+                editHeader
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         )
+    }
+
+    private var editHeader: some View {
+        HStack(spacing: 12) {
+            Button(action: saveAndCloseIfNeeded) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 40, height: 40)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            VStack(spacing: 2) {
+                Text(NSLocalizedString("common.edit", comment: ""))
+                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                Text(list.name)
+                    .font(.system(size: legacyPoppinsSize(13)))
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+            }
+            .multilineTextAlignment(.center)
+
+            Spacer()
+
+            Color.clear.frame(width: 40, height: 40)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
     }
     
     private func hapticFeedback() {
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
+    }
+
+    private var hasUnsavedChanges: Bool {
+        listName != persistedListName ||
+        listDescription != persistedListDescription ||
+        selectedColor != persistedColor ||
+        selectedIcon != persistedIcon ||
+        selectedImage != nil ||
+        selectedImagePath != persistedImagePath ||
+        selectedMembers != persistedMembers
+    }
+
+    private func closeEditor() {
+        if embeddedInFlow {
+            onBack?()
+        } else {
+            dismiss()
+        }
+    }
+
+    private func saveAndCloseIfNeeded() {
+        guard !viewModel.isLoading else { return }
+        guard hasUnsavedChanges else {
+            closeEditor()
+            return
+        }
+        guard let listId = list.id, !listName.isEmpty else { return }
+
+        viewModel.updateList(
+            listId: listId,
+            name: listName,
+            description: listDescription,
+            members: Array(selectedMembers),
+            color: selectedColor,
+            icon: selectedIcon,
+            image: selectedImage,
+            imagePath: selectedImagePath,
+            previousImagePath: persistedImagePath
+        ) { result in
+            switch result {
+            case .success(let savedImagePath):
+                selectedImage = nil
+                selectedImagePath = savedImagePath
+                InAppNotificationService.shared.showActionToast(
+                    .plain("audience.saved", fallback: "Audience saved", icon: "checkmark.circle.fill")
+                )
+                updatePersistedSnapshot()
+                if let onCompleted {
+                    onCompleted()
+                } else {
+                    closeEditor()
+                }
+            case .failure(let error):
+                InAppNotificationService.shared.showActionToast(
+                    InAppActionToast(systemImage: "exclamationmark.triangle.fill", prefix: error.localizedDescription)
+                )
+            }
+        }
+    }
+
+    private func updatePersistedSnapshot() {
+        persistedListName = listName
+        persistedListDescription = listDescription
+        persistedColor = selectedColor
+        persistedIcon = selectedIcon
+        persistedImagePath = selectedImagePath
+        persistedMembers = selectedMembers
     }
     
     private var basicInfoSection: some View {
@@ -1300,6 +1467,28 @@ struct EditCustomListView: View {
                                     hapticFeedback()
                                 }
                         }
+
+                        ColorPicker(
+                            NSLocalizedString("common.color", comment: ""),
+                            selection: Binding(
+                                get: { Color(hex: selectedColor) },
+                                set: { selectedColor = $0.toHex().uppercased() }
+                            ),
+                            supportsOpacity: false
+                        )
+                        .labelsHidden()
+                        .frame(width: 42, height: 42)
+                        .overlay {
+                            Circle()
+                                .stroke(
+                                    colorScheme == .dark ? .white : .black,
+                                    lineWidth: CustomAudienceList.predefinedColors.contains(selectedColor) ? 0 : 3
+                                )
+                                .padding(2)
+                                .allowsHitTesting(false)
+                        }
+                        .scaleEffect(CustomAudienceList.predefinedColors.contains(selectedColor) ? 1 : 1.15)
+                        .accessibilityLabel(Text(NSLocalizedString("common.color", comment: "")))
                     }
                     .padding(.vertical, 4)
                     .padding(.horizontal, 4)
@@ -1331,9 +1520,84 @@ struct EditCustomListView: View {
                             .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: selectedIcon), value: selectedIcon)
                             .onTapGesture {
                                 selectedIcon = icon
+                                selectedImage = nil
+                                selectedImagePath = nil
                                 hapticFeedback()
                             }
                         }
+
+                        Button {
+                            showingEmojiPicker = true
+                        } label: {
+                            let isCustomEmoji = !CustomAudienceList.predefinedIcons.contains(selectedIcon)
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        isCustomEmoji
+                                            ? Color(hex: selectedColor).opacity(0.15)
+                                            : (colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.03))
+                                    )
+                                    .frame(width: 52, height: 52)
+
+                                CustomAudienceListIcon(
+                                    icon: isCustomEmoji ? selectedIcon : "face.smiling",
+                                    size: 22
+                                )
+                                .foregroundStyle(
+                                    isCustomEmoji
+                                        ? Color(hex: selectedColor)
+                                        : (colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3))
+                                )
+                            }
+                            .background {
+                                Circle()
+                                    .stroke(
+                                        isCustomEmoji ? Color(hex: selectedColor).opacity(0.3) : .clear,
+                                        lineWidth: 2
+                                    )
+                            }
+                            .scaleEffect(isCustomEmoji ? 1.1 : 1)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text(NSLocalizedString("storyEditor.emojiPicker.title", comment: "")))
+
+                        Button {
+                            showingImageCrop = true
+                        } label: {
+                            let isPhotoSelected = selectedImage != nil || selectedImagePath != nil
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        isPhotoSelected
+                                            ? Color(hex: selectedColor).opacity(0.15)
+                                            : (colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.03))
+                                    )
+                                    .frame(width: 52, height: 52)
+
+                                CustomAudienceListIcon(
+                                    icon: "photo.fill",
+                                    size: 21,
+                                    imagePath: selectedImagePath,
+                                    localImage: selectedImage,
+                                    imageSize: 52
+                                )
+                                .foregroundStyle(
+                                    isPhotoSelected
+                                        ? Color(hex: selectedColor)
+                                        : (colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3))
+                                )
+                            }
+                            .background {
+                                Circle()
+                                    .stroke(
+                                        isPhotoSelected ? Color(hex: selectedColor).opacity(0.3) : .clear,
+                                        lineWidth: 2
+                                    )
+                            }
+                            .scaleEffect(isPhotoSelected ? 1.1 : 1)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text(NSLocalizedString("common.photo", comment: "")))
                     }
                     .padding(.vertical, 4)
                     .padding(.horizontal, 4)
@@ -1343,148 +1607,110 @@ struct EditCustomListView: View {
     }
     
     private var membersManagementSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Header con contador y botón agregar
-            HStack {
-                Label {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(NSLocalizedString("audience.members", comment: ""))
-                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        Text(String(format: NSLocalizedString("audience.members.count.long", comment: ""), selectedMembers.count))
-                            .font(.system(size: legacyPoppinsSize(12)))
-                            .foregroundStyle(.gray)
-                    }
-                } icon: {
-                    Image(systemName: "person.2.circle.fill")
-                }
-                .foregroundStyle(.primary)
-                
-                Spacer()
-                
-                Button(action: { showingMemberPicker = true }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.primary)
-                            .frame(width: 24, height: 24)
-                            .momentsChromeGlass(in: Circle(), interactive: true)
-                        Text(NSLocalizedString("audience.list.add", comment: ""))
-                            .foregroundStyle(.primary)
-                    }
-                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                }
-            }
-            .padding(.leading, 4)
-            
-            // Lista de miembros actuales
-            if isLoadingMembers {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-                .padding()
-            } else if currentMembers.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "person.2.slash")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.gray.opacity(0.3))
-                    Text(NSLocalizedString("audience.list.empty", comment: ""))
-                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundStyle(.gray)
-                    Text(NSLocalizedString("audience.list.emptyAlt", comment: ""))
+        Button(action: { showingMemberPicker = true }) {
+            HStack(spacing: 14) {
+                Image(systemName: "person.badge.plus")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 40, height: 40)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(NSLocalizedString("audience.picker.title", comment: ""))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text(String(format: NSLocalizedString("audience.members.count.long", comment: ""), selectedMembers.count))
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(Array(filteredMembers.prefix(visibleMembersLimit))) { member in
-                        MemberRowWithRemove(
-                            user: member,
-                            onRemove: {
-                                selectedMembers.remove(member.id)
-                                loadCurrentMembers()
-                            }
-                        )
-                    }
-                }
-                
-                if filteredMembers.count > visibleMembersLimit {
-                    Button(action: {
-                        visibleMembersLimit += membersPageSize
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.primary)
-                                .frame(width: 24, height: 24)
-                                .momentsChromeGlass(in: Circle(), interactive: true)
-                            Text(
-                                String(
-                                    format: NSLocalizedString("audience.list.loadMoreMembers", comment: "Load more members"),
-                                    min(membersPageSize, filteredMembers.count - visibleMembersLimit)
-                                )
-                            )
-                            .foregroundStyle(.primary)
-                        }
-                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                    }
-                    .padding(.top, 4)
-                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
             }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func persistMemberRemoval(
+        _ users: [AppUser],
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        guard let listId = list.id else { return }
+        let removedIDs = Set(users.map(\.id))
+        let updatedMembers = selectedMembers.subtracting(removedIDs)
+
+        viewModel.updateList(
+            listId: listId,
+            name: listName,
+            description: listDescription,
+            members: Array(updatedMembers),
+            color: selectedColor,
+            icon: selectedIcon,
+            image: selectedImage,
+            imagePath: selectedImagePath,
+            previousImagePath: persistedImagePath
+        ) { result in
+            if case .success(let savedImagePath) = result {
+                selectedImage = nil
+                selectedImagePath = savedImagePath
+                selectedMembers = updatedMembers
+                updatePersistedSnapshot()
+            }
+            completion(result.map { _ in () })
         }
     }
-    
-    private func loadCurrentMembers() {
-        guard !selectedMembers.isEmpty else {
-            currentMembers = []
-            filteredMembers = []
-            visibleMembersLimit = membersPageSize
+
+    private func closeMemberPickerSavingIfNeeded() {
+        guard selectedMembers != persistedMembers else {
+            showingMemberPicker = false
             return
         }
-        
-        isLoadingMembers = true
-        FirestoreService().fetchUsers(userIds: Array(selectedMembers)) { result in
-            DispatchQueue.main.async {
-                self.isLoadingMembers = false
-                switch result {
-                case .success(let users):
-                    self.currentMembers = users
-                    self.filterMembers()
-                    self.visibleMembersLimit = self.membersPageSize
-                case .failure:
-                    self.currentMembers = []
-                    self.filteredMembers = []
-                    self.visibleMembersLimit = self.membersPageSize
-                }
-            }
-        }
-    }
-    
-    private func filterMembers() {
-        visibleMembersLimit = membersPageSize
-        if searchText.isEmpty {
-            filteredMembers = currentMembers
-        } else {
-            filteredMembers = currentMembers.filter { user in
-                user.username.localizedCaseInsensitiveContains(searchText)
+        guard let listId = list.id, !viewModel.isLoading else { return }
+
+        viewModel.updateList(
+            listId: listId,
+            name: listName,
+            description: listDescription,
+            members: Array(selectedMembers),
+            color: selectedColor,
+            icon: selectedIcon,
+            image: selectedImage,
+            imagePath: selectedImagePath,
+            previousImagePath: persistedImagePath
+        ) { result in
+            switch result {
+            case .success(let savedImagePath):
+                selectedImage = nil
+                selectedImagePath = savedImagePath
+                updatePersistedSnapshot()
+                showingMemberPicker = false
+                InAppNotificationService.shared.showActionToast(
+                    .plain("audience.list.updated", fallback: "List updated", icon: "checkmark.circle.fill")
+                )
+            case .failure(let error):
+                InAppNotificationService.shared.showActionToast(
+                    InAppActionToast(systemImage: "exclamationmark.triangle.fill", prefix: error.localizedDescription)
+                )
             }
         }
     }
 }
 
-// MARK: - Fila de Miembro con Opción de Eliminar
-struct MemberRowWithRemove: View {
+// MARK: - Fila plana seleccionable para miembros de audiencia
+struct AudienceMemberSelectionRow: View {
     @Environment(\.colorScheme) var colorScheme
     let user: AppUser
-    let onRemove: () -> Void
-    @State private var showingRemoveAlert = false
+    let isSelected: Bool
+    let isSelectionEnabled: Bool
+    let onToggle: () -> Void
     
     var body: some View {
-        HStack(spacing: 12) {
-            // Avatar
+        Button(action: onToggle) {
+            HStack(spacing: 12) {
             Group {
                 if let urlStr = user.profileImagePath, let url = URL(string: urlStr) {
                     AsyncImage(url: url) { image in
@@ -1512,28 +1738,41 @@ struct MemberRowWithRemove: View {
                     .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
+
+                if user.isVerified {
+                    VerifiedBadge(size: 13)
+                }
             }
             
             Spacer()
-            
-            // Botón Eliminar
-            Button(action: { showingRemoveAlert = true }) {
-                Image(systemName: "minus.circle.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(.red.opacity(0.7))
-            }
-            .alert(NSLocalizedString("audience.list.deleteMember.title", comment: ""), isPresented: $showingRemoveAlert) {
-                Button(NSLocalizedString("audience.actions.cancel", comment: ""), role: .cancel) {}
-                Button(NSLocalizedString("common.delete", comment: ""), role: .destructive) {
-                    onRemove()
+
+            if isSelectionEnabled {
+                ZStack {
+                    Circle()
+                        .stroke(
+                            isSelected
+                                ? (colorScheme == .dark ? .white : .black)
+                                : (colorScheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.2)),
+                            lineWidth: isSelected ? 0 : 1.5
+                        )
+                        .background(
+                            Circle().fill(isSelected ? (colorScheme == .dark ? .white : .black) : .clear)
+                        )
+
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(colorScheme == .dark ? .black : .white)
+                    }
                 }
-            } message: {
-                Text(String(format: NSLocalizedString("audience.list.deleteMember.message", comment: ""), user.username))
+                .frame(width: 26, height: 26)
             }
         }
-        .padding(12)
-        .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isSelectionEnabled)
     }
 }
 
@@ -1542,17 +1781,35 @@ struct MemberPickerView: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var selectedMembers: Set<String>
     @Environment(\.dismiss) private var dismiss
-    var embeddedInFlow: Bool = false
-    var onBack: (() -> Void)? = nil
-    var onConfirm: (() -> Void)? = nil
+    let listName: String?
+    let embeddedInFlow: Bool
+    let onBack: (() -> Void)?
+    let onRemoveMembers: (([AppUser], @escaping (Result<Void, Error>) -> Void) -> Void)?
+    @State private var existingMemberIDs: Set<String>
+    @State private var showingManageMembers = false
     @State private var searchText = ""
     @State private var searchResults: [AppUser] = []
     @State private var isSearching = false
     @State private var hasSearched = false
     @StateObject private var firestoreService = FirestoreService()
-    @State private var selectedUsersData: [AppUser] = []
-    @State private var selectedCarouselVisibleLimit = 12
-    private let selectedCarouselPageSize = 10
+    @State private var suggestedUsers: [AppUser] = []
+    @State private var isLoadingSuggestions = true
+
+    init(
+        selectedMembers: Binding<Set<String>>,
+        existingMemberIDs: Set<String> = [],
+        listName: String? = nil,
+        embeddedInFlow: Bool = false,
+        onBack: (() -> Void)? = nil,
+        onRemoveMembers: (([AppUser], @escaping (Result<Void, Error>) -> Void) -> Void)? = nil
+    ) {
+        _selectedMembers = selectedMembers
+        _existingMemberIDs = State(initialValue: existingMemberIDs)
+        self.listName = listName
+        self.embeddedInFlow = embeddedInFlow
+        self.onBack = onBack
+        self.onRemoveMembers = onRemoveMembers
+    }
     
     private var primaryTextColor: Color {
         colorScheme == .dark ? .white : .black
@@ -1561,194 +1818,89 @@ struct MemberPickerView: View {
     private var secondaryTextColor: Color {
         colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.62)
     }
-    
-    private var subtleStrokeColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.12)
-    }
-    
-    private var visibleSelectedUsers: [AppUser] {
-        Array(selectedUsersData.prefix(selectedCarouselVisibleLimit))
-    }
-    
-    private var hiddenSelectedCount: Int {
-        max(0, selectedUsersData.count - selectedCarouselVisibleLimit)
-    }
-    
+
     var body: some View {
-        Group {
-            if embeddedInFlow {
-                content
-            } else {
-                NavigationStack {
-                    content
-                        .navigationTitle(NSLocalizedString("audience.picker.title", comment: ""))
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button(NSLocalizedString("audience.actions.cancel", comment: "")) {
-                                    closePicker()
-                                }
-                                .foregroundStyle(secondaryTextColor)
-                            }
-                            
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button(NSLocalizedString("common.confirm", comment: "")) {
-                                    confirmPicker()
-                                }
-                                .foregroundStyle(Color(hex: "00A896"))
-                                .fontWeight(.semibold)
-                                .disabled(selectedMembers.isEmpty)
-                            }
-                        }
-                }
-            }
-        }
-        .onAppear {
-            preloadSelectedUsersData()
-        }
-        .onChange(of: selectedMembers) { _, _ in
-            selectedUsersData.removeAll { !selectedMembers.contains($0.id) }
-            selectedCarouselVisibleLimit = 12
-            if selectedMembers.isEmpty {
-                selectedUsersData = []
-            }
-        }
-    }
-    
-    private var content: some View {
         ZStack {
             if !embeddedInFlow {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .ignoresSafeArea()
             }
-            
-            VStack(spacing: 0) {
-                if embeddedInFlow {
-                    HStack(spacing: 12) {
-                        Button(action: { closePicker() }) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(.primary)
-                                .frame(width: 40, height: 40)
-                                .momentsChromeGlass(in: Circle(), interactive: true)
-                        }
-                        .buttonStyle(.plain)
-                        
-                        Spacer()
-                        
-                        VStack(spacing: 2) {
-                            Text(NSLocalizedString("audience.picker.title", comment: ""))
-                                .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
-                                .foregroundStyle(primaryTextColor)
-                            Text(NSLocalizedString("audience.members", comment: ""))
-                                .font(.system(size: legacyPoppinsSize(13)))
-                                .foregroundStyle(secondaryTextColor)
-                        }
-                        .multilineTextAlignment(.center)
-                        
-                        Spacer()
-                        
-                        Button(NSLocalizedString("common.confirm", comment: "")) {
-                            confirmPicker()
-                        }
-                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 9)
-                        .momentsChromeGlass(in: Capsule(), interactive: true)
-                        .opacity(selectedMembers.isEmpty ? 0.45 : 1.0)
-                        .disabled(selectedMembers.isEmpty)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 12)
-                }
-                
-                if !selectedUsersData.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(visibleSelectedUsers) { user in
-                                VStack {
-                                    ZStack(alignment: .topTrailing) {
-                                        AsyncImage(url: URL(string: user.profileImagePath ?? "")) { image in
-                                            image.resizable().aspectRatio(contentMode: .fill)
-                                        } placeholder: {
-                                            Circle().fill(Color.gray.opacity(0.3))
-                                        }
-                                        .frame(width: 48, height: 48)
-                                        .clipShape(Circle())
-                                        .overlay(
-                                            Circle().stroke(
-                                                colorScheme == .dark ? Color.white : Color.black.opacity(0.18),
-                                                lineWidth: 2
-                                            )
-                                        )
-                                        
-                                        Button(action: {
-                                            toggleSelection(user: user)
-                                        }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundStyle(.white)
-                                                .background(Circle().fill(Color.black.opacity(0.5)))
-                                        }
-                                        .offset(x: 4, y: -4)
-                                    }
-                                    
-                                    Text(user.username)
-                                        .font(.caption)
-                                        .lineLimit(1)
-                                        .frame(width: 60)
-                                        .foregroundStyle(.primary)
-                                }
-                            }
-                            
-                            if hiddenSelectedCount > 0 {
-                                Button(action: {
-                                    selectedCarouselVisibleLimit += selectedCarouselPageSize
-                                }) {
-                                    VStack(spacing: 8) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(Color(hex: "00A896").opacity(0.18))
-                                                .frame(width: 48, height: 48)
-                                            Text("+\(hiddenSelectedCount)")
-                                                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                                                .foregroundStyle(Color(hex: "00A896"))
-                                        }
-                                        Text(NSLocalizedString("audience.more", comment: "More"))
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(1)
-                                            .frame(width: 60)
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                    }
-                    .padding(.bottom, 6)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
-                
-                searchBar
-                
-                if !hasSearched {
-                    initialStateView
-                } else if isSearching {
-                    loadingView
-                } else if searchResults.isEmpty {
-                    emptyResultsView
-                } else {
-                    resultsListView
-                }
-                
-                if !selectedMembers.isEmpty {
-                    selectedCounterFooter
-                }
+
+            if showingManageMembers, let listName {
+                AudienceManageMembersView(
+                    selectedMembers: $selectedMembers,
+                    memberIDs: existingMemberIDs.intersection(selectedMembers),
+                    listName: listName,
+                    onBack: { showingManageMembers = false },
+                    onRemoveMembers: onRemoveMembers
+                )
+            } else {
+                addMembersContent
             }
         }
+        .onAppear {
+            loadSuggestedUsers()
+        }
+        .onChange(of: selectedMembers) { _, members in
+            existingMemberIDs.formIntersection(members)
+        }
+    }
+    
+    private var addMembersContent: some View {
+        VStack(spacing: 0) {
+            MemberPickerHeader(
+                title: NSLocalizedString("audience.picker.title", comment: ""),
+                subtitle: NSLocalizedString("audience.members", comment: ""),
+                onBack: closePicker
+            )
+
+            searchBar
+
+            if listName != nil {
+                manageMembersRow
+            }
+
+            if !hasSearched {
+                initialStateView
+            } else if isSearching {
+                loadingView
+            } else if searchResults.isEmpty {
+                emptyResultsView
+            } else {
+                resultsListView
+            }
+        }
+    }
+
+    private var manageMembersRow: some View {
+        Button(action: { showingManageMembers = true }) {
+            HStack(spacing: 12) {
+                Image(systemName: "person.2")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 36, height: 36)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NSLocalizedString("audience.manageMembers", value: "Manage members", comment: "Audience list member management"))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                        .foregroundStyle(primaryTextColor)
+                    Text(String(format: NSLocalizedString("audience.members.count.long", comment: ""), existingMemberIDs.intersection(selectedMembers).count))
+                        .font(.system(size: legacyPoppinsSize(12)))
+                        .foregroundStyle(secondaryTextColor)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(secondaryTextColor)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
     
     private var searchBar: some View {
@@ -1792,24 +1944,32 @@ struct MemberPickerView: View {
     }
     
     private var initialStateView: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            
-            Image(systemName: "person.crop.circle.badge.plus")
-                .font(.system(size: 50))
-                .foregroundStyle(secondaryTextColor)
-            
-            Text(NSLocalizedString("audience.picker.initialTitle", comment: ""))
-                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
-                .foregroundStyle(colorScheme == .dark ? .white : .black)
-            
-            Text(NSLocalizedString("audience.picker.initialDescription", comment: ""))
-                .font(.system(size: legacyPoppinsSize(14)))
-                .foregroundStyle(secondaryTextColor)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            
-            Spacer()
+        Group {
+            if isLoadingSuggestions {
+                loadingView
+            } else if suggestedUsers.isEmpty {
+                VStack(spacing: 16) {
+                    Spacer()
+
+                    Image(systemName: "person.crop.circle.badge.questionmark")
+                        .font(.system(size: 50))
+                        .foregroundStyle(secondaryTextColor)
+
+                    Text(NSLocalizedString("audience.picker.initialTitle", comment: ""))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
+                        .foregroundStyle(primaryTextColor)
+
+                    Text(NSLocalizedString("audience.picker.initialDescription", comment: ""))
+                        .font(.system(size: legacyPoppinsSize(14)))
+                        .foregroundStyle(secondaryTextColor)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+
+                    Spacer()
+                }
+            } else {
+                membersList(users: suggestedUsers, sectionTitle: NSLocalizedString("messaging.new.suggestions", comment: ""))
+            }
         }
     }
     
@@ -1847,81 +2007,37 @@ struct MemberPickerView: View {
     }
     
     private var resultsListView: some View {
+        membersList(users: searchResults)
+    }
+
+    private func membersList(users: [AppUser], sectionTitle: String? = nil) -> some View {
         List {
-            ForEach(searchResults) { user in
-                UserSelectionRowEnhanced(
+            if let sectionTitle {
+                Text(sectionTitle)
+                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+                    .foregroundStyle(secondaryTextColor)
+                    .textCase(nil)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
+            ForEach(users) { user in
+                AudienceMemberSelectionRow(
                     user: user,
                     isSelected: selectedMembers.contains(user.id),
-                    onToggle: {
-                        toggleSelection(user: user)
-                    }
+                    isSelectionEnabled: true,
+                    onToggle: { toggleSelection(user: user) }
                 )
                 .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                .listRowInsets(EdgeInsets(top: 3, leading: 16, bottom: 3, trailing: 16))
+                .listRowSeparator(.hidden)
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color.clear)
         .listStyle(PlainListStyle())
         .listRowSeparator(.hidden)
-    }
-    
-    private var selectedCounterFooter: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(String(format: NSLocalizedString("audience.picker.selectedCount", comment: ""), selectedMembers.count))
-                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-                Text(NSLocalizedString("audience.picker.selectedDescription", comment: ""))
-                    .font(.system(size: legacyPoppinsSize(12)))
-                    .foregroundStyle(secondaryTextColor)
-            }
-            
-            Spacer()
-            
-            HStack(spacing: 12) {
-                Button(NSLocalizedString("common.clear", comment: "")) {
-                    selectedMembers.removeAll()
-                }
-                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                .foregroundStyle(.red)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .momentsChromeGlass(in: Capsule(), interactive: true)
-                
-                Button(NSLocalizedString("common.confirm", comment: "")) {
-                    confirmPicker()
-                }
-                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .momentsChromeGlass(in: Capsule(), interactive: true)
-                .opacity(selectedMembers.isEmpty ? 0.45 : 1.0)
-                .disabled(selectedMembers.isEmpty)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 14)
-    }
-
-    private func preloadSelectedUsersData() {
-        guard !selectedMembers.isEmpty else {
-            selectedUsersData = []
-            return
-        }
-        
-        firestoreService.fetchUsers(userIds: Array(selectedMembers)) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let users):
-                    self.selectedUsersData = users
-                case .failure:
-                    self.selectedUsersData = []
-                }
-            }
-        }
     }
     
     private func searchUsers(query: String) {
@@ -1932,10 +2048,20 @@ struct MemberPickerView: View {
                 self.isSearching = false
                 switch result {
                 case .success(let users):
-                    self.searchResults = users
+                    self.searchResults = users.filter { !self.existingMemberIDs.contains($0.id) }
                 case .failure:
                     self.searchResults = []
                 }
+            }
+        }
+    }
+
+    private func loadSuggestedUsers() {
+        isLoadingSuggestions = true
+        firestoreService.fetchNewConversationSuggestions(recentPartnerIds: []) { result in
+            DispatchQueue.main.async {
+                self.isLoadingSuggestions = false
+                self.suggestedUsers = ((try? result.get()) ?? []).filter { !self.existingMemberIDs.contains($0.id) }
             }
         }
     }
@@ -1944,97 +2070,266 @@ struct MemberPickerView: View {
     private func toggleSelection(user: AppUser) {
         if selectedMembers.contains(user.id) {
             selectedMembers.remove(user.id)
-            selectedUsersData.removeAll(where: { $0.id == user.id })
         } else {
             selectedMembers.insert(user.id)
-            if !selectedUsersData.contains(where: { $0.id == user.id }) {
-                selectedUsersData.append(user)
-            }
         }
     }
     
     private func closePicker() {
-        if embeddedInFlow {
-            onBack?()
+        if let onBack {
+            onBack()
         } else {
             dismiss()
         }
     }
     
-    private func confirmPicker() {
-        if embeddedInFlow {
-            onConfirm?()
-        } else {
-            dismiss()
+}
+
+private struct MemberPickerHeader: View {
+    let title: String
+    let subtitle: String
+    let onBack: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 40, height: 40)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
+                    .foregroundStyle(.primary)
+                Text(subtitle)
+                    .font(.system(size: legacyPoppinsSize(13)))
+                    .foregroundStyle(.secondary)
+            }
+            .multilineTextAlignment(.center)
+
+            Spacer()
+            Color.clear.frame(width: 40, height: 40)
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
     }
 }
 
-// MARK: - Card de Usuario Mejorada
-struct UserSelectionCard: View {
-    @Environment(\.colorScheme) var colorScheme
-    let user: AppUser
-    let isSelected: Bool
-    let onToggle: () -> Void
-    
+private struct AudienceManageMembersView: View {
+    @Binding var selectedMembers: Set<String>
+    let memberIDs: Set<String>
+    let listName: String
+    let onBack: () -> Void
+    let onRemoveMembers: (([AppUser], @escaping (Result<Void, Error>) -> Void) -> Void)?
+
+    @State private var members: [AppUser] = []
+    @State private var selectedForRemoval: Set<String> = []
+    @State private var isEditing = false
+    @State private var isLoading = true
+    @State private var isRemoving = false
+    @State private var showingConfirmation = false
+
     var body: some View {
-        Button(action: onToggle) {
-            HStack(spacing: 16) {
-                AsyncImage(url: URL(string: user.profileImagePath ?? "")) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle()
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 20))
+        ScrollView {
+            LazyVStack(spacing: 6) {
+                if isLoading {
+                    ProgressView().padding(.top, 40)
+                } else {
+                    ForEach(members) { user in
+                        AudienceMemberSelectionRow(
+                            user: user,
+                            isSelected: selectedForRemoval.contains(user.id),
+                            isSelectionEnabled: isEditing,
+                            onToggle: { toggle(user) }
                         )
-                }
-                .frame(width: 52, height: 52)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(
-                            isSelected ? Color(hex: "007AFF").opacity(0.35) : (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08)),
-                            lineWidth: 1
-                        )
-                )
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(user.username)
-                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                        .lineLimit(1)
-                }
-                
-                Spacer()
-                
-                ZStack {
-                    Image(systemName: isSelected ? "checkmark" : "plus")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(isSelected ? Color(hex: "007AFF") : .primary)
-                        .frame(width: 28, height: 28)
-                        .momentsChromeGlass(in: Circle(), interactive: true)
+                    }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.025))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                isSelected ? Color(hex: "007AFF").opacity(0.22) : (colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08)),
-                                lineWidth: 1
-                            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 32)
+        }
+        .momentsSheetScrollHeader {
+            manageHeader
+        }
+        .task {
+            loadMembers()
+        }
+        .alert(NSLocalizedString("audience.manageMembers.remove.title", comment: ""), isPresented: $showingConfirmation) {
+            Button(NSLocalizedString("audience.actions.cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("common.delete", comment: ""), role: .destructive) {
+                removeSelectedMembers()
+            }
+        } message: {
+            Text(removalConfirmationMessage)
+        }
+    }
+
+    private var manageHeader: some View {
+        HStack(spacing: 12) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 40, height: 40)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            VStack(spacing: 2) {
+                Text(NSLocalizedString("audience.manageMembers", value: "Manage members", comment: "Audience list member management"))
+                    .font(.system(size: legacyPoppinsSize(19), weight: .semibold))
+                Text(String(format: NSLocalizedString("audience.members.count.short", comment: ""), members.count))
+                    .font(.system(size: legacyPoppinsSize(12)))
+                    .foregroundStyle(.secondary)
+            }
+            .multilineTextAlignment(.center)
+
+            Spacer()
+
+            if selectedForRemoval.isEmpty {
+                Button(NSLocalizedString("common.edit", comment: "")) {
+                    isEditing = true
+                }
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 40)
+                .momentsChromeGlass(
+                    in: Capsule(),
+                    interactive: !isRemoving && !members.isEmpty
+                )
+                .buttonStyle(.plain)
+                .disabled(isRemoving || members.isEmpty)
+            } else {
+                Button(action: { showingConfirmation = true }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "trash")
+                        Text("\(selectedForRemoval.count)")
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.red)
+                    .frame(minWidth: 54, minHeight: 40)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
+                }
+                .buttonStyle(.plain)
+                .disabled(isRemoving)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
+    }
+
+    private func loadMembers() {
+        guard !memberIDs.isEmpty else {
+            members = []
+            isLoading = false
+            return
+        }
+
+        FirestoreService().fetchUsers(userIds: Array(memberIDs)) { result in
+            DispatchQueue.main.async {
+                members = (try? result.get()) ?? []
+                isLoading = false
+            }
+        }
+    }
+
+    private func toggle(_ user: AppUser) {
+        guard isEditing else { return }
+        if selectedForRemoval.contains(user.id) {
+            selectedForRemoval.remove(user.id)
+        } else {
+            selectedForRemoval.insert(user.id)
+        }
+    }
+
+    private func removeSelectedMembers() {
+        let removedUsers = usersSelectedForRemoval
+        guard !removedUsers.isEmpty, let onRemoveMembers else { return }
+        isRemoving = true
+
+        onRemoveMembers(removedUsers) { result in
+            DispatchQueue.main.async {
+                isRemoving = false
+                switch result {
+                case .success:
+                    selectedMembers.subtract(selectedForRemoval)
+                    members.removeAll { selectedForRemoval.contains($0.id) }
+                    let subtitle = removalSubtitle(for: removedUsers)
+                    selectedForRemoval.removeAll()
+                    isEditing = false
+                    InAppNotificationService.shared.showActionToast(
+                        InAppActionToast(
+                            systemImage: "checkmark.circle.fill",
+                            prefix: NSLocalizedString("audience.list.updated", value: "List updated", comment: "Audience list updated"),
+                            subtitle: subtitle
+                        )
                     )
+                case .failure(let error):
+                    InAppNotificationService.shared.showActionToast(
+                        InAppActionToast(systemImage: "exclamationmark.triangle.fill", prefix: error.localizedDescription)
+                    )
+                }
+            }
+        }
+    }
+
+    private var usersSelectedForRemoval: [AppUser] {
+        members.filter { selectedForRemoval.contains($0.id) }
+    }
+
+    private var removalConfirmationMessage: String {
+        guard let first = usersSelectedForRemoval.first else { return "" }
+        if usersSelectedForRemoval.count == 1 {
+            return String.localizedStringWithFormat(
+                NSLocalizedString("audience.manageMembers.remove.single", comment: "One member removal confirmation"),
+                first.username,
+                listName
             )
         }
-        .buttonStyle(PlainButtonStyle())
+
+        return String.localizedStringWithFormat(
+            NSLocalizedString("audience.manageMembers.remove.plural", comment: "Multiple member removal confirmation"),
+            first.username,
+            usersSelectedForRemoval.count - 1,
+            listName
+        )
+    }
+
+    private func removalSubtitle(for removedUsers: [AppUser]) -> String {
+        guard let first = removedUsers.first else { return "" }
+        if removedUsers.count == 1 {
+            return String(
+                format: NSLocalizedString(
+                    "audience.list.membersRemoved.single",
+                    value: "You removed %@ from %@",
+                    comment: "One member removed from an audience list"
+                ),
+                first.username,
+                listName
+            )
+        }
+
+        return String(
+            format: NSLocalizedString(
+                "audience.list.membersRemoved.plural",
+                value: "You removed %@ and %d more from %@",
+                comment: "Several members removed from an audience list"
+            ),
+            first.username,
+            removedUsers.count - 1,
+            listName
+        )
     }
 }
 
@@ -2112,30 +2407,80 @@ struct UserSelectionRowEnhanced: View {
 class CreateListViewModel: ObservableObject {
     @Published var isLoading = false
     private let db = Firestore.firestore()
+    private let storageService = StorageService()
     
-    func createList(name: String, description: String, members: [String], color: String, icon: String, completion: @escaping () -> Void) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+    func createList(
+        name: String,
+        description: String,
+        members: [String],
+        color: String,
+        icon: String,
+        image: UIImage?,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            completion(.failure(NSError(domain: "AudienceList", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to save the list."])))
+            return
+        }
         
         isLoading = true
-        let newList = CustomAudienceList(
-            name: name,
-            description: description.isEmpty ? nil : description,
-            members: members,
-            color: color,
-            icon: icon
-        )
-        
-        do {
-            try db.collection("users").document(userId)
-                .collection("customAudienceLists")
-                .addDocument(from: newList) { [weak self] error in
-                    self?.isLoading = false
-                    if error == nil {
-                        completion()
+        let document = db.collection("users").document(userId)
+            .collection("customAudienceLists")
+            .document()
+
+        let persistList: (String?) -> Void = { [weak self] imagePath in
+            guard let self else { return }
+            let newList = CustomAudienceList(
+                name: name,
+                description: description.isEmpty ? nil : description,
+                members: members,
+                color: color,
+                icon: icon,
+                imagePath: imagePath
+            )
+
+            do {
+                try document.setData(from: newList) { error in
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        if let error {
+                            if let imagePath {
+                                self.storageService.deleteMedia(path: imagePath) { _ in }
+                            }
+                            completion(.failure(error))
+                        } else {
+                            completion(.success(()))
+                        }
                     }
                 }
-        } catch {
-            isLoading = false
+            } catch {
+                self.isLoading = false
+                if let imagePath {
+                    self.storageService.deleteMedia(path: imagePath) { _ in }
+                }
+                completion(.failure(error))
+            }
+        }
+
+        guard let image else {
+            persistList(nil)
+            return
+        }
+
+        storageService.uploadAudienceListImage(
+            userId: userId,
+            listId: document.documentID,
+            image: image
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let imagePath):
+                    persistList(imagePath)
+                case .failure(let error):
+                    self?.isLoading = false
+                    completion(.failure(error))
+                }
+            }
         }
     }
 }
@@ -2143,28 +2488,81 @@ class CreateListViewModel: ObservableObject {
 class EditListViewModel: ObservableObject {
     @Published var isLoading = false
     private let db = Firestore.firestore()
+    private let storageService = StorageService()
     
-    func updateList(listId: String, name: String, description: String, members: [String], color: String, icon: String, completion: @escaping () -> Void) {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+    func updateList(
+        listId: String,
+        name: String,
+        description: String,
+        members: [String],
+        color: String,
+        icon: String,
+        image: UIImage?,
+        imagePath: String?,
+        previousImagePath: String?,
+        completion: @escaping (Result<String?, Error>) -> Void
+    ) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            completion(.failure(NSError(domain: "AudienceList", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to save the list."])))
+            return
+        }
         
         isLoading = true
-        let updateData: [String: Any] = [
-            "name": name,
-            "description": description.isEmpty ? FieldValue.delete() : description,
-            "members": members,
-            "color": color,
-            "icon": icon,
-            "updatedAt": FieldValue.serverTimestamp()
-        ]
-        
-        db.collection("users").document(userId)
-            .collection("customAudienceLists")
-            .document(listId)
-            .updateData(updateData) { [weak self] error in
-                self?.isLoading = false
-                if error == nil {
-                    completion()
+
+        let persistChanges: (String?, Bool) -> Void = { [weak self] resolvedImagePath, uploadedNewImage in
+            guard let self else { return }
+            let updateData: [String: Any] = [
+                "name": name,
+                "description": description.isEmpty ? FieldValue.delete() : description,
+                "members": members,
+                "color": color,
+                "icon": icon,
+                "imagePath": resolvedImagePath.map { $0 as Any } ?? FieldValue.delete(),
+                "updatedAt": FieldValue.serverTimestamp()
+            ]
+
+            self.db.collection("users").document(userId)
+                .collection("customAudienceLists")
+                .document(listId)
+                .updateData(updateData) { error in
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        if let error {
+                            if uploadedNewImage, let resolvedImagePath {
+                                self.storageService.deleteMedia(path: resolvedImagePath) { _ in }
+                            }
+                            completion(.failure(error))
+                            return
+                        }
+
+                        if let previousImagePath,
+                           previousImagePath != resolvedImagePath {
+                            self.storageService.deleteMedia(path: previousImagePath) { _ in }
+                        }
+                        completion(.success(resolvedImagePath))
+                    }
+                }
+        }
+
+        guard let image else {
+            persistChanges(imagePath, false)
+            return
+        }
+
+        storageService.uploadAudienceListImage(
+            userId: userId,
+            listId: listId,
+            image: image
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let uploadedPath):
+                    persistChanges(uploadedPath, true)
+                case .failure(let error):
+                    self?.isLoading = false
+                    completion(.failure(error))
                 }
             }
+        }
     }
 }

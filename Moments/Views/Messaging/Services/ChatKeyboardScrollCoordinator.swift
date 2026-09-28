@@ -44,30 +44,23 @@ final class ChatKeyboardScrollCoordinator: NSObject, ObservableObject {
         guard let userInfo = notification.userInfo else { return }
 
         let duration = userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval ?? 0.25
+        let keyboardFrame = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+        let height: CGFloat = {
+            guard visible, let keyboardFrame else { return 0 }
+            return Self.overlapHeight(for: keyboardFrame)
+        }()
+        let isVisible = visible && height > 0
 
-        let apply: () -> Void = { [weak self] in
+        // Diferir siempre: las notificaciones del teclado suelen llegar
+        // durante un ciclo de layout/update de SwiftUI. Publicar
+        // `@Published` ahí dispara "Publishing changes from within view updates".
+        DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.animationDuration = duration
             self.isTransitioning = true
             self.scheduleTransitionReset(after: duration)
-
-            let height: CGFloat
-            if visible,
-               let keyboardFrame = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                height = Self.overlapHeight(for: keyboardFrame)
-            } else {
-                height = 0
-            }
-
             self.keyboardHeight = height
-            self.isVisible = visible && height > 0
-        }
-
-        // En el mismo runloop que el teclado del sistema (sin async → un frame de desfase).
-        if Thread.isMainThread {
-            apply()
-        } else {
-            DispatchQueue.main.async(execute: apply)
+            self.isVisible = isVisible
         }
     }
 

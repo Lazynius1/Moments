@@ -5,6 +5,7 @@ import FirebaseAuth
 
 struct HiddenLayersOverlayView: View {
     @Environment(\.momentsViewportSize) private var momentsViewportSize
+    @Environment(\.colorScheme) private var colorScheme
 
     let moment: Moment
     let isImmersive: Bool
@@ -34,17 +35,15 @@ struct HiddenLayersOverlayView: View {
                         hotspot(for: layer, index: offset, in: proxy.size)
                     }
 
-                    if showIntroShimmer || temporaryTopMessage != nil || temporaryLockedLayer != nil {
+                    if let topHintText {
                         VStack {
-                            if let topHintText {
-                                Text(topHintText)
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .momentsChromeGlass(in: Capsule())
-                                    .padding(.top, 14)
-                            }
+                            Text(topHintText)
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .momentsChromeGlass(in: Capsule())
+                                .padding(.top, 14)
 
                             Spacer()
                         }
@@ -82,10 +81,11 @@ struct HiddenLayersOverlayView: View {
             } else {
                 Color.clear
                     .overlay {
-                        if showIntroShimmer || !seen(layer) {
-                            HiddenLayerPresenceHint(
+                        if !seen(layer) {
+                            HiddenLayerHintAppearanceView(
                                 type: layer.type,
                                 shape: layer.shape,
+                                style: layer.hintStyle ?? .actual,
                                 isSeen: seen(layer),
                                 delay: Double(index) * 0.12,
                                 isIntro: showIntroShimmer
@@ -268,6 +268,10 @@ struct HiddenLayersOverlayView: View {
 
         if let lockedSummaryText = lockedSummaryText {
             return lockedSummaryText
+        }
+
+        guard showIntroShimmer, layers.contains(where: { !seen($0) }) else {
+            return nil
         }
 
         return NSLocalizedString("hiddenLayers.viewer.hint", value: "Toca los destellos", comment: "Hidden layers viewer hint")
@@ -665,6 +669,205 @@ private struct HiddenLayerHintOrbit: View {
     }
 }
 
+/// The production hint uses the same adaptive dark/light treatment explored in
+/// the design canvas: a living core and moving stars, without the rotating arc.
+struct HiddenLayerHintAppearanceView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let type: MomentHiddenLayer.LayerType
+    let shape: MomentHiddenLayer.LayerShape
+    let style: MomentHiddenLayer.HintStyle
+    let isSeen: Bool
+    let delay: Double
+    let isIntro: Bool
+    var isActive: Bool = true
+    var isAnimated: Bool = true
+    var showsParticles: Bool = true
+
+    @State private var pulse = false
+    @State private var orbitPhase: CGFloat = 0
+    @State private var glint = false
+
+    private var isDark: Bool { colorScheme == .dark }
+
+    private var starA: Color {
+        switch style {
+        case .blackAndWhite: return isDark ? .white : .black
+        case .actual: return Color(red: 1.0, green: 0.92, blue: 0.62)
+        case .polar: return Color(red: 0.55, green: 0.95, blue: 1.0)
+        case .ember: return Color(red: 1.0, green: 0.55, blue: 0.28)
+        case .ultraviolet: return Color(red: 0.78, green: 0.42, blue: 1.0)
+        case .aurora: return Color(red: 0.42, green: 1.0, blue: 0.78)
+        case .rose: return Color(red: 1.0, green: 0.62, blue: 0.78)
+        case .plasma: return Color(red: 1.0, green: 0.55, blue: 0.92)
+        case .daylight: return Color(red: 0.86, green: 0.94, blue: 1.0)
+        }
+    }
+
+    private var starB: Color {
+        switch style {
+        case .blackAndWhite: return isDark ? .white : .black
+        case .actual: return Color(red: 0.98, green: 0.82, blue: 0.42)
+        case .polar: return Color(red: 0.62, green: 0.48, blue: 1.0)
+        case .ember: return Color(red: 1.0, green: 0.78, blue: 0.18)
+        case .ultraviolet: return Color(red: 0.78, green: 1.0, blue: 0.28)
+        case .aurora: return Color(red: 0.22, green: 0.82, blue: 0.95)
+        case .rose: return Color(red: 1.0, green: 0.32, blue: 0.58)
+        case .plasma: return Color(red: 0.95, green: 0.25, blue: 0.72)
+        case .daylight: return Color(red: 0.35, green: 0.72, blue: 1.0)
+        }
+    }
+
+    private var coreColor: Color {
+        if style == .blackAndWhite {
+            return (isDark ? Color.white : Color.black).opacity(0.72)
+        }
+        return .white.opacity(0.78)
+    }
+
+    private var usesAdaptiveColorScheme: Bool { style == .blackAndWhite }
+
+    var body: some View {
+        ZStack {
+            RadialGradient(
+                colors: [
+                    starB.opacity(usesAdaptiveColorScheme ? (isDark ? (pulse ? 0.52 : 0.34) : (pulse ? 0.34 : 0.20)) : (pulse ? 0.52 : 0.34)),
+                    starA.opacity(usesAdaptiveColorScheme ? (isDark ? 0.18 : 0.08) : 0.18),
+                    .clear
+                ],
+                center: .center,
+                startRadius: 3,
+                endRadius: radius * 1.75
+            )
+            .blur(radius: isIntro ? 12 : 8)
+            .blendMode(usesAdaptiveColorScheme && !isDark ? .multiply : .plusLighter)
+
+            RadialGradient(
+                colors: [coreColor, starB.opacity(isDark ? 0.46 : 0.30), .clear],
+                center: .center,
+                startRadius: 1,
+                endRadius: radius
+            )
+            .scaleEffect(pulse ? 1.06 : 0.94)
+            .blendMode(usesAdaptiveColorScheme && !isDark ? .normal : .screen)
+
+            Circle()
+                .fill(isDark ? .white : starA)
+                .frame(width: 7, height: 7)
+                .offset(x: -radius * 0.4, y: -radius * 0.4)
+                .opacity(glint ? 0.96 : 0.28)
+                .blur(radius: 0.25)
+
+            if isActive && showsParticles && (isIntro || !isSeen) {
+                ForEach(0..<12, id: \.self) { index in
+                    HiddenLayerMagicStar(points: index.isMultiple(of: 2) ? 4 : 5)
+                        .fill(index.isMultiple(of: 3) ? starB : starA)
+                        .frame(width: starSize(for: index), height: starSize(for: index))
+                        .scaleEffect(starTwinkle(for: index))
+                        .opacity(starOpacity(for: index))
+                        .blur(radius: starTwinkle(for: index) > 1.25 ? 0.4 : 0)
+                        .rotationEffect(.degrees(Double(index) * 16 + Double(orbitPhase) * 100))
+                        .offset(sparkOffset(for: index))
+                        .shadow(color: starB.opacity(usesAdaptiveColorScheme && !isDark ? 0.38 : 0.72), radius: 3)
+                }
+            }
+        }
+        .frame(width: radius * 2.5, height: radius * 2.5)
+        .transition(.opacity.combined(with: .scale(scale: 0.88)))
+        .onAppear {
+            startAnimationsIfNeeded()
+        }
+        .onChange(of: isActive) { _, isNowActive in
+            if isNowActive {
+                startAnimationsIfNeeded()
+            } else {
+                resetAnimationState()
+            }
+        }
+        .onDisappear {
+            resetAnimationState()
+        }
+    }
+
+    private func startAnimationsIfNeeded() {
+        guard isActive, isAnimated else { return }
+        let pulseDuration = isIntro ? 1.1 : 1.3
+        withAnimation(.easeInOut(duration: pulseDuration).repeatForever(autoreverses: true).delay(delay)) {
+            pulse = true
+        }
+        withAnimation(.linear(duration: 4.8).repeatForever(autoreverses: false).delay(delay)) {
+            orbitPhase = 1
+        }
+        withAnimation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true).delay(delay + 0.4)) {
+            glint = true
+        }
+    }
+
+    private func resetAnimationState() {
+        pulse = false
+        orbitPhase = 0
+        glint = false
+    }
+
+    private var radius: CGFloat {
+        switch type {
+        case .text: return 16
+        case .audio: return 14
+        case .image: return 18
+        }
+    }
+
+    private func sparkOffset(for index: Int) -> CGSize {
+        let speed = 1 + CGFloat(index % 3) * 0.2
+        let angle = (CGFloat(index) * .pi * 2 / 12) + orbitPhase * .pi * 2 * speed
+        let orbitRadius = radius + 3 + CGFloat(index % 3) * 2
+        return CGSize(width: cos(angle) * orbitRadius, height: sin(angle) * orbitRadius)
+    }
+
+    private func starSize(for index: Int) -> CGFloat {
+        let sizes: [CGFloat] = [6.5, 4.0, 7.5, 3.5, 5.5, 4.5, 7.0, 3.8, 6.0, 5.0, 7.2, 3.2]
+        return sizes[index % sizes.count]
+    }
+
+    private func starTwinkle(for index: Int) -> CGFloat {
+        let phase = orbitPhase * .pi * (8 + CGFloat(index % 5)) + CGFloat(index) * 1.3
+        return 0.28 + abs(sin(phase)) * 1.45
+    }
+
+    private func starOpacity(for index: Int) -> CGFloat {
+        let phase = orbitPhase * .pi * (6 + CGFloat(index % 4)) + CGFloat(index) * 0.9
+        return 0.22 + abs(sin(phase)) * 0.78
+    }
+}
+
+private struct HiddenLayerMagicStar: Shape {
+    let points: Int
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let outer = min(rect.width, rect.height) / 2
+        let inner = outer * (points == 4 ? 0.28 : 0.38)
+        let count = max(points, 3)
+        var path = Path()
+
+        for index in 0..<(count * 2) {
+            let radius = index.isMultiple(of: 2) ? outer : inner
+            let angle = CGFloat(index) * .pi / CGFloat(count) - .pi / 2
+            let point = CGPoint(
+                x: center.x + cos(angle) * radius,
+                y: center.y + sin(angle) * radius
+            )
+            if index == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
 private struct HiddenLayerRevealBurst: View {
     let color: Color
     let shape: MomentHiddenLayer.LayerShape
@@ -717,9 +920,10 @@ private struct HiddenLayerRevealModifier: ViewModifier {
     }
 }
 
-private struct HiddenLayerTextReveal: View {
+struct HiddenLayerTextReveal: View {
     let layer: MomentHiddenLayer
     let frameSize: CGSize
+    var isAnimated = true
 
     @State private var appearProgress: Double = 0
 
@@ -727,6 +931,10 @@ private struct HiddenLayerTextReveal: View {
         textRevealContent
             .shadow(color: .black.opacity(0.22), radius: 12, y: 6)
             .onAppear {
+                guard isAnimated else {
+                    appearProgress = 1.0
+                    return
+                }
                 let charCount = layer.text?.count ?? 0
                 let duration = max(0.6, min(2.5, Double(charCount) * 0.045))
                 withAnimation(.linear(duration: duration).delay(0.2)) {
@@ -853,14 +1061,20 @@ private struct TypewriterText: View {
 }
 
 
-private struct HiddenLayerAudioReveal: View {
+struct HiddenLayerAudioReveal: View {
     let audioURL: String
     let duration: Double
     let frameSize: CGSize
     let shouldAutoplay: Bool
+    var isAnimated = true
 
     var body: some View {
-        HiddenLayerAudioTagView(audioURL: audioURL, duration: duration, shouldAutoplay: shouldAutoplay)
+        HiddenLayerAudioTagView(
+            audioURL: audioURL,
+            duration: duration,
+            shouldAutoplay: shouldAutoplay,
+            isAnimated: isAnimated
+        )
             .frame(width: frameSize.width, height: frameSize.height)
             .scaleEffect(scale)
     }
@@ -874,6 +1088,7 @@ private struct HiddenLayerAudioTagView: View {
     let audioURL: String
     let duration: Double
     let shouldAutoplay: Bool
+    let isAnimated: Bool
 
     @State private var isPlaying = false
     @State private var isPreparing = false
@@ -928,7 +1143,11 @@ private struct HiddenLayerAudioTagView: View {
                 }
         )
         .onAppear {
-            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.delight.delay(0.3)) {
+            if isAnimated {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.delight.delay(0.3)) {
+                    didAppear = true
+                }
+            } else {
                 didAppear = true
             }
             if shouldAutoplay {
@@ -1105,7 +1324,7 @@ private struct HiddenLayerAudioTagView: View {
     }
 }
 
-private struct HiddenLayerImageReveal: View {
+struct HiddenLayerImageReveal: View {
     let url: URL
     let caption: String?
     let captionStyle: HiddenLayerTextStyle?
@@ -1113,6 +1332,7 @@ private struct HiddenLayerImageReveal: View {
     let imageOffset: CGSize
     let imageScale: Double
     let canvasSize: CGSize
+    var isAnimated = true
 
     var body: some View {
         HiddenLayerRemotePolaroidPreview(
@@ -1122,7 +1342,8 @@ private struct HiddenLayerImageReveal: View {
             frameStyle: frameStyle ?? .classic,
             imageOffset: imageOffset,
             imageScale: imageScale,
-            canvasSize: canvasSize
+            canvasSize: canvasSize,
+            isAnimated: isAnimated
         )
         .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
         .rotationEffect(.degrees(-2))

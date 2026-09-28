@@ -624,11 +624,23 @@ service cloud.firestore {
                       && request.resource.data.name.size() > 0
                       && request.resource.data.name.size() <= 50
                       && request.resource.data.members is list
-                      && request.resource.data.members.size() <= 100
+                      && request.resource.data.members.size() <= 1000
                       && request.resource.data.createdAt is timestamp
                       && (!("description" in request.resource.data) || request.resource.data.description is string)
-                      && (!("color" in request.resource.data) || request.resource.data.color is string)
-                      && (!("icon" in request.resource.data) || request.resource.data.icon is string)
+                      && (!("color" in request.resource.data) || (
+                        request.resource.data.color is string
+                        && request.resource.data.color.matches('^[0-9A-Fa-f]{6}$')
+                      ))
+                      && (!("icon" in request.resource.data) || (
+                        request.resource.data.icon is string
+                        && request.resource.data.icon.size() > 0
+                        && request.resource.data.icon.size() <= 64
+                      ))
+                      && (!("imagePath" in request.resource.data) || (
+                        request.resource.data.imagePath is string
+                        && request.resource.data.imagePath.size() > 0
+                        && request.resource.data.imagePath.size() <= 2048
+                      ))
                       && (!("updatedAt" in request.resource.data) || request.resource.data.updatedAt is timestamp);
 
         allow update: if request.auth != null
@@ -637,10 +649,22 @@ service cloud.firestore {
                       && request.resource.data.name.size() > 0
                       && request.resource.data.name.size() <= 50
                       && request.resource.data.members is list
-                      && request.resource.data.members.size() <= 100
+                      && request.resource.data.members.size() <= 1000
                       && (!("description" in request.resource.data) || request.resource.data.description is string)
-                      && (!("color" in request.resource.data) || request.resource.data.color is string)
-                      && (!("icon" in request.resource.data) || request.resource.data.icon is string)
+                      && (!("color" in request.resource.data) || (
+                        request.resource.data.color is string
+                        && request.resource.data.color.matches('^[0-9A-Fa-f]{6}$')
+                      ))
+                      && (!("icon" in request.resource.data) || (
+                        request.resource.data.icon is string
+                        && request.resource.data.icon.size() > 0
+                        && request.resource.data.icon.size() <= 64
+                      ))
+                      && (!("imagePath" in request.resource.data) || (
+                        request.resource.data.imagePath is string
+                        && request.resource.data.imagePath.size() > 0
+                        && request.resource.data.imagePath.size() <= 2048
+                      ))
                       && (!("updatedAt" in request.resource.data) || request.resource.data.updatedAt is timestamp);
 
         allow delete: if request.auth != null && request.auth.uid == userId;

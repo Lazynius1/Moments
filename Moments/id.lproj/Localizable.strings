@@ -1263,6 +1263,13 @@
 "audience.more" = "Lainnya";
 "audience.list.deleteMember.title" = "Hapus anggota";
 "audience.list.deleteMember.message" = "Hapus %@ dari daftar ini?";
+"audience.manageMembers" = "Kelola anggota";
+"audience.list.updated" = "Daftar diperbarui";
+"audience.list.membersRemoved.single" = "Anda menghapus %@ dari daftar %@";
+"audience.list.membersRemoved.plural" = "Anda menghapus %@ dan %d orang lainnya dari daftar %@";
+"audience.manageMembers.remove.title" = "Hapus anggota dari daftar?";
+"audience.manageMembers.remove.single" = "Anda akan menghapus %@ dari “%@”. Perubahan ini akan langsung disimpan.";
+"audience.manageMembers.remove.plural" = "Anda akan menghapus %@ dan %d orang lainnya dari “%@”. Perubahan ini akan langsung disimpan.";
 "audience.picker.title" = "Tambah anggota";
 "audience.picker.searchPlaceholder" = "Cari orang...";
 "audience.picker.initialTitle" = "Cari orang";
@@ -3748,6 +3755,17 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "hiddenLayers.metrics.status.pending" = "Menunggu";
 "hiddenLayers.metrics.status.scheduled" = "Dibuka %@";
 "hiddenLayers.metrics.status.available" = "Langsung";
+"hiddenLayers.hint.appearance.title" = "Tampilan saat ditemukan";
+"hiddenLayers.hint.appearance.a11y" = "Tampilan lapisan tersembunyi";
+"hiddenLayers.hint.style.blackAndWhite" = "H&P";
+"hiddenLayers.hint.style.actual" = "Emas";
+"hiddenLayers.hint.style.polar" = "Polar";
+"hiddenLayers.hint.style.ember" = "Bara";
+"hiddenLayers.hint.style.ultraviolet" = "Ultra";
+"hiddenLayers.hint.style.aurora" = "Aurora";
+"hiddenLayers.hint.style.rose" = "Mawar";
+"hiddenLayers.hint.style.plasma" = "Plasma";
+"hiddenLayers.hint.style.daylight" = "Langit";
 "explore.error.notAuthenticated" = "Pengguna belum terautentikasi. Silakan masuk.";
 "explore.error.loadProfile" = "Tidak dapat memuat profilmu: %@";
 "explore.error.loadMoments" = "Tidak dapat memuat momen: %@";
@@ -4300,7 +4318,7 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "messageRequests.recent.header" = "Permintaan terbaru";
 "messageRequests.recent.empty.title" = "Tidak ada permintaan pesan terbaru";
 "messageRequests.recent.empty.description" = "Permintaan yang lebih dari 30 hari tidak ditampilkan di sini.";
-"messageRequests.loadMore" = "Muat 10 lagi";
+"messageRequests.loadMore" = "Tampilkan lebih banyak permintaan pesan";
 "messageRequests.deleteAll" = "Hapus semua";
 "messageRequests.deleteAll.confirmation.title" = "Hapus semua permintaan?";
 "messageRequests.deleteAll.confirmation.message" = "Tindakan ini tidak dapat dibatalkan.";
@@ -4435,9 +4453,10 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "Tidak tertarik";
-"forYou.feedback.subtitle" = "Tampilkan lebih sedikit postingan serupa";
+"forYou.feedback.subtitle" = "Kami akan menampilkan lebih sedikit postingan serupa";
 "forYou.feedback.saving" = "Menyimpan preferensi…";
-"forYou.feedback.hidden" = "Postingan disembunyikan. Konten serupa akan ditampilkan lebih sedikit.";
+"forYou.feedback.hidden" = "Postingan disembunyikan";
+"forYou.feedback.saved" = "Preferensi disimpan";
 "forYou.feedback.restored" = "Preferensi dibatalkan.";
 "forYou.feedback.failed" = "Preferensi tidak dapat disimpan. Coba lagi.";
 "forYou.feedback.undo" = "Urungkan";
@@ -4654,5 +4673,13 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "toast.action.unfollowed.suffix" = "";
 "toast.action.blocked.suffix" = "";
 "toast.action.muted.suffix" = "";
+"toast.action.profileUpdated" = "Profil diperbarui";
+"toast.action.profilePhotoUpdated" = "Foto profil diperbarui";
+"toast.action.profilePhotoRemoved" = "Foto profil dihapus";
+"toast.action.highlightCreated" = "Sorotan dibuat";
+"toast.action.highlightUpdated" = "Sorotan diperbarui";
+"toast.action.highlightDeleted" = "Sorotan dihapus";
+"toast.action.bestFriendsLeft.prefix" = "Kamu keluar dari teman dekat ";
+"toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";

@@ -42,17 +42,26 @@ struct MomentRowButtonStyle: ButtonStyle {
             MomentsPressButtonStyle(scale: 0.98, pressedOpacity: 0.88, haptic: .none)
                 .makeBody(configuration: configuration)
         case .menu:
-            MomentsMenuRowButtonStyle()
-                .makeBody(configuration: configuration)
+            // No llamar `MomentsMenuRowButtonStyle().makeBody` aquí:
+            // ese camino no instala el Environment del ButtonStyle.
+            MomentsMenuRowButtonLabel(configuration: configuration)
         }
     }
 }
 
 struct MomentsMenuRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        MomentsMenuRowButtonLabel(configuration: configuration)
+    }
+}
+
+/// Cuerpo del estilo menu como `View` real para que `@Environment` se resuelva.
+private struct MomentsMenuRowButtonLabel: View {
+    let configuration: ButtonStyleConfiguration
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    func makeBody(configuration: Configuration) -> some View {
+    var body: some View {
         configuration.label
             .background {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)

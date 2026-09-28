@@ -220,6 +220,12 @@ service firebase.storage {
       allow delete: if isOwner(userId);
     }
 
+    match /users/{userId}/audience_lists/{listId}/{fileName} {
+      allow read: if isOwner(userId);
+      allow write: if canWriteAsOwner(userId) && validImageUpload();
+      allow delete: if isOwner(userId);
+    }
+
     match /users/{userId}/nova/{conversationId}/{messageId}/{fileName} {
       allow read: if isOwner(userId);
       allow write: if canWriteAsOwner(userId) && validNovaMediaUpload();

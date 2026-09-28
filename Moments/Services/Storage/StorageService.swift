@@ -54,6 +54,29 @@ class StorageService {
         uploadModeratedAvatar(image: image, conversationId: groupId, completion: completion)
     }
 
+    /// Imagen privada de personalización. No pasa por moderación porque solo
+    /// se muestra al propietario de la lista.
+    func uploadAudienceListImage(
+        userId: String,
+        listId: String,
+        image: UIImage,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        guard let imageData = image.storageUploadJPEGData(
+            compressionQuality: 0.82,
+            maxPixelDimension: 720
+        ) else {
+            completion(.failure(StorageError.invalidData))
+            return
+        }
+
+        let target = StoragePathBuilder.build(
+            userId: userId,
+            domain: .audienceListImage(listId: listId)
+        )
+        uploader.upload(target: target, payload: .data(imageData), completion: completion)
+    }
+
     private func uploadModeratedAvatar(image: UIImage, conversationId: String?, completion: @escaping (Result<String, Error>) -> Void) {
         guard let imageData = image.storageUploadJPEGData(compressionQuality: 0.75, maxPixelDimension: 1080) else {
             completion(.failure(StorageError.invalidData))

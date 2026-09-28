@@ -100,6 +100,7 @@ struct CustomAudienceList: Identifiable, Codable, Equatable {
     let updatedAt: Date
     let color: String?
     let icon: String?
+    let imagePath: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -110,6 +111,7 @@ struct CustomAudienceList: Identifiable, Codable, Equatable {
         case updatedAt
         case color
         case icon
+        case imagePath
     }
 
     init(
@@ -120,7 +122,8 @@ struct CustomAudienceList: Identifiable, Codable, Equatable {
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         color: String? = nil,
-        icon: String? = nil
+        icon: String? = nil,
+        imagePath: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -130,6 +133,7 @@ struct CustomAudienceList: Identifiable, Codable, Equatable {
         self.updatedAt = updatedAt
         self.color = color
         self.icon = icon
+        self.imagePath = imagePath
     }
 
     static func == (lhs: CustomAudienceList, rhs: CustomAudienceList) -> Bool {
@@ -146,7 +150,15 @@ extension CustomAudienceList {
         "98D8C8",
         "F7DC6F",
         "BB8FCE",
-        "85C1E2"
+        "85C1E2",
+        "FF9F1C",
+        "2EC4B6",
+        "3A86FF",
+        "8338EC",
+        "FF006E",
+        "06D6A0",
+        "118AB2",
+        "6C757D"
     ]
 
     static let predefinedIcons = [
@@ -157,6 +169,14 @@ extension CustomAudienceList {
         "heart.fill",
         "star.fill",
         "flag.fill",
-        "bolt.fill"
+        "bolt.fill",
+        "person.2.fill",
+        "building.2.fill",
+        "book.fill",
+        "gamecontroller.fill",
+        "music.note",
+        "airplane",
+        "fork.knife",
+        "camera.fill"
     ]
 }

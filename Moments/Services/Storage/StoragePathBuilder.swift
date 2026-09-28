@@ -3,6 +3,7 @@ import Foundation
 // MARK: - Storage path conventions (users/{uid}/…)
 enum StorageUploadDomain: Equatable {
     case profileAvatar(uploadId: String = UUID().uuidString)
+    case audienceListImage(listId: String, imageId: String = UUID().uuidString)
     case novaConversationImage(conversationId: String, messageId: String, imageId: String = UUID().uuidString)
     case momentMedia(momentId: String, mediaId: String = UUID().uuidString)
     case momentThumbnail(momentId: String, mediaId: String = UUID().uuidString)
@@ -35,6 +36,12 @@ enum StoragePathBuilder {
             path = "users/\(safeUserId)/profile/avatar/\(sanitized(uploadId)).jpg"
             contentType = "image/jpeg"
             metadata["type"] = "profile_picture"
+
+        case .audienceListImage(let listId, let imageId):
+            path = "users/\(safeUserId)/audience_lists/\(sanitized(listId))/\(sanitized(imageId)).jpg"
+            contentType = "image/jpeg"
+            metadata["type"] = "audience_list_image"
+            metadata["listId"] = sanitized(listId)
 
         case .novaConversationImage(let conversationId, let messageId, let imageId):
             path = "users/\(safeUserId)/nova/\(sanitized(conversationId))/\(sanitized(messageId))/\(sanitized(imageId)).enc"

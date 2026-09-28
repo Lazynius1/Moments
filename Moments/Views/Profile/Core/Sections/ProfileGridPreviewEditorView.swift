@@ -4,6 +4,7 @@ import Kingfisher
 struct ProfileGridPreviewEditorView: View {
     private static let cropAspectRatio = ProfileMomentsGridMetrics.portraitAspectRatio
 
+    let moment: Moment
     let imageURL: URL
     let feedCrop: MediaItemFeedCrop?
     let initialSettings: MomentGridPreviewSettings
@@ -21,15 +22,8 @@ struct ProfileGridPreviewEditorView: View {
     @State private var background: MomentGridPreviewBackground = .black
     @State private var isDragging = false
     @State private var isZooming = false
-    @GestureState private var gestureTranslation = CGSize.zero
+    @State private var dragStartOffset: CGSize?
     @State private var cropSide: CGFloat = 369
-
-    private var liveOffset: CGSize {
-        CGSize(
-            width: offset.width + gestureTranslation.width,
-            height: offset.height + gestureTranslation.height
-        )
-    }
 
     var body: some View {
         ZStack {
@@ -273,17 +267,32 @@ struct ProfileGridPreviewEditorView: View {
                     .frame(width: cropSide, height: cropHeight)
             }
 
-            Image(uiImage: image)
-                .resizable()
-                .aspectRatio(contentMode: fitMode == .fit ? .fit : .fill)
-                .frame(
-                    width: displaySize(for: image.size, cropSide: cropSide).width * scale,
-                    height: displaySize(for: image.size, cropSide: cropSide).height * scale
-                )
-                .offset(liveOffset)
-                .scaleEffect(isDragging || isZooming ? 1.005 : 1)
-                .animation(.interactiveSpring(response: 0.24, dampingFraction: 0.9), value: isDragging)
-                .animation(.interactiveSpring(response: 0.24, dampingFraction: 0.9), value: isZooming)
+            ZStack {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: fitMode == .fit ? .fit : .fill)
+                    .frame(
+                        width: displaySize(for: image.size, cropSide: cropSide).width,
+                        height: displaySize(for: image.size, cropSide: cropSide).height
+                    )
+
+                if moment.hasHiddenLayers {
+                    HiddenLayersStaticPreviewSurface(
+                        moment: moment,
+                        size: CGSize(width: cropSide, height: cropHeight),
+                        settings: MomentGridPreviewSettings(
+                            scale: 1,
+                            offsetX: 0,
+                            offsetY: 0,
+                            fitMode: fitMode,
+                            background: background
+                        )
+                    )
+                }
+            }
+            .frame(width: cropSide, height: cropHeight)
+            .scaleEffect(scale)
+            .offset(offset)
 
             squareMaskOverlay(cropSide: cropSide)
 
@@ -343,28 +352,25 @@ struct ProfileGridPreviewEditorView: View {
     private func editorGestures(imageSize: CGSize, cropSide: CGFloat) -> some Gesture {
         SimultaneousGesture(
             DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                .updating($gestureTranslation) { value, state, _ in
-                    isDragging = true
+                .onChanged { value in
                     let proposed = CGSize(
-                        width: offset.width + value.translation.width,
-                        height: offset.height + value.translation.height
+                        width: (dragStartOffset ?? offset).width + value.translation.width,
+                        height: (dragStartOffset ?? offset).height + value.translation.height
                     )
-                    let clamped = limitOffset(proposed, imageSize: imageSize, scale: scale, cropSide: cropSide)
-                    state = CGSize(
-                        width: clamped.width - offset.width,
-                        height: clamped.height - offset.height
+                    if dragStartOffset == nil {
+                        dragStartOffset = offset
+                        isDragging = true
+                    }
+                    offset = limitOffset(
+                        proposed,
+                        imageSize: imageSize,
+                        scale: scale,
+                        cropSide: cropSide
                     )
                 }
-                .onEnded { value in
+                .onEnded { _ in
                     isDragging = false
-                    let velocity = value.velocity
-                    let proposed = CGSize(
-                        width: offset.width + value.translation.width + velocity.width * 0.04,
-                        height: offset.height + value.translation.height + velocity.height * 0.04
-                    )
-                    withAnimation(.easeOut(duration: 0.22)) {
-                        offset = limitOffset(proposed, imageSize: imageSize, scale: scale, cropSide: cropSide)
-                    }
+                    dragStartOffset = nil
                     HapticManager.shared.lightImpact()
                 },
             MagnifyGesture()

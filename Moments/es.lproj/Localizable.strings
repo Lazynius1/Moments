@@ -1200,7 +1200,7 @@
 "messageRequests.recent.header" = "Solicitudes recientes";
 "messageRequests.recent.empty.title" = "No hay solicitudes de mensajes recientes";
 "messageRequests.recent.empty.description" = "No se muestran solicitudes de hace más de 30 días.";
-"messageRequests.loadMore" = "Cargar 10 más";
+"messageRequests.loadMore" = "Mostrar más solicitudes de mensajes";
 "messageRequests.deleteAll" = "Eliminar todos";
 "messageRequests.deleteAll.confirmation.title" = "¿Eliminar todas las solicitudes?";
 "messageRequests.deleteAll.confirmation.message" = "Esta acción no se puede deshacer.";
@@ -1357,6 +1357,13 @@
 "audience.more" = "Más";
 "audience.list.deleteMember.title" = "Eliminar miembro";
 "audience.list.deleteMember.message" = "¿Eliminar a %@ de esta lista?";
+"audience.manageMembers" = "Gestionar miembros";
+"audience.list.updated" = "Lista actualizada";
+"audience.list.membersRemoved.single" = "Has eliminado a %@ de la lista %@";
+"audience.list.membersRemoved.plural" = "Has eliminado a %@ y %d más de la lista %@";
+"audience.manageMembers.remove.title" = "¿Eliminar miembros de la lista?";
+"audience.manageMembers.remove.single" = "Vas a eliminar a %@ de «%@». Este cambio se guardará inmediatamente.";
+"audience.manageMembers.remove.plural" = "Vas a eliminar a %@ y %d personas más de «%@». Este cambio se guardará inmediatamente.";
 "audience.picker.title" = "Agregar Miembros";
 "audience.picker.searchPlaceholder" = "Buscar personas...";
 "audience.picker.initialTitle" = "Buscar personas";
@@ -4048,6 +4055,17 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "hiddenLayers.metrics.status.pending" = "Pendiente";
 "hiddenLayers.metrics.status.scheduled" = "Se abre %@";
 "hiddenLayers.metrics.status.available" = "Activa";
+"hiddenLayers.hint.appearance.title" = "Apariencia al descubrir";
+"hiddenLayers.hint.appearance.a11y" = "Apariencia de la capa oculta";
+"hiddenLayers.hint.style.blackAndWhite" = "B&N";
+"hiddenLayers.hint.style.actual" = "Oro";
+"hiddenLayers.hint.style.polar" = "Polar";
+"hiddenLayers.hint.style.ember" = "Ascua";
+"hiddenLayers.hint.style.ultraviolet" = "Ultra";
+"hiddenLayers.hint.style.aurora" = "Aurora";
+"hiddenLayers.hint.style.rose" = "Rosa";
+"hiddenLayers.hint.style.plasma" = "Plasma";
+"hiddenLayers.hint.style.daylight" = "Cielo";
 "explore.error.notAuthenticated" = "Usuario no autenticado. Por favor, inicia sesión.";
 "explore.error.loadProfile" = "Error al cargar tu perfil: %@";
 "explore.error.loadMoments" = "Error al cargar momentos: %@";
@@ -4676,9 +4694,10 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "No me interesa";
-"forYou.feedback.subtitle" = "Ver menos publicaciones similares";
+"forYou.feedback.subtitle" = "Mostraremos menos publicaciones similares";
 "forYou.feedback.saving" = "Guardando preferencia…";
-"forYou.feedback.hidden" = "Publicación oculta. Verás menos contenido similar.";
+"forYou.feedback.hidden" = "Publicación oculta";
+"forYou.feedback.saved" = "Preferencia guardada";
 "forYou.feedback.restored" = "Preferencia deshecha.";
 "forYou.feedback.failed" = "No se pudo guardar tu preferencia. Inténtalo de nuevo.";
 "forYou.feedback.undo" = "Deshacer";
@@ -4903,5 +4922,13 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "toast.action.unfollowed.suffix" = "";
 "toast.action.blocked.suffix" = "";
 "toast.action.muted.suffix" = "";
+"toast.action.profileUpdated" = "Perfil actualizado";
+"toast.action.profilePhotoUpdated" = "Foto de perfil actualizada";
+"toast.action.profilePhotoRemoved" = "Foto de perfil eliminada";
+"toast.action.highlightCreated" = "Destacado creado";
+"toast.action.highlightUpdated" = "Destacado actualizado";
+"toast.action.highlightDeleted" = "Destacado eliminado";
+"toast.action.bestFriendsLeft.prefix" = "Has salido de mejores amigos de ";
+"toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";

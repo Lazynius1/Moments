@@ -151,18 +151,6 @@ struct FeedView: View {
                 colorScheme: colorScheme,
                 onNotInterested: selectedFeedType == .forYou ? { ForYouPreferences.shared.hide($0) } : nil
             )
-            VStack {
-                Spacer().allowsHitTesting(false)
-                ForYouFeedbackNotice()
-                    .padding(
-                        .bottom,
-                        MomentsFloatingTabBarMetrics.overlayBottomPadding(
-                            safeAreaBottom: keyWindowSafeAreaInsets().bottom,
-                            verticalBarEdge: momentsToolbarVerticalEdge
-                        )
-                    )
-            }
-            .zIndex(1500)
 
             FeedStoryRingPreviewOverlay(
                 selection: $storyRingPreviewSelection,

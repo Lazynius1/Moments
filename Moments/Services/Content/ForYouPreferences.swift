@@ -82,12 +82,29 @@ final class ForYouPreferences: ObservableObject {
     }
 
     func hide(_ moment: Moment) {
-        send(moment, hiding: true)
+        guard let uid = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
+        let storageKey = key("hidden", owner: uid)
+        let original = UserDefaults.standard.stringArray(forKey: storageKey) ?? []
+        UserDefaults.standard.set(Array(Set(original).union([momentKey(moment)])), forKey: storageKey)
+        revision += 1
+        undoMoment = moment
+        InAppNotificationService.shared.showActionToast(
+            InAppActionToast(
+                systemImage: "eye.slash.fill",
+                prefix: NSLocalizedString("forYou.feedback.hidden", comment: "Post hidden"),
+                undo: { [weak self] in self?.undo() },
+                onExpire: { [weak self] in self?.commitHiddenMoment(moment, momentId: momentId, owner: uid, original: original) }
+            )
+        )
     }
 
     func undo() {
-        guard let moment = undoMoment else { return }
-        send(moment, hiding: false)
+        guard let moment = undoMoment, let uid = Auth.auth().currentUser?.uid else { return }
+        let storageKey = key("hidden", owner: uid)
+        let restored = (UserDefaults.standard.stringArray(forKey: storageKey) ?? []).filter { $0 != momentKey(moment) }
+        UserDefaults.standard.set(restored, forKey: storageKey)
+        revision += 1
+        undoMoment = nil
     }
 
     func dismissNotice() {
@@ -120,21 +137,18 @@ final class ForYouPreferences: ObservableObject {
         }
     }
 
-    private func send(_ moment: Moment, hiding: Bool) {
-        guard !isBusy, let user = Auth.auth().currentUser, let momentId = moment.id else { return }
-        let uid = user.uid
-        let id = momentKey(moment)
+    private func commitHiddenMoment(_ moment: Moment, momentId: String, owner uid: String, original: [String]) {
+        guard !isBusy, let user = Auth.auth().currentUser, user.uid == uid else { return }
         let storageKey = key("hidden", owner: uid)
-        let original = UserDefaults.standard.stringArray(forKey: storageKey) ?? []
-        var updated = original.filter { $0 != id }
-        if hiding { updated.append(id) }
-        UserDefaults.standard.set(updated, forKey: storageKey)
-        revision += 1
         isBusy = true
-        noticeOwner = uid
-        undoMoment = nil
-        noticeDismissTask?.cancel()
-        notice = NSLocalizedString("forYou.feedback.saving", comment: "Saving recommendation preference")
+        InAppNotificationService.shared.showActionToast(
+            InAppActionToast(
+                systemImage: "eye.slash",
+                prefix: NSLocalizedString("forYou.feedback.saving", comment: "Saving recommendation preference"),
+                holds: true,
+                showsProgress: true
+            )
+        )
         Task {
             do {
                 let token = try await user.getIDToken()
@@ -146,23 +160,31 @@ final class ForYouPreferences: ObservableObject {
                 request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                 request.timeoutInterval = 15
                 request.httpBody = try JSONSerialization.data(withJSONObject: ["action": "forYouFeedback",
-                    "authorId": moment.authorId, "momentId": momentId, "intent": hiding ? "hide" : "undo"])
+                    "authorId": moment.authorId, "momentId": momentId, "intent": "hide"])
                 let (data, response) = try await URLSession.shared.data(for: request)
                 let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
                 guard (response as? HTTPURLResponse)?.statusCode == 200, json?["accepted"] as? Bool == true else { throw URLError(.badServerResponse) }
                 if Auth.auth().currentUser?.uid == uid {
-                    notice = NSLocalizedString(hiding ? "forYou.feedback.hidden" : "forYou.feedback.restored", comment: "Recommendation feedback saved")
-                    undoMoment = hiding ? moment : nil
-                    scheduleNoticeDismiss()
+                    self.undoMoment = nil
+                    InAppNotificationService.shared.showActionToast(
+                        InAppActionToast(
+                            systemImage: "checkmark.circle.fill",
+                            prefix: NSLocalizedString("forYou.feedback.saved", comment: "Preference saved"),
+                            subtitle: NSLocalizedString("forYou.feedback.subtitle", comment: "Show fewer similar posts")
+                        )
+                    )
                 }
             } catch {
                 UserDefaults.standard.set(original, forKey: storageKey)
                 revision += 1
                 if Auth.auth().currentUser?.uid == uid {
-                    notice = NSLocalizedString("forYou.feedback.failed", comment: "Recommendation feedback failed")
-                    // A failed undo can be retried without losing its target.
-                    undoMoment = hiding ? nil : moment
-                    scheduleNoticeDismiss()
+                    InAppNotificationService.shared.showActionToast(
+                        InAppActionToast(
+                            systemImage: "exclamationmark.triangle.fill",
+                            prefix: NSLocalizedString("forYou.feedback.failed", comment: "Recommendation feedback failed")
+                        )
+                    )
+                    undoMoment = nil
                 }
             }
             isBusy = false

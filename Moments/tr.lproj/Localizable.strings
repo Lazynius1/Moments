@@ -1263,6 +1263,13 @@
 "audience.more" = "Daha fazla";
 "audience.list.deleteMember.title" = "Üyeyi kaldır";
 "audience.list.deleteMember.message" = "%@ listeden çıkarılsın mı?";
+"audience.manageMembers" = "Üyeleri yönet";
+"audience.list.updated" = "Liste güncellendi";
+"audience.list.membersRemoved.single" = "%@, %@ listesinden çıkarıldı";
+"audience.list.membersRemoved.plural" = "%@ ve %d kişi daha %@ listesinden çıkarıldı";
+"audience.manageMembers.remove.title" = "Üyeler listeden çıkarılsın mı?";
+"audience.manageMembers.remove.single" = "%@, “%@” listesinden çıkarılacak. Bu değişiklik hemen kaydedilecek.";
+"audience.manageMembers.remove.plural" = "%@ ve %d kişi daha “%@” listesinden çıkarılacak. Bu değişiklik hemen kaydedilecek.";
 "audience.picker.title" = "Üye Ekle";
 "audience.picker.searchPlaceholder" = "Kişi ara...";
 "audience.picker.initialTitle" = "Kişi ara";
@@ -3748,6 +3755,17 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "hiddenLayers.metrics.status.pending" = "Beklemede";
 "hiddenLayers.metrics.status.scheduled" = "%@ tarihinde açılır";
 "hiddenLayers.metrics.status.available" = "Canlı";
+"hiddenLayers.hint.appearance.title" = "Keşfederken görünüm";
+"hiddenLayers.hint.appearance.a11y" = "Gizli katman görünümü";
+"hiddenLayers.hint.style.blackAndWhite" = "S/B";
+"hiddenLayers.hint.style.actual" = "Altın";
+"hiddenLayers.hint.style.polar" = "Polar";
+"hiddenLayers.hint.style.ember" = "Kor";
+"hiddenLayers.hint.style.ultraviolet" = "Ultra";
+"hiddenLayers.hint.style.aurora" = "Aurora";
+"hiddenLayers.hint.style.rose" = "Gül";
+"hiddenLayers.hint.style.plasma" = "Plazma";
+"hiddenLayers.hint.style.daylight" = "Gökyüzü";
 "explore.error.notAuthenticated" = "Kullanıcı doğrulanmadı. Lütfen giriş yap.";
 "explore.error.loadProfile" = "Profilin yüklenemedi: %@";
 "explore.error.loadMoments" = "Moment'ler yüklenemedi: %@";
@@ -4300,7 +4318,7 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "messageRequests.recent.header" = "Son istekler";
 "messageRequests.recent.empty.title" = "Son mesaj isteği yok";
 "messageRequests.recent.empty.description" = "30 günden eski istekler burada gösterilmez.";
-"messageRequests.loadMore" = "10 tane daha yükle";
+"messageRequests.loadMore" = "Daha fazla mesaj isteği göster";
 "messageRequests.deleteAll" = "Tümünü sil";
 "messageRequests.deleteAll.confirmation.title" = "Tüm istekler silinsin mi?";
 "messageRequests.deleteAll.confirmation.message" = "Bu işlem geri alınamaz.";
@@ -4435,9 +4453,10 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "İlgilenmiyorum";
-"forYou.feedback.subtitle" = "Benzer gönderileri daha az göster";
+"forYou.feedback.subtitle" = "Benzer gönderileri daha az göstereceğiz";
 "forYou.feedback.saving" = "Tercih kaydediliyor…";
-"forYou.feedback.hidden" = "Gönderi gizlendi. Benzer içerikleri daha az göreceksin.";
+"forYou.feedback.hidden" = "Gönderi gizlendi";
+"forYou.feedback.saved" = "Tercih kaydedildi";
 "forYou.feedback.restored" = "Tercih geri alındı.";
 "forYou.feedback.failed" = "Tercih kaydedilemedi. Tekrar dene.";
 "forYou.feedback.undo" = "Geri al";
@@ -4654,5 +4673,13 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "toast.action.unfollowed.suffix" = " kullanıcısını takip etmeyi bıraktın";
 "toast.action.blocked.suffix" = " kullanıcısını engelledin";
 "toast.action.muted.suffix" = " kullanıcısını sessize aldın";
+"toast.action.profileUpdated" = "Profil güncellendi";
+"toast.action.profilePhotoUpdated" = "Profil fotoğrafı güncellendi";
+"toast.action.profilePhotoRemoved" = "Profil fotoğrafı kaldırıldı";
+"toast.action.highlightCreated" = "Öne çıkan oluşturuldu";
+"toast.action.highlightUpdated" = "Öne çıkan güncellendi";
+"toast.action.highlightDeleted" = "Öne çıkan silindi";
+"toast.action.bestFriendsLeft.prefix" = "";
+"toast.action.bestFriendsLeft.suffix" = " kullanıcısının yakın arkadaşlarından ayrıldın";
 "toast.action.commentDeleted.prefix.suffix" = " kullanıcısının yorumunu sildin";
 "toast.action.leftGroup.suffix" = " grubundan ayrıldın";

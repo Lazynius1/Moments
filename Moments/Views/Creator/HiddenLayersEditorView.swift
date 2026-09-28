@@ -23,6 +23,7 @@ struct HiddenLayerDraft: Identifiable, Equatable {
     var duration: Double?
     var textStyle: HiddenLayerTextStyle
     var presentationStyle: HiddenLayerPresentationStyle
+    var hintStyle: MomentHiddenLayer.HintStyle
     var unlockMode: MomentHiddenLayer.UnlockMode
     var unlockAt: Date?
     var authorTimezoneIdentifier: String?
@@ -47,6 +48,7 @@ struct HiddenLayerDraft: Identifiable, Equatable {
         duration: Double? = nil,
         textStyle: HiddenLayerTextStyle = .clean,
         presentationStyle: HiddenLayerPresentationStyle = .glassCard,
+        hintStyle: MomentHiddenLayer.HintStyle = .blackAndWhite,
         unlockMode: MomentHiddenLayer.UnlockMode = .immediate,
         unlockAt: Date? = nil,
         authorTimezoneIdentifier: String? = TimeZone.current.identifier
@@ -70,6 +72,7 @@ struct HiddenLayerDraft: Identifiable, Equatable {
         self.duration = duration
         self.textStyle = textStyle
         self.presentationStyle = presentationStyle
+        self.hintStyle = hintStyle
         self.unlockMode = unlockMode
         self.unlockAt = unlockAt
         self.authorTimezoneIdentifier = authorTimezoneIdentifier
@@ -144,7 +147,7 @@ struct HiddenLayersEditorView: View {
         if let index = dockEditorLayerIndex {
             switch layers[index].type {
             case .text, .audio, .image:
-                return 272
+                return 402
             }
         }
         return 156
@@ -300,16 +303,17 @@ struct HiddenLayersEditorView: View {
     private func editorCanvas(height: CGFloat) -> some View {
         GeometryReader { proxy in
             let imageRect = editorPreviewRect(in: proxy.size)
+            let cornerRadius = FeedMomentCardLayout.mediaCornerRadius
             let presentationMode = MomentCarouselLayoutRules.presentationMode(
                 for: mediaAspectRatio,
                 canvasAspectRatio: displayedPostAspectRatio
             )
 
             ZStack {
-                RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(subtleSurfaceFill)
-                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
-                    .contentShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .onTapGesture {
                         selectedLayerId = nil
                     }
@@ -322,7 +326,7 @@ struct HiddenLayersEditorView: View {
                         .blur(radius: 30)
                         .saturation(0.9)
                         .overlay(Color.black.opacity(0.18))
-                        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                         .position(x: imageRect.midX, y: imageRect.midY)
                         .allowsHitTesting(false)
                 }
@@ -331,8 +335,8 @@ struct HiddenLayersEditorView: View {
                     .resizable()
                     .aspectRatio(contentMode: presentationMode.swiftUIContentMode)
                     .frame(width: imageRect.width, height: imageRect.height)
-                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                    .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .position(x: imageRect.midX, y: imageRect.midY)
                     .onTapGesture {
                         selectedLayerId = nil
@@ -486,6 +490,8 @@ struct HiddenLayersEditorView: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)
                     }
 
+                    HiddenLayerHintStylePicker(style: $layers[index].hintStyle)
+
                     if layers[index].type == .text {
                         TextField(NSLocalizedString("hiddenLayers.text.placeholder", value: "Escribe el secreto...", comment: "Hidden layer text placeholder"), text: limitedTextBinding(for: index))
                             .textFieldStyle(.plain)
@@ -580,6 +586,7 @@ struct HiddenLayersEditorView: View {
                             availabilityControls(for: index)
                         }
                     }
+
                 }
                 .padding(14)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -2000,6 +2007,7 @@ struct HiddenLayerRemotePolaroidPreview: View {
     let imageOffset: CGSize
     let imageScale: Double
     let canvasSize: CGSize
+    var isAnimated = true
 
     @State private var developingProgress: Double = 0
 
@@ -2020,12 +2028,12 @@ struct HiddenLayerRemotePolaroidPreview: View {
                     .aspectRatio(contentMode: .fill)
                     .scaleEffect(imageScale)
                     .offset(imageOffset)
-                    .brightness(0.6 * (1.0 - developingProgress))
-                    .contrast(0.4 + (0.6 * developingProgress))
+                    .brightness(0.6 * (1.0 - renderProgress))
+                    .contrast(0.4 + (0.6 * renderProgress))
                     .overlay {
                         // Micro-granulado mágico temporal
                         Canvas { context, size in
-                            guard developingProgress < 1 else { return }
+                            guard renderProgress < 1 else { return }
                             for _ in 0..<200 {
                                 let rect = CGRect(
                                     x: CGFloat.random(in: 0...size.width),
@@ -2035,7 +2043,7 @@ struct HiddenLayerRemotePolaroidPreview: View {
                                 context.fill(Path(rect), with: .color(.white.opacity(Double.random(in: 0.1...0.3))))
                             }
                         }
-                        .opacity(1.0 - developingProgress)
+                        .opacity(1.0 - renderProgress)
                     }
             }
             .frame(width: contentWidth, height: imageAreaHeight)
@@ -2057,18 +2065,21 @@ struct HiddenLayerRemotePolaroidPreview: View {
                         .padding(.horizontal, 12)
                         .rotationEffect(captionRotation)
                         .offset(y: captionVerticalOffset)
-                        .opacity(developingProgress)
+                        .opacity(renderProgress)
                 }
             }
         }
         .background(frameColor)
         .clipShape(RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous))
         .onAppear {
+            guard isAnimated else { return }
             MotionPolicy.withOptionalAnimation(.easeOut(duration: 0.8).delay(0.2)) {
                 developingProgress = 1.0
             }
         }
     }
+
+    private var renderProgress: Double { isAnimated ? developingProgress : 1.0 }
 
     private var frameColor: Color {
         switch frameStyle {
@@ -2117,6 +2128,123 @@ struct HiddenLayerRemotePolaroidPreview: View {
 
     private var captionVerticalOffset: CGFloat {
         frameStyle == .clean ? -1 : -2
+    }
+}
+
+private struct HiddenLayerHintStylePicker: View {
+    @Binding var style: MomentHiddenLayer.HintStyle
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(
+                NSLocalizedString(
+                    "hiddenLayers.hint.appearance.title",
+                    value: "Appearance on discovery",
+                    comment: "Heading above the hidden-layer hint appearance picker."
+                )
+            )
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(MomentHiddenLayer.HintStyle.allCases, id: \.self) { candidate in
+                        HiddenLayerHintStyleOption(
+                            style: candidate,
+                            isSelected: candidate == style
+                        ) {
+                            style = candidate
+                            HapticManager.shared.selection()
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            NSLocalizedString(
+                "hiddenLayers.hint.appearance.a11y",
+                value: "Hidden layer appearance",
+                comment: "Accessibility label for the hidden-layer hint appearance picker."
+            )
+        )
+    }
+}
+
+private struct HiddenLayerHintStyleOption: View {
+    let style: MomentHiddenLayer.HintStyle
+    let isSelected: Bool
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                ZStack {
+                    previewBackground
+
+                    HiddenLayerHintAppearanceView(
+                        type: .text,
+                        shape: .circle,
+                        style: style,
+                        isSeen: !isSelected,
+                        delay: 0,
+                        isIntro: isSelected,
+                        isActive: isSelected
+                    )
+                    .scaleEffect(isSelected ? 0.82 : 0.68)
+                    .saturation(isSelected ? 1.18 : 0.82)
+                    .brightness(isSelected ? 0.06 : 0)
+                    .allowsHitTesting(false)
+                }
+                .frame(width: 58, height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+
+                Text(style.editorName)
+                    .font(.caption2.weight(.medium))
+                    .lineLimit(1)
+                    .foregroundStyle(.primary.opacity(isSelected ? 1 : 0.68))
+            }
+            .frame(width: 58)
+            .padding(4)
+            .opacity(isSelected ? 1 : 0.52)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.clear)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(isSelected ? Color.primary.opacity(0.76) : Color.primary.opacity(0.12), lineWidth: isSelected ? 1.5 : 0.75)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(style.editorName)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var previewBackground: Color {
+        if style == .blackAndWhite {
+            return colorScheme == .dark ? .black : .white
+        }
+        return isSelected ? .black : .black.opacity(0.42)
+    }
+}
+
+private extension MomentHiddenLayer.HintStyle {
+    /// Brand-style short labels; intentionally not localized.
+    var editorName: String {
+        switch self {
+        case .blackAndWhite: return "B&W"
+        case .actual: return "Gold"
+        case .polar: return "Polar"
+        case .ember: return "Ember"
+        case .ultraviolet: return "Ultra"
+        case .aurora: return "Aurora"
+        case .rose: return "Rose"
+        case .plasma: return "Plasma"
+        case .daylight: return "Sky"
+        }
     }
 }
 

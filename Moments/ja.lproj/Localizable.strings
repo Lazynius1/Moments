@@ -1263,6 +1263,13 @@
 "audience.more" = "その他";
 "audience.list.deleteMember.title" = "メンバーを削除";
 "audience.list.deleteMember.message" = "%@をこのリストから削除しますか？";
+"audience.manageMembers" = "メンバーを管理";
+"audience.list.updated" = "リストを更新しました";
+"audience.list.membersRemoved.single" = "%@をリスト「%@」から削除しました";
+"audience.list.membersRemoved.plural" = "%@と他%d人をリスト「%@」から削除しました";
+"audience.manageMembers.remove.title" = "リストからメンバーを削除しますか？";
+"audience.manageMembers.remove.single" = "%@を「%@」から削除します。この変更はすぐに保存されます。";
+"audience.manageMembers.remove.plural" = "%@と他%d人を「%@」から削除します。この変更はすぐに保存されます。";
 "audience.picker.title" = "メンバーを追加";
 "audience.picker.searchPlaceholder" = "ユーザーを検索…";
 "audience.picker.initialTitle" = "ユーザーを検索";
@@ -3748,6 +3755,17 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "hiddenLayers.metrics.status.pending" = "保留中";
 "hiddenLayers.metrics.status.scheduled" = "%@に公開";
 "hiddenLayers.metrics.status.available" = "ライブ";
+"hiddenLayers.hint.appearance.title" = "発見時の見た目";
+"hiddenLayers.hint.appearance.a11y" = "隠しレイヤーの見た目";
+"hiddenLayers.hint.style.blackAndWhite" = "白黒";
+"hiddenLayers.hint.style.actual" = "ゴールド";
+"hiddenLayers.hint.style.polar" = "ポーラー";
+"hiddenLayers.hint.style.ember" = "エンバー";
+"hiddenLayers.hint.style.ultraviolet" = "ウルトラ";
+"hiddenLayers.hint.style.aurora" = "オーロラ";
+"hiddenLayers.hint.style.rose" = "ローズ";
+"hiddenLayers.hint.style.plasma" = "プラズマ";
+"hiddenLayers.hint.style.daylight" = "スカイ";
 "explore.error.notAuthenticated" = "認証されていません。サインインしてください。";
 "explore.error.loadProfile" = "プロフィールを読み込めませんでした：%@";
 "explore.error.loadMoments" = "Momentsを読み込めませんでした：%@";
@@ -4300,7 +4318,7 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "messageRequests.recent.header" = "最近のリクエスト";
 "messageRequests.recent.empty.title" = "最近のメッセージリクエストはありません";
 "messageRequests.recent.empty.description" = "30日以上前のリクエストはここには表示されません。";
-"messageRequests.loadMore" = "さらに10件読み込む";
+"messageRequests.loadMore" = "さらにメッセージリクエストを表示";
 "messageRequests.deleteAll" = "すべて削除";
 "messageRequests.deleteAll.confirmation.title" = "すべてのリクエストを削除しますか？";
 "messageRequests.deleteAll.confirmation.message" = "この操作は元に戻せません。";
@@ -4435,9 +4453,10 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "興味がない";
-"forYou.feedback.subtitle" = "似た投稿の表示を減らす";
+"forYou.feedback.subtitle" = "似た投稿の表示を減らします";
 "forYou.feedback.saving" = "設定を保存中…";
-"forYou.feedback.hidden" = "投稿を非表示にしました。似たコンテンツの表示を減らします。";
+"forYou.feedback.hidden" = "投稿を非表示にしました";
+"forYou.feedback.saved" = "設定を保存しました";
 "forYou.feedback.restored" = "設定を元に戻しました。";
 "forYou.feedback.failed" = "設定を保存できませんでした。もう一度お試しください。";
 "forYou.feedback.undo" = "元に戻す";
@@ -4654,5 +4673,13 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "toast.action.unfollowed.suffix" = "さんのフォローを解除しました";
 "toast.action.blocked.suffix" = "さんをブロックしました";
 "toast.action.muted.suffix" = "さんをミュートしました";
+"toast.action.profileUpdated" = "プロフィールを更新しました";
+"toast.action.profilePhotoUpdated" = "プロフィール写真を更新しました";
+"toast.action.profilePhotoRemoved" = "プロフィール写真を削除しました";
+"toast.action.highlightCreated" = "ハイライトを作成しました";
+"toast.action.highlightUpdated" = "ハイライトを更新しました";
+"toast.action.highlightDeleted" = "ハイライトを削除しました";
+"toast.action.bestFriendsLeft.prefix" = "";
+"toast.action.bestFriendsLeft.suffix" = "さんの親しい友達から退出しました";
 "toast.action.commentDeleted.prefix.suffix" = "さんのコメントを削除しました";
 "toast.action.leftGroup.suffix" = "」から退出しました";

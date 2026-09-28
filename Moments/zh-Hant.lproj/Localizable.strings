@@ -1263,6 +1263,13 @@
 "audience.more" = "更多";
 "audience.list.deleteMember.title" = "移除成員";
 "audience.list.deleteMember.message" = "要將 %@ 從這份名單移除嗎？";
+"audience.manageMembers" = "管理成員";
+"audience.list.updated" = "名單已更新";
+"audience.list.membersRemoved.single" = "你已將 %@ 從名單「%@」移除";
+"audience.list.membersRemoved.plural" = "你已將 %@ 和另外 %d 人從名單「%@」移除";
+"audience.manageMembers.remove.title" = "要從名單移除成員嗎？";
+"audience.manageMembers.remove.single" = "你即將把 %@ 從「%@」移除。這項變更會立即儲存。";
+"audience.manageMembers.remove.plural" = "你即將把 %@ 和另外 %d 人從「%@」移除。這項變更會立即儲存。";
 "audience.picker.title" = "新增成員";
 "audience.picker.searchPlaceholder" = "搜尋成員…";
 "audience.picker.initialTitle" = "搜尋成員";
@@ -3748,6 +3755,17 @@
 "hiddenLayers.metrics.status.pending" = "待處理";
 "hiddenLayers.metrics.status.scheduled" = "於 %@ 開放";
 "hiddenLayers.metrics.status.available" = "直播中";
+"hiddenLayers.hint.appearance.title" = "發現時外觀";
+"hiddenLayers.hint.appearance.a11y" = "隱藏圖層外觀";
+"hiddenLayers.hint.style.blackAndWhite" = "黑白";
+"hiddenLayers.hint.style.actual" = "金";
+"hiddenLayers.hint.style.polar" = "極地";
+"hiddenLayers.hint.style.ember" = "餘燼";
+"hiddenLayers.hint.style.ultraviolet" = "紫外";
+"hiddenLayers.hint.style.aurora" = "極光";
+"hiddenLayers.hint.style.rose" = "玫瑰";
+"hiddenLayers.hint.style.plasma" = "電漿";
+"hiddenLayers.hint.style.daylight" = "天空";
 "explore.error.notAuthenticated" = "使用者尚未驗證，請登入。";
 "explore.error.loadProfile" = "無法載入你的個人檔案：%@";
 "explore.error.loadMoments" = "無法載入動態：%@";
@@ -4300,7 +4318,7 @@
 "messageRequests.recent.header" = "近期要求";
 "messageRequests.recent.empty.title" = "沒有近期訊息要求";
 "messageRequests.recent.empty.description" = "超過 30 天的要求不會顯示在這裡。";
-"messageRequests.loadMore" = "載入更多 10 筆";
+"messageRequests.loadMore" = "顯示更多訊息要求";
 "messageRequests.deleteAll" = "全部刪除";
 "messageRequests.deleteAll.confirmation.title" = "要刪除所有要求嗎？";
 "messageRequests.deleteAll.confirmation.message" = "此動作無法復原。";
@@ -4435,9 +4453,10 @@
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "不感興趣";
-"forYou.feedback.subtitle" = "減少顯示類似貼文";
+"forYou.feedback.subtitle" = "我們會減少顯示類似貼文";
 "forYou.feedback.saving" = "正在儲存偏好設定…";
-"forYou.feedback.hidden" = "已隱藏貼文。將減少顯示類似內容。";
+"forYou.feedback.hidden" = "貼文已隱藏";
+"forYou.feedback.saved" = "偏好設定已儲存";
 "forYou.feedback.restored" = "已復原偏好設定。";
 "forYou.feedback.failed" = "無法儲存偏好設定。請再試一次。";
 "forYou.feedback.undo" = "復原";
@@ -4655,4 +4674,12 @@
 "toast.action.requestAccepted.suffix" = " 的追蹤請求";
 "toast.action.requestRejected.suffix" = " 的追蹤請求";
 "toast.action.muted.suffix" = " 靜音";
+"toast.action.profileUpdated" = "個人檔案已更新";
+"toast.action.profilePhotoUpdated" = "個人檔案照片已更新";
+"toast.action.profilePhotoRemoved" = "個人檔案照片已移除";
+"toast.action.highlightCreated" = "精選動態已建立";
+"toast.action.highlightUpdated" = "精選動態已更新";
+"toast.action.highlightDeleted" = "精選動態已刪除";
+"toast.action.bestFriendsLeft.prefix" = "你已退出 ";
+"toast.action.bestFriendsLeft.suffix" = " 的摯友名單";
 "toast.action.commentDeleted.prefix.suffix" = " 的留言";

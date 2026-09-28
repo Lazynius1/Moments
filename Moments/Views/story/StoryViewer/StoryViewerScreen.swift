@@ -2190,7 +2190,9 @@ struct StoryViewerScreen: View {
         ) { result in
             switch result {
             case .success:
-                showSuccessAnimation(NSLocalizedString("stories.messageSent", comment: "Story message sent"))
+                InAppNotificationService.shared.showActionToast(
+                    .plain("stories.messageSent", fallback: "Message sent", icon: "paperplane.fill")
+                )
             case .failure(let error):
                 // Restore message if failed
                 messageText = messageToSend
@@ -2211,7 +2213,9 @@ struct StoryViewerScreen: View {
         ) { result in
             switch result {
             case .success:
-                showSuccessAnimation(NSLocalizedString("stories.reactionSent", comment: "Story reaction sent"))
+                InAppNotificationService.shared.showActionToast(
+                    .plain("stories.reactionSent", fallback: "Reaction sent", icon: "heart.fill")
+                )
             case .failure(let error):
                 showErrorAnimation(error.localizedDescription)
             }
@@ -2255,7 +2259,9 @@ struct StoryViewerScreen: View {
                 ) { result in
                     switch result {
                     case .success:
-                        showSuccessAnimation(NSLocalizedString("stories.ephemeralSent", comment: "Ephemeral moment sent"))
+                        InAppNotificationService.shared.showActionToast(
+                            .plain("stories.ephemeralSent", fallback: "Ephemeral moment sent", icon: "timer")
+                        )
                         // ✅ Reanudar historia después de enviar foto efímera
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             resumeStory()
@@ -2294,10 +2300,6 @@ struct StoryViewerScreen: View {
                     }
                     return
                 }
-
-                self.showSuccessAnimation(
-                    NSLocalizedString("storyContextMenu.delete.success", comment: "Story deleted success message")
-                )
 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
                     if let onStoryDeleted {
@@ -2351,7 +2353,9 @@ struct StoryViewerScreen: View {
                 try await PHPhotoLibrary.shared().performChanges {
                     PHAssetCreationRequest.forAsset().addResource(with: .video, fileURL: fileURL, options: nil)
                 }
-                showSuccessAnimation(NSLocalizedString("stories.savedVideo", comment: "Video saved"))
+                InAppNotificationService.shared.showActionToast(
+                    .plain("stories.savedVideo", fallback: "Video saved", icon: "square.and.arrow.down.fill")
+                )
             } catch {
                 showErrorAnimation(error.localizedDescription)
             }
@@ -2467,7 +2471,7 @@ struct StoryViewerScreen: View {
                     return
                 }
 
-                self.showSuccessAnimation(NSLocalizedString("bestFriends.optOut.success", comment: "You left best friends"))
+                InAppNotificationService.shared.showActionToast(.leftBestFriends(of: self.story.username))
                 if let currentUserId = Auth.auth().currentUser?.uid {
                     StorySeenStateService.shared.invalidate(
                         viewerId: currentUserId,
@@ -2495,8 +2499,6 @@ struct StoryViewerScreen: View {
                     let fallback = NSLocalizedString("storyContextMenu.actionFailed", comment: "Generic story action failed")
                     let message = error.localizedDescription.isEmpty ? fallback : error.localizedDescription
                     self.showSuccessAnimation(message)
-                } else {
-                    self.showSuccessAnimation(NSLocalizedString("storyContextMenu.unfollow.success", comment: "Unfollow success message"))
                 }
 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -2524,7 +2526,7 @@ struct StoryViewerScreen: View {
                         let message = error.localizedDescription.isEmpty ? fallback : error.localizedDescription
                         self.showSuccessAnimation(message)
                     } else {
-                        self.showSuccessAnimation(NSLocalizedString("storyContextMenu.mute.successWithHint", comment: "Mute success message with settings hint"))
+                    InAppNotificationService.shared.showActionToast(.muted(self.story.username))
                     }
 
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

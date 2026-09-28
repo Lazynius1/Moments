@@ -385,7 +385,10 @@ class ProfileHighlightsViewModel: ObservableObject {
                     self?.errorMessage = error.localizedDescription
                 }
             } else {
-                self?.loadHighlights(userId: userId)
+                DispatchQueue.main.async {
+                    InAppNotificationService.shared.showActionToast(.highlightDeleted)
+                    self?.loadHighlights(userId: userId)
+                }
             }
         }
     }

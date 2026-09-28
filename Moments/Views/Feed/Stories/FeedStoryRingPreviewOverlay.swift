@@ -621,10 +621,8 @@ struct FeedStoryRingPreviewOverlay: View {
                     }
 
                     onMuted(userId)
-                    successMessage = NSLocalizedString(
-                        "storyContextMenu.mute.successWithHint",
-                        comment: "Mute success message with settings hint"
-                    )
+                    successMessage = nil
+                    InAppNotificationService.shared.showActionToast(.muted(resolvedUsername))
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
                         dismissOverlay()
                     }

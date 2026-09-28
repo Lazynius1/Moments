@@ -1263,6 +1263,13 @@
 "audience.more" = "Meer";
 "audience.list.deleteMember.title" = "Lid verwijderen";
 "audience.list.deleteMember.message" = "Wil je %@ uit deze lijst verwijderen?";
+"audience.manageMembers" = "Leden beheren";
+"audience.list.updated" = "Lijst bijgewerkt";
+"audience.list.membersRemoved.single" = "Je hebt %@ uit de lijst %@ verwijderd";
+"audience.list.membersRemoved.plural" = "Je hebt %@ en nog %d personen uit de lijst %@ verwijderd";
+"audience.manageMembers.remove.title" = "Leden uit de lijst verwijderen?";
+"audience.manageMembers.remove.single" = "Je gaat %@ uit ‘%@’ verwijderen. Deze wijziging wordt meteen opgeslagen.";
+"audience.manageMembers.remove.plural" = "Je gaat %@ en nog %d personen uit ‘%@’ verwijderen. Deze wijziging wordt meteen opgeslagen.";
 "audience.picker.title" = "Leden toevoegen";
 "audience.picker.searchPlaceholder" = "Mensen zoeken...";
 "audience.picker.initialTitle" = "Mensen zoeken";
@@ -3748,6 +3755,17 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "hiddenLayers.metrics.status.pending" = "In afwachting";
 "hiddenLayers.metrics.status.scheduled" = "Opent %@";
 "hiddenLayers.metrics.status.available" = "Live";
+"hiddenLayers.hint.appearance.title" = "Uiterlijk bij ontdekken";
+"hiddenLayers.hint.appearance.a11y" = "Uiterlijk van verborgen laag";
+"hiddenLayers.hint.style.blackAndWhite" = "Z/W";
+"hiddenLayers.hint.style.actual" = "Goud";
+"hiddenLayers.hint.style.polar" = "Polar";
+"hiddenLayers.hint.style.ember" = "Gloed";
+"hiddenLayers.hint.style.ultraviolet" = "Ultra";
+"hiddenLayers.hint.style.aurora" = "Aurora";
+"hiddenLayers.hint.style.rose" = "Roze";
+"hiddenLayers.hint.style.plasma" = "Plasma";
+"hiddenLayers.hint.style.daylight" = "Hemel";
 "explore.error.notAuthenticated" = "Gebruiker niet geverifieerd. Log in.";
 "explore.error.loadProfile" = "Je profiel kon niet worden geladen: %@";
 "explore.error.loadMoments" = "Momenten konden niet worden geladen: %@";
@@ -4300,7 +4318,7 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "messageRequests.recent.header" = "Recente verzoeken";
 "messageRequests.recent.empty.title" = "Geen recente berichtverzoeken";
 "messageRequests.recent.empty.description" = "Verzoeken ouder dan 30 dagen worden hier niet weergegeven.";
-"messageRequests.loadMore" = "Laad er nog 10";
+"messageRequests.loadMore" = "Meer berichtverzoeken weergeven";
 "messageRequests.deleteAll" = "Alles verwijderen";
 "messageRequests.deleteAll.confirmation.title" = "Alle verzoeken verwijderen?";
 "messageRequests.deleteAll.confirmation.message" = "Deze actie kan niet ongedaan worden gemaakt.";
@@ -4435,9 +4453,10 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "Niet geïnteresseerd";
-"forYou.feedback.subtitle" = "Minder soortgelijke berichten tonen";
+"forYou.feedback.subtitle" = "We tonen minder soortgelijke berichten";
 "forYou.feedback.saving" = "Voorkeur opslaan…";
-"forYou.feedback.hidden" = "Bericht verborgen. Je ziet minder soortgelijke inhoud.";
+"forYou.feedback.hidden" = "Bericht verborgen";
+"forYou.feedback.saved" = "Voorkeur opgeslagen";
 "forYou.feedback.restored" = "Voorkeur ongedaan gemaakt.";
 "forYou.feedback.failed" = "Je voorkeur kon niet worden opgeslagen. Probeer het opnieuw.";
 "forYou.feedback.undo" = "Ongedaan maken";
@@ -4654,5 +4673,13 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "toast.action.requestRejected.suffix" = " geweigerd";
 "toast.action.blocked.suffix" = " geblokkeerd";
 "toast.action.muted.suffix" = " gedempt";
+"toast.action.profileUpdated" = "Profiel bijgewerkt";
+"toast.action.profilePhotoUpdated" = "Profielfoto bijgewerkt";
+"toast.action.profilePhotoRemoved" = "Profielfoto verwijderd";
+"toast.action.highlightCreated" = "Hoogtepunt gemaakt";
+"toast.action.highlightUpdated" = "Hoogtepunt bijgewerkt";
+"toast.action.highlightDeleted" = "Hoogtepunt verwijderd";
+"toast.action.bestFriendsLeft.prefix" = "Je hebt de lijst met beste vrienden van ";
+"toast.action.bestFriendsLeft.suffix" = " verlaten";
 "toast.action.commentDeleted.prefix.suffix" = " verwijderd";
 "toast.action.leftGroup.suffix" = " verlaten";

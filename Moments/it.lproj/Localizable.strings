@@ -1312,6 +1312,13 @@
 "audience.more" = "Altro";
 "audience.list.deleteMember.title" = "Rimuovi membro";
 "audience.list.deleteMember.message" = "Rimuovere %@ da questa lista?";
+"audience.manageMembers" = "Gestisci membri";
+"audience.list.updated" = "Lista aggiornata";
+"audience.list.membersRemoved.single" = "Hai rimosso %@ dalla lista %@";
+"audience.list.membersRemoved.plural" = "Hai rimosso %@ e altre %d persone dalla lista %@";
+"audience.manageMembers.remove.title" = "Rimuovere membri dalla lista?";
+"audience.manageMembers.remove.single" = "Stai per rimuovere %@ da “%@”. Questa modifica verrà salvata immediatamente.";
+"audience.manageMembers.remove.plural" = "Stai per rimuovere %@ e altre %d persone da “%@”. Questa modifica verrà salvata immediatamente.";
 "audience.picker.title" = "Aggiungi membri";
 "audience.picker.searchPlaceholder" = "Cerca persone...";
 "audience.picker.initialTitle" = "Cerca persone";
@@ -3945,6 +3952,17 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "hiddenLayers.metrics.status.pending" = "In sospeso";
 "hiddenLayers.metrics.status.scheduled" = "Si apre %@";
 "hiddenLayers.metrics.status.available" = "Attivo";
+"hiddenLayers.hint.appearance.title" = "Aspetto alla scoperta";
+"hiddenLayers.hint.appearance.a11y" = "Aspetto del layer nascosto";
+"hiddenLayers.hint.style.blackAndWhite" = "B/N";
+"hiddenLayers.hint.style.actual" = "Oro";
+"hiddenLayers.hint.style.polar" = "Polare";
+"hiddenLayers.hint.style.ember" = "Brace";
+"hiddenLayers.hint.style.ultraviolet" = "Ultra";
+"hiddenLayers.hint.style.aurora" = "Aurora";
+"hiddenLayers.hint.style.rose" = "Rosa";
+"hiddenLayers.hint.style.plasma" = "Plasma";
+"hiddenLayers.hint.style.daylight" = "Cielo";
 "explore.error.notAuthenticated" = "Utente non autenticato. Accedi per continuare.";
 "explore.error.loadProfile" = "Impossibile caricare il tuo profilo: %@";
 "explore.error.loadMoments" = "Impossibile caricare i moments: %@";
@@ -4529,7 +4547,7 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "messageRequests.recent.header" = "Richieste recenti";
 "messageRequests.recent.empty.title" = "Nessuna richiesta di messaggio recente";
 "messageRequests.recent.empty.description" = "Le richieste più vecchie di 30 giorni non vengono mostrate qui.";
-"messageRequests.loadMore" = "Carica altre 10";
+"messageRequests.loadMore" = "Mostra altre richieste di messaggi";
 "messageRequests.deleteAll" = "Elimina tutte";
 "messageRequests.deleteAll.confirmation.title" = "Eliminare tutte le richieste?";
 "messageRequests.deleteAll.confirmation.message" = "Questa azione non può essere annullata.";
@@ -4664,9 +4682,10 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "Non mi interessa";
-"forYou.feedback.subtitle" = "Mostra meno post simili";
+"forYou.feedback.subtitle" = "Ti mostreremo meno post simili";
 "forYou.feedback.saving" = "Salvataggio della preferenza…";
-"forYou.feedback.hidden" = "Post nascosto. Vedrai meno contenuti simili.";
+"forYou.feedback.hidden" = "Post nascosto";
+"forYou.feedback.saved" = "Preferenza salvata";
 "forYou.feedback.restored" = "Preferenza annullata.";
 "forYou.feedback.failed" = "Impossibile salvare la preferenza. Riprova.";
 "forYou.feedback.undo" = "Annulla";
@@ -4883,5 +4902,13 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "toast.action.unfollowed.suffix" = "";
 "toast.action.blocked.suffix" = "";
 "toast.action.muted.suffix" = "";
+"toast.action.profileUpdated" = "Profilo aggiornato";
+"toast.action.profilePhotoUpdated" = "Foto profilo aggiornata";
+"toast.action.profilePhotoRemoved" = "Foto profilo rimossa";
+"toast.action.highlightCreated" = "In evidenza creato";
+"toast.action.highlightUpdated" = "In evidenza aggiornato";
+"toast.action.highlightDeleted" = "In evidenza eliminato";
+"toast.action.bestFriendsLeft.prefix" = "Hai lasciato gli amici più stretti di ";
+"toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";

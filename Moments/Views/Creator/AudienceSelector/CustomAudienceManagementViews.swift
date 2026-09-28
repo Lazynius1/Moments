@@ -13,7 +13,17 @@ struct CustomAudienceSelector: View {
     @State private var searchText = ""
     @State private var searchResults: [AppUser] = []
     @State private var isSearching = false
+    @State private var suggestedUsers: [AppUser] = []
+    @State private var isLoadingSuggestions = true
     @StateObject private var firestoreService = FirestoreService()
+
+    private var isShowingSuggestions: Bool {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var displayedUsers: [AppUser] {
+        isShowingSuggestions ? suggestedUsers : searchResults
+    }
     
     var body: some View {
         ZStack {
@@ -65,10 +75,25 @@ struct CustomAudienceSelector: View {
                         .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .onChange(of: searchText) { _, newValue in
-                            if !newValue.isEmpty {
+                            if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                searchResults = []
+                                isSearching = false
+                            } else {
                                 searchUsers(query: newValue)
                             }
                         }
+
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                            searchResults = []
+                            isSearching = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.gray)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
@@ -76,16 +101,28 @@ struct CustomAudienceSelector: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 4)
                 
-                if isSearching {
+                if isSearching || (isShowingSuggestions && isLoadingSuggestions) {
                     ProgressView()
                         .padding()
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(searchResults) { user in
-                                UserSelectionCard(
+                        LazyVStack(spacing: 6) {
+                            if isShowingSuggestions && !displayedUsers.isEmpty {
+                                HStack {
+                                    Text(NSLocalizedString("messaging.new.suggestions", comment: "Suggested people section title"))
+                                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 4)
+                                .padding(.top, 8)
+                            }
+
+                            ForEach(displayedUsers) { user in
+                                AudienceMemberSelectionRow(
                                     user: user,
                                     isSelected: selectedUsers.contains { $0.id == user.id },
+                                    isSelectionEnabled: true,
                                     onToggle: {
                                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                             if let index = selectedUsers.firstIndex(where: { $0.id == user.id }) {
@@ -98,13 +135,14 @@ struct CustomAudienceSelector: View {
                                 )
                             }
                         }
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 20)
                         .padding(.bottom, 20)
                     }
                 }
                 
-                // Botón de completar
-                if !selectedUsers.isEmpty {
+                // La presentación independiente conserva su acción explícita.
+                // En los flujos anidados, el chevron atrás guarda automáticamente.
+                if !embeddedInFlow && !selectedUsers.isEmpty {
                     Button(action: onComplete) {
                         Text(String(format: NSLocalizedString("audience.selectPeople", comment: "Select people"), selectedUsers.count))
                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
@@ -119,6 +157,9 @@ struct CustomAudienceSelector: View {
                 }
             }
         }
+        .onAppear {
+            loadSuggestedUsers()
+        }
     }
     
     private func searchUsers(query: String) {
@@ -132,6 +173,16 @@ struct CustomAudienceSelector: View {
                 case .failure:
                     self.searchResults = []
                 }
+            }
+        }
+    }
+
+    private func loadSuggestedUsers() {
+        isLoadingSuggestions = true
+        firestoreService.fetchNewConversationSuggestions(recentPartnerIds: []) { result in
+            DispatchQueue.main.async {
+                isLoadingSuggestions = false
+                suggestedUsers = (try? result.get()) ?? []
             }
         }
     }
@@ -469,8 +520,13 @@ struct ManageableCustomListCard: View {
                         .fill(Color(hex: list.color ?? "00A896").opacity(0.15))
                         .frame(width: 56, height: 56)
                     
-                    Image(systemName: list.icon ?? "person.3.fill")
-                        .font(.system(size: 24, weight: .medium))
+                    CustomAudienceListIcon(
+                        icon: list.icon ?? "person.3.fill",
+                        size: 24,
+                        weight: .medium,
+                        imagePath: list.imagePath,
+                        imageSize: 64
+                    )
                         .foregroundStyle(Color(hex: list.color ?? "00A896"))
                 }
                 
@@ -557,7 +613,9 @@ class CustomAudienceListsViewModel: ObservableObject {
         db.collection("users").document(userId)
             .collection("customAudienceLists")
             .document(listId)
-            .delete { _ in }
+            .delete { error in
+                guard error == nil, let imagePath = list.imagePath else { return }
+                StorageService().deleteMedia(path: imagePath) { _ in }
+            }
     }
 }
-

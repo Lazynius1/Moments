@@ -475,6 +475,7 @@ struct ModernProfileContentView: View {
                 if let imagePath = moment.previewImageURLString,
                    let url = profileGridPreviewImageURL(from: imagePath) {
                     ProfileGridPreviewEditorView(
+                        moment: moment,
                         imageURL: url,
                         feedCrop: moment.primaryVisibleMediaItem?.feedCrop,
                         initialSettings: moment.gridPreviewSettings,

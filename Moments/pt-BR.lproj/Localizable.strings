@@ -1312,6 +1312,13 @@
 "audience.more" = "Mais";
 "audience.list.deleteMember.title" = "Remover membro";
 "audience.list.deleteMember.message" = "Remover %@ desta lista?";
+"audience.manageMembers" = "Gerenciar membros";
+"audience.list.updated" = "Lista atualizada";
+"audience.list.membersRemoved.single" = "Você removeu %@ da lista %@";
+"audience.list.membersRemoved.plural" = "Você removeu %@ e mais %d pessoas da lista %@";
+"audience.manageMembers.remove.title" = "Remover membros da lista?";
+"audience.manageMembers.remove.single" = "Você está prestes a remover %@ de “%@”. Esta alteração será salva imediatamente.";
+"audience.manageMembers.remove.plural" = "Você está prestes a remover %@ e mais %d pessoas de “%@”. Esta alteração será salva imediatamente.";
 "audience.picker.title" = "Adicionar membros";
 "audience.picker.searchPlaceholder" = "Buscar pessoas...";
 "audience.picker.initialTitle" = "Buscar pessoas";
@@ -3945,6 +3952,17 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "hiddenLayers.metrics.status.pending" = "Pendente";
 "hiddenLayers.metrics.status.scheduled" = "Abre %@";
 "hiddenLayers.metrics.status.available" = "Disponível";
+"hiddenLayers.hint.appearance.title" = "Aparência ao descobrir";
+"hiddenLayers.hint.appearance.a11y" = "Aparência da camada oculta";
+"hiddenLayers.hint.style.blackAndWhite" = "P&B";
+"hiddenLayers.hint.style.actual" = "Ouro";
+"hiddenLayers.hint.style.polar" = "Polar";
+"hiddenLayers.hint.style.ember" = "Brasa";
+"hiddenLayers.hint.style.ultraviolet" = "Ultra";
+"hiddenLayers.hint.style.aurora" = "Aurora";
+"hiddenLayers.hint.style.rose" = "Rosa";
+"hiddenLayers.hint.style.plasma" = "Plasma";
+"hiddenLayers.hint.style.daylight" = "Céu";
 "explore.error.notAuthenticated" = "Usuário não autenticado. Faça login para continuar.";
 "explore.error.loadProfile" = "Não foi possível carregar seu perfil: %@";
 "explore.error.loadMoments" = "Não foi possível carregar os moments: %@";
@@ -4529,7 +4547,7 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "messageRequests.recent.header" = "Solicitações recentes";
 "messageRequests.recent.empty.title" = "Nenhuma solicitação de mensagem recente";
 "messageRequests.recent.empty.description" = "Solicitações com mais de 30 dias não são mostradas aqui.";
-"messageRequests.loadMore" = "Carregar mais 10";
+"messageRequests.loadMore" = "Mostrar mais solicitações de mensagens";
 "messageRequests.deleteAll" = "Excluir todas";
 "messageRequests.deleteAll.confirmation.title" = "Excluir todas as solicitações?";
 "messageRequests.deleteAll.confirmation.message" = "Esta ação não pode ser desfeita.";
@@ -4664,9 +4682,10 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "Não tenho interesse";
-"forYou.feedback.subtitle" = "Ver menos publicações semelhantes";
+"forYou.feedback.subtitle" = "Mostraremos menos publicações semelhantes";
 "forYou.feedback.saving" = "Salvando preferência…";
-"forYou.feedback.hidden" = "Publicação ocultada. Você verá menos conteúdo semelhante.";
+"forYou.feedback.hidden" = "Publicação ocultada";
+"forYou.feedback.saved" = "Preferência salva";
 "forYou.feedback.restored" = "Preferência desfeita.";
 "forYou.feedback.failed" = "Não foi possível salvar a preferência. Tente novamente.";
 "forYou.feedback.undo" = "Desfazer";
@@ -4883,5 +4902,13 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "toast.action.unfollowed.suffix" = "";
 "toast.action.blocked.suffix" = "";
 "toast.action.muted.suffix" = "";
+"toast.action.profileUpdated" = "Perfil atualizado";
+"toast.action.profilePhotoUpdated" = "Foto do perfil atualizada";
+"toast.action.profilePhotoRemoved" = "Foto do perfil removida";
+"toast.action.highlightCreated" = "Destaque criado";
+"toast.action.highlightUpdated" = "Destaque atualizado";
+"toast.action.highlightDeleted" = "Destaque excluído";
+"toast.action.bestFriendsLeft.prefix" = "Você saiu dos melhores amigos de ";
+"toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";

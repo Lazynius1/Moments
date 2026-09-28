@@ -179,6 +179,11 @@ struct BackendMoment: Codable {
     let scheduledDate: Double? // epoch millis
     let isPinned: Bool?
     let pinnedAt: Double? // epoch millis
+    let gridPreviewScale: Double?
+    let gridPreviewOffsetX: Double?
+    let gridPreviewOffsetY: Double?
+    let gridPreviewFitMode: String?
+    let gridPreviewBackground: String?
     let hasHiddenLayers: Bool?
     let hiddenLayerCount: Int?
     
@@ -213,6 +218,11 @@ struct BackendMoment: Codable {
             scheduledDate: scheduledDate.map { Date(timeIntervalSince1970: $0 / 1000) },
             isPinned: isPinned == true ? true : nil,
             pinnedAt: pinnedAt.map { Date(timeIntervalSince1970: $0 / 1000) },
+            gridPreviewScale: gridPreviewScale,
+            gridPreviewOffsetX: gridPreviewOffsetX,
+            gridPreviewOffsetY: gridPreviewOffsetY,
+            gridPreviewFitMode: gridPreviewFitMode,
+            gridPreviewBackground: gridPreviewBackground,
             hasHiddenLayers: hasHiddenLayers ?? false,
             hiddenLayerCount: hiddenLayerCount ?? 0
         )

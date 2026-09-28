@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Lottie
 import Kingfisher
 import FirebaseFirestore
 import FirebaseAuth
@@ -180,12 +181,18 @@ struct InAppBannerView: View {
                                 .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+                                .allowsTightening(true)
+                                .truncationMode(.tail)
                             if let subtitle = toast.subtitle?.trimmingCharacters(in: .whitespacesAndNewlines),
                                !subtitle.isEmpty {
                                 Text(subtitle)
                                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
+                                    .allowsTightening(true)
+                                    .truncationMode(.tail)
                                 }
                         }
                         .layoutPriority(1)
@@ -240,6 +247,9 @@ struct InAppBannerView: View {
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                        .allowsTightening(true)
+                        .truncationMode(.tail)
                 }
             }
 
@@ -299,11 +309,16 @@ struct InAppBannerView: View {
                     .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .allowsTightening(true)
+                    .truncationMode(.tail)
                 if let subtitle = toast.subtitle?.trimmingCharacters(in: .whitespacesAndNewlines), !subtitle.isEmpty {
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .allowsTightening(true)
                         .truncationMode(.tail)
                 }
             }
@@ -313,13 +328,17 @@ struct InAppBannerView: View {
                 ProgressView()
                     .controlSize(.small)
             } else {
-                let icon = (toast.bridgesToIncognitoPill || toast.isIncognitoPaused)
-                    ? toast.systemImage
-                    : "checkmark.circle.fill"
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 16, height: 16)
+                if toast.bridgesToIncognitoPill || toast.isIncognitoPaused {
+                    Image(systemName: toast.systemImage)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 16, height: 16)
+                } else {
+                    InAppBannerSuccessCheckmark(isDark: colorScheme == .dark)
+                        .id(toast.id)
+                        .frame(width: 20, height: 20)
+                        .accessibilityHidden(true)
+                }
             }
 
             if toast.undo != nil {
@@ -375,35 +394,56 @@ struct InAppBannerView: View {
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .allowsTightening(true)
+                    .truncationMode(.tail)
                 Text(detail)
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.75)
+                    .allowsTightening(true)
+                    .truncationMode(.tail)
             } else {
                 (Text(headline).fontWeight(.semibold) + Text(" \(detail)").fontWeight(.medium))
                     .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+                    .allowsTightening(true)
+                    .truncationMode(.tail)
             }
         } else if let headline = lines.headline, let detail = lines.detail {
             Text(headline)
                 .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(2)
+                .minimumScaleFactor(0.72)
+                .allowsTightening(true)
+                .truncationMode(.tail)
             Text(detail)
                 .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
+                .minimumScaleFactor(0.75)
+                .allowsTightening(true)
+                .truncationMode(.tail)
         } else if let detail = lines.detail {
             Text(detail)
                 .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                 .foregroundStyle(.primary)
                 .lineLimit(2)
+                .minimumScaleFactor(0.72)
+                .allowsTightening(true)
+                .truncationMode(.tail)
         } else if let headline = lines.headline {
             Text(headline)
                 .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .allowsTightening(true)
+                .truncationMode(.tail)
         }
     }
 
@@ -836,6 +876,104 @@ private struct InAppBannerInteractiveRegionKey: PreferenceKey {
 
     static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) {
         value.append(contentsOf: nextValue())
+    }
+}
+
+private struct InAppBannerSuccessCheckmark: UIViewRepresentable {
+    let isDark: Bool
+
+    func makeUIView(context: Context) -> AnimationContainer {
+        let animationView = LottieAnimationView(animation: Self.animation)
+        animationView.backgroundBehavior = .pauseAndRestore
+        animationView.contentMode = .scaleAspectFit
+        animationView.clipsToBounds = true
+        animationView.layer.masksToBounds = true
+        animationView.loopMode = .playOnce
+        applyPalette(to: animationView)
+        animationView.play()
+        return AnimationContainer(animationView: animationView)
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        uiView: AnimationContainer,
+        context: Context
+    ) -> CGSize {
+        CGSize(width: 20, height: 20)
+    }
+
+    func updateUIView(_ container: AnimationContainer, context: Context) {
+        applyPalette(to: container.animationView)
+    }
+
+    private func applyPalette(to animationView: LottieAnimationView) {
+        let circleColor = isDark
+            ? LottieColor(r: 1, g: 1, b: 1, a: 1)
+            : LottieColor(r: 0, g: 0, b: 0, a: 1)
+        let checkmarkColor = isDark
+            ? LottieColor(r: 0, g: 0, b: 0, a: 1)
+            : LottieColor(r: 1, g: 1, b: 1, a: 1)
+
+        animationView.setValueProvider(
+            ColorValueProvider(checkmarkColor),
+            keypath: AnimationKeypath(keypath: "Check Mark.Shape 1.Stroke 1.Color")
+        )
+        [
+            "Circle Flash.Fill 1.Color",
+            "Circle Stroke.Ellipse 1.Stroke 1.Color",
+            "Circle Green Fill.Fill 1.Color",
+        ].forEach { keypath in
+            animationView.setValueProvider(
+                ColorValueProvider(circleColor),
+                keypath: AnimationKeypath(keypath: keypath)
+            )
+        }
+    }
+
+    private static let animation: LottieAnimation? = {
+        let bundle = Bundle.main
+        let resourceName = "in_app_success_checkmark"
+        let subdirectories: [String?] = ["Resources/Lottie", "Lottie", nil]
+
+        for subdirectory in subdirectories {
+            if let url = bundle.url(
+                forResource: resourceName,
+                withExtension: "json",
+                subdirectory: subdirectory
+            ), let animation = LottieAnimation.filepath(url.path) {
+                return animation
+            }
+        }
+
+        return LottieAnimation.named(resourceName)
+    }()
+
+    final class AnimationContainer: UIView {
+        let animationView: LottieAnimationView
+
+        override var intrinsicContentSize: CGSize {
+            CGSize(width: 20, height: 20)
+        }
+
+        init(animationView: LottieAnimationView) {
+            self.animationView = animationView
+            super.init(frame: .zero)
+            clipsToBounds = true
+            layer.masksToBounds = true
+            animationView.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(animationView)
+            NSLayoutConstraint.activate([
+                animationView.leadingAnchor.constraint(equalTo: leadingAnchor),
+                animationView.trailingAnchor.constraint(equalTo: trailingAnchor),
+                animationView.topAnchor.constraint(equalTo: topAnchor),
+                animationView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            ])
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
     }
 }
 

@@ -1,4 +1,59 @@
 import SwiftUI
+import UIKit
+
+// MARK: - Icono de lista personalizado (SF Symbol o emoji)
+struct CustomAudienceListIcon: View {
+    let icon: String
+    let size: CGFloat
+    var weight: Font.Weight = .semibold
+    var imagePath: String? = nil
+    var localImage: UIImage? = nil
+    var imageSize: CGFloat? = nil
+
+    private var systemSymbolName: String? {
+        UIImage(systemName: icon) == nil ? nil : icon
+    }
+
+    var body: some View {
+        Group {
+            if let localImage {
+                Image(uiImage: localImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: imageSize ?? size * 2, height: imageSize ?? size * 2)
+                    .clipShape(Circle())
+            } else if let imagePath,
+                      !imagePath.isEmpty,
+                      let imageURL = URL(string: imagePath) {
+                AsyncImage(url: imageURL) { phase in
+                    if let image = phase.image {
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        fallbackIcon
+                    }
+                }
+                .frame(width: imageSize ?? size * 2, height: imageSize ?? size * 2)
+                .clipShape(Circle())
+            } else {
+                fallbackIcon
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var fallbackIcon: some View {
+        if let systemSymbolName {
+                Image(systemName: systemSymbolName)
+                    .font(.system(size: size, weight: weight))
+        } else {
+            Text(icon.isEmpty ? "👥" : icon)
+                .font(.system(size: size))
+        }
+    }
+}
 
 // MARK: - Fila de Lista Personalizada
 struct CustomListRow: View {
@@ -17,8 +72,13 @@ struct CustomListRow: View {
                         .fill(Color(hex: list.color ?? "00A896").opacity(isSelected ? 0.2 : 0.1))
                         .frame(width: 48, height: 48)
                     
-                    Image(systemName: list.icon ?? "person.3.fill")
-                        .font(.system(size: 20, weight: .medium))
+                    CustomAudienceListIcon(
+                        icon: list.icon ?? "person.3.fill",
+                        size: 20,
+                        weight: .medium,
+                        imagePath: list.imagePath,
+                        imageSize: 48
+                    )
                         .foregroundStyle(Color(hex: list.color ?? "00A896").opacity(isSelected ? 1.0 : 0.8))
                 }
                 
@@ -168,8 +228,13 @@ struct CustomListCard: View {
                         .fill(Color(hex: list.color ?? "00A896").opacity(isSelected ? 0.2 : 0.1))
                         .frame(width: 48, height: 48)
                     
-                    Image(systemName: list.icon ?? "person.3.fill")
-                        .font(.system(size: 20, weight: .medium))
+                    CustomAudienceListIcon(
+                        icon: list.icon ?? "person.3.fill",
+                        size: 20,
+                        weight: .medium,
+                        imagePath: list.imagePath,
+                        imageSize: 56
+                    )
                         .foregroundStyle(Color(hex: list.color ?? "00A896"))
                 }
                 
@@ -229,8 +294,13 @@ struct CustomListRowModern: View {
                         .fill(Color(hex: list.color ?? "00A896").opacity(isSelected ? 0.15 : 0.1))
                         .frame(width: 48, height: 48)
                     
-                    Image(systemName: list.icon ?? "person.3.fill")
-                        .font(.system(size: 20, weight: .medium))
+                    CustomAudienceListIcon(
+                        icon: list.icon ?? "person.3.fill",
+                        size: 20,
+                        weight: .medium,
+                        imagePath: list.imagePath,
+                        imageSize: 48
+                    )
                         .foregroundStyle(Color(hex: list.color ?? "00A896").opacity(isSelected ? 1.0 : 0.8))
                 }
                 

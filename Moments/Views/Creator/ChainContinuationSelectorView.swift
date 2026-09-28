@@ -194,6 +194,17 @@ struct ChainContinuationSelectorView: View {
                     finishSelection()
                 },
                 onBack: {
+                    let updatedUserIDs = selectedUsersForCustom.map(\.id)
+                    let didChange = Set(updatedUserIDs) != Set(customSelectedUsers)
+                    customSelectedUsers = updatedUserIDs
+                    selectedAudience = .custom
+                    selectedListId = nil
+                    selectedListName = nil
+                    if didChange {
+                        InAppNotificationService.shared.showActionToast(
+                            .plain("audience.saved", fallback: "Audience saved", icon: "checkmark.circle.fill")
+                        )
+                    }
                     navigate(to: .main, forward: false)
                 },
                 embeddedInFlow: true
@@ -296,7 +307,7 @@ struct ChainContinuationSelectorView: View {
                 Button(action: { navigate(to: .manageLists) }) {
                     Text(NSLocalizedString("audience.manage", comment: ""))
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                        .foregroundStyle(Color(hex: "007AFF"))
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
             .padding(.horizontal, 4)
@@ -318,18 +329,14 @@ struct ChainContinuationSelectorView: View {
                             VStack(spacing: 12) {
                                 Image(systemName: "plus")
                                     .font(.system(size: 20, weight: .semibold))
-                                    .foregroundStyle(Color(hex: "007AFF"))
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                                     .frame(width: 48, height: 48)
                                     .momentsChromeGlass(in: Circle(), interactive: true)
                                 Text(NSLocalizedString("audience.create", comment: ""))
                                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                                    .foregroundStyle(Color(hex: "007AFF"))
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                             }
                             .frame(width: 100, height: 140)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color(hex: "007AFF").opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4]))
-                            )
                         }
 
                         ForEach(customLists) { list in
@@ -464,7 +471,7 @@ struct ChainContinuationSelectorView: View {
                             LinearGradient(
                                 colors: [
                                     colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1),
-                                    Color(hex: "007AFF").opacity(0.2)
+                                    colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing

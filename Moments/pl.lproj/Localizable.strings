@@ -1263,6 +1263,13 @@
 "audience.more" = "Więcej";
 "audience.list.deleteMember.title" = "Usuń osobę";
 "audience.list.deleteMember.message" = "Usunąć %@ z tej listy?";
+"audience.manageMembers" = "Zarządzaj członkami";
+"audience.list.updated" = "Lista zaktualizowana";
+"audience.list.membersRemoved.single" = "Usunięto użytkownika %@ z listy %@";
+"audience.list.membersRemoved.plural" = "Usunięto użytkownika %@ i jeszcze %d osób z listy %@";
+"audience.manageMembers.remove.title" = "Usunąć członków z listy?";
+"audience.manageMembers.remove.single" = "Za chwilę usuniesz użytkownika %@ z listy „%@”. Ta zmiana zostanie zapisana natychmiast.";
+"audience.manageMembers.remove.plural" = "Za chwilę usuniesz użytkownika %@ i jeszcze %d osób z listy „%@”. Ta zmiana zostanie zapisana natychmiast.";
 "audience.picker.title" = "Dodaj osoby";
 "audience.picker.searchPlaceholder" = "Szukaj osób…";
 "audience.picker.initialTitle" = "Szukaj osób";
@@ -3748,6 +3755,17 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "hiddenLayers.metrics.status.pending" = "Oczekuje";
 "hiddenLayers.metrics.status.scheduled" = "Otwiera się %@";
 "hiddenLayers.metrics.status.available" = "Na żywo";
+"hiddenLayers.hint.appearance.title" = "Wygląd przy odkryciu";
+"hiddenLayers.hint.appearance.a11y" = "Wygląd ukrytej warstwy";
+"hiddenLayers.hint.style.blackAndWhite" = "C/B";
+"hiddenLayers.hint.style.actual" = "Złoto";
+"hiddenLayers.hint.style.polar" = "Polar";
+"hiddenLayers.hint.style.ember" = "Żar";
+"hiddenLayers.hint.style.ultraviolet" = "Ultra";
+"hiddenLayers.hint.style.aurora" = "Aurora";
+"hiddenLayers.hint.style.rose" = "Róż";
+"hiddenLayers.hint.style.plasma" = "Plazma";
+"hiddenLayers.hint.style.daylight" = "Niebo";
 "explore.error.notAuthenticated" = "Użytkownik nie jest uwierzytelniony. Zaloguj się.";
 "explore.error.loadProfile" = "Nie udało się wczytać Twojego profilu: %@";
 "explore.error.loadMoments" = "Nie udało się wczytać momentów: %@";
@@ -4300,7 +4318,7 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "messageRequests.recent.header" = "Ostatnie prośby";
 "messageRequests.recent.empty.title" = "Brak ostatnich próśb o wiadomość";
 "messageRequests.recent.empty.description" = "Prośby starsze niż 30 dni nie są tutaj wyświetlane.";
-"messageRequests.loadMore" = "Wczytaj 10 więcej";
+"messageRequests.loadMore" = "Pokaż więcej próśb o wiadomość";
 "messageRequests.deleteAll" = "Usuń wszystkie";
 "messageRequests.deleteAll.confirmation.title" = "Usunąć wszystkie prośby?";
 "messageRequests.deleteAll.confirmation.message" = "Tej czynności nie można cofnąć.";
@@ -4435,9 +4453,10 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "Nie interesuje mnie to";
-"forYou.feedback.subtitle" = "Pokazuj mniej podobnych postów";
+"forYou.feedback.subtitle" = "Pokażemy mniej podobnych postów";
 "forYou.feedback.saving" = "Zapisywanie preferencji…";
-"forYou.feedback.hidden" = "Post ukryty. Zobaczysz mniej podobnych treści.";
+"forYou.feedback.hidden" = "Post ukryty";
+"forYou.feedback.saved" = "Preferencja zapisana";
 "forYou.feedback.restored" = "Cofnięto preferencję.";
 "forYou.feedback.failed" = "Nie udało się zapisać preferencji. Spróbuj ponownie.";
 "forYou.feedback.undo" = "Cofnij";
@@ -4652,6 +4671,14 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "toast.action.unfollowed.suffix" = "";
 "toast.action.blocked.suffix" = "";
 "toast.action.muted.suffix" = "";
+"toast.action.profileUpdated" = "Profil zaktualizowany";
+"toast.action.profilePhotoUpdated" = "Zdjęcie profilowe zaktualizowane";
+"toast.action.profilePhotoRemoved" = "Zdjęcie profilowe usunięte";
+"toast.action.highlightCreated" = "Wyróżniona relacja utworzona";
+"toast.action.highlightUpdated" = "Wyróżniona relacja zaktualizowana";
+"toast.action.highlightDeleted" = "Wyróżniona relacja usunięta";
+"toast.action.bestFriendsLeft.prefix" = "Opuszczono listę bliskich znajomych użytkownika ";
+"toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";
 "toast.action.requestAccepted.suffix" = " przyjęta";

@@ -116,7 +116,7 @@ struct ChainConfigurationView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "link")
                         .font(.system(size: 48))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                     
                     Text(NSLocalizedString("storyChains.configurationTitle", comment: "Chain Configuration"))
                         .font(.system(size: legacyPoppinsSize(24), weight: .bold))
@@ -161,6 +161,7 @@ struct ChainConfigurationView: View {
                                 Spacer()
                                 
                                 Toggle("", isOn: $allowOthersToContinue)
+                                    .tint(.green)
                             }
                             
                             Text(NSLocalizedString("storyChains.allowOthersDescription", comment: "Allow others description"))
@@ -193,20 +194,25 @@ struct ChainConfigurationView: View {
                                     
                                     Text(getAudienceText())
                                         .font(.system(size: legacyPoppinsSize(16)))
-                                        .foregroundStyle(isContinuing ? .secondary : .primary)
+                                        .foregroundStyle(
+                                            isContinuing
+                                                ? Color.secondary
+                                                : (colorScheme == .dark ? Color.white : Color.black)
+                                        )
                                     
                                     Spacer()
                                     
                                     if !isContinuing {
                                         Image(systemName: "chevron.right")
                                             .font(.system(size: 13, weight: .semibold))
-                                            .foregroundStyle(.primary)
+                                            .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                                             .frame(width: 28, height: 28)
                                             .momentsChromeGlass(in: Circle(), interactive: true)
                                     }
                                 }
                                 .padding(.vertical, 4)
                             }
+                            .buttonStyle(.plain)
                             .disabled(isContinuing)
                         }
                     }
@@ -224,58 +230,65 @@ struct ChainConfigurationView: View {
                 
                 Spacer()
                 
-                // Botón de compartir
-                Button(action: {
-                    if !isContinuing && (chainTitleSummary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true) {
-                        showingTitleValidationAlert = true
-                        return
-                    }
-                    dismiss()
-                    // 🔗 NOTIFICAR CONFIRMACIÓN
-                    onConfirm?()
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.right.circle.fill")
-                            .foregroundStyle(.white)
-                            .font(.system(size: 16))
-                        
-                        Text(NSLocalizedString("storyChains.shareChain", comment: "Share Chain"))
-                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
-                            .foregroundStyle(.white)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(
-                        ZStack {
-                            // Fondo glassmorphism con gradiente azul, púrpura y rosa
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 25))
-                            
-                            // Efecto glassmorphism
-                            RoundedRectangle(cornerRadius: 25)
-                                .fill(.ultraThinMaterial)
-                                .opacity(0.3)
-                        }
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                }
+                shareButton
                 .padding(.horizontal)
                 .padding(.bottom, 20)
             }
+    }
+
+    @ViewBuilder
+    private var shareButton: some View {
+        if #available(iOS 26.0, *) {
+            Button(action: confirmChain) {
+                shareButtonLabel
+            }
+            .buttonStyle(.glassProminent)
+            .buttonBorderShape(.capsule)
+            .tint(shareButtonTint)
+            .foregroundStyle(shareButtonForeground)
+        } else {
+            Button(action: confirmChain) {
+                shareButtonLabel
+                    .momentsChromeGlass(
+                        in: Capsule(),
+                        interactive: true,
+                        tint: shareButtonTint
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var shareButtonLabel: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.right.circle.fill")
+                .font(.system(size: 16))
+
+            Text(NSLocalizedString("storyChains.shareChain", comment: "Share Chain"))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
+        }
+        .foregroundStyle(shareButtonForeground)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    private var shareButtonTint: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var shareButtonForeground: Color {
+        colorScheme == .dark ? .black : .white
+    }
+
+    private func confirmChain() {
+        if !isContinuing && (chainTitleSummary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true) {
+            showingTitleValidationAlert = true
+            return
+        }
+
+        dismiss()
+        // 🔗 NOTIFICAR CONFIRMACIÓN
+        onConfirm?()
     }
     
     // MARK: - Helper Functions

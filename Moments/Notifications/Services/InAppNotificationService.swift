@@ -188,7 +188,7 @@ struct InAppActionToast: Identifiable {
 
     static func muted(
         _ username: String,
-        undo: @escaping @MainActor () -> Void,
+        undo: (@MainActor () -> Void)? = nil,
         onExpire: (@MainActor () -> Void)? = nil
     ) -> InAppActionToast {
         personToast(
@@ -198,6 +198,41 @@ struct InAppActionToast: Identifiable {
             username: username,
             undo: undo,
             onExpire: onExpire
+        )
+    }
+
+    static var profileUpdated: InAppActionToast {
+        .plain("toast.action.profileUpdated", fallback: "Profile updated", icon: "checkmark.circle.fill")
+    }
+
+    static var profilePhotoUpdated: InAppActionToast {
+        .plain("toast.action.profilePhotoUpdated", fallback: "Profile photo updated", icon: "checkmark.circle.fill")
+    }
+
+    static var profilePhotoRemoved: InAppActionToast {
+        .plain("toast.action.profilePhotoRemoved", fallback: "Profile photo removed", icon: "checkmark.circle.fill")
+    }
+
+    static var highlightCreated: InAppActionToast {
+        .plain("toast.action.highlightCreated", fallback: "Highlight created", icon: "checkmark.circle.fill")
+    }
+
+    static var highlightUpdated: InAppActionToast {
+        .plain("toast.action.highlightUpdated", fallback: "Highlight updated", icon: "checkmark.circle.fill")
+    }
+
+    static var highlightDeleted: InAppActionToast {
+        .plain("toast.action.highlightDeleted", fallback: "Highlight deleted", icon: "checkmark.circle.fill")
+    }
+
+    static func leftBestFriends(of username: String) -> InAppActionToast {
+        let prefix = NSLocalizedString("toast.action.bestFriendsLeft.prefix", value: "You left ", comment: "")
+        let suffix = NSLocalizedString("toast.action.bestFriendsLeft.suffix", value: "'s close friends", comment: "")
+        return InAppActionToast(
+            systemImage: "checkmark.circle.fill",
+            prefix: prefix,
+            emphasis: username.trimmingCharacters(in: .whitespacesAndNewlines),
+            suffix: suffix
         )
     }
 
@@ -581,14 +616,12 @@ class InAppNotificationService: ObservableObject {
         dismissTimer?.cancel()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self else { return }
-            if consumeExpire {
-                self.consumePendingExpire()
-            } else {
-                self.pendingExpireAction = nil
-            }
+            let expireAction = consumeExpire ? self.pendingExpireAction : nil
+            self.pendingExpireAction = nil
             self.currentNotification = nil
             self.actionToast = nil
             self.isClearing = false
+            expireAction?()
             self.presentNextIfNeeded()
         }
     }

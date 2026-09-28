@@ -1312,6 +1312,13 @@
 "audience.more" = "Mehr";
 "audience.list.deleteMember.title" = "Mitglied entfernen";
 "audience.list.deleteMember.message" = "%@ aus dieser Liste entfernen?";
+"audience.manageMembers" = "Mitglieder verwalten";
+"audience.list.updated" = "Liste aktualisiert";
+"audience.list.membersRemoved.single" = "%@ wurde aus der Liste %@ entfernt";
+"audience.list.membersRemoved.plural" = "%@ und %d weitere Personen wurden aus der Liste %@ entfernt";
+"audience.manageMembers.remove.title" = "Mitglieder aus der Liste entfernen?";
+"audience.manageMembers.remove.single" = "%@ wird aus „%@“ entfernt. Diese Änderung wird sofort gespeichert.";
+"audience.manageMembers.remove.plural" = "%@ und %d weitere Personen werden aus „%@“ entfernt. Diese Änderung wird sofort gespeichert.";
 "audience.picker.title" = "Mitglieder hinzufügen";
 "audience.picker.searchPlaceholder" = "Personen suchen...";
 "audience.picker.initialTitle" = "Personen suchen";
@@ -3945,6 +3952,17 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "hiddenLayers.metrics.status.pending" = "Ausstehend";
 "hiddenLayers.metrics.status.scheduled" = "Öffnet %@";
 "hiddenLayers.metrics.status.available" = "Aktiv";
+"hiddenLayers.hint.appearance.title" = "Erscheinung beim Entdecken";
+"hiddenLayers.hint.appearance.a11y" = "Erscheinung der versteckten Ebene";
+"hiddenLayers.hint.style.blackAndWhite" = "S/W";
+"hiddenLayers.hint.style.actual" = "Gold";
+"hiddenLayers.hint.style.polar" = "Polar";
+"hiddenLayers.hint.style.ember" = "Glut";
+"hiddenLayers.hint.style.ultraviolet" = "Ultra";
+"hiddenLayers.hint.style.aurora" = "Aurora";
+"hiddenLayers.hint.style.rose" = "Rose";
+"hiddenLayers.hint.style.plasma" = "Plasma";
+"hiddenLayers.hint.style.daylight" = "Himmel";
 "explore.error.notAuthenticated" = "Nutzer nicht authentifiziert. Bitte melde dich an.";
 "explore.error.loadProfile" = "Dein Profil konnte nicht geladen werden: %@";
 "explore.error.loadMoments" = "Momente konnten nicht geladen werden: %@";
@@ -4529,7 +4547,7 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "messageRequests.recent.header" = "Aktuelle Anfragen";
 "messageRequests.recent.empty.title" = "Keine aktuellen Nachrichtenanfragen";
 "messageRequests.recent.empty.description" = "Anfragen, die älter als 30 Tage sind, werden hier nicht angezeigt.";
-"messageRequests.loadMore" = "10 weitere laden";
+"messageRequests.loadMore" = "Weitere Nachrichtenanfragen anzeigen";
 "messageRequests.deleteAll" = "Alle löschen";
 "messageRequests.deleteAll.confirmation.title" = "Alle Anfragen löschen?";
 "messageRequests.deleteAll.confirmation.message" = "Diese Aktion kann nicht rückgängig gemacht werden.";
@@ -4664,9 +4682,10 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 
 // For You recommendation feedback
 "forYou.feedback.notInterested" = "Kein Interesse";
-"forYou.feedback.subtitle" = "Weniger ähnliche Beiträge anzeigen";
+"forYou.feedback.subtitle" = "Wir zeigen dir weniger ähnliche Beiträge";
 "forYou.feedback.saving" = "Einstellung wird gespeichert…";
-"forYou.feedback.hidden" = "Beitrag ausgeblendet. Du siehst weniger ähnliche Inhalte.";
+"forYou.feedback.hidden" = "Beitrag ausgeblendet";
+"forYou.feedback.saved" = "Präferenz gespeichert";
 "forYou.feedback.restored" = "Einstellung rückgängig gemacht.";
 "forYou.feedback.failed" = "Die Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen.";
 "forYou.feedback.undo" = "Rückgängig";
@@ -4883,5 +4902,13 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "toast.action.requestRejected.suffix" = " abgelehnt";
 "toast.action.blocked.suffix" = " blockiert";
 "toast.action.muted.suffix" = " stummgeschaltet";
+"toast.action.profileUpdated" = "Profil aktualisiert";
+"toast.action.profilePhotoUpdated" = "Profilbild aktualisiert";
+"toast.action.profilePhotoRemoved" = "Profilbild entfernt";
+"toast.action.highlightCreated" = "Highlight erstellt";
+"toast.action.highlightUpdated" = "Highlight aktualisiert";
+"toast.action.highlightDeleted" = "Highlight gelöscht";
+"toast.action.bestFriendsLeft.prefix" = "Du bist nicht mehr in den engen Freunden von ";
+"toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = " gelöscht";
 "toast.action.leftGroup.suffix" = " verlassen";

@@ -624,7 +624,7 @@ struct GridPhotoPickerView: View {
                                 ) { _ in
                                     // No mostrar error al usuario, es operación secundaria
                                 }
-                                
+                                InAppNotificationService.shared.showActionToast(.profilePhotoUpdated)
                                 self.dismiss()
                                 completion?()
                             }
@@ -1643,6 +1643,7 @@ struct ModernEditProfileView: View {
                                 self.pendingProfileImage = nil
                                 self.selectedPhoto = nil
                                 self.storageService.deleteProfileImage(userId: userId, oldImagePath: oldImagePath) { _ in }
+                                InAppNotificationService.shared.showActionToast(.profilePhotoUpdated)
                             }
                         }
                     }
@@ -1677,6 +1678,7 @@ struct ModernEditProfileView: View {
                 self.selectedPhoto = nil
                 self.profileImagePath = nil
                 self.isLoading = false
+                InAppNotificationService.shared.showActionToast(.profilePhotoRemoved)
             }
         }
     }
@@ -1700,6 +1702,7 @@ struct ModernEditProfileView: View {
         // No esperamos a Firestore ya que OfflineSyncService se encargará en el background
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.isLoading = false
+            InAppNotificationService.shared.showActionToast(.profileUpdated)
             self.dismiss()
         }
     }

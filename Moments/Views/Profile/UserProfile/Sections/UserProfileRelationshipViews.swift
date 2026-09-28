@@ -243,8 +243,12 @@ struct UserRelationshipManagementSheet: View {
                                     ProgressView()
                                         .scaleEffect(0.82)
                                 } else {
-                                    Image(systemName: list.icon ?? "list.bullet")
-                                        .font(.system(size: 17, weight: .semibold))
+                                    CustomAudienceListIcon(
+                                        icon: list.icon ?? "list.bullet",
+                                        size: 17,
+                                        imagePath: list.imagePath,
+                                        imageSize: 34
+                                    )
                                 }
                             }
                             .foregroundStyle(colorScheme == .dark ? .white : .black)

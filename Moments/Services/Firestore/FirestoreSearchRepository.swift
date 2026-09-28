@@ -32,7 +32,7 @@ extension FirestoreService {
                     }
                 }
 
-                self.applySearchMuteFilterIfNeeded(users: users) { filteredUsers in
+                self.applySearchVisibilityFilter(users: users) { filteredUsers in
                     completion(.success(Array(filteredUsers.prefix(max(1, limit)))))
                 }
             }
@@ -55,6 +55,16 @@ extension FirestoreService {
     func fetchUsers(userIds: [String], completion: @escaping (Result<[AppUser], Error>) -> Void) {
         if userIds.isEmpty {
             completion(.success([]))
+            return
+        }
+
+        // Firestore's `in` filter supports at most ten document IDs. Audience
+        // lists can be much larger, so resolve them through the existing batch
+        // loader instead of failing to show their members.
+        if userIds.count > 10 {
+            fetchUsersInBatches(userIds: userIds) { users in
+                completion(.success(users))
+            }
             return
         }
 
@@ -213,7 +223,7 @@ extension FirestoreService {
                 return
             }
 
-            self.applySearchMuteFilterIfNeeded(users: merged) { filteredUsers in
+            self.applySearchVisibilityFilter(users: merged) { filteredUsers in
                 completion(.success(filteredUsers))
             }
         }
@@ -272,35 +282,38 @@ extension FirestoreService {
                     try? doc.data(as: AppUser.self)
                 }.filter { $0.id != currentUserId } ?? []
 
-                self.applySearchMuteFilterIfNeeded(users: users) { filteredUsers in
+                self.applySearchVisibilityFilter(users: users) { filteredUsers in
                     completion(.success(filteredUsers))
                 }
             }
     }
 
-    private func applySearchMuteFilterIfNeeded(users: [AppUser], completion: @escaping ([AppUser]) -> Void) {
+    /// Excludes accounts that cannot interact with the signed-in user before they
+    /// reach any people picker, search result, or suggested-contact surface.
+    private func applySearchVisibilityFilter(users: [AppUser], completion: @escaping ([AppUser]) -> Void) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             completion(users)
             return
         }
 
+        // `blockedUsers` is part of the candidate profile, so we can immediately
+        // hide someone who has blocked the signed-in user.
+        let candidates = users.filter {
+            $0.id != currentUserId && !$0.blockedUsers.contains(currentUserId)
+        }
+
         db.collection("users").document(currentUserId).getDocument { snapshot, _ in
-            guard
-                let muteSettings = snapshot?.data()?["muteSettings"] as? [String: Any],
-                let hideFromSearch = muteSettings["hideFromSearch"] as? Bool,
-                hideFromSearch
-            else {
-                completion(users)
-                return
-            }
+            let data = snapshot?.data() ?? [:]
+            let blockedUsers = Set((data["blockedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
+            let muteSettings = data["muteSettings"] as? [String: Any]
+            let hideFromSearch = muteSettings?["hideFromSearch"] as? Bool ?? false
+            let mutedUsers = hideFromSearch
+                ? Set((muteSettings?["mutedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
+                : []
 
-            let mutedUsers = Set((muteSettings["mutedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
-            guard !mutedUsers.isEmpty else {
-                completion(users)
-                return
-            }
-
-            completion(users.filter { !mutedUsers.contains($0.id) })
+            completion(candidates.filter {
+                !blockedUsers.contains($0.id) && !mutedUsers.contains($0.id)
+            })
         }
     }
 }

@@ -39,6 +39,7 @@ struct HighlightCreateFlowView: View {
             Button(NSLocalizedString("common.delete", comment: ""), role: .destructive) {
                 viewModel.deleteHighlight { error in
                     if error == nil {
+                        InAppNotificationService.shared.showActionToast(.highlightDeleted)
                         dismiss()
                     }
                 }
@@ -111,6 +112,9 @@ struct HighlightCreateFlowView: View {
                 Button {
                     viewModel.save { error in
                         if error == nil {
+                            InAppNotificationService.shared.showActionToast(
+                                viewModel.isEditMode ? .highlightUpdated : .highlightCreated
+                            )
                             dismiss()
                         }
                     }

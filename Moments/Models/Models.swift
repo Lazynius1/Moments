@@ -586,6 +586,8 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
     let imageFrameStyle: HiddenLayerImageFrameStyle?
     let textStyle: HiddenLayerTextStyle?
     let presentationStyle: HiddenLayerPresentationStyle
+    /// Nil is reserved for legacy layers created before hint appearances existed.
+    let hintStyle: HintStyle?
     let unlockMode: UnlockMode
     let unlockAt: Date?
     let authorTimezoneIdentifier: String?
@@ -607,6 +609,18 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
     enum LayerShape: String, Codable, CaseIterable {
         case circle
         case roundedRect
+    }
+
+    enum HintStyle: String, Codable, CaseIterable {
+        case blackAndWhite
+        case actual
+        case polar
+        case ember
+        case ultraviolet
+        case aurora
+        case rose
+        case plasma
+        case daylight
     }
 
     enum ModerationState: String, Codable {
@@ -640,6 +654,7 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
         imageFrameStyle: HiddenLayerImageFrameStyle? = nil,
         textStyle: HiddenLayerTextStyle? = nil,
         presentationStyle: HiddenLayerPresentationStyle = .glassCard,
+        hintStyle: HintStyle? = .blackAndWhite,
         unlockMode: UnlockMode = .immediate,
         unlockAt: Date? = nil,
         authorTimezoneIdentifier: String? = nil,
@@ -671,6 +686,7 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
         self.imageFrameStyle = imageFrameStyle
         self.textStyle = textStyle
         self.presentationStyle = presentationStyle
+        self.hintStyle = hintStyle
         self.unlockMode = unlockMode
         self.unlockAt = unlockAt
         self.authorTimezoneIdentifier = authorTimezoneIdentifier

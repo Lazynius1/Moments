@@ -52,6 +52,13 @@ struct UserModernMomentThumbnail: View {
         ZStack(alignment: .bottomLeading) {
             mediaBody
             cinematicOverlay
+            if moment.hasHiddenLayers {
+                HiddenLayersStaticPreviewSurface(
+                    moment: moment,
+                    size: CGSize(width: cellWidth, height: cellHeight),
+                    settings: moment.gridPreviewSettings
+                )
+            }
             topChrome
             bottomChrome
         }

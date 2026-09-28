@@ -668,6 +668,13 @@ function serializeMoment(docId, data) {
     scheduledDate: tsToMillis(data.scheduledDate),
     isPinned: data.isPinned === true ? true : null,
     pinnedAt: tsToMillis(data.pinnedAt),
+    // Grid framing is part of the moment's presentation, so viewers on every
+    // platform must receive the exact same saved transform.
+    gridPreviewScale: typeof data.gridPreviewScale === 'number' ? data.gridPreviewScale : null,
+    gridPreviewOffsetX: typeof data.gridPreviewOffsetX === 'number' ? data.gridPreviewOffsetX : null,
+    gridPreviewOffsetY: typeof data.gridPreviewOffsetY === 'number' ? data.gridPreviewOffsetY : null,
+    gridPreviewFitMode: typeof data.gridPreviewFitMode === 'string' ? data.gridPreviewFitMode : null,
+    gridPreviewBackground: typeof data.gridPreviewBackground === 'string' ? data.gridPreviewBackground : null,
     hasHiddenLayers: data.hasHiddenLayers === true,
     hiddenLayerCount: Number.isInteger(data.hiddenLayerCount) ? data.hiddenLayerCount : 0
   };
