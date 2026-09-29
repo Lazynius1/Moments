@@ -300,6 +300,9 @@ struct StoriesView: View {
                         currentStory = story
                         showingBlockConfirmation = true
                     },
+                    onOpenChainStory: { stories, index in
+                        openChainStory(stories, at: index)
+                    },
                     onNext: {
                         handleStoryNext(
                             currentUserId: Auth.auth().currentUser?.uid,
@@ -845,6 +848,15 @@ struct StoriesView: View {
         }
     }
 
+    private func openChainStory(_ stories: [Story], at index: Int) {
+        guard !stories.isEmpty else { return }
+        chainStories = stories
+        currentChainIndex = min(max(index, 0), stories.count - 1)
+        highlightTitle = stories[currentChainIndex].chainTitle
+        isInChainMode = true
+        loadStories()
+    }
+
     private func loadChainStories(for story: Story) {
         guard let chainId = story.chainId else { return }
 
@@ -853,7 +865,9 @@ struct StoriesView: View {
                 let storiesSnapshot = try await firestoreService.db
                     .collectionGroup("stories")
                     .whereField("chainId", isEqualTo: chainId)
+                    .whereField("audience", isEqualTo: "everyone")
                     .order(by: "chainPosition")
+                    .limit(to: StoryChainLimits.maxParts)
                     .getDocuments()
 
                 let stories = storiesSnapshot.documents.compactMap { doc in

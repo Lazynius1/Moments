@@ -143,6 +143,8 @@ struct GlassmorphicChatView: View {
     @State var statusListener: ListenerRegistration?
     @FocusState var isTextFieldFocused: Bool
     @FocusState var isSearchFieldFocused: Bool
+    @State var restoreComposerFocusAfterMessageMenu = false
+    @State var composerFocusEpoch = 0
     @Environment(\.dismiss) var dismiss
     @Environment(\.messagingPreferredCompactColumn) var messagingPreferredCompactColumn
     @Environment(\.accessibilityReduceMotion) var reduceMotion
@@ -653,6 +655,10 @@ struct GlassmorphicChatView: View {
             .onChange(of: messageMenuSelection) { _, newValue in
                 if newValue == nil {
                     withAnimation { reactionMessageOverlay = nil }
+                    if restoreComposerFocusAfterMessageMenu {
+                        restoreComposerFocusAfterMessageMenu = false
+                        composerFocusEpoch += 1
+                    }
                 }
             }
             .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
@@ -689,22 +695,6 @@ struct GlassmorphicChatView: View {
                         onStopLive: { viewModel.stopLiveLocation(messageId: message.id) }
                     )
                 }
-            }
-            .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
-            .overlay {
-                chatAttachmentOverlayContent
-            }
-            .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
-            .overlay {
-                chatAttachmentOverlayContent
-            }
-            .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
-            .overlay {
-                chatAttachmentOverlayContent
-            }
-            .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
-            .overlay {
-                chatAttachmentOverlayContent
             }
             .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: activeAttachmentSheet), value: activeAttachmentSheet)
             .overlay {

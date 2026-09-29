@@ -21,6 +21,7 @@ struct StoryViewerScreen: View {
     @Binding var showingBlockConfirmation: Bool
     let onReportStory: () -> Void
     let onBlockUser: () -> Void
+    let onOpenChainStory: ([Story], Int) -> Void
     let onNext: () -> Void
     let onStoryDeleted: (() -> Void)?
     let onPrevious: () -> Void
@@ -40,6 +41,7 @@ struct StoryViewerScreen: View {
         showingBlockConfirmation: Binding<Bool>,
         onReportStory: @escaping () -> Void,
         onBlockUser: @escaping () -> Void,
+        onOpenChainStory: @escaping ([Story], Int) -> Void = { _, _ in },
         onNext: @escaping () -> Void,
         onStoryDeleted: (() -> Void)? = nil,
         onPrevious: @escaping () -> Void,
@@ -58,6 +60,7 @@ struct StoryViewerScreen: View {
         self._showingBlockConfirmation = showingBlockConfirmation
         self.onReportStory = onReportStory
         self.onBlockUser = onBlockUser
+        self.onOpenChainStory = onOpenChainStory
         self.onNext = onNext
         self.onStoryDeleted = onStoryDeleted
         self.onPrevious = onPrevious
@@ -141,6 +144,8 @@ struct StoryViewerScreen: View {
     @State private var selectedChainTitle: String = ""
     @State private var selectedChainStoryId: String = ""
     @State private var selectedChainStoryPosition: Int = 1
+    @State private var pendingChainStorySelection: (stories: [Story], index: Int)?
+    @State private var pendingChainContinuation: (id: String, title: String, position: Int)?
     @State private var chainStories: [Story] = [] // Todas las historias de la cadena
     @State private var currentChainIndex: Int = 0 // Índice actual en la cadena
     @State private var isLoadingChainStories: Bool = false
@@ -863,15 +868,37 @@ struct StoryViewerScreen: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                             resumeStory()
                         }
+                        if let continuation = pendingChainContinuation {
+                            pendingChainContinuation = nil
+                            // The chain sheet is now fully dismissed. Dismiss the
+                            // viewer as well before asking TabBarView to present the
+                            // creator, otherwise the creator is presented behind it.
+                            continueStoryChain(
+                                chainId: continuation.id,
+                                chainTitle: continuation.title,
+                                chainPosition: continuation.position
+                            )
+                        } else if let selection = pendingChainStorySelection {
+                            pendingChainStorySelection = nil
+                            onOpenChainStory(selection.stories, selection.index)
+                        }
                     }) {
                         StoryChainView(
                             chainId: selectedChainId,
                             chainTitle: selectedChainTitle,
                             canContinueChain: canContinueChain,
+                            initialStory: story,
                             initialStoryId: selectedChainStoryId.isEmpty ? nil : selectedChainStoryId,
-                            initialChainPosition: selectedChainStoryPosition
+                            initialChainPosition: selectedChainStoryPosition,
+                            onOpenStory: { stories, index in
+                                pendingChainStorySelection = (stories, index)
+                            },
+                            onContinueChain: { chainId, chainTitle, chainPosition in
+                                pendingChainContinuation = (chainId, chainTitle, chainPosition)
+                            }
                         )
                         .background(Color.clear)
+                        .presentationDragIndicator(.visible)
                     }
                     .onChange(of: showChainView) { _, isOpen in
                         if isOpen {
@@ -967,8 +994,14 @@ struct StoryViewerScreen: View {
             HStack(alignment: .top, spacing: 8) {
                 if story.chainId != nil, story.chainTitle != nil, story.chainPosition != nil {
                     Button(action: {
+                        let isOpeningChainActions = !showChainActions
                         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.row) {
-                            showChainActions.toggle()
+                            showChainActions = isOpeningChainActions
+                        }
+                        if isOpeningChainActions {
+                            pauseStory()
+                        } else {
+                            resumeStory()
                         }
                     }) {
                         Image(systemName: "link")
@@ -1268,9 +1301,13 @@ struct StoryViewerScreen: View {
                         HStack(spacing: 6) {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 13, weight: .semibold))
-                            Text(NSLocalizedString("storyChains.previousPart", comment: "Previous part"))
-                                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                                .lineLimit(1)
+                            Text(
+                                currentChainIndex > 0
+                                    ? String(format: NSLocalizedString("storyChains.partShort", comment: "Part number"), currentChainIndex)
+                                    : NSLocalizedString("storyChains.start", comment: "Start of chain")
+                            )
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
+                            .lineLimit(1)
                         }
                         .foregroundStyle(chainPanelPrimary.opacity(currentChainIndex > 0 ? 1 : 0.45))
                         .padding(.horizontal, 14)
@@ -1286,9 +1323,13 @@ struct StoryViewerScreen: View {
                         goToNextChainPart()
                     }) {
                         HStack(spacing: 6) {
-                            Text(NSLocalizedString("storyChains.nextPart", comment: "Next part"))
-                                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
-                                .lineLimit(1)
+                            Text(
+                                currentChainIndex < chainStories.count - 1
+                                    ? String(format: NSLocalizedString("storyChains.partShort", comment: "Part number"), currentChainIndex + 2)
+                                    : NSLocalizedString("storyChains.end", comment: "End of chain")
+                            )
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
+                            .lineLimit(1)
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 13, weight: .semibold))
                         }
@@ -2150,7 +2191,9 @@ struct StoryViewerScreen: View {
                 let storiesSnapshot = try await firestoreService.db
                     .collectionGroup("stories")
                     .whereField("chainId", isEqualTo: chainId)
+                    .whereField("audience", isEqualTo: "everyone")
                     .order(by: "chainPosition")
+                    .limit(to: StoryChainLimits.maxParts)
                     .getDocuments()
 
                 let stories = storiesSnapshot.documents.compactMap { doc in
@@ -2702,6 +2745,7 @@ struct StoryViewerScreen: View {
         let firestoreService = FirestoreService()
         firestoreService.db.collectionGroup("stories")
             .whereField("chainId", isEqualTo: chainId)
+            .whereField("audience", isEqualTo: "everyone")
             .whereField("chainPosition", isEqualTo: 1)
             .limit(to: 1)
             .getDocuments { snapshot, error in
@@ -2799,23 +2843,26 @@ struct StoryViewerScreen: View {
 
     // 🔗 FUNCIÓN: Continuar cadena de historias
     private func continueStoryChain(chainId: String, chainTitle: String, chainPosition: Int) {
-        // Cerrar la vista actual
         dismiss()
 
-        // Notificar al TabBarView para abrir CreatorView
-        NotificationCenter.default.post(
-            name: NSNotification.Name("OpenCreatorForChain"),
-            object: nil,
-            userInfo: [
-                "chainId": chainId,
-                "chainTitle": chainTitle,
-                "chainPosition": chainPosition
-            ]
-        )
+        // Wait until the full-screen story viewer has completed dismissal. SwiftUI
+        // permits only one presentation at a time from this hierarchy.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("OpenCreatorForChain"),
+                object: nil,
+                userInfo: [
+                    "chainId": chainId,
+                    "chainTitle": chainTitle,
+                    "chainPosition": chainPosition
+                ]
+            )
+        }
     }
 
     // 🔗 FUNCIÓN: Mostrar vista de cadena completa
     private func showChainView(chainId: String, chainTitle: String, initialStoryId: String? = nil, initialChainPosition: Int? = nil) {
+        pauseStory()
         selectedChainId = chainId
         selectedChainTitle = chainTitle
         selectedChainStoryId = initialStoryId ?? ""

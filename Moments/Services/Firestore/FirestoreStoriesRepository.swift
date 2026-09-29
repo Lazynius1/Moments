@@ -544,6 +544,10 @@ extension FirestoreService {
     ) {
         guard let chainId else { return }
 
+        // A chain is public by definition. Continuation settings below only
+        // decide who can contribute its next part.
+        storyData["audience"] = ContentAudience.everyone.rawValue
+
         if let allowOthersToContinue {
             storyData["allowOthersToContinue"] = allowOthersToContinue
         }
@@ -563,10 +567,14 @@ extension FirestoreService {
         guard chainPosition == 1 else { return }
 
         let chainMetadata: [String: Any] = [
+            // Compatible with the security rules and the metadata consumed by both apps.
+            "id": chainId,
             "chainId": chainId,
+            "createdBy": userId,
             "authorId": userId,
             "title": chainTitle ?? "",
             "createdAt": FieldValue.serverTimestamp(),
+            "partCount": 1,
             "allowOthersToContinue": allowOthersToContinue ?? true,
             "continuationAudience": continuationAudience?.rawValue ?? "everyone",
             "continuationCustomViewers": continuationCustomViewers ?? [],

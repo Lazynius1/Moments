@@ -8,8 +8,11 @@ struct StoryChainView: View {
     let chainId: String
     let chainTitle: String
     let canContinueChain: Bool // 🔗 NUEVO: Indica si el usuario actual puede continuar esta cadena
+    let initialStory: Story?
     let initialStoryId: String?
     let initialChainPosition: Int?
+    let onOpenStory: ([Story], Int) -> Void
+    let onContinueChain: (String, String, Int) -> Void
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = StoryChainViewModel()
@@ -18,21 +21,30 @@ struct StoryChainView: View {
     @State private var chainStats: (partCount: Int, remainingTime: TimeInterval, isExpired: Bool) = (0, 0, false)
     @State private var showLimitAlert = false
     @State private var limitAlertMessage = ""
-    @State private var showStoriesViewer = false
     private let gridColumns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     init(
         chainId: String,
         chainTitle: String,
         canContinueChain: Bool,
+        initialStory: Story? = nil,
         initialStoryId: String? = nil,
-        initialChainPosition: Int? = nil
+        initialChainPosition: Int? = nil,
+        onOpenStory: @escaping ([Story], Int) -> Void = { _, _ in },
+        onContinueChain: @escaping (String, String, Int) -> Void = { _, _, _ in }
     ) {
         self.chainId = chainId
         self.chainTitle = chainTitle
         self.canContinueChain = canContinueChain
+        self.initialStory = initialStory
         self.initialStoryId = initialStoryId
         self.initialChainPosition = initialChainPosition
+        self.onOpenStory = onOpenStory
+        self.onContinueChain = onContinueChain
+        if let initialStory {
+            let remainingTime = max(0, initialStory.expirationDate.timeIntervalSinceNow)
+            self._chainStats = State(initialValue: (1, remainingTime, remainingTime <= 0))
+        }
     }
     
     var body: some View {
@@ -59,7 +71,8 @@ struct StoryChainView: View {
                                     )
                                     .onTapGesture {
                                         selectedStoryIndex = index
-                                        showStoriesViewer = true
+                                        onOpenStory(viewModel.stories, index)
+                                        dismiss()
                                     }
                                 }
                             }
@@ -86,14 +99,14 @@ struct StoryChainView: View {
             Text(limitAlertMessage)
         }
         .onAppear {
-            viewModel.loadChainStories(chainId: chainId)
+            viewModel.loadChainStories(chainId: chainId, fallbackStory: initialStory)
         }
-        .onReceive(viewModel.$stories) { _ in
+        .onReceive(viewModel.$stories) { stories in
             applyInitialSelectionIfNeeded()
-        }
-        .fullScreenCover(isPresented: $showStoriesViewer) {
-            StoriesView(chainStories: viewModel.stories, startAtIndex: selectedStoryIndex)
-                .environmentObject(FirestoreService.shared)
+            // Published emits the new value before a read through viewModel is
+            // guaranteed to observe it, so calculate from the emitted value.
+            let stats = chainStats(for: stories)
+            chainStats = stats
         }
     }
 
@@ -122,15 +135,8 @@ struct StoryChainView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 18) {
-            Button(action: { dismiss() }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(primaryForeground)
-                    .frame(width: 38, height: 38)
-                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
-            }
-            .buttonStyle(.plain)
+        VStack(spacing: 0) {
+            Spacer()
 
             VStack(spacing: 10) {
                 Image(systemName: "link.slash")
@@ -142,6 +148,8 @@ struct StoryChainView: View {
                     .foregroundStyle(primaryForeground)
                     .multilineTextAlignment(.center)
             }
+
+            Spacer()
         }
         .padding(.horizontal, 28)
         .momentsEmptyStateAppear()
@@ -174,15 +182,6 @@ struct StoryChainView: View {
     private var chainHeader: some View {
         VStack(spacing: 14) {
             HStack(alignment: .center) {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(primaryForeground)
-                        .frame(width: 38, height: 38)
-                        .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
-                }
-                .buttonStyle(.plain)
-
                 VStack(spacing: 4) {
                     Text(NSLocalizedString("storyChains.chain", comment: "Chain"))
                         .font(.system(size: legacyPoppinsSize(12)))
@@ -194,8 +193,6 @@ struct StoryChainView: View {
                         .truncationMode(.tail)
                 }
                 .frame(maxWidth: .infinity)
-
-                Color.clear.frame(width: 38, height: 38)
             }
 
             HStack(spacing: 8) {
@@ -248,9 +245,6 @@ struct StoryChainView: View {
         .padding(.horizontal, 20)
         .padding(.top, 14)
         .padding(.bottom, 16)
-        .onAppear {
-            loadChainStats()
-        }
     }
 
     @ViewBuilder
@@ -275,19 +269,15 @@ struct StoryChainView: View {
         selectedStoryIndex = index
     }
     
-    private func loadChainStats() {
-        Task {
-            do {
-                let stats = try await StoryChainLimitsService.shared.getChainStats(chainId: chainId)
-                await MainActor.run {
-                    chainStats = stats
-                }
-            } catch {
-                // Error loading chain statistics
-            }
+    private func chainStats(for stories: [Story]) -> (partCount: Int, remainingTime: TimeInterval, isExpired: Bool) {
+        guard let expirationDate = stories.map(\.expirationDate).min() else {
+            return (0, 0, false)
         }
+
+        let remainingTime = max(0, expirationDate.timeIntervalSinceNow)
+        return (stories.count, remainingTime, remainingTime <= 0)
     }
-    
+
     private func continueChain() {
         // Validar límites antes de continuar
         Task {
@@ -297,18 +287,10 @@ struct StoryChainView: View {
                 _ = try await StoryChainLimitsService.shared.canContinueChain(chainId: chainId, userId: userId)
                 
                 await MainActor.run {
-                    // Cerrar esta vista y abrir el creator para continuar la cadena
+                    // The parent owns presentation. Tell it what to open, then
+                    // dismiss this sheet; it presents the creator in onDismiss.
+                    onContinueChain(chainId, chainTitle, viewModel.stories.count + 1)
                     dismiss()
-                    
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("ContinueStoryChain"),
-                        object: nil,
-                        userInfo: [
-                            "chainId": chainId,
-                            "chainTitle": chainTitle,
-                            "chainPosition": viewModel.stories.count + 1
-                        ]
-                    )
                 }
             } catch {
                 await MainActor.run {
@@ -454,32 +436,48 @@ class StoryChainViewModel: ObservableObject {
     
     private let firestoreService = FirestoreService()
     
-    func loadChainStories(chainId: String) {
+    func loadChainStories(chainId: String, fallbackStory: Story? = nil) {
         isLoading = true
         error = nil
         
         firestoreService.db.collectionGroup("stories")
             .whereField("chainId", isEqualTo: chainId)
+            .whereField("audience", isEqualTo: "everyone")
             .order(by: "chainPosition", descending: false)
+            .limit(to: StoryChainLimits.maxParts)
             .getDocuments { [weak self] snapshot, error in
                 DispatchQueue.main.async {
                     self?.isLoading = false
                     
                     if let error = error {
                         self?.error = error.localizedDescription
+                        self?.stories = fallbackStory.map { [$0] } ?? []
                         return
                     }
                     
                     guard let documents = snapshot?.documents else {
-                        self?.stories = []
+                        self?.stories = fallbackStory.map { [$0] } ?? []
                         return
                     }
                     
-                    self?.stories = documents.compactMap { document in
+                    let fetchedStories = documents.compactMap { document in
                         try? document.data(as: Story.self)
                     }
+                    let mergedStories = Self.merging(fetchedStories, fallbackStory: fallbackStory)
+                    self?.stories = mergedStories
                 }
             }
+    }
+
+    private static func merging(_ fetchedStories: [Story], fallbackStory: Story?) -> [Story] {
+        guard let fallbackStory,
+              !fetchedStories.contains(where: { $0.id == fallbackStory.id }) else {
+            return fetchedStories
+        }
+
+        return (fetchedStories + [fallbackStory]).sorted {
+            ($0.chainPosition ?? .max) < ($1.chainPosition ?? .max)
+        }
     }
 }
 

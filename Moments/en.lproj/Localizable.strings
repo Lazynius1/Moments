@@ -91,10 +91,12 @@
 "storyChains.viewChain" = "View Chain";
 "storyChains.part" = "Part %d of '%@'";
 "storyChains.partShort" = "Part %d";
+"storyChains.start" = "Start";
+"storyChains.end" = "End";
 "storyChains.previousPart" = "Previous Part";
 "storyChains.nextPart" = "Next Part";
 "storyChains.loading" = "Loading chain...";
-"storyChains.notFound" = "No stories found in this chain";
+"storyChains.notFound" = "This chain is no longer available";
 "storyChains.parts" = "%d/%d parts";
 "storyChains.expired" = "• Expired";
 "storyChains.chainLimit" = "Chain Limit";

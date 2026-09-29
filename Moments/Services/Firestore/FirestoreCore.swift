@@ -81,6 +81,9 @@ extension FirestoreService {
 
             let storiesSnapshot = try await db.collectionGroup("stories")
                 .whereField("chainId", isEqualTo: chainId)
+                .whereField("audience", isEqualTo: "everyone")
+                .order(by: "chainPosition")
+                .limit(to: StoryChainLimits.maxParts)
                 .getDocuments()
 
             let batch = db.batch()

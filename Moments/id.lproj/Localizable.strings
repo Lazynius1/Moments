@@ -87,10 +87,12 @@
 "storyChains.viewChain" = "Lihat Rangkaian";
 "storyChains.part" = "Bagian %d dari '%@'";
 "storyChains.partShort" = "Bagian %d";
+"storyChains.start" = "Awal";
+"storyChains.end" = "Akhir";
 "storyChains.previousPart" = "Bagian Sebelumnya";
 "storyChains.nextPart" = "Bagian Berikutnya";
 "storyChains.loading" = "Memuat rangkaian...";
-"storyChains.notFound" = "Tidak ada cerita dalam rangkaian ini";
+"storyChains.notFound" = "Rangkaian ini sudah tidak tersedia";
 "storyChains.parts" = "%d/%d bagian";
 "storyChains.expired" = "• Kedaluwarsa";
 "storyChains.chainLimit" = "Batas Rangkaian";

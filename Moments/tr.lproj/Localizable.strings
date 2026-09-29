@@ -87,10 +87,12 @@
 "storyChains.viewChain" = "Zinciri Görüntüle";
 "storyChains.part" = "'%@' zincirinin %d. bölümü";
 "storyChains.partShort" = "%d. bölüm";
+"storyChains.start" = "Başlangıç";
+"storyChains.end" = "Bitiş";
 "storyChains.previousPart" = "Önceki bölüm";
 "storyChains.nextPart" = "Sonraki bölüm";
 "storyChains.loading" = "Zincir yükleniyor...";
-"storyChains.notFound" = "Bu zincirde hikâye bulunamadı";
+"storyChains.notFound" = "Bu zincir artık kullanılamıyor";
 "storyChains.parts" = "%d/%d bölüm";
 "storyChains.expired" = "• Süresi doldu";
 "storyChains.chainLimit" = "Zincir sınırı";

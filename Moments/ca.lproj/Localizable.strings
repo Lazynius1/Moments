@@ -88,8 +88,10 @@
 "storyChains.viewChain" = "Veure Cadena";
 "storyChains.part" = "Part %d de '%@'";
 "storyChains.partShort" = "Part %d";
+"storyChains.start" = "Inici";
+"storyChains.end" = "Final";
 "storyChains.loading" = "Carregant cadena...";
-"storyChains.notFound" = "No s'han trobat històries en aquesta cadena";
+"storyChains.notFound" = "Aquesta cadena ja no està disponible";
 "storyChains.parts" = "%d/%d parts";
 "storyChains.expired" = "• Expirada";
 "storyChains.chainLimit" = "Límit de Cadena";

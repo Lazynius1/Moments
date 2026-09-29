@@ -87,10 +87,12 @@
 "storyChains.viewChain" = "Reeks bekijken";
 "storyChains.part" = "Deel %d van '%@'";
 "storyChains.partShort" = "Deel %d";
+"storyChains.start" = "Begin";
+"storyChains.end" = "Einde";
 "storyChains.previousPart" = "Vorig deel";
 "storyChains.nextPart" = "Volgend deel";
 "storyChains.loading" = "Reeks laden…";
-"storyChains.notFound" = "Geen verhalen gevonden in deze reeks";
+"storyChains.notFound" = "Deze reeks is niet meer beschikbaar";
 "storyChains.parts" = "%d/%d delen";
 "storyChains.expired" = "• Verlopen";
 "storyChains.chainLimit" = "Limiet van de reeks";

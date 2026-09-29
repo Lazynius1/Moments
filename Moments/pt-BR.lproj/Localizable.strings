@@ -89,8 +89,10 @@
 "storyChains.viewChain" = "Ver sequência";
 "storyChains.part" = "Parte %d de '%@'";
 "storyChains.partShort" = "Parte %d";
+"storyChains.start" = "Início";
+"storyChains.end" = "Final";
 "storyChains.loading" = "Carregando sequência...";
-"storyChains.notFound" = "Nenhum story encontrado nesta sequência";
+"storyChains.notFound" = "Esta sequência não está mais disponível";
 "storyChains.parts" = "%d/%d partes";
 "storyChains.expired" = "• Expirada";
 "storyChains.chainLimit" = "Limite da sequência";

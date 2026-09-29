@@ -87,10 +87,12 @@
 "storyChains.viewChain" = "查看接龍";
 "storyChains.part" = "「%@」的第 %d 段";
 "storyChains.partShort" = "第 %d 段";
+"storyChains.start" = "開始";
+"storyChains.end" = "結束";
 "storyChains.previousPart" = "上一段";
 "storyChains.nextPart" = "下一段";
 "storyChains.loading" = "載入接龍中…";
-"storyChains.notFound" = "找不到此接龍中的限時動態";
+"storyChains.notFound" = "此接龍已無法使用";
 "storyChains.parts" = "%d/%d 段";
 "storyChains.expired" = "• 已過期";
 "storyChains.chainLimit" = "接龍上限";

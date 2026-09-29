@@ -159,6 +159,15 @@ service cloud.firestore {
              );
     }
 
+    // Las cadenas son siempre públicas; la audiencia configurada solo limita
+    // quién puede añadir la siguiente parte.
+    function isPublicStoryChain() {
+      let chainId = resource.data.get('chainId', '');
+      return chainId is string &&
+             chainId != '' &&
+             resource.data.get('audience', '') == 'everyone';
+    }
+
     function isValidChatRecoveryBundle(data) {
       return data.keys().hasOnly([
                'keyId',
@@ -945,14 +954,15 @@ service cloud.firestore {
       // ✅ ACTUALIZADO: Reglas mejoradas para historias con audiencia personalizada
       match /stories/{storyId} {
         allow read: if request.auth != null &&
-                      canViewContentWithAudience(
+                      (isPublicStoryChain() ||
+                       canViewContentWithAudience(
                         request.auth.uid,
                         userId,
                         resource.data.get('audience', 'everyone'),
                         'story',
                         storyId,
                         resource.data.get('customListId', '')
-                      );
+                      ));
 
         allow create: if request.auth != null
                       && request.auth.uid == userId
@@ -2444,7 +2454,7 @@ service cloud.firestore {
       
       allow update: if request.auth != null
                     && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isActive', true)
-                    && (request.auth.uid == resource.data.createdBy ||
+                    && (request.auth.uid == resource.data.get('createdBy', resource.data.get('authorId', '')) ||
                         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['partCount', 'lastUpdated', 'isExpired', 'expiredAt', 'lastPartBy', 'lastPartUsername']) &&
                          request.resource.data.partCount is int &&
                          request.resource.data.partCount > 0 &&
@@ -2499,13 +2509,14 @@ service cloud.firestore {
     // ✅ NUEVA: Regla para collectionGroup queries de historias (Story Chains)
     match /{path=**}/stories/{storyId} {
       allow get: if request.auth != null &&
-                    canViewCollectionGroupContent(request.auth.uid, 'story', storyId);
+                    (isPublicStoryChain() ||
+                     canViewCollectionGroupContent(request.auth.uid, 'story', storyId));
       
-      // Keep collectionGroup list queries bounded and enforce the same
-      // per-document audience checks required for direct reads.
+      // Las cadenas se consultan con chainId y audience == 'everyone'; ese
+      // contrato permite demostrar que cada resultado es público.
       allow list: if request.auth != null &&
-                     request.query.limit <= 500 &&
-                     canViewCollectionGroupContent(request.auth.uid, 'story', storyId);
+                     request.query.limit <= 10 &&
+                     isPublicStoryChain();
     }
     
     // =====================================================================

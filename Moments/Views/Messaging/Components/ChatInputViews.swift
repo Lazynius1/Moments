@@ -253,6 +253,7 @@ struct GlassmorphicInputBar: View {
     @ObservedObject var voiceGestureState: VoiceRecordingGestureState
     var isKeyboardVisible: Bool = false
     var isTextFieldFocused: FocusState<Bool>.Binding
+    var composerFocusEpoch: Int = 0
     @State private var composerFocusRequest = 0
     let onCancelReply: () -> Void
     let onCancelEdit: () -> Void
@@ -332,18 +333,24 @@ struct GlassmorphicInputBar: View {
 
     var body: some View {
         // Mantener GlassEffectContainer estable durante el DragGesture del mic.
-        if #available(iOS 26.0, *) {
-            if separatesCancelTrashCircle {
-                // Lottie contiene una UIView. Dentro de GlassEffectContainer, el compositor
-                // nativo puede colocarla detrás de las superficies glass coordinadas.
-                inputRow
-            } else {
-                GlassEffectContainer(spacing: usesUnifiedComposerSurface ? 0 : (shouldCoordinateComposerGlass ? 10 : 0)) {
+        Group {
+            if #available(iOS 26.0, *) {
+                if separatesCancelTrashCircle {
+                    // Lottie contiene una UIView. Dentro de GlassEffectContainer, el compositor
+                    // nativo puede colocarla detrás de las superficies glass coordinadas.
                     inputRow
+                } else {
+                    GlassEffectContainer(spacing: usesUnifiedComposerSurface ? 0 : (shouldCoordinateComposerGlass ? 10 : 0)) {
+                        inputRow
+                    }
                 }
+            } else {
+                inputRow
             }
-        } else {
-            inputRow
+        }
+        .onChange(of: composerFocusEpoch) { _, epoch in
+            guard epoch > 0 else { return }
+            focusTextInputIfNeeded()
         }
     }
 

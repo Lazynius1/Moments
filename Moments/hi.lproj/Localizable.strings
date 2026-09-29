@@ -87,10 +87,12 @@
 "storyChains.viewChain" = "चेन देखें";
 "storyChains.part" = "'%@' का भाग %d";
 "storyChains.partShort" = "भाग %d";
+"storyChains.start" = "शुरुआत";
+"storyChains.end" = "अंत";
 "storyChains.previousPart" = "पिछला भाग";
 "storyChains.nextPart" = "अगला भाग";
 "storyChains.loading" = "चेन लोड हो रही है...";
-"storyChains.notFound" = "इस चेन में कोई स्टोरी नहीं मिली";
+"storyChains.notFound" = "यह चेन अब उपलब्ध नहीं है";
 "storyChains.parts" = "%d/%d भाग";
 "storyChains.expired" = "• खत्म हो गई";
 "storyChains.chainLimit" = "चेन की सीमा";

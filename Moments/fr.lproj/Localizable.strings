@@ -89,8 +89,10 @@
 "storyChains.viewChain" = "Voir la chaîne";
 "storyChains.part" = "Partie %d de '%@'";
 "storyChains.partShort" = "Partie %d";
+"storyChains.start" = "Début";
+"storyChains.end" = "Fin";
 "storyChains.loading" = "Chargement de la chaîne...";
-"storyChains.notFound" = "Aucune story trouvée dans cette chaîne";
+"storyChains.notFound" = "Cette chaîne n’est plus disponible";
 "storyChains.parts" = "%d/%d parties";
 "storyChains.expired" = "• Expirée";
 "storyChains.chainLimit" = "Limite de la chaîne";

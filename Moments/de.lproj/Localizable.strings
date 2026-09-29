@@ -89,8 +89,10 @@
 "storyChains.viewChain" = "Kette ansehen";
 "storyChains.part" = "Teil %d von '%@'";
 "storyChains.partShort" = "Teil %d";
+"storyChains.start" = "Anfang";
+"storyChains.end" = "Ende";
 "storyChains.loading" = "Kette wird geladen...";
-"storyChains.notFound" = "Keine Stories in dieser Kette gefunden";
+"storyChains.notFound" = "Diese Kette ist nicht mehr verfügbar";
 "storyChains.parts" = "%d/%d Teile";
 "storyChains.expired" = "• Abgelaufen";
 "storyChains.chainLimit" = "Kettenlimit";

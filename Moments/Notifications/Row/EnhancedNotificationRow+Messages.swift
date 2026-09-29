@@ -271,7 +271,7 @@ extension EnhancedNotificationRow {
                     ? "notifications.message.storyChain.creator.single"
                     : "notifications.message.storyChain.participant.single"
                 return styledNotificationMessage(
-                    String(format: NSLocalizedString(key, comment: "Single story chain continuation"), effectiveSenderUsername, chainTitle, totalParts),
+                    String(format: NSLocalizedString(key, comment: "Single story chain continuation"), effectiveSenderUsername, chainTitle, String(totalParts)),
                     boldNames: [effectiveSenderUsername],
                     nameToUserId: nameToUserId,
                     baseColor: messageColor

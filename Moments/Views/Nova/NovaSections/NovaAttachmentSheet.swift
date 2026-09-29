@@ -87,7 +87,6 @@ struct NovaAttachmentMenuPopover: View {
     @Binding var isPresented: NovaAttachmentSheetKind?
     let anchorFrame: CGRect
 
-    @Environment(\.colorScheme) private var colorScheme
     @State private var popoverSize = CGSize(
         width: NovaAttachmentMenuPopoverLayout.estimatedWidth,
         height: NovaAttachmentMenuPopoverLayout.estimatedHeight
@@ -114,8 +113,9 @@ struct NovaAttachmentMenuPopover: View {
             )
 
             ZStack {
-                Color.black.opacity(colorScheme == .dark ? 0.12 : 0.08)
+                Color.clear
                     .ignoresSafeArea()
+                    .contentShape(Rectangle())
                     .onTapGesture {
                         dismissMenu()
                     }
@@ -214,8 +214,10 @@ private struct NovaAttachmentMenuPopoverCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
-        .momentsChromeGlass(in: cardShape, interactive: true)
-        .clipShape(cardShape)
+        .background {
+            Color.clear
+                .momentsChromeGlass(in: cardShape, interactive: true, style: .tinted)
+        }
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
     }
 

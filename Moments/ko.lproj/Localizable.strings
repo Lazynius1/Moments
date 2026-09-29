@@ -87,10 +87,12 @@
 "storyChains.viewChain" = "체인 보기";
 "storyChains.part" = "‘%@’의 %d번째 파트";
 "storyChains.partShort" = "%d번째 파트";
+"storyChains.start" = "처음";
+"storyChains.end" = "끝";
 "storyChains.previousPart" = "이전 파트";
 "storyChains.nextPart" = "다음 파트";
 "storyChains.loading" = "체인 불러오는 중...";
-"storyChains.notFound" = "이 체인에서 스토리를 찾을 수 없어요";
+"storyChains.notFound" = "이 체인은 더 이상 사용할 수 없어요";
 "storyChains.parts" = "%d/%d파트";
 "storyChains.expired" = "• 만료됨";
 "storyChains.chainLimit" = "체인 한도";

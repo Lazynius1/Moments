@@ -135,13 +135,14 @@ struct ChatLocationMessageBubble: View {
                     .overlay { ProgressView() }
             }
 
-            // Marcador centrado: avatar para ubicación en vivo, pin para estática.
+            // Marcador centrado: tanto la ubicación fija como la live identifican
+            // al emisor con su avatar; solo la live detenida se oscurece.
             Group {
-                if isLive {
+                if !message.senderId.isEmpty {
                     LiveLocationAvatarPin(
                         senderId: message.senderId,
                         avatarSize: 40,
-                        isActive: isLiveActive
+                        isActive: !isLive || isLiveActive
                     )
                 } else {
                     Image(systemName: "mappin.circle.fill")
@@ -368,11 +369,11 @@ struct ChatLocationDetailView: View {
 
     @ViewBuilder
     private var locationMarker: some View {
-        if isLive, let senderId {
+        if let senderId, !senderId.isEmpty {
             LiveLocationAvatarPin(
                 senderId: senderId,
                 avatarSize: 48,
-                isActive: isLiveActive
+                isActive: !isLive || isLiveActive
             )
         } else {
             Image(systemName: "mappin.circle.fill")

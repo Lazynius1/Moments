@@ -87,10 +87,12 @@
 "storyChains.viewChain" = "チェーンを見る";
 "storyChains.part" = "「%@」の%d個目";
 "storyChains.partShort" = "%d個目";
+"storyChains.start" = "最初";
+"storyChains.end" = "最後";
 "storyChains.previousPart" = "前のパート";
 "storyChains.nextPart" = "次のパート";
 "storyChains.loading" = "チェーンを読み込み中…";
-"storyChains.notFound" = "このチェーンにストーリーはありません";
+"storyChains.notFound" = "このチェーンは利用できなくなりました";
 "storyChains.parts" = "%d/%dパート";
 "storyChains.expired" = "・期限切れ";
 "storyChains.chainLimit" = "チェーンの上限";

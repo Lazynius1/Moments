@@ -46,18 +46,8 @@ class StoryChainLimitsService: ObservableObject {
     
     // MARK: - Validar si se puede continuar una cadena
     func canContinueChain(chainId: String, userId: String) async throws -> Bool {
-        // 1. Verificar que la cadena existe y no ha expirado
-        let chainDoc = try await firestore.collection("storyChains").document(chainId).getDocument()
-        
-        guard chainDoc.exists,
-              let chainData = chainDoc.data(),
-              let createdAt = chainData["createdAt"] as? Timestamp else {
-            throw StoryChainLimitError.chainNotFound
-        }
-        
-        // Verificar si la cadena ha expirado (48 horas)
-        let expirationDate = Calendar.current.date(byAdding: .hour, value: StoryChainLimits.expirationHours, to: createdAt.dateValue()) ?? Date()
-        if Date() > expirationDate {
+        // 1. Verify the lifetime against part 1, not potentially stale metadata.
+        if try await getRemainingTime(chainId: chainId) <= 0 {
             throw StoryChainLimitError.chainExpired
         }
         
@@ -67,6 +57,9 @@ class StoryChainLimitsService: ObservableObject {
             storiesSnapshot = try await firestore
                 .collectionGroup("stories")
                 .whereField("chainId", isEqualTo: chainId)
+                .whereField("audience", isEqualTo: "everyone")
+                .order(by: "chainPosition")
+                .limit(to: StoryChainLimits.maxParts)
                 .getDocuments()
         } catch {
             throw error
@@ -80,6 +73,7 @@ class StoryChainLimitsService: ObservableObject {
         let userStoriesSnapshot = try await firestore
             .collectionGroup("stories")
             .whereField("chainId", isEqualTo: chainId)
+            .whereField("audience", isEqualTo: "everyone")
             .whereField("authorId", isEqualTo: userId)
             .order(by: "timestamp", descending: true)
             .limit(to: 1)
@@ -101,6 +95,7 @@ class StoryChainLimitsService: ObservableObject {
         let storiesSnapshot = try await firestore
             .collectionGroup("stories")
             .whereField("chainId", isEqualTo: chainId)
+            .whereField("audience", isEqualTo: "everyone")
             .order(by: "chainPosition", descending: true)
             .limit(to: 1)
             .getDocuments()
@@ -128,12 +123,28 @@ class StoryChainLimitsService: ObservableObject {
     
     // MARK: - Obtener tiempo restante de una cadena
     func getRemainingTime(chainId: String) async throws -> TimeInterval {
-        let chainDoc = try await firestore.collection("storyChains").document(chainId).getDocument()
-        
-        guard chainDoc.exists,
-              let chainData = chainDoc.data(),
-              let createdAt = chainData["createdAt"] as? Timestamp else {
-            throw StoryChainLimitError.chainNotFound
+        // The first part is authoritative. Global metadata remains a fallback
+        // for legacy chains that predate public story-chain reads.
+        let firstPart = try await firestore
+            .collectionGroup("stories")
+            .whereField("chainId", isEqualTo: chainId)
+            .whereField("audience", isEqualTo: "everyone")
+            .order(by: "chainPosition")
+            .limit(to: 1)
+            .getDocuments()
+
+        let createdAt: Timestamp
+        if let firstStory = firstPart.documents.first,
+           let timestamp = firstStory.data()["timestamp"] as? Timestamp {
+            createdAt = timestamp
+        } else {
+            let chainDoc = try await firestore.collection("storyChains").document(chainId).getDocument()
+            guard chainDoc.exists,
+                  let chainData = chainDoc.data(),
+                  let timestamp = chainData["createdAt"] as? Timestamp else {
+                throw StoryChainLimitError.chainNotFound
+            }
+            createdAt = timestamp
         }
         
         let expirationDate = Calendar.current.date(byAdding: .hour, value: StoryChainLimits.expirationHours, to: createdAt.dateValue()) ?? Date()
@@ -147,6 +158,9 @@ class StoryChainLimitsService: ObservableObject {
         let storiesSnapshot = try await firestore
             .collectionGroup("stories")
             .whereField("chainId", isEqualTo: chainId)
+            .whereField("audience", isEqualTo: "everyone")
+            .order(by: "chainPosition")
+            .limit(to: StoryChainLimits.maxParts)
             .getDocuments()
         
         let partCount = storiesSnapshot.documents.count
